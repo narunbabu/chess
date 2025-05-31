@@ -1,3 +1,4 @@
+
 modules = ["nodejs-20", "php-8.2", "web"]
 run = "cd chess-frontend && npm start"
 
@@ -5,7 +6,7 @@ run = "cd chess-frontend && npm start"
 channel = "stable-24_05"
 
 [deployment]
-run = ["sh", "-c", "node index.js"]
+run = ["sh", "-c", "cd chess-frontend && npm run build && cd ../chess-backend && php -S 0.0.0.0:5000 -t public"]
 
 [workflows]
 runButton = "Frontend Dev"
@@ -17,21 +18,43 @@ mode = "sequential"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd chess-frontend && npm start"
+args = "cd chess-frontend && npm install && npm start"
+
+[[workflows.workflow]]
+name = "Backend Dev"
+author = 43293924
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd chess-backend && php -S 0.0.0.0:8000 -t public"
 
 [[workflows.workflow]]
 name = "Full Stack"
 author = 43293924
-mode = "parallel"
+mode = "sequential"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd chess-frontend && npm start"
+args = "cd chess-backend && php -S 0.0.0.0:8000 -t public > /dev/null 2>&1 &"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd chess-backend && php artisan serve --host=0.0.0.0 --port=8000"
+args = "cd chess-frontend && npm install && REACT_APP_API_URL=http://localhost:8000 npm start"
+
+[[workflows.workflow]]
+name = "Start Backend"
+author = 43293924
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd chess-backend && php -S 0.0.0.0:8000 -t public"
 
 [[ports]]
-localPort = 5000
+localPort = 3000
 externalPort = 80
+
+[[ports]]
+localPort = 8000
+externalPort = 8000

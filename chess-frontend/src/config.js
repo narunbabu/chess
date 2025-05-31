@@ -1,4 +1,3 @@
-
 export const BACKEND_URL = process.env.NODE_ENV === 'production' 
   ? 'https://your-backend-domain.com' 
   : 'http://localhost:8000';
