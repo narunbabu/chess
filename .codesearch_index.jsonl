@@ -1,0 +1,174 @@
+{"p": "dump_prog_full_20250412_0628.json", "s": ""}
+{"p": "dump_prog_full_20250410_2017.json", "s": ""}
+{"p": "dump_prog_chess_2025-04-01T16-25-51.json", "s": ""}
+{"p": "dump_prog_chess.json", "s": ""}
+{"p": "dump_prog_chess copy.json", "s": ""}
+{"p": "dump_prog_chess copy 2.json", "s": ""}
+{"p": "code_related_to_gamehistory.txt", "s": ""}
+{"p": "project_summary.md", "s": "# Project Summary"}
+{"p": "package.json", "s": ""}
+{"p": "package-lock.json", "s": ""}
+{"p": "extractFilesContent.js", "s": ""}
+{"p": "dump_prog_full_20250412_2224.json", "s": ""}
+{"p": "dump_prog_full_20250412_1155.json", "s": ""}
+{"p": "howto.md", "s": ""}
+{"p": "learn-api\\vite.config.js", "s": ""}
+{"p": "chess\\yarn.lock", "s": ""}
+{"p": "learn-api\\tests\\Unit\\ExampleTest.php", "s": ""}
+{"p": "learn-api\\tests\\TestCase.php", "s": ""}
+{"p": "chess\\src\\utils\\trainingExercises.js", "s": "// src/utils/trainingExercises.js"}
+{"p": "chess\\src\\utils\\timerUtils.js", "s": "// In src/utils/timerUtils.js"}
+{"p": "chess\\src\\utils\\gameStateUtils.js", "s": "// src/utils/gameStateUtils.js"}
+{"p": "chess\\src\\utils\\gameHistoryUtils.js", "s": "// src/utils/gameHistoryUtils.js"}
+{"p": "chess\\src\\utils\\gameHistoryStringUtils.js", "s": "// File: src/utils/gameHistoryStringUtils.js"}
+{"p": "chess\\src\\utils\\evaluate.js", "s": "// src/ustils/evaluate.js /**"}
+{"p": "chess\\src\\utils\\computerMoveUtils.js", "s": "// src/utils/computerMoveUtils.js"}
+{"p": "chess\\src\\stockfish.worker.js", "s": "// If the npm module \u201cstockfish\u201d works in your environment, try:"}
+{"p": "chess\\src\\App.js", "s": ""}
+{"p": "learn-api\\tests\\Feature\\ExampleTest.php", "s": ""}
+{"p": "chess\\src\\services\\gameHistoryService.js", "s": "// This service handles saving and retrieving game history // In a real application, this would connect to a backend API // For now, we'll use localStorage for persistence"}
+{"p": "chess\\src\\services\\api.js", "s": "// // src/services/api.js"}
+{"p": "chess\\public\\stockfish.js", "s": ""}
+{"p": "chess\\public\\index.html", "s": ""}
+{"p": "chess\\public\\gif.worker.js", "s": "// gif.worker.js 0.2.0 - https://github.com/jnordberg/gif.js"}
+{"p": "chess\\public\\chess99.ico", "s": ""}
+{"p": "chess\\pnpm-lock.yaml", "s": ""}
+{"p": "chess\\src\\pages\\Login.js", "s": "// src/pages/Login.js;"}
+{"p": "chess\\src\\pages\\LandingPage.js", "s": "// src/pages/LandingPage.js"}
+{"p": "chess\\src\\index.js", "s": ""}
+{"p": "chess\\src\\index.css", "s": "/* src/index.css */"}
+{"p": "chess\\src\\contexts\\AuthContext.js", "s": "// src/contexts/AuthContext.js"}
+{"p": "chess\\src\\config.js", "s": "// src/config.js"}
+{"p": "learn-api\\storage\\logs\\.gitignore", "s": ""}
+{"p": "chess\\src\\components\\TrainingHub.js", "s": ""}
+{"p": "chess\\src\\components\\TrainingExercise.js", "s": ""}
+{"p": "chess\\imp_unused\\src copy\\utils\\trainingExercises.js", "s": "// src/utils/trainingExercises.js"}
+{"p": "chess\\imp_unused\\src copy\\utils\\timerUtils.js", "s": ""}
+{"p": "chess\\imp_unused\\src copy\\utils\\gameStateUtils.js", "s": ""}
+{"p": "chess\\imp_unused\\src copy\\utils\\gameHistoryUtils.js", "s": "// src/utils/gameHistoryUtils.js"}
+{"p": "chess\\imp_unused\\src copy\\utils\\gameHistoryStringUtils.js", "s": "// File: src/utils/gameHistoryStringUtils.js"}
+{"p": "chess\\imp_unused\\src copy\\utils\\evaluate.js", "s": "// src/ustils/evaluate.js /**"}
+{"p": "chess\\imp_unused\\src copy\\utils\\computerMoveUtils.js", "s": ""}
+{"p": "chess\\src\\components\\play\\TimerDisplay.js", "s": ""}
+{"p": "chess\\src\\components\\play\\TimerButton.js", "s": "/*"}
+{"p": "chess\\src\\components\\play\\ScoreDisplay.js", "s": ""}
+{"p": "chess\\src\\components\\play\\PlayComputer.js", "s": "// src/components/play/PlayComputer.js"}
+{"p": "chess\\src\\components\\play\\PawnColorSwitch.js", "s": ""}
+{"p": "chess\\src\\components\\play\\GameInfo.js", "s": "/*"}
+{"p": "chess\\src\\components\\play\\GameControls.js", "s": "// src/components/play/GameControls.js"}
+{"p": "chess\\src\\components\\play\\DifficultyMeter.js", "s": "// src/components/play/DifficultyMeter.js"}
+{"p": "chess\\src\\components\\play\\ChessBoard.js", "s": "// src/components/play/ChessBoard.js"}
+{"p": "chess\\src\\components\\GameReview.js", "s": "// src/components/GameReview.js"}
+{"p": "chess\\src\\components\\GameHistory.js", "s": "// export default GameHistory;"}
+{"p": "chess\\src\\components\\GameCompletionAnimation.js", "s": "// src/components/GameCompletionAnimation.js"}
+{"p": "chess\\src\\components\\GameCompletionAnimation.css", "s": "/* --- CSS Variables --- */"}
+{"p": "chess\\src\\components\\Dashboard.js", "s": "// export default Dashboard;"}
+{"p": "chess\\src\\components\\Dashboard.css", "s": ""}
+{"p": "chess\\src\\components\\Countdown.js", "s": "// chess-trainer/src/components/Countdown.js"}
+{"p": "chess\\imp_unused\\src copy\\services\\gameHistoryService.js", "s": "// This service handles saving and retrieving game history // In a real application, this would connect to a backend API // For now, we'll use localStorage for persistence"}
+{"p": "chess\\imp_unused\\src copy\\services\\api.js", "s": "// // src/services/api.js"}
+{"p": "chess\\src\\components\\auth\\SocialLogin.js", "s": "// src/components/auth/SocialLogin.jsx"}
+{"p": "chess\\src\\components\\auth\\Login.js", "s": ""}
+{"p": "chess\\src\\components\\auth\\Login.css", "s": ""}
+{"p": "chess\\src\\components\\auth\\AuthCallback.js", "s": "// src/components/auth/AuthCallback.js"}
+{"p": "learn-api\\config\\session.php", "s": ""}
+{"p": "learn-api\\config\\services.php", "s": ""}
+{"p": "learn-api\\config\\sanctum.php", "s": ""}
+{"p": "learn-api\\config\\queue.php", "s": ""}
+{"p": "learn-api\\config\\mail.php", "s": ""}
+{"p": "learn-api\\config\\logging.php", "s": ""}
+{"p": "learn-api\\config\\filesystems.php", "s": ""}
+{"p": "learn-api\\config\\database.php", "s": ""}
+{"p": "learn-api\\config\\cache.php", "s": ""}
+{"p": "learn-api\\config\\auth.php", "s": ""}
+{"p": "learn-api\\config\\app.php", "s": ""}
+{"p": "learn-api\\composer.phar", "s": ""}
+{"p": "learn-api\\composer.lock", "s": ""}
+{"p": "learn-api\\composer.json", "s": ""}
+{"p": "chess\\src\\assets\\sounds\\move.mp3", "s": ""}
+{"p": "chess\\src\\assets\\sounds\\game-end.mp3", "s": ""}
+{"p": "chess\\src\\assets\\sounds\\check.mp3", "s": ""}
+{"p": "learn-api\\bootstrap\\providers.php", "s": ""}
+{"p": "chess\\src\\assets\\images\\roundlogo.png", "s": ""}
+{"p": "chess\\src\\assets\\images\\logo.png", "s": ""}
+{"p": "chess\\src\\assets\\images\\ico_make.py", "s": ""}
+{"p": "chess\\src\\assets\\images\\crown-logo.png", "s": ""}
+{"p": "chess\\src\\assets\\images\\crown-logo-transp.png", "s": ""}
+{"p": "chess\\src\\assets\\images\\crown-logo-bw.png", "s": ""}
+{"p": "chess\\src\\assets\\images\\chess99.ico", "s": ""}
+{"p": "chess\\src\\assets\\images\\chess-overlay.png", "s": ""}
+{"p": "chess\\src\\assets\\images\\chess-overlay-king-queen.png", "s": ""}
+{"p": "learn-api\\.gitignore", "s": ""}
+{"p": "learn-api\\.gitattributes", "s": ""}
+{"p": "learn-api\\app\\Providers\\RouteServiceProvider.php", "s": ""}
+{"p": "learn-api\\app\\Providers\\AppServiceProvider.php", "s": ""}
+{"p": "learn-api\\storage\\framework\\views\\.gitignore", "s": ""}
+{"p": "learn-api\\app\\Models\\User.php", "s": ""}
+{"p": "learn-api\\app\\Models\\GameHistory.php", "s": ""}
+{"p": "learn-api\\artisan", "s": "#!/usr/bin/env php"}
+{"p": "learn-api\\bootstrap\\app.php", "s": ""}
+{"p": "learn-api\\read.me", "s": ""}
+{"p": "learn-api\\app\\Http\\Controllers\\Controller.php", "s": ""}
+{"p": "learn-api\\bootstrap\\cache\\.gitignore", "s": ""}
+{"p": "learn-api\\phpunit.xml", "s": ""}
+{"p": "learn-api\\package.json", "s": ""}
+{"p": "learn-api\\learn-laravel.zip", "s": ""}
+{"p": "learn-api\\public\\robots.txt", "s": ""}
+{"p": "learn-api\\public\\index.php", "s": ""}
+{"p": "learn-api\\public\\favicon.ico", "s": ""}
+{"p": "learn-api\\public\\.htaccess", "s": ""}
+{"p": "learn-api\\app\\Http\\Controllers\\Auth\\SocialAuthController.php", "s": ""}
+{"p": "chess\\imp_unused\\src copy\\App.js", "s": "// // src/App.js;"}
+{"p": "chess\\doc.md", "s": ""}
+{"p": "chess\\.gitignore", "s": "# Node modules"}
+{"p": "learn-api\\images\\logo.webp", "s": ""}
+{"p": "learn-api\\images\\logo.png", "s": ""}
+{"p": "learn-api\\resources\\views\\welcome.blade.php", "s": ""}
+{"p": "learn-api\\resources\\js\\bootstrap.js", "s": ""}
+{"p": "learn-api\\resources\\js\\app.js", "s": ""}
+{"p": "learn-api\\resources\\css\\app.css", "s": ""}
+{"p": "learn-api\\README.md", "s": ""}
+{"p": "learn-api\\storage\\app\\.gitignore", "s": ""}
+{"p": "learn-api\\storage\\app\\public\\.gitignore", "s": ""}
+{"p": "learn-api\\routes\\web.php", "s": ""}
+{"p": "learn-api\\routes\\console.php", "s": ""}
+{"p": "learn-api\\routes\\api.php", "s": ""}
+{"p": "learn-api\\app\\Http\\Controllers\\Api\\GameHistoryController.php", "s": ""}
+{"p": "learn-api\\database\\seeders\\DatabaseSeeder.php", "s": ""}
+{"p": "learn-api\\database\\migrations\\2025_03_15_180745_create_personal_access_tokens_table.php", "s": ""}
+{"p": "learn-api\\database\\migrations\\2025_03_15_172924_create_game_histories_table.php", "s": ""}
+{"p": "learn-api\\database\\migrations\\2025_03_15_004921_add_social_auth_fields_to_users_table.php", "s": ""}
+{"p": "learn-api\\database\\migrations\\0001_01_01_000002_create_jobs_table.php", "s": ""}
+{"p": "learn-api\\database\\migrations\\0001_01_01_000001_create_cache_table.php", "s": ""}
+{"p": "learn-api\\database\\migrations\\0001_01_01_000000_create_users_table.php", "s": ""}
+{"p": "learn-api\\storage\\app\\private\\.gitignore", "s": ""}
+{"p": "learn-api\\database\\factories\\UserFactory.php", "s": ""}
+{"p": "learn-api\\database\\.gitignore", "s": ""}
+{"p": "learn-api\\storage\\framework\\.gitignore", "s": ""}
+{"p": "learn-api\\storage\\framework\\cache\\.gitignore", "s": ""}
+{"p": "learn-api\\storage\\framework\\cache\\data\\.gitignore", "s": ""}
+{"p": "learn-api\\storage\\framework\\sessions\\.gitignore", "s": ""}
+{"p": "chess\\imp_unused\\src copy\\config.js", "s": "// src/config.js"}
+{"p": "chess\\imp_unused\\src copy\\pages\\Login.js", "s": "// src/pages/Login.js;"}
+{"p": "chess\\imp_unused\\src copy\\pages\\Dashboard.js", "s": "// src/pages/Dashboard.js"}
+{"p": "chess\\imp_unused\\src copy\\index.js", "s": ""}
+{"p": "chess\\imp_unused\\src copy\\index.css", "s": ""}
+{"p": "learn-api\\storage\\framework\\testing\\.gitignore", "s": ""}
+{"p": "chess\\imp_unused\\src copy\\components\\TrainingHub.js", "s": ""}
+{"p": "chess\\imp_unused\\src copy\\components\\TrainingExercise.js", "s": ""}
+{"p": "chess\\imp_unused\\src copy\\components\\PublicTest.js", "s": "// src/components/PublicTest.js"}
+{"p": "chess\\imp_unused\\src copy\\components\\GameCompletionAnimation.js", "s": "// src/components/"}
+{"p": "chess\\imp_unused\\src copy\\components\\Countdown.js", "s": "// chess-trainer/src/components/Countdown.js"}
+{"p": "chess\\imp_unused\\src copy\\components\\auth\\SocialLogin.js", "s": "// src/components/auth/SocialLogin.jsx"}
+{"p": "chess\\imp_unused\\src copy\\components\\auth\\AuthCallback.js", "s": "// src/components/auth/AuthCallback.js"}
+{"p": "chess\\imp_unused\\src copy\\components\\play\\GameInfo.js", "s": ""}
+{"p": "chess\\imp_unused\\src copy\\components\\play\\GameControls.js", "s": ""}
+{"p": "chess\\imp_unused\\src copy\\components\\play\\ChessBoard.js", "s": "// import React, { useEffect } from \"react\"; // import { Chess } from \"chess.js\"; // import { Chessboard } from \"react-chessboard\";"}
+{"p": "chess\\imp_unused\\src copy\\components\\GameReview.js", "s": "// src/components/GameReview.js"}
+{"p": "chess\\imp_unused\\src copy\\components\\GameHistory.js", "s": "// // export default GameHistory;"}
+{"p": "chess\\imp_unused\\src copy\\components\\play\\ScoreDisplay.js", "s": "// // src\\components\\play\\ScoreDisplay.js // import React from \"react\";"}
+{"p": "chess\\imp_unused\\src copy\\components\\play\\PlayComputer.js", "s": "// export default PlayComputer;"}
+{"p": "chess\\imp_unused\\src copy\\components\\play\\TimerButton.js", "s": ""}
+{"p": "chess\\imp_unused\\src copy\\components\\play\\TimerDisplay.js", "s": ""}
+{"p": "learn-api\\.env.example", "s": ""}
+{"p": "learn-api\\.editorconfig", "s": ""}

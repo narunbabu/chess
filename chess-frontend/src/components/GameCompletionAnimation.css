@@ -1,0 +1,272 @@
+/* --- CSS Variables --- */
+:root {
+  --color-win-bg: rgba(46, 204, 113, 0.85); /* Slightly transparent green */
+  --color-loss-bg: rgba(231, 76, 60, 0.85); /* Slightly transparent red */
+  --color-win-accent: #27ae60;             /* Solid green */
+  --color-loss-accent: #c0392b;            /* Solid red */
+  --color-card-bg: #ffffff;               /* Solid white card for contrast */
+  --color-text-dark: #34495e;              /* Dark blue-grey for text */
+  --color-text-medium: #7f8c8d;            /* Medium grey for secondary text */
+  --color-text-light: #ffffff;             /* Light text (use carefully) */
+  --color-primary: #16213e;                /* Primary button color (dark blue) */
+  --color-secondary: #2980b9;             /* Secondary button color (blue) */
+  --color-tertiary: #8e44ad;              /* Tertiary button color (purple) */
+  --border-radius-card: 16px;
+  --border-radius-btn: 8px;
+  --box-shadow-card: 0 12px 35px rgba(0, 0, 0, 0.15);
+  --box-shadow-btn-hover: 0 6px 15px rgba(0, 0, 0, 0.15);
+  --font-family-sans: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; /* Example modern font stack */
+}
+
+/* --- Overlay --- */
+.completion-overlay {
+  position: fixed;
+  inset: 0; /* Replaces top, left, right, bottom: 0 */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  background-color: rgba(0, 0, 0, 0.4); /* Default darker overlay */
+  opacity: 0;
+  transition: opacity 0.4s ease-in-out, background-color 0.4s ease-in-out;
+}
+
+.completion-overlay.win {
+  background-color: var(--color-win-bg);
+}
+
+.completion-overlay.loss {
+  background-color: var(--color-loss-bg);
+}
+
+.completion-overlay.visible {
+  opacity: 1;
+}
+
+/* --- Card --- */
+.completion-card {
+  background: var(--color-card-bg);
+  border-radius: var(--border-radius-card);
+  padding: 30px 40px; /* Adjusted padding */
+  width: 90%;
+  max-width: 480px; /* Slightly adjusted max-width */
+  text-align: center;
+  box-shadow: var(--box-shadow-card);
+  transform: scale(0.9) translateY(20px); /* Start slightly scaled down and offset */
+  opacity: 0;
+  transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.4s ease-out; /* Smoother cubic-bezier transition */
+  position: relative; /* For potential absolute positioning inside (like close button) */
+}
+
+.completion-card.visible {
+  transform: scale(1) translateY(0);
+  opacity: 1;
+}
+
+/* --- Card Content --- */
+.result-icon {
+  font-size: 4.5rem; /* Slightly larger icon */
+  margin-bottom: 15px;
+  line-height: 1;
+  animation: bounce 1.2s ease-in-out infinite;
+}
+
+.result-icon.win {
+  color: var(--color-win-accent);
+}
+
+.result-icon.loss {
+  color: var(--color-loss-accent);
+}
+
+.result-title {
+  font-family: var(--font-family-sans);
+  font-size: 2.2rem; /* Slightly adjusted size */
+  font-weight: 600;
+  margin: 0 0 15px 0;
+  color: var(--color-text-dark); /* Dark text for high contrast on white card */
+  /* Removed pulse animation for cleaner look, can be added back if desired */
+}
+
+.result-details {
+  margin: 20px 0;
+  border-top: 1px solid #eee; /* Separator */
+  border-bottom: 1px solid #eee; /* Separator */
+  padding: 20px 0;
+}
+
+.result-text {
+  font-family: var(--font-family-sans);
+  font-size: 1.1rem;
+  color: var(--color-text-medium); /* Medium grey for result details */
+  margin-bottom: 15px;
+  line-height: 1.5;
+}
+
+.score-display {
+  font-family: var(--font-family-sans);
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-top: 10px;
+  color: var(--color-text-dark); /* Base score text color */
+}
+
+.score-display .positive {
+  color: var(--color-win-accent);
+}
+
+.score-display .negative {
+  color: var(--color-loss-accent);
+}
+
+/* --- Action Buttons & Sections --- */
+.completion-actions {
+  margin-top: 25px;
+  margin-bottom: 20px;
+}
+
+.login-prompt {
+  margin-top: 15px;
+}
+
+.login-prompt p {
+  font-family: var(--font-family-sans);
+  color: var(--color-text-medium);
+  margin-bottom: 15px;
+  font-size: 0.95rem;
+}
+
+.login-buttons {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+}
+
+.completion-additional-buttons {
+  margin-top: 20px;
+  display: flex;
+  flex-wrap: wrap; /* Allow wrapping on smaller screens */
+  justify-content: center;
+  gap: 15px;
+}
+
+/* --- General Button Styling --- */
+.btn {
+  font-family: var(--font-family-sans);
+  padding: 10px 20px;
+  border: none;
+  border-radius: var(--border-radius-btn);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  display: inline-block; /* Ensure buttons behave predictably */
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--box-shadow-btn-hover);
+}
+
+.btn:active {
+  transform: translateY(0px);
+  box-shadow: none;
+}
+
+/* Specific Button Colors */
+.btn-primary {
+  background-color: var(--color-primary);
+  color: var(--color-text-light);
+}
+.btn-primary:hover {
+  background-color: #1a2b4e; /* Slightly lighter primary on hover */
+}
+
+.btn-secondary {
+  background-color: var(--color-secondary);
+  color: var(--color-text-light);
+}
+.btn-secondary:hover {
+  background-color: #3498db; /* Slightly lighter secondary on hover */
+}
+
+.btn-tertiary {
+  background-color: var(--color-tertiary);
+  color: var(--color-text-light);
+}
+.btn-tertiary:hover {
+  background-color: #9b59b6; /* Slightly lighter tertiary on hover */
+}
+
+
+/* Ensure the main continue button takes full width if needed */
+.btn-continue {
+   width: 80%; /* Example: make it wider */
+   max-width: 300px;
+}
+
+
+/* --- Close Button (Optional) --- */
+.close-button {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    background: none;
+    border: none;
+    font-size: 1.8rem;
+    color: var(--color-text-medium);
+    cursor: pointer;
+    padding: 5px;
+    line-height: 1;
+    transition: color 0.2s ease;
+}
+.close-button:hover {
+    color: var(--color-text-dark);
+}
+
+
+/* --- Animations --- */
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-12px); /* Slightly larger bounce */
+  }
+}
+
+/* Optional: Re-add pulse if desired */
+/* @keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+} */
+
+/* --- Responsiveness (Basic Example) --- */
+@media (max-width: 500px) {
+  .completion-card {
+    padding: 25px 20px; /* Reduce padding on small screens */
+    max-width: 95%;
+  }
+
+  .result-title {
+    font-size: 1.8rem;
+  }
+
+  .result-icon {
+    font-size: 3.5rem;
+  }
+
+  .score-display {
+    font-size: 1.5rem;
+  }
+
+  .btn {
+    font-size: 0.9rem;
+    padding: 8px 16px;
+  }
+
+  .completion-additional-buttons,
+  .login-buttons {
+      gap: 10px; /* Reduce gap between buttons */
+  }
+}
