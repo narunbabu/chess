@@ -1,4 +1,3 @@
-
 // src/components/play/PlayComputer.js
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
@@ -140,7 +139,7 @@ const PlayComputer = () => {
             final_score: positiveScore,
             result: resultText,
         };
-        
+
 
         // Local Save (using service if available)
         const localSaveData = {
@@ -319,7 +318,7 @@ const PlayComputer = () => {
         // TimerButton useEffect will set color to yellow based on this flag
 
         try {
-          
+
 
           // Call the utility function to get Stockfish's move based on time control
           // This function now handles the engine interaction and returns actual thinking time
@@ -333,7 +332,7 @@ const PlayComputer = () => {
            // Double-check game state *after* the async calculation returns
            // In case the game was reset, ended, or switched to replay while waiting
            if (gameOver || !gameStarted || isReplayMode) {
-                
+
                 setComputerMoveInProgress(false);
                 return; // Exit early
             }
@@ -347,13 +346,13 @@ const PlayComputer = () => {
             const delayNeeded = Math.max(0, MIN_PERCEIVED_COMPUTER_THINK_TIME - thinkingTime);
 
             if (delayNeeded > 0) {
-              
+
               // Wait for the calculated delay duration
               await new Promise((res) => setTimeout(res, delayNeeded));
 
                // Check state *again* after the artificial delay
                if (gameOver || !gameStarted || isReplayMode) {
-                    
+
                     setComputerMoveInProgress(false);
                     return; // Exit early
                }
@@ -589,32 +588,21 @@ const PlayComputer = () => {
     }, [gameStarted, countdownActive]); // Correct dependencies
 
    const onCountdownFinish = useCallback(() => {
-        // Initializes game state when countdown finishes
-        console.log("Starting game...");
-        setGameStarted(true);
         setCountdownActive(false);
-        previousGameStateRef.current = new Chess(); // Initial state for history
-        setGameHistory([]);
+        setGameStarted(true);
         setMoveCount(0);
-        setGameOver(false);
-        setPlayerScore(0);
-        setLastMoveEvaluation(null);
-        setGame(new Chess()); // Reset board to starting position
-        resetTimer(); // Reset timer values (ensure useGameTimer provides initial values)
-        // Optionally set time based on difficulty here if needed using setPlayerTime/setComputerTime
-        setActiveTimer("w"); // White always starts
-        startTimerInterval(); // Start the first timer (White's timer)
-        if (playerColor === "w") {
-            // If player is White, record their move start time immediately
-            moveStartTimeRef.current = Date.now();
+        const initialActivePlayer = playerColor;
+        setActiveTimer(initialActivePlayer);
+        startTimerInterval();
+        moveStartTimeRef.current = Date.now();
+        console.log("Game started!");
+    }, [playerColor, startTimerInterval]);
+
+   const handleStartGame = useCallback(() => {
+        if (!gameStarted && !countdownActive) {
+            setCountdownActive(true);
         }
-        setMoveCompleted(false); // No move made yet
-    }, [ // Dependencies for onCountdownFinish
-        playerColor, // Read
-        setActiveTimer, startTimerInterval, resetTimer, // Stable from hook
-        setGameStarted, setCountdownActive, setGameHistory, setMoveCount, setGameOver, // Stable setters
-        setPlayerScore, setLastMoveEvaluation, setGame, setMoveCompleted // Stable setters
-    ]);
+    }, [gameStarted, countdownActive]);
 
     const resetGame = useCallback(() => {
         // Resets the entire game state back to the pre-game setup screen
@@ -960,7 +948,7 @@ const PlayComputer = () => {
               <span>⚙️</span>
               Game Setup
             </h3>
-            
+
             {!gameStarted && !isReplayMode && (
               <div style={difficultyContainerStyle}>
                 <div style={{marginBottom: '1rem', width: '100%'}}>
@@ -1042,7 +1030,7 @@ const PlayComputer = () => {
               <Countdown onFinish={onCountdownFinish} />
             </div>
           )}
-          
+
           <div style={{
             background: '#ffffff',
             borderRadius: '20px',
