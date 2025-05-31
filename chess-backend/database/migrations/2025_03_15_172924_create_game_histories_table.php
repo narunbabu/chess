@@ -9,17 +9,25 @@ return new class extends Migration {
     {
         Schema::create('game_histories', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('user_id')->nullable(); // allow null for guest play
-            $table->dateTime('played_at');
-            $table->string('player_color', 1);
-            $table->integer('computer_level');
-            $table->text('moves');
-            $table->float('final_score');
-            $table->string('result');
+            $table->foreignId('user_id')->nullable()->constrained()->onDelete('cascade');
+            $table->text('pgn');
+            $table->string('result'); // 'win', 'loss', 'draw'
+            $table->integer('moves');
+            $table->integer('duration'); // in seconds
+            $table->json('metadata')->nullable(); // opening, difficulty, etc.
+            $table->string('share_token', 32)->unique()->nullable();
+            $table->string('gif_url')->nullable();
+            $table->string('video_url')->nullable();
+            $table->integer('credits_wagered')->default(0);
+            $table->integer('credits_won')->default(0);
+            $table->enum('opponent_type', ['stockfish', 'llm', 'human', 'guest'])->default('stockfish');
+            $table->string('opponent_name')->nullable();
+            $table->integer('difficulty_level')->default(1);
+            $table->boolean('is_guest_game')->default(false);
             $table->timestamps();
 
-            // If the user is registered, set up a foreign key
-            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+            $table->index(['share_token']);
+            $table->index(['user_id', 'created_at']);
         });
     }
 

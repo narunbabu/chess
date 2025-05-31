@@ -1,3 +1,4 @@
+
 <?php
 
 namespace App\Http\Controllers\Auth;
@@ -10,9 +11,17 @@ use Illuminate\Http\Request;
 
 class SocialAuthController extends Controller
 {
-    public function redirect($provider)
+    public function redirect($provider, Request $request)
     {
-        return Socialite::driver($provider)->redirect();
+        $refCode = $request->query('ref');
+        
+        $redirectUrl = Socialite::driver($provider)->redirect()->getTargetUrl();
+        
+        if ($refCode) {
+            session(['ref_code' => $refCode]);
+        }
+        
+        return redirect($redirectUrl);
     }
 
     public function callback($provider)
@@ -20,21 +29,42 @@ class SocialAuthController extends Controller
         try {
             $socialUser = Socialite::driver($provider)->user();
             
-            $user = User::firstOrCreate(
-                ['email' => $socialUser->getEmail()],
-                [
+            $user = User::where('email', $socialUser->getEmail())->first();
+            $isNewUser = false;
+            
+            if (!$user) {
+                $isNewUser = true;
+                $user = User::create([
                     'name' => $socialUser->getName(),
+                    'email' => $socialUser->getEmail(),
                     'provider' => $provider,
-                    'provider_id' => $socialUser->getId()
-                ]
-            );
+                    'provider_id' => $socialUser->getId(),
+                    'credits' => 100, // Welcome bonus
+                    'referred_by' => session('ref_code')
+                ]);
+
+                // Give referral bonus
+                if (session('ref_code')) {
+                    $referrer = User::where('ref_code', session('ref_code'))->first();
+                    if ($referrer) {
+                        $referrer->addCredits(25, 'referral', 'Referred ' . $user->name);
+                        $user->addCredits(25, 'referral', 'Referred by ' . $referrer->name);
+                    }
+                    session()->forget('ref_code');
+                }
+            }
 
             $token = $user->createToken('auth_token')->plainTextToken;
 
-            return redirect(config('app.frontend_url').'/auth/callback?token='.$token);
+            $redirectUrl = config('app.frontend_url') . '/auth/callback?token=' . $token;
+            if ($isNewUser) {
+                $redirectUrl .= '&new_user=1';
+            }
+
+            return redirect($redirectUrl);
             
         } catch (\Exception $e) {
-            return redirect(config('app.frontend_url').'/login?error=social_login_failed');
+            return redirect(config('app.frontend_url') . '/login?error=social_login_failed');
         }
     }
 }

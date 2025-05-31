@@ -1,0 +1,41 @@
+
+.credit-display {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  background: linear-gradient(135deg, #ffd700, #ffed4e);
+  border-radius: 15px;
+  color: #333;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.credit-display.small {
+  padding: 3px 8px;
+  font-size: 0.8rem;
+}
+
+.credit-display.large {
+  padding: 8px 15px;
+  font-size: 1.2rem;
+}
+
+.credit-icon {
+  font-size: 1.1em;
+}
+
+.credit-amount {
+  font-weight: 700;
+}
+
+.credit-label {
+  font-size: 0.9em;
+  opacity: 0.8;
+}
+
+@media (max-width: 768px) {
+  .credit-display .credit-label {
+    display: none;
+  }
+}

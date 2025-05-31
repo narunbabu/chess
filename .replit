@@ -6,3 +6,28 @@ channel = "stable-24_05"
 
 [deployment]
 run = ["sh", "-c", "node index.js"]
+
+[workflows]
+runButton = "Full Stack"
+
+[[workflows.workflow]]
+name = "Frontend Dev"
+author = 43293924
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd chess-frontend && npm start"
+
+[[workflows.workflow]]
+name = "Full Stack"
+author = 43293924
+mode = "parallel"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd chess-frontend && npm start"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd chess-backend && php artisan serve --host=0.0.0.0 --port=8000"

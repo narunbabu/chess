@@ -1,10 +1,14 @@
-// src/components/auth/SocialLogin.jsx
+
 import React from "react";
 import { BACKEND_URL } from "../../config";
 
-const SocialLogin = () => {
+const SocialLogin = ({ refCode }) => {
   const handleSocialLogin = (provider) => {
-    window.location.href = `${BACKEND_URL}/auth/${provider}/redirect`;
+    let url = `${BACKEND_URL}/api/auth/${provider}/redirect`;
+    if (refCode) {
+      url += `?ref=${refCode}`;
+    }
+    window.location.href = url;
   };
 
   return (

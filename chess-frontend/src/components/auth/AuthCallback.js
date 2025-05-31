@@ -1,24 +1,50 @@
-// src/components/auth/AuthCallback.js
-import React, { useEffect } from "react";
+
+import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
 
 const AuthCallback = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { login } = useAuth();
+  const [isProcessing, setIsProcessing] = useState(true);
 
   useEffect(() => {
-    const query = new URLSearchParams(location.search);
-    const token = query.get("token");
-    if (token) {
-      localStorage.setItem("auth_token", token);
-      navigate("/dashboard");
-    } else {
-      // Optionally handle the error (e.g., redirect to login with an error message)
-      navigate("/login");
-    }
-  }, [location, navigate]);
+    const processAuth = async () => {
+      const query = new URLSearchParams(location.search);
+      const token = query.get("token");
+      const isNewUser = query.get("new_user");
+      
+      if (token) {
+        try {
+          await login(token);
+          if (isNewUser) {
+            navigate("/dashboard?welcome=1");
+          } else {
+            navigate("/dashboard");
+          }
+        } catch (error) {
+          navigate("/login?error=auth_failed");
+        }
+      } else {
+        navigate("/login?error=auth_failed");
+      }
+      setIsProcessing(false);
+    };
 
-  return <div>Processing authentication...</div>;
+    processAuth();
+  }, [location, navigate, login]);
+
+  if (isProcessing) {
+    return (
+      <div className="auth-callback">
+        <div className="loading-spinner"></div>
+        <p>Processing authentication...</p>
+      </div>
+    );
+  }
+
+  return null;
 };
 
 export default AuthCallback;
