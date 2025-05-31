@@ -1,5 +1,5 @@
 modules = ["nodejs-20", "php-8.2", "web"]
-run = "node index.js"
+run = "cd chess-frontend && npm start"
 
 [nix]
 channel = "stable-24_05"
@@ -8,6 +8,7 @@ channel = "stable-24_05"
 run = ["sh", "-c", "node index.js"]
 
 [workflows]
+runButton = "Frontend Dev"
 
 [[workflows.workflow]]
 name = "Frontend Dev"
