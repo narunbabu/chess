@@ -8,7 +8,6 @@ channel = "stable-24_05"
 run = ["sh", "-c", "node index.js"]
 
 [workflows]
-runButton = "Full Stack"
 
 [[workflows.workflow]]
 name = "Frontend Dev"
