@@ -1,3 +1,4 @@
+
 // src/components/play/PlayComputer.js
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
@@ -742,201 +743,404 @@ const PlayComputer = () => {
                                 console.error(`Invalid move during replay at index ${nextIndex}:`, moveEntry.move);
                                 clearInterval(replayTimerRef.current); // Stop replay on error
                                 setReplayPaused(true);
-                                setGameStatus(`Replay failed at move ${nextIndex + 1}: Invalid move.`);
-                            } else {
-                                moveApplied = true;
+                                return; // Exit early on error
                             }
+                            moveApplied = true; // Move was successfully applied
                         });
 
-                        if (!moveApplied) {
-                            return prevIndex; // Stop incrementing index if move failed
-                        }
-
-                        // Update score/evaluation display if available in history
-                        if (moveEntry.evaluation) {
-                           setLastMoveEvaluation(moveEntry.evaluation);
+                        if (moveApplied) {
+                            playSound(moveSoundEffect); // Play sound for each replayed move
+                            return nextIndex + 1; // Advance to next move for the next interval
                         } else {
-                           setLastMoveEvaluation(null); // Clear if no eval stored
+                            clearInterval(replayTimerRef.current); // Stop on error
+                            setReplayPaused(true);
+                            return prevIndex; // Don't advance index on error
                         }
-
-                        setGameStatus(`Replay: Move ${nextIndex + 1}/${gameHistory.length} (${moveEntry.move.san})`);
-                        return nextIndex + 1; // Move to the next index for the next interval
                     } else {
-                        // Skip invalid history entry
-                        console.warn(`Skipping invalid history entry during replay at index ${nextIndex}:`, moveEntry);
-                        return nextIndex + 1;
+                        console.warn(`Move entry at index ${nextIndex} is missing move data:`, moveEntry);
+                        return nextIndex + 1; // Skip this entry and advance
                     }
                 } else {
-                    // Reached end of history
+                    // Reached end of replay
                     clearInterval(replayTimerRef.current);
                     setReplayPaused(true);
-                    setGameStatus("Replay finished");
-                    // Optionally show final score from saved game data
-                    return prevIndex; // Keep index at the end
+                    console.log("Replay finished.");
+                    return prevIndex; // Stay at current index
                 }
             });
-        }, 1000); // Replay speed: 1 move per second (adjust as needed)
-    }, [isReplayMode, gameHistory, safeGameMutate, replayPaused, currentReplayMove]); // Dependencies
+        }, 1500); // 1.5 second interval between moves
+    }, [isReplayMode, gameHistory, replayPaused, currentReplayMove, playSound, safeGameMutate]); // Dependencies
 
-    const pauseReplay = useCallback(() => {
+     const pauseReplay = useCallback(() => {
         // Pauses the automatic replay
-        if(isReplayMode) {
-            console.log("Pausing replay...");
-            setReplayPaused(true);
-            if (replayTimerRef.current) clearInterval(replayTimerRef.current);
+        if (replayTimerRef.current) {
+            clearInterval(replayTimerRef.current);
+            replayTimerRef.current = null;
         }
-    }, [isReplayMode, replayTimerRef]); // Dependencies
+        setReplayPaused(true);
+        console.log("Replay paused.");
+    }, []); // No dependencies needed
 
-  // --- UI Callbacks ---
-   const handleColorToggle = useCallback(() => {
-        // Toggles player color selection in pre-game setup
-        if (gameStarted || isReplayMode || countdownActive) return; // Prevent change during game/countdown/replay
-        const newColor = playerColor === 'w' ? 'b' : 'w';
-        setPlayerColor(newColor);
-        localStorage.setItem('playerColor', newColor);
-        setBoardOrientation(newColor === 'w' ? "white" : "black");
-    }, [gameStarted, isReplayMode, countdownActive, playerColor]); // Correct dependencies
+  // --- Event handlers for difficulty and color changes ---
+  const handleDifficultyChange = useCallback((newDepth) => {
+    setComputerDepth(newDepth);
+    localStorage.setItem('computerDepth', newDepth.toString());
+  }, []); // No external dependencies
 
-   const handleDifficultyChange = useCallback((val) => {
-        setComputerDepth(val);
-        localStorage.setItem('computerDepth', val);
-    }, []);
+  const handleColorChange = useCallback((newColor) => {
+    setPlayerColor(newColor);
+    setBoardOrientation(newColor === 'w' ? 'white' : 'black');
+    localStorage.setItem('playerColor', newColor);
+  }, []); // No external dependencies
 
-  // --- RENDER ---
+  // Modern inline styles
+  const containerStyle = {
+    minHeight: '100vh',
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '1rem',
+    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+  };
+
+  const gameAreaStyle = {
+    background: 'rgba(255, 255, 255, 0.95)',
+    backdropFilter: 'blur(20px)',
+    borderRadius: '24px',
+    boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1), 0 8px 16px rgba(0, 0, 0, 0.08)',
+    padding: '2rem',
+    maxWidth: isPortrait ? '100%' : '1400px',
+    width: '100%',
+    display: 'grid',
+    gridTemplateColumns: isPortrait ? '1fr' : '1fr 400px 1fr',
+    gridTemplateRows: isPortrait ? 'auto auto auto auto' : 'auto 1fr auto',
+    gap: '2rem',
+    minHeight: isPortrait ? 'auto' : '80vh'
+  };
+
+  const headerStyle = {
+    gridColumn: isPortrait ? '1' : '1 / -1',
+    textAlign: 'center',
+    borderBottom: '2px solid #f0f2ff',
+    paddingBottom: '1rem',
+    marginBottom: '1rem'
+  };
+
+  const titleStyle = {
+    fontSize: '2.5rem',
+    fontWeight: '700',
+    background: 'linear-gradient(135deg, #667eea, #764ba2)',
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+    marginBottom: '0.5rem'
+  };
+
+  const subtitleStyle = {
+    color: '#6b7280',
+    fontSize: '1.1rem',
+    fontWeight: '500'
+  };
+
+  const leftPanelStyle = {
+    gridColumn: isPortrait ? '1' : '1',
+    gridRow: isPortrait ? '2' : '2',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1.5rem'
+  };
+
+  const centerPanelStyle = {
+    gridColumn: isPortrait ? '1' : '2',
+    gridRow: isPortrait ? '3' : '2',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '1rem'
+  };
+
+  const rightPanelStyle = {
+    gridColumn: isPortrait ? '1' : '3',
+    gridRow: isPortrait ? '4' : '2',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1.5rem'
+  };
+
+  const cardStyle = {
+    background: '#ffffff',
+    borderRadius: '16px',
+    padding: '1.5rem',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
+    border: '1px solid #f3f4f6'
+  };
+
+  const cardTitleStyle = {
+    fontSize: '1.25rem',
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: '1rem',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem'
+  };
+
+  const setupCardStyle = {
+    ...cardStyle,
+    background: gameStarted ? '#f9fafb' : '#ffffff',
+    border: gameStarted ? '1px solid #e5e7eb' : '1px solid #3b82f6',
+    transition: 'all 0.3s ease'
+  };
+
+  const difficultyContainerStyle = {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '1rem'
+  };
+
+  const statusCardStyle = {
+    ...cardStyle,
+    background: gameOver ? '#fef2f2' : gameStarted ? '#f0fdf4' : '#fefce8',
+    border: gameOver ? '1px solid #fecaca' : gameStarted ? '1px solid #bbf7d0' : '1px solid #fde047'
+  };
+
+  const statusTextStyle = {
+    fontSize: '1rem',
+    fontWeight: '500',
+    color: gameOver ? '#dc2626' : gameStarted ? '#059669' : '#d97706',
+    textAlign: 'center'
+  };
+
+  const timerContainerStyle = {
+    display: 'flex',
+    justifyContent: 'space-between',
+    gap: '1rem'
+  };
+
+  const actionButtonStyle = {
+    background: 'linear-gradient(135deg, #667eea, #764ba2)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '12px',
+    padding: '0.75rem 1.5rem',
+    fontSize: '1rem',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
+  };
+
+  const secondaryButtonStyle = {
+    background: '#f3f4f6',
+    color: '#374151',
+    border: '1px solid #d1d5db',
+    borderRadius: '12px',
+    padding: '0.5rem 1rem',
+    fontSize: '0.9rem',
+    fontWeight: '500',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease'
+  };
+
   return (
-    <>
-      <div className={`chess-game-container ${isPortrait ? "portrait" : "landscape"}`}>
-        {/* Persistent Header */}
-        <header className="game-header">
-           <Link to="/" className="nav-button-play">Home</Link>
-           <Link to="/dashboard" className="nav-button-play">Dashboard</Link>
-         </header>
+    <div style={containerStyle}>
+      <div style={gameAreaStyle}>
+        {/* Header */}
+        <div style={headerStyle}>
+          <h1 style={titleStyle}>Chess vs Computer</h1>
+          <p style={subtitleStyle}>Test your skills against our AI opponent</p>
+        </div>
 
-        {/* Pre-Game Setup Screen */}
-        {!gameStarted && !isReplayMode && (
-          <div className="pre-game-setup">
-            <h2>Play Against Computer</h2>
-            <div className="difficulty-selection">
-              <DifficultyMeter
-                value={computerDepth}
-                onChange={handleDifficultyChange}
-                min={MIN_DEPTH}
-                max={MAX_DEPTH}
-                disabled={countdownActive}
-              />
-
-            </div>
-            <div className="color-selection">
-              <h3>Select Your Color:</h3>
-               <label className="color-toggle-container" htmlFor="color-toggle">
-                   <span>White</span>
-                   <div className="color-toggle-switch">
-                       <input type="checkbox" id="color-toggle"
-                           checked={playerColor === 'b'}
-                           onChange={handleColorToggle} // Stable callback
-                           disabled={countdownActive} />
-                       <span className="color-toggle-slider"></span>
-                   </div>
-                   <span>Black</span>
-               </label>
-            </div>
-            {!countdownActive && (
-              <button className="start-button large green" onClick={startGame} disabled={countdownActive}>
-                Start Game
-              </button>
-            )}
-            {countdownActive && (
-              <div className="countdown-in-setup">
-                Starting in...
-                <Countdown startValue={3} onCountdownFinish={onCountdownFinish} />
+        {/* Left Panel - Game Setup & Controls */}
+        <div style={leftPanelStyle}>
+          {/* Game Setup */}
+          <div style={setupCardStyle}>
+            <h3 style={cardTitleStyle}>
+              <span>⚙️</span>
+              Game Setup
+            </h3>
+            
+            {!gameStarted && !isReplayMode && (
+              <div style={difficultyContainerStyle}>
+                <div style={{marginBottom: '1rem', width: '100%'}}>
+                  <label style={{display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: '500', color: '#6b7280'}}>
+                    Difficulty Level: {computerDepth}
+                  </label>
+                  <DifficultyMeter
+                    value={computerDepth}
+                    onChange={handleDifficultyChange}
+                    min={MIN_DEPTH}
+                    max={MAX_DEPTH}
+                    width={200}
+                    height={120}
+                    disabled={gameStarted}
+                  />
+                </div>
               </div>
             )}
-             {/* Optional: Add button/checkbox to toggle settings.requireDoneButton here */}
-             {/* <label> */}
-             {/* <input type="checkbox" checked={settings.requireDoneButton} onChange={toggleDoneButtonSetting} /> */}
-             {/* Require 'Done' Button */}
-             {/* </label> */}
+
+            <GameControls
+              gameStarted={gameStarted}
+              countdownActive={countdownActive}
+              isTimerRunning={isTimerRunning}
+              resetGame={resetCurrentGameSetup}
+              startGame={startGame}
+              handleTimer={startTimerInterval}
+              setIsTimerRunning={setIsTimerRunning}
+              pauseTimer={pauseTimer}
+              isReplayMode={isReplayMode}
+              replayPaused={replayPaused}
+              startReplay={startReplay}
+              pauseReplay={pauseReplay}
+              savedGames={savedGames}
+              loadGame={loadGame}
+              playerColor={playerColor}
+              onColorChange={handleColorChange}
+            />
           </div>
-        )}
 
-        {/* Main Game/Replay Screen Layout */}
-        {(gameStarted || isReplayMode) && (
-           <div className="game-layout">
-               {/* Landscape Left Panel */}
-                {!isPortrait && (
-                    <div className="left-panel">
-                        <ScoreDisplay playerScore={playerScore} lastMoveEvaluation={lastMoveEvaluation} computerScore={computerScore} lastComputerEvaluation={lastComputerEvaluation} />
-                        <TimerDisplay playerTime={playerTime} computerTime={computerTime} activeTimer={activeTimer} playerColor={playerColor} isPortrait={isPortrait} isRunning={isTimerRunning && activeTimer === playerColor} isComputerRunning={isTimerRunning && activeTimer !== playerColor}/>
-                    </div>
-                )}
+          {/* Game Status */}
+          <div style={statusCardStyle}>
+            <h3 style={cardTitleStyle}>
+              <span>📊</span>
+              Game Status
+            </h3>
+            <div style={statusTextStyle}>{gameStatus}</div>
+          </div>
 
-                {/* Center Panel (Chessboard + Portrait Info/Controls) */}
-                <div className="center-panel">
-                    {/* Portrait Top Info */}
-                    {isPortrait && (
-                        <>
-                            <ScoreDisplay playerScore={playerScore} lastMoveEvaluation={lastMoveEvaluation} computerScore={computerScore} lastComputerEvaluation={lastComputerEvaluation} />
-                            <TimerDisplay playerTime={playerTime} computerTime={computerTime} activeTimer={activeTimer} playerColor={playerColor} isPortrait={isPortrait} isRunning={isTimerRunning && activeTimer === playerColor} isComputerRunning={isTimerRunning && activeTimer !== playerColor}/>
-                        </>
-                    )}
-                    {/* Chessboard Area */}
-                     <div className="chessboard-area">
-                        <ChessBoard
-                            game={game} // Pass the Chess.js instance
-                            boardOrientation={boardOrientation} // 'white' or 'black'
-                            onDrop={onDrop} // Callback for piece drop
-                            moveFrom={moveFrom} // Square piece is being dragged from
-                            setMoveFrom={setMoveFrom} // To update moveFrom state
-                            rightClickedSquares={rightClickedSquares} // For highlighting
-                            setRightClickedSquares={setRightClickedSquares} // To update highlights
-                            moveSquares={moveSquares} // To show potential move squares
-                            setMoveSquares={setMoveSquares} // To update potential move squares
-                            playerColor={playerColor} // Player's color ('w' or 'b')
-                            isReplayMode={isReplayMode} // Disable interaction during replay
-                         />
-                    </div>
-                    {/* Portrait Bottom Info/Controls */}
-                    {isPortrait && (
-                        <>
-                             <GameInfo gameStatus={gameStatus} playerColor={playerColor} game={game} moveCompleted={moveCompleted} activeTimer={activeTimer} isReplayMode={isReplayMode} currentReplayMove={currentReplayMove} totalMoves={gameHistory.length} settings={settings} />
-                             <GameControls gameStarted={gameStarted} countdownActive={countdownActive} isTimerRunning={isTimerRunning} resetGame={resetCurrentGameSetup} handleTimer={startTimerInterval} pauseTimer={pauseTimer} isReplayMode={isReplayMode} replayPaused={replayPaused} startReplay={startReplay} pauseReplay={pauseReplay} savedGames={savedGames} loadGame={loadGame} moveCount={moveCount} playerColor={playerColor} replayTimerRef={replayTimerRef} />
-                             {/* Conditionally render TimerButton if setting requires it and not in replay */}
-                             {settings.requireDoneButton && !isReplayMode && (
-                                <TimerButton timerButtonColor={timerButtonColor} timerButtonText={timerButtonText} moveCompleted={moveCompleted} activeTimer={activeTimer} playerColor={playerColor} onClick={handleTimerButtonPress} disabled={gameOver || !moveCompleted || activeTimer !== playerColor}/>
-                             )}
-                        </>
-                    )}
-                </div>
+          {/* Timer Display */}
+          <div style={cardStyle}>
+            <h3 style={cardTitleStyle}>
+              <span>⏱️</span>
+              Timer
+            </h3>
+            <div style={timerContainerStyle}>
+              <TimerDisplay
+                playerTime={playerTime}
+                computerTime={computerTime}
+                activeTimer={activeTimer}
+                playerColor={playerColor}
+                isTimerRunning={isTimerRunning}
+              />
+            </div>
+            <div style={{marginTop: '1rem'}}>
+              <TimerButton
+                color={timerButtonColor}
+                text={timerButtonText}
+                onClick={handleTimerButtonPress}
+                disabled={!gameStarted || gameOver}
+              />
+            </div>
+          </div>
+        </div>
 
-                {/* Landscape Right Panel */}
-                {!isPortrait && (
-                     <div className="right-panel">
-                        <GameInfo gameStatus={gameStatus} playerColor={playerColor} game={game} moveCompleted={moveCompleted} activeTimer={activeTimer} isReplayMode={isReplayMode} currentReplayMove={currentReplayMove} totalMoves={gameHistory.length} settings={settings} />
-                        <GameControls gameStarted={gameStarted} countdownActive={countdownActive} isTimerRunning={isTimerRunning} resetGame={resetCurrentGameSetup} handleTimer={startTimerInterval} pauseTimer={pauseTimer} isReplayMode={isReplayMode} replayPaused={replayPaused} startReplay={startReplay} pauseReplay={pauseReplay} savedGames={savedGames} loadGame={loadGame} moveCount={moveCount} playerColor={playerColor} replayTimerRef={replayTimerRef} />
-                        {/* Conditionally render TimerButton if setting requires it and not in replay */}
-                        {settings.requireDoneButton && !isReplayMode && (
-                            <TimerButton timerButtonColor={timerButtonColor} timerButtonText={timerButtonText} moveCompleted={moveCompleted} activeTimer={activeTimer} playerColor={playerColor} onClick={handleTimerButtonPress} disabled={gameOver || !moveCompleted || activeTimer !== playerColor}/>
-                         )}
-                    </div>
-                 )}
-           </div>
-        )}
+        {/* Center Panel - Chess Board */}
+        <div style={centerPanelStyle}>
+          {countdownActive && (
+            <div style={{marginBottom: '1rem'}}>
+              <Countdown onFinish={onCountdownFinish} />
+            </div>
+          )}
+          
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '20px',
+            padding: '1rem',
+            boxShadow: '0 8px 25px rgba(0, 0, 0, 0.15)',
+            border: '2px solid #f0f2ff'
+          }}>
+            <ChessBoard
+              game={game}
+              boardOrientation={boardOrientation}
+              onDrop={onDrop}
+              moveFrom={moveFrom}
+              setMoveFrom={setMoveFrom}
+              rightClickedSquares={rightClickedSquares}
+              setRightClickedSquares={setRightClickedSquares}
+              moveSquares={moveSquares}
+              setMoveSquares={setMoveSquares}
+              playerColor={playerColor}
+              isReplayMode={isReplayMode}
+            />
+          </div>
+        </div>
 
-        {/* Game Completion Modal/Animation */}
-        {showGameCompletion && (
-          <GameCompletionAnimation
-            result={gameStatus} // Pass the actual status text/object from gameStatus state
-            score={typeof playerScore === 'number' && !isNaN(playerScore) ? playerScore : 0}
-            computerScore={typeof computerScore === 'number' && !isNaN(computerScore) ? computerScore : 0}
-            playerColor={playerColor}
-            onClose={() => {
-              setShowGameCompletion(false); // Hide the animation
-              resetGame(); // Reset back to the pre-game setup
-            }}
-          />
-        )}
+        {/* Right Panel - Game Info & Scores */}
+        <div style={rightPanelStyle}>
+          {/* Game Information */}
+          <div style={cardStyle}>
+            <h3 style={cardTitleStyle}>
+              <span>ℹ️</span>
+              Game Info
+            </h3>
+            <GameInfo
+              gameStatus={gameStatus}
+              playerColor={playerColor}
+              game={game}
+              moveCompleted={moveCompleted}
+              activeTimer={activeTimer}
+              isReplayMode={isReplayMode}
+              currentReplayMove={currentReplayMove}
+              totalMoves={gameHistory.length}
+              settings={settings}
+            />
+          </div>
+
+          {/* Score Display */}
+          <div style={cardStyle}>
+            <h3 style={cardTitleStyle}>
+              <span>🏆</span>
+              Score
+            </h3>
+            <ScoreDisplay
+              playerScore={playerScore}
+              computerScore={computerScore}
+              lastMoveEvaluation={lastMoveEvaluation}
+              lastComputerEvaluation={lastComputerEvaluation}
+            />
+          </div>
+
+          {/* Game Actions */}
+          {gameStarted && !isReplayMode && (
+            <div style={cardStyle}>
+              <h3 style={cardTitleStyle}>
+                <span>🎮</span>
+                Actions
+              </h3>
+              <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
+                <button 
+                  style={secondaryButtonStyle}
+                  onClick={resetCurrentGameSetup}
+                  onMouseEnter={(e) => e.target.style.background = '#e5e7eb'}
+                  onMouseLeave={(e) => e.target.style.background = '#f3f4f6'}
+                >
+                  Reset Game
+                </button>
+                <button 
+                  style={secondaryButtonStyle}
+                  onClick={() => navigate('/history')}
+                  onMouseEnter={(e) => e.target.style.background = '#e5e7eb'}
+                  onMouseLeave={(e) => e.target.style.background = '#f3f4f6'}
+                >
+                  View History
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
-    </>
+
+      {/* Game Completion Modal */}
+      {showGameCompletion && (
+        <GameCompletionAnimation
+          isVisible={showGameCompletion}
+          result={gameStatus}
+          score={playerScore}
+          onClose={() => setShowGameCompletion(false)}
+        />
+      )}
+    </div>
   );
 };
 
