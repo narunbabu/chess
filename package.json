@@ -1,1 +1,12 @@
-{}
+{
+  "name": "chess-web",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev --prefix chess-backend\" \"npm start --prefix chess-frontend\"",
+    "start": "concurrently \"npm run dev --prefix chess-backend\" \"npm start --prefix chess-frontend\"",
+    "build": "npm run build --prefix chess-frontend && npm run build --prefix chess-backend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.1"
+  }
+}

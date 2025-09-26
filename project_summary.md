@@ -1,105 +1,93 @@
-# Project Summary
+# Project Summary: Chess Web Application
 
-## Overview
-This repository consists of two main parts:
+## Objectives
 
-1. **Frontend (`chess/`)**: A React-based chess training and play UI.
-2. **Backend (`learn-api/`)**: A Laravel-powered REST API for authentication and game history management.
+The project is a web-based chess application that allows users to play chess against a computer. It includes features for training, game history, and user authentication.
 
----
+## Technology
 
-## 1. Frontend (`chess/`)
+### Frontend
+*   **React:** A JavaScript library for building user interfaces.
+*   **react-router-dom:** For handling navigation between different pages.
+*   **axios:** For making HTTP requests to the backend API.
+*   **chess.js:** For chess game logic and move generation.
+*   **react-chessboard:** A React component for displaying and interacting with a chessboard.
+*   **date-fns:** For date formatting.
+*   **gif.js & html2canvas:** For creating GIF animations of games.
 
-### 1.1 Structure
+### Backend
+*   **Laravel:** A PHP framework for building web applications.
+*   **Laravel Sanctum:** For API authentication.
+*   **MySQL:** Database for storing game history and user data.
+*   **Vite:** A build tool for frontend assets.
 
-```
-chess/
-├── public/              Static assets (HTML, images)
-├── src/
-│   ├── index.js         App entry point
-│   ├── App.js           Defines routes and navigation
-│   ├── config.js        Configuration (e.g., BACKEND_URL)
-│   ├── components/      UI components
-│   │   ├── play/        Game vs. computer UI (ChessBoard, Controls, Info, etc.)
-│   │   ├── TrainingHub  Lists training puzzles
-│   │   └── TrainingExercise  Puzzle interface
-│   ├── services/        HTTP/client layers
-│   │   ├── api.js       Axios instance with auth interceptors
-│   │   └── gameHistoryService.js  CRUD for localStorage saved games
-│   ├── utils/           Helpers (move evaluation, state updates, timer, exercises data)
-│   └── assets/          Images, styles, fonts
-└── package.json         NPM scripts and deps
-```
+## Design
 
-### 1.2 Key Modules
+### Frontend
+The frontend is built with React and uses a component-based architecture. Key components include:
 
-- **App.js**: Sets up React Router for “Play vs Computer” and “Training Exercises”.
-- **ChessBoard.js**: Renders board using `react-chessboard`, highlights legal moves, handles user input.
-- **PlayComputer.js**: Coordinates engine moves (via Stockfish worker), timers, score evaluation, and history.
-- **TrainingExercise.js**: Loads FEN positions from `utils/trainingExercises.js`, validates user moves, reveals solutions.
-- **api.js**: Axios instance pointing to `BACKEND_URL`, attaches Bearer token and redirects on 401.
-- **gameHistoryService.js**: Persists game history locally; can be extended to sync with backend.
+*   **App:** The main application component that handles routing and authentication.
+*   **PlayComputer:** Component for playing chess against the computer.
+*   **TrainingHub:** Component for accessing training exercises.
+*   **TrainingExercise:** Component for individual training exercises.
+*   **GameHistory:** Component for viewing game history.
+*   **GameReview:** Component for reviewing past games.
+*   **Login:** Component for user login.
+*   **Dashboard:** Component for displaying user information and game statistics.
+*   **AuthCallback:** Component for handling authentication callbacks.
+*   **LandingPage:** The main landing page.
 
-### 1.3 Frontend↔Backend Interaction
+The frontend uses React Router for navigation and Axios for making API requests to the backend. It also uses the chess.js library for handling chess game logic and react-chessboard for rendering the chessboard.
 
-- **Auth**: Frontend redirects user to `/api/auth/{provider}/redirect`, stores returned token in `localStorage`.
-- **API Calls**: Uses `api.js` to call endpoints under `/api/game-history` (list, show, store) and `/api/rankings`.
+### Backend
+The backend is built with Laravel and provides an API for the frontend to interact with. Key features include:
 
----
+*   **API endpoints for:**
+    *   User authentication (login, register, logout) using Laravel Sanctum.
+    *   Social authentication (redirect, callback) using social providers.
+    *   Storing game history.
+    *   Retrieving game history (summary and full details).
+    *   Retrieving user rankings.
+*   **Controllers:**
+    *   `AuthController`: Handles user authentication.
+    *   `SocialAuthController`: Handles social authentication.
+    *   `GameHistoryController`: Handles game history operations (store, index, show, rankings).
+*   **Models:**
+    *   `User`: Represents a user in the system.
+    *   `GameHistory`: Represents a game history record.
+*   **Database Migrations:**
+    *   Migrations for creating the `users` and `game_histories` tables.
 
-## 2. Backend (`learn-api/`)
+The backend uses Laravel Sanctum for API authentication and stores game history data in a MySQL database.
 
-### 2.1 Structure
+## Game Play Design
 
-```
-learn-api/
-├── app/
-│   ├── Http/
-│   │   ├── Controllers/
-│   │   │   ├── Auth/SocialAuthController.php  OAuth redirect and callback
-│   │   │   └── Api/GameHistoryController.php CRUD for game history + rankings
-│   └── Models/
-│       ├── GameHistory.php    Eloquent model for game records
-│       └── User.php           Default user model (with Sanctum tokens)
-├── routes/
-│   └── api.php         Defines auth and game-history routes
-├── config/, bootstrap/, database/, resources/, etc.
-├── composer.json       PHP deps
-└── vite.config.js      Frontend build integration
-```
+The `PlayComputer` component manages the game play. It uses the `chess.js` library to handle the game logic and the `react-chessboard` component to render the chessboard.
 
-### 2.2 Key Endpoints (routes/api.php)
+The game flow is as follows:
 
-- **Auth** (`/api/auth/{provider}/redirect|callback`) uses SocialAuthController for OAuth (Google, Facebook, etc.).
-- **Protected** (`auth:sanctum`):
-  - `GET /api/game-history` → index (list summaries)
-  - `GET /api/game-history/{id}` → show (detailed record with moves)
-  - `POST /api/game-history` → store (save new game)
-  - `GET /api/rankings` → rankings (leaderboard)
-- **Public test**: `GET /api/public-test`
+1.  The user selects a difficulty level and a color.
+2.  The user starts the game.
+3.  The computer makes a move based on the selected difficulty level.
+4.  The user makes a move.
+5.  The game continues until the game is over (checkmate, stalemate, etc.).
 
-### 2.3 Workflow
+The `makeComputerMove` function in `chess-frontend/src/utils/computerMoveUtils.js` is responsible for generating the computer's moves. It uses the Stockfish engine to evaluate the board and select the best move.
 
-1. **Login**: Frontend invokes `/api/auth/{provider}/redirect`, user completes OAuth, callback returns Sanctum token.
-2. **Token Storage**: Frontend stores token, uses in `Authorization: Bearer <token>` for subsequent calls.
-3. **Game History**: Play sessions posted via `POST /api/game-history`, stored in DB via `GameHistoryController@store`.
-4. **Retrieval**: User can list (`index`), view single (`show`), and fetch leaderboard (`rankings`).
+## Game Saving
 
----
+The `GameHistoryController` in `chess-backend/app/Http/Controllers/Api/GameHistoryController.php` handles the saving of game history. The `store` method receives the game data from the frontend, validates it, and saves it to the database.
 
-## 3. Sub-module Interactions
+The game data is stored in the `game_histories` table in the MySQL database. The `moves` column stores the game moves in a compressed string format, using the `encodeGameHistory` function in `chess-frontend/src/utils/gameHistoryStringUtils.js`.
 
-- **React Services → Laravel API**: `src/services/api.js` sends HTTP requests to Laravel endpoints. Errors auto-redirect on 401.
-- **Game State & History**: React utilities evaluate moves; on game end, PlayComputer triggers `gameHistoryService` (can be swapped to call API store).
-- **Auth Flow**: SocialAuthController issues Sanctum tokens; frontend persists and attaches to API calls.
+## Game Reconstruction
 
----
+The `GameReview` component in `chess-frontend/src/components/GameReview.js` handles the reconstruction of the game. It retrieves the game data from the database and uses the `reconstructGameFromHistory` function in `chess-frontend/src/utils/gameHistoryStringUtils.js` to reconstruct the game moves.
 
-## 4. Development & Deployment
+The `reconstructGameFromHistory` function decodes the compressed string of moves and uses the `chess.js` library to replay the moves and reconstruct the game state.
 
-- **Frontend**: `npm start` or `yarn start` in `chess/` (runs React dev server).
-- **Backend**: `php artisan serve` in `learn-api/` (runs Laravel dev server). Configure `.env` (DB, OAuth creds, FRONTEND_URL).
+## Video Creation
 
----
+The `GameCompletionAnimation` component in `chess-frontend/src/components/GameCompletionAnimation.js` handles the creation of the game video. It uses the `gif.js` library to create a GIF animation of the game.
 
-_End of project summary._
+The `exportAsGIF` function captures the frames of the chessboard and adds them to the GIF animation. The GIF animation is then downloaded to the user's computer.

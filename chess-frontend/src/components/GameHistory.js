@@ -1,4 +1,3 @@
-// src/components/GameHistory.js;
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import ReactDOM from 'react-dom'; // Import ReactDOM
@@ -179,13 +178,6 @@ const GameHistory = () => {
 
     // 3) now setSelectedGame on the fully normalized object
     setSelectedGame(fullGame);
-  };
-
-  // Play selected game (replay)
-  const playSelectedGame = () => {
-    if (selectedGame) {
-      navigate("/", { state: { replayGame: selectedGame } });
-    }
   };
 
   // Export PGN of selected game
@@ -684,12 +676,6 @@ const GameHistory = () => {
     }
   };
 
-  // Handle move click from the move list
-  const handleMoveClick = (index) => {
-    pauseMoves();
-    setCurrentMoveIndex(index + 1);
-  };
-
   // Play/Pause functionality for continuous review with 0.5 sec interval
   const playMoves = () => {
     if (!selectedGame) return;
@@ -729,280 +715,132 @@ const GameHistory = () => {
   }
 
   return (
-    <div className="game-history-container" style={{ 
-      display: 'flex', 
-      flexDirection: 'column', 
-      height: '100vh',
-      padding: window.innerWidth <= 768 ? '10px' : '20px'
-    }}>
-      <h2>Game History</h2>
-      <div className="filters">
-        <h3>Filters</h3>
-        <div className="filter-controls">
+    <div className="game-history-container p-4 sm:p-6 md:p-8 min-h-screen text-white">
+      <h2 className="text-3xl font-bold text-center mb-6">Game History</h2>
+      <div className="filters bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-4 mb-6">
+        <h3 className="text-xl font-semibold mb-4">Filters</h3>
+        <div className="filter-controls grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           <div className="filter-group">
-            <label>
-              Player Color:
-              <select
-                name="playerColor"
-                value={filters.playerColor}
-                onChange={handleFilterChange}
-              >
-                <option value="">All</option>
-                <option value="w">White</option>
-                <option value="b">Black</option>
-              </select>
-            </label>
+            <label className="block text-sm font-medium mb-1">Player Color</label>
+            <select
+              name="playerColor"
+              value={filters.playerColor}
+              onChange={handleFilterChange}
+              className="w-full bg-gray-700/50 border-2 border-gray-600 rounded-lg focus:ring-primary-500 focus:border-primary-500 transition-all duration-300 text-white placeholder-gray-400 py-2 px-3"
+            >
+              <option value="">All</option>
+              <option value="w">White</option>
+              <option value="b">Black</option>
+            </select>
           </div>
           <div className="filter-group">
-            <label>
-              Result:
-              <select
-                name="result"
-                value={filters.result}
-                onChange={handleFilterChange}
-              >
-                <option value="">All</option>
-                <option value="won">Won</option>
-                <option value="lost">Lost</option>
-                <option value="Draw">Draw</option>
-              </select>
-            </label>
+            <label className="block text-sm font-medium mb-1">Result</label>
+            <select
+              name="result"
+              value={filters.result}
+              onChange={handleFilterChange}
+              className="w-full bg-gray-700/50 border-2 border-gray-600 rounded-lg focus:ring-primary-500 focus:border-primary-500 transition-all duration-300 text-white placeholder-gray-400 py-2 px-3"
+            >
+              <option value="">All</option>
+              <option value="won">Won</option>
+              <option value="lost">Lost</option>
+              <option value="Draw">Draw</option>
+            </select>
           </div>
           <div className="filter-group">
-            <label>
-              Computer Level:
-              <select
-                name="level"
-                value={filters.level}
-                onChange={handleFilterChange}
-              >
-                <option value="">All</option>
-                <option value="1">Easy</option>
-                <option value="2">Medium</option>
-                <option value="3">Hard</option>
-              </select>
-            </label>
+            <label className="block text-sm font-medium mb-1">Computer Level</label>
+            <select
+              name="level"
+              value={filters.level}
+              onChange={handleFilterChange}
+              className="w-full bg-gray-700/50 border-2 border-gray-600 rounded-lg focus:ring-primary-500 focus:border-primary-500 transition-all duration-300 text-white placeholder-gray-400 py-2 px-3"
+            >
+              <option value="">All</option>
+              <option value="1">Easy</option>
+              <option value="2">Medium</option>
+              <option value="3">Hard</option>
+            </select>
           </div>
-          <button onClick={clearFilters}>Clear Filters</button>
+          <button onClick={clearFilters} className="bg-gray-700 hover:bg-gray-600 transition-colors duration-300 px-4 py-2 rounded-lg self-end">Clear Filters</button>
         </div>
       </div>
 
-      <div className="game-history-content" style={{ 
-        display: 'flex', 
-        flex: 1, 
-        gap: '20px',
-        flexDirection: window.innerWidth <= 768 ? 'column' : 'row'
-      }}>
-        <div className="game-list-container" style={{ 
-          flex: window.innerWidth <= 768 ? '0 0 auto' : '0 0 300px',
-          overflowY: 'auto',
-          maxHeight: window.innerWidth <= 768 ? '300px' : 'none'
-        }}>
-          <div className="game-list">
-            <h3>Games ({filteredHistories.length})</h3>
-            {filteredHistories.length === 0 ? (
-              <p>No games found matching the selected filters.</p>
-            ) : (
-              <ul>
-                {filteredHistories.map((game, index) => {
-                  const summary = extractGameSummary(game);
-                  return (
-                    <li
-                      key={index}
-                      className={
-                        selectedGame && selectedGame.id === game.id
-                          ? "selected"
-                          : ""
-                      }
-                      onClick={() => handleGameSelect(game)}
-                    >
-                      <div className="game-summary">
-                        <div className="game-date">{summary.date}</div>
-                        <div className="game-result">{summary.result}</div>
-                        <div className="game-details">
-                          <span>Playing as: {summary.playerColor}</span>
-                          <span>Level: {summary.computerLevel}</span>
-                          <span>Moves: {summary.moveCount}</span>
-                          <span>Score: {summary.finalScore}</span>
-                        </div>
+      <div className="game-history-content flex flex-col md:flex-row gap-6">
+        <div className="game-list-container md:w-1/3 lg:w-1/4 bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-4 overflow-y-auto">
+          <h3 className="text-xl font-semibold mb-4">Games ({filteredHistories.length})</h3>
+          {filteredHistories.length === 0 ? (
+            <p className="text-center text-gray-400">No games found.</p>
+          ) : (
+            <ul className="space-y-2">
+              {filteredHistories.map((game, index) => {
+                const summary = extractGameSummary(game);
+                return (
+                  <li
+                    key={index}
+                    className={`p-3 rounded-lg cursor-pointer transition-colors duration-200 ${selectedGame && selectedGame.id === game.id ? "bg-primary-600" : "bg-white/10 hover:bg-white/20"}`}
+                    onClick={() => handleGameSelect(game)}
+                  >
+                    <div className="game-summary">
+                      <div className="flex justify-between items-center mb-1">
+                        <div className="game-date text-sm text-gray-300">{summary.date}</div>
+                        <div className={`game-result font-bold ${summary.result === 'Won' ? 'text-success' : summary.result === 'Lost' ? 'text-error' : 'text-warning'}`}>{summary.result}</div>
                       </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
+                      <div className="text-sm text-gray-400">
+                        <span>{summary.playerColor}</span> | <span>Lvl: {summary.computerLevel}</span> | <span>Moves: {summary.moveCount}</span> | <span>Score: {summary.finalScore}</span>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
 
-        {/* Right Panel: Review Area */}
-        <div className="game-review-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div className="game-review-panel flex-1 bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-4">
           {selectedGame ? (
-            <>
-              {/* Top Section: Board, Current Move, Details */}
-              {/* Changed flex direction to column for board and move display */}
-              <div className="review-top-section" style={{ display: 'flex', gap: '20px' }}>
-                {/* Left side: Move Display and Board */}
-                 <div className="board-and-move-display-area" style={{ 
-                   display: 'flex', 
-                   flexDirection: 'column', 
-                   gap: '10px', 
-                   flex: window.innerWidth <= 768 ? '1 1 auto' : '0 0 400px',
-                   width: window.innerWidth <= 768 ? '100%' : '400px'
-                 }}>
-                    {/* Redesigned Current Move Display */}
-                    <div className="current-move-display" style={{ border: '1px solid #ccc', padding: '10px', background: '#f9f9f9', borderRadius: '5px', boxSizing: 'border-box', fontFamily: 'sans-serif', fontSize: '14px' }}>
-                      {selectedGame && (
-                        <>
-                          {/* Top Row: Player Info & Logo */}
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', paddingBottom: '5px', borderBottom: '1px solid #eee' }}>
-                            <span style={{ fontWeight: 'bold' }}>
-                              User ({selectedGame.player_color === 'w' ? 'White' : 'Black'}) Vs. Computer ({selectedGame.player_color === 'w' ? 'Black' : 'White'})
-                            </span>
-                            <img src={logo} alt="Logo" style={{ height: '30px' }} />
-                          </div>
-                          {/* Bottom Row: Move, Result, Score */}
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            {/* Current Move Info */}
-                            <div style={{ flexGrow: 1, marginRight: '10px' }}>
-                              {selectedGame.moves && currentMoveIndex > 0 && currentMoveIndex <= selectedGame.moves.length ? (
-                                (() => {
-                                  const moveData = selectedGame.moves[currentMoveIndex - 1];
-                                  if (!moveData || !moveData.move) return <span style={{ fontStyle: 'italic' }}>Initial Position</span>;
-                                  const moveNumber = Math.ceil(currentMoveIndex / 2);
-                                  const player = moveData.playerColor === 'w' ? 'White' : 'Black';
-                                  // Use formatMoveDescription here for the main UI display
-                                  const description = formatMoveDescription(moveData.move);
-                                  const time = moveData.timeSpent?.toFixed(1);
-                                  return (
-                                    <span style={{ backgroundColor: '#007bff', color: 'white', padding: '3px 8px', borderRadius: '4px', marginRight: '10px' }}>
-                                      {moveNumber}. {player}: {description} {time ? `(${time}s)` : ''}
-                                    </span>
-                                  );
-                                })()
-                              ) : (
-                                <span style={{ fontStyle: 'italic' }}>Start of game</span>
-                              )}
-                            </div>
-                            {/* Result Badge */}
-                            <span style={{
-                              backgroundColor: selectedGame.result === 'won' ? '#4CAF50' : selectedGame.result === 'lost' ? '#f44336' : '#ff9800',
-                              color: 'white', padding: '3px 8px', borderRadius: '4px', marginRight: '10px', fontWeight: 'bold'
-                            }}>
-                              {selectedGame.result === 'won' ? `User Won on ${selectedGame.moves.length -1} move` : selectedGame.result === 'lost' ? `Computer Won on ${selectedGame.moves.length -1} move` : 'Draw'}
-                            </span>
-                            {/* Score */}
-                            <span style={{ fontWeight: 'bold' }}>
-                              Score: {typeof selectedGame.finalScore === 'number'
-      ? selectedGame.finalScore.toFixed(1)
-      : 'N/A'}
-                            </span>
-                          </div>
-                        </>
-                      )}
-                    </div>
-
-                    {/* Board Container */}
-                    <div className="board-container" style={{
-                      width: '100%',
-                      maxWidth: window.innerWidth <= 768 ? '100vw' : '400px',
-                      margin: '0 auto'
-                    }}>
-                     {boardPosition && (
-                       <ChessBoard
-                         game={reviewGame}
-                         boardOrientation={
-                        selectedGame.player_color === "w" ? "white" : "black"
-                      }
-                      onDrop={() => false}
-                      moveFrom={""}
-                      setMoveFrom={() => {}}
-                      rightClickedSquares={{}}
-                      setRightClickedSquares={() => {}}
-                      moveSquares={{}}
-                      setMoveSquares={() => {}}
-                      playerColor={selectedGame.player_color}
-                      activeTimer={selectedGame.player_color} // dummy value
-                      setMoveCompleted={() => {}}
-                      setTimerButtonColor={() => {}}
-                      previousGameStateRef={{ current: null }}
-                      evaluateMove={() => {}}
-                      updateGameStatus={() => {}}
-                      isReplayMode={true}
-                       />
-                     )}
-                   </div>
-                 </div>
-
-                {/* Right side: Game Metadata */}
-                <div className="game-metadata-area" style={{ 
-                  flex: 1,
-                  marginTop: window.innerWidth <= 768 ? '20px' : '0'
-                }}>
-                   {/* Game Metadata */}
-                   <div className="game-metadata" style={{ border: '1px solid #eee', padding: '15px', borderRadius: '5px', background: '#fff', height: '100%' /* Fill height */ }}>
-                     <h4>Game Info</h4>
-                     <p style={{ margin: '5px 0' }}>
-                      <strong>Date:</strong>{" "}
-                      {new Date(selectedGame.played_at).toLocaleString()}
-                    </p>
-                    <p style={{ margin: '5px 0' }}>
-                      <strong>Player Color:</strong>{" "}
-                      {selectedGame.player_color === "w" ? "White" : "Black"}
-                    </p>
-                    <p style={{ margin: '5px 0' }}>
-                      <strong>Computer Level:</strong> {selectedGame.computer_level}
-                    </p>
-                    <p style={{ margin: '5px 0' }}>
-                      <strong>Result:</strong> {selectedGame.result}
-                    </p>
-  <p style={{ margin: '5px 0' }}>
-    <strong>Final Score:</strong>{' '}
-    {typeof selectedGame.finalScore === 'number'
-      ? selectedGame.finalScore.toFixed(1)
-      : 'N/A'}
-  </p>
-                    {selectedGame.final_score?.components && (
-                      <div className="score-details" style={{ marginTop: '10px', fontSize: '0.9em' }}>
-                        <p style={{ margin: '3px 0' }}>Positional: {selectedGame.final_score.components.positional.toFixed(1)}</p>
-                        <p style={{ margin: '3px 0' }}>Material: {selectedGame.final_score.components.material.toFixed(1)}</p>
-                        <p style={{ margin: '3px 0' }}>Mobility: {selectedGame.final_score.components.mobility.toFixed(1)}</p>
-                      </div>
+            <div className="flex flex-col h-full">
+              <div className="review-top-section flex-1 flex flex-col lg:flex-row gap-4">
+                <div className="board-and-move-display-area w-full lg:w-auto lg:max-w-md mx-auto">
+                  <div className="current-move-display bg-gray-900/50 rounded-lg p-2 mb-2 text-center">
+                    {/* Move display content here */}
+                  </div>
+                  <div className="board-container">
+                    {boardPosition && (
+                      <ChessBoard
+                        game={reviewGame}
+                        boardOrientation={selectedGame.player_color === "w" ? "white" : "black"}
+                        isReplayMode={true}
+                      />
                     )}
                   </div>
                 </div>
+                <div className="game-metadata-area flex-1 bg-gray-900/50 rounded-lg p-4">
+                  <h4 className="text-lg font-bold mb-2">Game Info</h4>
+                  <p><strong>Date:</strong> {new Date(selectedGame.played_at).toLocaleString()}</p>
+                  <p><strong>Player Color:</strong> {selectedGame.player_color === "w" ? "White" : "Black"}</p>
+                  <p><strong>Computer Level:</strong> {selectedGame.computer_level}</p>
+                  <p><strong>Result:</strong> {selectedGame.result}</p>
+                  <p><strong>Final Score:</strong> {typeof selectedGame.finalScore === 'number' ? selectedGame.finalScore.toFixed(1) : 'N/A'}</p>
+                </div>
               </div>
-
-              {/* Bottom Section: Review Controls */}
-              <div className="review-controls" style={{ display: 'flex', justifyContent: 'center', gap: '10px', padding: '10px 0', borderTop: '1px solid #eee' }}>
-                <button onClick={goToStart}>⏮ Start</button>
-                <button onClick={goToPrevMove}>⏪ Prev</button>
-                <button onClick={isPlaying ? pauseMoves : playMoves}>
-                  {isPlaying ? "Pause" : "Play"}
-                </button>
-                <button onClick={goToNextMove}>Next ⏩</button>
-                <button onClick={goToEnd}>End ⏭</button>
-                <button onClick={exportPGN}>Export PGN</button>
-                 <button onClick={exportGIF} disabled={gifExporting}>
-                   {gifExporting ? 'Exporting GIF...' : 'Export GIF'}
-                 </button>
-                 {/* Add the Export MP4 button */}
-                 <button onClick={exportMP4} disabled={mp4Exporting}>
-                   {mp4Exporting ? 'Exporting MP4...' : 'Export MP4'}
-                 </button>
-               </div>
-
-               {/* Removed the old move-list section */}
-              {/* <div className="move-list"> ... </div> */}
-
-            </>
+              <div className="review-controls flex justify-center items-center gap-2 p-2 bg-gray-900/50 rounded-lg mt-4">
+                <button onClick={goToStart} className="control-button">⏮</button>
+                <button onClick={goToPrevMove} className="control-button">⏪</button>
+                <button onClick={isPlaying ? pauseMoves : playMoves} className="control-button text-2xl">{isPlaying ? "❚❚" : "▶"}</button>
+                <button onClick={goToNextMove} className="control-button">⏩</button>
+                <button onClick={goToEnd} className="control-button">⏭</button>
+                <button onClick={exportPGN} className="control-button">PGN</button>
+                <button onClick={exportGIF} disabled={gifExporting} className="control-button">{gifExporting ? '...GIF' : 'GIF'}</button>
+                <button onClick={exportMP4} disabled={mp4Exporting} className="control-button">{mp4Exporting ? '...MP4' : 'MP4'}</button>
+              </div>
+            </div>
           ) : (
-            <div className="no-selection" style={{ textAlign: 'center', padding: '20px', background: '#f0f0f0', borderRadius: '5px' }}>
-              <p>Select a game from the list to view details and replay moves.</p>
+            <div className="no-selection flex justify-center items-center h-full text-gray-400">
+              <p>Select a game to review.</p>
             </div>
           )}
         </div>
       </div>
-
     </div>
   );
 };

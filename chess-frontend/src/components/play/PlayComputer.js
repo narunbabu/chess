@@ -141,34 +141,33 @@ const PlayComputer = () => {
         };
         
 
-        // Local Save (using service if available)
-        const localSaveData = {
-            id: `local_${Date.now()}`, date: now.toISOString(), played_at: formattedDate,
-            player_color: playerColor, computer_depth: computerDepth, moves: conciseGameString,
-            final_score: positiveScore, result: resultText,
+        // Save game history (handles both local and online save)
+        const gameHistoryData = {
+            id: `local_${Date.now()}`,
+            date: now.toISOString(),
+            played_at: now.toISOString(),
+            player_color: playerColor,
+            computer_depth: computerDepth,
+            moves: conciseGameString,
+            final_score: positiveScore,
+            result: resultText,
         };
-        if (typeof saveGameHistory === 'function') {
-            saveGameHistory(localSaveData);
-        } else {
-            console.warn("saveGameHistory function not available for local save.");
-        }
 
-        // Online Save (if configured and authenticated)
-        if (authToken && typeof axios === 'function' && BACKEND_URL) {
+        if (typeof saveGameHistory === 'function') {
             try {
-                await axios.post(`${BACKEND_URL}/game-history`, payload, { headers: { Authorization: `Bearer ${authToken}` } });
+                await saveGameHistory(gameHistoryData);
+                console.log("Game history saved successfully");
             } catch (error) {
-                console.error("Error saving game history online", error);
-                if (error.response) console.error("Response data:", error.response.data);
+                console.error("Error saving game history:", error);
             }
         } else {
-            // console.log("Skipping online save (no token, axios, or backend URL)"); // Less console noise
+            console.warn("saveGameHistory function not available.");
         }
 
         playSound(gameEndSoundEffect); // Play end sound
 
         // Store the saved game ID for history navigation
-        const savedGameId = localSaveData?.id;
+        const savedGameId = gameHistoryData?.id;
         if (savedGameId) {
             localStorage.setItem('lastGameId', savedGameId);
         } else {
@@ -805,18 +804,18 @@ const PlayComputer = () => {
   // --- RENDER ---
   return (
     <>
-      <div className={`chess-game-container ${isPortrait ? "portrait" : "landscape"}`}>
+      <div className={`chess-game-container p-4 sm:p-6 md:p-8 min-h-screen text-white ${isPortrait ? "portrait" : "landscape"}`}>
         {/* Persistent Header */}
-        <header className="game-header">
-           <Link to="/" className="nav-button-play">Home</Link>
-           <Link to="/dashboard" className="nav-button-play">Dashboard</Link>
+        <header className="game-header flex justify-between items-center mb-4">
+           <Link to="/" className="nav-button-play text-vivid-yellow">Home</Link>
+           <Link to="/dashboard" className="nav-button-play text-vivid-yellow">Dashboard</Link>
          </header>
 
         {/* Pre-Game Setup Screen */}
         {!gameStarted && !isReplayMode && (
-          <div className="pre-game-setup">
-            <h2>Play Against Computer</h2>
-            <div className="difficulty-selection">
+          <div className="pre-game-setup bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-8 text-center">
+            <h2 className="text-3xl font-bold mb-6 text-vivid-yellow">Play Against Computer</h2>
+            <div className="difficulty-selection mb-6">
               <DifficultyMeter
                 value={computerDepth}
                 onChange={handleDifficultyChange}
@@ -826,28 +825,29 @@ const PlayComputer = () => {
               />
 
             </div>
-            <div className="color-selection">
-              <h3>Select Your Color:</h3>
-               <label className="color-toggle-container" htmlFor="color-toggle">
-                   <span>White</span>
-                   <div className="color-toggle-switch">
-                       <input type="checkbox" id="color-toggle"
+            <div className="color-selection mb-6">
+              <h3 className="text-xl font-semibold mb-2">Select Your Color:</h3>
+               <label className="color-toggle-container inline-flex items-center cursor-pointer" htmlFor="color-toggle">
+                   <span className="mr-3">White</span>
+                   <div className="relative">
+                       <input type="checkbox" id="color-toggle" className="sr-only"
                            checked={playerColor === 'b'}
                            onChange={handleColorToggle} // Stable callback
                            disabled={countdownActive} />
-                       <span className="color-toggle-slider"></span>
+                       <div className="w-14 h-8 bg-gray-600 rounded-full"></div>
+                       <div className="dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition"></div>
                    </div>
-                   <span>Black</span>
+                   <span className="ml-3">Black</span>
                </label>
             </div>
             {!countdownActive && (
-              <button className="start-button large green" onClick={startGame} disabled={countdownActive}>
+              <button className="start-button large green bg-ufo-green hover:bg-vivid-yellow text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300" onClick={startGame} disabled={countdownActive}>
                 Start Game
               </button>
             )}
             {countdownActive && (
               <div className="countdown-in-setup">
-                Starting in...
+                <p className="text-xl mb-2">Starting in...</p>
                 <Countdown startValue={3} onCountdownFinish={onCountdownFinish} />
               </div>
             )}
@@ -861,25 +861,15 @@ const PlayComputer = () => {
 
         {/* Main Game/Replay Screen Layout */}
         {(gameStarted || isReplayMode) && (
-           <div className="game-layout">
-               {/* Landscape Left Panel */}
-                {!isPortrait && (
-                    <div className="left-panel">
-                        <ScoreDisplay playerScore={playerScore} lastMoveEvaluation={lastMoveEvaluation} computerScore={computerScore} lastComputerEvaluation={lastComputerEvaluation} />
-                        <TimerDisplay playerTime={playerTime} computerTime={computerTime} activeTimer={activeTimer} playerColor={playerColor} isPortrait={isPortrait} isRunning={isTimerRunning && activeTimer === playerColor} isComputerRunning={isTimerRunning && activeTimer !== playerColor}/>
-                    </div>
-                )}
+           <div className="game-layout grid grid-cols-1 md:grid-cols-4 gap-6">
+               {/* Left Panel (or Top on Portrait) */}
+                <div className="left-panel md:col-span-1 bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-4">
+                    <ScoreDisplay playerScore={playerScore} lastMoveEvaluation={lastMoveEvaluation} computerScore={computerScore} lastComputerEvaluation={lastComputerEvaluation} />
+                    <TimerDisplay playerTime={playerTime} computerTime={computerTime} activeTimer={activeTimer} playerColor={playerColor} isPortrait={isPortrait} isRunning={isTimerRunning && activeTimer === playerColor} isComputerRunning={isTimerRunning && activeTimer !== playerColor}/>
+                </div>
 
-                {/* Center Panel (Chessboard + Portrait Info/Controls) */}
-                <div className="center-panel">
-                    {/* Portrait Top Info */}
-                    {isPortrait && (
-                        <>
-                            <ScoreDisplay playerScore={playerScore} lastMoveEvaluation={lastMoveEvaluation} computerScore={computerScore} lastComputerEvaluation={lastComputerEvaluation} />
-                            <TimerDisplay playerTime={playerTime} computerTime={computerTime} activeTimer={activeTimer} playerColor={playerColor} isPortrait={isPortrait} isRunning={isTimerRunning && activeTimer === playerColor} isComputerRunning={isTimerRunning && activeTimer !== playerColor}/>
-                        </>
-                    )}
-                    {/* Chessboard Area */}
+                {/* Center Panel (Chessboard) */}
+                <div className="center-panel md:col-span-2">
                      <div className="chessboard-area">
                         <ChessBoard
                             game={game} // Pass the Chess.js instance
@@ -895,30 +885,16 @@ const PlayComputer = () => {
                             isReplayMode={isReplayMode} // Disable interaction during replay
                          />
                     </div>
-                    {/* Portrait Bottom Info/Controls */}
-                    {isPortrait && (
-                        <>
-                             <GameInfo gameStatus={gameStatus} playerColor={playerColor} game={game} moveCompleted={moveCompleted} activeTimer={activeTimer} isReplayMode={isReplayMode} currentReplayMove={currentReplayMove} totalMoves={gameHistory.length} settings={settings} />
-                             <GameControls gameStarted={gameStarted} countdownActive={countdownActive} isTimerRunning={isTimerRunning} resetGame={resetCurrentGameSetup} handleTimer={startTimerInterval} pauseTimer={pauseTimer} isReplayMode={isReplayMode} replayPaused={replayPaused} startReplay={startReplay} pauseReplay={pauseReplay} savedGames={savedGames} loadGame={loadGame} moveCount={moveCount} playerColor={playerColor} replayTimerRef={replayTimerRef} />
-                             {/* Conditionally render TimerButton if setting requires it and not in replay */}
-                             {settings.requireDoneButton && !isReplayMode && (
-                                <TimerButton timerButtonColor={timerButtonColor} timerButtonText={timerButtonText} moveCompleted={moveCompleted} activeTimer={activeTimer} playerColor={playerColor} onClick={handleTimerButtonPress} disabled={gameOver || !moveCompleted || activeTimer !== playerColor}/>
-                             )}
-                        </>
-                    )}
                 </div>
 
-                {/* Landscape Right Panel */}
-                {!isPortrait && (
-                     <div className="right-panel">
-                        <GameInfo gameStatus={gameStatus} playerColor={playerColor} game={game} moveCompleted={moveCompleted} activeTimer={activeTimer} isReplayMode={isReplayMode} currentReplayMove={currentReplayMove} totalMoves={gameHistory.length} settings={settings} />
-                        <GameControls gameStarted={gameStarted} countdownActive={countdownActive} isTimerRunning={isTimerRunning} resetGame={resetCurrentGameSetup} handleTimer={startTimerInterval} pauseTimer={pauseTimer} isReplayMode={isReplayMode} replayPaused={replayPaused} startReplay={startReplay} pauseReplay={pauseReplay} savedGames={savedGames} loadGame={loadGame} moveCount={moveCount} playerColor={playerColor} replayTimerRef={replayTimerRef} />
-                        {/* Conditionally render TimerButton if setting requires it and not in replay */}
-                        {settings.requireDoneButton && !isReplayMode && (
-                            <TimerButton timerButtonColor={timerButtonColor} timerButtonText={timerButtonText} moveCompleted={moveCompleted} activeTimer={activeTimer} playerColor={playerColor} onClick={handleTimerButtonPress} disabled={gameOver || !moveCompleted || activeTimer !== playerColor}/>
-                         )}
-                    </div>
-                 )}
+                {/* Right Panel (or Bottom on Portrait) */}
+                <div className="right-panel md:col-span-1 bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-4">
+                    <GameInfo gameStatus={gameStatus} playerColor={playerColor} game={game} moveCompleted={moveCompleted} activeTimer={activeTimer} isReplayMode={isReplayMode} currentReplayMove={currentReplayMove} totalMoves={gameHistory.length} settings={settings} />
+                    <GameControls gameStarted={gameStarted} countdownActive={countdownActive} isTimerRunning={isTimerRunning} resetGame={resetCurrentGameSetup} handleTimer={startTimerInterval} pauseTimer={pauseTimer} isReplayMode={isReplayMode} replayPaused={replayPaused} startReplay={startReplay} pauseReplay={pauseReplay} savedGames={savedGames} loadGame={loadGame} moveCount={moveCount} playerColor={playerColor} replayTimerRef={replayTimerRef} />
+                    {settings.requireDoneButton && !isReplayMode && (
+                        <TimerButton timerButtonColor={timerButtonColor} timerButtonText={timerButtonText} moveCompleted={moveCompleted} activeTimer={activeTimer} playerColor={playerColor} onClick={handleTimerButtonPress} disabled={gameOver || !moveCompleted || activeTimer !== playerColor}/>
+                     )}
+                </div>
            </div>
         )}
 

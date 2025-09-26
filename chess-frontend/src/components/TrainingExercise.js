@@ -12,6 +12,7 @@ const TrainingExercise = () => {
   const [exercise, setExercise] = useState(null);
   const [moveFrom, setMoveFrom] = useState('');
   const [rightClickedSquares, setRightClickedSquares] = useState({});
+  const [optionSquares, setOptionSquares] = useState({});
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
   const [showSolution, setShowSolution] = useState(false);
@@ -29,21 +30,29 @@ const TrainingExercise = () => {
     setGame(newGame);
     setMessage('');
     setMessageType('');
+    setMoveFrom('');
+    setOptionSquares({});
+    setRightClickedSquares({});
     setShowSolution(false);
   }, [level, id, navigate]);
 
   // Function to get possible moves for a piece
   function getMoveOptions(square) {
-    if (!game) return {};
-    
+    if (!game) {
+      setOptionSquares({});
+      setMoveFrom('');
+      return;
+    }
+
     const moves = game.moves({
       square,
       verbose: true
     });
-    
+
     if (moves.length === 0) {
       setMoveFrom('');
-      return {};
+      setOptionSquares({});
+      return;
     }
 
     const newSquares = {};
@@ -60,7 +69,7 @@ const TrainingExercise = () => {
       background: 'rgba(255, 255, 0, 0.4)'
     };
     setMoveFrom(square);
-    return newSquares;
+    setOptionSquares(newSquares);
   }
 
   // Handle piece drop (move)
@@ -87,10 +96,12 @@ const TrainingExercise = () => {
         // Undo the move
         game.undo();
         setGame(new Chess(game.fen()));
+        setOptionSquares({});
         return false;
       }
       
       setGame(new Chess(game.fen()));
+      setOptionSquares({});
       return true;
     } catch (e) {
       return false;
@@ -115,9 +126,11 @@ const TrainingExercise = () => {
       try {
         const result = onDrop(moveFrom, square);
         setMoveFrom('');
+        setOptionSquares({});
         return result;
       } catch (e) {
         setMoveFrom('');
+        setOptionSquares({});
         return false;
       }
     }
@@ -125,11 +138,12 @@ const TrainingExercise = () => {
     // Get piece on the square
     const piece = game.get(square);
     if (piece && piece.color === game.turn()) {
-      setMoveFrom(square);
+      getMoveOptions(square);
       return true;
     }
-    
+
     setMoveFrom('');
+    setOptionSquares({});
     return false;
   }
 
@@ -148,13 +162,14 @@ const TrainingExercise = () => {
   // Reset exercise
   const resetExercise = () => {
     if (!exercise) return;
-    
+
     const newGame = new Chess(exercise.position);
     setGame(newGame);
     setMessage('');
     setMessageType('');
     setMoveFrom('');
     setRightClickedSquares({});
+    setOptionSquares({});
     setShowSolution(false);
   };
 
@@ -184,23 +199,23 @@ const TrainingExercise = () => {
 
   // Combine all square styles
   const customSquareStyles = {
-    ...(moveFrom ? getMoveOptions(moveFrom) : {}),
+    ...optionSquares,
     ...rightClickedSquares
   };
 
   if (!exercise || !game) {
-    return <div>Loading exercise...</div>;
+    return <div className="p-6 min-h-screen text-white flex items-center justify-center">Loading exercise...</div>;
   }
 
   return (
-    <div className="chess-game">
-      <h2>{exercise.title}</h2>
+    <div className="chess-game p-6 min-h-screen text-white flex flex-col items-center">
+      <h2 className="text-3xl font-bold mb-2 text-white">{exercise.title}</h2>
       
-      <div className="exercise-instructions">
+      <div className="exercise-instructions bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-4 mb-6 max-w-2xl text-center">
         <p>{exercise.description}</p>
       </div>
       
-      <div className="board-container">
+      <div className="board-container w-full max-w-lg mx-auto mb-6">
         <Chessboard
           position={game.fen()}
           onPieceDrop={onDrop}
@@ -212,15 +227,15 @@ const TrainingExercise = () => {
       </div>
       
       {message && (
-        <div className={`${messageType}-message`}>
+        <div className={`message-box ${messageType === 'success' ? 'bg-success' : messageType === 'error' ? 'bg-error' : 'bg-info'} p-3 rounded-lg max-w-2xl text-center mb-6 text-white`}>
           {message}
         </div>
       )}
       
-      <div className="game-controls">
-        <button onClick={resetExercise}>Reset Exercise</button>
-        <button onClick={revealSolution}>Show Solution</button>
-        <button onClick={goBack}>Back to Training Hub</button>
+      <div className="game-controls flex gap-4">
+        <button onClick={resetExercise} className="control-button bg-accent hover:bg-accent-600 text-white font-bold py-2 px-4 rounded-lg">Reset</button>
+        <button onClick={revealSolution} className="control-button bg-primary hover:bg-primary-600 text-white font-bold py-2 px-4 rounded-lg">Solution</button>
+        <button onClick={goBack} className="control-button bg-secondary hover:bg-secondary-600 text-white font-bold py-2 px-4 rounded-lg">Back to Hub</button>
       </div>
     </div>
   );

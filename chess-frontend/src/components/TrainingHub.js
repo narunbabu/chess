@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Link } from "react-router-dom";
 
@@ -64,61 +65,30 @@ const trainingData = {
 
 const TrainingHub = () => {
   return (
-    <div className="training-hub">
-      <h2>Training Exercises & Puzzles</h2>
-      <p>Select an exercise below to improve your chess skills:</p>
+    <div className="training-hub p-6 min-h-screen text-white">
+      <h2 className="text-4xl font-bold text-center mb-4 text-white">Training Exercises & Puzzles</h2>
+      <p className="text-lg text-center text-gray-300 mb-10">Select an exercise below to improve your chess skills:</p>
 
-      {/* Beginner */}
-      <h3>Beginner Level</h3>
-      <div className="training-grid">
-        {trainingData.beginner.map((exercise) => (
-          <Link
-            to={`/training/beginner/${exercise.id}`}
-            key={`beginner-${exercise.id}`}
-            style={{ textDecoration: "none" }}
-          >
-            <div className="training-card">
-              <span className="difficulty beginner">Beginner</span>
-              <h3>{exercise.title}</h3>
-              <p>{exercise.description}</p>
+      <div className="space-y-12">
+        {Object.entries(trainingData).map(([level, exercises]) => (
+          <div key={level}>
+            <h3 className="text-2xl font-bold mb-4 capitalize text-primary">{level} Level</h3>
+            <div className="training-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {exercises.map((exercise) => (
+                <Link
+                  to={`/training/${level}/${exercise.id}`}
+                  key={`${level}-${exercise.id}`}
+                  className="training-card-link transform hover:scale-105 transition-transform duration-300 block"
+                >
+                  <div className="training-card bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-6 h-full flex flex-col">
+                    <span className={`difficulty-tag ${level} self-start mb-2 text-accent`}>{exercise.difficulty}</span>
+                    <h4 className="text-xl font-bold mb-2 text-secondary">{exercise.title}</h4>
+                    <p className="text-gray-300 flex-grow">{exercise.description}</p>
+                  </div>
+                </Link>
+              ))}
             </div>
-          </Link>
-        ))}
-      </div>
-
-      {/* Intermediate */}
-      <h3>Intermediate Level</h3>
-      <div className="training-grid">
-        {trainingData.intermediate.map((exercise) => (
-          <Link
-            to={`/training/intermediate/${exercise.id}`}
-            key={`intermediate-${exercise.id}`}
-            style={{ textDecoration: "none" }}
-          >
-            <div className="training-card">
-              <span className="difficulty intermediate">Intermediate</span>
-              <h3>{exercise.title}</h3>
-              <p>{exercise.description}</p>
-            </div>
-          </Link>
-        ))}
-      </div>
-      
-      {/* Advanced */}
-      <h3>Advanced Level</h3>
-      <div className="training-grid">
-        {trainingData.advanced.map((exercise) => (
-          <Link
-            to={`/training/advanced/${exercise.id}`}
-            key={`advanced-${exercise.id}`}
-            style={{ textDecoration: "none" }}
-          >
-            <div className="training-card">
-              <span className="difficulty advanced">Advanced</span>
-              <h3>{exercise.title}</h3>
-              <p>{exercise.description}</p>
-            </div>
-          </Link>
+          </div>
         ))}
       </div>
     </div>

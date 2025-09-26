@@ -51,4 +51,3 @@ test-results/
 temp/
 
 extractFilesContent.js
-*.json

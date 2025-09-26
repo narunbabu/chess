@@ -1,0 +1,21 @@
+/*
+ * The styling for the Login page is now primarily handled by Tailwind CSS classes
+ * directly within Login.js to match the LandingPage.js design.
+ *
+ * The following keyframes are commented out but kept for reference in case
+ * animated background elements are desired in the future.
+ */
+
+/*
+@keyframes backgroundMove {
+  0%, 100% { transform: translateX(0) translateY(0); }
+  50% { transform: translateX(-10px) translateY(-5px); }
+}
+
+@keyframes float {
+  0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(-100px) rotate(360deg); opacity: 0; }
+}
+*/

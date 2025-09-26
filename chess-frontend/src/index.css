@@ -1,8 +1,103 @@
 /* src/index.css */
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 
 /* =========================================
-   Global & Base Styles
+   Global & Base Styles + Animations
    ========================================= */
+
+/* Login Page Animations */
+@keyframes float {
+  0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(-100px) rotate(360deg); opacity: 0; }
+}
+
+@keyframes crownGlow {
+  0% {
+    filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.5));
+    transform: scale(1);
+  }
+  100% {
+    filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.8));
+    transform: scale(1.05);
+  }
+}
+
+@keyframes xpPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes achievementGlow {
+  0%, 90%, 100% { opacity: 0.3; }
+  45% { opacity: 1; transform: scale(1.1); }
+}
+
+@keyframes errorShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+@keyframes cardSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(50px) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-20px) rotate(5deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(-3deg);
+  }
+  75% {
+    transform: translateY(-15px) rotate(2deg);
+  }
+}
+
+/* Tailwind animation utility override */
+.animate-cardSlideIn {
+  animation: cardSlideIn 0.8s ease-out forwards;
+}
+
+/* Landing Page Overrides - Ensure Tailwind styles work */
+.landing-page {
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+/* Ensure buttons don't get overridden by global button styles */
+.landing-page a[class*="bg-gradient"] {
+  all: unset;
+  /* Re-apply only the Tailwind classes */
+  display: inline-block;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/* Ensure cards don't get overridden */
+.landing-page .game-mode-card-override {
+  /* Override any global card styles */
+  background: unset !important;
+  border: unset !important;
+  color: unset !important;
+}
    html, body, #root {
     width: 100%;
     height: 100%; /* Ensure root and html/body have height */
@@ -17,34 +112,18 @@
 
   body {
     margin: 0;
-    font-family: 'Roboto', -apple-system, BlinkMacSystemFont, "Segoe UI", "Oxygen",
-      "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+    padding: 0;
+    font-family: 'Nunito', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background: linear-gradient(to right, #FF7E1D, #FF8940, #6E66C7, #3BA7C0, #006D9F);
-    background-size: cover;
-    color: #c0c5cb; /* Muted Gray for body text */
-    /* overflow: hidden; */ /* Keep commented out for now */
+    background-color: transparent; /* Remove background to let landing page control it */
+    color: #334155; /* Darker text for better readability */
     height: 100vh;
     width: 100vw;
-    position: relative;
-    display: flex;
-    justify-content: center;
+    overflow: hidden; /* Prevent any scroll bars */
   }
 
-  /* Background overlay */
-  body::after {
-    content: "";
-    position: absolute;
-    top: 0; left: 0;
-    width: 100%;
-    height: 100%;
-    background: url('assets/images/chess-overlay.png') no-repeat center;
-    background-size: contain;
-    opacity: 1; /* Adjust as needed */
-    pointer-events: none;
-    z-index: -1; /* Ensure it's behind content */
-  }
+  /* Remove body::after background - let components control their own backgrounds */
 
   code {
     font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
@@ -63,6 +142,29 @@
     flex-direction: column;
     position: relative;
     z-index: 2;
+  }
+
+  /* Landing page specific: full screen without container constraints */
+  .app-container:has([data-page="landing"]) {
+    max-width: none;
+    padding: 0;
+    margin: 0;
+    width: 100vw;
+    height: 100vh;
+  }
+
+  .app-container:has([data-page="landing"]) .app-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 50;
+    background: transparent;
+  }
+
+  .app-container:has([data-page="landing"]) .content-wrapper {
+    height: 100vh;
+    overflow: hidden;
   }
 
   /* Rule to hide header only in game landscape mode */
@@ -239,7 +341,7 @@
      ========================================= */
   .content-wrapper {
     flex-grow: 1;
-    overflow-y: auto;
+    overflow-y: hidden;
     overflow-x: hidden;
     padding: 0;
     display: flex;

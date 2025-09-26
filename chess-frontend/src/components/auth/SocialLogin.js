@@ -8,18 +8,18 @@ const SocialLogin = () => {
   };
 
   return (
-    <div className="social-login">
-      <h3>Or login with</h3>
-      <div className="social-buttons">
+    <div className="social-login text-center mt-6">
+      <h3 className="text-sm text-gray-400 mb-4">Or continue with</h3>
+      <div className="social-buttons flex justify-center gap-4">
         <button
           onClick={() => handleSocialLogin("google")}
-          className="google-btn"
+          className="social-button google-btn flex items-center justify-center gap-2 bg-ryb-orange hover:bg-vivid-yellow text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300"
         >
           <i className="fab fa-google"></i> Google
         </button>
         <button
           onClick={() => handleSocialLogin("facebook")}
-          className="facebook-btn"
+          className="social-button facebook-btn flex items-center justify-center gap-2 bg-picton-blue hover:bg-blue-violet text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300"
         >
           <i className="fab fa-facebook"></i> Facebook
         </button>

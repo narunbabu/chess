@@ -31,16 +31,20 @@ return [
 
     'connections' => [
 
+        // config/database.php  (sqlite section)
         'sqlite' => [
             'driver' => 'sqlite',
             'url' => env('DB_URL'),
-            'database' => env('DB_DATABASE', database_path('database.sqlite')),
+            // ⬇️ use a dedicated key; falls back to database/database.sqlite
+            'database' => env('DB_SQLITE_PATH', database_path('database.sqlite')),
             'prefix' => '',
             'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
-            'busy_timeout' => null,
-            'journal_mode' => null,
-            'synchronous' => null,
+            // (optional tuning)
+            'busy_timeout' => env('DB_SQLITE_BUSY_TIMEOUT', 5000),
+            'journal_mode' => env('DB_SQLITE_JOURNAL_MODE', 'wal'),
+            'synchronous' => env('DB_SQLITE_SYNCHRONOUS', 'normal'),
         ],
+
 
         'mysql' => [
             'driver' => 'mysql',

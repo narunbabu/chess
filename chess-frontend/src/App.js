@@ -1,4 +1,3 @@
-
 // src/App.js
 import React, { useState, useEffect, useCallback } from "react";
 import {
@@ -18,37 +17,7 @@ import Dashboard from "./components/Dashboard";
 import AuthCallback from "./components/auth/AuthCallback";
 import LandingPage from "./pages/LandingPage";
 import { AuthProvider } from "./contexts/AuthContext";  // Import the AuthProvider
-
-// Helper component to manage layout class based on route and orientation
-const LayoutManager = ({ children }) => {
-  const location = useLocation();
-  const [isLandscape, setIsLandscape] = useState(
-    window.matchMedia("(orientation: landscape)").matches
-  );
-  const [isGameRoute, setIsGameRoute] = useState(location.pathname === '/play');
-
-  useEffect(() => {
-    setIsGameRoute(location.pathname === '/play');
-  }, [location.pathname]);
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia("(orientation: landscape)");
-    const handleOrientationChange = (event) => {
-      setIsLandscape(event.matches);
-    };
-
-    mediaQuery.addEventListener('change', handleOrientationChange);
-    setIsLandscape(mediaQuery.matches);
-
-    return () => {
-      mediaQuery.removeEventListener('change', handleOrientationChange);
-    };
-  }, []);
-
-  const containerClass = isGameRoute && isLandscape ? 'game-in-landscape' : '';
-
-  return <div className={`app-container ${containerClass}`}>{children}</div>;
-};
+import Layout from "./components/layout/Layout";
 
 const App = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -62,9 +31,9 @@ const App = () => {
     checkTokenValidity();
   }, [checkTokenValidity]);
 
-  useEffect(()=>{
+  useEffect(()=> {
     const mq = window.matchMedia("(orientation:landscape)");
-    const toggle = e=>{
+    const toggle = e=> {
        document.documentElement.classList.toggle("landscape", e.matches);
     };
     toggle(mq);                 // run immediately
@@ -80,8 +49,8 @@ const App = () => {
 
   return (
     <AuthProvider>
-      <Router>
-        <LayoutManager>
+      <Router future={{ v7_relativeSplatPath: true }}>
+        <Layout>
           <header className="app-header">
             <div className="logo">
               <Link to="/" className="logo-link">
@@ -114,10 +83,11 @@ const App = () => {
                 <Route path="/training/:level/:id" element={<TrainingExercise />} />
                 <Route path="/history" element={<GameHistory />} />
                 <Route path="/game-review" element={<GameReview />} />
+                <Route path="/play/review/:id" element={<GameReview />} />
               </Routes>
             </main>
           </div>
-        </LayoutManager>
+        </Layout>
       </Router>
     </AuthProvider>
   );

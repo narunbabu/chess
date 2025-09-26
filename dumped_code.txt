@@ -1,0 +1,966 @@
+
+/* ===== chess-frontend/src/utils/computerMoveUtils.js ===== */
+// src/utils/computerMoveUtils.js
+
+import { Chess } from 'chess.js';
+
+const MAX_DEPTH_FOR_DIFFICULTY = 16; // Max difficulty level
+const NUM_TOP_MOVES_TO_REQUEST = 10; // How many moves to ask Stockfish for
+
+// Keep time mapping - more time allows Stockfish to rank the top N moves better
+const mapDepthToMoveTime = (depth) => {
+    const clampedDepth = Math.max(1, Math.min(depth, MAX_DEPTH_FOR_DIFFICULTY));
+    switch (clampedDepth) {
+        case 1: return 100;  // ~0.1s
+        case 2: return 150;
+        case 3: return 200;
+        case 4: return 250;
+        case 5: return 300;
+        case 6: return 400;
+        case 7: return 500; // 0.5s
+        case 8: return 600;
+        case 9: return 700;
+        case 10: return 800; // 0.8s
+        case 11: return 1000; // 1s
+        case 12: return 1200; // 1.2s
+        case 13: return 1500; // 1.5s
+        case 14: return 1800; // 1.8s
+        case 15: return 2200; // 2.2s
+        case 16: return 2500; // 2.5s - Max time for finding top N
+        default: return 600;
+    }
+};
+
+
+/**
+ * Gets the top N moves from Stockfish using MultiPV.
+ * @param {string} fen - The current board position in FEN format.
+ * @param {number} numMoves - The number of top moves to request (MultiPV value).
+ * @param {number} moveTimeMs - The time budget for Stockfish to search.
+ * @returns {Promise<string[]>} A promise that resolves with an array of moves in UCI format, ordered best to worst. Rejects on error or timeout.
+ */
+const getStockfishTopMoves = (fen, numMoves, moveTimeMs) =>
+  new Promise((resolve, reject) => {
+    const stockfish = new Worker('/stockfish.js');
+    let bestMoveFromEngine = null;
+    const topMoves = new Array(numMoves).fill(null);
+    let moveCount = 0;
+
+    let safetyTimer = null;
+    const safetyMargin = 2000;
+    const timeoutDuration = moveTimeMs + safetyMargin;
+
+    const cleanup = () => {
+        clearTimeout(safetyTimer);
+        try { stockfish.terminate(); } catch (e) { /* ignore */ }
+    }
+
+    stockfish.onerror = (err) => {
+        console.error("Stockfish Worker Error:", err);
+        cleanup();
+        reject(new Error('Stockfish worker error.'));
+    };
+
+    // --- Define Handlers ---
+
+    // Handler for messages AFTER 'readyok' is received
+    const mainMessageHandler = (e) => {
+        // Define message within this handler's scope
+        const message = typeof e.data === 'string' ? e.data : '';
+        // console.log("SF (main):", message); // Debugging line
+
+        if (message.startsWith('info') && message.includes(' pv ')) {
+            const multipvMatch = message.match(/ multipv (\d+)/);
+            const pvMatch = message.match(/ pv (.+)/);
+
+            if (multipvMatch && pvMatch) {
+                const rank = parseInt(multipvMatch[1], 10);
+                const pv = pvMatch[1].split(' ');
+                const move = pv[0];
+
+                if (move && rank > 0 && rank <= numMoves) {
+                    const index = rank - 1;
+                    if (topMoves[index] === null) {
+                         topMoves[index] = move;
+                         moveCount++;
+                    }
+                }
+            }
+        } else if (message.startsWith('bestmove')) {
+            bestMoveFromEngine = message.split(' ')[1];
+            clearTimeout(safetyTimer);
+
+            const validMoves = topMoves.filter(move => move !== null);
+            if (validMoves.length > 0) {
+                 resolve(validMoves);
+            } else if (bestMoveFromEngine && bestMoveFromEngine !== '(none)') {
+                 console.warn(`Stockfish returned no MultiPV info, falling back to bestmove: ${bestMoveFromEngine}`);
+                 resolve([bestMoveFromEngine]);
+            } else {
+                 if (bestMoveFromEngine && bestMoveFromEngine !== '(none)') {
+                     console.warn("Stockfish provided no info lines but gave a bestmove. Using bestmove.");
+                     resolve([bestMoveFromEngine]);
+                 } else {
+                     reject(new Error('Stockfish finished but found no valid moves or info.'));
+                 }
+            }
+             cleanup();
+        }
+    };
+
+    // Temporary handler specifically waiting for 'readyok'
+    const readyHandler = (e) => {
+        // Define message within this handler's scope
+        const message = typeof e.data === 'string' ? e.data : '';
+        // console.log("SF (ready):", message); // Debugging line
+
+        if (message === 'readyok') { // Check specifically for 'readyok' string
+            // *** FIX: Assign the MAIN handler now ***
+            stockfish.onmessage = mainMessageHandler;
+            stockfish.postMessage(`position fen ${fen}`);
+            
+            stockfish.postMessage(`go movetime ${moveTimeMs}`);
+            startTimeoutTimer();
+        } else if (message.startsWith('bestmove')) { // Handle edge case: bestmove before readyok
+             // *** FIX: 'message' is now defined in this scope ***
+             console.warn("Received 'bestmove' before 'readyok'. Processing using main handler...");
+             mainMessageHandler(e); // Process the bestmove message using the main handler
+        }
+        // Ignore other messages (like info lines) received before 'readyok'
+    };
+
+    // --- Safety Timeout Logic --- (remains the same)
+    const startTimeoutTimer = () => {
+        clearTimeout(safetyTimer);
+        safetyTimer = setTimeout(() => {
+            console.warn(`Stockfish safety timeout triggered after ${timeoutDuration}ms (allocated ${moveTimeMs}ms) for MultiPV. Sending 'stop'.`);
+            stockfish.postMessage('stop');
+
+            setTimeout(() => {
+                const validMoves = topMoves.filter(move => move !== null);
+                 if (validMoves.length > 0) {
+                     console.warn(`Resolving with ${validMoves.length} moves found before timeout.`);
+                     resolve(validMoves);
+                 } else if (bestMoveFromEngine && bestMoveFromEngine !== '(none)') {
+                     console.warn(`Stockfish timed out, falling back to bestmove: ${bestMoveFromEngine}`);
+                     resolve([bestMoveFromEngine]);
+                 } else {
+                    reject(new Error('Stockfish timed out without finding sufficient move info.'));
+                 }
+                 cleanup();
+            }, 500);
+
+        }, timeoutDuration);
+    };
+
+    // --- Initialize Stockfish Communication ---
+    stockfish.onmessage = readyHandler; // Start with the temporary ready handler
+
+    stockfish.postMessage('uci');
+    stockfish.postMessage('ucinewgame');
+    stockfish.postMessage(`setoption name MultiPV value ${numMoves}`);
+    stockfish.postMessage('isready'); // This command triggers the 'readyok' response
+  });
+
+
+// selectMoveFromRankedList remains the same as the corrected version from previous response
+/**
+ * Selects a move from a ranked list based on difficulty depth,
+ * handling cases where fewer moves are available than requested.
+ * @param {string[]} rankedMoves - Array of moves (UCI format), index 0 is best.
+ * @param {number} depth - Difficulty level (1-16).
+ * @returns {string|null} The chosen move in UCI format, or null if selection fails.
+ */
+const selectMoveFromRankedList = (rankedMoves, depth) => {
+    // --- Input Validation ---
+    if (!rankedMoves || !Array.isArray(rankedMoves) || rankedMoves.length === 0) {
+        console.warn("selectMoveFromRankedList called with empty or invalid moves array.");
+        return null;
+    }
+
+    const numAvailableMoves = rankedMoves.length;
+
+    // --- Handle Trivial Case ---
+    if (numAvailableMoves === 1) {
+            
+        return rankedMoves[0];
+    }
+
+    const clampedDepth = Math.max(1, Math.min(depth, MAX_DEPTH_FOR_DIFFICULTY));
+    let minRank, maxRank; // 1-based rank
+
+    // --- Define Desired Rank Ranges (TUNE THESE!) ---
+    switch (clampedDepth) {
+        case 1: [minRank, maxRank] = [5, 8]; break; // Ranks 8-10
+        case 2: [minRank, maxRank] = [4, 8]; break; // Ranks 7-10
+        case 3: [minRank, maxRank] = [3, 7]; break;  // Ranks 6-9
+        case 4: [minRank, maxRank] = [3, 6]; break;  // Ranks 5-8
+        case 5: [minRank, maxRank] = [3, 5]; break;  // Ranks 4-7
+        case 6: [minRank, maxRank] = [2, 5]; break;  // Ranks 4-6
+        case 7: [minRank, maxRank] = [2, 4]; break;  // Ranks 3-6
+        case 8: [minRank, maxRank] = [2, 3]; break;  // Ranks 3-5
+        case 9: [minRank, maxRank] = [1, 3]; break;  // Ranks 2-5
+        case 10: [minRank, maxRank] = [1, 2]; break; // Ranks 2-4
+        case 11: [minRank, maxRank] = [1, 1]; break; // Ranks 2-3
+        case 12: [minRank, maxRank] = [1, 1]; break; // Ranks 1-3
+        case 13: [minRank, maxRank] = [1, 1]; break; // Ranks 1-2
+        case 14: [minRank, maxRank] = [1, 1]; break; // Ranks 1-2
+        case 15: [minRank, maxRank] = [1, 1]; break; // Rank 1
+        case 16: [minRank, maxRank] = [1, 1]; break; // Rank 1
+        default: [minRank, maxRank] = [1, numAvailableMoves]; // Should not happen due to clamping
+    }
+
+    // --- Calculate Indices ---
+    const desiredStartIndex = minRank - 1; // 0-based index
+    const desiredEndIndex = maxRank - 1;   // 0-based index
+    const maxAvailableIndex = numAvailableMoves - 1;
+
+    let finalStartIndex, finalEndIndex;
+
+    // --- Determine Actual Selection Range ---
+    if (desiredStartIndex > maxAvailableIndex) {
+        // Case: The entire desired range is impossible
+        console.warn(`Depth ${clampedDepth}: Desired rank range [${minRank}-${maxRank}] starts beyond available moves (${numAvailableMoves}). Applying fallback.`);
+        if (clampedDepth <= 11) { // Low/Mid difficulty fallback: random among ALL available
+            finalStartIndex = 0;
+            finalEndIndex = maxAvailableIndex;
+            console.log(`Fallback: Selecting randomly from ranks 1-${numAvailableMoves}.`);
+        } else { // High difficulty fallback: pick the BEST available move
+            finalStartIndex = 0;
+            finalEndIndex = 0;
+            console.log(`Fallback: Selecting best available (rank 1).`);
+        }
+    } else {
+        // Case: The desired range at least starts within the available moves. Clamp the range.
+        finalStartIndex = Math.max(0, desiredStartIndex);
+        finalEndIndex = Math.min(desiredEndIndex, maxAvailableIndex);
+        if (finalStartIndex > finalEndIndex) { finalStartIndex = finalEndIndex; } // Ensure start <= end
+        
+    }
+
+    // --- Perform Random Selection ---
+    const rangeSize = finalEndIndex - finalStartIndex + 1;
+    const randomOffset = Math.floor(Math.random() * rangeSize);
+    const randomIndex = finalStartIndex + randomOffset;
+
+    // --- Final Safety Check and Return ---
+    if (randomIndex < 0 || randomIndex >= numAvailableMoves) {
+        console.error(`CRITICAL ERROR: Calculated randomIndex ${randomIndex} is out of bounds for ${numAvailableMoves} moves. Defaulting to best move.`);
+        return rankedMoves[0];
+    }
+
+    
+    return rankedMoves[randomIndex];
+};
+
+
+// makeComputerMove remains the same as the previous version
+/**
+ * Uses Stockfish (MultiPV) to find top moves and selects one based on depth/difficulty.
+ * Includes fallback logic to random moves.
+ * @param {Chess} game - The Chess.js game instance.
+ * @param {number} depth - The selected difficulty level (1-16).
+ * @param {string} computerColor - The color the computer is playing ('w' or 'b').
+ * @param {Function} setTimerButtonColor - Callback to update UI feedback.
+ * @returns {Promise<object|null>} An object with new game state, move (SAN), and actual thinking time, or null on failure.
+ */
+export const makeComputerMove = async (
+  game, depth, computerColor, setTimerButtonColor
+) => {
+  if (game.isGameOver() || game.isDraw() || game.turn() !== computerColor) return null;
+
+  const allocatedTimeMs = mapDepthToMoveTime(depth);
+
+  setTimerButtonColor("yellow");
+  const fen = game.fen();
+  let rankedMoves = [];
+  const thinkingStartTime = Date.now();
+  let actualThinkingTime = 0;
+  let chosenMoveUci = null;
+
+  try {
+    rankedMoves = await getStockfishTopMoves(fen, NUM_TOP_MOVES_TO_REQUEST, allocatedTimeMs);
+    actualThinkingTime = Date.now() - thinkingStartTime;
+    
+
+    chosenMoveUci = selectMoveFromRankedList(rankedMoves, depth);
+
+    if (!chosenMoveUci) {
+        throw new Error("Failed to get or select a move from Stockfish MultiPV results (selectMoveFromRankedList returned null).");
+    }
+
+  } catch (error) {
+    actualThinkingTime = Date.now() - thinkingStartTime;
+    console.error(`Error getting/selecting Stockfish move (level ${depth}, budget ${allocatedTimeMs}ms):`, error);
+    console.warn(`Falling back to random move.`);
+
+    const possibleMoves = game.moves({ verbose: true });
+    if (possibleMoves.length === 0) {
+      console.error("No legal moves available for fallback.");
+      setTimerButtonColor(null);
+      return null;
+    }
+    const randomIdx = Math.floor(Math.random() * possibleMoves.length);
+    const fallbackMove = possibleMoves[randomIdx];
+    console.log(`Applying random fallback move: ${fallbackMove.san} (${fallbackMove.from}${fallbackMove.to})`);
+
+    const gameCopyFallback = new Chess(game.fen());
+    const moveResultFallback = gameCopyFallback.move(fallbackMove.san);
+    setTimerButtonColor(null);
+    return {
+        newGame: gameCopyFallback,
+        move: moveResultFallback ? moveResultFallback.san : fallbackMove.san,
+        thinkingTime: actualThinkingTime
+    };
+  }
+
+  // --- Apply the Stockfish-selected move ---
+  const gameCopy = new Chess(game.fen());
+  let moveResult = null;
+  try {
+    moveResult = gameCopy.move(chosenMoveUci);
+    if (!moveResult) {
+      throw new Error(`Invalid move returned/rejected by chess.js: ${chosenMoveUci}`);
+    }
+    
+  } catch (e) {
+    // --- Critical Fallback: Applying selected move failed ---
+    actualThinkingTime = Date.now() - thinkingStartTime;
+    console.error(`CRITICAL ERROR applying Stockfish move '${chosenMoveUci}'. Error:`, e);
+    console.warn('Falling back to random move after failed application.');
+
+    const fallbackMoves = game.moves({ verbose: true });
+    if (fallbackMoves.length === 0) {
+       console.error("No legal moves available for critical fallback.");
+       setTimerButtonColor(null);
+       return null;
+    }
+    const randomMoveData = fallbackMoves[Math.floor(Math.random() * fallbackMoves.length)];
+    const fallbackMoveSan = randomMoveData.san;
+    console.warn(`Applying critical random fallback move (SAN): ${fallbackMoveSan}`);
+
+    const gameCopyCriticalFallback = new Chess(game.fen());
+    moveResult = gameCopyCriticalFallback.move(fallbackMoveSan);
+    setTimerButtonColor(null);
+    return {
+        newGame: gameCopyCriticalFallback,
+        move: moveResult ? moveResult.san : fallbackMoveSan,
+        thinkingTime: actualThinkingTime
+    };
+  }
+
+  // --- Success Case ---
+  setTimerButtonColor(null);
+  return {
+    newGame: gameCopy,
+    move: moveResult.san,
+    thinkingTime: actualThinkingTime,
+  };
+};
+
+/* ===== chess-frontend/src/utils/gameHistoryStringUtils.js ===== */
+// File: src/utils/gameHistoryStringUtils.js
+import { Chess } from "chess.js";
+
+/**
+ * Encodes a game history (array of move entries) into a concise string.
+ * The format is a semicolon-separated list of moves:
+ *   <san>,<time>;<san>,<time>;...
+ * Example:
+ *   e4,1.10;a6,4.55;Nc3,4.54;...
+ */
+export function encodeGameHistory(gameHistory) {
+  let parts = [];
+  // For each move entry that has a move property, add the move info.
+  gameHistory.forEach((entry) => {
+    if (entry.move) {
+      // Store just the SAN and timeSpent (to 2 decimals).
+      parts.push(entry.move.san + "," + entry.timeSpent.toFixed(2));
+    }
+  });
+  return parts.join(";");
+}
+
+/**
+ * Decodes a concise game string back into an array of moves.
+ * Returns an array of objects: { san, timeSpent }
+ */
+export function decodeGameHistory(gameString) {
+  const parts = gameString.split(";");
+  let moves = [];
+  parts.forEach((part) => {
+    if (part) {
+      const [san, timeStr] = part.split(",");
+      moves.push({ san: san, timeSpent: parseFloat(timeStr) });
+    }
+  });
+  return moves;
+}
+
+/**
+ * Reconstructs a full move history JSON array by replaying the moves using chess.js.
+ * Each move entry in the returned array is in the format your application uses.
+ * Since standard chess always starts at the same position, we use the default starting FEN.
+ */
+export function reconstructGameFromHistory(gameString) {
+  const moves = decodeGameHistory(gameString);
+  const defaultFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+  const chess = new Chess(defaultFen);
+  let reconstructedHistory = [];
+
+  // Add initial position entry.
+  reconstructedHistory.push({
+    fen: defaultFen,
+    initialPosition: true,
+    playerColor: defaultFen.split(" ")[1] === "w" ? "w" : "b",
+  });
+
+  moves.forEach((moveData, index) => {
+    const beforeFen = chess.fen(); // Get FEN *before* the move
+    console.log(`Reconstructing move #${index + 1}: ${moveData.san}`);
+    console.log(`FEN before move #${index + 1}: ${beforeFen}`); // Log FEN before attempting move
+    let moveObj;
+    try {
+      moveObj = chess.move(moveData.san, { sloppy: true });
+      // If move is successful, log the FEN *after* the move
+      if (moveObj) {
+          console.log(`FEN after move #${index + 1}: ${chess.fen()}`); // Log FEN after successful move
+      }
+    } catch (error) {
+      // Enhanced error diagnostics
+      console.error(`[Move Reconstruction Error] At move ${index + 1}/${moves.length}:`, {
+        san: moveData.san,
+        beforeFen,
+        error: error.message,
+        fullMoveList: moves.map(m => m.san)
+      });
+      console.warn('This error indicates corrupted move data or incompatible SAN notation. Some history features may be unavailable.');
+      return; // Skip invalid move
+    }
+    if (!moveObj) {
+      // This case might indicate a different issue than an exception (e.g., ambiguous move without sloppy)
+      console.error(`Move object null at step ${index + 1}, SAN: ${moveData.san}, FEN was: ${beforeFen}`);
+      return; // Skip invalid move
+    }
+    const afterFen = chess.fen(); // FEN after the move was successfully made
+    reconstructedHistory.push({
+      moveNumber: moveObj.color === "w" ? Math.floor(index / 2) + 1 : undefined, // Move number calculation seems okay
+      fen: beforeFen,
+      move: {
+        color: moveObj.color,
+        from: moveObj.from,
+        to: moveObj.to,
+        piece: moveObj.piece,
+        flags: moveObj.flags,
+        san: moveObj.san,
+        lan: moveObj.from + moveObj.to,
+        before: beforeFen,
+        after: afterFen,
+      },
+      playerColor: moveObj.color,
+      timeSpent: moveData.timeSpent,
+      evaluation: null, // Evaluation can be recalculated on replay if desired.
+    });
+  });
+
+  return reconstructedHistory;
+}
+
+/**
+ * Maps chess piece codes to their full names.
+ */
+const pieceNames = {
+  p: "pawn",
+  n: "knight",
+  b: "bishop",
+  r: "rook",
+  q: "queen",
+  k: "king", // Included for completeness, though king captures are not standard
+};
+
+/**
+ * Formats a move object into a descriptive string, especially for captures.
+ * If the move is a capture, it returns "Color captured Piece on Square".
+ * Otherwise, it returns the Standard Algebraic Notation (SAN).
+ *
+ * @param {object} move - The move object from chess.js (e.g., selectedGame.moves[i].move)
+ * @returns {string} The formatted move description or SAN.
+ */
+export function formatMoveDescription(move) {
+  if (!move) {
+    return ""; // Handle cases where move might be null or undefined
+  }
+
+  // Check if the move is a capture ('c' flag) and has captured piece info
+  if (move.flags && move.flags.includes('c') && move.captured) {
+    const playerColor = move.color === 'w' ? 'White' : 'Black';
+    const capturedPieceName = pieceNames[move.captured.toLowerCase()] || move.captured; // Fallback to code if name not found
+    const destinationSquare = move.to;
+    return `${playerColor} captured ${capturedPieceName} on ${destinationSquare}`;
+  }
+
+  // For non-captures or if capture info is missing, return SAN
+  return move.san || ""; // Fallback to empty string if SAN is missing
+}
+
+/* ===== chess-frontend/src/services/gameHistoryService.js ===== */
+// This service handles saving and retrieving game history
+// In a real application, this would connect to a backend API
+// For now, we'll use localStorage for persistence
+import axios from "axios";
+import { BACKEND_URL } from "../config";
+import api from "./api";
+const STORAGE_KEY = "chess_trainer_game_history";
+
+/**
+ * Save a completed game to history
+ * @param {Object} gameData - The game data to save
+ * @param {string} gameData.date - ISO string of date when game was played
+ * @param {string} gameData.playerColor - Player's color (w/b)
+ * @param {number} gameData.computerLevel - Computer difficulty level
+ * @param {Array} gameData.moves - Array of move objects
+ * @param {number} gameData.finalScore - Player's final score
+ * @param {string} gameData.result - Game result text
+ */
+
+export const saveGameHistory = async (gameData) => {
+  try {
+    const token = localStorage.getItem("auth_token");
+    if (token) {
+      // Save to backend
+      const response = await api.post("/game-history", {
+        ...gameData,
+        played_at: new Date().toISOString(),
+        moves: JSON.stringify(gameData.moves), // Stringify moves for storage
+      });
+      return response.data;
+    } else {
+      // Prepare a history record that always has `finalScore`
+  const record = {
+    ...gameData,
+    finalScore: gameData.finalScore ?? gameData.score,
+    finalNormScore: gameData.finalNormScore ?? null,
+        id: Date.now().toString(),
+        played_at: new Date().toISOString(),
+        moves: JSON.stringify(gameData.moves),
+      };
+      const existingGames = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+      const newGame = record;
+      existingGames.unshift(newGame);
+      localStorage.setItem("chess_trainer_game_history", JSON.stringify(existingGames.slice(0, 50)));
+      return newGame;
+    }
+  } catch (error) {
+    console.error("Error saving game history:", error);
+    throw error;
+  }
+};
+
+export const getGameHistories = async () => {
+  try {
+    const token = localStorage.getItem("auth_token");
+    if (token) {
+      const res = await api.get("/game-history");
+      return res.data.data.map(game => {
+        let parsedMoves = game.moves;
+        if (typeof game.moves === 'string') {
+          try {
+            parsedMoves = JSON.parse(game.moves);
+          } catch (parseError) {
+            console.error(`Error parsing moves JSON for game ID ${game.id}:`, parseError, "Raw moves:", game.moves);
+            parsedMoves = []; // Assign empty array on parse error
+          }
+        }
+        return { ...game, moves: parsedMoves };
+      });
+    } else {
+      const games = JSON.parse(localStorage.getItem("chess_trainer_game_history") || "[]");
+      return games.map(game => {
+        // 1) parse out the moves
+        let parsedMoves = game.moves;
+        if (typeof parsedMoves === 'string') {
+          try { parsedMoves = JSON.parse(parsedMoves) }
+          catch (_){ parsedMoves = [] }
+        }
+
+        // 2) normalize finalScore into a Number
+        const raw = game.finalScore ?? game.final_score ?? game.score;
+        const finalScore = raw == null
+          ? null
+          : (typeof raw === 'string' ? parseFloat(raw) : raw);
+
+        return {
+          ...game,
+          moves: parsedMoves,
+          finalScore
+        };
+      });
+    }
+  } catch (error) {
+    console.error("Error retrieving game histories:", error);
+    return [];
+  }
+};
+
+export const getGameHistoryById = async (id) => {
+  try {
+    const token = localStorage.getItem("auth_token");
+    if (token) {
+      const res = await api.get(`/game-history/${id}`);
+      const game = res.data.data;
+      let parsedMoves = game.moves;
+      if (typeof game.moves === 'string') {
+        try {
+          parsedMoves = JSON.parse(game.moves);
+        } catch (parseError) {
+          console.error(`Error parsing moves JSON for game ID ${game.id}:`, parseError, "Raw moves:", game.moves);
+          parsedMoves = []; // Assign empty array on parse error
+        }
+      }
+      return { ...game, moves: parsedMoves };
+    } else {
+      const games = JSON.parse(localStorage.getItem("chess_trainer_game_history") || "[]");
+      const game = games.find(g => g.id === id);
+      if (!game) return null;
+
+      // parse moves
+      let parsedMoves = game.moves;
+      if (typeof parsedMoves === 'string') {
+        try { parsedMoves = JSON.parse(parsedMoves) }
+        catch (_){ parsedMoves = [] }
+      }
+
+      // normalize score
+      const raw = game.finalScore ?? game.final_score ?? game.score;
+      const finalScore = raw == null
+        ? null
+        : (typeof raw === 'string' ? parseFloat(raw) : raw);
+
+      return {
+        ...game,
+        moves: parsedMoves,
+        finalScore
+      };
+    }
+  } catch (error) {
+    console.error("Error retrieving game history by ID:", error);
+    return null;
+  }
+};
+
+export const deleteGameHistory = async (id) => {
+  try {
+    const token = localStorage.getItem("auth_token");
+    if (token) {
+      await api.delete(`/game-history/${id}`);
+    } else {
+      const games = JSON.parse(localStorage.getItem("chess_trainer_game_history") || "[]");
+      const filteredGames = games.filter(game => game.id !== id);
+      localStorage.setItem("chess_trainer_game_history", JSON.stringify(filteredGames));
+    }
+    return true;
+  } catch (error) {
+    console.error("Error deleting game history:", error);
+    return false;
+  }
+};
+
+export const clearGameHistory = async () => {
+  try {
+    const token = localStorage.getItem("auth_token");
+    if (token) {
+      await api.delete("/game-history");
+    } else {
+      localStorage.removeItem("chess_trainer_game_history");
+    }
+    return true;
+  } catch (error) {
+    console.error("Error clearing game history:", error);
+    return false;
+  }
+};
+
+/* ===== chess-backend/app/Http/Controllers/Api/GameHistoryController.php ===== */
+<?php
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use App\Models\GameHistory;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+
+class GameHistoryController extends Controller
+{
+    // Save a new game history record (unchanged)
+    public function store(Request $request)
+    {
+        Log::info("Game history request received");
+        $user = $request->user();
+        Log::info("User:");
+        Log::info($user);
+        Log::info($request);
+
+        $validated = $request->validate([
+            'played_at'      => 'required|date_format:Y-m-d H:i:s',
+            'player_color'   => 'required|in:w,b',
+            'computer_level' => 'required|integer',
+            'moves'          => 'required|string',
+            'final_score'    => 'required|numeric',
+            'result'         => 'required|string',
+        ]);
+
+        $userId = Auth::check() ? Auth::id() : null;
+
+        try {
+            $game = new GameHistory();
+            $game->user_id = $userId;
+            $game->played_at = $validated['played_at'];
+            $game->player_color = $validated['player_color'];
+            $game->computer_level = $validated['computer_level'];
+            $game->moves = $validated['moves'];
+            $game->final_score = $validated['final_score'];
+            $game->result = $validated['result'];
+            $game->save();
+
+            return response()->json(['success' => true, 'data' => $game], 201);
+        } catch (\Exception $e) {
+            Log::error("Failed to save game history: " . $e->getMessage());
+            return response()->json(['error' => 'Failed to save game', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    // Return a summary list of game histories (without moves)
+    public function index(Request $request)
+    {
+        $user = $request->user();
+        Log::info("User:");
+        Log::info($user);
+        if (!$user) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        // Select summary fields (excluding moves)
+        $games = GameHistory::where('user_id', $user->id)
+            ->orderBy('played_at', 'desc')
+            ->get(['id', 'played_at', 'player_color', 'computer_level', 'final_score', 'result']);
+
+        Log::info("Games summary:", $games->toArray());
+        return response()->json(['success' => true, 'data' => $games], 200);
+    }
+
+    // Return full game details (including moves) for a given id
+    public function show(Request $request, $id)
+    {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        // Ensure the game belongs to the user
+        $game = GameHistory::where('user_id', $user->id)->findOrFail($id);
+
+        return response()->json(['success' => true, 'data' => $game], 200);
+    }
+
+    // (Optional) Global ranking endpoint
+    public function rankings()
+    {
+        $rankings = GameHistory::selectRaw('user_id, COUNT(*) as games_played, SUM(final_score) as total_score')
+            ->whereNotNull('user_id')
+            ->groupBy('user_id')
+            ->orderByDesc('total_score')
+            ->get();
+
+        return response()->json(['success' => true, 'data' => $rankings], 200);
+    }
+}
+
+/* ===== chess-frontend/src/utils/gameHistoryUtils.js ===== */
+// src/utils/gameHistoryUtils.js
+import { formatDistanceToNow } from "date-fns";
+import { Chess } from "chess.js";
+import { decodeGameHistory } from "./gameHistoryStringUtils";
+
+/**
+ * Formats a date string to a relative time (e.g., "2 hours ago")
+ * @param {string} dateString - ISO date string
+ * @returns {string} Formatted relative time
+ */
+export const formatGameDate = (dateString) => {
+  try {
+    const date = new Date(dateString);
+    return formatDistanceToNow(date, { addSuffix: true });
+  } catch (error) {
+    console.error("Error formatting date:", error);
+    return "Unknown date";
+  }
+};
+
+/**
+ * Extracts game summary information for display in history list
+ * @param {Object} gameHistory - Complete game history object
+ * @returns {Object} Summary information
+ */
+export const extractGameSummary = (gameHistory) => {
+  const date = gameHistory.played_at || gameHistory.date;
+  const playerColorRaw = gameHistory.player_color;
+  const computerLevelRaw = gameHistory.computer_level;
+  const resultRaw = gameHistory.result || "";
+  const finalScoreRaw =
+    gameHistory.final_score ??
+    gameHistory.finalScore ??
+    gameHistory.score ??
+    0;
+
+  // Handle moves: if missing, default to empty array.
+  let moves = [];
+  if (gameHistory.moves) {
+    if (typeof gameHistory.moves === "string") {
+      try {
+        moves = decodeGameHistory(gameHistory.moves);
+      } catch (err) {
+        console.error("Error decoding moves for summary:", err);
+        moves = [];
+      }
+    } else {
+      moves = gameHistory.moves;
+    }
+  }
+
+  // Calculate game duration
+  let totalTime = 0;
+  moves.forEach((move) => {
+    // Accept either snake_case or camelCase time properties.
+    if (move.time_spent || move.timeSpent) {
+      totalTime += move.time_spent || move.timeSpent;
+    }
+  });
+
+  // Format duration (mm:ss)
+  const minutes = Math.floor(totalTime / 60);
+  const seconds = Math.floor(totalTime % 60);
+  const duration = `${minutes}:${seconds < 10 ? "0" + seconds : seconds}`;
+
+  // Get move count (checking for either property, e.g. move or san)
+  const moveCount = moves.filter((move) => move.move || move.san).length;
+
+  return {
+    date: formatGameDate(date),
+    rawDate: date,
+    playerColor: playerColorRaw === "w" ? "White" : "Black",
+    computerLevel: computerLevelRaw,
+    result: resultRaw.toLowerCase().includes("you won")
+      ? "Won"
+      : resultRaw.toLowerCase().includes("computer won")
+      ? "Lost"
+      : "Draw",
+    finalScore: Math.abs(finalScoreRaw).toFixed(1),
+    duration,
+    moveCount,
+  };
+};
+
+/**
+ * Sorts game histories by date (newest first)
+ * @param {Array} gameHistories - Array of game history objects
+ * @returns {Array} Sorted game histories
+ */
+export const sortGameHistories = (gameHistories) => {
+  return [...gameHistories].sort((a, b) => {
+    const dateA = new Date(a.date || a.played_at);
+    const dateB = new Date(b.date || b.played_at);
+    return dateB - dateA;
+  });
+};
+
+/**
+ * Gets PGN notation for a game
+ * @param {Object} gameHistory - Game history object
+ * @returns {string} PGN notation
+ */
+export const getGamePGN = (gameHistory) => {
+  try {
+    const chess = new Chess();
+    // If moves is stored as JSON, parse it.
+    let moves = [];
+    if (gameHistory.moves) {
+      moves =
+        typeof gameHistory.moves === "string"
+          ? JSON.parse(gameHistory.moves)
+          : gameHistory.moves;
+    }
+    const { playerColor, result } = gameHistory;
+
+    // Apply all moves
+    moves.forEach((moveObj) => {
+      if (moveObj.move) {
+        try {
+          chess.move(moveObj.move);
+        } catch (e) {
+          console.error("Invalid move in history:", moveObj.move);
+        }
+      }
+    });
+
+    // Set PGN headers
+    chess.header(
+      "Event",
+      "Chess Trainer Game",
+      "Site",
+      "Chess Trainer App",
+      "Date",
+      new Date(gameHistory.date || gameHistory.played_at)
+        .toISOString()
+        .split("T")[0],
+      "White",
+      playerColor === "w" ? "Player" : "Computer",
+      "Black",
+      playerColor === "b" ? "Player" : "Computer",
+      "Result",
+      result === "Checkmate - You won!"
+        ? "1-0"
+        : result === "Checkmate - Computer won!"
+        ? "0-1"
+        : "1/2-1/2"
+    );
+
+    return chess.pgn();
+  } catch (error) {
+    console.error("Error generating PGN:", error);
+    return "Error generating PGN";
+  }
+};
+
+/**
+ * Filters game histories by criteria
+ * @param {Array} gameHistories - Array of game history objects
+ * @param {Object} filters - Filter criteria
+ * @returns {Array} Filtered game histories
+ */
+export const filterGameHistories = (gameHistories, filters = {}) => {
+  return gameHistories.filter((game) => {
+    let match = true;
+
+    // Use snake_case field names as returned by the backend
+    if (filters.playerColor && game.player_color !== filters.playerColor) {
+      match = false;
+    }
+    if (filters.result && !game.result.includes(filters.result)) {
+      match = false;
+    }
+    if (filters.level && game.computer_level !== filters.level) {
+      match = false;
+    }
+    if (filters.dateRange) {
+      const gameDate = new Date(game.date || game.played_at);
+      if (
+        gameDate < filters.dateRange.start ||
+        gameDate > filters.dateRange.end
+      ) {
+        match = false;
+      }
+    }
+    return match;
+  });
+};

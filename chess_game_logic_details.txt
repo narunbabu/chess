@@ -1,0 +1,56 @@
+## Chess Game Logic Details
+
+This document explains the computer move logic based on difficulty levels, how the game history is encoded into a string for saving, and how it is decoded and reconstructed.
+
+### 1. Computer Move Logic and Difficulty Levels
+
+The computer move logic is primarily handled in the `chess-frontend/src/utils/computerMoveUtils.js` file. It utilizes the Stockfish chess engine running in a Web Worker (`stockfish.js`).
+
+-   **Stockfish Integration:** The `getStockfishTopMoves` function communicates with the Stockfish worker. It sends the current board state (FEN) and requests a specified number of top moves (`NUM_TOP_MOVES_TO_REQUEST`, set to 10) using Stockfish's MultiPV feature.
+-   **Difficulty Mapping:** The `mapDepthToMoveTime` function maps the selected difficulty level (1-16) to a time budget (`moveTimeMs`) for Stockfish to spend searching for moves. Higher difficulty levels are allocated more time, allowing Stockfish to perform a deeper search and provide better-ranked moves.
+-   **Move Selection:** The `selectMoveFromRankedList` function takes the list of top moves provided by Stockfish and selects one based on the difficulty level.
+    -   For lower difficulty levels, it selects a move from a wider range of lower-ranked moves (e.g., ranks 5-8 for difficulty 1).
+    -   For higher difficulty levels, it narrows the selection range to include only the top-ranked moves (e.g., ranks 1-3 for difficulty 9, and only rank 1 for difficulties 15-16).
+    -   A random move is chosen from the selected rank range to introduce variability.
+-   **Fallback:** If Stockfish fails to provide moves or an error occurs, the system falls back to making a random legal move using the `chess.js` library.
+
+The `makeComputerMove` function orchestrates this process: it gets the current FEN, calls `getStockfishTopMoves`, selects a move using `selectMoveFromRankedList`, applies the chosen move to the game state, and handles potential errors with the random move fallback.
+
+### 2. Game String Construction and Saving
+
+The game history is encoded into a concise string for saving, primarily handled in `chess-frontend/src/utils/gameHistoryStringUtils.js` and saved via `chess-frontend/src/services/gameHistoryService.js`.
+
+-   **Encoding:** The `encodeGameHistory` function in `gameHistoryStringUtils.js` takes an array of move entries (which include details like the move in SAN format and time spent) and converts it into a single string.
+    -   Each move entry is represented as `<san>,<timeSpent>`.
+    -   These move representations are joined together by semicolons (`;`).
+    -   Example: `e4,1.10;a6,4.55;Nc3,4.54;...`
+-   **Saving Process:** The `saveGameHistory` function in `gameHistoryService.js` is responsible for sending the game data to the backend API or saving it to local storage.
+    -   It prepares the game data object, which includes `played_at`, `player_color`, `computer_level`, `final_score`, `result`, and the `moves` array.
+    -   Crucially, before sending or saving, the `moves` array is converted into a JSON string using `JSON.stringify(gameData.moves)`.
+    -   If a user is logged in (indicated by an `auth_token`), the data is sent via a POST request to the `/game-history` endpoint on the backend.
+    -   If no user is logged in, the game data (with the stringified moves) is saved to the browser's `localStorage` under the key `chess_trainer_game_history`.
+-   **Backend Handling:** The backend controller (`chess-backend/app/Http/Controllers/Api/GameHistoryController.php`) receives the POST request. It validates the incoming data, expecting the `moves` field as a `string`. It then saves this string directly into the `moves` column of the `game_histories` database table.
+
+### 3. Game String Extraction and Reconstruction
+
+When retrieving game history, the stored game string needs to be extracted and reconstructed back into a usable game history format. This is handled in `chess-frontend/src/services/gameHistoryService.js` and `chess-frontend/src/utils/gameHistoryStringUtils.js`.
+
+-   **Extraction:** The `getGameHistories` and `getGameHistoryById` functions in `gameHistoryService.js` retrieve the stored game data.
+    -   If fetching from the backend API, the `moves` field is received as a string from the database.
+    -   If fetching from `localStorage`, the `moves` field is retrieved as the previously stringified JSON.
+    -   In both cases, the retrieved `moves` string is then parsed back into a JavaScript array using `JSON.parse(game.moves)`.
+-   **Decoding:** The `decodeGameHistory` function in `gameHistoryStringUtils.js` takes the semicolon-separated string (which was originally created by `encodeGameHistory`) and splits it back into an array of objects, each containing the `san` (Standard Algebraic Notation) and `timeSpent` for a move.
+-   **Reconstruction:** The `reconstructGameFromHistory` function in `gameHistoryStringUtils.js` takes the original encoded game string as input.
+    -   It first calls `decodeGameHistory` to get the array of `{ san, timeSpent }` objects.
+    -   It initializes a new `chess.js` game instance with the default starting FEN.
+    -   It then iterates through the decoded moves, applying each move (`moveData.san`) to the `chess.js` instance using `chess.move()`.
+    -   As each move is successfully applied, it constructs a detailed move entry object (similar to what the frontend uses during live gameplay, including FEN before and after the move, move details, player color, and time spent) and adds it to a `reconstructedHistory` array.
+    -   This process effectively replays the game move by move to recreate the full history structure needed for features like game review. Error handling is included to skip invalid moves during reconstruction.
+
+### Relevant Files:
+
+-   `chess-frontend/src/utils/computerMoveUtils.js`: Handles computer move logic using Stockfish and difficulty levels.
+-   `chess-frontend/src/utils/gameHistoryStringUtils.js`: Contains functions for encoding and decoding the game history string, and reconstructing the game from the string.
+-   `chess-frontend/src/services/gameHistoryService.js`: Manages saving and retrieving game history data, including handling the stringification and parsing of the moves data when interacting with the backend or local storage.
+-   `chess-backend/app/Http/Controllers/Api/GameHistoryController.php`: Backend controller that receives and saves the game history data, storing the moves as a string in the database.
+-   `chess-frontend/src/utils/gameHistoryUtils.js`: Contains utility functions for formatting and filtering game history data, including logic to handle moves which might be in string or array format.

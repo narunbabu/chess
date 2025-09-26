@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Log;
 
 class GameHistoryController extends Controller
 {
-    // Save a new game history record (unchanged)
+    // Save a new game history record (authenticated users)
     public function store(Request $request)
     {
         Log::info("Game history request received");
@@ -26,6 +26,8 @@ class GameHistoryController extends Controller
             'final_score'    => 'required|numeric',
             'result'         => 'required|string',
         ]);
+
+        Log::info('Validated game data for user:', $validated);
 
         $userId = Auth::check() ? Auth::id() : null;
 
@@ -44,6 +46,57 @@ class GameHistoryController extends Controller
         } catch (\Exception $e) {
             Log::error("Failed to save game history: " . $e->getMessage());
             return response()->json(['error' => 'Failed to save game', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    // Public endpoint to save game history (no authentication required)
+    public function storePublic(Request $request)
+    {
+        Log::info("=== PUBLIC GAME HISTORY REQUEST ===");
+        Log::info("Request Method: " . $request->method());
+        Log::info("Request URL: " . $request->fullUrl());
+        Log::info("Request Headers: ", $request->headers->all());
+        Log::info("Request Body (raw): " . $request->getContent());
+        Log::info("Request data (parsed): ", $request->all());
+        Log::info("Content-Type: " . $request->header('Content-Type'));
+
+        try {
+            $validated = $request->validate([
+                'played_at'      => 'nullable|date_format:Y-m-d H:i:s',
+                'player_color'   => 'required|in:w,b',
+                'computer_level' => 'required|integer',
+                'moves'          => 'required|string',
+                'final_score'    => 'required|numeric',
+                'result'         => 'required|string',
+            ]);
+
+            Log::info('Validated public game data:', $validated);
+
+            $game = new GameHistory();
+            $game->user_id = null; // Guest game
+            $game->played_at = $validated['played_at'] ?? now();
+            $game->player_color = $validated['player_color'];
+            $game->computer_level = $validated['computer_level'];
+            $game->moves = $validated['moves'];
+            $game->final_score = $validated['final_score'];
+            $game->result = $validated['result'];
+            $game->save();
+
+            Log::info("Game saved successfully: ", $game->toArray());
+            return response()->json(['success' => true, 'data' => $game], 201);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error("Validation failed: ", $e->errors());
+            return response()->json([
+                'error' => 'Validation failed',
+                'details' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error("Failed to save public game history: " . $e->getMessage());
+            return response()->json([
+                'error' => 'Failed to save game',
+                'message' => $e->getMessage()
+            ], 500);
         }
     }
 

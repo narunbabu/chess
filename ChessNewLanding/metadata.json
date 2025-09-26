@@ -1,0 +1,5 @@
+{
+  "name": "Chess Master Landing & Login",
+  "description": "A visually appealing and responsive landing and login page for a chess application, built with React, TypeScript, and Tailwind CSS. It features a dark, game-like theme with subtle animations.",
+  "requestFramePermissions": []
+}
