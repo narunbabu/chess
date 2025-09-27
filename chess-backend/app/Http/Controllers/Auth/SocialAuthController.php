@@ -7,6 +7,7 @@ use Laravel\Socialite\Facades\Socialite;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class SocialAuthController extends Controller
 {
@@ -34,6 +35,7 @@ class SocialAuthController extends Controller
             return redirect(config('app.frontend_url').'/auth/callback?token='.$token);
             
         } catch (\Exception $e) {
+            Log::error('Socialite callback error: ' . $e->getMessage());
             return redirect(config('app.frontend_url').'/login?error=social_login_failed');
         }
     }

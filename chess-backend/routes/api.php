@@ -7,13 +7,15 @@ use App\Http\Controllers\Auth\AuthController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Api\GameHistoryController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\InvitationController;
+use App\Http\Controllers\GameController;
+use App\Http\Controllers\UserPresenceController;
 // use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 
 
 Route::group(['middleware' => 'api', 'prefix' => 'auth'], function () {
-    Route::get('{provider}/redirect', [SocialAuthController::class, 'redirect']);
-    Route::get('{provider}/callback', [SocialAuthController::class, 'callback']);
     Route::post('login', [AuthController::class, 'login']);
     Route::post('register', [AuthController::class, 'register']);
     Route::post('logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
@@ -21,6 +23,32 @@ Route::group(['middleware' => 'api', 'prefix' => 'auth'], function () {
 
 // Protected routes for authenticated users (use a middleware like auth:sanctum or auth:api)
 Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/user', [UserController::class, 'me']);
+    Route::get('/users', [UserController::class, 'index']);
+
+    // Invitation routes
+    Route::post('/invitations/send', [InvitationController::class, 'send']);
+    Route::post('/invitations/{id}/respond', [InvitationController::class, 'respond']);
+    Route::get('/invitations/pending', [InvitationController::class, 'pending']);
+    Route::get('/invitations/sent', [InvitationController::class, 'sent']);
+    Route::get('/invitations/accepted', [InvitationController::class, 'checkAccepted']);
+    Route::delete('/invitations/{id}', [InvitationController::class, 'cancel']);
+
+    // Game routes
+    Route::post('/games', [GameController::class, 'create']);
+    Route::get('/games/{id}', [GameController::class, 'show']);
+    Route::post('/games/{id}/move', [GameController::class, 'move']);
+    Route::post('/games/{id}/resign', [GameController::class, 'resign']);
+    Route::get('/games', [GameController::class, 'userGames']);
+
+    // User Presence routes
+    Route::post('/presence/update', [UserPresenceController::class, 'updatePresence']);
+    Route::get('/presence/{user}', [UserPresenceController::class, 'getPresence']);
+    Route::get('/presence/online/users', [UserPresenceController::class, 'getOnlineUsers']);
+    Route::post('/presence/heartbeat', [UserPresenceController::class, 'heartbeat']);
+    Route::post('/presence/disconnect', [UserPresenceController::class, 'handleDisconnection']);
+    Route::get('/presence/stats', [UserPresenceController::class, 'getPresenceStats']);
+
     // List summary (exclude moves) for dashboard or game list
     Route::get('/game-history', [GameHistoryController::class, 'index']);
     // Get full game details (including moves) when user clicks on a game

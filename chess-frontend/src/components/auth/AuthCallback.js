@@ -1,22 +1,29 @@
 
 import React, { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
 
 const AuthCallback = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   useEffect(() => {
     const query = new URLSearchParams(location.search);
     const token = query.get("token");
     if (token) {
-      localStorage.setItem("auth_token", token);
-      navigate("/dashboard");
+      // Use the login function from AuthContext to properly set up authentication
+      login(token).then(() => {
+        navigate("/lobby");
+      }).catch((error) => {
+        console.error("Login failed:", error);
+        navigate("/login");
+      });
     } else {
       // Optionally handle the error (e.g., redirect to login with an error message)
       navigate("/login");
     }
-  }, [location, navigate]);
+  }, [location, navigate, login]);
 
   return (
     <div className="p-6 min-h-screen text-white flex items-center justify-center">

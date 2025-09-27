@@ -16,6 +16,8 @@ const GameInfo = ({
   currentReplayMove,
   totalMoves,
   settings,
+  isOnlineGame,
+  players,
 }) => {
   const getStatusIcon = () => {
     if (isReplayMode) return "⏯️";
@@ -35,6 +37,9 @@ const GameInfo = ({
     return game.turn() === "w" ? "⚪" : "⚫";
   };
 
+  const turnPlayerName = isOnlineGame && players && game ? players[game.turn()]?.name : (game && game.turn() === 'w' ? 'White' : 'Black');
+  const youArePlayerName = isOnlineGame && players ? players[playerColor]?.name : (playerColor === 'w' ? 'White' : 'Black');
+
   return (
     <div className="space-y-3">
       {/* Game Status */}
@@ -53,9 +58,9 @@ const GameInfo = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-lg">{getPlayerColorIcon()}</span>
-              <span className="text-xs text-white/80">You</span>
+              <span className="text-xs text-white/80">You are</span>
             </div>
-            <span className="text-sm text-white">{playerColor === "w" ? "White" : "Black"}</span>
+            <span className="text-sm text-white">{youArePlayerName}</span>
           </div>
 
           <div className="flex items-center justify-between">
@@ -63,7 +68,7 @@ const GameInfo = ({
               <span className="text-lg">{getCurrentTurnIcon()}</span>
               <span className="text-xs text-white/80">Turn</span>
             </div>
-            <span className="text-sm text-white">{game && game.turn() === "w" ? "White" : "Black"}</span>
+            <span className="text-sm text-white">{turnPlayerName}</span>
           </div>
         </div>
       </div>

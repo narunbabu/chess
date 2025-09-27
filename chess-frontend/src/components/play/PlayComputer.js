@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Chess } from "chess.js";
 import axios from "axios"; // Make sure axios is installed
-import { BrowserRouter as Router, Link, useNavigate } from "react-router-dom"; // Use Router if defining routes here, otherwise just Link/useNavigate
+import { BrowserRouter as Router, Link, useNavigate, useLocation } from "react-router-dom"; // Use Router if defining routes here, otherwise just Link/useNavigate
 
 // Import Components
 import ChessBoard from "./ChessBoard";
@@ -24,6 +24,7 @@ import { encodeGameHistory, reconstructGameFromHistory } from "../../utils/gameH
 
 // Import Services
 import { saveGameHistory, getGameHistories } from "../../services/gameHistoryService"; // Adjust paths if needed
+import { useAuth } from "../../contexts/AuthContext";
 
 // Import Config (ensure this file exists and exports BACKEND_URL)
 import { BACKEND_URL } from "../../config"; // Adjust path if needed
@@ -86,6 +87,11 @@ const PlayComputer = () => {
   const [timerButtonText, setTimerButtonText] = useState("Your Turn"); // Text of the TimerButton
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth); // For layout adjustments
   const navigate = useNavigate(); // For navigation buttons
+  const location = useLocation();
+  const { user } = useAuth();
+  const [isOnlineGame, setIsOnlineGame] = useState(false);
+  const [players, setPlayers] = useState(null);
+  const [gameMode, setGameMode] = useState(null);
 
   // --- Custom timer hook ---
   const {
@@ -113,7 +119,15 @@ const PlayComputer = () => {
   // --- Game Completion Callback ---
    const handleGameComplete = useCallback(async (finalHistory, status) => {
         // Prepare result text and positive score
-        const resultText = status.text || "unknown";
+        let resultText = status.text || "unknown";
+        if (isOnlineGame && players) {
+            if (resultText.includes("White wins")) {
+                resultText = `${players['w'].name} wins!`;
+            } else if (resultText.includes("Black wins")) {
+                resultText = `${players['b'].name} wins!`;
+            }
+        }
+
         const positiveScore = Math.abs(playerScore);
 
         // Stops timers, sets game over state, saves game locally and potentially online
@@ -192,6 +206,28 @@ const PlayComputer = () => {
     handleResize(); // Initial check
     return () => window.removeEventListener('resize', handleResize);
   }, []); // setIsPortrait is stable
+
+  useEffect(() => {
+    if (location.state?.gameMode === 'online') {
+      const { player1, player2 } = location.state;
+      setIsOnlineGame(true);
+
+      // Randomly assign colors
+      const colors = ['w', 'b'];
+      const userColor = colors.splice(Math.floor(Math.random() * colors.length), 1)[0];
+      const opponentColor = colors[0];
+
+      setPlayerColor(userColor);
+      setBoardOrientation(userColor === 'w' ? 'white' : 'black');
+
+      setPlayers({
+        [userColor]: player1,
+        [opponentColor]: player2,
+      });
+
+      startGame();
+    }
+  }, [location.state]);
 
   // Effect for loading saved game histories on component mount
   useEffect(() => {
@@ -450,6 +486,7 @@ const PlayComputer = () => {
       gameStarted &&
       !gameOver &&
       !isReplayMode &&
+      !isOnlineGame &&
       !computerMoveInProgress && // Ensure previous move isn't still processing
       game.turn() === computerColor &&
       activeTimer === computerColor // Ensure the computer's timer is active
@@ -812,7 +849,22 @@ const PlayComputer = () => {
          </header>
 
         {/* Pre-Game Setup Screen */}
-        {!gameStarted && !isReplayMode && (
+                {!gameStarted && !isReplayMode && !isOnlineGame && gameMode === null && (
+          <div className="pre-game-setup bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-8 text-center">
+            <h2 className="text-3xl font-bold mb-6 text-vivid-yellow">Choose Your Game Mode</h2>
+            <div className="flex flex-col gap-4">
+              <button className="start-button large green bg-ufo-green hover:bg-vivid-yellow text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300" onClick={() => setGameMode('computer')}>
+                Play Against Computer
+              </button>
+              <button className="start-button large blue bg-blue-500 hover:bg-blue-400 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300" onClick={() => navigate('/lobby')}>
+                Play Against a Friend
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Pre-Game Setup Screen */}
+        {!gameStarted && !isReplayMode && !isOnlineGame && gameMode === 'computer' && (
           <div className="pre-game-setup bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-8 text-center">
             <h2 className="text-3xl font-bold mb-6 text-vivid-yellow">Play Against Computer</h2>
             <div className="difficulty-selection mb-6">
@@ -866,13 +918,13 @@ const PlayComputer = () => {
                <div className="game-info-compact">
                    {/* Top row: Scores and Timers */}
                    <div className="score-timer-row">
-                       <ScoreDisplay playerScore={playerScore} lastMoveEvaluation={lastMoveEvaluation} computerScore={computerScore} lastComputerEvaluation={lastComputerEvaluation} />
+                       <ScoreDisplay playerScore={playerScore} lastMoveEvaluation={lastMoveEvaluation} computerScore={computerScore} lastComputerEvaluation={lastComputerEvaluation} isOnlineGame={isOnlineGame} players={players} playerColor={playerColor} />
                        <TimerDisplay playerTime={playerTime} computerTime={computerTime} activeTimer={activeTimer} playerColor={playerColor} isPortrait={isPortrait} isRunning={isTimerRunning && activeTimer === playerColor} isComputerRunning={isTimerRunning && activeTimer !== playerColor}/>
                    </div>
 
                    {/* Game status row - minimal */}
                    <div className="game-status-row">
-                       <GameInfo gameStatus={gameStatus} playerColor={playerColor} game={game} moveCompleted={moveCompleted} activeTimer={activeTimer} isReplayMode={isReplayMode} currentReplayMove={currentReplayMove} totalMoves={gameHistory.length} settings={settings} />
+                       <GameInfo gameStatus={gameStatus} playerColor={playerColor} game={game} moveCompleted={moveCompleted} activeTimer={activeTimer} isReplayMode={isReplayMode} currentReplayMove={currentReplayMove} totalMoves={gameHistory.length} settings={settings} isOnlineGame={isOnlineGame} players={players} />
                    </div>
                </div>
 

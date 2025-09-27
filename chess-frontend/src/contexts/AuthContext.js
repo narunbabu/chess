@@ -1,5 +1,6 @@
 // src/contexts/AuthContext.js
 import React, { createContext, useState, useContext, useEffect } from "react";
+import api from '../services/api';
 
 // Create the AuthContext
 const AuthContext = createContext(null);
@@ -7,27 +8,65 @@ const AuthContext = createContext(null);
 // AuthProvider component – wrap your app with this provider
 export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch current user data
+  const fetchUser = async () => {
+    try {
+      const token = localStorage.getItem("auth_token");
+      if (!token) {
+        console.log('No auth token found');
+        setLoading(false);
+        return;
+      }
+
+      console.log('Fetching user with token:', token.substring(0, 10) + '...');
+
+      // Set token in API headers
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
+      // Fetch current user from backend
+      const response = await api.get('/user');
+      console.log('User fetched successfully:', response.data);
+      setUser(response.data);
+      setIsAuthenticated(true);
+    } catch (error) {
+      console.error('Failed to fetch user:', error);
+      console.error('Error details:', error.response?.data);
+      // If token is invalid, clear it
+      localStorage.removeItem("auth_token");
+      delete api.defaults.headers.common['Authorization'];
+      setIsAuthenticated(false);
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Check for token presence when the provider mounts
   useEffect(() => {
-    const token = localStorage.getItem("auth_token");
-    setIsAuthenticated(!!token);
+    fetchUser();
   }, []);
 
   // Login handled via social auth callbacks
   const login = async (token) => {
     localStorage.setItem("auth_token", token);
+    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     setIsAuthenticated(true);
+    await fetchUser();
   };
 
   // Logout function
   const logout = async () => {
     localStorage.removeItem("auth_token");
+    delete api.defaults.headers.common['Authorization'];
     setIsAuthenticated(false);
+    setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, login, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );

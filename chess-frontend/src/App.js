@@ -8,6 +8,7 @@ import {
   useLocation,
 } from "react-router-dom";
 import PlayComputer from "./components/play/PlayComputer";
+import PlayMultiplayer from "./components/play/PlayMultiplayer";
 import TrainingHub from "./components/TrainingHub";
 import TrainingExercise from "./components/TrainingExercise";
 import GameHistory from "./components/GameHistory";
@@ -16,6 +17,7 @@ import Login from "./pages/Login";
 import Dashboard from "./components/Dashboard";
 import AuthCallback from "./components/auth/AuthCallback";
 import LandingPage from "./pages/LandingPage";
+import LobbyPage from "./pages/LobbyPage";
 import { AuthProvider } from "./contexts/AuthContext";  // Import the AuthProvider
 import Layout from "./components/layout/Layout";
 
@@ -76,7 +78,9 @@ const App = () => {
               <Routes>
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/play" element={<PlayComputer />} />
+                <Route path="/play/:gameId" element={<PlayMultiplayer />} />
                 <Route path="/login" element={<Login />} />
+                <Route path="/lobby" element={<LobbyPage />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/auth/callback" element={<AuthCallback />} />
                 <Route path="/training" element={<TrainingHub />} />
