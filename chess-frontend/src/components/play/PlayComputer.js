@@ -804,7 +804,7 @@ const PlayComputer = () => {
   // --- RENDER ---
   return (
     <>
-      <div className={`chess-game-container p-4 sm:p-6 md:p-8 min-h-screen text-white ${isPortrait ? "portrait" : "landscape"}`}>
+      <div className="chess-game-container text-white">
         {/* Persistent Header */}
         <header className="game-header flex justify-between items-center mb-4">
            <Link to="/" className="nav-button-play text-vivid-yellow">Home</Link>
@@ -861,40 +861,47 @@ const PlayComputer = () => {
 
         {/* Main Game/Replay Screen Layout */}
         {(gameStarted || isReplayMode) && (
-           <div className="game-layout grid grid-cols-1 md:grid-cols-4 gap-6">
-               {/* Left Panel (or Top on Portrait) */}
-                <div className="left-panel md:col-span-1 bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-4">
-                    <ScoreDisplay playerScore={playerScore} lastMoveEvaluation={lastMoveEvaluation} computerScore={computerScore} lastComputerEvaluation={lastComputerEvaluation} />
-                    <TimerDisplay playerTime={playerTime} computerTime={computerTime} activeTimer={activeTimer} playerColor={playerColor} isPortrait={isPortrait} isRunning={isTimerRunning && activeTimer === playerColor} isComputerRunning={isTimerRunning && activeTimer !== playerColor}/>
-                </div>
+           <div className="game-layout">
+               {/* Compact Game Info Panel - Mobile optimized */}
+               <div className="game-info-compact">
+                   {/* Top row: Scores and Timers */}
+                   <div className="score-timer-row">
+                       <ScoreDisplay playerScore={playerScore} lastMoveEvaluation={lastMoveEvaluation} computerScore={computerScore} lastComputerEvaluation={lastComputerEvaluation} />
+                       <TimerDisplay playerTime={playerTime} computerTime={computerTime} activeTimer={activeTimer} playerColor={playerColor} isPortrait={isPortrait} isRunning={isTimerRunning && activeTimer === playerColor} isComputerRunning={isTimerRunning && activeTimer !== playerColor}/>
+                   </div>
 
-                {/* Center Panel (Chessboard) */}
-                <div className="center-panel md:col-span-2">
-                     <div className="chessboard-area">
-                        <ChessBoard
-                            game={game} // Pass the Chess.js instance
-                            boardOrientation={boardOrientation} // 'white' or 'black'
-                            onDrop={onDrop} // Callback for piece drop
-                            moveFrom={moveFrom} // Square piece is being dragged from
-                            setMoveFrom={setMoveFrom} // To update moveFrom state
-                            rightClickedSquares={rightClickedSquares} // For highlighting
-                            setRightClickedSquares={setRightClickedSquares} // To update highlights
-                            moveSquares={moveSquares} // To show potential move squares
-                            setMoveSquares={setMoveSquares} // To update potential move squares
-                            playerColor={playerColor} // Player's color ('w' or 'b')
-                            isReplayMode={isReplayMode} // Disable interaction during replay
-                         />
-                    </div>
-                </div>
+                   {/* Game status row - minimal */}
+                   <div className="game-status-row">
+                       <GameInfo gameStatus={gameStatus} playerColor={playerColor} game={game} moveCompleted={moveCompleted} activeTimer={activeTimer} isReplayMode={isReplayMode} currentReplayMove={currentReplayMove} totalMoves={gameHistory.length} settings={settings} />
+                   </div>
+               </div>
 
-                {/* Right Panel (or Bottom on Portrait) */}
-                <div className="right-panel md:col-span-1 bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-4">
-                    <GameInfo gameStatus={gameStatus} playerColor={playerColor} game={game} moveCompleted={moveCompleted} activeTimer={activeTimer} isReplayMode={isReplayMode} currentReplayMove={currentReplayMove} totalMoves={gameHistory.length} settings={settings} />
-                    <GameControls gameStarted={gameStarted} countdownActive={countdownActive} isTimerRunning={isTimerRunning} resetGame={resetCurrentGameSetup} handleTimer={startTimerInterval} pauseTimer={pauseTimer} isReplayMode={isReplayMode} replayPaused={replayPaused} startReplay={startReplay} pauseReplay={pauseReplay} savedGames={savedGames} loadGame={loadGame} moveCount={moveCount} playerColor={playerColor} replayTimerRef={replayTimerRef} />
-                    {settings.requireDoneButton && !isReplayMode && (
-                        <TimerButton timerButtonColor={timerButtonColor} timerButtonText={timerButtonText} moveCompleted={moveCompleted} activeTimer={activeTimer} playerColor={playerColor} onClick={handleTimerButtonPress} disabled={gameOver || !moveCompleted || activeTimer !== playerColor}/>
-                     )}
-                </div>
+               {/* Center Panel (Chessboard) - Maximum space */}
+               <div className="center-panel-full">
+                       <div className="board-container">
+                           <ChessBoard
+                               game={game} // Pass the Chess.js instance
+                               boardOrientation={boardOrientation} // 'white' or 'black'
+                               onDrop={onDrop} // Callback for piece drop
+                               moveFrom={moveFrom} // Square piece is being dragged from
+                               setMoveFrom={setMoveFrom} // To update moveFrom state
+                               rightClickedSquares={rightClickedSquares} // For highlighting
+                               setRightClickedSquares={setRightClickedSquares} // To update highlights
+                               moveSquares={moveSquares} // To show potential move squares
+                               setMoveSquares={setMoveSquares} // To update potential move squares
+                               playerColor={playerColor} // Player's color ('w' or 'b')
+                               isReplayMode={isReplayMode} // Disable interaction during replay
+                            />
+                       </div>
+               </div>
+
+               {/* Game Controls Panel - Minimal bottom area */}
+               <div className="game-controls-minimal">
+                   <GameControls gameStarted={gameStarted} countdownActive={countdownActive} isTimerRunning={isTimerRunning} resetGame={resetCurrentGameSetup} handleTimer={startTimerInterval} pauseTimer={pauseTimer} isReplayMode={isReplayMode} replayPaused={replayPaused} startReplay={startReplay} pauseReplay={pauseReplay} savedGames={savedGames} loadGame={loadGame} moveCount={moveCount} playerColor={playerColor} replayTimerRef={replayTimerRef} />
+                   {settings.requireDoneButton && !isReplayMode && (
+                       <TimerButton timerButtonColor={timerButtonColor} timerButtonText={timerButtonText} moveCompleted={moveCompleted} activeTimer={activeTimer} playerColor={playerColor} onClick={handleTimerButtonPress} disabled={gameOver || !moveCompleted || activeTimer !== playerColor}/>
+                   )}
+               </div>
            </div>
         )}
 

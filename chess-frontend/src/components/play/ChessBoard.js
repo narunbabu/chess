@@ -21,19 +21,46 @@ const ChessBoard = ({
 }) => {
   const boardBoxRef = useRef(null);       // <── renamed for clarity
   const [boardSize, setBoardSize] = useState(0);
+  const resizeTimeoutRef = useRef(null);  // For debouncing resize events
 
   useEffect(() => {
     if (!boardBoxRef.current) return;
     const ro = new ResizeObserver(([entry]) => {
       /* 15 px padding above & below for safety */
       const { width, height } = entry.contentRect;
-      const vh = window.innerHeight;
-      const newSize = Math.floor(Math.min(width, vh - 30, height));
-      setBoardSize(newSize);
+      // Use the smaller dimension to ensure square board fits within container
+      const newSize = Math.floor(Math.min(width, height));
+
+      // Debug logging to track size changes
+      console.log(`🎯 ChessBoard ResizeObserver triggered:`, {
+        containerWidth: width,
+        containerHeight: height,
+        calculatedSize: newSize,
+        currentBoardSize: boardSize,
+        sizeChanged: newSize !== boardSize
+      });
+
+      // Debounce rapid resize events to prevent flickering
+      if (resizeTimeoutRef.current) {
+        clearTimeout(resizeTimeoutRef.current);
+      }
+
+      resizeTimeoutRef.current = setTimeout(() => {
+        // Only update if size actually changed (prevent unnecessary re-renders)
+        if (newSize !== boardSize && newSize > 0) {
+          console.log(`📐 Setting new board size: ${boardSize} → ${newSize}`);
+          setBoardSize(newSize);
+        }
+      }, 50); // 50ms debounce to prevent rapid recalculations
     });
     ro.observe(boardBoxRef.current);
-    return () => ro.disconnect();
-  }, []);
+    return () => {
+      ro.disconnect();
+      if (resizeTimeoutRef.current) {
+        clearTimeout(resizeTimeoutRef.current);
+      }
+    };
+  }, []); // Remove boardSize dependency to prevent infinite loops
 
   // Helper to check if the game prop is a valid Chess instance
   const isValidChessInstance = (g) => g && g instanceof Chess;
@@ -156,8 +183,8 @@ const ChessBoard = ({
   const customSquareStyles = { ...moveSquares, ...rightClickedSquares };
 
   return(
-    <div ref={boardBoxRef} className="chessboard-area">
-      <div className="chessboard-container">
+    <div ref={boardBoxRef} className="w-full h-full">
+      <div className="w-full h-full flex items-center justify-center">
         {/* Add instance check before rendering Chessboard */}
         {isValidChessInstance(game) && boardSize > 0 ? (
           <Chessboard
@@ -172,8 +199,8 @@ const ChessBoard = ({
             arePiecesDraggable={!isReplayMode && isPlayerTurn}
           />
         ) : (
-          <div style={{ color: 'red', padding: '20px', border: '1px solid red' }}>
-            Error: {!isValidChessInstance(game) ? 'Invalid game state' : 'Calculating board size...'}
+          <div className="flex items-center justify-center text-red-500 p-4 border border-red-500 rounded">
+            {!isValidChessInstance(game) ? 'Invalid game state' : 'Loading board...'}
           </div>
         )}
       </div>
