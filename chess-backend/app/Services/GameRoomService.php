@@ -39,11 +39,11 @@ class GameRoomService
         // Update user presence cache
         $this->updateUserPresence($user->id, $gameId, 'joined');
 
-        // Broadcast connection event
-        broadcast(new GameConnectionEvent($game, $user, 'join', [
-            'connection_id' => $connection->connection_id,
-            'socket_id' => $socketId
-        ]));
+        // TODO: Re-enable broadcasting once configured
+        // broadcast(new GameConnectionEvent($game, $user, 'join', [
+        //     'connection_id' => $connection->connection_id,
+        //     'socket_id' => $socketId
+        // ]));
 
         return [
             'success' => true,
@@ -76,10 +76,11 @@ class GameRoomService
             $this->updateUserPresence($user->id, $gameId, 'left');
 
             // Broadcast disconnect event
-            broadcast(new GameConnectionEvent($game, $user, 'leave', [
-                'connection_id' => $connection->connection_id,
-                'socket_id' => $socketId
-            ]));
+            // TODO: Re-enable broadcasting once configured
+            // broadcast(new GameConnectionEvent($game, $user, 'leave', [
+            //     'connection_id' => $connection->connection_id,
+            //     'socket_id' => $socketId
+            // ]));
         }
 
         return [
@@ -318,10 +319,11 @@ class GameRoomService
             );
 
             // Broadcast resume event
-            broadcast(new GameConnectionEvent($game, $user, 'resume', [
-                'connection_id' => $connection->connection_id,
-                'socket_id' => $socketId
-            ]));
+            // TODO: Re-enable broadcasting once configured
+            // broadcast(new GameConnectionEvent($game, $user, 'resume', [
+            //     'connection_id' => $connection->connection_id,
+            //     'socket_id' => $socketId
+            // ]));
 
             return [
                 'success' => true,
@@ -374,12 +376,13 @@ class GameRoomService
         );
 
         // Broadcast new game event
-        broadcast(new GameConnectionEvent($newGame, $user, 'new_game', [
-            'connection_id' => $connection->connection_id,
-            'socket_id' => $socketId,
-            'is_rematch' => $isRematch,
-            'original_game_id' => $originalGameId
-        ]));
+        // TODO: Re-enable broadcasting once configured
+        // broadcast(new GameConnectionEvent($newGame, $user, 'new_game', [
+        //     'connection_id' => $connection->connection_id,
+        //     'socket_id' => $socketId,
+        //     'is_rematch' => $isRematch,
+        //     'original_game_id' => $originalGameId
+        // ]));
 
         return [
             'success' => true,
@@ -424,13 +427,14 @@ class GameRoomService
         ]);
 
         // Broadcast move event
-        broadcast(new GameConnectionEvent($game, $user, 'move', [
-            'move' => $move,
-            'fen' => $fen,
-            'turn' => $turn,
-            'socket_id' => $socketId,
-            'move_number' => count($moves)
-        ]));
+        // TODO: Re-enable broadcasting once configured
+        // broadcast(new GameConnectionEvent($game, $user, 'move', [
+        //     'move' => $move,
+        //     'fen' => $fen,
+        //     'turn' => $turn,
+        //     'socket_id' => $socketId,
+        //     'move_number' => count($moves)
+        // ]));
 
         return [
             'success' => true,
@@ -470,13 +474,14 @@ class GameRoomService
         $game->update($updateData);
 
         // Broadcast status change event
-        broadcast(new GameConnectionEvent($game, $user, 'status_change', [
-            'status' => $status,
-            'result' => $result,
-            'reason' => $reason,
-            'socket_id' => $socketId,
-            'ended_at' => $status === 'completed' ? $game->ended_at?->toISOString() : null
-        ]));
+        // TODO: Re-enable broadcasting once configured
+        // broadcast(new GameConnectionEvent($game, $user, 'status_change', [
+        //     'status' => $status,
+        //     'result' => $result,
+        //     'reason' => $reason,
+        //     'socket_id' => $socketId,
+        //     'ended_at' => $status === 'completed' ? $game->ended_at?->toISOString() : null
+        // ]));
 
         return [
             'success' => true,

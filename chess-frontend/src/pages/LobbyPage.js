@@ -2,6 +2,7 @@ import React, { useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
+import WebSocketGameService from '../services/WebSocketGameService';
 import './LobbyPage.css';
 
 const LobbyPage = () => {
@@ -13,50 +14,53 @@ const LobbyPage = () => {
   const [onlineCount, setOnlineCount] = useState(0);
   const [pendingInvitations, setPendingInvitations] = useState([]);
   const [sentInvitations, setSentInvitations] = useState([]);
-  const [processedInvitations, setProcessedInvitations] = useState(new Set());
+  const [webSocketService, setWebSocketService] = useState(null);
+
+  useEffect(() => {
+    if (user && !webSocketService) {
+      const service = new WebSocketGameService();
+      service.initialize(null, user);
+      setWebSocketService(service);
+    }
+
+    return () => {
+      if (webSocketService) {
+        webSocketService.disconnect();
+      }
+    };
+  }, [user, webSocketService]);
+
+  useEffect(() => {
+    if (user && webSocketService) {
+      const userChannel = webSocketService.subscribeToUserChannel(user);
+
+      userChannel.listen('.invitation.accepted', (data) => {
+        console.log('Invitation accepted event received:', data);
+        if (data.game && data.game.id) {
+          console.log('Navigating to game ID:', data.game.id);
+          navigate(`/play/${data.game.id}`);
+        }
+      });
+
+      return () => {
+        userChannel.stopListening('.invitation.accepted');
+      };
+    }
+  }, [user, webSocketService, navigate]);
 
   const fetchData = async () => {
     try {
       console.log('Fetching lobby data for user:', user);
 
-      const [usersRes, pendingRes, sentRes, acceptedRes] = await Promise.all([
+      const [usersRes, pendingRes, sentRes] = await Promise.all([
         api.get('/users'),
         api.get('/invitations/pending'),
         api.get('/invitations/sent'),
-        api.get('/invitations/accepted')
       ]);
 
       console.log('Users response:', usersRes.data);
       console.log('Pending invitations:', pendingRes.data);
       console.log('Sent invitations:', sentRes.data);
-      console.log('Accepted invitations:', acceptedRes.data);
-
-      // Check if any of our sent invitations were accepted and redirect to game
-      console.log('Accepted invitations response:', acceptedRes.data);
-      if (acceptedRes.data && acceptedRes.data.length > 0) {
-        // Find the first unprocessed accepted invitation
-        const unprocessedInvitation = acceptedRes.data.find(
-          acceptedGame => !processedInvitations.has(acceptedGame.invitation.id)
-        );
-
-        if (unprocessedInvitation) {
-          console.log('Invitation accepted! Redirecting to game:', unprocessedInvitation);
-          console.log('Game object:', unprocessedInvitation.game);
-
-          // Mark this invitation as processed
-          setProcessedInvitations(prev => new Set([...prev, unprocessedInvitation.invitation.id]));
-
-          if (unprocessedInvitation.game && unprocessedInvitation.game.id) {
-            console.log('Navigating to game ID:', unprocessedInvitation.game.id);
-            navigate(`/play/${unprocessedInvitation.game.id}`);
-            return; // Exit early since we're redirecting
-          } else {
-            console.error('No valid game found in accepted invitation:', unprocessedInvitation);
-          }
-        } else {
-          console.log('All accepted invitations have already been processed');
-        }
-      }
 
       // Filter out the current user from the list
       const otherUsers = usersRes.data.filter(p => p.id !== user.id);
@@ -75,9 +79,13 @@ const LobbyPage = () => {
   useEffect(() => {
     if (user) {
       fetchData();
-      // Auto-refresh every 5 seconds to check for new invitations and accepted games
-      const interval = setInterval(fetchData, 5000);
-      return () => clearInterval(interval);
+
+      // Poll for lobby updates every 5 seconds
+      const pollInterval = setInterval(fetchData, 5000);
+
+      return () => {
+        clearInterval(pollInterval);
+      };
     }
   }, [user]);
 
@@ -261,7 +269,7 @@ const LobbyPage = () => {
                     Sent: {new Date(invitation.created_at).toLocaleTimeString()}
                   </p>
                   <p className="invitation-status">
-                    🔄 Checking every 5 seconds for acceptance...
+                    🔄 Waiting for acceptance...
                   </p>
                 </div>
                 <div className="invitation-actions">

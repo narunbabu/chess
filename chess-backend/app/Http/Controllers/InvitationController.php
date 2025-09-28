@@ -7,6 +7,45 @@ use App\Models\User;
 use App\Models\Game;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Broadcasting\Channel;
+use Illuminate\Broadcasting\InteractsWithSockets;
+use Illuminate\Broadcasting\PresenceChannel;
+use Illuminate\Broadcasting\PrivateChannel;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Foundation\Events\Dispatchable;
+use Illuminate\Queue\SerializesModels;
+
+class InvitationAccepted implements ShouldBroadcast
+{
+    use Dispatchable, InteractsWithSockets, SerializesModels;
+
+    public $game;
+    public $invitation;
+
+    public function __construct(Game $game, Invitation $invitation)
+    {
+        $this->game = $game;
+        $this->invitation = $invitation;
+    }
+
+    public function broadcastOn()
+    {
+        return new PrivateChannel('user.' . $this->invitation->inviter_id);
+    }
+
+    public function broadcastWith()
+    {
+        return [
+            'game' => $this->game->load('whitePlayer', 'blackPlayer'),
+            'invitation' => $this->invitation->load('inviter', 'invited')
+        ];
+    }
+
+    public function broadcastAs()
+    {
+        return 'invitation.accepted';
+    }
+}
 
 class InvitationController extends Controller
 {
@@ -84,6 +123,12 @@ class InvitationController extends Controller
                 'moves' => []
             ]);
 
+            // Link the game back to the invitation
+            $invitation->game_id = $game->id;
+            $invitation->save();
+
+            event(new InvitationAccepted($game, $invitation));
+
             \Log::info('Game created with ID: ' . $game->id);
             \Log::info('White player: ' . $game->white_player_id . ', Black player: ' . $game->black_player_id);
         }
@@ -112,10 +157,10 @@ class InvitationController extends Controller
 
     public function sent()
     {
-        $sentInvitations = Invitation::where([
-            ['inviter_id', Auth::id()],
-            ['status', 'pending']
-        ])->with(['invited'])->get();
+        $sentInvitations = Invitation::where('inviter_id', Auth::id())
+            ->whereIn('status', ['pending', 'accepted'])
+            ->with(['invited'])
+            ->get();
 
         return response()->json($sentInvitations);
     }

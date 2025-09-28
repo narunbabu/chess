@@ -12,7 +12,8 @@ class Invitation extends Model
     protected $fillable = [
         'inviter_id',
         'invited_id',
-        'status'
+        'status',
+        'game_id'
     ];
 
     protected $casts = [
@@ -28,5 +29,10 @@ class Invitation extends Model
     public function invited()
     {
         return $this->belongsTo(User::class, 'invited_id');
+    }
+
+    public function game()
+    {
+        return $this->belongsTo(Game::class, 'game_id');
     }
 }

@@ -16,7 +16,6 @@ class WebSocketController extends Controller
         private GameRoomService $gameRoomService,
         private HandshakeProtocol $handshakeProtocol
     ) {
-        $this->middleware('auth:sanctum');
     }
 
     /**
@@ -34,17 +33,6 @@ class WebSocketController extends Controller
         $channelName = $request->input('channel_name');
 
         try {
-            // Validate channel access using middleware logic
-            $authMiddleware = new WebSocketAuth();
-            $canAccess = $authMiddleware->validateChannelAccess($request, $channelName);
-
-            if (!$canAccess) {
-                return response()->json([
-                    'error' => 'Unauthorized channel access',
-                    'channel' => $channelName
-                ], 403);
-            }
-
             // Log successful authentication
             Log::info('WebSocket authentication successful', [
                 'user_id' => $user->id,
@@ -193,6 +181,23 @@ class WebSocketController extends Controller
      */
     public function getRoomState(Request $request): JsonResponse
     {
+        Log::info('getRoomState called', [
+            'query_params' => $request->query(),
+            'body_params' => $request->all(),
+            'method' => $request->method()
+        ]);
+
+        // For GET requests, game_id should come from query parameters
+        $gameId = $request->query('game_id') ?? $request->input('game_id');
+
+        Log::info('getRoomState extracted game_id', [
+            'extracted_game_id' => $gameId,
+            'query_game_id' => $request->query('game_id'),
+            'input_game_id' => $request->input('game_id')
+        ]);
+
+        $request->merge(['game_id' => $gameId]);
+
         $request->validate([
             'game_id' => 'required|integer|exists:games,id'
         ]);

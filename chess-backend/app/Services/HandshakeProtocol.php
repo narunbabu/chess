@@ -11,9 +11,8 @@ use Illuminate\Support\Facades\Log;
 
 class HandshakeProtocol
 {
-    public function __construct(
-        private GameRoomService $gameRoomService
-    ) {}
+    // Remove dependency injection to avoid circular dependency
+    // Will resolve GameRoomService from container when needed
 
     /**
      * Complete WebSocket handshake for game connection
@@ -37,7 +36,8 @@ class HandshakeProtocol
             $this->validateGameAccess($user, $game);
 
             // Step 2: Join the game room
-            $joinResult = $this->gameRoomService->joinGame($gameId, $socketId, $clientInfo);
+            $gameRoomService = app(GameRoomService::class);
+            $joinResult = $gameRoomService->joinGame($gameId, $socketId, $clientInfo);
 
             // Step 3: Prepare handshake response with game state
             $handshakeResponse = $this->prepareHandshakeResponse($game, $user, $joinResult);
@@ -97,7 +97,8 @@ class HandshakeProtocol
             Cache::put($cacheKey, $handshakeData, now()->addHours(1));
 
             // Update connection activity
-            $this->gameRoomService->heartbeat(
+            $gameRoomService = app(GameRoomService::class);
+            $gameRoomService->heartbeat(
                 $handshakeData['game_id'],
                 $handshakeData['socket_id']
             );

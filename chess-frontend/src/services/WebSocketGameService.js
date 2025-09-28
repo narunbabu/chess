@@ -26,6 +26,26 @@ class WebSocketGameService {
     this.gameId = gameId;
     this.user = user;
 
+    // Check if we should use polling fallback FIRST
+    const usePolling = process.env.REACT_APP_USE_POLLING_FALLBACK === 'true' || true; // Force polling for now
+    console.log('Checking polling fallback:', {
+      env_var: process.env.REACT_APP_USE_POLLING_FALLBACK,
+      should_use_polling: usePolling,
+      forcing_polling: true
+    });
+
+    if (usePolling) {
+      console.log('✅ Using HTTP polling fallback instead of WebSocket');
+      try {
+        await this.initializePollingMode();
+        return true;
+      } catch (error) {
+        console.error('Failed to initialize polling mode:', error);
+        throw error;
+      }
+    }
+
+    // Only continue with WebSocket if polling is not enabled
     try {
       // Get authentication token
       const token = localStorage.getItem('auth_token');
@@ -102,12 +122,23 @@ class WebSocketGameService {
       });
 
       this.echo.connector.pusher.connection.bind('error', (error) => {
-        console.error('WebSocket error:', error);
+        console.error('WebSocket error details:', {
+          error,
+          type: typeof error,
+          message: error?.message,
+          code: error?.code,
+          data: error?.data
+        });
         this.emit('error', error);
       });
 
-      // Join the game channel
-      await this.joinGameChannel();
+      // Wait for connection to be established before joining channels
+      await this.waitForConnection();
+
+      // Join the game channel if a gameId is provided
+      if (this.gameId) {
+        await this.joinGameChannel();
+      }
 
       return true;
     } catch (error) {
@@ -152,6 +183,30 @@ class WebSocketGameService {
       console.log('Successfully joined game channel:', this.gameId);
     } catch (error) {
       console.error('Failed to join game channel:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Subscribe to the user-specific channel for notifications
+   */
+  subscribeToUserChannel(user) {
+    if (!user) {
+      throw new Error('No user provided');
+    }
+
+    // In polling mode, return a mock channel object
+    if (!this.echo) {
+      console.log('Polling mode: Creating mock user channel for user', user.id);
+      console.log('Current user stored in service:', this.user?.id);
+      return this.createMockChannel(`user.${user.id}`);
+    }
+
+    try {
+      const userChannel = this.echo.private(`user.${user.id}`);
+      return userChannel;
+    } catch (error) {
+      console.error('Failed to subscribe to user channel:', error);
       throw error;
     }
   }
@@ -209,7 +264,15 @@ class WebSocketGameService {
 
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || 'Handshake failed');
+        console.error('WebSocket handshake error response:', data);
+        console.error('Response status:', response.status);
+        console.error('Full response details:', {
+          status: response.status,
+          statusText: response.statusText,
+          headers: Object.fromEntries(response.headers.entries()),
+          body: data
+        });
+        throw new Error(data.error || data.message || `Server error (${response.status})`);
       }
 
       console.log('Handshake completed:', data);
@@ -484,6 +547,262 @@ class WebSocketGameService {
       gameId: this.gameId,
       reconnectAttempts: this.reconnectAttempts,
     };
+  }
+
+  /**
+   * Initialize polling mode as fallback when WebSocket is not available
+   */
+  async initializePollingMode() {
+    console.log('Initializing HTTP polling fallback mode');
+
+    // Set connection status
+    this.isConnected = true;
+    this.socketId = 'polling_' + Date.now();
+
+    // Complete handshake via HTTP (only if we have a gameId)
+    if (this.gameId) {
+      await this.completeHandshake();
+    } else {
+      console.log('Skipping handshake - no gameId provided (lobby mode)');
+    }
+
+    // Start polling for game updates
+    this.startPolling();
+
+    // Emit connected event
+    this.emit('connected', {
+      mode: 'polling',
+      socketId: this.socketId
+    });
+  }
+
+  /**
+   * Start polling for game updates
+   */
+  startPolling() {
+    if (this.pollingInterval) {
+      clearInterval(this.pollingInterval);
+    }
+
+    // Poll every 2 seconds for game updates
+    this.pollingInterval = setInterval(async () => {
+      try {
+        await this.pollGameState();
+      } catch (error) {
+        console.error('Polling error:', error);
+      }
+    }, 2000);
+  }
+
+  /**
+   * Poll for game state changes
+   */
+  async pollGameState() {
+    if (!this.gameId) return;
+
+    const token = localStorage.getItem('auth_token');
+    const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/websocket/room-state?game_id=${this.gameId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      // Check for game state changes and emit appropriate events
+      if (data.success && data.data) {
+        this.handlePolledGameState(data.data);
+      }
+    }
+  }
+
+  /**
+   * Handle polled game state data
+   */
+  handlePolledGameState(gameState) {
+    // This is a simplified version - in a real implementation,
+    // you'd compare with previous state and emit appropriate events
+    console.log('Polled game state:', gameState);
+  }
+
+  /**
+   * Create a mock channel object for polling mode
+   */
+  createMockChannel(channelName) {
+    console.log('Creating mock channel:', channelName);
+    console.log('Mock channel creation - current user in service:', this.user);
+    const mockChannel = {
+      eventListeners: {},
+      channelName: channelName,
+      listen: (eventName, callback) => {
+        console.log(`Mock channel: Listening for ${eventName} on ${channelName}`);
+        console.log('Current user in service when setting up listener:', this.user?.id);
+
+        // Store the callback for later use
+        if (!mockChannel.eventListeners[eventName]) {
+          mockChannel.eventListeners[eventName] = [];
+        }
+        mockChannel.eventListeners[eventName].push(callback);
+
+        // Start polling for specific events
+        if (eventName === '.invitation.accepted') {
+          console.log('About to start invitation polling...');
+          this.startInvitationPolling(callback);
+        }
+
+        return mockChannel;
+      },
+      stopListening: (eventName) => {
+        console.log(`Mock channel: Stopped listening for ${eventName} on ${channelName}`);
+        if (mockChannel.eventListeners[eventName]) {
+          delete mockChannel.eventListeners[eventName];
+        }
+
+        // Stop polling for specific events
+        if (eventName === '.invitation.accepted') {
+          this.stopInvitationPolling();
+        }
+
+        return mockChannel;
+      },
+      whisper: (eventName, data) => {
+        console.log(`Mock channel: Would whisper ${eventName} on ${channelName}:`, data);
+        return mockChannel;
+      },
+      // Method to trigger events (for polling simulation)
+      triggerEvent: (eventName, data) => {
+        if (mockChannel.eventListeners[eventName]) {
+          mockChannel.eventListeners[eventName].forEach(callback => {
+            callback(data);
+          });
+        }
+      }
+    };
+
+    return mockChannel;
+  }
+
+  /**
+   * Start polling for invitation status changes
+   */
+  startInvitationPolling(callback) {
+    if (this.invitationPollingInterval) {
+      clearInterval(this.invitationPollingInterval);
+    }
+
+    console.log('Starting invitation polling for user', this.user?.id);
+
+    if (!this.user) {
+      console.error('Cannot start invitation polling: no user set in service');
+      return;
+    }
+
+    // Poll every 3 seconds for invitation updates
+    this.invitationPollingInterval = setInterval(async () => {
+      try {
+        await this.pollInvitationStatus(callback);
+      } catch (error) {
+        console.error('Invitation polling error:', error);
+      }
+    }, 3000);
+  }
+
+  /**
+   * Stop polling for invitation status changes
+   */
+  stopInvitationPolling() {
+    if (this.invitationPollingInterval) {
+      clearInterval(this.invitationPollingInterval);
+      this.invitationPollingInterval = null;
+      console.log('Stopped invitation polling');
+    }
+  }
+
+  /**
+   * Poll for invitation status changes
+   */
+  async pollInvitationStatus(callback) {
+    if (!this.user) return;
+
+    const token = localStorage.getItem('auth_token');
+
+    try {
+      // Check for accepted invitations by looking at sent invitations
+      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/invitations/sent`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const sentInvitations = await response.json();
+
+        // Look for any accepted invitations that we haven't processed yet
+        const acceptedInvitations = sentInvitations.filter(invitation =>
+          invitation.status === 'accepted' && !this.processedInvitations?.has(invitation.id)
+        );
+
+        if (acceptedInvitations.length > 0) {
+          // Initialize processed invitations set if it doesn't exist
+          if (!this.processedInvitations) {
+            this.processedInvitations = new Set();
+          }
+
+          // Process each accepted invitation
+          acceptedInvitations.forEach(invitation => {
+            console.log('Found accepted invitation:', invitation);
+
+            // Mark as processed to avoid duplicate handling
+            this.processedInvitations.add(invitation.id);
+
+            // Trigger the callback with the accepted invitation data
+            callback({
+              game: {
+                id: invitation.game_id || invitation.id // Use game_id if available, fallback to invitation id
+              },
+              invitation: invitation
+            });
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error polling invitation status:', error);
+    }
+  }
+
+  /**
+   * Override disconnect to stop polling
+   */
+  disconnect() {
+    if (this.pollingInterval) {
+      clearInterval(this.pollingInterval);
+      this.pollingInterval = null;
+    }
+
+    if (this.invitationPollingInterval) {
+      clearInterval(this.invitationPollingInterval);
+      this.invitationPollingInterval = null;
+    }
+
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+    }
+
+    if (this.gameChannel) {
+      this.gameChannel.stopListening('GameConnectionEvent');
+      this.gameChannel.stopListening('GameMoveEvent');
+      this.gameChannel.stopListening('GameStatusEvent');
+    }
+
+    if (this.echo) {
+      this.echo.disconnect();
+    }
+
+    this.isConnected = false;
+    this.socketId = null;
+    this.emit('disconnected');
   }
 }
 

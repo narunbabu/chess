@@ -59,11 +59,11 @@ const PlayMultiplayer = () => {
       setGame(newGame);
 
       // Determine user's color and set board orientation
-      const userColor = data.white_player_id === user.id ? 'white' : 'black';
+      const userColor = data.white_player_id === user?.id ? 'white' : 'black';
       setBoardOrientation(userColor);
 
       // Set game info
-      const opponent = data.white_player_id === user.id ? data.black_player : data.white_player;
+      const opponent = data.white_player_id === user?.id ? data.black_player : data.white_player;
       setGameInfo({
         playerColor: userColor,
         turn: data.turn,
@@ -105,7 +105,8 @@ const PlayMultiplayer = () => {
 
       wsService.current.on('error', (error) => {
         console.error('WebSocket error:', error);
-        setError('Connection error: ' + error.message);
+        const errorMessage = error?.message || error?.toString() || 'Unknown connection error';
+        setError('Connection error: ' + errorMessage);
       });
 
       // Initialize the WebSocket connection
@@ -123,7 +124,7 @@ const PlayMultiplayer = () => {
   // Handle incoming moves from other players
   const handleRemoteMove = useCallback((event) => {
     // Don't process moves from ourselves
-    if (event.user_id === user.id) return;
+    if (event.user_id === user?.id) return;
 
     try {
       const newGame = new Chess();
@@ -147,7 +148,7 @@ const PlayMultiplayer = () => {
     } catch (err) {
       console.error('Error processing remote move:', err);
     }
-  }, [user.id, gameData]);
+  }, [user?.id, gameData]);
 
   // Handle game status changes
   const handleGameStatusChange = useCallback((event) => {
@@ -167,13 +168,15 @@ const PlayMultiplayer = () => {
 
   // Handle player connection events
   const handlePlayerConnection = useCallback((event) => {
-    const isOpponent = event.user_id !== user.id;
+    const isOpponent = event.user_id !== user?.id;
     if (isOpponent) {
       setOpponentOnline(event.type === 'join' || event.type === 'resume');
     }
-  }, [user.id]);
+  }, [user?.id]);
 
   useEffect(() => {
+    if (!gameId || !user) return;
+
     initializeGame();
 
     // Cleanup on unmount
@@ -182,7 +185,7 @@ const PlayMultiplayer = () => {
         wsService.current.disconnect();
       }
     };
-  }, [initializeGame]);
+  }, [gameId, user?.id]); // Use gameId and user.id directly instead of initializeGame
 
   const makeMove = async (sourceSquare, targetSquare) => {
     // Check if WebSocket is connected
