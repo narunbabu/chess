@@ -11,6 +11,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\GameController;
 use App\Http\Controllers\UserPresenceController;
+use App\Http\Controllers\WebSocketController;
 // use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 
@@ -55,6 +56,25 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/game-history/{id}', [GameHistoryController::class, 'show']);
     Route::get('/rankings', [GameHistoryController::class, 'rankings']);
     Route::post('/game-history', [GameHistoryController::class, 'store']);
+
+    // WebSocket API routes for real-time game connections
+    Route::prefix('websocket')->group(function () {
+        Route::post('/authenticate', [WebSocketController::class, 'authenticate']);
+        Route::post('/handshake', [WebSocketController::class, 'handshake']);
+        Route::post('/acknowledge-handshake', [WebSocketController::class, 'acknowledgeHandshake']);
+        Route::get('/handshake', [WebSocketController::class, 'getHandshake']);
+        Route::post('/join-game', [WebSocketController::class, 'joinGame']);
+        Route::post('/leave-game', [WebSocketController::class, 'leaveGame']);
+        Route::post('/heartbeat', [WebSocketController::class, 'heartbeat']);
+        Route::get('/room-state', [WebSocketController::class, 'getRoomState']);
+        Route::post('/validate-token', [WebSocketController::class, 'validateToken']);
+
+        // New Phase 2A fix endpoints
+        Route::post('/games/{gameId}/resume', [WebSocketController::class, 'resumeGame']);
+        Route::post('/games/{gameId}/new-game', [WebSocketController::class, 'newGame']);
+        Route::post('/games/{gameId}/move', [WebSocketController::class, 'broadcastMove']);
+        Route::post('/games/{gameId}/status', [WebSocketController::class, 'updateGameStatus']);
+    });
 });
 
 // routes/api.php
@@ -64,6 +84,16 @@ Route::get('/public-test', function () {
     return response()->json([
         'status' => 'success',
         'message' => 'Public test endpoint works!',
+    ]);
+});
+
+Route::get('/debug/oauth-config', function () {
+    return response()->json([
+        'google_client_id' => config('services.google.client_id'),
+        'google_redirect' => config('services.google.redirect'),
+        'frontend_url' => config('app.frontend_url'),
+        'env_google_redirect' => env('GOOGLE_REDIRECT_URL'),
+        'env_frontend_url' => env('FRONTEND_URL'),
     ]);
 });
 

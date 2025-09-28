@@ -17,12 +17,16 @@ class Game extends Model
         'fen',
         'moves',
         'turn',
-        'last_move_at'
+        'last_move_at',
+        'ended_at',
+        'end_reason',
+        'parent_game_id'
     ];
 
     protected $casts = [
         'moves' => 'array',
-        'last_move_at' => 'datetime'
+        'last_move_at' => 'datetime',
+        'ended_at' => 'datetime'
     ];
 
     public function whitePlayer()

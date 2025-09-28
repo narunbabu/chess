@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import GameInfo from './GameInfo';
@@ -6,6 +6,7 @@ import ScoreDisplay from './ScoreDisplay';
 import { useAuth } from '../../contexts/AuthContext';
 import { useParams, useNavigate } from 'react-router-dom';
 import { BACKEND_URL } from '../../config';
+import WebSocketGameService from '../../services/WebSocketGameService';
 
 const PlayMultiplayer = () => {
   const [game, setGame] = useState(new Chess());
@@ -21,16 +22,23 @@ const PlayMultiplayer = () => {
   const [boardOrientation, setBoardOrientation] = useState('white');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [connectionStatus, setConnectionStatus] = useState('disconnected');
+  const [opponentOnline, setOpponentOnline] = useState(false);
 
   const { user } = useAuth();
   const { gameId } = useParams();
   const navigate = useNavigate();
+  const wsService = useRef(null);
 
-  // Load game data
-  const loadGame = useCallback(async () => {
-    if (!gameId) return;
+  // Initialize WebSocket connection and load game data
+  const initializeGame = useCallback(async () => {
+    if (!gameId || !user) return;
 
     try {
+      setLoading(true);
+      setError(null);
+
+      // First load initial game data
       const token = localStorage.getItem('auth_token');
       const response = await fetch(`${BACKEND_URL}/games/${gameId}`, {
         headers: {
@@ -65,31 +73,124 @@ const PlayMultiplayer = () => {
 
       // Set game history from moves
       setGameHistory(data.moves || []);
+
+      // Initialize WebSocket connection
+      wsService.current = new WebSocketGameService();
+
+      // Set up WebSocket event listeners
+      wsService.current.on('connected', (data) => {
+        console.log('WebSocket connected:', data);
+        setConnectionStatus('connected');
+      });
+
+      wsService.current.on('disconnected', () => {
+        console.log('WebSocket disconnected');
+        setConnectionStatus('disconnected');
+      });
+
+      wsService.current.on('gameMove', (event) => {
+        console.log('Received move:', event);
+        handleRemoteMove(event);
+      });
+
+      wsService.current.on('gameStatus', (event) => {
+        console.log('Game status changed:', event);
+        handleGameStatusChange(event);
+      });
+
+      wsService.current.on('gameConnection', (event) => {
+        console.log('Player connection event:', event);
+        handlePlayerConnection(event);
+      });
+
+      wsService.current.on('error', (error) => {
+        console.error('WebSocket error:', error);
+        setError('Connection error: ' + error.message);
+      });
+
+      // Initialize the WebSocket connection
+      await wsService.current.initialize(gameId, user);
+
       setLoading(false);
 
     } catch (err) {
-      console.error('Error loading game:', err);
+      console.error('Error initializing game:', err);
       setError(err.message);
       setLoading(false);
     }
   }, [gameId, user]);
 
+  // Handle incoming moves from other players
+  const handleRemoteMove = useCallback((event) => {
+    // Don't process moves from ourselves
+    if (event.user_id === user.id) return;
+
+    try {
+      const newGame = new Chess();
+      newGame.load(event.fen);
+      setGame(newGame);
+
+      // Update game history
+      setGameHistory(prev => [...prev, {
+        from: event.move.from,
+        to: event.move.to,
+        move: event.move.san || event.move.piece,
+        player: event.user_id === gameData.white_player_id ? 'white' : 'black'
+      }]);
+
+      // Update turn
+      setGameInfo(prev => ({
+        ...prev,
+        turn: event.turn
+      }));
+
+    } catch (err) {
+      console.error('Error processing remote move:', err);
+    }
+  }, [user.id, gameData]);
+
+  // Handle game status changes
+  const handleGameStatusChange = useCallback((event) => {
+    setGameInfo(prev => ({
+      ...prev,
+      status: event.status
+    }));
+
+    if (event.result) {
+      setGameData(prev => ({
+        ...prev,
+        result: event.result,
+        status: event.status
+      }));
+    }
+  }, []);
+
+  // Handle player connection events
+  const handlePlayerConnection = useCallback((event) => {
+    const isOpponent = event.user_id !== user.id;
+    if (isOpponent) {
+      setOpponentOnline(event.type === 'join' || event.type === 'resume');
+    }
+  }, [user.id]);
+
   useEffect(() => {
-    loadGame();
-  }, [loadGame]);
+    initializeGame();
 
-  // Poll for game updates every 2 seconds
-  useEffect(() => {
-    if (!gameId || loading || error) return;
-
-    const pollInterval = setInterval(() => {
-      loadGame();
-    }, 2000);
-
-    return () => clearInterval(pollInterval);
-  }, [gameId, loading, error, loadGame]);
+    // Cleanup on unmount
+    return () => {
+      if (wsService.current) {
+        wsService.current.disconnect();
+      }
+    };
+  }, [initializeGame]);
 
   const makeMove = async (sourceSquare, targetSquare) => {
+    // Check if WebSocket is connected
+    if (connectionStatus !== 'connected') {
+      console.log('WebSocket not connected');
+      return false;
+    }
+
     // Check if it's the user's turn
     if (gameInfo.turn !== gameInfo.playerColor) {
       console.log('Not your turn');
@@ -109,28 +210,19 @@ const PlayMultiplayer = () => {
         return false;
       }
 
-      // Send move to server
-      const token = localStorage.getItem('auth_token');
-      const response = await fetch(`${BACKEND_URL}/games/${gameId}/move`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
+      // Send move through WebSocket
+      await wsService.current.sendMove(
+        {
           from: sourceSquare,
           to: targetSquare,
-          fen: gameCopy.fen(),
-          move: move.san
-        })
-      });
+          piece: move.piece,
+          promotion: move.promotion || null
+        },
+        gameCopy.fen(),
+        gameCopy.turn()
+      );
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to make move');
-      }
-
-      // Update local game state
+      // Update local game state immediately for responsiveness
       setGame(gameCopy);
       setGameHistory(prev => [...prev, {
         from: sourceSquare,
@@ -141,7 +233,7 @@ const PlayMultiplayer = () => {
 
       setGameInfo(prev => ({
         ...prev,
-        turn: prev.turn === 'white' ? 'black' : 'white'
+        turn: gameCopy.turn() === 'w' ? 'white' : 'black'
       }));
 
       return true;
@@ -178,19 +270,29 @@ const PlayMultiplayer = () => {
     }
 
     try {
-      const token = localStorage.getItem('auth_token');
-      await fetch(`${BACKEND_URL}/games/${gameId}/resign`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      // Refresh game data
-      loadGame();
+      const result = gameInfo.playerColor === 'white' ? 'black_wins' : 'white_wins';
+      await wsService.current.updateGameStatus('completed', result, 'resignation');
     } catch (err) {
       console.error('Error resigning:', err);
+    }
+  };
+
+  const handleResumeGame = async () => {
+    try {
+      await wsService.current.resumeGame(true);
+    } catch (err) {
+      console.error('Error resuming game:', err);
+    }
+  };
+
+  const handleNewGame = async (isRematch = false) => {
+    try {
+      const result = await wsService.current.createNewGame(isRematch);
+      if (result.game_id) {
+        navigate(`/play/multiplayer/${result.game_id}`);
+      }
+    } catch (err) {
+      console.error('Error creating new game:', err);
     }
   };
 
@@ -218,13 +320,27 @@ const PlayMultiplayer = () => {
       <div className="game-header">
         <h2>Multiplayer Chess</h2>
         <div className="game-status">
-          {gameInfo.status === 'active' ? (
-            gameInfo.turn === gameInfo.playerColor ?
-              "Your turn" :
-              `${gameInfo.opponentName}'s turn`
-          ) : (
-            `Game ${gameData.result.replace('_', ' ')}`
-          )}
+          <div className="connection-status">
+            <span className={`status-indicator ${connectionStatus}`}>
+              ● {connectionStatus === 'connected' ? 'Connected' : 'Disconnected'}
+            </span>
+            {opponentOnline && (
+              <span className="opponent-status">
+                ● {gameInfo.opponentName} online
+              </span>
+            )}
+          </div>
+          <div className="turn-status">
+            {gameInfo.status === 'active' ? (
+              gameInfo.turn === gameInfo.playerColor ?
+                "Your turn" :
+                `${gameInfo.opponentName}'s turn`
+            ) : gameInfo.status === 'completed' ? (
+              `Game ${gameData?.result?.replace('_', ' ') || 'ended'}`
+            ) : (
+              `Game ${gameInfo.status}`
+            )}
+          </div>
         </div>
       </div>
 
@@ -255,11 +371,28 @@ const PlayMultiplayer = () => {
             <span className="player-name">
               {user.name} ({gameInfo.playerColor === 'white' ? 'White' : 'Black'})
             </span>
-            {gameInfo.status === 'active' && (
-              <button onClick={handleResign} className="resign-button">
-                Resign
-              </button>
-            )}
+            <div className="game-controls">
+              {gameInfo.status === 'active' && (
+                <button onClick={handleResign} className="resign-button">
+                  Resign
+                </button>
+              )}
+              {gameInfo.status === 'paused' && (
+                <button onClick={handleResumeGame} className="resume-button">
+                  Resume Game
+                </button>
+              )}
+              {gameInfo.status === 'completed' && (
+                <div className="game-ended-controls">
+                  <button onClick={() => handleNewGame(true)} className="rematch-button">
+                    Rematch
+                  </button>
+                  <button onClick={() => handleNewGame(false)} className="new-game-button">
+                    New Game
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

@@ -2,9 +2,534 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Middleware\WebSocketAuth;
+use App\Services\GameRoomService;
+use App\Services\HandshakeProtocol;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class WebSocketController extends Controller
 {
-    //
+    public function __construct(
+        private GameRoomService $gameRoomService,
+        private HandshakeProtocol $handshakeProtocol
+    ) {
+        $this->middleware('auth:sanctum');
+    }
+
+    /**
+     * Handle WebSocket authentication request
+     */
+    public function authenticate(Request $request): JsonResponse
+    {
+        $request->validate([
+            'socket_id' => 'required|string',
+            'channel_name' => 'required|string',
+        ]);
+
+        $user = Auth::user();
+        $socketId = $request->input('socket_id');
+        $channelName = $request->input('channel_name');
+
+        try {
+            // Validate channel access using middleware logic
+            $authMiddleware = new WebSocketAuth();
+            $canAccess = $authMiddleware->validateChannelAccess($request, $channelName);
+
+            if (!$canAccess) {
+                return response()->json([
+                    'error' => 'Unauthorized channel access',
+                    'channel' => $channelName
+                ], 403);
+            }
+
+            // Log successful authentication
+            Log::info('WebSocket authentication successful', [
+                'user_id' => $user->id,
+                'socket_id' => $socketId,
+                'channel' => $channelName,
+                'timestamp' => now()->toISOString()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'avatar' => $user->avatar
+                ],
+                'socket_id' => $socketId,
+                'channel' => $channelName,
+                'auth_data' => [
+                    'user_id' => $user->id,
+                    'socket_id' => $socketId,
+                    'timestamp' => now()->toISOString()
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('WebSocket authentication failed', [
+                'user_id' => $user->id,
+                'socket_id' => $socketId,
+                'channel' => $channelName,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'error' => 'Authentication failed',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Handle game room join request
+     */
+    public function joinGame(Request $request): JsonResponse
+    {
+        $request->validate([
+            'game_id' => 'required|integer|exists:games,id',
+            'socket_id' => 'required|string',
+            'client_info' => 'array'
+        ]);
+
+        try {
+            $result = $this->gameRoomService->joinGame(
+                $request->input('game_id'),
+                $request->input('socket_id'),
+                $request->input('client_info', [])
+            );
+
+            Log::info('User joined game room', [
+                'user_id' => Auth::id(),
+                'game_id' => $request->input('game_id'),
+                'connection_id' => $result['connection_id']
+            ]);
+
+            return response()->json($result);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to join game room', [
+                'user_id' => Auth::id(),
+                'game_id' => $request->input('game_id'),
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to join game',
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Handle game room leave request
+     */
+    public function leaveGame(Request $request): JsonResponse
+    {
+        $request->validate([
+            'game_id' => 'required|integer|exists:games,id',
+            'socket_id' => 'required|string'
+        ]);
+
+        try {
+            $result = $this->gameRoomService->leaveGame(
+                $request->input('game_id'),
+                $request->input('socket_id')
+            );
+
+            Log::info('User left game room', [
+                'user_id' => Auth::id(),
+                'game_id' => $request->input('game_id'),
+                'socket_id' => $request->input('socket_id')
+            ]);
+
+            return response()->json($result);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to leave game room', [
+                'user_id' => Auth::id(),
+                'game_id' => $request->input('game_id'),
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to leave game',
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Handle connection heartbeat
+     */
+    public function heartbeat(Request $request): JsonResponse
+    {
+        $request->validate([
+            'game_id' => 'required|integer|exists:games,id',
+            'socket_id' => 'required|string'
+        ]);
+
+        try {
+            $result = $this->gameRoomService->heartbeat(
+                $request->input('game_id'),
+                $request->input('socket_id')
+            );
+
+            return response()->json($result);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Heartbeat failed',
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Get current room state for reconnection
+     */
+    public function getRoomState(Request $request): JsonResponse
+    {
+        $request->validate([
+            'game_id' => 'required|integer|exists:games,id'
+        ]);
+
+        try {
+            $result = $this->gameRoomService->getRoomState(
+                $request->input('game_id')
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $result
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to get room state',
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Validate WebSocket token for external services
+     */
+    public function validateToken(Request $request): JsonResponse
+    {
+        $request->validate([
+            'token' => 'required|string'
+        ]);
+
+        try {
+            $token = $request->input('token');
+            $personalAccessToken = \Laravel\Sanctum\PersonalAccessToken::findToken($token);
+
+            if (!$personalAccessToken || !$personalAccessToken->tokenable) {
+                return response()->json([
+                    'valid' => false,
+                    'error' => 'Invalid token'
+                ], 401);
+            }
+
+            $user = $personalAccessToken->tokenable;
+
+            return response()->json([
+                'valid' => true,
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email
+                ],
+                'token_id' => $personalAccessToken->id,
+                'expires_at' => $personalAccessToken->expires_at?->toISOString()
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'valid' => false,
+                'error' => 'Token validation failed'
+            ], 500);
+        }
+    }
+
+    /**
+     * Complete WebSocket handshake for game connection
+     */
+    public function handshake(Request $request): JsonResponse
+    {
+        $request->validate([
+            'game_id' => 'required|integer|exists:games,id',
+            'socket_id' => 'required|string',
+            'client_info' => 'array'
+        ]);
+
+        try {
+            $handshakeData = [
+                'game_id' => $request->input('game_id'),
+                'socket_id' => $request->input('socket_id'),
+                'client_info' => $request->input('client_info', [])
+            ];
+
+            $result = $this->handshakeProtocol->completeHandshake($handshakeData);
+
+            Log::info('WebSocket handshake completed', [
+                'user_id' => Auth::id(),
+                'game_id' => $request->input('game_id'),
+                'handshake_id' => $result['handshake_id']
+            ]);
+
+            return response()->json($result);
+
+        } catch (\Exception $e) {
+            Log::error('WebSocket handshake failed', [
+                'user_id' => Auth::id(),
+                'game_id' => $request->input('game_id'),
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'error' => 'Handshake failed',
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Acknowledge handshake completion from client
+     */
+    public function acknowledgeHandshake(Request $request): JsonResponse
+    {
+        $request->validate([
+            'handshake_id' => 'required|string',
+            'client_data' => 'array'
+        ]);
+
+        try {
+            $result = $this->handshakeProtocol->acknowledgeHandshake(
+                $request->input('handshake_id'),
+                $request->input('client_data', [])
+            );
+
+            return response()->json($result);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Handshake acknowledgment failed',
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Get existing handshake for reconnection
+     */
+    public function getHandshake(Request $request): JsonResponse
+    {
+        $request->validate([
+            'game_id' => 'required|integer|exists:games,id'
+        ]);
+
+        try {
+            $handshake = $this->handshakeProtocol->getExistingHandshake(
+                $request->input('game_id')
+            );
+
+            if (!$handshake) {
+                return response()->json([
+                    'exists' => false,
+                    'message' => 'No existing handshake found'
+                ], 404);
+            }
+
+            return response()->json([
+                'exists' => true,
+                'handshake' => $handshake
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to retrieve handshake',
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Handle game resume request
+     */
+    public function resumeGame(Request $request, int $gameId): JsonResponse
+    {
+        $request->validate([
+            'socket_id' => 'required|string',
+            'accept_resume' => 'boolean'
+        ]);
+
+        try {
+            $result = $this->gameRoomService->resumeGame(
+                $gameId,
+                Auth::id(),
+                $request->input('socket_id'),
+                $request->boolean('accept_resume', true)
+            );
+
+            Log::info('Game resume requested', [
+                'user_id' => Auth::id(),
+                'game_id' => $gameId,
+                'accept_resume' => $request->boolean('accept_resume', true)
+            ]);
+
+            return response()->json($result);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to resume game', [
+                'user_id' => Auth::id(),
+                'game_id' => $gameId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to resume game',
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Handle new game/rematch request
+     */
+    public function newGame(Request $request, int $gameId): JsonResponse
+    {
+        $request->validate([
+            'socket_id' => 'required|string',
+            'is_rematch' => 'boolean'
+        ]);
+
+        try {
+            $result = $this->gameRoomService->createNewGame(
+                $gameId,
+                Auth::id(),
+                $request->input('socket_id'),
+                $request->boolean('is_rematch', false)
+            );
+
+            Log::info('New game requested', [
+                'user_id' => Auth::id(),
+                'original_game_id' => $gameId,
+                'new_game_id' => $result['game_id'] ?? null,
+                'is_rematch' => $request->boolean('is_rematch', false)
+            ]);
+
+            return response()->json($result);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to create new game', [
+                'user_id' => Auth::id(),
+                'game_id' => $gameId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to create new game',
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Handle move broadcast
+     */
+    public function broadcastMove(Request $request, int $gameId): JsonResponse
+    {
+        $request->validate([
+            'move' => 'required|array',
+            'move.from' => 'required|string',
+            'move.to' => 'required|string',
+            'move.piece' => 'required|string',
+            'move.promotion' => 'nullable|string',
+            'fen' => 'required|string',
+            'turn' => 'required|string|in:w,b',
+            'socket_id' => 'required|string'
+        ]);
+
+        try {
+            $result = $this->gameRoomService->broadcastMove(
+                $gameId,
+                Auth::id(),
+                $request->input('move'),
+                $request->input('fen'),
+                $request->input('turn'),
+                $request->input('socket_id')
+            );
+
+            Log::info('Move broadcasted', [
+                'user_id' => Auth::id(),
+                'game_id' => $gameId,
+                'move' => $request->input('move'),
+                'turn' => $request->input('turn')
+            ]);
+
+            return response()->json($result);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to broadcast move', [
+                'user_id' => Auth::id(),
+                'game_id' => $gameId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to broadcast move',
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Handle game state change events
+     */
+    public function updateGameStatus(Request $request, int $gameId): JsonResponse
+    {
+        $request->validate([
+            'status' => 'required|string|in:waiting,active,completed,paused,abandoned',
+            'result' => 'nullable|string|in:white_wins,black_wins,draw,stalemate,timeout',
+            'reason' => 'nullable|string',
+            'socket_id' => 'required|string'
+        ]);
+
+        try {
+            $result = $this->gameRoomService->updateGameStatus(
+                $gameId,
+                Auth::id(),
+                $request->input('status'),
+                $request->input('result'),
+                $request->input('reason'),
+                $request->input('socket_id')
+            );
+
+            Log::info('Game status updated', [
+                'user_id' => Auth::id(),
+                'game_id' => $gameId,
+                'status' => $request->input('status'),
+                'result' => $request->input('result')
+            ]);
+
+            return response()->json($result);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to update game status', [
+                'user_id' => Auth::id(),
+                'game_id' => $gameId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to update game status',
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
 }
