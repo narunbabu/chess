@@ -52,7 +52,8 @@ class InvitationController extends Controller
     public function send(Request $request)
     {
         $request->validate([
-            'invited_user_id' => 'required|exists:users,id'
+            'invited_user_id' => 'required|exists:users,id',
+            'preferred_color' => 'nullable|in:white,black,random'
         ]);
 
         $inviter = Auth::user();
@@ -76,7 +77,8 @@ class InvitationController extends Controller
         $invitation = Invitation::create([
             'inviter_id' => $inviter->id,
             'invited_id' => $invitedUser->id,
-            'status' => 'pending'
+            'status' => 'pending',
+            'inviter_preferred_color' => $request->preferred_color ?? 'random'
         ]);
 
         return response()->json([
@@ -88,7 +90,8 @@ class InvitationController extends Controller
     public function respond(Request $request, $id)
     {
         $request->validate([
-            'action' => 'required|in:accept,decline'
+            'action' => 'required|in:accept,decline',
+            'color_choice' => 'nullable|in:accept,opposite'
         ]);
 
         $invitation = Invitation::where([
@@ -102,6 +105,12 @@ class InvitationController extends Controller
         }
 
         $invitation->status = $request->action === 'accept' ? 'accepted' : 'declined';
+
+        // Store the invited player's color choice if accepting
+        if ($request->action === 'accept') {
+            $invitation->invited_preferred_color = $request->color_choice ?? 'accept';
+        }
+
         $invitation->save();
 
         $game = null;
@@ -111,8 +120,8 @@ class InvitationController extends Controller
             \Log::info('Creating game for invitation ID: ' . $invitation->id);
             \Log::info('Inviter ID: ' . $invitation->inviter_id . ', Invited ID: ' . $invitation->invited_id);
 
-            // Randomly assign colors
-            $isInviterWhite = rand(0, 1) === 1;
+            // Determine colors based on preferences
+            $isInviterWhite = $this->determineInviterColor($invitation);
 
             $game = Game::create([
                 'white_player_id' => $isInviterWhite ? $invitation->inviter_id : $invitation->invited_id,
@@ -120,6 +129,7 @@ class InvitationController extends Controller
                 'status' => 'active',
                 'result' => 'ongoing',
                 'turn' => 'white',
+                'fen' => 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
                 'moves' => []
             ]);
 
@@ -234,5 +244,31 @@ class InvitationController extends Controller
         $invitation->delete();
 
         return response()->json(['message' => 'Invitation cancelled']);
+    }
+
+    /**
+     * Determine if the inviter should be white based on color preferences
+     */
+    private function determineInviterColor(Invitation $invitation): bool
+    {
+        $inviterPreference = $invitation->inviter_preferred_color;
+        $invitedChoice = $invitation->invited_preferred_color;
+
+        \Log::info('Color determination:', [
+            'inviter_preference' => $inviterPreference,
+            'invited_choice' => $invitedChoice
+        ]);
+
+        // If inviter chose a specific color
+        if ($inviterPreference === 'white') {
+            // Invited player can accept or choose opposite
+            return $invitedChoice === 'accept'; // If accept, inviter gets white; if opposite, inviter gets black
+        } elseif ($inviterPreference === 'black') {
+            // Invited player can accept or choose opposite
+            return $invitedChoice !== 'accept'; // If accept, inviter gets black; if opposite, inviter gets white
+        } else {
+            // Inviter chose random, so use random assignment
+            return rand(0, 1) === 1;
+        }
     }
 }

@@ -133,6 +133,16 @@ class HandshakeProtocol
      */
     private function validateGameAccess(User $user, Game $game): void
     {
+        Log::info('Validating game access', [
+            'user_id' => $user->id,
+            'game_id' => $game->id,
+            'game_status' => $game->status,
+            'white_player_id' => $game->white_player_id,
+            'black_player_id' => $game->black_player_id,
+            'is_white_player' => $game->white_player_id === $user->id,
+            'is_black_player' => $game->black_player_id === $user->id
+        ]);
+
         $isPlayer = $game->white_player_id === $user->id || $game->black_player_id === $user->id;
 
         if (!$isPlayer) {
@@ -140,6 +150,11 @@ class HandshakeProtocol
         }
 
         if (!in_array($game->status, ['waiting', 'active', 'paused'])) {
+            Log::error('Game not in joinable state', [
+                'game_id' => $game->id,
+                'current_status' => $game->status,
+                'allowed_statuses' => ['waiting', 'active', 'paused']
+            ]);
             throw new \Exception('Game is not in a joinable state');
         }
     }

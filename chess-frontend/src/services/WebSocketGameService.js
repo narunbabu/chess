@@ -554,14 +554,17 @@ class WebSocketGameService {
    */
   async initializePollingMode() {
     console.log('Initializing HTTP polling fallback mode');
+    console.log('Current gameId:', this.gameId);
+    console.log('Current user:', this.user);
 
     // Set connection status
     this.isConnected = true;
     this.socketId = 'polling_' + Date.now();
 
-    // Complete handshake via HTTP (only if we have a gameId)
+    // In polling mode, skip complex handshake and go straight to polling
+    // The room-state endpoint will handle access validation
     if (this.gameId) {
-      await this.completeHandshake();
+      console.log('Polling mode: Skipping handshake, will validate via room-state');
     } else {
       console.log('Skipping handshake - no gameId provided (lobby mode)');
     }
@@ -600,20 +603,26 @@ class WebSocketGameService {
   async pollGameState() {
     if (!this.gameId) return;
 
-    const token = localStorage.getItem('auth_token');
-    const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/websocket/room-state?game_id=${this.gameId}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/websocket/room-state?game_id=${this.gameId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
-    if (response.ok) {
-      const data = await response.json();
-      // Check for game state changes and emit appropriate events
-      if (data.success && data.data) {
-        this.handlePolledGameState(data.data);
+      if (response.ok) {
+        const data = await response.json();
+        // Check for game state changes and emit appropriate events
+        if (data.success && data.data) {
+          this.handlePolledGameState(data.data);
+        }
+      } else {
+        console.error('Failed to poll game state:', response.status, response.statusText);
       }
+    } catch (error) {
+      console.error('Error polling game state:', error);
     }
   }
 
@@ -621,9 +630,46 @@ class WebSocketGameService {
    * Handle polled game state data
    */
   handlePolledGameState(gameState) {
-    // This is a simplified version - in a real implementation,
-    // you'd compare with previous state and emit appropriate events
-    console.log('Polled game state:', gameState);
+    const gameData = gameState.game;
+
+    // Store current state for comparison
+    if (!this.lastGameState) {
+      this.lastGameState = gameData;
+      return;
+    }
+
+    // Check for new moves
+    const lastMoveCount = this.lastGameState.moves?.length || 0;
+    const currentMoveCount = gameData.moves?.length || 0;
+
+    if (currentMoveCount > lastMoveCount) {
+      // New move detected
+      const latestMove = gameData.moves[currentMoveCount - 1];
+      console.log('New move detected:', latestMove);
+
+      // Emit gameMove event
+      this.emit('gameMove', {
+        move: latestMove,
+        fen: gameData.fen,
+        turn: gameData.turn,
+        user_id: latestMove.user_id || null
+      });
+    }
+
+    // Check for status changes
+    if (this.lastGameState.status !== gameData.status) {
+      console.log('Game status changed:', this.lastGameState.status, '->', gameData.status);
+
+      // Emit gameStatus event
+      this.emit('gameStatus', {
+        status: gameData.status,
+        result: gameData.result || null,
+        reason: gameData.reason || null
+      });
+    }
+
+    // Update stored state
+    this.lastGameState = gameData;
   }
 
   /**

@@ -193,10 +193,13 @@ class GameRoomService
      */
     private function getGameRoomData(Game $game): array
     {
+        // Convert database turn format ('white'/'black') to chess notation ('w'/'b')
+        $chessTurn = ($game->turn === 'white') ? 'w' : 'b';
+
         return [
             'id' => $game->id,
             'status' => $game->status,
-            'turn' => $game->turn,
+            'turn' => $chessTurn,
             'fen' => $game->fen,
             'moves' => $game->moves ?? [],
             'white_player' => [
@@ -358,7 +361,7 @@ class GameRoomService
             'black_player_id' => $isRematch ? $originalGame->white_player_id : $originalGame->black_player_id,
             'fen' => 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', // Starting position
             'status' => 'waiting',
-            'turn' => 'w',
+            'turn' => 'white', // Use database format
             'moves' => [],
             'parent_game_id' => $originalGameId
         ]);
@@ -410,18 +413,41 @@ class GameRoomService
         }
 
         // Verify it's the user's turn
+        // The 'turn' parameter represents the NEXT turn after the move
+        // So we need to check against the CURRENT turn (before the move)
         $userRole = $this->getUserRole($user, $game);
-        if (($turn === 'w' && $userRole !== 'white') || ($turn === 'b' && $userRole !== 'black')) {
+        $currentTurn = $game->turn; // This is in database format ('white'/'black')
+
+        \Log::info('Turn validation check', [
+            'user_id' => $userId,
+            'user_role' => $userRole,
+            'current_turn_in_db' => $currentTurn,
+            'next_turn_from_frontend' => $turn,
+            'game_id' => $gameId
+        ]);
+
+        // Check if it's the user's turn (database uses 'white'/'black', userRole returns 'white'/'black')
+        if ($currentTurn !== $userRole) {
+            \Log::error('Turn validation failed', [
+                'user_id' => $userId,
+                'user_role' => $userRole,
+                'current_turn_required' => $currentTurn,
+                'game_id' => $gameId
+            ]);
             throw new \Exception('Not your turn');
         }
 
         // Update game state
         $moves = $game->moves ?? [];
-        $moves[] = $move;
+        $moveWithUser = array_merge($move, ['user_id' => $userId]);
+        $moves[] = $moveWithUser;
+
+        // Convert chess notation turn ('w'/'b') to database format ('white'/'black')
+        $dbTurn = ($turn === 'w') ? 'white' : 'black';
 
         $game->update([
             'fen' => $fen,
-            'turn' => $turn,
+            'turn' => $dbTurn,
             'moves' => $moves,
             'last_move_at' => now()
         ]);

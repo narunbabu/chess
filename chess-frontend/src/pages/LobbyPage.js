@@ -11,6 +11,10 @@ const LobbyPage = () => {
   const [players, setPlayers] = useState([]);
   const [inviteStatus, setInviteStatus] = useState(null);
   const [invitedPlayer, setInvitedPlayer] = useState(null);
+  const [showColorModal, setShowColorModal] = useState(false);
+  const [selectedPlayer, setSelectedPlayer] = useState(null);
+  const [showResponseModal, setShowResponseModal] = useState(false);
+  const [selectedInvitation, setSelectedInvitation] = useState(null);
   const [onlineCount, setOnlineCount] = useState(0);
   const [pendingInvitations, setPendingInvitations] = useState([]);
   const [sentInvitations, setSentInvitations] = useState([]);
@@ -38,7 +42,13 @@ const LobbyPage = () => {
         console.log('Invitation accepted event received:', data);
         if (data.game && data.game.id) {
           console.log('Navigating to game ID:', data.game.id);
-          navigate(`/play/${data.game.id}`);
+
+          // Set session markers for proper game access (challenger perspective)
+          sessionStorage.setItem('lastInvitationAction', 'invitation_accepted_by_other');
+          sessionStorage.setItem('lastInvitationTime', Date.now().toString());
+          sessionStorage.setItem('lastGameId', data.game.id.toString());
+
+          navigate(`/play/multiplayer/${data.game.id}`);
         }
       });
 
@@ -52,15 +62,44 @@ const LobbyPage = () => {
     try {
       console.log('Fetching lobby data for user:', user);
 
-      const [usersRes, pendingRes, sentRes] = await Promise.all([
+      const [usersRes, pendingRes, sentRes, acceptedRes] = await Promise.all([
         api.get('/users'),
         api.get('/invitations/pending'),
         api.get('/invitations/sent'),
+        api.get('/invitations/accepted')
       ]);
 
       console.log('Users response:', usersRes.data);
       console.log('Pending invitations:', pendingRes.data);
       console.log('Sent invitations:', sentRes.data);
+      console.log('Accepted invitations:', acceptedRes.data);
+
+      // Handle accepted invitations - navigate to game if any
+      if (acceptedRes.data && acceptedRes.data.length > 0) {
+        const acceptedData = acceptedRes.data[0]; // Get the first accepted invitation
+        console.log('Found accepted invitation, checking if already processed:', acceptedData);
+
+        // Check if we've already processed this accepted invitation
+        const processedInvitations = JSON.parse(sessionStorage.getItem('processedInvitations') || '[]');
+        const invitationId = acceptedData.invitation?.id;
+
+        if (acceptedData.game && !processedInvitations.includes(invitationId)) {
+          // Mark this invitation as processed
+          processedInvitations.push(invitationId);
+          sessionStorage.setItem('processedInvitations', JSON.stringify(processedInvitations));
+
+          // Set session markers for proper game access
+          sessionStorage.setItem('lastInvitationAction', 'invitation_accepted_by_other');
+          sessionStorage.setItem('lastInvitationTime', Date.now().toString());
+          sessionStorage.setItem('lastGameId', acceptedData.game.id.toString());
+
+          console.log('Navigating to game from accepted invitation:', acceptedData.game.id);
+          navigate(`/play/multiplayer/${acceptedData.game.id}`);
+          return; // Exit early to prevent further processing
+        } else if (processedInvitations.includes(invitationId)) {
+          console.log('Accepted invitation already processed, skipping navigation');
+        }
+      }
 
       // Filter out the current user from the list
       const otherUsers = usersRes.data.filter(p => p.id !== user.id);
@@ -89,13 +128,20 @@ const LobbyPage = () => {
     }
   }, [user]);
 
-  const handleInvite = async (player) => {
-    setInvitedPlayer(player);
+  const handleInvite = (player) => {
+    setSelectedPlayer(player);
+    setShowColorModal(true);
+  };
+
+  const sendInvitation = async (colorChoice) => {
+    setShowColorModal(false);
+    setInvitedPlayer(selectedPlayer);
     setInviteStatus('sending');
 
     try {
       await api.post('/invitations/send', {
-        invited_user_id: player.id
+        invited_user_id: selectedPlayer.id,
+        preferred_color: colorChoice
       });
 
       setInviteStatus('sent');
@@ -106,6 +152,7 @@ const LobbyPage = () => {
       setTimeout(() => {
         setInviteStatus(null);
         setInvitedPlayer(null);
+        setSelectedPlayer(null);
       }, 3000);
     } catch (error) {
       console.error('Failed to send invitation:', error);
@@ -113,27 +160,49 @@ const LobbyPage = () => {
       setTimeout(() => {
         setInviteStatus(null);
         setInvitedPlayer(null);
+        setSelectedPlayer(null);
       }, 3000);
     }
   };
 
-  const handleInvitationResponse = async (invitationId, action) => {
+  const handleInvitationResponse = async (invitationId, action, colorChoice = null) => {
+    // If accepting and no color choice provided, show modal
+    if (action === 'accept' && !colorChoice) {
+      const invitation = pendingInvitations.find(inv => inv.id === invitationId);
+      setSelectedInvitation(invitation);
+      setShowResponseModal(true);
+      return;
+    }
+
     try {
       console.log(`Attempting to ${action} invitation ${invitationId}`);
       console.log('Auth token exists:', !!localStorage.getItem('auth_token'));
       console.log('Current user:', user);
 
-      const response = await api.post(`/invitations/${invitationId}/respond`, {
-        action: action
-      });
+      const requestData = { action: action };
+      if (colorChoice) {
+        requestData.color_choice = colorChoice;
+      }
+
+      const response = await api.post(`/invitations/${invitationId}/respond`, requestData);
 
       console.log('Invitation response successful:', response.data);
+
+      // Close modal if it was open
+      setShowResponseModal(false);
+      setSelectedInvitation(null);
 
       if (action === 'accept') {
         const data = response.data;
         if (data.game) {
           console.log('Invitation accepted, navigating to game:', data.game);
-          navigate(`/play/${data.game.id}`);
+
+          // Set session markers for proper game access
+          sessionStorage.setItem('lastInvitationAction', 'accepted');
+          sessionStorage.setItem('lastInvitationTime', Date.now().toString());
+          sessionStorage.setItem('lastGameId', data.game.id.toString());
+
+          navigate(`/play/multiplayer/${data.game.id}`);
         } else {
           console.log('Invitation accepted but no game created');
         }
@@ -324,6 +393,101 @@ const LobbyPage = () => {
           )}
         </div>
       </div>
+
+      {showColorModal && (
+        <div className="invitation-modal">
+          <div className="modal-content">
+            <h2>⚡ Challenge {selectedPlayer?.name}</h2>
+            <p>Choose your preferred color:</p>
+            <div className="color-choices">
+              <button
+                className="color-choice white"
+                onClick={() => sendInvitation('white')}
+              >
+                ♔ Play as White
+                <small>(Move first)</small>
+              </button>
+              <button
+                className="color-choice black"
+                onClick={() => sendInvitation('black')}
+              >
+                ♚ Play as Black
+                <small>(Move second)</small>
+              </button>
+              <button
+                className="color-choice random"
+                onClick={() => sendInvitation('random')}
+              >
+                🎲 Random
+                <small>(Let chance decide)</small>
+              </button>
+            </div>
+            <button
+              className="cancel-btn"
+              onClick={() => setShowColorModal(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showResponseModal && (
+        <div className="invitation-modal">
+          <div className="modal-content">
+            <h2>🎯 Accept Challenge from {selectedInvitation?.inviter?.name}</h2>
+            <p>
+              {selectedInvitation?.inviter?.name} wants to play as{' '}
+              {selectedInvitation?.inviter_preferred_color === 'white' ? '♔ White' :
+               selectedInvitation?.inviter_preferred_color === 'black' ? '♚ Black' :
+               '🎲 Random'}
+            </p>
+            <p>Choose your response:</p>
+            <div className="color-choices">
+              <button
+                className="color-choice accept"
+                onClick={() => handleInvitationResponse(selectedInvitation.id, 'accept', 'accept')}
+              >
+                ✅ Accept their choice
+                <small>
+                  (You'll play as {
+                    selectedInvitation?.inviter_preferred_color === 'white' ? '♚ Black' :
+                    selectedInvitation?.inviter_preferred_color === 'black' ? '♔ White' :
+                    '🎲 Random'
+                  })
+                </small>
+              </button>
+              <button
+                className="color-choice opposite"
+                onClick={() => handleInvitationResponse(selectedInvitation.id, 'accept', 'opposite')}
+              >
+                🔄 Choose opposite
+                <small>
+                  (You'll play as {
+                    selectedInvitation?.inviter_preferred_color === 'white' ? '♔ White' :
+                    selectedInvitation?.inviter_preferred_color === 'black' ? '♚ Black' :
+                    '🎲 Random'
+                  })
+                </small>
+              </button>
+            </div>
+            <div className="modal-actions">
+              <button
+                className="cancel-btn"
+                onClick={() => setShowResponseModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="decline-btn"
+                onClick={() => handleInvitationResponse(selectedInvitation.id, 'decline')}
+              >
+                Decline
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {inviteStatus && (
         <div className="invitation-modal">

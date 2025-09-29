@@ -266,8 +266,16 @@ class WebSocketController extends Controller
      */
     public function handshake(Request $request): JsonResponse
     {
+        Log::info('Handshake request received', [
+            'all_data' => $request->all(),
+            'game_id' => $request->input('game_id'),
+            'socket_id' => $request->input('socket_id'),
+            'client_info' => $request->input('client_info'),
+            'user_id' => Auth::id()
+        ]);
+
         $request->validate([
-            'game_id' => 'required|integer|exists:games,id',
+            'game_id' => 'nullable|integer|exists:games,id',
             'socket_id' => 'required|string',
             'client_info' => 'array'
         ]);
@@ -449,6 +457,13 @@ class WebSocketController extends Controller
      */
     public function broadcastMove(Request $request, int $gameId): JsonResponse
     {
+        // Debug: Log the incoming request
+        \Log::info('broadcastMove request data:', [
+            'gameId' => $gameId,
+            'request_data' => $request->all(),
+            'user_id' => Auth::id()
+        ]);
+
         $request->validate([
             'move' => 'required|array',
             'move.from' => 'required|string',

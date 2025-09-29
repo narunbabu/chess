@@ -34,6 +34,41 @@ const PlayMultiplayer = () => {
   const initializeGame = useCallback(async () => {
     if (!gameId || !user) return;
 
+    // Check if user came from proper invitation flow (optional security measure)
+    const lastInvitationAction = sessionStorage.getItem('lastInvitationAction');
+    const lastInvitationTime = sessionStorage.getItem('lastInvitationTime');
+    const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+
+    console.log('Game access check:', {
+      gameId,
+      userId: user.id,
+      lastInvitationAction,
+      lastInvitationTime,
+      timeSinceInvitation: lastInvitationTime ? Date.now() - parseInt(lastInvitationTime) : 'N/A'
+    });
+
+    // Check if user has proper authorization to access this specific game
+    const lastGameId = sessionStorage.getItem('lastGameId');
+    const hasRecentInvitationActivity = lastInvitationTime && (Date.now() - parseInt(lastInvitationTime)) < fiveMinutesAgo * 2; // 10 minutes
+
+    if (!hasRecentInvitationActivity || lastGameId !== gameId) {
+      console.warn('Unauthorized game access detected:', {
+        hasRecentActivity: hasRecentInvitationActivity,
+        lastGameId,
+        currentGameId: gameId,
+        redirectingToLobby: true
+      });
+
+      // Clear any stale session data
+      sessionStorage.removeItem('lastInvitationAction');
+      sessionStorage.removeItem('lastInvitationTime');
+      sessionStorage.removeItem('lastGameId');
+
+      // Redirect to lobby
+      navigate('/lobby');
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -48,27 +83,64 @@ const PlayMultiplayer = () => {
       });
 
       if (!response.ok) {
+        if (response.status === 403) {
+          // User is not authorized to access this game
+          console.log('Unauthorized game access, redirecting to lobby');
+          navigate('/lobby');
+          return;
+        }
         throw new Error('Failed to load game');
       }
 
       const data = await response.json();
+      console.log('Raw game data from backend:', data);
       setGameData(data);
 
-      // Set up the chess game from FEN
-      const newGame = new Chess(data.fen);
+      // Set up the chess game from FEN (use starting position if no FEN)
+      const fen = data.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+      const newGame = new Chess(fen);
       setGame(newGame);
 
-      // Determine user's color and set board orientation
-      const userColor = data.white_player_id === user?.id ? 'white' : 'black';
+      // Determine user's color and set board orientation (handle type conversion)
+      const userId = parseInt(user?.id);
+      const whitePlayerId = parseInt(data.white_player_id);
+      const blackPlayerId = parseInt(data.black_player_id);
+      const userColor = whitePlayerId === userId ? 'white' : 'black';
+      console.log('Board orientation setup:', {
+        userId: user?.id,
+        userIdType: typeof user?.id,
+        whitePlayerId: data.white_player_id,
+        whitePlayerIdType: typeof data.white_player_id,
+        blackPlayerId: data.black_player_id,
+        blackPlayerIdType: typeof data.black_player_id,
+        userColor: userColor,
+        boardOrientation: userColor,
+        whitePlayerMatch: data.white_player_id === user?.id,
+        blackPlayerMatch: data.black_player_id === user?.id,
+        convertedUserId: userId,
+        convertedWhiteId: whitePlayerId,
+        convertedBlackId: blackPlayerId,
+        isWhitePlayer: whitePlayerId === userId,
+        isBlackPlayer: blackPlayerId === userId
+      });
+
+      console.log('Setting board orientation to:', userColor);
       setBoardOrientation(userColor);
 
-      // Set game info
-      const opponent = data.white_player_id === user?.id ? data.black_player : data.white_player;
+      // Set game info (use consistent type conversion)
+      const opponent = whitePlayerId === userId ? data.blackPlayer : data.whitePlayer;
+      console.log('Game info setup:', {
+        playerColor: userColor,
+        gameTurn: data.turn,
+        status: data.status,
+        opponentName: opponent?.name || 'Opponent'
+      });
+
       setGameInfo({
         playerColor: userColor,
         turn: data.turn,
         status: data.status,
-        opponentName: opponent.name
+        opponentName: opponent?.name || 'Opponent'
       });
 
       // Set game history from moves
@@ -136,7 +208,7 @@ const PlayMultiplayer = () => {
         from: event.move.from,
         to: event.move.to,
         move: event.move.san || event.move.piece,
-        player: event.user_id === gameData.white_player_id ? 'white' : 'black'
+        player: event.user_id === gameData?.white_player_id ? 'white' : 'black'
       }]);
 
       // Update turn
@@ -195,6 +267,12 @@ const PlayMultiplayer = () => {
     }
 
     // Check if it's the user's turn
+    console.log('Turn validation:', {
+      gameTurn: gameInfo.turn,
+      playerColor: gameInfo.playerColor,
+      isYourTurn: gameInfo.turn === gameInfo.playerColor
+    });
+
     if (gameInfo.turn !== gameInfo.playerColor) {
       console.log('Not your turn');
       return false;
@@ -234,9 +312,15 @@ const PlayMultiplayer = () => {
         player: gameInfo.playerColor
       }]);
 
+      const newTurn = gameCopy.turn() === 'w' ? 'white' : 'black';
+      console.log('Updating turn after move:', {
+        chessJsTurn: gameCopy.turn(),
+        convertedTurn: newTurn
+      });
+
       setGameInfo(prev => ({
         ...prev,
-        turn: gameCopy.turn() === 'w' ? 'white' : 'black'
+        turn: newTurn
       }));
 
       return true;
@@ -299,6 +383,40 @@ const PlayMultiplayer = () => {
     }
   };
 
+  const handleKillGame = async () => {
+    if (!window.confirm('Are you sure you want to kill this game? This will permanently delete the game and return you to the lobby.')) {
+      return;
+    }
+
+    try {
+      // First try to resign/end the game
+      await wsService.current.updateGameStatus('completed', 'abandoned', 'killed');
+
+      // Disconnect WebSocket service
+      if (wsService.current) {
+        wsService.current.disconnect();
+      }
+
+      // Clear session storage to prevent stale game access
+      sessionStorage.removeItem('lastInvitationAction');
+      sessionStorage.removeItem('lastInvitationTime');
+      sessionStorage.removeItem('lastGameId');
+
+      // Navigate back to lobby
+      navigate('/lobby');
+    } catch (err) {
+      console.error('Error killing game:', err);
+
+      // Clear session storage even if backend call fails
+      sessionStorage.removeItem('lastInvitationAction');
+      sessionStorage.removeItem('lastInvitationTime');
+      sessionStorage.removeItem('lastGameId');
+
+      // Even if backend call fails, still navigate back
+      navigate('/lobby');
+    }
+  };
+
   if (loading) {
     return (
       <div className="game-container">
@@ -317,6 +435,9 @@ const PlayMultiplayer = () => {
       </div>
     );
   }
+
+  // Debug: Log board orientation at render time
+  console.log('Rendering with board orientation:', boardOrientation, 'playerColor:', gameInfo.playerColor);
 
   return (
     <div className="game-container">
@@ -395,6 +516,18 @@ const PlayMultiplayer = () => {
                   </button>
                 </div>
               )}
+              <button onClick={handleKillGame} className="kill-game-button" style={{
+                backgroundColor: '#dc3545',
+                color: 'white',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                marginTop: '10px',
+                fontSize: '14px'
+              }}>
+                🗑️ Kill Game
+              </button>
             </div>
           </div>
         </div>

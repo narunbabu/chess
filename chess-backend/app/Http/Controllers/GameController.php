@@ -31,6 +31,7 @@ class GameController extends Controller
             'status' => 'active',
             'result' => 'ongoing',
             'turn' => 'white',
+            'fen' => 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
             'moves' => []
         ]);
 
@@ -50,8 +51,23 @@ class GameController extends Controller
 
         $user = Auth::user();
 
+        \Log::info('Game access attempt:', [
+            'game_id' => $id,
+            'user_id' => $user->id,
+            'white_player_id' => $game->white_player_id,
+            'black_player_id' => $game->black_player_id,
+            'game_status' => $game->status,
+            'created_at' => $game->created_at
+        ]);
+
         // Check if user is part of this game
         if ($game->white_player_id !== $user->id && $game->black_player_id !== $user->id) {
+            \Log::warning('Unauthorized game access attempt:', [
+                'game_id' => $id,
+                'user_id' => $user->id,
+                'white_player_id' => $game->white_player_id,
+                'black_player_id' => $game->black_player_id
+            ]);
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 

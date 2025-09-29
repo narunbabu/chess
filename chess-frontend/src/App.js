@@ -79,6 +79,7 @@ const App = () => {
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/play" element={<PlayComputer />} />
                 <Route path="/play/:gameId" element={<PlayMultiplayer />} />
+                <Route path="/play/multiplayer/:gameId" element={<PlayMultiplayer />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/lobby" element={<LobbyPage />} />
                 <Route path="/dashboard" element={<Dashboard />} />
