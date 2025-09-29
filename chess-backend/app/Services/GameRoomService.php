@@ -667,7 +667,7 @@ class GameRoomService
             'fen_final' => $game->fen,
             'move_count' => $game->move_count,
             'ended_at' => $game->ended_at?->toISOString(),
-        ]));
+        ]))->toOthers();
 
         \Log::info('Game ended', [
             'game_id' => $game->id,

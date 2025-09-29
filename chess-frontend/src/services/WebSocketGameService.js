@@ -175,21 +175,40 @@ class WebSocketGameService {
 
     try {
       // Join the private game channel
-      this.gameChannel = this.echo.private(`game.${this.gameId}`);
+      const channel = this.echo.private(`game.${this.gameId}`);
+      this.gameChannel = channel;
+
+      // Add detailed subscription diagnostics
+      channel.subscribed(() => {
+        console.log('✅ pusher:subscription_succeeded', `game.${this.gameId}`);
+      }).error((e) => {
+        console.error('❌ pusher:subscription_error', e);
+      });
+
+      // Also bind to the low-level Pusher events if pusher-js is used
+      if (channel.pusher) {
+          channel.pusher.bind('pusher:subscription_error', (status) => {
+              console.error('❌ pusher:subscription_error (low-level)', status);
+          });
+      }
 
       // Listen for game events
-      this.gameChannel
+      channel
         .listen('GameConnectionEvent', (event) => {
           console.log('Game connection event:', event);
           this.emit('gameConnection', event);
         })
-        .listen('GameMoveEvent', (event) => {
-          console.log('Game move event:', event);
+        .listen('.game.move', (event) => {
+          console.log('Received game.move event:', event);
           this.emit('gameMove', event);
         })
         .listen('GameStatusEvent', (event) => {
           console.log('Game status event:', event);
           this.emit('gameStatus', event);
+        })
+        .listen('.game.activated', (event) => {
+            console.log('Game activated event received:', event);
+            this.emit('gameActivated', event);
         });
 
       // Wait for connection

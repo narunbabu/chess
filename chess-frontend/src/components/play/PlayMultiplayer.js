@@ -167,6 +167,11 @@ const PlayMultiplayer = () => {
         handleGameEnd(event);
       });
 
+      wsService.current.on('gameActivated', (event) => {
+        console.log('Game activated event received:', event);
+        handleGameActivated(event);
+      });
+
       wsService.current.on('gameConnection', (event) => {
         console.log('Player connection event:', event);
         handlePlayerConnection(event);
@@ -242,6 +247,13 @@ const PlayMultiplayer = () => {
         status: event.status
       }));
     }
+  }, []);
+
+  const handleGameActivated = useCallback((event) => {
+    setGameInfo(prev => ({
+      ...prev,
+      status: 'active'
+    }));
   }, []);
 
   // Handle player connection events

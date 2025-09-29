@@ -65,7 +65,7 @@ class GameMoveEvent implements ShouldBroadcast
      */
     public function broadcastAs(): string
     {
-        return 'GameMoveEvent';
+        return 'game.move';
     }
 
     /**

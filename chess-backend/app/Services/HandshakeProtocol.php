@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Events\GameActivatedEvent;
 use App\Events\GameConnectionEvent;
 use App\Models\Game;
 use App\Models\User;
@@ -383,8 +384,7 @@ class HandshakeProtocol
                 'black_player_id' => $game->black_player_id
             ]);
 
-            // TODO: Broadcast game activation event to both players
-            // broadcast(new GameActivatedEvent($game));
+            broadcast(new GameActivatedEvent($game));
         }
     }
 }
