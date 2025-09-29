@@ -38,8 +38,22 @@ const LobbyPage = () => {
     if (user && webSocketService) {
       const userChannel = webSocketService.subscribeToUserChannel(user);
 
+      // Listen for invitation accepted (for inviters)
       userChannel.listen('.invitation.accepted', (data) => {
         console.log('Invitation accepted event received:', data);
+
+        // Remove the accepted invitation from sent list immediately
+        if (data.invitation && data.invitation.id) {
+          setSentInvitations(prev => prev.filter(inv => inv.id !== data.invitation.id));
+
+          // Also mark this invitation as processed to prevent it from showing up again
+          const processedInvitations = JSON.parse(sessionStorage.getItem('processedInvitations') || '[]');
+          if (!processedInvitations.includes(data.invitation.id)) {
+            processedInvitations.push(data.invitation.id);
+            sessionStorage.setItem('processedInvitations', JSON.stringify(processedInvitations));
+          }
+        }
+
         if (data.game && data.game.id) {
           console.log('Navigating to game ID:', data.game.id);
 
@@ -52,8 +66,30 @@ const LobbyPage = () => {
         }
       });
 
+      // Listen for new invitations (for recipients)
+      userChannel.listen('.invitation.sent', (data) => {
+        console.log('New invitation received:', data);
+        // Refresh data to show the new invitation
+        fetchData();
+      });
+
+      // Listen for invitation cancellations (for recipients)
+      userChannel.listen('.invitation.cancelled', (data) => {
+        console.log('Invitation cancelled:', data);
+
+        // Remove the cancelled invitation from pending list immediately
+        if (data.invitation && data.invitation.id) {
+          setPendingInvitations(prev => prev.filter(inv => inv.id !== data.invitation.id));
+        }
+
+        // Also refresh data to ensure consistency
+        fetchData();
+      });
+
       return () => {
         userChannel.stopListening('.invitation.accepted');
+        userChannel.stopListening('.invitation.sent');
+        userChannel.stopListening('.invitation.cancelled');
       };
     }
   }, [user, webSocketService, navigate]);
@@ -105,15 +141,50 @@ const LobbyPage = () => {
       const otherUsers = usersRes.data.filter(p => p.id !== user.id);
       console.log('Other users after filtering:', otherUsers);
 
+      // Get processed invitations from session storage to filter them out
+      const processedInvitations = JSON.parse(sessionStorage.getItem('processedInvitations') || '[]');
+
+      // Filter out accepted/processed invitations from sent list
+      const activeSentInvitations = sentRes.data.filter(invitation => {
+        // Remove invitations that have been accepted (status: 'accepted')
+        // OR have been marked as processed in sessionStorage
+        const isAccepted = invitation.status === 'accepted';
+        const isProcessed = processedInvitations.includes(invitation.id);
+
+        if (isAccepted || isProcessed) {
+          console.log('Filtering out processed/accepted invitation:', invitation.id, { isAccepted, isProcessed });
+          return false;
+        }
+        return true;
+      });
+
       setPlayers(otherUsers);
       setOnlineCount(usersRes.data.length);
       setPendingInvitations(pendingRes.data);
-      setSentInvitations(sentRes.data);
+      setSentInvitations(activeSentInvitations);
     } catch (error) {
       console.error('Failed to fetch data:', error);
       console.error('Error details:', error.response?.data);
     }
   };
+
+  // Clear old processed invitations on component mount (cleanup stale data)
+  useEffect(() => {
+    // Clean up processed invitations older than 24 hours
+    const processedInvitations = JSON.parse(sessionStorage.getItem('processedInvitations') || '[]');
+    const processedTimestamps = JSON.parse(sessionStorage.getItem('processedTimestamps') || '{}');
+    const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000);
+
+    const activeProcessed = processedInvitations.filter(invId => {
+      const timestamp = processedTimestamps[invId];
+      return timestamp && timestamp > twentyFourHoursAgo;
+    });
+
+    if (activeProcessed.length !== processedInvitations.length) {
+      sessionStorage.setItem('processedInvitations', JSON.stringify(activeProcessed));
+      console.log('Cleaned up old processed invitations:', processedInvitations.length - activeProcessed.length);
+    }
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -223,10 +294,19 @@ const LobbyPage = () => {
 
   const handleCancelInvitation = async (invitationId) => {
     try {
-      await api.delete(`/invitations/${invitationId}`);
+      console.log('Cancelling invitation:', invitationId);
+      const response = await api.delete(`/invitations/${invitationId}`);
+      console.log('Cancellation response:', response.data);
+
+      // Immediately update local state to remove the cancelled invitation
+      setSentInvitations(prev => prev.filter(inv => inv.id !== invitationId));
+
+      // Also refresh all data
       fetchData();
     } catch (error) {
       console.error('Failed to cancel invitation:', error);
+      console.error('Error details:', error.response?.data);
+      alert(`Failed to cancel invitation: ${error.response?.data?.error || error.message}`);
     }
   };
 

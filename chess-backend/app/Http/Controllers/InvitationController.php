@@ -5,47 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Invitation;
 use App\Models\User;
 use App\Models\Game;
+use App\Events\InvitationAccepted;
+use App\Events\InvitationSent;
+use App\Events\InvitationCancelled;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Broadcasting\Channel;
-use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Broadcasting\PresenceChannel;
-use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
-use Illuminate\Foundation\Events\Dispatchable;
-use Illuminate\Queue\SerializesModels;
-
-class InvitationAccepted implements ShouldBroadcast
-{
-    use Dispatchable, InteractsWithSockets, SerializesModels;
-
-    public $game;
-    public $invitation;
-
-    public function __construct(Game $game, Invitation $invitation)
-    {
-        $this->game = $game;
-        $this->invitation = $invitation;
-    }
-
-    public function broadcastOn()
-    {
-        return new PrivateChannel('user.' . $this->invitation->inviter_id);
-    }
-
-    public function broadcastWith()
-    {
-        return [
-            'game' => $this->game->load('whitePlayer', 'blackPlayer'),
-            'invitation' => $this->invitation->load('inviter', 'invited')
-        ];
-    }
-
-    public function broadcastAs()
-    {
-        return 'invitation.accepted';
-    }
-}
 
 class InvitationController extends Controller
 {
@@ -80,6 +44,9 @@ class InvitationController extends Controller
             'status' => 'pending',
             'inviter_preferred_color' => $request->preferred_color ?? 'random'
         ]);
+
+        // Broadcast to the recipient
+        event(new InvitationSent($invitation));
 
         return response()->json([
             'message' => 'Invitation sent successfully',
@@ -126,7 +93,7 @@ class InvitationController extends Controller
             $game = Game::create([
                 'white_player_id' => $isInviterWhite ? $invitation->inviter_id : $invitation->invited_id,
                 'black_player_id' => $isInviterWhite ? $invitation->invited_id : $invitation->inviter_id,
-                'status' => 'active',
+                'status' => 'waiting', // Start as waiting, will become active when both players connect
                 'result' => 'ongoing',
                 'turn' => 'white',
                 'fen' => 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
@@ -231,6 +198,22 @@ class InvitationController extends Controller
 
     public function cancel($id)
     {
+        \Log::info('Attempting to cancel invitation', [
+            'invitation_id' => $id,
+            'user_id' => Auth::id()
+        ]);
+
+        // First check if invitation exists at all
+        $anyInvitation = Invitation::find($id);
+        if (!$anyInvitation) {
+            \Log::error('Invitation not found in database', ['invitation_id' => $id]);
+            return response()->json(['error' => 'Invitation not found'], 404);
+        }
+
+        \Log::info('Invitation found', [
+            'invitation' => $anyInvitation->toArray()
+        ]);
+
         $invitation = Invitation::where([
             ['id', $id],
             ['inviter_id', Auth::id()],
@@ -238,12 +221,24 @@ class InvitationController extends Controller
         ])->first();
 
         if (!$invitation) {
-            return response()->json(['error' => 'Invitation not found'], 404);
+            \Log::error('Invitation not found or user not authorized to cancel', [
+                'invitation_id' => $id,
+                'current_user_id' => Auth::id(),
+                'invitation_inviter_id' => $anyInvitation->inviter_id,
+                'invitation_status' => $anyInvitation->status
+            ]);
+            return response()->json(['error' => 'Invitation not found or already responded'], 404);
         }
+
+        // Load relationships before deleting
+        $invitation->load(['inviter', 'invited']);
+
+        // Broadcast to the recipient that invitation was cancelled
+        event(new InvitationCancelled($invitation));
 
         $invitation->delete();
 
-        return response()->json(['message' => 'Invitation cancelled']);
+        return response()->json(['message' => 'Invitation cancelled successfully']);
     }
 
     /**

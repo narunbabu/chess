@@ -33,11 +33,24 @@ class HandshakeProtocol
         try {
             // Step 1: Validate game exists and user has access
             $game = Game::with(['whitePlayer', 'blackPlayer'])->findOrFail($gameId);
+            Log::info('Game loaded for handshake', [
+                'game_id' => $game->id,
+                'white_player_id' => $game->white_player_id,
+                'black_player_id' => $game->black_player_id,
+                'status' => $game->status,
+                'white_player_loaded' => $game->whitePlayer !== null,
+                'black_player_loaded' => $game->blackPlayer !== null
+            ]);
+
             $this->validateGameAccess($user, $game);
 
             // Step 2: Join the game room
             $gameRoomService = app(GameRoomService::class);
             $joinResult = $gameRoomService->joinGame($gameId, $socketId, $clientInfo);
+            Log::info('Game room join result', ['join_result' => $joinResult]);
+
+            // Step 2.5: Check if both players are now connected and activate game
+            $this->maybeActivateGame($game);
 
             // Step 3: Prepare handshake response with game state
             $handshakeResponse = $this->prepareHandshakeResponse($game, $user, $joinResult);
@@ -149,11 +162,21 @@ class HandshakeProtocol
             throw new \Exception('User not authorized to join this game');
         }
 
-        if (!in_array($game->status, ['waiting', 'active', 'paused'])) {
+        Log::info('Game status check for handshake', [
+            'game_id' => $game->id,
+            'current_status' => $game->status,
+            'status_type' => gettype($game->status),
+            'allowed_statuses' => ['waiting', 'active'],
+            'user_id' => $user->id,
+            'white_player_id' => $game->white_player_id,
+            'black_player_id' => $game->black_player_id
+        ]);
+
+        if (!in_array($game->status, ['waiting', 'active'])) {
             Log::error('Game not in joinable state', [
                 'game_id' => $game->id,
                 'current_status' => $game->status,
-                'allowed_statuses' => ['waiting', 'active', 'paused']
+                'allowed_statuses' => ['waiting', 'active']
             ]);
             throw new \Exception('Game is not in a joinable state');
         }
@@ -167,6 +190,34 @@ class HandshakeProtocol
         $handshakeId = uniqid('hs_', true);
         $userColor = $game->getPlayerColor($user->id);
         $opponent = $game->getOpponent($user->id);
+
+        Log::info('Preparing handshake response', [
+            'game_id' => $game->id,
+            'user_id' => $user->id,
+            'user_color' => $userColor,
+            'opponent_exists' => $opponent !== null,
+            'opponent_id' => $opponent?->id
+        ]);
+
+        // Prepare opponent info - handle case where opponent might not exist yet
+        $opponentInfo = null;
+        if ($opponent) {
+            $opponentInfo = [
+                'id' => $opponent->id,
+                'name' => $opponent->name,
+                'color' => $userColor === 'white' ? 'black' : 'white',
+                'avatar' => $opponent->avatar ?? null,
+                'online' => $this->isOpponentOnline($opponent->id, $game->id)
+            ];
+        } else {
+            $opponentInfo = [
+                'id' => null,
+                'name' => 'Waiting for opponent...',
+                'color' => $userColor === 'white' ? 'black' : 'white',
+                'avatar' => null,
+                'online' => false
+            ];
+        }
 
         return [
             'success' => true,
@@ -194,13 +245,7 @@ class HandshakeProtocol
                     'color' => $userColor,
                     'avatar' => $user->avatar ?? null
                 ],
-                'opponent' => [
-                    'id' => $opponent->id,
-                    'name' => $opponent->name,
-                    'color' => $userColor === 'white' ? 'black' : 'white',
-                    'avatar' => $opponent->avatar ?? null,
-                    'online' => $this->isOpponentOnline($opponent->id, $game->id)
-                ]
+                'opponent' => $opponentInfo
             ],
             'channels' => [
                 'game_channel' => "game.{$game->id}",
@@ -257,7 +302,22 @@ class HandshakeProtocol
      */
     private function isOpponentOnline(int $opponentId, int $gameId): bool
     {
-        return Cache::get("user_presence:{$opponentId}:game:{$gameId}", false);
+        // Check general user presence first
+        $userPresence = Cache::get("user_presence:{$opponentId}", false);
+
+        // If presence data is an array (from Redis), check the status
+        if (is_array($userPresence)) {
+            $status = $userPresence['status'] ?? 'offline';
+            $lastActivity = $userPresence['last_activity'] ?? 0;
+
+            // Consider user online if status is 'online' and last activity within 5 minutes
+            return $status === 'online' && (time() - $lastActivity) < 300;
+        }
+
+        // Check game-specific presence as fallback
+        $gamePresence = Cache::get("user_presence:{$opponentId}:game:{$gameId}", false);
+
+        return (bool)$gamePresence;
     }
 
     /**
@@ -287,5 +347,44 @@ class HandshakeProtocol
         // This would be called by a scheduled job
         // For now, rely on cache TTL for cleanup
         return 0;
+    }
+
+    /**
+     * Activate game if both players are connected
+     */
+    private function maybeActivateGame(Game $game): void
+    {
+        // Only activate if game is currently waiting
+        if ($game->status !== 'waiting') {
+            return;
+        }
+
+        // Check if both players are actively connected
+        $activeConnections = \App\Models\GameConnection::where('game_id', $game->id)
+            ->where('status', 'connected')
+            ->where('last_activity', '>', now()->subMinutes(2))
+            ->distinct('user_id')
+            ->count();
+
+        Log::info('Checking game activation', [
+            'game_id' => $game->id,
+            'current_status' => $game->status,
+            'active_connections' => $activeConnections,
+            'required_connections' => 2
+        ]);
+
+        // Activate game when both players are connected
+        if ($activeConnections >= 2) {
+            $game->update(['status' => 'active']);
+
+            Log::info('Game activated - both players connected', [
+                'game_id' => $game->id,
+                'white_player_id' => $game->white_player_id,
+                'black_player_id' => $game->black_player_id
+            ]);
+
+            // TODO: Broadcast game activation event to both players
+            // broadcast(new GameActivatedEvent($game));
+        }
     }
 }

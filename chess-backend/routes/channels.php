@@ -17,6 +17,7 @@ Broadcast::channel('game.{gameId}', function ($user, $gameId) {
     }
 
     // Only allow players participating in the game
+    // Allow white player always, allow black player if they exist
     return $game->white_player_id === $user->id ||
            $game->black_player_id === $user->id;
 });

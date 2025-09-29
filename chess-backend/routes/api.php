@@ -60,6 +60,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // WebSocket API routes for real-time game connections
     Route::prefix('websocket')->group(function () {
         Route::post('/authenticate', [WebSocketController::class, 'authenticate']);
+        // Alternative Laravel standard broadcasting auth route
+        Route::post('/broadcasting/auth', [WebSocketController::class, 'authenticate']);
         Route::post('/handshake', [WebSocketController::class, 'handshake']);
         Route::post('/acknowledge-handshake', [WebSocketController::class, 'acknowledgeHandshake']);
         Route::get('/handshake', [WebSocketController::class, 'getHandshake']);
@@ -73,9 +75,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/games/{gameId}/resume', [WebSocketController::class, 'resumeGame']);
         Route::post('/games/{gameId}/new-game', [WebSocketController::class, 'newGame']);
         Route::post('/games/{gameId}/move', [WebSocketController::class, 'broadcastMove']);
+        Route::post('/games/{gameId}/resign', [WebSocketController::class, 'resignGame']);
         Route::post('/games/{gameId}/status', [WebSocketController::class, 'updateGameStatus']);
     });
 });
+
+// Laravel Broadcasting Authentication Route (standard pattern)
+Route::post('/broadcasting/auth', [WebSocketController::class, 'authenticate'])->middleware('auth:sanctum');
 
 // routes/api.php
 

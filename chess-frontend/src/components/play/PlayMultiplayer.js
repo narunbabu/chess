@@ -3,6 +3,7 @@ import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import GameInfo from './GameInfo';
 import ScoreDisplay from './ScoreDisplay';
+import GameCompletionAnimation from '../GameCompletionAnimation';
 import { useAuth } from '../../contexts/AuthContext';
 import { useParams, useNavigate } from 'react-router-dom';
 import { BACKEND_URL } from '../../config';
@@ -24,6 +25,8 @@ const PlayMultiplayer = () => {
   const [error, setError] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
   const [opponentOnline, setOpponentOnline] = useState(false);
+  const [gameComplete, setGameComplete] = useState(false);
+  const [gameResult, setGameResult] = useState(null);
 
   const { user } = useAuth();
   const { gameId } = useParams();
@@ -51,23 +54,7 @@ const PlayMultiplayer = () => {
     const lastGameId = sessionStorage.getItem('lastGameId');
     const hasRecentInvitationActivity = lastInvitationTime && (Date.now() - parseInt(lastInvitationTime)) < fiveMinutesAgo * 2; // 10 minutes
 
-    if (!hasRecentInvitationActivity || lastGameId !== gameId) {
-      console.warn('Unauthorized game access detected:', {
-        hasRecentActivity: hasRecentInvitationActivity,
-        lastGameId,
-        currentGameId: gameId,
-        redirectingToLobby: true
-      });
 
-      // Clear any stale session data
-      sessionStorage.removeItem('lastInvitationAction');
-      sessionStorage.removeItem('lastInvitationTime');
-      sessionStorage.removeItem('lastGameId');
-
-      // Redirect to lobby
-      navigate('/lobby');
-      return;
-    }
 
     try {
       setLoading(true);
@@ -175,6 +162,11 @@ const PlayMultiplayer = () => {
         handleGameStatusChange(event);
       });
 
+      wsService.current.on('gameEnded', (event) => {
+        console.log('🏁 Game ended event received:', event);
+        handleGameEnd(event);
+      });
+
       wsService.current.on('gameConnection', (event) => {
         console.log('Player connection event:', event);
         handlePlayerConnection(event);
@@ -259,6 +251,73 @@ const PlayMultiplayer = () => {
       setOpponentOnline(event.type === 'join' || event.type === 'resume');
     }
   }, [user?.id]);
+
+  // Handle game completion
+  const handleGameEnd = useCallback((event) => {
+    console.log('🏁 Processing game end event:', event);
+
+    // Update game completion state
+    setGameComplete(true);
+
+    // Prepare result data for modal
+    const resultData = {
+      game_over: true,
+      result: event.result,
+      end_reason: event.end_reason,
+      winner_user_id: event.winner_user_id,
+      winner_player: event.winner_player,
+      fen_final: event.fen_final,
+      move_count: event.move_count,
+      ended_at: event.ended_at,
+      white_player: event.white_player,
+      black_player: event.black_player,
+      // Determine user's result
+      isPlayerWin: event.winner_user_id === user?.id,
+      isPlayerDraw: !event.winner_user_id && event.result === '1/2-1/2'
+    };
+
+    setGameResult(resultData);
+
+    // Update game info status
+    setGameInfo(prev => ({
+      ...prev,
+      status: 'finished'
+    }));
+
+    // Apply final board state
+    if (event.fen_final) {
+      try {
+        const finalGame = new Chess();
+        finalGame.load(event.fen_final);
+        setGame(finalGame);
+      } catch (err) {
+        console.error('Error loading final FEN:', err);
+      }
+    }
+
+    console.log('✅ Game completion processed, showing result modal');
+  }, [user?.id]);
+
+  // Handle resign
+  const handleResign = useCallback(async () => {
+    if (!wsService.current || gameComplete) {
+      return;
+    }
+
+    const confirmed = window.confirm('Are you sure you want to resign?');
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      console.log('🏳️ Resigning game...');
+      await wsService.current.resignGame();
+      console.log('✅ Resignation successful');
+    } catch (error) {
+      console.error('❌ Failed to resign:', error);
+      setError('Failed to resign: ' + error.message);
+    }
+  }, [gameComplete]);
 
   useEffect(() => {
     if (!gameId || !user) return;
@@ -365,18 +424,7 @@ const PlayMultiplayer = () => {
     }
   };
 
-  const handleResign = async () => {
-    if (!window.confirm('Are you sure you want to resign?')) {
-      return;
-    }
-
-    try {
-      const result = gameInfo.playerColor === 'white' ? 'black_wins' : 'white_wins';
-      await wsService.current.updateGameStatus('completed', result, 'resignation');
-    } catch (err) {
-      console.error('Error resigning:', err);
-    }
-  };
+  // Use the resign handler from above (already defined)
 
   const handleResumeGame = async () => {
     try {
@@ -557,6 +605,22 @@ const PlayMultiplayer = () => {
           <ScoreDisplay game={game} />
         </div>
       </div>
+
+      {/* Game Completion Modal */}
+      {gameComplete && gameResult && (
+        <GameCompletionAnimation
+          result={gameResult}
+          playerColor={gameInfo.playerColor}
+          onClose={() => {
+            setGameComplete(false);
+            setGameResult(null);
+          }}
+          onRematch={() => handleNewGame(true)}
+          onNewGame={() => handleNewGame(false)}
+          onBackToLobby={() => navigate('/lobby')}
+          isMultiplayer={true}
+        />
+      )}
     </div>
   );
 };

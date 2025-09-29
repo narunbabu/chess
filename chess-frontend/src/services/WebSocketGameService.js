@@ -58,21 +58,24 @@ class WebSocketGameService {
         throw new Error('No authentication token found');
       }
 
-      console.log('WebSocket config:', {
-        key: process.env.REACT_APP_REVERB_APP_KEY,
-        wsHost: process.env.REACT_APP_REVERB_HOST,
-        wsPort: process.env.REACT_APP_REVERB_PORT,
-        scheme: process.env.REACT_APP_REVERB_SCHEME
-      });
+      const wsConfig = {
+        key: process.env.REACT_APP_REVERB_APP_KEY || 'anrdh24nppf3obfupvqw',
+        wsHost: process.env.REACT_APP_REVERB_HOST || 'localhost',
+        wsPort: parseInt(process.env.REACT_APP_REVERB_PORT) || 8080,
+        scheme: process.env.REACT_APP_REVERB_SCHEME || 'http'
+      };
+
+      console.log('WebSocket config:', wsConfig);
+      console.log('Attempting to connect to:', `${wsConfig.scheme}://${wsConfig.wsHost}:${wsConfig.wsPort}`);
 
       // Initialize Laravel Echo
       this.echo = new Echo({
         broadcaster: 'reverb',
-        key: process.env.REACT_APP_REVERB_APP_KEY || 'anrdh24nppf3obfupvqw',
-        wsHost: process.env.REACT_APP_REVERB_HOST || 'localhost',
-        wsPort: process.env.REACT_APP_REVERB_PORT || 8080,
-        wssPort: process.env.REACT_APP_REVERB_PORT || 8080,
-        forceTLS: process.env.REACT_APP_REVERB_SCHEME === 'https',
+        key: wsConfig.key,
+        wsHost: wsConfig.wsHost,
+        wsPort: wsConfig.wsPort,
+        wssPort: wsConfig.wsPort,
+        forceTLS: wsConfig.scheme === 'https',
         enabledTransports: ['ws', 'wss'],
         auth: {
           headers: {
@@ -84,7 +87,7 @@ class WebSocketGameService {
           return {
             authorize: async (socketId, callback) => {
               try {
-                const response = await fetch(`${BACKEND_URL}/websocket/authenticate`, {
+                const response = await fetch(`${BACKEND_URL}/broadcasting/auth`, {
                   method: 'POST',
                   headers: {
                     'Authorization': `Bearer ${token}`,
@@ -111,28 +114,38 @@ class WebSocketGameService {
       });
 
       // Handle connection events
+      this.echo.connector.pusher.connection.bind('connecting', () => {
+        console.log('WebSocket attempting to connect...');
+      });
+
       this.echo.connector.pusher.connection.bind('connected', () => {
         this.socketId = this.echo.socketId();
         this.isConnected = true;
         this.reconnectAttempts = 0;
-        console.log('WebSocket connected:', this.socketId);
+        console.log('✅ WebSocket connected successfully:', this.socketId);
         this.emit('connected', { socketId: this.socketId });
       });
 
       this.echo.connector.pusher.connection.bind('disconnected', () => {
         this.isConnected = false;
-        console.log('WebSocket disconnected');
+        console.log('❌ WebSocket disconnected');
         this.emit('disconnected');
         this.handleReconnection();
       });
 
+      this.echo.connector.pusher.connection.bind('failed', () => {
+        console.error('❌ WebSocket connection failed');
+        this.emit('error', new Error('WebSocket connection failed'));
+      });
+
       this.echo.connector.pusher.connection.bind('error', (error) => {
-        console.error('WebSocket error details:', {
+        console.error('❌ WebSocket error details:', {
           error,
           type: typeof error,
           message: error?.message,
           code: error?.code,
-          data: error?.data
+          data: error?.data,
+          connectionState: this.echo?.connector?.pusher?.connection?.state
         });
         this.emit('error', error);
       });
@@ -204,11 +217,11 @@ class WebSocketGameService {
     if (!this.echo) {
       console.log('Polling mode: Creating mock user channel for user', user.id);
       console.log('Current user stored in service:', this.user?.id);
-      return this.createMockChannel(`user.${user.id}`);
+      return this.createMockChannel(`App.Models.User.${user.id}`);
     }
 
     try {
-      const userChannel = this.echo.private(`user.${user.id}`);
+      const userChannel = this.echo.private(`App.Models.User.${user.id}`);
       return userChannel;
     } catch (error) {
       console.error('Failed to subscribe to user channel:', error);
@@ -219,7 +232,7 @@ class WebSocketGameService {
   /**
    * Wait for WebSocket connection to be established
    */
-  waitForConnection(timeout = 5000) {
+  waitForConnection(timeout = 10000) {
     return new Promise((resolve, reject) => {
       if (this.isConnected && this.socketId) {
         resolve();
@@ -229,9 +242,16 @@ class WebSocketGameService {
       const startTime = Date.now();
       const checkConnection = () => {
         if (this.isConnected && this.socketId) {
+          console.log('WebSocket connection established successfully');
           resolve();
         } else if (Date.now() - startTime > timeout) {
-          reject(new Error('WebSocket connection timeout'));
+          console.error('WebSocket connection timeout. Check if Reverb server is running on port 8080');
+          console.error('Connection state:', {
+            isConnected: this.isConnected,
+            socketId: this.socketId,
+            echoState: this.echo?.connector?.pusher?.connection?.state
+          });
+          reject(new Error('WebSocket connection timeout - check if Reverb server is running'));
         } else {
           setTimeout(checkConnection, 100);
         }
@@ -697,6 +717,28 @@ class WebSocketGameService {
    * Handle compact polled game state data
    */
   handlePolledCompactState(compactData) {
+    // Check if this is a game completion response
+    if (compactData.game_over) {
+      console.log('🏁 Game ended detected:', compactData);
+
+      this.emit('gameEnded', {
+        game_over: true,
+        result: compactData.result,
+        end_reason: compactData.end_reason,
+        winner_user_id: compactData.winner_user_id,
+        winner_player: compactData.winner_player,
+        fen_final: compactData.fen_final,
+        move_count: compactData.move_count,
+        ended_at: compactData.ended_at,
+        white_player: compactData.white_player,
+        black_player: compactData.black_player
+      });
+
+      // Stop polling since game is finished
+      this.stopPolling();
+      return;
+    }
+
     const { fen, turn, move_count, last_move, last_move_by, user_role } = compactData;
 
     // Initialize state tracking if needed
@@ -911,6 +953,49 @@ class WebSocketGameService {
       }
     } catch (error) {
       console.error('Error polling invitation status:', error);
+    }
+  }
+
+  /**
+   * Stop polling timer
+   */
+  stopPolling() {
+    if (this._pollTimer) {
+      clearTimeout(this._pollTimer);
+      this._pollTimer = null;
+      console.log('🔄 Stopped game state polling');
+    }
+  }
+
+  /**
+   * Send resign request
+   */
+  async resignGame() {
+    if (!this.gameId || !this.user) {
+      throw new Error('Game ID or user not set');
+    }
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${BACKEND_URL}/websocket/games/${this.gameId}/resign`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        }
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to resign game');
+      }
+
+      console.log('✅ Game resigned successfully:', data);
+      return data;
+    } catch (error) {
+      console.error('❌ Failed to resign game:', error);
+      throw error;
     }
   }
 

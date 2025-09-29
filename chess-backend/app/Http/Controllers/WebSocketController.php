@@ -9,6 +9,7 @@ use App\Services\HandshakeProtocol;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Log;
 
 class WebSocketController extends Controller
@@ -34,42 +35,33 @@ class WebSocketController extends Controller
         $channelName = $request->input('channel_name');
 
         try {
+            // Use Laravel Broadcast's built-in authentication
+            $authData = Broadcast::auth($request);
+
             // Log successful authentication
             Log::info('WebSocket authentication successful', [
                 'user_id' => $user->id,
                 'socket_id' => $socketId,
                 'channel' => $channelName,
+                'auth_data' => $authData,
                 'timestamp' => now()->toISOString()
             ]);
 
-            return response()->json([
-                'success' => true,
-                'user' => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'avatar' => $user->avatar
-                ],
-                'socket_id' => $socketId,
-                'channel' => $channelName,
-                'auth_data' => [
-                    'user_id' => $user->id,
-                    'socket_id' => $socketId,
-                    'timestamp' => now()->toISOString()
-                ]
-            ]);
+            return response()->json($authData);
 
         } catch (\Exception $e) {
             Log::error('WebSocket authentication failed', [
-                'user_id' => $user->id,
+                'user_id' => $user->id ?? 'unknown',
                 'socket_id' => $socketId,
                 'channel' => $channelName,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
 
             return response()->json([
                 'error' => 'Authentication failed',
                 'message' => $e->getMessage()
-            ], 500);
+            ], 403);
         }
     }
 
@@ -196,17 +188,42 @@ class WebSocketController extends Controller
         ]);
 
         try {
-            $game = Game::findOrFail($gameId);
+            $game = Game::with(['whitePlayer', 'blackPlayer'])->findOrFail($gameId);
             $moves = $game->moves ?? [];
             $moveCount = is_array($moves) ? count($moves) : 0;
-            $etag = sha1($game->updated_at . '|' . $moveCount);
+            $etag = sha1($game->updated_at . '|' . $moveCount . '|' . $game->status);
 
             // 1) ETag pathway - if client sent If-None-Match and it matches, return 304
             if ($request->header('If-None-Match') === $etag) {
                 return response('', 304)->header('ETag', $etag);
             }
 
-            // 2) Since-move fast path - if no new moves since last check
+            // 2) Check if game is finished - return final state
+            if ($game->status === 'finished') {
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'game_over' => true,
+                        'result' => $game->result,
+                        'end_reason' => $game->end_reason,
+                        'winner_user_id' => $game->winner_user_id,
+                        'winner_player' => $game->winner_player,
+                        'fen_final' => $game->fen,
+                        'move_count' => $game->move_count,
+                        'ended_at' => $game->ended_at?->toISOString(),
+                        'white_player' => [
+                            'id' => $game->whitePlayer->id,
+                            'name' => $game->whitePlayer->name
+                        ],
+                        'black_player' => [
+                            'id' => $game->blackPlayer->id,
+                            'name' => $game->blackPlayer->name
+                        ]
+                    ]
+                ])->header('ETag', $etag);
+            }
+
+            // 3) Since-move fast path - if no new moves since last check (for active games)
             if ($sinceMove >= 0 && $sinceMove === $moveCount) {
                 return response()->json([
                     'success' => true,
@@ -214,7 +231,7 @@ class WebSocketController extends Controller
                 ])->header('ETag', $etag);
             }
 
-            // 3) Get room state (compact or full)
+            // 4) Get room state (compact or full) for active games
             $result = $this->gameRoomService->getRoomState(
                 $request->input('game_id'),
                 $compact,
@@ -471,6 +488,15 @@ class WebSocketController extends Controller
      */
     public function broadcastMove(Request $request, int $gameId): JsonResponse
     {
+        // Check if game is finished before allowing moves
+        $game = Game::findOrFail($gameId);
+        if ($game->status === 'finished') {
+            return response()->json([
+                'error' => 'Game finished',
+                'message' => 'This game has already ended'
+            ], 409);
+        }
+
         // Debug: Log the incoming request
         \Log::info('broadcastMove request data:', [
             'gameId' => $gameId,
@@ -503,7 +529,8 @@ class WebSocketController extends Controller
                 'user_id' => Auth::id(),
                 'game_id' => $gameId,
                 'move' => $request->input('move'),
-                'turn' => $request->input('turn')
+                'turn' => $request->input('turn'),
+                'game_status' => $result['game_status'] ?? 'unknown'
             ]);
 
             return response()->json($result);
@@ -517,6 +544,37 @@ class WebSocketController extends Controller
 
             return response()->json([
                 'error' => 'Failed to broadcast move',
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Handle player resignation
+     */
+    public function resignGame(Request $request, int $gameId): JsonResponse
+    {
+        try {
+            $result = $this->gameRoomService->resignGame($gameId, Auth::id());
+
+            Log::info('Player resigned game', [
+                'user_id' => Auth::id(),
+                'game_id' => $gameId,
+                'result' => $result['result'] ?? null,
+                'winner' => $result['winner'] ?? null
+            ]);
+
+            return response()->json($result);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to resign game', [
+                'user_id' => Auth::id(),
+                'game_id' => $gameId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to resign game',
                 'message' => $e->getMessage()
             ], 400);
         }

@@ -14,12 +14,16 @@ class Game extends Model
         'black_player_id',
         'status',
         'result',
+        'winner_player',
+        'winner_user_id',
+        'end_reason',
+        'move_count',
+        'pgn',
         'fen',
         'moves',
         'turn',
         'last_move_at',
         'ended_at',
-        'end_reason',
         'parent_game_id'
     ];
 
@@ -45,6 +49,14 @@ class Game extends Model
             return $this->blackPlayer;
         }
         return $this->whitePlayer;
+    }
+
+    public function hasOpponent($userId)
+    {
+        if ($this->white_player_id == $userId) {
+            return $this->black_player_id !== null;
+        }
+        return $this->white_player_id !== null;
     }
 
     public function getPlayerColor($userId)
