@@ -17,6 +17,11 @@ class WebSocketGameService {
     this.reconnectTimeout = null;
     this.maxReconnectAttempts = 5;
     this.reconnectAttempts = 0;
+    // Smart polling properties
+    this._pollingBusy = false;
+    this._pollTimer = null;
+    this._lastETag = null;
+    this.lastGameState = null;
   }
 
   /**
@@ -27,11 +32,11 @@ class WebSocketGameService {
     this.user = user;
 
     // Check if we should use polling fallback FIRST
-    const usePolling = process.env.REACT_APP_USE_POLLING_FALLBACK === 'true' || true; // Force polling for now
+    const usePolling = process.env.REACT_APP_USE_POLLING_FALLBACK === 'true';
     console.log('Checking polling fallback:', {
       env_var: process.env.REACT_APP_USE_POLLING_FALLBACK,
       should_use_polling: usePolling,
-      forcing_polling: true
+      forcing_polling: false
     });
 
     if (usePolling) {
@@ -503,6 +508,16 @@ class WebSocketGameService {
   }
 
   /**
+   * Update user's player color for smart polling
+   */
+  updatePlayerColor(playerColor) {
+    if (this.user) {
+      this.user.playerColor = playerColor;
+      console.log('Updated user playerColor for smart polling:', playerColor);
+    }
+  }
+
+  /**
    * Emit event to listeners
    */
   emit(event, data) {
@@ -580,54 +595,135 @@ class WebSocketGameService {
   }
 
   /**
-   * Start polling for game updates
+   * Start smart polling for game updates
    */
   startPolling() {
-    if (this.pollingInterval) {
-      clearInterval(this.pollingInterval);
+    if (this._pollTimer) {
+      clearTimeout(this._pollTimer);
     }
 
-    // Poll every 2 seconds for game updates
-    this.pollingInterval = setInterval(async () => {
-      try {
-        await this.pollGameState();
-      } catch (error) {
-        console.error('Polling error:', error);
-      }
-    }, 2000);
+    console.log('Starting smart polling for gameId:', this.gameId);
+    this.scheduleNextPoll();
   }
 
   /**
-   * Poll for game state changes
+   * Schedule the next poll with dynamic delay
+   */
+  scheduleNextPoll() {
+    if (this._pollTimer) {
+      clearTimeout(this._pollTimer);
+    }
+
+    const isHidden = document.hidden;
+    const myColor = this.user?.playerColor;
+    const turn = this.lastGameState?.turn;
+    const isMyTurn = myColor && turn && (
+      (myColor === 'white' && turn === 'w') ||
+      (myColor === 'black' && turn === 'b')
+    );
+
+    // Dynamic cadence: faster on your turn, slower otherwise
+    const base = isMyTurn ? 1000 : 3000;
+    const delay = isHidden ? Math.max(base, 8000) : base;
+
+    console.log('Scheduling next poll in', delay, 'ms (isMyTurn:', isMyTurn, 'isHidden:', isHidden, ')');
+
+    this._pollTimer = setTimeout(() => this.pollGameState(), delay);
+  }
+
+  /**
+   * Poll for game state changes with smart caching
    */
   async pollGameState() {
-    if (!this.gameId) return;
+    if (!this.gameId || this._pollingBusy) return;
+
+    this._pollingBusy = true;
 
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/websocket/room-state?game_id=${this.gameId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      const since = this.lastGameState?.move_count ?? (this.lastGameState?.moves?.length ?? -1);
+
+      const url = `${process.env.REACT_APP_BACKEND_URL}/websocket/room-state?game_id=${this.gameId}&compact=1&since_move=${since}`;
+
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      };
+
+      // Add ETag header if we have one
+      if (this._lastETag) {
+        headers['If-None-Match'] = this._lastETag;
+      }
+
+      const response = await fetch(url, { headers });
+
+      // Handle 304 Not Modified
+      if (response.status === 304) {
+        console.log('No changes detected (304)');
+        return;
+      }
 
       if (response.ok) {
+        // Store new ETag
+        const etag = response.headers.get('ETag');
+        if (etag) {
+          this._lastETag = etag;
+        }
+
         const data = await response.json();
-        // Check for game state changes and emit appropriate events
-        if (data.success && data.data) {
-          this.handlePolledGameState(data.data);
+
+        if (data.success) {
+          if (data.no_change) {
+            console.log('No changes detected (no_change flag)');
+            return;
+          }
+
+          if (data.data) {
+            this.handlePolledCompactState(data.data);
+          }
         }
       } else {
         console.error('Failed to poll game state:', response.status, response.statusText);
       }
     } catch (error) {
       console.error('Error polling game state:', error);
+    } finally {
+      this._pollingBusy = false;
+      this.scheduleNextPoll();
     }
   }
 
   /**
-   * Handle polled game state data
+   * Handle compact polled game state data
+   */
+  handlePolledCompactState(compactData) {
+    const { fen, turn, move_count, last_move, last_move_by, user_role } = compactData;
+
+    // Initialize state tracking if needed
+    if (!this.lastGameState) {
+      this.lastGameState = { move_count: 0 };
+    }
+
+    const prevMoveCount = this.lastGameState.move_count ?? 0;
+
+    // Emit only on new move
+    if (move_count > prevMoveCount && last_move) {
+      console.log('New move detected:', last_move);
+
+      this.emit('gameMove', {
+        move: last_move,
+        fen,
+        turn,
+        user_id: last_move_by ?? null
+      });
+    }
+
+    // Keep a slim cached state for next comparison
+    this.lastGameState = { fen, turn, move_count, user_role };
+  }
+
+  /**
+   * Handle polled game state data (legacy full state method)
    */
   handlePolledGameState(gameState) {
     const gameData = gameState.game;
@@ -822,6 +918,13 @@ class WebSocketGameService {
    * Override disconnect to stop polling
    */
   disconnect() {
+    // Clear smart polling timer
+    if (this._pollTimer) {
+      clearTimeout(this._pollTimer);
+      this._pollTimer = null;
+    }
+
+    // Clear legacy polling interval (fallback)
     if (this.pollingInterval) {
       clearInterval(this.pollingInterval);
       this.pollingInterval = null;
@@ -835,6 +938,10 @@ class WebSocketGameService {
     if (this.reconnectTimeout) {
       clearTimeout(this.reconnectTimeout);
     }
+
+    // Reset smart polling state
+    this._pollingBusy = false;
+    this._lastETag = null;
 
     if (this.gameChannel) {
       this.gameChannel.stopListening('GameConnectionEvent');

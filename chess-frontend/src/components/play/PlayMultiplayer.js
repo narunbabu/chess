@@ -143,6 +143,11 @@ const PlayMultiplayer = () => {
         opponentName: opponent?.name || 'Opponent'
       });
 
+      // Update WebSocket service with player color for smart polling
+      if (wsService.current) {
+        wsService.current.updatePlayerColor(userColor);
+      }
+
       // Set game history from moves
       setGameHistory(data.moves || []);
 
@@ -193,29 +198,38 @@ const PlayMultiplayer = () => {
     }
   }, [gameId, user]);
 
-  // Handle incoming moves from other players
+  // Handle incoming moves (always apply server's authoritative state)
   const handleRemoteMove = useCallback((event) => {
-    // Don't process moves from ourselves
-    if (event.user_id === user?.id) return;
-
     try {
+      console.log('Processing move from server (authoritative):', event);
+
+      // Always apply the server's FEN as the source of truth
       const newGame = new Chess();
       newGame.load(event.fen);
       setGame(newGame);
 
-      // Update game history
-      setGameHistory(prev => [...prev, {
-        from: event.move.from,
-        to: event.move.to,
-        move: event.move.san || event.move.piece,
-        player: event.user_id === gameData?.white_player_id ? 'white' : 'black'
-      }]);
+      // Determine the player color who made this move
+      const movePlayer = event.user_id === gameData?.white_player?.id ? 'white' : 'black';
 
-      // Update turn
+      // Only add to history if this is a move from another player
+      // (our own moves are already in history from makeMove)
+      if (event.user_id !== user?.id) {
+        setGameHistory(prev => [...prev, {
+          from: event.move.from,
+          to: event.move.to,
+          move: event.move.san || event.move.piece,
+          player: movePlayer
+        }]);
+      }
+
+      // Always update turn based on server's authoritative state
+      const newTurn = event.turn === 'w' ? 'white' : 'black';
       setGameInfo(prev => ({
         ...prev,
-        turn: event.turn
+        turn: newTurn
       }));
+
+      console.log('Move processed, updated turn to:', newTurn);
 
     } catch (err) {
       console.error('Error processing remote move:', err);

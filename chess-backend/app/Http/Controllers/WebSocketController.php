@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Middleware\WebSocketAuth;
+use App\Models\Game;
 use App\Services\GameRoomService;
 use App\Services\HandshakeProtocol;
 use Illuminate\Http\Request;
@@ -181,36 +182,49 @@ class WebSocketController extends Controller
      */
     public function getRoomState(Request $request): JsonResponse
     {
-        Log::info('getRoomState called', [
-            'query_params' => $request->query(),
-            'body_params' => $request->all(),
-            'method' => $request->method()
-        ]);
-
         // For GET requests, game_id should come from query parameters
         $gameId = $request->query('game_id') ?? $request->input('game_id');
-
-        Log::info('getRoomState extracted game_id', [
-            'extracted_game_id' => $gameId,
-            'query_game_id' => $request->query('game_id'),
-            'input_game_id' => $request->input('game_id')
-        ]);
+        $compact = $request->boolean('compact', false);
+        $sinceMove = $request->integer('since_move', -1);
 
         $request->merge(['game_id' => $gameId]);
 
         $request->validate([
-            'game_id' => 'required|integer|exists:games,id'
+            'game_id' => 'required|integer|exists:games,id',
+            'compact' => 'boolean',
+            'since_move' => 'integer'
         ]);
 
         try {
+            $game = Game::findOrFail($gameId);
+            $moves = $game->moves ?? [];
+            $moveCount = is_array($moves) ? count($moves) : 0;
+            $etag = sha1($game->updated_at . '|' . $moveCount);
+
+            // 1) ETag pathway - if client sent If-None-Match and it matches, return 304
+            if ($request->header('If-None-Match') === $etag) {
+                return response('', 304)->header('ETag', $etag);
+            }
+
+            // 2) Since-move fast path - if no new moves since last check
+            if ($sinceMove >= 0 && $sinceMove === $moveCount) {
+                return response()->json([
+                    'success' => true,
+                    'no_change' => true
+                ])->header('ETag', $etag);
+            }
+
+            // 3) Get room state (compact or full)
             $result = $this->gameRoomService->getRoomState(
-                $request->input('game_id')
+                $request->input('game_id'),
+                $compact,
+                $sinceMove
             );
 
             return response()->json([
                 'success' => true,
                 'data' => $result
-            ]);
+            ])->header('ETag', $etag);
 
         } catch (\Exception $e) {
             return response()->json([

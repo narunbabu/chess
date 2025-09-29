@@ -119,7 +119,7 @@ class GameRoomService
     /**
      * Get current room state for reconnection
      */
-    public function getRoomState(int $gameId): array
+    public function getRoomState(int $gameId, bool $compact = false, int $sinceMove = -1): array
     {
         $game = Game::with(['whitePlayer', 'blackPlayer'])->findOrFail($gameId);
         $user = Auth::user();
@@ -128,11 +128,37 @@ class GameRoomService
             throw new \Exception('User not authorized to access this game');
         }
 
+        if ($compact) {
+            return $this->getCompactRoomState($game, $user);
+        }
+
         return [
             'game' => $this->getGameRoomData($game),
             'user_role' => $this->getUserRole($user, $game),
             'active_connections' => $this->getActiveConnections($gameId),
             'presence' => $this->getPresenceData($gameId)
+        ];
+    }
+
+    /**
+     * Get compact room state with minimal data
+     */
+    private function getCompactRoomState(Game $game, User $user): array
+    {
+        $moves = $game->moves ?? [];
+        $moveCount = is_array($moves) ? count($moves) : 0;
+        $lastMove = $moveCount > 0 ? $moves[$moveCount - 1] : null;
+
+        // Convert database turn format ('white'/'black') to chess notation ('w'/'b')
+        $chessTurn = ($game->turn === 'white') ? 'w' : 'b';
+
+        return [
+            'fen' => $game->fen,
+            'turn' => $chessTurn,
+            'move_count' => $moveCount,
+            'last_move' => $lastMove,
+            'last_move_by' => $lastMove['user_id'] ?? null,
+            'user_role' => $this->getUserRole($user, $game),
         ];
     }
 
