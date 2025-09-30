@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\ChessRulesService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class GameRoomService
 {
