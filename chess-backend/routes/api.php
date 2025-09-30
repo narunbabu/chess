@@ -32,7 +32,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/invitations/{id}/respond', [InvitationController::class, 'respond']);
     Route::get('/invitations/pending', [InvitationController::class, 'pending']);
     Route::get('/invitations/sent', [InvitationController::class, 'sent']);
-    Route::get('/invitations/accepted', [InvitationController::class, 'checkAccepted']);
+    Route::get('/invitations/accepted', [InvitationController::class, 'accepted']);
     Route::delete('/invitations/{id}', [InvitationController::class, 'cancel']);
 
     // Game routes

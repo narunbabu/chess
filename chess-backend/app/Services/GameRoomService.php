@@ -160,13 +160,17 @@ class GameRoomService
         // Convert database turn format ('white'/'black') to chess notation ('w'/'b')
         $chessTurn = ($game->turn === 'white') ? 'w' : 'b';
 
+        // Determine player color for board orientation
+        $playerColor = $this->getUserRole($user, $game);
+
         return [
             'fen' => $game->fen,
             'turn' => $chessTurn,
             'move_count' => $moveCount,
             'last_move' => $lastMove,
             'last_move_by' => $lastMove['user_id'] ?? null,
-            'user_role' => $this->getUserRole($user, $game),
+            'user_role' => $playerColor,
+            'player_color' => $playerColor, // Add explicit player_color for frontend
         ];
     }
 
@@ -433,7 +437,7 @@ class GameRoomService
     /**
      * Broadcast move to all players
      */
-    public function broadcastMove(int $gameId, int $userId, array $move, string $fen, string $turn, string $socketId): array
+    public function broadcastMove(int $gameId, int $userId, array $move, string $socketId): array
     {
         $game = Game::findOrFail($gameId);
         $user = User::findOrFail($userId);
@@ -447,8 +451,6 @@ class GameRoomService
         }
 
         // Verify it's the user's turn
-        // The 'turn' parameter represents the NEXT turn after the move
-        // So we need to check against the CURRENT turn (before the move)
         $userRole = $this->getUserRole($user, $game);
         $currentTurn = $game->turn; // This is in database format ('white'/'black')
 
@@ -456,7 +458,6 @@ class GameRoomService
             'user_id' => $userId,
             'user_role' => $userRole,
             'current_turn_in_db' => $currentTurn,
-            'next_turn_from_frontend' => $turn,
             'game_id' => $gameId
         ]);
 
@@ -471,31 +472,40 @@ class GameRoomService
             throw new \Exception('Not your turn');
         }
 
+        // Verify position synchronization with client
+        $currentFen = $game->fen;
+        if (($move['prev_fen'] ?? '') !== $currentFen) {
+            throw new \Exception('Position desync between client and server. Expected: ' . $currentFen . ', got: ' . ($move['prev_fen'] ?? 'null'));
+        }
+
+        // Use client-computed FEN and turn (no server-side chess simulation needed)
+        $newFen = (string)$move['next_fen'];
+        $newTurn = (explode(' ', $newFen)[1] ?? 'w') === 'w' ? 'white' : 'black'; // Extract turn from FEN
+
         // Update game state
         $moves = $game->moves ?? [];
         $moveWithUser = array_merge($move, ['user_id' => $userId]);
         $moves[] = $moveWithUser;
 
-        // Convert chess notation turn ('w'/'b') to database format ('white'/'black')
-        $dbTurn = ($turn === 'w') ? 'white' : 'black';
-
         $game->update([
-            'fen' => $fen,
-            'turn' => $dbTurn,
+            'fen' => $newFen,
+            'turn' => $newTurn,
             'moves' => $moves,
             'move_count' => count($moves),
             'last_move_at' => now()
         ]);
 
         // Check for game end conditions after move
-        $this->maybeFinalizeGame($game, $userId);
+        $this->maybeFinalizeGame($game, $userId, $move);
 
         // Refresh game to get any updates from finalization
         $game->refresh();
 
         // Broadcast move event (only if game is still active)
         if ($game->status === 'active') {
-            broadcast(new \App\Events\GameMoveEvent($game, $user, $move, $fen, $turn, [
+            // Extract turn from FEN for broadcast (chess notation 'w'/'b')
+            $chessTurn = explode(' ', $newFen)[1] ?? 'w';
+            broadcast(new \App\Events\GameMoveEvent($game, $user, $move, $newFen, $chessTurn, [
                 'socket_id' => $socketId,
                 'move_number' => count($moves)
             ]))->toOthers();
@@ -504,8 +514,8 @@ class GameRoomService
         return [
             'success' => true,
             'move' => $move,
-            'fen' => $fen,
-            'turn' => $turn,
+            'fen' => $newFen,
+            'turn' => explode(' ', $newFen)[1] ?? 'w', // Extract turn from FEN (chess notation 'w'/'b')
             'move_number' => count($moves),
             'game_status' => $game->status,
             'game_over' => $game->status === 'finished'
@@ -562,66 +572,80 @@ class GameRoomService
     /**
      * Check if the game has ended and finalize if necessary
      */
-    private function maybeFinalizeGame(Game $game, int $actorUserId): void
+    private function maybeFinalizeGame(Game $game, int $actorUserId, array $move = []): void
     {
         // Skip if game is already finished
         if ($game->status === 'finished') {
             return;
         }
 
-        // Analyze current position for game end conditions
+        // Use client-provided mate detection if available, otherwise fallback to analysis
+        if (!empty($move['is_mate_hint']) || !empty($move['is_stalemate'])) {
+            // Client indicates the game might be over
+            $isCheckmate = !empty($move['is_mate_hint']);
+            $isStalemate = !empty($move['is_stalemate']);
+
+            Log::info('Using client-provided game end detection', [
+                'game_id' => $game->id,
+                'is_checkmate' => $isCheckmate,
+                'is_stalemate' => $isStalemate,
+                'san' => $move['san'] ?? ''
+            ]);
+
+            if ($isCheckmate) {
+                // Determine winner from the move that delivered checkmate
+                $winnerColor = ($game->turn === 'white') ? 'black' : 'white'; // Previous player won
+                $result = $winnerColor === 'white' ? '1-0' : '0-1';
+                $winnerUserId = $winnerColor === 'white' ? $game->white_player_id : $game->black_player_id;
+
+                $this->finalizeGame($game, [
+                    'result' => $result,
+                    'winner_player' => $winnerColor,
+                    'winner_user_id' => $winnerUserId,
+                    'end_reason' => 'checkmate'
+                ]);
+                return;
+            }
+
+            if ($isStalemate) {
+                $this->finalizeGame($game, [
+                    'result' => '1/2-1/2',
+                    'winner_player' => null,
+                    'winner_user_id' => null,
+                    'end_reason' => 'stalemate'
+                ]);
+                return;
+            }
+        }
+
+        // Fallback: Analyze current position for game end conditions (backup system)
         $analysis = $this->chessRules->analyzeGameState($game);
+        Log::info('Fallback analysis (no client hint)', ['game_id' => $game->id, 'analysis' => $analysis]);
 
-        if ($analysis['is_checkmate']) {
-            // The side that just moved won (since they delivered checkmate)
-            $winner = ($game->turn === 'white') ? 'black' : 'white'; // Opposite of current turn
-            $this->finalizeGame($game, [
-                'result' => $winner === 'white' ? '1-0' : '0-1',
-                'winner_player' => $winner,
-                'winner_user_id' => $winner === 'white' ? $game->white_player_id : $game->black_player_id,
-                'end_reason' => 'checkmate'
-            ]);
-            return;
-        }
+        if (!empty($analysis['game_over'])) {
+            $reason = $analysis['is_checkmate'] ? 'checkmate'
+                     : ($analysis['is_stalemate'] ? 'stalemate'
+                     : ($analysis['is_insufficient_material'] ? 'insufficient_material'
+                     : ($analysis['is_threefold_repetition'] ? 'threefold'
+                     : ($analysis['is_fifty_move_rule'] ? 'fifty_move' : 'other'))));
+            $winnerColor = $analysis['winner'];  // 'white' | 'black' | null on draw
+            $result = $analysis['result'];       // '1-0'|'0-1'|'1/2-1/2'
 
-        if ($analysis['is_stalemate']) {
-            $this->finalizeGame($game, [
-                'result' => '1/2-1/2',
-                'winner_player' => null,
-                'winner_user_id' => null,
-                'end_reason' => 'stalemate'
-            ]);
-            return;
-        }
+            // Determine winner_user_id based on winnerColor
+            $winnerUserId = null;
+            if ($winnerColor === 'white') {
+                $winnerUserId = $game->white_player_id;
+            } elseif ($winnerColor === 'black') {
+                $winnerUserId = $game->black_player_id;
+            }
 
-        if ($analysis['is_insufficient_material']) {
             $this->finalizeGame($game, [
-                'result' => '1/2-1/2',
-                'winner_player' => null,
-                'winner_user_id' => null,
-                'end_reason' => 'insufficient_material'
+                'result' => $result,
+                'winner_player' => $winnerColor,
+                'winner_user_id' => $winnerUserId,
+                'end_reason' => $reason
             ]);
-            return;
-        }
-
-        if ($analysis['is_fifty_move_rule']) {
-            $this->finalizeGame($game, [
-                'result' => '1/2-1/2',
-                'winner_player' => null,
-                'winner_user_id' => null,
-                'end_reason' => 'fifty_move'
-            ]);
-            return;
-        }
-
-        if ($analysis['is_threefold_repetition']) {
-            $this->finalizeGame($game, [
-                'result' => '1/2-1/2',
-                'winner_player' => null,
-                'winner_user_id' => null,
-                'end_reason' => 'threefold'
-            ]);
-            return;
+            return; // stop here; finalized + broadcast happens inside finalizeGame()
         }
     }
 
@@ -650,6 +674,13 @@ class GameRoomService
         ]);
 
         // Broadcast game ended event
+        Log::info('Broadcasting GameEndedEvent', [
+            'game_id' => $game->id,
+            'result' => $game->result,
+            'winner_user_id' => $game->winner_user_id,
+            'end_reason' => $game->end_reason
+        ]);
+
         $this->broadcastGameEnded($game);
     }
 
@@ -658,6 +689,10 @@ class GameRoomService
      */
     private function broadcastGameEnded(Game $game): void
     {
+        // Include player names in the broadcast data
+        $whitePlayer = $game->whitePlayer;
+        $blackPlayer = $game->blackPlayer;
+
         broadcast(new GameEndedEvent($game->id, [
             'game_over' => true,
             'result' => $game->result,
@@ -667,7 +702,15 @@ class GameRoomService
             'fen_final' => $game->fen,
             'move_count' => $game->move_count,
             'ended_at' => $game->ended_at?->toISOString(),
-        ]))->toOthers();
+            'white_player' => [
+                'id' => $whitePlayer->id,
+                'name' => $whitePlayer->name
+            ],
+            'black_player' => [
+                'id' => $blackPlayer->id,
+                'name' => $blackPlayer->name
+            ]
+        ])); // REMOVED ->toOthers() so BOTH players receive the event!
 
         \Log::info('Game ended', [
             'game_id' => $game->id,

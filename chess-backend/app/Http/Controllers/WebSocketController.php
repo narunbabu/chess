@@ -508,10 +508,16 @@ class WebSocketController extends Controller
             'move' => 'required|array',
             'move.from' => 'required|string',
             'move.to' => 'required|string',
-            'move.piece' => 'required|string',
             'move.promotion' => 'nullable|string',
-            'fen' => 'required|string',
-            'turn' => 'required|string|in:w,b',
+            'move.san' => 'required|string',
+            'move.uci' => 'required|string',
+            'move.prev_fen' => 'required|string',
+            'move.next_fen' => 'required|string',
+            'move.is_mate_hint' => 'required|boolean',
+            'move.is_check' => 'required|boolean',
+            'move.is_stalemate' => 'required|boolean',
+            'move.move_time_ms' => 'nullable|numeric',
+            'move.player_rating' => 'nullable|integer',
             'socket_id' => 'required|string'
         ]);
 
@@ -520,8 +526,6 @@ class WebSocketController extends Controller
                 $gameId,
                 Auth::id(),
                 $request->input('move'),
-                $request->input('fen'),
-                $request->input('turn'),
                 $request->input('socket_id')
             );
 
@@ -529,7 +533,6 @@ class WebSocketController extends Controller
                 'user_id' => Auth::id(),
                 'game_id' => $gameId,
                 'move' => $request->input('move'),
-                'turn' => $request->input('turn'),
                 'game_status' => $result['game_status'] ?? 'unknown'
             ]);
 

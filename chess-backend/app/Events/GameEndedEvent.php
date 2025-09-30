@@ -59,6 +59,8 @@ class GameEndedEvent implements ShouldBroadcast
             'fen_final' => $this->gameData['fen_final'] ?? null,
             'move_count' => $this->gameData['move_count'] ?? 0,
             'ended_at' => $this->gameData['ended_at'] ?? null,
+            'white_player' => $this->gameData['white_player'] ?? null,
+            'black_player' => $this->gameData['black_player'] ?? null,
             'timestamp' => now()->toISOString(),
         ];
     }

@@ -3,50 +3,51 @@
 namespace App\Http\Controllers;
 
 use App\Models\Invitation;
-use App\Models\User;
 use App\Models\Game;
-use App\Events\InvitationAccepted;
-use App\Events\InvitationSent;
-use App\Events\InvitationCancelled;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class InvitationController extends Controller
 {
     public function send(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'invited_user_id' => 'required|exists:users,id',
             'preferred_color' => 'nullable|in:white,black,random'
         ]);
 
-        $inviter = Auth::user();
-        $invitedUser = User::find($request->invited_user_id);
+        $inviterId = Auth::id();
+        $invitedId = $validated['invited_user_id'];
 
-        if ($inviter->id === $invitedUser->id) {
+        if ($inviterId === (int) $invitedId) {
             return response()->json(['error' => 'Cannot invite yourself'], 400);
         }
 
-        // Check if there's already a pending invitation
-        $existingInvitation = Invitation::where([
-            ['inviter_id', $inviter->id],
-            ['invited_id', $invitedUser->id],
+        // Check for existing pending invitation
+        $existing = Invitation::where([
+            ['inviter_id', $inviterId],
+            ['invited_id', $invitedId],
             ['status', 'pending']
         ])->first();
 
-        if ($existingInvitation) {
+        if ($existing) {
             return response()->json(['error' => 'Invitation already sent'], 400);
         }
 
-        $invitation = Invitation::create([
-            'inviter_id' => $inviter->id,
-            'invited_id' => $invitedUser->id,
-            'status' => 'pending',
-            'inviter_preferred_color' => $request->preferred_color ?? 'random'
-        ]);
+        // Resolve 'random' immediately to a concrete color
+        $colorPreference = $validated['preferred_color'] ?? 'random';
+        if ($colorPreference === 'random') {
+            $colorPreference = random_int(0, 1) ? 'white' : 'black';
+        }
 
-        // Broadcast to the recipient
-        event(new InvitationSent($invitation));
+        $invitation = Invitation::create([
+            'inviter_id' => $inviterId,
+            'invited_id' => $invitedId,
+            'status' => 'pending',
+            'inviter_preferred_color' => $colorPreference
+        ]);
 
         return response()->json([
             'message' => 'Invitation sent successfully',
@@ -54,166 +55,38 @@ class InvitationController extends Controller
         ]);
     }
 
-    public function respond(Request $request, $id)
-    {
-        $request->validate([
-            'action' => 'required|in:accept,decline',
-            'color_choice' => 'nullable|in:accept,opposite'
-        ]);
-
-        $invitation = Invitation::where([
-            ['id', $id],
-            ['invited_id', Auth::id()],
-            ['status', 'pending']
-        ])->first();
-
-        if (!$invitation) {
-            return response()->json(['error' => 'Invitation not found or already responded'], 404);
-        }
-
-        $invitation->status = $request->action === 'accept' ? 'accepted' : 'declined';
-
-        // Store the invited player's color choice if accepting
-        if ($request->action === 'accept') {
-            $invitation->invited_preferred_color = $request->color_choice ?? 'accept';
-        }
-
-        $invitation->save();
-
-        $game = null;
-
-        // If invitation is accepted, create a new game
-        if ($invitation->status === 'accepted') {
-            \Log::info('Creating game for invitation ID: ' . $invitation->id);
-            \Log::info('Inviter ID: ' . $invitation->inviter_id . ', Invited ID: ' . $invitation->invited_id);
-
-            // Determine colors based on preferences
-            $isInviterWhite = $this->determineInviterColor($invitation);
-
-            $game = Game::create([
-                'white_player_id' => $isInviterWhite ? $invitation->inviter_id : $invitation->invited_id,
-                'black_player_id' => $isInviterWhite ? $invitation->invited_id : $invitation->inviter_id,
-                'status' => 'waiting', // Start as waiting, will become active when both players connect
-                'result' => 'ongoing',
-                'turn' => 'white',
-                'fen' => 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
-                'moves' => []
-            ]);
-
-            // Link the game back to the invitation
-            $invitation->game_id = $game->id;
-            $invitation->save();
-
-            event(new InvitationAccepted($game, $invitation));
-
-            \Log::info('Game created with ID: ' . $game->id);
-            \Log::info('White player: ' . $game->white_player_id . ', Black player: ' . $game->black_player_id);
-        }
-
-        $response = [
-            'message' => "Invitation {$invitation->status}",
-            'invitation' => $invitation->load(['inviter', 'invited'])
-        ];
-
-        if ($game) {
-            $response['game'] = $game->load(['whitePlayer', 'blackPlayer']);
-        }
-
-        return response()->json($response);
-    }
-
     public function pending()
     {
-        $pendingInvitations = Invitation::where([
+        $invitations = Invitation::where([
             ['invited_id', Auth::id()],
             ['status', 'pending']
         ])->with(['inviter'])->get();
 
-        return response()->json($pendingInvitations);
+        return response()->json($invitations);
     }
 
     public function sent()
     {
-        $sentInvitations = Invitation::where('inviter_id', Auth::id())
+        $invitations = Invitation::where('inviter_id', Auth::id())
             ->whereIn('status', ['pending', 'accepted'])
             ->with(['invited'])
             ->get();
 
-        return response()->json($sentInvitations);
+        return response()->json($invitations);
     }
 
-    public function checkAccepted()
+    public function accepted()
     {
-        try {
-            // Get recently accepted invitations where current user was the inviter
-            $acceptedInvitations = Invitation::select('invitations.*')
-                ->where('invitations.inviter_id', Auth::id())
-                ->where('invitations.status', 'accepted')
-                ->get();
+        $invitations = Invitation::where('inviter_id', Auth::id())
+            ->where('status', 'accepted')
+            ->with(['invited', 'game'])
+            ->get();
 
-            \Log::info('checkAccepted called for user: ' . Auth::id());
-            \Log::info('Found invitations: ' . $acceptedInvitations->count());
-
-            $gamesFromAccepted = [];
-
-            foreach ($acceptedInvitations as $invitation) {
-                \Log::info('Processing invitation ID: ' . $invitation->id . ' with status: ' . $invitation->status);
-
-                // Find the game created from this invitation
-                $game = Game::where(function($query) use ($invitation) {
-                    $query->where([
-                        ['white_player_id', $invitation->inviter_id],
-                        ['black_player_id', $invitation->invited_id]
-                    ])->orWhere([
-                        ['white_player_id', $invitation->invited_id],
-                        ['black_player_id', $invitation->inviter_id]
-                    ]);
-                })->with(['whitePlayer', 'blackPlayer'])->first();
-
-                \Log::info('Found game: ' . ($game ? $game->id : 'none'));
-
-                if ($game) {
-                    // Load the related user data after we've found the game
-                    $invitation->load(['invited']);
-
-                    $gamesFromAccepted[] = [
-                        'invitation' => $invitation,
-                        'game' => $game
-                    ];
-
-                    // Return accepted invitations but don't change status
-                    // The frontend will handle showing these only once per session
-                    \Log::info('Found accepted invitation ' . $invitation->id . ' with game ' . $game->id);
-                }
-            }
-
-            \Log::info('Returning ' . count($gamesFromAccepted) . ' games from accepted invitations');
-            return response()->json($gamesFromAccepted);
-        } catch (\Exception $e) {
-            \Log::error('Error in checkAccepted: ' . $e->getMessage());
-            \Log::error('Stack trace: ' . $e->getTraceAsString());
-            return response()->json(['error' => 'Server error', 'message' => $e->getMessage()], 500);
-        }
+        return response()->json($invitations);
     }
 
     public function cancel($id)
     {
-        \Log::info('Attempting to cancel invitation', [
-            'invitation_id' => $id,
-            'user_id' => Auth::id()
-        ]);
-
-        // First check if invitation exists at all
-        $anyInvitation = Invitation::find($id);
-        if (!$anyInvitation) {
-            \Log::error('Invitation not found in database', ['invitation_id' => $id]);
-            return response()->json(['error' => 'Invitation not found'], 404);
-        }
-
-        \Log::info('Invitation found', [
-            'invitation' => $anyInvitation->toArray()
-        ]);
-
         $invitation = Invitation::where([
             ['id', $id],
             ['inviter_id', Auth::id()],
@@ -221,49 +94,109 @@ class InvitationController extends Controller
         ])->first();
 
         if (!$invitation) {
-            \Log::error('Invitation not found or user not authorized to cancel', [
-                'invitation_id' => $id,
-                'current_user_id' => Auth::id(),
-                'invitation_inviter_id' => $anyInvitation->inviter_id,
-                'invitation_status' => $anyInvitation->status
-            ]);
             return response()->json(['error' => 'Invitation not found or already responded'], 404);
         }
-
-        // Load relationships before deleting
-        $invitation->load(['inviter', 'invited']);
-
-        // Broadcast to the recipient that invitation was cancelled
-        event(new InvitationCancelled($invitation));
 
         $invitation->delete();
 
         return response()->json(['message' => 'Invitation cancelled successfully']);
     }
 
-    /**
-     * Determine if the inviter should be white based on color preferences
-     */
-    private function determineInviterColor(Invitation $invitation): bool
+    public function respond(Request $request, $id)
     {
-        $inviterPreference = $invitation->inviter_preferred_color;
-        $invitedChoice = $invitation->invited_preferred_color;
-
-        \Log::info('Color determination:', [
-            'inviter_preference' => $inviterPreference,
-            'invited_choice' => $invitedChoice
+        Log::info('InvitationController@respond called', [
+            'invitation_id_param' => $id,
+            'authenticated_user_id' => Auth::id(),
+            'request_action' => $request->input('action'),
+            'request_color_choice' => $request->input('color_choice'),
         ]);
 
-        // If inviter chose a specific color
-        if ($inviterPreference === 'white') {
-            // Invited player can accept or choose opposite
-            return $invitedChoice === 'accept'; // If accept, inviter gets white; if opposite, inviter gets black
-        } elseif ($inviterPreference === 'black') {
-            // Invited player can accept or choose opposite
-            return $invitedChoice !== 'accept'; // If accept, inviter gets black; if opposite, inviter gets white
-        } else {
-            // Inviter chose random, so use random assignment
-            return rand(0, 1) === 1;
+        $validated = $request->validate([
+            'action'        => 'required|in:accept,decline',
+            'desired_color' => 'nullable|in:white,black',
+        ]);
+
+        $invitation = Invitation::find($id);
+        if (!$invitation) {
+            return response()->json(['error' => 'Invitation not found'], 404);
         }
+
+        if ((int) $invitation->invited_id !== (int) Auth::id()) {
+            return response()->json(['error' => 'Only invited user may respond'], 403);
+        }
+
+        if ($invitation->status !== 'pending') {
+            return response()->json(['error' => 'Invitation already ' . $invitation->status], 409);
+        }
+
+        // ✅ Make sure this whole block ends with "});"
+        return DB::transaction(function () use ($invitation, $validated) {
+
+            if ($validated['action'] === 'decline') {
+                $invitation->update([
+                    'status'       => 'declined',
+                    'responded_by' => Auth::id(),
+                    'responded_at' => now(),
+                ]);
+
+                // optional broadcast: broadcast(new InvitationDeclined($invitation->fresh()))->toOthers();
+                return response()->json(['message' => 'Declined']);
+            }
+
+            // accept
+            $acceptorId = Auth::id();                // person accepting the invitation
+            $inviterId  = $invitation->inviter_id;   // person who sent the invitation
+
+            // If UI didn't send it, default to "opposite of inviter's wish"
+            $inviterWants = $invitation->inviter_preferred_color; // 'white' or 'black'
+            $desired = $validated['desired_color']
+                ?? ($inviterWants === 'white' ? 'black' : 'white');
+
+            // Assign colors based on what the acceptor wants
+            if ($desired === 'white') {
+                $whiteId = $acceptorId;
+                $blackId = $inviterId;
+            } else {
+                $whiteId = $inviterId;
+                $blackId = $acceptorId;
+            }
+
+            Log::info('🎨 Final color assignment', [
+                'inviter_id'        => $inviterId,
+                'invited_id'        => $invitation->invited_id,
+                'inviter_wants'     => $inviterWants,
+                'acceptor_desired'  => $desired,
+                'white_player_id'   => $whiteId,
+                'black_player_id'   => $blackId,
+            ]);
+
+            $game = Game::create([
+                'white_player_id' => $whiteId,
+                'black_player_id' => $blackId,
+                'status'          => 'waiting',
+                'result'          => 'ongoing',
+            ]);
+
+            Log::info('🎮 Game created:', [
+                'game_id' => $game->id,
+                'white_player_id' => $game->white_player_id,
+                'black_player_id' => $game->black_player_id
+            ]);
+
+            $invitation->update([
+                'status'       => 'accepted',
+                'responded_by' => Auth::id(),
+                'responded_at' => now(),
+                'game_id'      => $game->id,
+            ]);
+
+            // optional broadcast: broadcast(new InvitationAccepted($invitation->fresh()))->toOthers();
+
+            return response()->json([
+                'message'      => 'Accepted',
+                'game'         => $game,
+                'player_color' => Auth::id() === (int) $whiteId ? 'white' : 'black',
+            ]);
+        }); // 👈 DO NOT delete this closing "});"
     }
 }

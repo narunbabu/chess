@@ -15,7 +15,8 @@ class Invitation extends Model
         'status',
         'game_id',
         'inviter_preferred_color',
-        'invited_preferred_color'
+        'responded_by',
+        'responded_at'
     ];
 
     protected $casts = [

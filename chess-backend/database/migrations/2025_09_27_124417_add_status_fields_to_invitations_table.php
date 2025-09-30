@@ -12,7 +12,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('invitations', function (Blueprint $table) {
-            //
+            $table->unsignedBigInteger('responded_by')->nullable()->after('status');
+            $table->timestamp('responded_at')->nullable()->after('responded_by');
+
+            $table->foreign('responded_by')->references('id')->on('users')->onDelete('set null');
         });
     }
 
@@ -22,7 +25,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('invitations', function (Blueprint $table) {
-            //
+            $table->dropForeign(['responded_by']);
+            $table->dropColumn(['responded_by', 'responded_at']);
         });
     }
 };

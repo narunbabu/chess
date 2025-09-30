@@ -71,7 +71,30 @@ class GameController extends Controller
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
-        return response()->json($game);
+        // Determine player color
+        $playerColor = (int) $game->white_player_id === (int) $user->id ? 'white' : 'black';
+
+        \Log::info('🎮 Game show response:', [
+            'game_id' => $id,
+            'user_id' => $user->id,
+            'user_id_type' => gettype($user->id),
+            'white_player_id' => $game->white_player_id,
+            'white_player_id_type' => gettype($game->white_player_id),
+            'black_player_id' => $game->black_player_id,
+            'black_player_id_type' => gettype($game->black_player_id),
+            'comparison_white' => (int) $game->white_player_id === (int) $user->id,
+            'comparison_black' => (int) $game->black_player_id === (int) $user->id,
+            'calculated_player_color' => $playerColor
+        ]);
+
+        $response = [
+            ...$game->toArray(),
+            'player_color' => $playerColor
+        ];
+
+        \Log::info('🎮 Final response player_color:', ['player_color' => $response['player_color']]);
+
+        return response()->json($response);
     }
 
     public function move(Request $request, $id)

@@ -196,8 +196,15 @@ class HandshakeProtocol
             'game_id' => $game->id,
             'user_id' => $user->id,
             'user_color' => $userColor,
+            'white_player_id' => $game->white_player_id,
+            'black_player_id' => $game->black_player_id,
             'opponent_exists' => $opponent !== null,
-            'opponent_id' => $opponent?->id
+            'opponent_id' => $opponent?->id,
+            'color_assignment_check' => [
+                'user_is_white' => $game->white_player_id == $user->id,
+                'user_is_black' => $game->black_player_id == $user->id,
+                'calculated_color' => $userColor
+            ]
         ]);
 
         // Prepare opponent info - handle case where opponent might not exist yet
@@ -224,6 +231,7 @@ class HandshakeProtocol
             'success' => true,
             'handshake_id' => $handshakeId,
             'timestamp' => now()->toISOString(),
+            'player_color' => $userColor, // ← CRITICAL: Server authoritative color assignment
             'connection' => [
                 'connection_id' => $joinResult['connection_id'],
                 'user_role' => $joinResult['user_role'],
@@ -237,7 +245,9 @@ class HandshakeProtocol
                 'turn' => $game->turn ?? 'white',
                 'moves' => $game->moves ?? [],
                 'last_move_at' => $game->last_move_at?->toISOString(),
-                'move_count' => count($game->moves ?? [])
+                'move_count' => count($game->moves ?? []),
+                'white_player_id' => $game->white_player_id,
+                'black_player_id' => $game->black_player_id
             ],
             'player_info' => [
                 'you' => [
