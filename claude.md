@@ -1,8 +1,16 @@
-1. First read the docs/context.md to understand the project and think through the problem, read the codebase for relevant files. Read the last two solution_applied from the objects of history.json for latest changes.
-2. Keep in mind all the related logic and the stake holders of codeblocks before constructing them. The new code blocks should be consistent with existing related codes (imports and where exports happen)
-4. Before you begin working, check in with me and I will verify the plan.
-5. Then, begin working on the todo items, marking them as complete as you go.
-6. Please every step of the way just give me a high level explanation of what changes you made
-7. Make every task and code change you do as precise as possible. And avoid making any massive or complex changes. 
-8. Keep/append a summary of the changes you made with task list marked as completed and any other relevant information in yyyy_mm_dd_hh_mm_update.md ("todo" replaced by "update" with same timestamp as todo file name)
-9. Use pnpm if you want to run whenever npm commands
+* Read `docs/context.md`, understand architecture/constraints, and scan the code paths you’ll touch.
+* Identify stakeholders and invariants; keep behavior consistent with existing patterns.
+* Propose a short plan (goal, files, risks, tests) and wait for approval before coding.
+* Work in small, reversible slices; prefer additive, feature-flagged changes over edits to shared primitives.
+* Match existing import/export styles, naming, logging, error handling, i18n, and accessibility conventions.
+* Preserve public contracts and data schemas; if change is unavoidable, provide backward compatibility and a clear rollback.
+* Keep the build green; run build, tests, type checks, and lints locally.
+* Write targeted tests for new/changed behavior, including flag-off/legacy paths.
+* Avoid secrets and production data in code or logs; follow security and privacy practices.
+* Monitor performance on likely hot paths; avoid algorithmic regressions and excessive allocations.
+* Communicate high-level status after each slice; call out assumptions and pause for re-approval if scope shifts.
+* Execute TODO items incrementally and mark them complete as you go.
+* Append a concise change log to `docs/updates/yyyy_mm_dd_hh_mm_update.md` (same timestamp as the TODO; “todo” → “update”) covering context, diff summary, risks, tests, and completed checklist.
+* For every debug fix, add a brief **Success Story** file under `docs/success-stories/YYYY_MM_DD_HH_MM_<slug>.md` that captures problem, root cause, resolution, impact, lessons learned, and links to PR/tests; link it from the corresponding update note.
+* Use `pnpm` for Node workflows (`pnpm i`, `pnpm build`, `pnpm test`, `pnpm lint`, `pnpm typecheck`).
+* Use clear, conventional commit messages so each change is traceable and easy to revert.

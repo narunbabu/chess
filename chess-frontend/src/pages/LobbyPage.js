@@ -20,6 +20,10 @@ const LobbyPage = () => {
   const [pendingInvitations, setPendingInvitations] = useState([]);
   const [sentInvitations, setSentInvitations] = useState([]);
   const [webSocketService, setWebSocketService] = useState(null);
+  const [hasFinishedGame, setHasFinishedGame] = useState(false);
+
+  // Debounce utility for fetchData
+  const debounceTimerRef = React.useRef(null);
 
   useEffect(() => {
     if (user && !webSocketService) {
@@ -70,8 +74,8 @@ const LobbyPage = () => {
       // Listen for new invitations (for recipients)
       userChannel.listen('.invitation.sent', (data) => {
         console.log('New invitation received:', data);
-        // Refresh data to show the new invitation
-        fetchData();
+        // Refresh data to show the new invitation (no debounce for real-time events)
+        fetchData(true);
       });
 
       // Listen for invitation cancellations (for recipients)
@@ -83,8 +87,8 @@ const LobbyPage = () => {
           setPendingInvitations(prev => prev.filter(inv => inv.id !== data.invitation.id));
         }
 
-        // Also refresh data to ensure consistency
-        fetchData();
+        // Also refresh data to ensure consistency (no debounce for real-time events)
+        fetchData(true);
       });
 
       return () => {
@@ -95,7 +99,7 @@ const LobbyPage = () => {
     }
   }, [user, webSocketService, navigate]);
 
-  const fetchData = async () => {
+  const fetchData = async (skipDebounce = false) => {
     try {
       console.log('Fetching lobby data for user:', user);
 
@@ -138,12 +142,33 @@ const LobbyPage = () => {
       } else {
         // Handle accepted invitations - navigate to game if any
         if (acceptedRes.data && acceptedRes.data.length > 0) {
-          const acceptedData = acceptedRes.data[0]; // Get the first accepted invitation
-          console.log('Found accepted invitation, checking game status:', acceptedData);
+          // Get processed invitation IDs to prevent duplicate navigation
+          const processedInvitationIds = JSON.parse(sessionStorage.getItem('processedInvitationIds') || '[]');
 
-          const gameId = acceptedData.game?.id;
+          // Sort by updated_at DESC (newest first) - backend already sorts, but ensure it
+          const sortedAccepted = [...acceptedRes.data].sort((a, b) =>
+            new Date(b.updated_at) - new Date(a.updated_at)
+          );
 
-          if (gameId) {
+          console.log('Found accepted invitations:', sortedAccepted.length);
+
+          // Loop through accepted invitations to find first active game
+          for (const acceptedData of sortedAccepted) {
+            const invitationId = acceptedData.id;
+            const gameId = acceptedData.game?.id;
+
+            // Skip already processed invitations
+            if (processedInvitationIds.includes(invitationId)) {
+              console.log('Skipping already processed invitation:', invitationId);
+              continue;
+            }
+
+            // Skip invitations without linked games
+            if (!gameId) {
+              console.log('Skipping invitation without game:', invitationId);
+              continue;
+            }
+
             // Check actual game status from backend to determine if we should navigate
             try {
               const token = localStorage.getItem('auth_token');
@@ -160,32 +185,52 @@ const LobbyPage = () => {
                 const isGameFinished = gameData.status === 'finished' || gameData.status === 'completed';
 
                 console.log('Game status check:', {
+                  invitationId,
                   gameId,
                   status: gameData.status,
                   isGameActive,
                   isGameFinished
                 });
 
-                // Only navigate if game is active/waiting (not finished)
+                // Skip finished games
+                if (isGameFinished) {
+                  console.log('Skipping finished game:', gameId);
+                  sessionStorage.setItem('gameFinished_' + gameId, 'true');
+                  setHasFinishedGame(true);
+
+                  // Mark invitation as processed
+                  if (!processedInvitationIds.includes(invitationId)) {
+                    processedInvitationIds.push(invitationId);
+                    sessionStorage.setItem('processedInvitationIds', JSON.stringify(processedInvitationIds));
+                  }
+                  continue; // Check next invitation
+                }
+
+                // Found active game - navigate to it
                 if (isGameActive) {
                   // Set session markers for proper game access
                   sessionStorage.setItem('lastInvitationAction', 'invitation_accepted_by_other');
                   sessionStorage.setItem('lastInvitationTime', Date.now().toString());
                   sessionStorage.setItem('lastGameId', gameId.toString());
 
-                  console.log('Navigating to ACTIVE game from accepted invitation:', gameId);
+                  // Mark invitation as processed
+                  if (!processedInvitationIds.includes(invitationId)) {
+                    processedInvitationIds.push(invitationId);
+                    sessionStorage.setItem('processedInvitationIds', JSON.stringify(processedInvitationIds));
+                  }
+
+                  console.log('Navigating to ACTIVE game from accepted invitation:', { invitationId, gameId });
                   navigate(`/play/multiplayer/${gameId}`);
                   return; // Exit early to prevent further processing
-                } else if (isGameFinished) {
-                  console.log('Game is finished, staying in lobby:', gameId);
-                  // Mark game as finished to prevent future checks
-                  sessionStorage.setItem('gameFinished_' + gameId, 'true');
                 }
               }
             } catch (error) {
-              console.error('Error checking game status:', error);
+              console.error('Error checking game status for invitation:', invitationId, error);
+              continue; // Check next invitation
             }
           }
+
+          console.log('No active games found in accepted invitations');
         }
       }
 
@@ -238,18 +283,33 @@ const LobbyPage = () => {
     }
   }, []);
 
+  // Debounced fetchData for polling only
+  const debouncedFetchData = () => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    debounceTimerRef.current = setTimeout(() => {
+      fetchData(true);
+    }, 300);
+  };
+
   useEffect(() => {
     if (user) {
-      fetchData();
+      // Initial fetch - no debounce for immediate load
+      fetchData(true);
 
-      // Poll for lobby updates every 5 seconds
-      const pollInterval = setInterval(fetchData, 5000);
+      // Dynamic polling interval based on game state
+      const pollDelay = hasFinishedGame ? 10000 : 5000;
+      const pollInterval = setInterval(debouncedFetchData, pollDelay);
 
       return () => {
         clearInterval(pollInterval);
+        if (debounceTimerRef.current) {
+          clearTimeout(debounceTimerRef.current);
+        }
       };
     }
-  }, [user]);
+  }, [user, hasFinishedGame]);
 
   const handleInvite = (player) => {
     setSelectedPlayer(player);
@@ -273,8 +333,8 @@ const LobbyPage = () => {
       }
 
       setInviteStatus('sent');
-      // Refresh data to update sent invitations
-      fetchData();
+      // Refresh data to update sent invitations (no debounce for user actions)
+      fetchData(true);
 
       // Auto-close after 3 seconds
       setTimeout(() => {
@@ -337,8 +397,8 @@ const LobbyPage = () => {
         }
       }
 
-      // Refresh data to update invitations
-      fetchData();
+      // Refresh data to update invitations (no debounce for user actions)
+      fetchData(true);
     } catch (error) {
       console.error('Failed to respond to invitation:', error);
       console.error('Error status:', error.response?.status);
@@ -359,8 +419,8 @@ const LobbyPage = () => {
       // Immediately update local state to remove the cancelled invitation
       setSentInvitations(prev => prev.filter(inv => inv.id !== invitationId));
 
-      // Also refresh all data
-      fetchData();
+      // Also refresh all data (no debounce for user actions)
+      fetchData(true);
     } catch (error) {
       console.error('Failed to cancel invitation:', error);
       console.error('Error details:', error.response?.data);

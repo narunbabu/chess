@@ -10,6 +10,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { BACKEND_URL } from '../../config';
 import WebSocketGameService from '../../services/WebSocketGameService';
 import { evaluateMove } from '../../utils/gameStateUtils';
+import { encodeGameHistory } from '../../utils/gameHistoryStringUtils';
+import { saveGameHistory } from '../../services/gameHistoryService';
 
 // Import sounds
 import moveSound from '../../assets/sounds/move.mp3';
@@ -172,17 +174,36 @@ const PlayMultiplayer = () => {
 
       // Prevent rejoining a finished game (allow waiting and active statuses)
       if (data.status !== 'active' && data.status !== 'waiting') {
+        console.log('🚫 Game is already finished, status:', data.status);
         setGameComplete(true);
         setGameInfo(p => ({...p, status: 'finished', ...data}));
         setLoading(false); // Stop loading if game is already finished
 
-        // Mark the related invitation as processed to prevent auto-navigation loop
+        // Prepare the result data for the end modal
+        const resultData = {
+          game_over: true,
+          result: data.result || 'unknown',
+          end_reason: data.end_reason || 'game_ended',
+          winner_user_id: data.winner_user_id,
+          winner_player: data.winner_player,
+          fen_final: data.fen,
+          move_count: data.move_count,
+          ended_at: data.ended_at,
+          white_player: data.whitePlayer,
+          black_player: data.blackPlayer,
+          isPlayerWin: data.winner_user_id === user?.id,
+          isPlayerDraw: !data.winner_user_id && data.result === '1/2-1/2'
+        };
+        setGameResult(resultData);
+
+        // Mark the game as finished in session storage to prevent re-entry
+        sessionStorage.setItem('gameFinished_' + gameId, 'true');
+
+        // Mark related invitation as processed
+        const processedInvitationIds = JSON.parse(sessionStorage.getItem('processedInvitationIds') || '[]');
         const lastGameId = sessionStorage.getItem('lastGameId');
         if (lastGameId === gameId.toString()) {
-          const processedInvitations = JSON.parse(sessionStorage.getItem('processedInvitations') || '[]');
-          // We don't have the invitation ID here, but we can set a flag
-          sessionStorage.setItem('gameFinished_' + gameId, 'true');
-          console.log('Game is finished, marked to prevent re-entry');
+          console.log('✅ Game finished, marked to prevent auto-navigation loop');
         }
 
         return; // don't call joinGameChannel or initialize WebSocket
@@ -437,7 +458,7 @@ const PlayMultiplayer = () => {
   }, [user?.id]);
 
   // Handle game completion
-  const handleGameEnd = useCallback((event) => {
+  const handleGameEnd = useCallback(async (event) => {
     console.log('🏁 Processing game end event:', event);
 
     // Update game completion state
@@ -479,8 +500,59 @@ const PlayMultiplayer = () => {
       }
     }
 
+    // Save multiplayer game to history (similar to PlayComputer.js)
+    try {
+      const now = new Date();
+      const formattedDate = now.toISOString().slice(0, 19).replace("T", " ");
+
+      // Determine result text based on who won
+      let resultText = 'Draw';
+      if (event.winner_user_id === user?.id) {
+        resultText = 'won';
+      } else if (event.winner_user_id && event.winner_user_id !== user?.id) {
+        resultText = 'lost';
+      }
+
+      // Encode game history to string format (same as PlayComputer)
+      const conciseGameString = typeof encodeGameHistory === 'function' && gameHistory.length > 0
+        ? encodeGameHistory(gameHistory)
+        : JSON.stringify(gameHistory);
+
+      // Calculate final scores (use absolute values)
+      const finalPlayerScore = Math.abs(playerScore);
+
+      const gameHistoryData = {
+        id: `multiplayer_${gameId}_${Date.now()}`,
+        game_id: gameId,
+        date: now.toISOString(),
+        played_at: now.toISOString(),
+        player_color: gameInfo.playerColor === 'white' ? 'w' : 'b',
+        computer_level: 0, // Multiplayer game (not vs computer)
+        opponent_name: gameInfo.opponentName,
+        game_mode: 'multiplayer',
+        moves: conciseGameString,
+        final_score: finalPlayerScore,
+        result: resultText,
+      };
+
+      console.log('💾 Saving multiplayer game to history:', gameHistoryData);
+
+      if (typeof saveGameHistory === 'function') {
+        await saveGameHistory(gameHistoryData);
+        console.log('✅ Multiplayer game history saved successfully');
+      } else {
+        console.warn('⚠️ saveGameHistory function not available');
+      }
+
+      // Mark this game as finished in session storage to prevent re-entry
+      sessionStorage.setItem('gameFinished_' + gameId, 'true');
+
+    } catch (error) {
+      console.error('❌ Error saving multiplayer game history:', error);
+    }
+
     console.log('✅ Game completion processed, showing result modal');
-  }, [user?.id]);
+  }, [user?.id, gameId, gameHistory, gameInfo, playerScore]);
 
   // Handle resign
   const handleResign = useCallback(async () => {

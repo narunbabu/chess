@@ -35,3 +35,8 @@ The project follows a modern client-server architecture:
 *   A work-in-progress, modern landing page.
 *   **Stack**: React, TypeScript, and Vite.
 *   This suggests an ongoing effort to modernize the application's entry point.
+
+## Instructions for new code
+
+1. Keep in mind all the related logic and the stake holders of codeblocks before constructing them. The new code blocks should be consistent with existing related codes (imports and where exports happen)
+2. While editing or implementing additional functionality or building additional elements care msut be taken. Disturbing already working functionality would be catastrophic and it results in unintended side effects and subogate some unseen functionality. So keep this in mind to not disturb already tested and working functionality.

@@ -38,4 +38,15 @@ class Invitation extends Model
     {
         return $this->belongsTo(Game::class, 'game_id');
     }
+
+    /**
+     * Scope to get only accepted invitations with active games
+     */
+    public function scopeAcceptedActive($query)
+    {
+        return $query->where('status', 'accepted')
+            ->whereHas('game', function ($q) {
+                $q->whereNotIn('status', ['finished', 'completed', 'aborted']);
+            });
+    }
 }

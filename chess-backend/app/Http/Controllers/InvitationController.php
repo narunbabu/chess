@@ -78,8 +78,9 @@ class InvitationController extends Controller
     public function accepted()
     {
         $invitations = Invitation::where('inviter_id', Auth::id())
-            ->where('status', 'accepted')
+            ->acceptedActive()
             ->with(['invited', 'game'])
+            ->latest('updated_at')
             ->get();
 
         return response()->json($invitations);
