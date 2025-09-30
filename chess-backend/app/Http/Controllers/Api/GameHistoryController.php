@@ -21,10 +21,13 @@ class GameHistoryController extends Controller
         $validated = $request->validate([
             'played_at'      => 'required|date_format:Y-m-d H:i:s',
             'player_color'   => 'required|in:w,b',
-            'computer_level' => 'required|integer',
+            'computer_level' => 'nullable|integer',
             'moves'          => 'required|string',
             'final_score'    => 'required|numeric',
             'result'         => 'required|string',
+            'game_id'        => 'nullable|integer|exists:games,id',
+            'opponent_name'  => 'nullable|string|max:255',
+            'game_mode'      => 'nullable|in:computer,multiplayer',
         ]);
 
         Log::info('Validated game data for user:', $validated);
@@ -36,10 +39,13 @@ class GameHistoryController extends Controller
             $game->user_id = $userId;
             $game->played_at = $validated['played_at'];
             $game->player_color = $validated['player_color'];
-            $game->computer_level = $validated['computer_level'];
+            $game->computer_level = $validated['computer_level'] ?? 0;
             $game->moves = $validated['moves'];
             $game->final_score = $validated['final_score'];
             $game->result = $validated['result'];
+            $game->game_id = $validated['game_id'] ?? null;
+            $game->opponent_name = $validated['opponent_name'] ?? null;
+            $game->game_mode = $validated['game_mode'] ?? 'computer';
             $game->save();
 
             return response()->json(['success' => true, 'data' => $game], 201);
@@ -64,10 +70,13 @@ class GameHistoryController extends Controller
             $validated = $request->validate([
                 'played_at'      => 'nullable|date_format:Y-m-d H:i:s',
                 'player_color'   => 'required|in:w,b',
-                'computer_level' => 'required|integer',
+                'computer_level' => 'nullable|integer',
                 'moves'          => 'required|string',
                 'final_score'    => 'required|numeric',
                 'result'         => 'required|string',
+                'game_id'        => 'nullable|integer|exists:games,id',
+                'opponent_name'  => 'nullable|string|max:255',
+                'game_mode'      => 'nullable|in:computer,multiplayer',
             ]);
 
             Log::info('Validated public game data:', $validated);
@@ -76,10 +85,13 @@ class GameHistoryController extends Controller
             $game->user_id = null; // Guest game
             $game->played_at = $validated['played_at'] ?? now();
             $game->player_color = $validated['player_color'];
-            $game->computer_level = $validated['computer_level'];
+            $game->computer_level = $validated['computer_level'] ?? 0;
             $game->moves = $validated['moves'];
             $game->final_score = $validated['final_score'];
             $game->result = $validated['result'];
+            $game->game_id = $validated['game_id'] ?? null;
+            $game->opponent_name = $validated['opponent_name'] ?? null;
+            $game->game_mode = $validated['game_mode'] ?? 'computer';
             $game->save();
 
             Log::info("Game saved successfully: ", $game->toArray());

@@ -14,11 +14,20 @@ class GameHistory extends Model
         'moves',
         'final_score',
         'result',
+        'game_id',
+        'opponent_name',
+        'game_mode',
     ];
 
     // You might add a relationship to the User model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    // Relationship to the Game model (for multiplayer games)
+    public function game()
+    {
+        return $this->belongsTo(Game::class);
     }
 }

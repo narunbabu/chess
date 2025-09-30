@@ -528,18 +528,32 @@ const PlayMultiplayer = () => {
         played_at: now.toISOString(),
         player_color: gameInfo.playerColor === 'white' ? 'w' : 'b',
         computer_level: 0, // Multiplayer game (not vs computer)
+        computer_depth: 0, // Alternative field name
         opponent_name: gameInfo.opponentName,
         game_mode: 'multiplayer',
         moves: conciseGameString,
         final_score: finalPlayerScore,
+        finalScore: finalPlayerScore, // Alternative field name
+        score: finalPlayerScore, // Alternative field name
         result: resultText,
       };
 
       console.log('💾 Saving multiplayer game to history:', gameHistoryData);
+      console.log('📊 Game history details:', {
+        playerScore,
+        finalPlayerScore,
+        movesLength: gameHistory.length,
+        movesType: typeof conciseGameString,
+        movesPreview: conciseGameString.substring(0, 100)
+      });
 
       if (typeof saveGameHistory === 'function') {
-        await saveGameHistory(gameHistoryData);
-        console.log('✅ Multiplayer game history saved successfully');
+        try {
+          await saveGameHistory(gameHistoryData);
+          console.log('✅ Multiplayer game history saved successfully');
+        } catch (saveError) {
+          console.error('❌ Error saving multiplayer game history:', saveError);
+        }
       } else {
         console.warn('⚠️ saveGameHistory function not available');
       }
