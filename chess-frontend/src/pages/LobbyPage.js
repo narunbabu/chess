@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 import WebSocketGameService from '../services/WebSocketGameService';
+import { BACKEND_URL } from '../config';
 import './LobbyPage.css';
 
 const LobbyPage = () => {
@@ -110,30 +111,81 @@ const LobbyPage = () => {
       console.log('Sent invitations:', sentRes.data);
       console.log('Accepted invitations:', acceptedRes.data);
 
-      // Handle accepted invitations - navigate to game if any
-      if (acceptedRes.data && acceptedRes.data.length > 0) {
-        const acceptedData = acceptedRes.data[0]; // Get the first accepted invitation
-        console.log('Found accepted invitation, checking if already processed:', acceptedData);
+      // Check if user intentionally visited the lobby (e.g., clicked "Go to Lobby" button)
+      const intentionalVisit = sessionStorage.getItem('intentionalLobbyVisit') === 'true';
+      const intentionalVisitTime = parseInt(sessionStorage.getItem('intentionalLobbyVisitTime') || '0');
+      const timeSinceIntentionalVisit = Date.now() - intentionalVisitTime;
 
-        // Check if we've already processed this accepted invitation
-        const processedInvitations = JSON.parse(sessionStorage.getItem('processedInvitations') || '[]');
-        const invitationId = acceptedData.invitation?.id;
+      // If user intentionally visited lobby within the last 5 seconds, don't auto-navigate
+      if (intentionalVisit && timeSinceIntentionalVisit < 5000) {
+        console.log('⚠️ Intentional lobby visit detected, skipping auto-navigation');
 
-        if (acceptedData.game && !processedInvitations.includes(invitationId)) {
-          // Mark this invitation as processed
-          processedInvitations.push(invitationId);
-          sessionStorage.setItem('processedInvitations', JSON.stringify(processedInvitations));
+        // Clear the flag after processing
+        sessionStorage.removeItem('intentionalLobbyVisit');
+        sessionStorage.removeItem('intentionalLobbyVisitTime');
 
-          // Set session markers for proper game access
-          sessionStorage.setItem('lastInvitationAction', 'invitation_accepted_by_other');
-          sessionStorage.setItem('lastInvitationTime', Date.now().toString());
-          sessionStorage.setItem('lastGameId', acceptedData.game.id.toString());
+        // Mark any accepted games as processed to prevent future auto-navigation
+        if (acceptedRes.data && acceptedRes.data.length > 0) {
+          const processedGames = JSON.parse(sessionStorage.getItem('processedGames') || '[]');
+          acceptedRes.data.forEach(acceptedData => {
+            const gameId = acceptedData.game?.id;
+            if (gameId && !processedGames.includes(gameId)) {
+              processedGames.push(gameId);
+            }
+          });
+          sessionStorage.setItem('processedGames', JSON.stringify(processedGames));
+        }
+      } else {
+        // Handle accepted invitations - navigate to game if any
+        if (acceptedRes.data && acceptedRes.data.length > 0) {
+          const acceptedData = acceptedRes.data[0]; // Get the first accepted invitation
+          console.log('Found accepted invitation, checking game status:', acceptedData);
 
-          console.log('Navigating to game from accepted invitation:', acceptedData.game.id);
-          navigate(`/play/multiplayer/${acceptedData.game.id}`);
-          return; // Exit early to prevent further processing
-        } else if (processedInvitations.includes(invitationId)) {
-          console.log('Accepted invitation already processed, skipping navigation');
+          const gameId = acceptedData.game?.id;
+
+          if (gameId) {
+            // Check actual game status from backend to determine if we should navigate
+            try {
+              const token = localStorage.getItem('auth_token');
+              const gameResponse = await fetch(`${BACKEND_URL}/games/${gameId}`, {
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                }
+              });
+
+              if (gameResponse.ok) {
+                const gameData = await gameResponse.json();
+                const isGameActive = gameData.status === 'active' || gameData.status === 'waiting';
+                const isGameFinished = gameData.status === 'finished' || gameData.status === 'completed';
+
+                console.log('Game status check:', {
+                  gameId,
+                  status: gameData.status,
+                  isGameActive,
+                  isGameFinished
+                });
+
+                // Only navigate if game is active/waiting (not finished)
+                if (isGameActive) {
+                  // Set session markers for proper game access
+                  sessionStorage.setItem('lastInvitationAction', 'invitation_accepted_by_other');
+                  sessionStorage.setItem('lastInvitationTime', Date.now().toString());
+                  sessionStorage.setItem('lastGameId', gameId.toString());
+
+                  console.log('Navigating to ACTIVE game from accepted invitation:', gameId);
+                  navigate(`/play/multiplayer/${gameId}`);
+                  return; // Exit early to prevent further processing
+                } else if (isGameFinished) {
+                  console.log('Game is finished, staying in lobby:', gameId);
+                  // Mark game as finished to prevent future checks
+                  sessionStorage.setItem('gameFinished_' + gameId, 'true');
+                }
+              }
+            } catch (error) {
+              console.error('Error checking game status:', error);
+            }
+          }
         }
       }
 
@@ -210,10 +262,15 @@ const LobbyPage = () => {
     setInviteStatus('sending');
 
     try {
-      await api.post('/invitations/send', {
+      const response = await api.post('/invitations/send', {
         invited_user_id: selectedPlayer.id,
         preferred_color: colorChoice
       });
+
+      // Optimistic update: add invitation to sent list immediately
+      if (response.data.invitation) {
+        setSentInvitations(prev => [response.data.invitation, ...prev]);
+      }
 
       setInviteStatus('sent');
       // Refresh data to update sent invitations
@@ -249,10 +306,11 @@ const LobbyPage = () => {
       console.log(`Attempting to ${action} invitation ${invitationId}`);
       console.log('Auth token exists:', !!localStorage.getItem('auth_token'));
       console.log('Current user:', user);
+      console.log('Sending invitation response:', { invitationId, action, colorChoice });
 
       const requestData = { action: action };
       if (colorChoice) {
-        requestData.color_choice = colorChoice;
+        requestData.desired_color = colorChoice;
       }
 
       const response = await api.post(`/invitations/${invitationId}/respond`, requestData);
@@ -518,36 +576,35 @@ const LobbyPage = () => {
             <h2>🎯 Accept Challenge from {selectedInvitation?.inviter?.name}</h2>
             <p>
               {selectedInvitation?.inviter?.name} wants to play as{' '}
-              {selectedInvitation?.inviter_preferred_color === 'white' ? '♔ White' :
-               selectedInvitation?.inviter_preferred_color === 'black' ? '♚ Black' :
-               '🎲 Random'}
+              {selectedInvitation?.inviter_preferred_color === 'white' ? '♔ White' : '♚ Black'}
             </p>
             <p>Choose your response:</p>
             <div className="color-choices">
               <button
                 className="color-choice accept"
-                onClick={() => handleInvitationResponse(selectedInvitation.id, 'accept', 'accept')}
+                onClick={() => {
+                  const inviterColor = selectedInvitation?.inviter_preferred_color;
+                  const myColor = inviterColor === 'white' ? 'black' : 'white';
+                  handleInvitationResponse(selectedInvitation.id, 'accept', myColor);
+                }}
               >
                 ✅ Accept their choice
                 <small>
                   (You'll play as {
-                    selectedInvitation?.inviter_preferred_color === 'white' ? '♚ Black' :
-                    selectedInvitation?.inviter_preferred_color === 'black' ? '♔ White' :
-                    '🎲 Random'
+                    selectedInvitation?.inviter_preferred_color === 'white' ? '♚ Black' : '♔ White'
                   })
                 </small>
               </button>
               <button
                 className="color-choice opposite"
-                onClick={() => handleInvitationResponse(selectedInvitation.id, 'accept', 'opposite')}
+                onClick={() => {
+                  const inviterColor = selectedInvitation?.inviter_preferred_color;
+                  handleInvitationResponse(selectedInvitation.id, 'accept', inviterColor);
+                }}
               >
-                🔄 Choose opposite
+                🔄 Play as {selectedInvitation?.inviter_preferred_color === 'white' ? '♔ White' : '♚ Black'}
                 <small>
-                  (You'll play as {
-                    selectedInvitation?.inviter_preferred_color === 'white' ? '♔ White' :
-                    selectedInvitation?.inviter_preferred_color === 'black' ? '♚ Black' :
-                    '🎲 Random'
-                  })
+                  (swap colors)
                 </small>
               </button>
             </div>

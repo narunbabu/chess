@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(php artisan:*)"
+      "Bash(php artisan:*)",
+      "Read(//usr/**)",
+      "Bash(./vendor/bin/sail artisan optimize:clear:*)"
     ],
     "deny": [],
     "ask": []

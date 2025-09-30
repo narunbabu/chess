@@ -545,7 +545,7 @@ class GameRoomService
             $updateData['end_reason'] = $reason;
         }
 
-        if ($status === 'completed') {
+        if ($status === 'completed' || $status === 'abandoned') {
             $updateData['ended_at'] = now();
         }
 

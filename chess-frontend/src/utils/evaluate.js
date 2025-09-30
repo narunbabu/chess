@@ -15,6 +15,7 @@ const PIECE_VALUES = {
 };
 
 // Positional bonuses for pieces (simplified version)
+// eslint-disable-next-line no-unused-vars
 const POSITION_TABLES = {
   // Center control is valuable for pawns
   p: [
@@ -311,12 +312,8 @@ function calculateCenterControl(gameState, centerSquares) {
  */
 function isSquareAttacked(gameState, square, byColor) {
   // Safe implementation that works with chess.js
-  try {
-    // This is a simplification since chess.js doesn't directly expose this
-    return false;
-  } catch (e) {
-    return false;
-  }
+  // This is a simplification since chess.js doesn't directly expose this
+  return false;
 }
 
 /**

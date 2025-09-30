@@ -4,10 +4,22 @@ import { Chessboard } from 'react-chessboard';
 import GameInfo from './GameInfo';
 import ScoreDisplay from './ScoreDisplay';
 import GameCompletionAnimation from '../GameCompletionAnimation';
+import CheckmateNotification from '../CheckmateNotification';
 import { useAuth } from '../../contexts/AuthContext';
 import { useParams, useNavigate } from 'react-router-dom';
 import { BACKEND_URL } from '../../config';
 import WebSocketGameService from '../../services/WebSocketGameService';
+import { evaluateMove } from '../../utils/gameStateUtils';
+
+// Import sounds
+import moveSound from '../../assets/sounds/move.mp3';
+import checkSound from '../../assets/sounds/check.mp3';
+import gameEndSound from '../../assets/sounds/game-end.mp3';
+
+// Create audio objects
+const moveSoundEffect = new Audio(moveSound);
+const checkSoundEffect = new Audio(checkSound);
+const gameEndSoundEffect = new Audio(gameEndSound);
 
 const PlayMultiplayer = () => {
   const [game, setGame] = useState(new Chess());
@@ -27,11 +39,82 @@ const PlayMultiplayer = () => {
   const [opponentOnline, setOpponentOnline] = useState(false);
   const [gameComplete, setGameComplete] = useState(false);
   const [gameResult, setGameResult] = useState(null);
+  const [showCheckmate, setShowCheckmate] = useState(false);
+  const [checkmateWinner, setCheckmateWinner] = useState(null);
+  const [kingInDangerSquare, setKingInDangerSquare] = useState(null);
+
+  // Score tracking states
+  const [playerScore, setPlayerScore] = useState(0);
+  const [opponentScore, setOpponentScore] = useState(0);
+  const [lastMoveEvaluation, setLastMoveEvaluation] = useState(null);
+  const [lastOpponentEvaluation, setLastOpponentEvaluation] = useState(null);
 
   const { user } = useAuth();
   const { gameId } = useParams();
   const navigate = useNavigate();
   const wsService = useRef(null);
+  const mateCheckTimer = useRef(null);
+
+  // Play sound helper
+  const playSound = useCallback((soundEffect) => {
+    try {
+      soundEffect.currentTime = 0;
+      soundEffect.play().catch(err => console.warn('Audio play blocked:', err));
+    } catch (error) {
+      console.warn('Error playing sound:', error);
+    }
+  }, []);
+
+  // Find king square helper
+  const findKingSquare = useCallback((game, color) => {
+    const board = game.board();
+    for (let row = 0; row < 8; row++) {
+      for (let col = 0; col < 8; col++) {
+        const piece = board[row][col];
+        if (piece && piece.type === 'k' && piece.color === color) {
+          const file = String.fromCharCode(97 + col); // a-h
+          const rank = 8 - row; // 1-8
+          return file + rank;
+        }
+      }
+    }
+    return null;
+  }, []);
+
+  // Checkmate detection and notification
+  const checkForCheckmate = useCallback((gameInstance) => {
+    if (gameInstance.isCheckmate()) {
+      const loserColor = gameInstance.turn(); // Current turn is the loser
+      const winnerColor = loserColor === 'w' ? 'black' : 'white';
+
+      console.log('🏁 CHECKMATE DETECTED!', { loserColor, winnerColor });
+
+      // Find the checkmated king's square
+      const kingSquare = findKingSquare(gameInstance, loserColor);
+      if (kingSquare) {
+        setKingInDangerSquare(kingSquare);
+        // Clear the flicker effect after animation completes (3 flickers * 0.5s)
+        setTimeout(() => setKingInDangerSquare(null), 1500);
+      }
+
+      // Play checkmate sound
+      playSound(gameEndSoundEffect);
+
+      // Show notification
+      setCheckmateWinner(winnerColor);
+      setShowCheckmate(true);
+
+      return true;
+    } else if (gameInstance.isCheck()) {
+      // Play check sound
+      playSound(checkSoundEffect);
+    } else {
+      // Play regular move sound
+      playSound(moveSoundEffect);
+    }
+
+    return false;
+  }, [findKingSquare, playSound]);
 
   // Initialize WebSocket connection and load game data
   const initializeGame = useCallback(async () => {
@@ -81,18 +164,40 @@ const PlayMultiplayer = () => {
 
       const data = await response.json();
       console.log('Raw game data from backend:', data);
+      console.log('🎨 MY PLAYER COLOR FROM BACKEND:', data.player_color);
+      console.log('🎨 MY USER ID:', user?.id);
+      console.log('🎨 WHITE PLAYER ID:', data.white_player_id);
+      console.log('🎨 BLACK PLAYER ID:', data.black_player_id);
       setGameData(data);
+
+      // Prevent rejoining a finished game (allow waiting and active statuses)
+      if (data.status !== 'active' && data.status !== 'waiting') {
+        setGameComplete(true);
+        setGameInfo(p => ({...p, status: 'finished', ...data}));
+        setLoading(false); // Stop loading if game is already finished
+
+        // Mark the related invitation as processed to prevent auto-navigation loop
+        const lastGameId = sessionStorage.getItem('lastGameId');
+        if (lastGameId === gameId.toString()) {
+          const processedInvitations = JSON.parse(sessionStorage.getItem('processedInvitations') || '[]');
+          // We don't have the invitation ID here, but we can set a flag
+          sessionStorage.setItem('gameFinished_' + gameId, 'true');
+          console.log('Game is finished, marked to prevent re-entry');
+        }
+
+        return; // don't call joinGameChannel or initialize WebSocket
+      }
 
       // Set up the chess game from FEN (use starting position if no FEN)
       const fen = data.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
       const newGame = new Chess(fen);
       setGame(newGame);
 
-      // Determine user's color and set board orientation (handle type conversion)
-      const userId = parseInt(user?.id);
-      const whitePlayerId = parseInt(data.white_player_id);
-      const blackPlayerId = parseInt(data.black_player_id);
-      const userColor = whitePlayerId === userId ? 'white' : 'black';
+      // Get user's color from server (authoritative source)
+      // Priority: handshake response > game_state data > fallback calculation
+      const userColor = data.player_color ||
+                       data.game_state?.player_color ||
+                       (parseInt(data.white_player_id || data.game_state?.white_player_id) === parseInt(user?.id) ? 'white' : 'black');
       console.log('Board orientation setup:', {
         userId: user?.id,
         userIdType: typeof user?.id,
@@ -104,18 +209,16 @@ const PlayMultiplayer = () => {
         boardOrientation: userColor,
         whitePlayerMatch: data.white_player_id === user?.id,
         blackPlayerMatch: data.black_player_id === user?.id,
-        convertedUserId: userId,
-        convertedWhiteId: whitePlayerId,
-        convertedBlackId: blackPlayerId,
-        isWhitePlayer: whitePlayerId === userId,
-        isBlackPlayer: blackPlayerId === userId
+        serverProvidedColor: data.player_color
       });
 
-      console.log('Setting board orientation to:', userColor);
+      console.log('🔧 About to set board orientation to:', userColor);
+      console.log('🔧 Current boardOrientation state:', boardOrientation);
       setBoardOrientation(userColor);
+      console.log('✅ setBoardOrientation called with:', userColor);
 
-      // Set game info (use consistent type conversion)
-      const opponent = whitePlayerId === userId ? data.blackPlayer : data.whitePlayer;
+      // Set game info (use server-provided color to determine opponent)
+      const opponent = userColor === 'white' ? data.blackPlayer : data.whitePlayer;
       console.log('Game info setup:', {
         playerColor: userColor,
         gameTurn: data.turn,
@@ -217,6 +320,43 @@ const PlayMultiplayer = () => {
           move: event.move.san || event.move.piece,
           player: movePlayer
         }]);
+
+        // Calculate points for opponent's move
+        if (event.move && event.move.san) {
+          try {
+            // Reconstruct the move for evaluation
+            const previousState = new Chess();
+            if (event.move.prev_fen) {
+              previousState.load(event.move.prev_fen);
+            }
+
+            const opponentMove = {
+              from: event.move.from,
+              to: event.move.to,
+              san: event.move.san,
+              promotion: event.move.promotion || null,
+              piece: event.move.piece || movePlayer.charAt(0), // 'w' or 'b'
+              color: movePlayer === 'white' ? 'w' : 'b',
+              captured: event.move.captured || null
+            };
+
+            // Evaluate opponent's move
+            evaluateMove(
+              opponentMove,
+              previousState,
+              newGame,
+              (event.move.move_time_ms || 5000) / 1000, // Convert to seconds
+              event.move.player_rating || 1200,
+              setLastOpponentEvaluation,
+              (scoreToAdd) => {
+                setOpponentScore(prev => prev + scoreToAdd);
+              },
+              1 // Human vs Human
+            );
+          } catch (evalError) {
+            console.warn('Could not evaluate opponent move:', evalError);
+          }
+        }
       }
 
       // Always update turn based on server's authoritative state
@@ -228,10 +368,42 @@ const PlayMultiplayer = () => {
 
       console.log('Move processed, updated turn to:', newTurn);
 
+      // Check for checkmate/check and play appropriate sound
+      checkForCheckmate(newGame);
+
+      // Add the polling fallback here
+      clearTimeout(mateCheckTimer.current);
+      mateCheckTimer.current = setTimeout(async () => {
+        try {
+          const token = localStorage.getItem('auth_token');
+          const response = await fetch(`${BACKEND_URL}/games/${gameId}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          if (!response.ok) {
+            throw new Error('Failed to fetch game status');
+          }
+          const g = await response.json();
+          if (g?.status === 'finished') {
+            wsService.current.emit('gameEnded', {
+              result: g.result,
+              winner_user_id: g.winner_user_id,
+              reason: g.end_reason,
+              final_fen: g.fen
+            });
+          }
+        } catch (error) {
+          console.error('Error during mate check poll:', error);
+        }
+      }, 1500);
+
+
     } catch (err) {
       console.error('Error processing remote move:', err);
     }
-  }, [user?.id, gameData]);
+  }, [user?.id, gameData, gameId, checkForCheckmate]);
 
   // Handle game status changes
   const handleGameStatusChange = useCallback((event) => {
@@ -331,101 +503,125 @@ const PlayMultiplayer = () => {
     }
   }, [gameComplete]);
 
+  // Prevent double initialization in React StrictMode
+  const didInitRef = useRef(false);
+
   useEffect(() => {
     if (!gameId || !user) return;
 
+    if (didInitRef.current) {
+      console.log('⚠️ Skipping duplicate initialization (React StrictMode)');
+      return;
+    }
+    didInitRef.current = true;
+
+    console.log('🚀 Initializing game (first time)');
     initializeGame();
 
     // Cleanup on unmount
     return () => {
+      console.log('🧹 Cleanup: disconnecting WebSocket');
       if (wsService.current) {
         wsService.current.disconnect();
       }
     };
   }, [gameId, user?.id]); // Use gameId and user.id directly instead of initializeGame
 
-  const makeMove = async (sourceSquare, targetSquare) => {
-    // Check if WebSocket is connected
+  const performMove = (source, target) => {
+    if (gameComplete || gameInfo.status === 'finished') return false;
+    if (gameInfo.turn !== gameInfo.playerColor) {
+      console.log('Not your turn');
+      return false;
+    }
     if (connectionStatus !== 'connected') {
       console.log('WebSocket not connected');
       return false;
     }
 
-    // Check if it's the user's turn
-    console.log('Turn validation:', {
-      gameTurn: gameInfo.turn,
-      playerColor: gameInfo.playerColor,
-      isYourTurn: gameInfo.turn === gameInfo.playerColor
-    });
+    // Capture current FEN before move
+    const prevFen = game.fen();
 
-    if (gameInfo.turn !== gameInfo.playerColor) {
-      console.log('Not your turn');
-      return false;
-    }
+    // Create a copy to test the move
+    const gameCopy = new Chess(prevFen);
 
     try {
-      const gameCopy = new Chess(game.fen());
-      const move = gameCopy.move({
-        from: sourceSquare,
-        to: targetSquare,
-        promotion: 'q' // Always promote to queen for simplicity
-      });
-
-      if (move === null) {
-        console.log('Invalid move');
+      const move = gameCopy.move({ from: source, to: target, promotion: 'q' });
+      if (!move) {
+        console.log('Invalid move:', { from: source, to: target });
         return false;
       }
 
-      // Send move through WebSocket
-      await wsService.current.sendMove(
-        {
-          from: sourceSquare,
-          to: targetSquare,
-          piece: move.piece,
-          promotion: move.promotion || null
-        },
-        gameCopy.fen(),
-        gameCopy.turn()
-      );
+    // Capture new FEN after move
+    const nextFen = gameCopy.fen();
 
-      // Update local game state immediately for responsiveness
-      setGame(gameCopy);
-      setGameHistory(prev => [...prev, {
-        from: sourceSquare,
-        to: targetSquare,
-        move: move.san,
-        player: gameInfo.playerColor
-      }]);
+    // Get UCI notation (e.g., "e2e4")
+    const uci = `${source}${target}${move.promotion || ''}`;
 
-      const newTurn = gameCopy.turn() === 'w' ? 'white' : 'black';
-      console.log('Updating turn after move:', {
-        chessJsTurn: gameCopy.turn(),
-        convertedTurn: newTurn
-      });
+    // Calculate points for the move
+    const moveStartTime = performance.now();
+    const moveTime = moveStartTime / 1000; // Convert to seconds
 
-      setGameInfo(prev => ({
-        ...prev,
-        turn: newTurn
-      }));
+    // Evaluate the move and update player score
+    evaluateMove(
+      move,
+      game, // previous state
+      gameCopy, // new state
+      moveTime,
+      user?.rating || 1200, // player rating
+      setLastMoveEvaluation,
+      (scoreToAdd) => {
+        setPlayerScore(prev => prev + scoreToAdd);
+      },
+      1 // Human vs Human
+    );
 
-      return true;
+    // Include metrics in the move data
+    const moveData = {
+      from: source,
+      to: target,
+      promotion: move.promotion || null,
+      san: move.san,
+      uci: uci,
+      prev_fen: prevFen,
+      next_fen: nextFen,
+      is_mate_hint: !!(move.san?.includes('#') || gameCopy.isCheckmate()),
+      is_check: gameCopy.inCheck(),
+      is_stalemate: gameCopy.isStalemate(),
+      // Add evaluation metrics
+      move_time_ms: moveTime * 1000,
+      player_rating: user?.rating || 1200
+    };
 
-    } catch (err) {
-      console.error('Error making move:', err);
+    wsService.current.sendMove(moveData);
+
+    return true;
+    } catch (error) {
+      console.error('Invalid move error:', error.message);
+      // Silently fail - move not allowed
       return false;
     }
-  };
+  }
 
   const onDrop = (sourceSquare, targetSquare) => {
-    return makeMove(sourceSquare, targetSquare);
+    // Disable drag and drop if game is complete
+    if (gameComplete || gameInfo.status === 'finished') {
+      return false;
+    }
+
+    return performMove(sourceSquare, targetSquare);
   };
 
   const handleSquareClick = (square) => {
+    // Disable input if game is complete
+    if (gameComplete || gameInfo.status === 'finished') {
+      return;
+    }
+
     if (selectedSquare) {
       if (selectedSquare === square) {
         setSelectedSquare(null);
       } else {
-        makeMove(selectedSquare, square);
+        performMove(selectedSquare, square);
         setSelectedSquare(null);
       }
     } else {
@@ -463,8 +659,8 @@ const PlayMultiplayer = () => {
     }
 
     try {
-      // First try to resign/end the game
-      await wsService.current.updateGameStatus('completed', 'abandoned', 'killed');
+      // First try to resign/end the game with abandoned status
+      await wsService.current.updateGameStatus('abandoned', null, 'killed');
 
       // Disconnect WebSocket service
       if (wsService.current) {
@@ -560,7 +756,13 @@ const PlayMultiplayer = () => {
               customSquareStyles={{
                 [selectedSquare]: {
                   backgroundColor: 'rgba(255, 255, 0, 0.4)'
-                }
+                },
+                ...(kingInDangerSquare && {
+                  [kingInDangerSquare]: {
+                    animation: 'kingFlicker 0.5s ease-in-out 3',
+                    backgroundColor: 'rgba(255, 0, 0, 0.6)'
+                  }
+                })
               }}
             />
           </div>
@@ -614,9 +816,28 @@ const PlayMultiplayer = () => {
             opponent={gameInfo.opponentName}
             gameStatus={gameInfo.status}
           />
-          <ScoreDisplay game={game} />
+          <ScoreDisplay
+            playerScore={playerScore}
+            lastMoveEvaluation={lastMoveEvaluation}
+            computerScore={opponentScore}
+            lastComputerEvaluation={lastOpponentEvaluation}
+            isOnlineGame={true}
+            players={{
+              'w': gameData?.white_player,
+              'b': gameData?.black_player
+            }}
+            playerColor={gameInfo.playerColor === 'white' ? 'w' : 'b'}
+          />
         </div>
       </div>
+
+      {/* Checkmate Notification */}
+      {showCheckmate && checkmateWinner && (
+        <CheckmateNotification
+          winner={checkmateWinner}
+          onComplete={() => setShowCheckmate(false)}
+        />
+      )}
 
       {/* Game Completion Modal */}
       {gameComplete && gameResult && (
@@ -629,7 +850,18 @@ const PlayMultiplayer = () => {
           }}
           onRematch={() => handleNewGame(true)}
           onNewGame={() => handleNewGame(false)}
-          onBackToLobby={() => navigate('/lobby')}
+          onBackToLobby={() => {
+            // Clear invitation-related session storage to prevent auto-navigation
+            sessionStorage.removeItem('lastInvitationAction');
+            sessionStorage.removeItem('lastInvitationTime');
+            sessionStorage.removeItem('lastGameId');
+
+            // Set flag to indicate intentional lobby visit
+            sessionStorage.setItem('intentionalLobbyVisit', 'true');
+            sessionStorage.setItem('intentionalLobbyVisitTime', Date.now().toString());
+
+            navigate('/lobby');
+          }}
           isMultiplayer={true}
         />
       )}

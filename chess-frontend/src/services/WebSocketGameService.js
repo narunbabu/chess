@@ -82,6 +82,10 @@ class WebSocketGameService {
             Authorization: `Bearer ${token}`,
           },
         },
+        // Keep connection alive with ping/pong
+        activityTimeout: 120000, // 120 seconds (matches backend)
+        pongTimeout: 30000, // 30 seconds to wait for pong response
+        enableLogging: true, // Enable for debugging
         // Authorize channel access
         authorizer: (channel, options) => {
           return {
@@ -209,6 +213,14 @@ class WebSocketGameService {
         .listen('.game.activated', (event) => {
             console.log('Game activated event received:', event);
             this.emit('gameActivated', event);
+        })
+        .listen('GameEndedEvent', (e) => {
+           console.log('GameEndedEvent (class) received', e);
+           this.emit('gameEnded', e);
+        })
+        .listen('.game.ended', (event) => {
+            console.log('Game ended event received:', event);
+            this.emit('gameEnded', event);
         });
 
       // Wait for connection
@@ -320,6 +332,13 @@ class WebSocketGameService {
       }
 
       console.log('Handshake completed:', data);
+
+      // Store player color from server for authoritative reference
+      if (data.player_color) {
+        this.playerColor = data.player_color;
+        console.log('Server assigned player color:', data.player_color);
+      }
+
       this.emit('handshakeComplete', data);
       return data;
     } catch (error) {
@@ -331,7 +350,7 @@ class WebSocketGameService {
   /**
    * Send a move through WebSocket
    */
-  async sendMove(move, fen, turn) {
+  async sendMove(moveData) {
     if (!this.isConnected) {
       throw new Error('WebSocket not connected');
     }
@@ -345,9 +364,7 @@ class WebSocketGameService {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          move,
-          fen,
-          turn,
+          move: moveData,
           socket_id: this.socketId,
         }),
       });
@@ -577,6 +594,7 @@ class WebSocketGameService {
       this.gameChannel.stopListening('GameConnectionEvent');
       this.gameChannel.stopListening('GameMoveEvent');
       this.gameChannel.stopListening('GameStatusEvent');
+      this.gameChannel.stopListening('.game.ended');
     }
 
     if (this.echo) {
@@ -1051,6 +1069,7 @@ class WebSocketGameService {
       this.gameChannel.stopListening('GameConnectionEvent');
       this.gameChannel.stopListening('GameMoveEvent');
       this.gameChannel.stopListening('GameStatusEvent');
+      this.gameChannel.stopListening('.game.ended');
     }
 
     if (this.echo) {

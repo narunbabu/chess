@@ -1,5 +1,5 @@
 1. First read the docs/context.md to understand the project and think through the problem, read the codebase for relevant files. Read the last two solution_applied from the objects of history.json for latest changes.
-2. If mentioned taks or todo list, then Check for latest todo file in tasks/ and given the user request work on the taks given in todo file. If you are asked to make plan, append plan name after timestamp yyyy_mm_dd_hh_mm_{plan_name}.md and keep it in tasks/
+2. Keep in mind all the related logic and the stake holders of codeblocks before constructing them. The new code blocks should be consistent with existing related codes (imports and where exports happen)
 4. Before you begin working, check in with me and I will verify the plan.
 5. Then, begin working on the todo items, marking them as complete as you go.
 6. Please every step of the way just give me a high level explanation of what changes you made

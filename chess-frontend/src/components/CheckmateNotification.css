@@ -1,0 +1,65 @@
+.checkmate-notification {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 2rem 3rem;
+  border-radius: 15px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  z-index: 10000;
+  animation: slideIn 0.5s ease-out;
+  text-align: center;
+}
+
+.checkmate-notification.fade-out {
+  animation: fadeOut 0.5s ease-out forwards;
+}
+
+.checkmate-content h2 {
+  margin: 0 0 0.5rem 0;
+  font-size: 2rem;
+  font-weight: bold;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.checkmate-content p {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -60%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+
+@keyframes fadeOut {
+  to {
+    opacity: 0;
+    transform: translate(-50%, -45%);
+  }
+}
+
+/* King flicker effect - to be applied to the king square */
+@keyframes kingFlicker {
+  0%, 100% {
+    background-color: transparent;
+  }
+  25%, 75% {
+    background-color: rgba(255, 0, 0, 0.6);
+  }
+  50% {
+    background-color: rgba(255, 0, 0, 0.3);
+  }
+}
+
+.king-in-danger {
+  animation: kingFlicker 0.5s ease-in-out 3;
+}
