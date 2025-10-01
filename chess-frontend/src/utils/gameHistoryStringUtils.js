@@ -7,16 +7,41 @@ import { Chess } from "chess.js";
  *   <san>,<time>;<san>,<time>;...
  * Example:
  *   e4,1.10;a6,4.55;Nc3,4.54;...
+ *
+ * Supports multiple input formats:
+ * 1. Compact string: "e4,3.45"
+ * 2. Computer game format: { move: { san: "e4" }, timeSpent: 3.45 }
+ * 3. Server/multiplayer format: { san: "e4", move_time_ms: 3450 }
  */
 export function encodeGameHistory(gameHistory) {
   let parts = [];
-  // For each move entry that has a move property, add the move info.
-  gameHistory.forEach((entry) => {
-    if (entry.move) {
-      // Store just the SAN and timeSpent (to 2 decimals).
+
+  // For each move entry
+  gameHistory.forEach((entry, index) => {
+    // Format 1: Already compact string "e4,3.45"
+    if (typeof entry === 'string') {
+      parts.push(entry);
+    }
+    // Format 2: Computer game format { move: { san }, timeSpent }
+    else if (entry.move && entry.move.san && entry.timeSpent !== undefined) {
       parts.push(entry.move.san + "," + entry.timeSpent.toFixed(2));
     }
+    // Format 3: Server/multiplayer format { san, move_time_ms }
+    else if (entry.san && entry.move_time_ms !== undefined) {
+      const timeInSeconds = entry.move_time_ms / 1000;
+      parts.push(entry.san + "," + timeInSeconds.toFixed(2));
+    }
+    // Format 4: Fallback - has san but no time data
+    else if (entry.san) {
+      parts.push(entry.san + ",0.00");
+      console.warn(`Move ${index + 1}: Missing time data for ${entry.san}, defaulting to 0.00s`);
+    }
+    // Format 5: Unknown format - log error
+    else {
+      console.error(`Move ${index + 1}: Unrecognized format`, entry);
+    }
   });
+
   return parts.join(";");
 }
 

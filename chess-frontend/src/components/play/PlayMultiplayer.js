@@ -3,6 +3,8 @@ import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import GameInfo from './GameInfo';
 import ScoreDisplay from './ScoreDisplay';
+import TimerDisplay from './TimerDisplay';
+import TimerButton from './TimerButton';
 import GameCompletionAnimation from '../GameCompletionAnimation';
 import CheckmateNotification from '../CheckmateNotification';
 import { useAuth } from '../../contexts/AuthContext';
@@ -12,6 +14,7 @@ import WebSocketGameService from '../../services/WebSocketGameService';
 import { evaluateMove } from '../../utils/gameStateUtils';
 import { encodeGameHistory } from '../../utils/gameHistoryStringUtils';
 import { saveGameHistory } from '../../services/gameHistoryService';
+import { useGameTimer } from '../../utils/timerUtils';
 
 // Import sounds
 import moveSound from '../../assets/sounds/move.mp3';
@@ -56,6 +59,28 @@ const PlayMultiplayer = () => {
   const navigate = useNavigate();
   const wsService = useRef(null);
   const mateCheckTimer = useRef(null);
+  const moveStartTimeRef = useRef(null); // Tracks when current turn started for move timing
+
+  // Timer hook for multiplayer game
+  const {
+    playerTime,
+    computerTime,
+    activeTimer,
+    isTimerRunning,
+    timerRef,
+    setPlayerTime,
+    setComputerTime,
+    setActiveTimer,
+    setIsTimerRunning,
+    handleTimer: startTimerInterval,
+    pauseTimer,
+    switchTimer,
+    resetTimer
+  } = useGameTimer(
+    gameInfo.playerColor === 'white' ? 'w' : 'b',
+    game,
+    (status) => setGameInfo(prev => ({ ...prev, status }))
+  );
 
   // Play sound helper
   const playSound = useCallback((soundEffect) => {
@@ -262,6 +287,18 @@ const PlayMultiplayer = () => {
       // Set game history from moves
       setGameHistory(data.moves || []);
 
+      // Initialize move timer if it's player's turn
+      if (data.turn === (userColor === 'white' ? 'w' : 'b')) {
+        moveStartTimeRef.current = performance.now();
+      }
+
+      // Start game timer if game is active
+      if (data.status === 'active') {
+        const currentTurnColor = data.turn;
+        setActiveTimer(currentTurnColor);
+        startTimerInterval();
+      }
+
       // Initialize WebSocket connection
       wsService.current = new WebSocketGameService();
 
@@ -335,12 +372,10 @@ const PlayMultiplayer = () => {
       // Only add to history if this is a move from another player
       // (our own moves are already in history from makeMove)
       if (event.user_id !== user?.id) {
-        setGameHistory(prev => [...prev, {
-          from: event.move.from,
-          to: event.move.to,
-          move: event.move.san || event.move.piece,
-          player: movePlayer
-        }]);
+        // Use compact string format: "move,time" (e.g., "e4,3.45")
+        const moveTime = (event.move.move_time_ms || 0) / 1000; // Convert to seconds
+        const compactMove = `${event.move.san || event.move.piece},${moveTime.toFixed(2)}`;
+        setGameHistory(prev => [...prev, compactMove]);
 
         // Calculate points for opponent's move
         if (event.move && event.move.san) {
@@ -386,6 +421,18 @@ const PlayMultiplayer = () => {
         ...prev,
         turn: newTurn
       }));
+
+      // Start timing for player's turn
+      if (newTurn === gameInfo.playerColor) {
+        moveStartTimeRef.current = performance.now();
+      }
+
+      // Switch timer to the player whose turn it is
+      const newActiveColor = newTurn === 'white' ? 'w' : 'b';
+      switchTimer(newActiveColor);
+      if (!isTimerRunning && gameInfo.status === 'active') {
+        startTimerInterval();
+      }
 
       console.log('Move processed, updated turn to:', newTurn);
 
@@ -513,13 +560,69 @@ const PlayMultiplayer = () => {
         resultText = 'lost';
       }
 
+      // Fetch fresh game data from server to get authoritative move history
+      const token = localStorage.getItem('auth_token');
+      let serverMoves = [];
+      try {
+        const response = await fetch(`${BACKEND_URL}/games/${gameId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        if (response.ok) {
+          const serverGameData = await response.json();
+          serverMoves = serverGameData.moves || [];
+          console.log('📥 Fetched moves from server:', {
+            count: serverMoves.length,
+            sample: serverMoves.slice(0, 3)
+          });
+        }
+      } catch (fetchError) {
+        console.warn('⚠️ Could not fetch server moves, using local gameHistory:', fetchError);
+      }
+
+      // Use server moves if available, otherwise fall back to local gameHistory
+      const movesToSave = serverMoves.length > 0 ? serverMoves : gameHistory;
+      console.log('📋 Moves to encode:', {
+        source: serverMoves.length > 0 ? 'server' : 'local',
+        count: movesToSave.length,
+        sample: movesToSave.slice(0, 3)
+      });
+
       // Encode game history to string format (same as PlayComputer)
-      const conciseGameString = typeof encodeGameHistory === 'function' && gameHistory.length > 0
-        ? encodeGameHistory(gameHistory)
-        : JSON.stringify(gameHistory);
+      let conciseGameString = "";
+      if (typeof encodeGameHistory === 'function' && movesToSave.length > 0) {
+        conciseGameString = encodeGameHistory(movesToSave);
+      } else if (movesToSave.length > 0) {
+        conciseGameString = JSON.stringify(movesToSave);
+      }
+
+      // Validation: Ensure moves string is not empty
+      if (!conciseGameString || conciseGameString.length === 0) {
+        console.error('❌ Failed to encode moves - string is empty!', {
+          movesToSaveCount: movesToSave.length,
+          movesToSaveSample: movesToSave.slice(0, 3),
+          serverMovesCount: serverMoves.length,
+          gameHistoryCount: gameHistory.length
+        });
+        // Fallback: Use JSON stringify if encoding failed
+        conciseGameString = JSON.stringify(movesToSave);
+      }
+
+      console.log('🔧 Encoded game string:', {
+        length: conciseGameString.length,
+        preview: conciseGameString.substring(0, 100),
+        type: typeof conciseGameString,
+        isValid: conciseGameString.length > 0
+      });
 
       // Calculate final scores (use absolute values)
       const finalPlayerScore = Math.abs(playerScore);
+
+      // Get timer values for persistence
+      const whiteTimeRemaining = gameInfo.playerColor === 'white' ? playerTime * 1000 : computerTime * 1000;
+      const blackTimeRemaining = gameInfo.playerColor === 'black' ? playerTime * 1000 : computerTime * 1000;
 
       const gameHistoryData = {
         id: `multiplayer_${gameId}_${Date.now()}`,
@@ -536,15 +639,24 @@ const PlayMultiplayer = () => {
         finalScore: finalPlayerScore, // Alternative field name
         score: finalPlayerScore, // Alternative field name
         result: resultText,
+        // Add timer persistence (Phase 2)
+        white_time_remaining_ms: whiteTimeRemaining,
+        black_time_remaining_ms: blackTimeRemaining,
+        last_move_time: Date.now()
       };
 
-      console.log('💾 Saving multiplayer game to history:', gameHistoryData);
+      console.log('💾 Saving multiplayer game to history:', {
+        ...gameHistoryData,
+        movesPreview: gameHistoryData.moves.substring(0, 100)
+      });
       console.log('📊 Game history details:', {
         playerScore,
         finalPlayerScore,
-        movesLength: gameHistory.length,
+        movesLength: movesToSave.length,
         movesType: typeof conciseGameString,
-        movesPreview: conciseGameString.substring(0, 100)
+        movesPreview: conciseGameString.substring(0, 100),
+        whiteTime: whiteTimeRemaining,
+        blackTime: blackTimeRemaining
       });
 
       if (typeof saveGameHistory === 'function') {
@@ -566,7 +678,7 @@ const PlayMultiplayer = () => {
     }
 
     console.log('✅ Game completion processed, showing result modal');
-  }, [user?.id, gameId, gameHistory, gameInfo, playerScore]);
+  }, [user?.id, gameId, gameHistory, gameInfo, playerScore, playerTime, computerTime]);
 
   // Handle resign
   const handleResign = useCallback(async () => {
@@ -643,9 +755,11 @@ const PlayMultiplayer = () => {
     // Get UCI notation (e.g., "e2e4")
     const uci = `${source}${target}${move.promotion || ''}`;
 
-    // Calculate points for the move
-    const moveStartTime = performance.now();
-    const moveTime = moveStartTime / 1000; // Convert to seconds
+    // Calculate move time (time since turn started)
+    const moveEndTime = performance.now();
+    const moveTime = moveStartTimeRef.current
+      ? (moveEndTime - moveStartTimeRef.current) / 1000
+      : 0; // Convert to seconds
 
     // Evaluate the move and update player score
     evaluateMove(
@@ -679,6 +793,19 @@ const PlayMultiplayer = () => {
     };
 
     wsService.current.sendMove(moveData);
+
+    // Add player's move to history in compact format: "move,time" (e.g., "e4,3.45")
+    const compactMove = `${move.san},${moveTime.toFixed(2)}`;
+    setGameHistory(prev => [...prev, compactMove]);
+
+    // Update the local game state immediately
+    setGame(gameCopy);
+
+    // Update turn to opponent's turn
+    setGameInfo(prev => ({
+      ...prev,
+      turn: gameCopy.turn() === 'w' ? 'white' : 'black'
+    }));
 
     return true;
     } catch (error) {
@@ -895,6 +1022,70 @@ const PlayMultiplayer = () => {
         </div>
 
         <div className="game-sidebar">
+          {/* Timer Display */}
+          <div className="space-y-2" style={{ marginBottom: '20px' }}>
+            {/* Opponent Timer */}
+            <div className={`rounded-lg p-3 transition-all duration-300 ${
+              activeTimer === (gameInfo.playerColor === 'white' ? 'b' : 'w')
+                ? "bg-error/30 border border-error/50 shadow-lg scale-105"
+                : "bg-white/10 border border-white/20"
+            }`} style={{
+              backgroundColor: activeTimer === (gameInfo.playerColor === 'white' ? 'b' : 'w') ? 'rgba(239, 68, 68, 0.3)' : 'rgba(255, 255, 255, 0.1)',
+              border: `1px solid ${activeTimer === (gameInfo.playerColor === 'white' ? 'b' : 'w') ? 'rgba(239, 68, 68, 0.5)' : 'rgba(255, 255, 255, 0.2)'}`,
+              borderRadius: '8px',
+              padding: '12px',
+              transition: 'all 0.3s'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '18px' }}>👤</span>
+                  <span style={{ fontSize: '14px', color: 'white' }}>{gameInfo.opponentName}</span>
+                  {activeTimer === (gameInfo.playerColor === 'white' ? 'b' : 'w') && (
+                    <div style={{ width: '8px', height: '8px', backgroundColor: '#ef4444', borderRadius: '50%', animation: 'pulse 2s infinite' }}></div>
+                  )}
+                </div>
+                <div style={{
+                  fontFamily: 'monospace',
+                  fontSize: '18px',
+                  fontWeight: 'bold',
+                  color: activeTimer === (gameInfo.playerColor === 'white' ? 'b' : 'w') ? '#ef4444' : 'white'
+                }}>
+                  {Math.floor(computerTime / 60).toString().padStart(2, '0')}:{(computerTime % 60).toString().padStart(2, '0')}
+                </div>
+              </div>
+            </div>
+
+            {/* Player Timer */}
+            <div className={`rounded-lg p-3 transition-all duration-300 ${
+              activeTimer === (gameInfo.playerColor === 'white' ? 'w' : 'b')
+                ? "bg-success/30 border border-success/50 shadow-lg scale-105"
+                : "bg-white/10 border border-white/20"
+            }`} style={{
+              backgroundColor: activeTimer === (gameInfo.playerColor === 'white' ? 'w' : 'b') ? 'rgba(34, 197, 94, 0.3)' : 'rgba(255, 255, 255, 0.1)',
+              border: `1px solid ${activeTimer === (gameInfo.playerColor === 'white' ? 'w' : 'b') ? 'rgba(34, 197, 94, 0.5)' : 'rgba(255, 255, 255, 0.2)'}`,
+              borderRadius: '8px',
+              padding: '12px',
+              transition: 'all 0.3s'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '18px' }}>👤</span>
+                  <span style={{ fontSize: '14px', color: 'white' }}>{user.name}</span>
+                  {activeTimer === (gameInfo.playerColor === 'white' ? 'w' : 'b') && (
+                    <div style={{ width: '8px', height: '8px', backgroundColor: '#22c55e', borderRadius: '50%', animation: 'pulse 2s infinite' }}></div>
+                  )}
+                </div>
+                <div style={{
+                  fontFamily: 'monospace',
+                  fontSize: '18px',
+                  fontWeight: 'bold',
+                  color: activeTimer === (gameInfo.playerColor === 'white' ? 'w' : 'b') ? '#22c55e' : 'white'
+                }}>
+                  {Math.floor(playerTime / 60).toString().padStart(2, '0')}:{(playerTime % 60).toString().padStart(2, '0')}
+                </div>
+              </div>
+            </div>
+          </div>
           <GameInfo
             game={game}
             gameHistory={gameHistory}
