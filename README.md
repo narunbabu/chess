@@ -45,6 +45,7 @@ rtmp://192.168.1.4:1935/live/mystreamarun123
   # 4. Run the simple flow test (optional)
   php test_websocket_flow.php
 
+  php artisan optimize:clear
   # 5. Start servers for live testing
   # Terminal 1: Laravel Reverb WebSocket server
   php artisan reverb:start
@@ -53,5 +54,9 @@ rtmp://192.168.1.4:1935/live/mystreamarun123
   php artisan serve
 
   php artisan serve --port=8000 --host=127.0.0.1
+
+php artisan tinker --execute="DB::table('invitations')->select('id', 'inviter_id', 'invited_id', 'inviter_preferred_color', 'status')->get()"
+
+sqlite3 database/database.sqlite "SELECT * FROM invitations WHERE id = 1;"
 
 

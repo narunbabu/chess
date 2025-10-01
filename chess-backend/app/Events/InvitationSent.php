@@ -7,11 +7,11 @@ use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class InvitationSent implements ShouldBroadcast
+class InvitationSent implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
@@ -19,7 +19,7 @@ class InvitationSent implements ShouldBroadcast
 
     public function __construct(Invitation $invitation)
     {
-        $this->invitation = $invitation;
+        $this->invitation = $invitation->load(['inviter', 'invited']);
     }
 
     public function broadcastOn()
@@ -30,7 +30,7 @@ class InvitationSent implements ShouldBroadcast
     public function broadcastWith()
     {
         return [
-            'invitation' => $this->invitation->load('inviter', 'invited')
+            'invitation' => $this->invitation
         ];
     }
 

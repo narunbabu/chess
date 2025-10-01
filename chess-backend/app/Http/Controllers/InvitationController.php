@@ -49,6 +49,9 @@ class InvitationController extends Controller
             'inviter_preferred_color' => $colorPreference
         ]);
 
+        // Broadcast invitation sent event to recipient in real-time
+        broadcast(new \App\Events\InvitationSent($invitation->fresh()));
+
         return response()->json([
             'message' => 'Invitation sent successfully',
             'invitation' => $invitation->load(['inviter', 'invited'])
@@ -97,6 +100,12 @@ class InvitationController extends Controller
         if (!$invitation) {
             return response()->json(['error' => 'Invitation not found or already responded'], 404);
         }
+
+        // Load relationships before deleting so we can broadcast
+        $invitationData = $invitation->load(['inviter', 'invited']);
+
+        // Broadcast cancellation event to recipient in real-time
+        broadcast(new \App\Events\InvitationCancelled($invitationData));
 
         $invitation->delete();
 
@@ -191,7 +200,8 @@ class InvitationController extends Controller
                 'game_id'      => $game->id,
             ]);
 
-            // optional broadcast: broadcast(new InvitationAccepted($invitation->fresh()))->toOthers();
+            // Broadcast invitation accepted event to inviter in real-time
+            broadcast(new \App\Events\InvitationAccepted($game, $invitation->fresh()));
 
             return response()->json([
                 'message'      => 'Accepted',

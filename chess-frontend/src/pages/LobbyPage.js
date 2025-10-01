@@ -79,8 +79,17 @@ const LobbyPage = () => {
       // Listen for new invitations (for recipients)
       userChannel.listen('.invitation.sent', (data) => {
         console.log('New invitation received:', data);
-        // Refresh data to show the new invitation (no debounce for real-time events)
-        fetchData(true);
+
+        // Immediately add to pending invitations for instant UI update
+        if (data.invitation) {
+          setPendingInvitations(prev => {
+            // Avoid duplicates
+            const exists = prev.some(inv => inv.id === data.invitation.id);
+            if (exists) return prev;
+
+            return [data.invitation, ...prev];
+          });
+        }
       });
 
       // Listen for invitation cancellations (for recipients)
@@ -91,9 +100,6 @@ const LobbyPage = () => {
         if (data.invitation && data.invitation.id) {
           setPendingInvitations(prev => prev.filter(inv => inv.id !== data.invitation.id));
         }
-
-        // Also refresh data to ensure consistency (no debounce for real-time events)
-        fetchData(true);
       });
 
       return () => {
@@ -397,8 +403,6 @@ const LobbyPage = () => {
       }
 
       setInviteStatus('sent');
-      // Refresh data to update sent invitations (no debounce for user actions)
-      fetchData(true);
 
       // Auto-close after 3 seconds
       setTimeout(() => {
@@ -474,9 +478,6 @@ const LobbyPage = () => {
           console.log('Invitation accepted but no game created');
         }
       }
-
-      // Refresh data to update invitations (no debounce for user actions)
-      fetchData(true);
     } catch (error) {
       console.error('Failed to respond to invitation:', error);
       console.error('Error status:', error.response?.status);
@@ -509,9 +510,6 @@ const LobbyPage = () => {
 
       // Immediately update local state to remove the cancelled invitation
       setSentInvitations(prev => prev.filter(inv => inv.id !== invitationId));
-
-      // Also refresh all data (no debounce for user actions)
-      fetchData(true);
     } catch (error) {
       console.error('Failed to cancel invitation:', error);
       console.error('Error details:', error.response?.data);
