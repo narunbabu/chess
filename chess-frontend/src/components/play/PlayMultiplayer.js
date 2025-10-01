@@ -439,34 +439,8 @@ const PlayMultiplayer = () => {
       // Check for checkmate/check and play appropriate sound
       checkForCheckmate(newGame);
 
-      // Add the polling fallback here
-      clearTimeout(mateCheckTimer.current);
-      mateCheckTimer.current = setTimeout(async () => {
-        try {
-          const token = localStorage.getItem('auth_token');
-          const response = await fetch(`${BACKEND_URL}/games/${gameId}`, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            }
-          });
-          if (!response.ok) {
-            throw new Error('Failed to fetch game status');
-          }
-          const g = await response.json();
-          if (g?.status === 'finished') {
-            wsService.current.emit('gameEnded', {
-              result: g.result,
-              winner_user_id: g.winner_user_id,
-              reason: g.end_reason,
-              final_fen: g.fen
-            });
-          }
-        } catch (error) {
-          console.error('Error during mate check poll:', error);
-        }
-      }, 1500);
-
+      // Note: Game completion is handled by WebSocket 'gameEnded' event (line 326)
+      // No polling fallback needed - WebSocket is reliable for game state updates
 
     } catch (err) {
       console.error('Error processing remote move:', err);
@@ -727,6 +701,14 @@ const PlayMultiplayer = () => {
 
   const performMove = (source, target) => {
     if (gameComplete || gameInfo.status === 'finished') return false;
+
+    // Prevent moves if game is not active yet (waiting for opponent to connect)
+    if (gameInfo.status !== 'active') {
+      console.log('Game not active yet, status:', gameInfo.status);
+      // Silently prevent move - user will see "Waiting for opponent" message
+      return false;
+    }
+
     if (gameInfo.turn !== gameInfo.playerColor) {
       console.log('Not your turn');
       return false;

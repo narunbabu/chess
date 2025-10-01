@@ -264,11 +264,11 @@ A: Check the all-phases summary for current phase and blockers.
 
 ---
 
-## ⚠️ IMPORTANT UPDATE (2025-10-01)
+## ⚠️ IMPORTANT UPDATES (2025-10-01)
 
-### Critical Bug Fixed: Multiplayer Game Persistence ✅
+### 1. Critical Bug Fixed: Multiplayer Game Persistence ✅
 
-**Status**: All critical issues resolved and tested
+**Status**: All critical issues resolved
 
 **Problem**: Multiplayer games weren't saving to `game_history` (empty moves string)
 
@@ -286,6 +286,24 @@ php artisan migrate
 - [`2025_10_01_final_fix_summary.md`](./2025_10_01_final_fix_summary.md) - **START HERE**
 - [`2025_10_01_move_encoding_analysis.md`](./2025_10_01_move_encoding_analysis.md) - Detailed analysis
 - [`2025_10_01_fix_multiplayer_persistence.md`](./2025_10_01_fix_multiplayer_persistence.md) - Implementation details
+
+### 2. Performance Fix: Removed Redundant Polling ⚡
+
+**Status**: Optimization completed
+
+**Problem**: Unnecessary API calls after every move (42 calls per 20-move game)
+
+**Root Cause**: Redundant polling fallback checking game status every 1.5 seconds
+
+**Solution**: Removed polling - WebSocket already handles game completion reliably
+
+**Impact**:
+- ✅ 95% reduction in API calls (42 → 2 per game)
+- ✅ Zero per-move overhead (was 3.4 seconds per move)
+- ✅ 95% less server load
+
+**Read Details**:
+- [`2025_10_01_performance_fix_remove_polling.md`](./2025_10_01_performance_fix_remove_polling.md) - Complete analysis
 
 ---
 

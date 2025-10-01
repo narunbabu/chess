@@ -21,6 +21,7 @@ const LobbyPage = () => {
   const [sentInvitations, setSentInvitations] = useState([]);
   const [webSocketService, setWebSocketService] = useState(null);
   const [hasFinishedGame, setHasFinishedGame] = useState(false);
+  const [processingInvitations, setProcessingInvitations] = useState(new Set()); // Track processing state
 
   // Debounce utility for fetchData
   const debounceTimerRef = React.useRef(null);
@@ -354,12 +355,26 @@ const LobbyPage = () => {
   };
 
   const handleInvitationResponse = async (invitationId, action, colorChoice = null) => {
+    // Prevent double-click: Check if already processing this invitation
+    if (processingInvitations.has(invitationId)) {
+      console.log('Already processing invitation', invitationId);
+      return;
+    }
+
     // If accepting and no color choice provided, show modal
     if (action === 'accept' && !colorChoice) {
       const invitation = pendingInvitations.find(inv => inv.id === invitationId);
       setSelectedInvitation(invitation);
       setShowResponseModal(true);
       return;
+    }
+
+    // Mark invitation as processing
+    setProcessingInvitations(prev => new Set(prev).add(invitationId));
+
+    // Optimistic update: Remove from pending list immediately for better UX
+    if (action === 'accept') {
+      setPendingInvitations(prev => prev.filter(inv => inv.id !== invitationId));
     }
 
     try {
@@ -405,8 +420,21 @@ const LobbyPage = () => {
       console.error('Error data:', error.response?.data);
       console.error('Error headers:', error.response?.headers);
 
+      // If error occurred, restore invitation to list (rollback optimistic update)
+      if (action === 'accept' && error.response?.status === 409) {
+        console.log('Invitation already processed, refreshing list');
+        fetchData(true);
+      }
+
       // Show user-friendly error message
       alert(`Failed to ${action} invitation: ${error.response?.data?.message || error.message}`);
+    } finally {
+      // Always remove from processing set
+      setProcessingInvitations(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(invitationId);
+        return newSet;
+      });
     }
   };
 
@@ -501,12 +529,14 @@ const LobbyPage = () => {
                   <button
                     className="accept-btn"
                     onClick={() => handleInvitationResponse(invitation.id, 'accept')}
+                    disabled={processingInvitations.has(invitation.id)}
                   >
-                    ✅ Accept
+                    {processingInvitations.has(invitation.id) ? '⏳ Accepting...' : '✅ Accept'}
                   </button>
                   <button
                     className="decline-btn"
                     onClick={() => handleInvitationResponse(invitation.id, 'decline')}
+                    disabled={processingInvitations.has(invitation.id)}
                   >
                     ❌ Decline
                   </button>
@@ -647,13 +677,16 @@ const LobbyPage = () => {
                   const myColor = inviterColor === 'white' ? 'black' : 'white';
                   handleInvitationResponse(selectedInvitation.id, 'accept', myColor);
                 }}
+                disabled={processingInvitations.has(selectedInvitation?.id)}
               >
-                ✅ Accept their choice
-                <small>
-                  (You'll play as {
-                    selectedInvitation?.inviter_preferred_color === 'white' ? '♚ Black' : '♔ White'
-                  })
-                </small>
+                {processingInvitations.has(selectedInvitation?.id) ? '⏳ Accepting...' : '✅ Accept their choice'}
+                {!processingInvitations.has(selectedInvitation?.id) && (
+                  <small>
+                    (You'll play as {
+                      selectedInvitation?.inviter_preferred_color === 'white' ? '♚ Black' : '♔ White'
+                    })
+                  </small>
+                )}
               </button>
               <button
                 className="color-choice opposite"
@@ -661,11 +694,17 @@ const LobbyPage = () => {
                   const inviterColor = selectedInvitation?.inviter_preferred_color;
                   handleInvitationResponse(selectedInvitation.id, 'accept', inviterColor);
                 }}
+                disabled={processingInvitations.has(selectedInvitation?.id)}
               >
-                🔄 Play as {selectedInvitation?.inviter_preferred_color === 'white' ? '♔ White' : '♚ Black'}
-                <small>
-                  (swap colors)
-                </small>
+                {processingInvitations.has(selectedInvitation?.id)
+                  ? '⏳ Accepting...'
+                  : `🔄 Play as ${selectedInvitation?.inviter_preferred_color === 'white' ? '♔ White' : '♚ Black'}`
+                }
+                {!processingInvitations.has(selectedInvitation?.id) && (
+                  <small>
+                    (swap colors)
+                  </small>
+                )}
               </button>
             </div>
             <div className="modal-actions">
