@@ -19,6 +19,7 @@ import AuthCallback from "./components/auth/AuthCallback";
 import LandingPage from "./pages/LandingPage";
 import LobbyPage from "./pages/LobbyPage";
 import { AuthProvider } from "./contexts/AuthContext";  // Import the AuthProvider
+import { AppDataProvider } from "./contexts/AppDataContext"; // Import AppDataProvider for caching
 import Layout from "./components/layout/Layout";
 
 const App = () => {
@@ -51,8 +52,9 @@ const App = () => {
 
   return (
     <AuthProvider>
-      <Router future={{ v7_relativeSplatPath: true }}>
-        <Layout>
+      <AppDataProvider>
+        <Router future={{ v7_relativeSplatPath: true }}>
+          <Layout>
           <header className="app-header">
             <div className="logo">
               <Link to="/" className="logo-link">
@@ -94,6 +96,7 @@ const App = () => {
           </div>
         </Layout>
       </Router>
+      </AppDataProvider>
     </AuthProvider>
   );
 };

@@ -347,6 +347,12 @@ const PlayMultiplayer = () => {
       // Initialize the WebSocket connection
       await wsService.current.initialize(gameId, user);
 
+      // Check if already connected (Echo singleton might be reused)
+      if (wsService.current.isConnected) {
+        console.log('[PlayMultiplayer] WebSocket already connected after initialization');
+        setConnectionStatus('connected');
+      }
+
       setLoading(false);
 
     } catch (err) {
@@ -713,8 +719,11 @@ const PlayMultiplayer = () => {
       console.log('Not your turn');
       return false;
     }
-    if (connectionStatus !== 'connected') {
-      console.log('WebSocket not connected');
+
+    // Check actual WebSocket connection state
+    const isWsConnected = wsService.current?.isWebSocketConnected?.() || connectionStatus === 'connected';
+    if (!isWsConnected) {
+      console.log('WebSocket not connected. Status:', connectionStatus, 'Actual:', wsService.current?.isConnected);
       return false;
     }
 

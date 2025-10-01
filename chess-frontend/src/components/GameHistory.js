@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import ReactDOM from 'react-dom'; // Import ReactDOM
 import { useNavigate, useLocation } from "react-router-dom";
+import { useAppData } from "../contexts/AppDataContext";
 import {
   getGameHistories,
   getGameHistoryById,
@@ -66,23 +67,48 @@ const GameHistory = () => {
     return game;
   };
 
+  const { getGameHistory } = useAppData();
+  const didFetchRef = useRef(false);
+
   // Load game histories on component mount
   useEffect(() => {
+    // Prevent duplicate fetches in StrictMode
+    if (didFetchRef.current) {
+      console.log('[GameHistory] Already fetched, skipping');
+      return;
+    }
+    didFetchRef.current = true;
+
     const loadGameHistories = async () => {
       try {
-        const histories = await getGameHistories();
-        const sortedHistories = sortGameHistories(histories);
+        // Use cached getGameHistory
+        const histories = await getGameHistory();
+        const sortedHistories = sortGameHistories(histories || []);
         setGameHistories(sortedHistories);
         setFilteredHistories(sortedHistories);
         setLoading(false);
       } catch (error) {
-        console.error("Error loading game histories:", error);
-        setLoading(false);
+        console.error("[GameHistory] Error loading from cache:", error);
+        // Fallback to direct fetch
+        try {
+          const histories = await getGameHistories();
+          const sortedHistories = sortGameHistories(histories);
+          setGameHistories(sortedHistories);
+          setFilteredHistories(sortedHistories);
+        } catch (fallbackError) {
+          console.error("[GameHistory] Fallback fetch failed:", fallbackError);
+        } finally {
+          setLoading(false);
+        }
       }
     };
 
     loadGameHistories();
-  }, []);
+
+    return () => {
+      didFetchRef.current = false;
+    };
+  }, [getGameHistory]);
 
   // Apply filters when they change
   useEffect(() => {

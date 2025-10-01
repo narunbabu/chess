@@ -1,6 +1,5 @@
 // presenceService.js - Real-time user presence management
-import Echo from 'laravel-echo';
-import Pusher from 'pusher-js';
+import { getEcho, joinChannel, leaveChannel } from './echoSingleton';
 import { API_BASE_URL } from '../config';
 
 class PresenceService {
@@ -28,31 +27,21 @@ class PresenceService {
     this.currentUser = user;
 
     try {
-      // Initialize Laravel Echo with Reverb
-      this.echo = new Echo({
-        broadcaster: 'reverb',
-        key: process.env.REACT_APP_REVERB_APP_KEY || 'app-key',
-        wsHost: process.env.REACT_APP_REVERB_HOST || '127.0.0.1',
-        wsPort: process.env.REACT_APP_REVERB_PORT || 8080,
-        wssPort: process.env.REACT_APP_REVERB_PORT || 8080,
-        forceTLS: process.env.REACT_APP_REVERB_FORCE_TLS || false,
-        enabledTransports: ['ws', 'wss'],
-        auth: {
-          headers: {
-            'Authorization': `Bearer ${authToken}`,
-            'Accept': 'application/json',
-          },
-        },
-      });
+      // Use singleton Echo instance
+      this.echo = getEcho();
+      if (!this.echo) {
+        console.error('[Presence] Echo singleton not available');
+        return false;
+      }
 
       await this.connect();
       this.setupEventListeners();
       this.startHeartbeat();
 
-      console.log('Presence service initialized successfully');
+      console.log('[Presence] Service initialized successfully');
       return true;
     } catch (error) {
-      console.error('Failed to initialize presence service:', error);
+      console.error('[Presence] Failed to initialize:', error);
       return false;
     }
   }
@@ -62,41 +51,45 @@ class PresenceService {
    */
   async connect() {
     try {
-      // Join the general presence channel
-      this.presenceChannel = this.echo.join('presence')
+      // Join the general presence channel using singleton (idempotent)
+      this.presenceChannel = joinChannel('presence', 'presence');
+      if (!this.presenceChannel) {
+        throw new Error('Failed to join presence channel');
+      }
+
+      this.presenceChannel
         .here((users) => {
-          console.log('Currently online users:', users);
+          console.log('[Presence] Currently online users:', users);
           this.onUserOnline && this.onUserOnline(users);
         })
         .joining((user) => {
-          console.log('User joined:', user);
+          console.log('[Presence] User joined:', user);
           this.onUserOnline && this.onUserOnline([user]);
         })
         .leaving((user) => {
-          console.log('User left:', user);
+          console.log('[Presence] User left:', user);
           this.onUserOffline && this.onUserOffline(user);
         })
         .error((error) => {
-          console.error('Presence channel error:', error);
+          console.error('[Presence] Channel error:', error);
           this.handleConnectionError();
         });
 
       // Listen for presence updates
-      this.echo.channel('presence')
-        .listen('.presence.updated', (event) => {
-          console.log('Presence updated:', event);
-          this.onPresenceUpdate && this.onPresenceUpdate(event);
-        });
+      this.presenceChannel.listen('.presence.updated', (event) => {
+        console.log('[Presence] Updated:', event);
+        this.onPresenceUpdate && this.onPresenceUpdate(event);
+      });
 
       // Update user presence status
-      await this.updatePresence('online', this.echo.socketId());
+      await this.updatePresence('online', this.echo?.socketId());
 
       this.isConnected = true;
       this.reconnectAttempts = 0;
       this.onConnectionChange && this.onConnectionChange(true);
 
     } catch (error) {
-      console.error('Connection failed:', error);
+      console.error('[Presence] Connection failed:', error);
       this.handleConnectionError();
     }
   }
@@ -275,22 +268,20 @@ class PresenceService {
       }
 
       if (this.presenceChannel) {
-        this.echo.leave('presence');
+        leaveChannel('presence');
         this.presenceChannel = null;
       }
 
-      if (this.echo) {
-        this.echo.disconnect();
-        this.echo = null;
-      }
+      // Don't disconnect the singleton Echo - other services may use it
+      this.echo = null;
 
       this.updatePresence('offline');
       this.isConnected = false;
       this.onConnectionChange && this.onConnectionChange(false);
 
-      console.log('Presence service disconnected');
+      console.log('[Presence] Service disconnected');
     } catch (error) {
-      console.error('Error during disconnect:', error);
+      console.error('[Presence] Error during disconnect:', error);
     }
   }
 

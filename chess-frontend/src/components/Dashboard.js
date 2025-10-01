@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { useAppData } from "../contexts/AppDataContext";
 import { getGameHistories } from "../services/gameHistoryService";
 import "./Dashboard.css"; // Ensure this file is imported if not using index.css for these styles
 
@@ -8,22 +9,43 @@ const Dashboard = () => {
   const [gameHistories, setGameHistories] = useState([]);
   const [loading, setLoading] = useState(true);
   const { user, logout } = useAuth();
+  const { getGameHistory } = useAppData();
   const navigate = useNavigate();
+  const didFetchRef = useRef(false); // Guard against StrictMode double-mount
 
   useEffect(() => {
+    // Prevent duplicate fetches in StrictMode
+    if (didFetchRef.current) {
+      console.log('[Dashboard] Already fetched game histories, skipping');
+      return;
+    }
+    didFetchRef.current = true;
+
     const loadGameHistories = async () => {
       try {
-        const histories = await getGameHistories();
-        setGameHistories(histories);
+        // Use cached getGameHistory from AppDataContext
+        const histories = await getGameHistory();
+        setGameHistories(histories || []);
       } catch (error) {
-        console.error("Error loading game histories:", error);
+        console.error("[Dashboard] Error loading game histories:", error);
+        // Fallback to direct fetch if cache fails
+        try {
+          const histories = await getGameHistories();
+          setGameHistories(histories);
+        } catch (fallbackError) {
+          console.error("[Dashboard] Fallback fetch also failed:", fallbackError);
+        }
       } finally {
         setLoading(false);
       }
     };
 
     loadGameHistories();
-  }, []);
+
+    return () => {
+      didFetchRef.current = false;
+    };
+  }, [getGameHistory]);
 
   const handleReviewGame = (game) => {
     navigate(`/play/review/${game.id}`);

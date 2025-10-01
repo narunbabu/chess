@@ -1,8 +1,8 @@
 // This service handles saving and retrieving game history
 // In a real application, this would connect to a backend API
 // For now, we'll use localStorage for persistence
-import axios from "axios";
-import { BACKEND_URL } from "../config";
+// import axios from "axios";
+// import { BACKEND_URL } from "../config";
 import api from "./api";
 const STORAGE_KEY = "chess_trainer_game_history";
 

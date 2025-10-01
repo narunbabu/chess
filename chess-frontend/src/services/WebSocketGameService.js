@@ -1,9 +1,5 @@
-import Echo from 'laravel-echo';
-import Pusher from 'pusher-js';
+import { getEcho, joinChannel, leaveChannel } from './echoSingleton';
 import { BACKEND_URL } from '../config';
-
-// Make Pusher available globally for Laravel Echo
-window.Pusher = Pusher;
 
 class WebSocketGameService {
   constructor() {
@@ -17,6 +13,7 @@ class WebSocketGameService {
     this.reconnectTimeout = null;
     this.maxReconnectAttempts = 5;
     this.reconnectAttempts = 0;
+    this.stopReconnecting = false; // Stop retries when game not joinable
     // Smart polling properties
     this._pollingBusy = false;
     this._pollTimer = null;
@@ -68,82 +65,51 @@ class WebSocketGameService {
       console.log('WebSocket config:', wsConfig);
       console.log('Attempting to connect to:', `${wsConfig.scheme}://${wsConfig.wsHost}:${wsConfig.wsPort}`);
 
-      // Initialize Laravel Echo
-      this.echo = new Echo({
-        broadcaster: 'reverb',
-        key: wsConfig.key,
-        wsHost: wsConfig.wsHost,
-        wsPort: wsConfig.wsPort,
-        wssPort: wsConfig.wsPort,
-        forceTLS: wsConfig.scheme === 'https',
-        enabledTransports: ['ws', 'wss'],
-        auth: {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-        // Keep connection alive with ping/pong
-        activityTimeout: 120000, // 120 seconds (matches backend)
-        pongTimeout: 30000, // 30 seconds to wait for pong response
-        enableLogging: true, // Enable for debugging
-        // Authorize channel access
-        authorizer: (channel, options) => {
-          return {
-            authorize: async (socketId, callback) => {
-              try {
-                const response = await fetch(`${BACKEND_URL}/broadcasting/auth`, {
-                  method: 'POST',
-                  headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    socket_id: socketId,
-                    channel_name: channel.name,
-                  }),
-                });
+      // Use singleton Echo instance
+      this.echo = getEcho();
+      if (!this.echo) {
+        console.warn('[WS] Echo singleton not ready yet - continuing HTTP-only mode');
+        this.isConnected = false;
+        // Don't throw - allow graceful fallback to polling
+        // The lobby polling will use 5s interval since WS is not connected
+        return false;
+      }
+      console.log('[WS] Using Echo singleton');
 
-                const data = await response.json();
-                if (response.ok) {
-                  callback(null, data);
-                } else {
-                  callback(new Error(data.error || 'Authentication failed'), null);
-                }
-              } catch (error) {
-                callback(error, null);
-              }
-            },
-          };
-        },
-      });
+      // Handle connection events with safety checks
+      const echoRef = this.echo; // Capture reference in closure
 
-      // Handle connection events
       this.echo.connector.pusher.connection.bind('connecting', () => {
-        console.log('WebSocket attempting to connect...');
+        console.log('[WS] Attempting to connect...');
       });
 
       this.echo.connector.pusher.connection.bind('connected', () => {
-        this.socketId = this.echo.socketId();
-        this.isConnected = true;
-        this.reconnectAttempts = 0;
-        console.log('✅ WebSocket connected successfully:', this.socketId);
-        this.emit('connected', { socketId: this.socketId });
+        // Safety check: ensure echo instance still exists
+        if (echoRef && typeof echoRef.socketId === 'function') {
+          this.socketId = echoRef.socketId();
+          this.isConnected = true;
+          this.reconnectAttempts = 0;
+          console.log('[WS] ✅ Connected successfully. Socket ID:', this.socketId);
+          this.emit('connected', { socketId: this.socketId });
+        } else {
+          console.warn('[WS] Connected but Echo instance unavailable');
+        }
       });
 
       this.echo.connector.pusher.connection.bind('disconnected', () => {
         this.isConnected = false;
-        console.log('❌ WebSocket disconnected');
+        console.log('[WS] ❌ Disconnected');
         this.emit('disconnected');
         this.handleReconnection();
       });
 
       this.echo.connector.pusher.connection.bind('failed', () => {
-        console.error('❌ WebSocket connection failed');
+        console.error('[WS] ❌ Connection failed');
         this.emit('error', new Error('WebSocket connection failed'));
       });
 
       this.echo.connector.pusher.connection.bind('error', (error) => {
-        console.error('❌ WebSocket error details:', {
+        console.error('[WS] ❌ Error:', {
           error,
           type: typeof error,
           message: error?.message,
@@ -178,8 +144,11 @@ class WebSocketGameService {
     }
 
     try {
-      // Join the private game channel
-      const channel = this.echo.private(`game.${this.gameId}`);
+      // Join the private game channel using singleton (idempotent)
+      const channel = joinChannel(`game.${this.gameId}`, 'private');
+      if (!channel) {
+        throw new Error('Failed to join game channel');
+      }
       this.gameChannel = channel;
 
       // Add detailed subscription diagnostics
@@ -265,6 +234,16 @@ class WebSocketGameService {
    */
   waitForConnection(timeout = 10000) {
     return new Promise((resolve, reject) => {
+      // Check if Echo is already connected (singleton might be reused)
+      const currentState = this.echo?.connector?.pusher?.connection?.state;
+      if (currentState === 'connected') {
+        this.isConnected = true;
+        this.socketId = this.echo.socketId();
+        console.log('[WS] Echo already connected, reusing connection. Socket ID:', this.socketId);
+        resolve();
+        return;
+      }
+
       if (this.isConnected && this.socketId) {
         resolve();
         return;
@@ -272,17 +251,25 @@ class WebSocketGameService {
 
       const startTime = Date.now();
       const checkConnection = () => {
-        if (this.isConnected && this.socketId) {
-          console.log('WebSocket connection established successfully');
+        const state = this.echo?.connector?.pusher?.connection?.state;
+
+        // Check actual Pusher connection state
+        if (state === 'connected') {
+          this.isConnected = true;
+          this.socketId = this.echo.socketId();
+          console.log('[WS] Connection established successfully. Socket ID:', this.socketId);
           resolve();
         } else if (Date.now() - startTime > timeout) {
-          console.error('WebSocket connection timeout. Check if Reverb server is running on port 8080');
-          console.error('Connection state:', {
+          console.error('[WS] Connection timeout after', timeout, 'ms');
+          console.error('[WS] Connection state:', {
             isConnected: this.isConnected,
             socketId: this.socketId,
-            echoState: this.echo?.connector?.pusher?.connection?.state
+            pusherState: state
           });
-          reject(new Error('WebSocket connection timeout - check if Reverb server is running'));
+          // Don't reject - allow graceful fallback to polling
+          console.warn('[WS] Falling back to HTTP polling');
+          this.isConnected = false;
+          resolve(); // Resolve instead of reject to allow polling fallback
         } else {
           setTimeout(checkConnection, 100);
         }
@@ -328,6 +315,15 @@ class WebSocketGameService {
           headers: Object.fromEntries(response.headers.entries()),
           body: data
         });
+
+        // Stop retrying if game is not joinable (400 error)
+        const msg = data.message || '';
+        if (response.status === 400 && msg.toLowerCase().includes('not in a joinable state')) {
+          console.warn('[WS] Handshake rejected: game not joinable. Disabling retries.');
+          this.stopReconnecting = true;
+          return; // Don't throw - prevents retry loop
+        }
+
         throw new Error(data.error || data.message || `Server error (${response.status})`);
       }
 
@@ -348,10 +344,19 @@ class WebSocketGameService {
   }
 
   /**
+   * Check if WebSocket is currently connected
+   */
+  isWebSocketConnected() {
+    // Check both the instance flag and actual Pusher state
+    const pusherState = this.echo?.connector?.pusher?.connection?.state;
+    return this.isConnected && pusherState === 'connected';
+  }
+
+  /**
    * Send a move through WebSocket
    */
   async sendMove(moveData) {
-    if (!this.isConnected) {
+    if (!this.isWebSocketConnected()) {
       throw new Error('WebSocket not connected');
     }
 
@@ -385,7 +390,7 @@ class WebSocketGameService {
    * Update game status
    */
   async updateGameStatus(status, result = null, reason = null) {
-    if (!this.isConnected) {
+    if (!this.isWebSocketConnected()) {
       throw new Error('WebSocket not connected');
     }
 
@@ -421,7 +426,7 @@ class WebSocketGameService {
    * Request game resume
    */
   async resumeGame(acceptResume = true) {
-    if (!this.isConnected) {
+    if (!this.isWebSocketConnected()) {
       throw new Error('WebSocket not connected');
     }
 
@@ -455,7 +460,7 @@ class WebSocketGameService {
    * Create new game/rematch
    */
   async createNewGame(isRematch = false) {
-    if (!this.isConnected) {
+    if (!this.isWebSocketConnected()) {
       throw new Error('WebSocket not connected');
     }
 
@@ -520,6 +525,18 @@ class WebSocketGameService {
   handleReconnection() {
     if (this.reconnectTimeout) {
       clearTimeout(this.reconnectTimeout);
+    }
+
+    // Don't retry if no active game (prevents infinite 400 errors on lobby/dashboard)
+    if (!this.gameId) {
+      console.log('[WS] No gameId - stopping reconnection attempts');
+      return;
+    }
+
+    // Don't retry if explicitly stopped (e.g., game not joinable)
+    if (this.stopReconnecting) {
+      console.log('[WS] Reconnection disabled - game not in joinable state');
+      return;
     }
 
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
@@ -866,11 +883,8 @@ class WebSocketGameService {
         }
         mockChannel.eventListeners[eventName].push(callback);
 
-        // Start polling for specific events
-        if (eventName === '.invitation.accepted') {
-          console.log('About to start invitation polling...');
-          this.startInvitationPolling(callback);
-        }
+        // Note: Invitation polling removed - LobbyPage handles this via fetchData()
+        // Redundant polling was causing duplicate network requests every 3 seconds
 
         return mockChannel;
       },
@@ -878,11 +892,6 @@ class WebSocketGameService {
         console.log(`Mock channel: Stopped listening for ${eventName} on ${channelName}`);
         if (mockChannel.eventListeners[eventName]) {
           delete mockChannel.eventListeners[eventName];
-        }
-
-        // Stop polling for specific events
-        if (eventName === '.invitation.accepted') {
-          this.stopInvitationPolling();
         }
 
         return mockChannel;
@@ -905,93 +914,18 @@ class WebSocketGameService {
   }
 
   /**
-   * Start polling for invitation status changes
+   * REMOVED: startInvitationPolling, stopInvitationPolling, pollInvitationStatus
+   *
+   * These functions were creating redundant network requests (GET /invitations/sent every 3 seconds)
+   * that duplicated the polling already done by LobbyPage.fetchData() (every 5-10 seconds).
+   *
+   * Invitation acceptance is now handled exclusively by LobbyPage polling, which checks:
+   * - GET /invitations/pending (incoming)
+   * - GET /invitations/sent (outgoing)
+   * - GET /invitations/accepted (ready to join)
+   *
+   * This eliminates 20 requests/minute of duplicate traffic with zero feature impact.
    */
-  startInvitationPolling(callback) {
-    if (this.invitationPollingInterval) {
-      clearInterval(this.invitationPollingInterval);
-    }
-
-    console.log('Starting invitation polling for user', this.user?.id);
-
-    if (!this.user) {
-      console.error('Cannot start invitation polling: no user set in service');
-      return;
-    }
-
-    // Poll every 3 seconds for invitation updates
-    this.invitationPollingInterval = setInterval(async () => {
-      try {
-        await this.pollInvitationStatus(callback);
-      } catch (error) {
-        console.error('Invitation polling error:', error);
-      }
-    }, 3000);
-  }
-
-  /**
-   * Stop polling for invitation status changes
-   */
-  stopInvitationPolling() {
-    if (this.invitationPollingInterval) {
-      clearInterval(this.invitationPollingInterval);
-      this.invitationPollingInterval = null;
-      console.log('Stopped invitation polling');
-    }
-  }
-
-  /**
-   * Poll for invitation status changes
-   */
-  async pollInvitationStatus(callback) {
-    if (!this.user) return;
-
-    const token = localStorage.getItem('auth_token');
-
-    try {
-      // Check for accepted invitations by looking at sent invitations
-      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/invitations/sent`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const sentInvitations = await response.json();
-
-        // Look for any accepted invitations that we haven't processed yet
-        const acceptedInvitations = sentInvitations.filter(invitation =>
-          invitation.status === 'accepted' && !this.processedInvitations?.has(invitation.id)
-        );
-
-        if (acceptedInvitations.length > 0) {
-          // Initialize processed invitations set if it doesn't exist
-          if (!this.processedInvitations) {
-            this.processedInvitations = new Set();
-          }
-
-          // Process each accepted invitation
-          acceptedInvitations.forEach(invitation => {
-            console.log('Found accepted invitation:', invitation);
-
-            // Mark as processed to avoid duplicate handling
-            this.processedInvitations.add(invitation.id);
-
-            // Trigger the callback with the accepted invitation data
-            callback({
-              game: {
-                id: invitation.game_id || invitation.id // Use game_id if available, fallback to invitation id
-              },
-              invitation: invitation
-            });
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Error polling invitation status:', error);
-    }
-  }
 
   /**
    * Stop polling timer
@@ -1052,10 +986,7 @@ class WebSocketGameService {
       this.pollingInterval = null;
     }
 
-    if (this.invitationPollingInterval) {
-      clearInterval(this.invitationPollingInterval);
-      this.invitationPollingInterval = null;
-    }
+    // invitationPollingInterval removed - no longer used
 
     if (this.reconnectTimeout) {
       clearTimeout(this.reconnectTimeout);
@@ -1065,16 +996,19 @@ class WebSocketGameService {
     this._pollingBusy = false;
     this._lastETag = null;
 
-    if (this.gameChannel) {
+    if (this.gameChannel && this.gameId) {
       this.gameChannel.stopListening('GameConnectionEvent');
       this.gameChannel.stopListening('GameMoveEvent');
       this.gameChannel.stopListening('GameStatusEvent');
       this.gameChannel.stopListening('.game.ended');
+
+      // Leave the channel using singleton
+      leaveChannel(`game.${this.gameId}`);
+      this.gameChannel = null;
     }
 
-    if (this.echo) {
-      this.echo.disconnect();
-    }
+    // Don't disconnect the singleton Echo - other services may use it
+    this.echo = null;
 
     this.isConnected = false;
     this.socketId = null;

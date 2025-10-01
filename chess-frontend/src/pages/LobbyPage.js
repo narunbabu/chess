@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 import WebSocketGameService from '../services/WebSocketGameService';
+import { getEcho } from '../services/echoSingleton';
 import { BACKEND_URL } from '../config';
 import './LobbyPage.css';
 
@@ -23,8 +24,11 @@ const LobbyPage = () => {
   const [hasFinishedGame, setHasFinishedGame] = useState(false);
   const [processingInvitations, setProcessingInvitations] = useState(new Set()); // Track processing state
 
-  // Debounce utility for fetchData
-  const debounceTimerRef = React.useRef(null);
+  // Polling control refs
+  const pollTimerRef = React.useRef(null);
+  const inFlightRef = React.useRef(false);
+  const stopPollingRef = React.useRef(false);
+  const didInitPollingRef = React.useRef(false);
 
   useEffect(() => {
     if (user && !webSocketService) {
@@ -268,6 +272,9 @@ const LobbyPage = () => {
 
   // Clear old processed invitations on component mount (cleanup stale data)
   useEffect(() => {
+    // Reset polling guard on mount
+    didInitPollingRef.current = false;
+
     // Clean up processed invitations older than 24 hours
     const processedInvitations = JSON.parse(sessionStorage.getItem('processedInvitations') || '[]');
     const processedTimestamps = JSON.parse(sessionStorage.getItem('processedTimestamps') || '{}');
@@ -285,32 +292,88 @@ const LobbyPage = () => {
   }, []);
 
   // Debounced fetchData for polling only
-  const debouncedFetchData = () => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-    debounceTimerRef.current = setTimeout(() => {
-      fetchData(true);
-    }, 300);
-  };
-
+  // Single self-scheduled polling with in-flight lock
   useEffect(() => {
-    if (user) {
-      // Initial fetch - no debounce for immediate load
-      fetchData(true);
+    if (!user) return;
 
-      // Dynamic polling interval based on game state
-      const pollDelay = hasFinishedGame ? 10000 : 5000;
-      const pollInterval = setInterval(debouncedFetchData, pollDelay);
-
-      return () => {
-        clearInterval(pollInterval);
-        if (debounceTimerRef.current) {
-          clearTimeout(debounceTimerRef.current);
-        }
-      };
+    // Guard against React StrictMode double-mount in development
+    if (didInitPollingRef.current) {
+      console.log('[Lobby] Polling already initialized, skipping duplicate mount');
+      return;
     }
-  }, [user, hasFinishedGame]);
+    didInitPollingRef.current = true;
+    stopPollingRef.current = false;
+
+    console.log('[Lobby] Initializing single poller');
+
+    const cycle = async () => {
+      if (stopPollingRef.current) {
+        console.log('[Lobby] Polling stopped');
+        return;
+      }
+
+      // Calculate adaptive delay based on current state
+      // Check if Echo singleton is connected (more reliable than service instance)
+      const echo = webSocketService?.echo || getEcho();
+      const wsState = echo?.connector?.pusher?.connection?.state;
+      const wsOK = wsState === 'connected';
+
+      // Debug logging for WebSocket state
+      if (!wsOK && echo) {
+        console.log(`[Lobby] WebSocket not connected. Current state: ${wsState}`);
+      }
+      const hidden = document.visibilityState === 'hidden';
+      const delay = hidden
+        ? (wsOK ? 60000 : 10000)  // Hidden: 60s with WS, 10s without
+        : (wsOK ? 30000 : 5000);   // Visible: 30s with WS, 5s without
+
+      // Only fetch if not already in-flight
+      if (!inFlightRef.current) {
+        inFlightRef.current = true;
+        console.log(`[Lobby] Fetching data (WS: ${wsOK}, Hidden: ${hidden})`);
+        try {
+          await fetchData(true);
+        } catch (err) {
+          console.error('[Lobby] Fetch error:', err);
+        } finally {
+          inFlightRef.current = false;
+        }
+      } else {
+        console.log('[Lobby] Skipping fetch (already in-flight)');
+      }
+
+      // Schedule next cycle
+      console.log(`[Lobby] Next poll in ${delay}ms`);
+      pollTimerRef.current = setTimeout(cycle, delay);
+    };
+
+    // Initial immediate fetch + start cycle
+    cycle();
+
+    // Quick resync when tab becomes visible
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[Lobby] Tab visible - quick resync in 250ms');
+        if (pollTimerRef.current) {
+          clearTimeout(pollTimerRef.current);
+        }
+        pollTimerRef.current = setTimeout(cycle, 250);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      console.log('[Lobby] Cleaning up poller');
+      stopPollingRef.current = true;
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (pollTimerRef.current) {
+        clearTimeout(pollTimerRef.current);
+        pollTimerRef.current = null;
+      }
+      // Don't reset didInitPollingRef here - keep the guard active
+    };
+  }, [user, hasFinishedGame]); // Minimal dependencies - no webSocketService
 
   const handleInvite = (player) => {
     setSelectedPlayer(player);

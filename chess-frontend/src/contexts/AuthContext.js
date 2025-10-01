@@ -1,6 +1,7 @@
 // src/contexts/AuthContext.js
 import React, { createContext, useState, useContext, useEffect } from "react";
 import api from '../services/api';
+import { initEcho } from '../services/echoSingleton';
 
 // Create the AuthContext
 const AuthContext = createContext(null);
@@ -16,24 +17,36 @@ export const AuthProvider = ({ children }) => {
     try {
       const token = localStorage.getItem("auth_token");
       if (!token) {
-        console.log('No auth token found');
+        console.log('[Auth] No auth token found');
         setLoading(false);
         return;
       }
 
-      console.log('Fetching user with token:', token.substring(0, 10) + '...');
+      console.log('[Auth] Fetching user with token:', token.substring(0, 10) + '...');
 
       // Set token in API headers
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
       // Fetch current user from backend
       const response = await api.get('/user');
-      console.log('User fetched successfully:', response.data);
+      console.log('[Auth] User fetched successfully:', response.data);
       setUser(response.data);
       setIsAuthenticated(true);
+
+      // Initialize Echo singleton after successful auth
+      const wsConfig = {
+        key: process.env.REACT_APP_REVERB_APP_KEY,
+        wsHost: process.env.REACT_APP_REVERB_HOST || 'localhost',
+        wsPort: parseInt(process.env.REACT_APP_REVERB_PORT) || 8080,
+        scheme: process.env.REACT_APP_REVERB_SCHEME || 'http',
+      };
+
+      initEcho({ token, wsConfig });
+      console.log('[Auth] Echo singleton initialized');
+
     } catch (error) {
-      console.error('Failed to fetch user:', error);
-      console.error('Error details:', error.response?.data);
+      console.error('[Auth] Failed to fetch user:', error);
+      console.error('[Auth] Error details:', error.response?.data);
       // If token is invalid, clear it
       localStorage.removeItem("auth_token");
       delete api.defaults.headers.common['Authorization'];
