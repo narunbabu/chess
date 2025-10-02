@@ -31,4 +31,4 @@ jobs:
             npm install
             npm run build
             # restart services as needed (examples)
-            sudo systemctl reload nginx || true
+            systemctl reload nginx || true
