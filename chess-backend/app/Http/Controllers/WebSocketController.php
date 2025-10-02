@@ -8,6 +8,7 @@ use App\Services\GameRoomService;
 use App\Services\HandshakeProtocol;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Log;
@@ -172,8 +173,14 @@ class WebSocketController extends Controller
     /**
      * Get current room state for reconnection
      */
-    public function getRoomState(Request $request): JsonResponse
+    public function getRoomState(Request $request): Response
     {
+        // Guard: Check if user is authenticated
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
         // For GET requests, game_id should come from query parameters
         $gameId = $request->query('game_id') ?? $request->input('game_id');
         $compact = $request->boolean('compact', false);
@@ -181,14 +188,20 @@ class WebSocketController extends Controller
 
         $request->merge(['game_id' => $gameId]);
 
+        // Validate inputs up front
         $request->validate([
             'game_id' => 'required|integer|exists:games,id',
-            'compact' => 'boolean',
-            'since_move' => 'integer'
+            'compact' => 'nullable|boolean',
+            'since_move' => 'nullable|integer|min:0'
         ]);
 
         try {
             $game = Game::with(['whitePlayer', 'blackPlayer'])->findOrFail($gameId);
+
+            // Check if user is involved in this game
+            if ($game->white_player_id !== $user->id && $game->black_player_id !== $user->id) {
+                return response()->json(['message' => 'Forbidden'], 403);
+            }
             $moves = $game->moves ?? [];
             $moveCount = is_array($moves) ? count($moves) : 0;
             $etag = sha1($game->updated_at . '|' . $moveCount . '|' . $game->status);

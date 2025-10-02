@@ -19,7 +19,12 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['https://chess99.com'],
+    'allowed_origins' => array_filter([
+        'https://chess99.com',
+        env('FRONTEND_URL'),
+        env('APP_ENV') === 'local' ? 'http://localhost:3000' : null,
+        env('APP_ENV') === 'local' ? 'http://localhost:8000' : null,
+    ]),
 
     'allowed_origins_patterns' => [],
 

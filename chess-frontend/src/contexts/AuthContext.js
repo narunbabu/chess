@@ -1,7 +1,7 @@
 // src/contexts/AuthContext.js
 import React, { createContext, useState, useContext, useEffect } from "react";
 import api from '../services/api';
-import { initEcho } from '../services/echoSingleton';
+import { initEcho, disconnectEcho } from '../services/echoSingleton';
 
 // Create the AuthContext
 const AuthContext = createContext(null);
@@ -41,8 +41,13 @@ export const AuthProvider = ({ children }) => {
         scheme: process.env.REACT_APP_REVERB_SCHEME || 'http',
       };
 
-      initEcho({ token, wsConfig });
-      console.log('[Auth] Echo singleton initialized');
+      console.log('[Auth] Initializing Echo with config:', wsConfig);
+      const echoInstance = initEcho({ token, wsConfig });
+      if (echoInstance) {
+        console.log('[Auth] ✅ Echo singleton initialized successfully');
+      } else {
+        console.error('[Auth] ❌ Echo singleton initialization failed!');
+      }
 
     } catch (error) {
       console.error('[Auth] Failed to fetch user:', error);
@@ -72,6 +77,10 @@ export const AuthProvider = ({ children }) => {
 
   // Logout function
   const logout = async () => {
+    // Disconnect Echo WebSocket before logout
+    disconnectEcho();
+    console.log('[Auth] Echo disconnected on logout');
+
     localStorage.removeItem("auth_token");
     delete api.defaults.headers.common['Authorization'];
     setIsAuthenticated(false);

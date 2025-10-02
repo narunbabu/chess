@@ -1,0 +1,22 @@
+# /etc/systemd/system/laravel-reverb.service
+[Unit]
+Description=Laravel Reverb WebSocket Server
+After=network.target mysql.service redis.service
+Requires=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/Chess-Web/chess-backend
+ExecStart=/usr/bin/php /opt/Chess-Web/chess-backend/artisan reverb:start --host=0.0.0.0 --port=8080
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=laravel-reverb
+
+
+
+[Install]
+WantedBy=multi-user.target

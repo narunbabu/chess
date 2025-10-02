@@ -32,9 +32,28 @@ const LobbyPage = () => {
 
   useEffect(() => {
     if (user && !webSocketService) {
+      // Get the Echo singleton that was initialized in AuthContext
+      const echo = getEcho();
+
+      if (!echo) {
+        console.error('[Lobby] Echo singleton not initialized! Cannot set up real-time invitations.');
+        console.error('[Lobby] User:', user);
+        console.error('[Lobby] Token:', localStorage.getItem('auth_token') ? 'exists' : 'missing');
+        return;
+      }
+
+      console.log('[Lobby] Echo singleton available, initializing WebSocket service');
       const service = new WebSocketGameService();
-      service.initialize(null, user);
-      setWebSocketService(service);
+
+      // Initialize Echo-based WebSocket service asynchronously
+      service.initialize(null, user).then(() => {
+        console.log('[Lobby] WebSocket service initialized successfully');
+        setWebSocketService(service);
+      }).catch(err => {
+        console.error('[Lobby] WebSocket initialization failed:', err);
+        // Still set the service to allow polling mode as fallback
+        setWebSocketService(service);
+      });
     }
 
     return () => {
@@ -46,6 +65,14 @@ const LobbyPage = () => {
 
   useEffect(() => {
     if (user && webSocketService) {
+      console.log('[Lobby] Setting up user channel listeners');
+
+      // Get Echo instance to verify connection
+      const echo = webSocketService.echo || getEcho();
+      if (!echo) {
+        console.warn('[Lobby] Echo not available yet, real-time invitations will not work until connected');
+      }
+
       const userChannel = webSocketService.subscribeToUserChannel(user);
 
       // Listen for invitation accepted (for inviters)

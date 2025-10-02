@@ -50,10 +50,13 @@ log_info "Deploying backend..."
 cd "$BACKEND_DIR"
 
 log_info "Installing backend dependencies..."
-sudo -u www-data COMPOSER_HOME=/var/www composer install --no-dev --optimize-autoloader
+sudo -u www-data COMPOSER_HOME=/var/www composer install --no-dev --optimize-autoloader --classmap-authoritative
 
 log_info "Running database migrations..."
 sudo -u www-data php artisan migrate --force
+
+log_info "Restarting queue workers (if any)..."
+php artisan queue:restart 2>/dev/null || log_warn "No queue workers to restart"
 
 log_info "Clearing caches..."
 php artisan config:clear
@@ -85,14 +88,33 @@ echo ""
 log_info "Setting permissions..."
 chown -R www-data:www-data "$BACKEND_DIR/storage"
 chown -R www-data:www-data "$BACKEND_DIR/bootstrap/cache"
-chmod 664 "$BACKEND_DIR/database/database.sqlite"
+
+# Only set SQLite permissions if using SQLite database
+if [ -f "$BACKEND_DIR/database/database.sqlite" ]; then
+    chmod 664 "$BACKEND_DIR/database/database.sqlite"
+    log_info "Set SQLite database permissions"
+fi
 
 # 5. Restart services
 echo ""
 log_info "Restarting services..."
+
+# Restart PHP-FPM
 systemctl restart php8.3-fpm
-systemctl restart laravel-reverb 2>/dev/null || log_warn "laravel-reverb service not found (may not be configured yet)"
+log_info "PHP-FPM restarted"
+
+# Restart Reverb WebSocket server
+if systemctl is-enabled laravel-reverb >/dev/null 2>&1; then
+    systemctl restart laravel-reverb
+    log_info "Laravel Reverb restarted"
+else
+    log_warn "laravel-reverb service not found - WebSockets may not work"
+    log_warn "Run: sudo systemctl enable laravel-reverb && sudo systemctl start laravel-reverb"
+fi
+
+# Reload Nginx
 systemctl reload nginx
+log_info "Nginx reloaded"
 
 # 6. Health check
 echo ""
@@ -112,6 +134,20 @@ if systemctl is-active --quiet php8.3-fpm; then
 else
     log_error "PHP-FPM is not running!"
     exit 1
+fi
+
+# Check if Reverb is running
+if systemctl is-active --quiet laravel-reverb; then
+    log_info "Laravel Reverb WebSocket server is running"
+else
+    log_warn "Laravel Reverb is NOT running - real-time features will not work!"
+fi
+
+# Check if database connection works
+if sudo -u www-data php "$BACKEND_DIR/artisan" migrate:status >/dev/null 2>&1; then
+    log_info "Database connection successful"
+else
+    log_error "Cannot connect to database!"
 fi
 
 echo ""

@@ -25,13 +25,26 @@ jobs:
 
             # backend (Laravel)
             cd chess-backend
+
+            # Install dependencies with optimizations
+            sudo -u www-data composer install --no-dev --optimize-autoloader --classmap-authoritative || true
+
+            # Run migrations
             php artisan migrate --force || true
 
             # Clear Laravel caches
             php artisan config:clear
             php artisan route:clear
             php artisan cache:clear
+            php artisan view:clear
+
+            # Rebuild caches
             php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+
+            # Restart queue workers
+            php artisan queue:restart || echo "No queue workers running"
 
             # frontend (React)
             cd ../chess-frontend
@@ -41,9 +54,19 @@ jobs:
             # deploy frontend build to web server
             rsync -av --delete build/ /var/www/chess99.com/
 
+            # Set correct permissions
+            chown -R www-data:www-data /opt/Chess-Web/chess-backend/storage
+            chown -R www-data:www-data /opt/Chess-Web/chess-backend/bootstrap/cache
+
             # restart services
+            systemctl restart php8.3-fpm || true
             systemctl reload nginx || true
             systemctl restart laravel-reverb || echo "Reverb service not found - please create it"
 
             # verify services
-            systemctl is-active laravel-reverb || echo "Warning: Reverb not running"
+            echo "Checking service status..."
+            systemctl is-active nginx || echo "❌ Nginx not running"
+            systemctl is-active php8.3-fpm || echo "❌ PHP-FPM not running"
+            systemctl is-active laravel-reverb || echo "⚠️  Reverb not running - WebSockets will not work"
+
+            echo "✅ Deployment complete!"
