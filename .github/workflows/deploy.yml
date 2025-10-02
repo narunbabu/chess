@@ -22,15 +22,28 @@ jobs:
             cd /opt/Chess-Web
             git fetch origin
             git reset --hard origin/master
+
             # backend (Laravel)
             cd chess-backend
             php artisan migrate --force || true
+
+            # Clear Laravel caches
+            php artisan config:clear
+            php artisan route:clear
+            php artisan cache:clear
             php artisan config:cache
+
             # frontend (React)
             cd ../chess-frontend
             npm install
             npm run build
+
             # deploy frontend build to web server
             rsync -av --delete build/ /var/www/chess99.com/
-            # restart services as needed (examples)
+
+            # restart services
             systemctl reload nginx || true
+            systemctl restart laravel-reverb || echo "Reverb service not found - please create it"
+
+            # verify services
+            systemctl is-active laravel-reverb || echo "Warning: Reverb not running"
