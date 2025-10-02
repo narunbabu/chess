@@ -77,6 +77,9 @@ npm install
 log_info "Building frontend..."
 npm run build
 
+log_info "Deploying frontend to web server..."
+rsync -av --delete build/ /var/www/chess99.com/
+
 # 4. Set correct permissions
 echo ""
 log_info "Setting permissions..."

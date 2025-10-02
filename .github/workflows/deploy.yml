@@ -30,5 +30,7 @@ jobs:
             cd ../chess-frontend
             npm install
             npm run build
+            # deploy frontend build to web server
+            rsync -av --delete build/ /var/www/chess99.com/
             # restart services as needed (examples)
             systemctl reload nginx || true
