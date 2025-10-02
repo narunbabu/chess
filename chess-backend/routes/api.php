@@ -20,6 +20,10 @@ Route::group(['middleware' => 'api', 'prefix' => 'auth'], function () {
     Route::post('login', [AuthController::class, 'login']);
     Route::post('register', [AuthController::class, 'register']);
     Route::post('logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
+
+    // Social authentication routes
+    Route::get('{provider}/redirect', [SocialAuthController::class, 'redirect']);
+    Route::get('{provider}/callback', [SocialAuthController::class, 'callback']);
 });
 
 // Protected routes for authenticated users (use a middleware like auth:sanctum or auth:api)
