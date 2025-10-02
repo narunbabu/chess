@@ -3,28 +3,32 @@ name: Deploy to Production
 on:
   push:
     branches: [ master ]
-  workflow_dispatch:  # Allows manual trigger from GitHub Actions tab
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
-      - name: 🚀 Deploy to Production Server
-        uses: appleboy/ssh-action@v1.0.0
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          port: ${{ secrets.SERVER_PORT || 22 }}
+          key: ${{ secrets.SERVER_SSH_KEY }}   # <-- your private key (PEM), no passphrase
+          port: 22
+          script_stop: true
           script: |
+            set -e
             cd /opt/Chess-Web
-            sudo ./deploy.sh
-
-      - name: ✅ Deployment Status
-        if: success()
-        run: echo "Deployment completed successfully!"
-
-      - name: ❌ Deployment Failed
-        if: failure()
-        run: echo "Deployment failed! Check the logs above."
+            git fetch origin
+            git reset --hard origin/master
+            # backend (Laravel)
+            cd chess-backend
+            php artisan migrate --force || true
+            php artisan config:cache
+            # frontend (React) – build on the server only if you really need to
+            cd ../chess-frontend
+            npm ci
+            npm run build
+            # restart services as needed (examples)
+            sudo systemctl reload nginx || true
