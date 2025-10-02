@@ -26,9 +26,9 @@ jobs:
             cd chess-backend
             php artisan migrate --force || true
             php artisan config:cache
-            # frontend (React) – build on the server only if you really need to
+            # frontend (React)
             cd ../chess-frontend
-            npm ci
+            npm install
             npm run build
             # restart services as needed (examples)
             sudo systemctl reload nginx || true
