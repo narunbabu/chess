@@ -1640,9 +1640,25 @@
 /* =========== board flex‑item should grow ================== */
 /* Removed - handled by universal responsive sizing */
 
-/* =========== hide header automatically in phone landscape ==*/
+/* =========== compact header automatically in phone landscape ==*/
 @media (max-width:768px){
-  html.landscape .app-header{display:none}
+  html.landscape .app-header{
+    padding: 3px 8px;
+    min-height: auto;
+  }
+  html.landscape .logo{
+    height: 25px;
+    width: 50px;
+    font-size: 16px;
+  }
+  html.landscape .auth-nav{
+    gap: 6px;
+  }
+  html.landscape .nav-link,
+  html.landscape .auth-button{
+    padding: 4px 8px;
+    font-size: 12px;
+  }
 }
 /* =================================================================
    UNIVERSAL RESPONSIVE CHESSBOARD SIZING
@@ -1661,49 +1677,85 @@
 
    /* Mobile Portrait (≤600px width, height > width) */
    @media (max-width: 600px) and (orientation: portrait) {
-     /* Hide header to reclaim vertical space */
+     /* Keep header visible but compact */
      .app-header {
-       display: none;
+       padding: 5px 8px;
+       min-height: auto;
      }
 
-     /* Make content fill the viewport */
+     .logo {
+       height: 30px;
+       width: 60px;
+       font-size: 18px;
+       padding-left: 35px;
+     }
+
+     .auth-nav {
+       gap: 8px;
+     }
+
+     .nav-link,
+     .auth-button {
+       padding: 5px 10px;
+       font-size: 13px;
+     }
+
+     /* Make content fill remaining viewport */
      .content-wrapper,
      .main-content {
-       height: 100vh;
+       height: calc(100vh - 50px); /* Account for compact header */
        padding: 0;
        overflow: hidden;
      }
 
      /* Portrait: Width-constrained, use most of screen width */
      .chessboard-area {
-       width: min(75vh, 95vw) !important;
-       height: min(75vh, 95vw) !important;
-       max-width: min(75vh, 95vw) !important;
-       max-height: min(75vh, 95vw) !important;
+       width: min(70vh, 95vw) !important;
+       height: min(70vh, 95vw) !important;
+       max-width: min(70vh, 95vw) !important;
+       max-height: min(70vh, 95vw) !important;
      }
    }
 
    /* Mobile Landscape (≤600px width, width > height) */
    @media (max-width: 600px) and (orientation: landscape) {
-     /* Hide header to reclaim space */
+     /* Keep header visible but very compact for landscape */
      .app-header {
-       display: none;
+       padding: 3px 8px;
+       min-height: auto;
      }
 
-     /* Make content fill the viewport */
+     .logo {
+       height: 25px;
+       width: 50px;
+       font-size: 16px;
+       padding-left: 30px;
+     }
+
+     .auth-nav {
+       gap: 6px;
+     }
+
+     .nav-link,
+     .auth-button {
+       padding: 4px 8px;
+       font-size: 12px;
+     }
+
+     /* Make content fill remaining viewport */
      .content-wrapper,
      .main-content {
-       height: 100vh;
+       height: calc(100vh - 40px); /* Account for compact header */
        padding: 0;
        overflow: hidden;
      }
 
      /* Landscape: Height-constrained, fit within available height */
      .chessboard-area {
-       width: min(85vh, 50vw) !important;
-       height: min(85vh, 50vw) !important;
-       max-width: min(85vh, 50vw) !important;
-       max-height: min(85vh, 50vw) !important;
+       width: min(80vh, 50vw) !important;
+       height: min(80vh, 50vw) !important;
+       max-width: min(80vh, 50vw) !important;
+       max-height: min(80vh, 50vw) !important;
      }
    }
 
