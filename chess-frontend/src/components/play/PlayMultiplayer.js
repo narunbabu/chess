@@ -61,6 +61,11 @@ const PlayMultiplayer = () => {
   const mateCheckTimer = useRef(null);
   const moveStartTimeRef = useRef(null); // Tracks when current turn started for move timing
 
+  // Memoize timer callback to prevent infinite re-renders
+  const handleTimerStatusChange = useCallback((status) => {
+    setGameInfo(prev => ({ ...prev, status }));
+  }, []);
+
   // Timer hook for multiplayer game
   const {
     playerTime,
@@ -79,7 +84,7 @@ const PlayMultiplayer = () => {
   } = useGameTimer(
     gameInfo.playerColor === 'white' ? 'w' : 'b',
     game,
-    (status) => setGameInfo(prev => ({ ...prev, status }))
+    handleTimerStatusChange
   );
 
   // Play sound helper
@@ -909,9 +914,6 @@ const PlayMultiplayer = () => {
       </div>
     );
   }
-
-  // Debug: Log board orientation at render time
-  console.log('Rendering with board orientation:', boardOrientation, 'playerColor:', gameInfo.playerColor);
 
   return (
     <div className="game-container">

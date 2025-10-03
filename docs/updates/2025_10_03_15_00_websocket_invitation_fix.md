@@ -399,6 +399,43 @@ console.log('Channels:', window.Echo?.connector?.channels);
 - Set up log rotation if needed: `php artisan optimize:clear`
 - Consider reducing console logging after verification period
 
+## Additional Fix: Infinite Re-render Loop
+
+**Issue Found During Testing:**
+After fixing the WebSocket invitation flow, noticed infinite re-render loop when moves were made:
+```
+PlayMultiplayer.js:914 Rendering with board orientation: white playerColor: white
+[Repeated 100+ times per move]
+```
+
+**Root Cause:**
+The `useGameTimer` hook was receiving a non-memoized callback that was recreated on every render:
+```javascript
+// Before: Callback recreated every render
+useGameTimer(
+  gameInfo.playerColor === 'white' ? 'w' : 'b',
+  game,
+  (status) => setGameInfo(prev => ({ ...prev, status })) // ❌ New function every render
+);
+```
+
+**Fix Applied** (`PlayMultiplayer.js` lines 64-88):
+```javascript
+// Memoize timer callback to prevent infinite re-renders
+const handleTimerStatusChange = useCallback((status) => {
+  setGameInfo(prev => ({ ...prev, status }));
+}, []);
+
+// Timer hook now receives stable callback reference
+useGameTimer(
+  gameInfo.playerColor === 'white' ? 'w' : 'b',
+  game,
+  handleTimerStatusChange // ✅ Stable reference
+);
+```
+
+Also removed debug console.log that was cluttering output (line 914).
+
 ## Completed Checklist
 
 - [x] Added WebSocket subscription logging (frontend)
@@ -410,6 +447,9 @@ console.log('Channels:', window.Echo?.connector?.channels);
 - [x] Added backend broadcast logging (InvitationCancelled)
 - [x] Verified channel names match frontend/backend
 - [x] Verified event names match frontend/backend
+- [x] Fixed infinite re-render loop in PlayMultiplayer
+- [x] Memoized timer callback with useCallback
+- [x] Removed debug console.log statements
 - [x] Created comprehensive testing instructions
 - [x] Documented troubleshooting steps
 - [x] Risk assessment completed
