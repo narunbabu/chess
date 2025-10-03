@@ -10,6 +10,8 @@ Route::get('/', function () {
 });
 
 Route::group(['prefix' => 'auth'], function () {
-    Route::get('{provider}/redirect', [SocialAuthController::class, 'redirect']);
-    Route::get('{provider}/callback', [SocialAuthController::class, 'callback']);
+    Route::get('{provider}/redirect', [SocialAuthController::class, 'redirect'])->name('auth.redirect');
+    Route::get('{provider}/callback', [SocialAuthController::class, 'callback'])->name('auth.callback');
+    // Handle POST requests from some OAuth providers
+    Route::post('{provider}/callback', [SocialAuthController::class, 'callback']);
 });
