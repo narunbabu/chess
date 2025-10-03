@@ -1,18 +1,6 @@
-{key: 'anrdh24nppf3obfupvqw', wsHost: 'localhost', wsPort: '8080', scheme: 'http'}
-WebSocketGameService.js:118 WebSocket connected: 354908153.426897361
-PlayMultiplayer.js:162 WebSocket connected: 
-{socketId: '354908153.426897361'}
-hook.js:608 WebSocket error details: 
-{error: {…}, type: 'object', message: undefined, code: undefined, data: {…}}
-hook.js:608 WebSocket error: 
-{type: 'PusherError', data: {…}}
-WebSocketGameService.js:283 Handshake completed: 
-{success: true, handshake_id: 'hs_68da29def32a96.71907943', timestamp: '2025-09-29T06:40:30.996028Z', connection: {…}, game_state: {…}, …}
-WebSocketGameService.js:188 Successfully joined game channel: 1
-hook.js:608 WebSocket error details: 
-{error: {…}, type: 'object', message: undefined, code: undefined, data: {…}}
-hook.js:608 WebSocket error: 
-{type: 'PusherError', data: {…}}
-WebSocketGameService.js:283 Handshake completed: 
-{success: true, handshake_id: 'hs_68da29df70bd63.22640683', timestamp: '2025-09-29T06:40:31.462106Z', connection: {…}, game_state: {…}, …}
-WebSocketGameService.js:188 Successfully joined game channel: 1
+php artisan tinker --execute="DB::table('invitations')->select('id', 'inviter_id', 'invited_id', 'inviter_preferred_color', 'status')->get()"
+
+sqlite3 database/database.sqlite "SELECT * FROM invitations WHERE id = 1;"
+php artisan reverb:start --debug 
+
+While editing or implementing additional functionality or building additional elements care must be taken. Disturbing already working functionality could be catastrophic and it may result in unintended side effects and subogate some unseen functionality. So keep this in mind to not disturb already tested and working functionality.
