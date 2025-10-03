@@ -213,18 +213,23 @@ class WebSocketGameService {
       throw new Error('No user provided');
     }
 
+    // Try to get Echo from singleton first, then fall back to instance echo
+    const echo = getEcho() || this.echo;
+
     // In polling mode, return a mock channel object
-    if (!this.echo) {
-      console.log('Polling mode: Creating mock user channel for user', user.id);
-      console.log('Current user stored in service:', this.user?.id);
+    if (!echo) {
+      console.log('[WS] No Echo available, creating mock user channel for user', user.id);
+      console.log('[WS] Current user stored in service:', this.user?.id);
       return this.createMockChannel(`App.Models.User.${user.id}`);
     }
 
     try {
-      const userChannel = this.echo.private(`App.Models.User.${user.id}`);
+      console.log(`[WS] Subscribing to real user channel: App.Models.User.${user.id}`);
+      const userChannel = echo.private(`App.Models.User.${user.id}`);
+      console.log('[WS] ✅ Real user channel created successfully');
       return userChannel;
     } catch (error) {
-      console.error('Failed to subscribe to user channel:', error);
+      console.error('[WS] Failed to subscribe to user channel:', error);
       throw error;
     }
   }

@@ -11,16 +11,37 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('games')) {
+            return;
+        }
+
         Schema::create('games', function (Blueprint $table) {
             $table->id();
             $table->foreignId('white_player_id')->constrained('users')->onDelete('cascade');
             $table->foreignId('black_player_id')->constrained('users')->onDelete('cascade');
-            $table->enum('status', ['waiting', 'active', 'completed', 'abandoned'])->default('waiting');
-            $table->enum('result', ['white_wins', 'black_wins', 'draw', 'ongoing'])->default('ongoing');
+            $table->enum('status', ['waiting', 'active', 'finished', 'aborted'])->default('waiting');
+            $table->string('result', 7)->nullable()->default('*'); // '1-0', '0-1', '1/2-1/2', '*'
+            $table->enum('winner_player', ['white', 'black'])->nullable();
             $table->string('fen', 255)->default('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'); // Starting position
             $table->json('moves')->nullable(); // Store game moves as JSON
             $table->enum('turn', ['white', 'black'])->default('white');
             $table->timestamp('last_move_at')->nullable();
+            $table->timestamp('ended_at')->nullable();
+            $table->enum('end_reason', [
+                'checkmate',
+                'resignation',
+                'stalemate',
+                'timeout',
+                'draw_agreed',
+                'threefold',
+                'fifty_move',
+                'insufficient_material',
+                'aborted'
+            ])->nullable();
+            $table->unsignedBigInteger('parent_game_id')->nullable();
+            $table->unsignedBigInteger('winner_user_id')->nullable();
+            $table->integer('move_count')->default(0);
+            $table->longText('pgn')->nullable();
 
             // Time control settings
             $table->integer('time_control_minutes')->default(10);
@@ -47,11 +68,17 @@ return new class extends Migration
 
             $table->timestamps();
 
+            // Foreign keys
+            $table->foreign('winner_user_id')->references('id')->on('users')->onDelete('set null');
+
             // Indexes for performance
             $table->index(['white_player_id', 'status']);
             $table->index(['black_player_id', 'status']);
             $table->index(['game_phase', 'updated_at']);
             $table->index(['white_connected', 'black_connected']);
+            $table->index('parent_game_id');
+            $table->index(['status']);
+            $table->index(['winner_user_id', 'ended_at']);
         });
     }
 

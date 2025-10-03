@@ -65,22 +65,45 @@ const LobbyPage = () => {
 
   useEffect(() => {
     if (user && webSocketService) {
-      console.log('[Lobby] Setting up user channel listeners');
+      console.log('[Lobby] Setting up user channel listeners for user:', user.id);
 
       // Get Echo instance to verify connection
       const echo = webSocketService.echo || getEcho();
       if (!echo) {
         console.warn('[Lobby] Echo not available yet, real-time invitations will not work until connected');
+        return; // Exit early if Echo not available
       }
 
+      console.log('[Lobby] Echo is available, subscribing to user channel');
       const userChannel = webSocketService.subscribeToUserChannel(user);
+
+      if (!userChannel) {
+        console.error('[Lobby] Failed to subscribe to user channel!');
+        return;
+      }
+
+      // Add subscription success/error handlers (only if methods exist)
+      if (typeof userChannel.subscribed === 'function') {
+        userChannel.subscribed(() => {
+          console.log(`[Lobby] ✅ Successfully subscribed to user channel: App.Models.User.${user.id}`);
+        });
+      }
+
+      if (typeof userChannel.error === 'function') {
+        userChannel.error((error) => {
+          console.error('[Lobby] ❌ Failed to subscribe to user channel:', error);
+        });
+      }
+
+      console.log('[Lobby] User channel object type:', typeof userChannel, 'Has listen:', typeof userChannel.listen);
 
       // Listen for invitation accepted (for inviters)
       userChannel.listen('.invitation.accepted', (data) => {
-        console.log('Invitation accepted event received:', data);
+        console.log('[Lobby] 🎉 Invitation accepted event received:', data);
 
         // Remove the accepted invitation from sent list immediately
         if (data.invitation && data.invitation.id) {
+          console.log('[Lobby] Removing accepted invitation from sent list:', data.invitation.id);
           setSentInvitations(prev => prev.filter(inv => inv.id !== data.invitation.id));
 
           // Also mark this invitation as processed to prevent it from showing up again
@@ -92,7 +115,7 @@ const LobbyPage = () => {
         }
 
         if (data.game && data.game.id) {
-          console.log('Navigating to game ID:', data.game.id);
+          console.log('[Lobby] 🎮 Navigating to game ID:', data.game.id);
 
           // Set session markers for proper game access (challenger perspective)
           sessionStorage.setItem('lastInvitationAction', 'invitation_accepted_by_other');
@@ -100,20 +123,26 @@ const LobbyPage = () => {
           sessionStorage.setItem('lastGameId', data.game.id.toString());
 
           navigate(`/play/multiplayer/${data.game.id}`);
+        } else {
+          console.warn('[Lobby] ⚠️ Invitation accepted but no game data in event:', data);
         }
       });
 
       // Listen for new invitations (for recipients)
       userChannel.listen('.invitation.sent', (data) => {
-        console.log('New invitation received:', data);
+        console.log('[Lobby] 📨 New invitation received:', data);
 
         // Immediately add to pending invitations for instant UI update
         if (data.invitation) {
           setPendingInvitations(prev => {
             // Avoid duplicates
             const exists = prev.some(inv => inv.id === data.invitation.id);
-            if (exists) return prev;
+            if (exists) {
+              console.log('[Lobby] Invitation already in pending list, skipping');
+              return prev;
+            }
 
+            console.log('[Lobby] Adding new invitation to pending list');
             return [data.invitation, ...prev];
           });
         }
@@ -121,15 +150,19 @@ const LobbyPage = () => {
 
       // Listen for invitation cancellations (for recipients)
       userChannel.listen('.invitation.cancelled', (data) => {
-        console.log('Invitation cancelled:', data);
+        console.log('[Lobby] 🚫 Invitation cancelled:', data);
 
         // Remove the cancelled invitation from pending list immediately
         if (data.invitation && data.invitation.id) {
+          console.log('[Lobby] Removing cancelled invitation from pending list:', data.invitation.id);
           setPendingInvitations(prev => prev.filter(inv => inv.id !== data.invitation.id));
         }
       });
 
+      console.log('[Lobby] All user channel listeners registered');
+
       return () => {
+        console.log('[Lobby] Cleaning up user channel listeners');
         userChannel.stopListening('.invitation.accepted');
         userChannel.stopListening('.invitation.sent');
         userChannel.stopListening('.invitation.cancelled');

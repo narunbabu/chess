@@ -16,9 +16,16 @@ return new class extends Migration
             $table->foreignId('inviter_id')->constrained('users')->onDelete('cascade');
             $table->foreignId('invited_id')->constrained('users')->onDelete('cascade');
             $table->enum('status', ['pending', 'accepted', 'declined', 'notified'])->default('pending');
+            $table->enum('inviter_preferred_color', ['white', 'black'])->default('white');
+            $table->unsignedBigInteger('responded_by')->nullable();
+            $table->timestamp('responded_at')->nullable();
+            $table->foreignId('game_id')->nullable()->constrained('games')->onDelete('set null');
             $table->timestamps();
 
-            // No unique constraint here - will handle in application logic
+            // Foreign keys
+            $table->foreign('responded_by')->references('id')->on('users')->onDelete('set null');
+
+            // Indexes
             $table->index(['invited_id', 'status']);
             $table->index(['inviter_id', 'status']);
         });

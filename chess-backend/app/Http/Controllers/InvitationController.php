@@ -50,7 +50,14 @@ class InvitationController extends Controller
         ]);
 
         // Broadcast invitation sent event to recipient in real-time
-        broadcast(new \App\Events\InvitationSent($invitation->fresh()));
+        $freshInvitation = $invitation->fresh();
+        Log::info('📨 Broadcasting InvitationSent event', [
+            'invitation_id' => $freshInvitation->id,
+            'invited_user_id' => $invitedId,
+            'channel' => "App.Models.User.{$invitedId}",
+            'event' => 'invitation.sent'
+        ]);
+        broadcast(new \App\Events\InvitationSent($freshInvitation));
 
         return response()->json([
             'message' => 'Invitation sent successfully',
@@ -105,6 +112,12 @@ class InvitationController extends Controller
         $invitationData = $invitation->load(['inviter', 'invited']);
 
         // Broadcast cancellation event to recipient in real-time
+        Log::info('🚫 Broadcasting InvitationCancelled event', [
+            'invitation_id' => $invitationData->id,
+            'invited_user_id' => $invitationData->invited_id,
+            'channel' => "App.Models.User.{$invitationData->invited_id}",
+            'event' => 'invitation.cancelled'
+        ]);
         broadcast(new \App\Events\InvitationCancelled($invitationData));
 
         $invitation->delete();
@@ -201,7 +214,15 @@ class InvitationController extends Controller
             ]);
 
             // Broadcast invitation accepted event to inviter in real-time
-            broadcast(new \App\Events\InvitationAccepted($game, $invitation->fresh()));
+            $freshInvitation = $invitation->fresh();
+            Log::info('🎉 Broadcasting InvitationAccepted event', [
+                'invitation_id' => $freshInvitation->id,
+                'game_id' => $game->id,
+                'inviter_user_id' => $inviterId,
+                'channel' => "App.Models.User.{$inviterId}",
+                'event' => 'invitation.accepted'
+            ]);
+            broadcast(new \App\Events\InvitationAccepted($game, $freshInvitation));
 
             return response()->json([
                 'message'      => 'Accepted',

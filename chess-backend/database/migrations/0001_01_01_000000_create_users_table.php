@@ -16,7 +16,10 @@ return new class extends Migration
             $table->string('name');
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
-            $table->string('password');
+            $table->string('password')->nullable(); // Nullable for social auth
+            $table->string('provider')->nullable(); // Social auth provider
+            $table->string('provider_id')->nullable(); // Social auth provider ID
+            $table->string('provider_token')->nullable(); // Social auth token
             $table->rememberToken();
             $table->timestamps();
         });
