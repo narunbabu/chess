@@ -20,6 +20,7 @@ const LobbyPage = () => {
   const [onlineCount, setOnlineCount] = useState(0);
   const [pendingInvitations, setPendingInvitations] = useState([]);
   const [sentInvitations, setSentInvitations] = useState([]);
+  const [activeGames, setActiveGames] = useState([]);
   const [webSocketService, setWebSocketService] = useState(null);
   const [hasFinishedGame, setHasFinishedGame] = useState(false);
   const [processingInvitations, setProcessingInvitations] = useState(new Set()); // Track processing state
@@ -174,11 +175,12 @@ const LobbyPage = () => {
     try {
       console.log('Fetching lobby data for user:', user);
 
-      const [usersRes, pendingRes, sentRes, acceptedRes] = await Promise.all([
+      const [usersRes, pendingRes, sentRes, acceptedRes, activeGamesRes] = await Promise.all([
         api.get('/users'),
         api.get('/invitations/pending'),
         api.get('/invitations/sent'),
-        api.get('/invitations/accepted')
+        api.get('/invitations/accepted'),
+        api.get('/games/active')
       ]);
 
       console.log('Users response:', usersRes.data);
@@ -253,7 +255,7 @@ const LobbyPage = () => {
               if (gameResponse.ok) {
                 const gameData = await gameResponse.json();
                 const isGameActive = gameData.status === 'active' || gameData.status === 'waiting';
-                const isGameFinished = gameData.status === 'finished' || gameData.status === 'completed';
+                const isGameFinished = gameData.status === 'finished';
 
                 console.log('Game status check:', {
                   invitationId,
@@ -330,6 +332,7 @@ const LobbyPage = () => {
       setOnlineCount(usersRes.data.length);
       setPendingInvitations(pendingRes.data);
       setSentInvitations(activeSentInvitations);
+      setActiveGames(activeGamesRes.data || []);
     } catch (error) {
       console.error('Failed to fetch data:', error);
       console.error('Error details:', error.response?.data);
@@ -626,6 +629,50 @@ const LobbyPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Active/Paused Games */}
+      {activeGames.length > 0 && (
+        <div className="invitations-section">
+          <h2>🎮 Active Games</h2>
+          <div className="invitations-list">
+            {activeGames.map((game) => {
+              const opponent = game.white_player_id === user.id ? game.blackPlayer : game.whitePlayer;
+              const playerColor = game.white_player_id === user.id ? 'white' : 'black';
+              const statusEmoji = game.status === 'active' ? '🟢' : game.status === 'paused' ? '⏸️' : '⏳';
+
+              return (
+                <div key={game.id} className="invitation-card">
+                  <img
+                    src={opponent?.avatar || `https://i.pravatar.cc/150?u=${opponent?.email}`}
+                    alt={opponent?.name}
+                    className="invitation-avatar"
+                  />
+                  <div className="invitation-info">
+                    <h4>vs {opponent?.name}</h4>
+                    <p>{statusEmoji} {game.status} • Playing as {playerColor}</p>
+                    <p className="invitation-time">
+                      Last move: {game.last_move_at ? new Date(game.last_move_at).toLocaleString() : 'No moves yet'}
+                    </p>
+                  </div>
+                  <div className="invitation-actions">
+                    <button
+                      className="accept-btn"
+                      onClick={() => {
+                        sessionStorage.setItem('lastInvitationAction', 'resume_game');
+                        sessionStorage.setItem('lastInvitationTime', Date.now().toString());
+                        sessionStorage.setItem('lastGameId', game.id.toString());
+                        navigate(`/play/multiplayer/${game.id}`);
+                      }}
+                    >
+                      ▶️ Resume Game
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Pending Invitations */}
       {pendingInvitations.length > 0 && (

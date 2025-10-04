@@ -598,30 +598,46 @@ class WebSocketController extends Controller
 
     /**
      * Handle game state change events
+     * Accepts legacy status/reason values and maps to canonical values
      */
     public function updateGameStatus(Request $request, int $gameId): JsonResponse
     {
         $request->validate([
-            'status' => 'required|string|in:waiting,active,completed,paused,abandoned',
-            'result' => 'nullable|string|in:white_wins,black_wins,draw,stalemate,timeout',
-            'reason' => 'nullable|string',
+            // Accept both legacy and canonical status values during transition
+            'status' => 'required|string|in:waiting,active,finished,aborted,completed,paused,abandoned',
+            'result' => 'nullable|string|in:white_wins,black_wins,draw,stalemate,timeout,1-0,0-1,1/2-1/2,*',
+            // Accept both legacy and canonical reason values
+            'reason' => 'nullable|string|in:checkmate,resignation,stalemate,timeout,draw_agreed,threefold,fifty_move,insufficient_material,aborted,killed',
             'socket_id' => 'required|string'
         ]);
 
         try {
+            // Map legacy values to canonical using enums
+            $statusInput = $request->input('status');
+            $reasonInput = $request->input('reason');
+
+            // Use enum mapping for backward compatibility
+            $canonicalStatus = \App\Enums\GameStatus::fromLegacy($statusInput)->value;
+            $canonicalReason = $reasonInput
+                ? \App\Enums\EndReason::fromLegacy($reasonInput)->value
+                : null;
+
             $result = $this->gameRoomService->updateGameStatus(
                 $gameId,
                 Auth::id(),
-                $request->input('status'),
-                $request->input('result'),
-                $request->input('reason'),
-                $request->input('socket_id')
+                $canonicalStatus,  // Canonical status
+                $request->input('socket_id'),  // Socket ID (required)
+                $request->input('result'),     // Result (optional)
+                $canonicalReason               // Canonical reason (optional)
             );
 
             Log::info('Game status updated', [
                 'user_id' => Auth::id(),
                 'game_id' => $gameId,
-                'status' => $request->input('status'),
+                'status_input' => $statusInput,
+                'status_canonical' => $canonicalStatus,
+                'reason_input' => $reasonInput,
+                'reason_canonical' => $canonicalReason,
                 'result' => $request->input('result')
             ]);
 
@@ -631,11 +647,129 @@ class WebSocketController extends Controller
             Log::error('Failed to update game status', [
                 'user_id' => Auth::id(),
                 'game_id' => $gameId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
 
             return response()->json([
                 'error' => 'Failed to update game status',
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Handle player forfeit
+     */
+    public function forfeitGame(Request $request, int $gameId): JsonResponse
+    {
+        try {
+            $result = $this->gameRoomService->forfeitGame($gameId, Auth::id());
+
+            Log::info('Player forfeited game', [
+                'user_id' => Auth::id(),
+                'game_id' => $gameId,
+                'result' => $result['result'] ?? null,
+                'winner' => $result['winner'] ?? null
+            ]);
+
+            return response()->json($result);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to forfeit game', [
+                'user_id' => Auth::id(),
+                'game_id' => $gameId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to forfeit game',
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Handle mutual abort request
+     */
+    public function requestAbort(Request $request, int $gameId): JsonResponse
+    {
+        try {
+            $result = $this->gameRoomService->requestAbort($gameId, Auth::id());
+
+            Log::info('Abort request sent', [
+                'user_id' => Auth::id(),
+                'game_id' => $gameId
+            ]);
+
+            return response()->json($result);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to request abort', [
+                'user_id' => Auth::id(),
+                'game_id' => $gameId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to request abort',
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Handle response to abort request
+     */
+    public function respondToAbort(Request $request, int $gameId): JsonResponse
+    {
+        $request->validate([
+            'accept' => 'required|boolean'
+        ]);
+
+        try {
+            $result = $this->gameRoomService->respondToAbort(
+                $gameId,
+                Auth::id(),
+                $request->boolean('accept')
+            );
+
+            Log::info('Abort response received', [
+                'user_id' => Auth::id(),
+                'game_id' => $gameId,
+                'accept' => $request->boolean('accept'),
+                'result' => $result['result'] ?? null
+            ]);
+
+            return response()->json($result);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to respond to abort', [
+                'user_id' => Auth::id(),
+                'game_id' => $gameId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to respond to abort request',
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Handle game heartbeat (player activity tracking)
+     */
+    public function gameHeartbeat(Request $request, int $gameId): JsonResponse
+    {
+        try {
+            $result = $this->gameRoomService->updateGameHeartbeat($gameId, Auth::id());
+
+            return response()->json($result);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Game heartbeat failed',
                 'message' => $e->getMessage()
             ], 400);
         }

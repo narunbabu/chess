@@ -226,7 +226,7 @@ class InvitationController extends Controller
 
             return response()->json([
                 'message'      => 'Accepted',
-                'game'         => $game,
+                'game'         => $game->load(['statusRelation', 'endReasonRelation', 'whitePlayer', 'blackPlayer']),
                 'player_color' => Auth::id() === (int) $whiteId ? 'white' : 'black',
             ]);
         }); // 👈 DO NOT delete this closing "});"

@@ -3,10 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useAppData } from "../contexts/AppDataContext";
 import { getGameHistories } from "../services/gameHistoryService";
+import api from "../services/api";
 import "./Dashboard.css"; // Ensure this file is imported if not using index.css for these styles
 
 const Dashboard = () => {
   const [gameHistories, setGameHistories] = useState([]);
+  const [activeGames, setActiveGames] = useState([]);
   const [loading, setLoading] = useState(true);
   const { user, logout } = useAuth();
   const { getGameHistory } = useAppData();
@@ -23,18 +25,19 @@ const Dashboard = () => {
 
     const loadGameHistories = async () => {
       try {
-        // Use cached getGameHistory from AppDataContext
-        const histories = await getGameHistory();
+        // Fetch both game histories and active games in parallel
+        const [histories, activeGamesResponse] = await Promise.all([
+          getGameHistory().catch(() => getGameHistories()),
+          api.get('/games/active').catch(err => {
+            console.error("[Dashboard] Error loading active games:", err);
+            return { data: [] };
+          })
+        ]);
+
         setGameHistories(histories || []);
+        setActiveGames(activeGamesResponse.data || []);
       } catch (error) {
-        console.error("[Dashboard] Error loading game histories:", error);
-        // Fallback to direct fetch if cache fails
-        try {
-          const histories = await getGameHistories();
-          setGameHistories(histories);
-        } catch (fallbackError) {
-          console.error("[Dashboard] Fallback fetch also failed:", fallbackError);
-        }
+        console.error("[Dashboard] Error loading data:", error);
       } finally {
         setLoading(false);
       }
@@ -68,6 +71,52 @@ const Dashboard = () => {
           Practice
         </button>
       </section>
+
+      {/* Active Games Section */}
+      {activeGames.length > 0 && (
+        <section className="active-games bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-6 mb-6">
+          <h2 className="text-2xl font-bold mb-4 text-white">🎮 Active Games</h2>
+          <div className="game-list space-y-4">
+            {activeGames.map((game) => {
+              const opponent = game.white_player_id === user.id ? game.blackPlayer : game.whitePlayer;
+              const playerColor = game.white_player_id === user.id ? 'white' : 'black';
+              const statusEmoji = game.status === 'active' ? '🟢' : game.status === 'paused' ? '⏸️' : '⏳';
+
+              return (
+                <div key={game.id} className="game-item flex justify-between items-center bg-white/10 p-4 rounded-lg">
+                  <div className="game-info flex items-center gap-4">
+                    <img
+                      src={opponent?.avatar || `https://i.pravatar.cc/150?u=${opponent?.email}`}
+                      alt={opponent?.name}
+                      className="w-12 h-12 rounded-full"
+                    />
+                    <div>
+                      <span className="block font-bold text-white">vs {opponent?.name}</span>
+                      <span className="block text-sm text-gray-300">
+                        {statusEmoji} {game.status} • Playing as {playerColor}
+                      </span>
+                      <span className="block text-xs text-gray-400">
+                        Last move: {game.last_move_at ? new Date(game.last_move_at).toLocaleString() : 'No moves yet'}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      sessionStorage.setItem('lastInvitationAction', 'resume_game');
+                      sessionStorage.setItem('lastInvitationTime', Date.now().toString());
+                      sessionStorage.setItem('lastGameId', game.id.toString());
+                      navigate(`/play/multiplayer/${game.id}`);
+                    }}
+                    className="bg-primary hover:bg-primary-600 transition-colors duration-300 px-4 py-2 rounded-lg text-white"
+                  >
+                    ▶️ Resume Game
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <section className="recent-games lg:col-span-2 bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-6">

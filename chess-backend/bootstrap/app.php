@@ -3,6 +3,7 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Console\Scheduling\Schedule;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -12,6 +13,13 @@ return Application::configure(basePath: dirname(__DIR__))
         channels: __DIR__.'/../routes/channels.php',
         health: '/up',
     )
+    ->withSchedule(function (Schedule $schedule) {
+        // Monitor game inactivity every minute
+        $schedule->command('games:monitor-inactivity')
+            ->everyMinute()
+            ->withoutOverlapping()
+            ->runInBackground();
+    })
     ->withMiddleware(function (Middleware $middleware) {
         // Add CORS middleware for API routes
         $middleware->api(prepend: [

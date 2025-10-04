@@ -38,13 +38,13 @@ class GameController extends Controller
 
         return response()->json([
             'message' => 'Game created successfully',
-            'game' => $game->load(['whitePlayer', 'blackPlayer'])
+            'game' => $game->load(['whitePlayer', 'blackPlayer', 'statusRelation', 'endReasonRelation'])
         ]);
     }
 
     public function show($id)
     {
-        $game = Game::with(['whitePlayer', 'blackPlayer'])->find($id);
+        $game = Game::with(['whitePlayer', 'blackPlayer', 'statusRelation', 'endReasonRelation'])->find($id);
 
         if (!$game) {
             return response()->json(['error' => 'Game not found'], 404);
@@ -211,7 +211,31 @@ class GameController extends Controller
             $query->where('white_player_id', $user->id)
                   ->orWhere('black_player_id', $user->id);
         })
-        ->with(['whitePlayer', 'blackPlayer'])
+        ->with(['whitePlayer', 'blackPlayer', 'statusRelation', 'endReasonRelation'])
+        ->orderBy('last_move_at', 'desc')
+        ->orderBy('created_at', 'desc')
+        ->get();
+
+        return response()->json($games);
+    }
+
+    /**
+     * Get active/paused games for the current user
+     * Used by Lobby and Dashboard to show "Resume Game" buttons
+     */
+    public function activeGames()
+    {
+        $user = Auth::user();
+
+        $games = Game::where(function($query) use ($user) {
+            $query->where('white_player_id', $user->id)
+                  ->orWhere('black_player_id', $user->id);
+        })
+        ->whereHas('statusRelation', function($query) {
+            // Only active, waiting, or paused games
+            $query->whereIn('code', ['waiting', 'active', 'paused']);
+        })
+        ->with(['whitePlayer', 'blackPlayer', 'statusRelation', 'endReasonRelation'])
         ->orderBy('last_move_at', 'desc')
         ->orderBy('created_at', 'desc')
         ->get();

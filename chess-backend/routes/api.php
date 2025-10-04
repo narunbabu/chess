@@ -41,6 +41,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Game routes
     Route::post('/games', [GameController::class, 'create']);
+    Route::get('/games/active', [GameController::class, 'activeGames']);
     Route::get('/games/{id}', [GameController::class, 'show']);
     Route::post('/games/{id}/move', [GameController::class, 'move']);
     Route::post('/games/{id}/resign', [GameController::class, 'resign']);
@@ -81,6 +82,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/games/{gameId}/move', [WebSocketController::class, 'broadcastMove']);
         Route::post('/games/{gameId}/resign', [WebSocketController::class, 'resignGame']);
         Route::post('/games/{gameId}/status', [WebSocketController::class, 'updateGameStatus']);
+
+        // Game termination endpoints (forfeit, mutual abort, inactivity)
+        Route::post('/games/{gameId}/forfeit', [WebSocketController::class, 'forfeitGame']);
+        Route::post('/games/{gameId}/abort/request', [WebSocketController::class, 'requestAbort']);
+        Route::post('/games/{gameId}/abort/respond', [WebSocketController::class, 'respondToAbort']);
+        Route::post('/games/{gameId}/heartbeat', [WebSocketController::class, 'gameHeartbeat']);
     });
 });
 

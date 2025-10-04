@@ -525,49 +525,96 @@ class GameRoomService
 
     /**
      * Update game status and broadcast to players
+     * Idempotent - safe to call multiple times
+     * Uses transaction with row locking to prevent race conditions
      */
-    public function updateGameStatus(int $gameId, int $userId, string $status, ?string $result = null, ?string $reason = null, string $socketId): array
+    public function updateGameStatus(int $gameId, int $userId, string $status, string $socketId, ?string $result = null, ?string $reason = null): array
     {
-        $game = Game::findOrFail($gameId);
-        $user = User::findOrFail($userId);
+        return \DB::transaction(function () use ($gameId, $userId, $status, $result, $reason, $socketId) {
+            // Lock row for update and refresh state
+            $game = Game::lockForUpdate()->findOrFail($gameId);
+            $user = User::findOrFail($userId);
 
-        if (!$this->canUserJoinGame($user, $game)) {
-            throw new \Exception('User not authorized to update this game');
-        }
+            if (!$this->canUserJoinGame($user, $game)) {
+                throw new \Exception('User not authorized to update this game');
+            }
 
-        $updateData = ['status' => $status];
+            // Idempotent check: if already finished, return current state
+            if ($game->isFinished()) {
+                Log::info('Game already finished, returning current state', [
+                    'game_id' => $gameId,
+                    'current_status' => $game->status,
+                    'requested_status' => $status
+                ]);
 
-        if ($result) {
-            $updateData['result'] = $result;
-        }
+                return [
+                    'success' => true,
+                    'already_finished' => true,
+                    'status' => $game->status,
+                    'result' => $game->result,
+                    'reason' => $game->end_reason,
+                    'game' => $this->getGameRoomData($game)
+                ];
+            }
 
-        if ($reason) {
-            $updateData['end_reason'] = $reason;
-        }
+            // Validate terminal status request
+            if (!in_array($status, ['finished', 'aborted', 'active', 'waiting'])) {
+                throw new \InvalidArgumentException("Invalid status: {$status}");
+            }
 
-        if ($status === 'completed' || $status === 'abandoned') {
-            $updateData['ended_at'] = now();
-        }
+            // Build update data (mutators will handle status_id/end_reason_id automatically)
+            $updateData = ['status' => $status];
 
-        $game->update($updateData);
+            if ($result) {
+                $updateData['result'] = $result;
+            }
 
-        // Broadcast status change event
-        // TODO: Re-enable broadcasting once configured
-        // broadcast(new GameConnectionEvent($game, $user, 'status_change', [
-        //     'status' => $status,
-        //     'result' => $result,
-        //     'reason' => $reason,
-        //     'socket_id' => $socketId,
-        //     'ended_at' => $status === 'completed' ? $game->ended_at?->toISOString() : null
-        // ]));
+            if ($reason) {
+                $updateData['end_reason'] = $reason;
+            }
 
-        return [
-            'success' => true,
-            'status' => $status,
-            'result' => $result,
-            'reason' => $reason,
-            'game' => $this->getGameRoomData($game)
-        ];
+            // Set ended_at for terminal statuses
+            if (in_array($status, ['finished', 'aborted'])) {
+                $updateData['ended_at'] = now();
+            }
+
+            $game->update($updateData);
+
+            // Refresh to get updated relationships
+            $game->refresh();
+
+            // Broadcast status change event (synchronous for now)
+            if (in_array($status, ['finished', 'aborted'])) {
+                try {
+                    $gameData = [
+                        'game_over' => true,
+                        'result' => $game->result,
+                        'end_reason' => $game->end_reason,
+                        'winner_user_id' => $game->winner_user_id,
+                        'winner_player' => $game->winner_player,
+                        'fen_final' => $game->fen,
+                        'move_count' => $game->move_count,
+                        'ended_at' => $game->ended_at?->toISOString(),
+                        'white_player' => $game->whitePlayer,
+                        'black_player' => $game->blackPlayer,
+                    ];
+                    broadcast(new GameEndedEvent($game->id, $gameData))->toOthers();
+                } catch (\Exception $e) {
+                    Log::error('Failed to broadcast GameEndedEvent', [
+                        'game_id' => $gameId,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            return [
+                'success' => true,
+                'status' => $game->status,
+                'result' => $game->result,
+                'reason' => $game->end_reason,
+                'game' => $this->getGameRoomData($game)
+            ];
+        });
     }
 
     /**
@@ -759,6 +806,355 @@ class GameRoomService
             'message' => 'Game resigned successfully',
             'result' => $game->fresh()->result,
             'winner' => $winner
+        ];
+    }
+
+    /**
+     * Handle player forfeit (unilateral abort - forfeiter loses)
+     */
+    public function forfeitGame(int $gameId, int $userId): array
+    {
+        return \DB::transaction(function () use ($gameId, $userId) {
+            $game = Game::lockForUpdate()->findOrFail($gameId);
+            $user = User::findOrFail($userId);
+
+            if (!$this->canUserJoinGame($user, $game)) {
+                throw new \Exception('User not authorized to forfeit this game');
+            }
+
+            if ($game->isFinished()) {
+                throw new \Exception('Game is already finished');
+            }
+
+            // Determine winner (opponent of forfeiter)
+            $forfeiterColor = $this->getUserRole($user, $game);
+            $result = ($forfeiterColor === 'white') ? '0-1' : '1-0';
+            $winnerUserId = ($forfeiterColor === 'white')
+                ? $game->black_player_id
+                : $game->white_player_id;
+            $winnerColor = ($forfeiterColor === 'white') ? 'black' : 'white';
+
+            $game->update([
+                'status' => 'finished',
+                'result' => $result,
+                'end_reason' => 'forfeit',
+                'winner_user_id' => $winnerUserId,
+                'winner_player' => $winnerColor,
+                'ended_at' => now()
+            ]);
+
+            $this->broadcastGameEnded($game->fresh());
+
+            return [
+                'success' => true,
+                'message' => 'Game forfeited',
+                'result' => $result,
+                'winner' => $winnerColor
+            ];
+        });
+    }
+
+    /**
+     * Request mutual abort (both players must agree)
+     */
+    public function requestAbort(int $gameId, int $userId): array
+    {
+        $game = Game::findOrFail($gameId);
+        $user = User::findOrFail($userId);
+
+        if (!$this->canUserJoinGame($user, $game)) {
+            throw new \Exception('User not authorized to request abort for this game');
+        }
+
+        if ($game->isFinished()) {
+            throw new \Exception('Game is already finished');
+        }
+
+        // Store pending abort request in cache (5 min expiry)
+        Cache::put("abort_request:{$gameId}:{$userId}", true, 300);
+
+        // Get opponent
+        $opponent = $game->getOpponent($userId);
+
+        // TODO: Broadcast abort request to opponent
+        // broadcast(new AbortRequestEvent($gameId, [
+        //     'requester_id' => $userId,
+        //     'requester_name' => $user->name
+        // ]))->toOthers();
+
+        Log::info('Abort request sent', [
+            'game_id' => $gameId,
+            'requester_id' => $userId,
+            'opponent_id' => $opponent->id
+        ]);
+
+        return [
+            'success' => true,
+            'status' => 'pending',
+            'message' => 'Abort request sent to opponent'
+        ];
+    }
+
+    /**
+     * Respond to abort request (accept or decline)
+     */
+    public function respondToAbort(int $gameId, int $userId, bool $accept): array
+    {
+        return \DB::transaction(function () use ($gameId, $userId, $accept) {
+            $game = Game::lockForUpdate()->findOrFail($gameId);
+            $user = User::findOrFail($userId);
+
+            if (!$this->canUserJoinGame($user, $game)) {
+                throw new \Exception('User not authorized to respond to abort for this game');
+            }
+
+            $opponent = $game->getOpponent($userId);
+            $requestKey = "abort_request:{$gameId}:{$opponent->id}";
+
+            // Check if there's a pending abort request from opponent
+            if (!Cache::has($requestKey)) {
+                throw new \Exception('No pending abort request found');
+            }
+
+            if ($accept) {
+                // Both players agreed - mutual abort (No Result)
+                $game->update([
+                    'status' => 'finished',
+                    'result' => '*',  // No result (PGN standard for abandoned/aborted games)
+                    'end_reason' => 'abandoned_mutual',
+                    'ended_at' => now()
+                ]);
+
+                Cache::forget($requestKey);
+
+                // Broadcast game ended with mutual abort
+                broadcast(new GameEndedEvent($game->id, [
+                    'game_over' => true,
+                    'result' => '*',
+                    'end_reason' => 'abandoned_mutual',
+                    'fen_final' => $game->fen,
+                    'move_count' => $game->move_count,
+                    'ended_at' => $game->ended_at?->toISOString(),
+                    'white_player' => $game->whitePlayer,
+                    'black_player' => $game->blackPlayer
+                ]));
+
+                return [
+                    'success' => true,
+                    'result' => 'mutual_abort',
+                    'message' => 'Game aborted by mutual agreement'
+                ];
+            } else {
+                // Declined - game continues
+                Cache::forget($requestKey);
+
+                // TODO: Broadcast abort declined
+                // broadcast(new AbortDeclinedEvent($gameId))->toOthers();
+
+                return [
+                    'success' => true,
+                    'result' => 'declined',
+                    'message' => 'Abort request declined'
+                ];
+            }
+        });
+    }
+
+    /**
+     * Pause game due to inactivity
+     */
+    public function pauseGame(int $gameId, string $reason = 'inactivity'): array
+    {
+        $game = Game::findOrFail($gameId);
+
+        if ($game->status !== 'active') {
+            return [
+                'success' => false,
+                'message' => 'Game is not active'
+            ];
+        }
+
+        $game->update([
+            'status' => 'paused',
+            'paused_at' => now(),
+            'paused_reason' => $reason
+        ]);
+
+        // TODO: Broadcast game paused event
+        // broadcast(new GamePausedEvent($gameId, [
+        //     'reason' => $reason,
+        //     'paused_at' => now()->toISOString()
+        // ]));
+
+        Log::info('Game paused', [
+            'game_id' => $gameId,
+            'reason' => $reason
+        ]);
+
+        return [
+            'success' => true,
+            'status' => 'paused',
+            'reason' => $reason
+        ];
+    }
+
+    /**
+     * Resume game from inactivity pause
+     */
+    public function resumeGameFromInactivity(int $gameId, int $userId): array
+    {
+        $game = Game::findOrFail($gameId);
+        $user = User::findOrFail($userId);
+
+        if (!$this->canUserJoinGame($user, $game)) {
+            throw new \Exception('User not authorized to resume this game');
+        }
+
+        if ($game->status !== 'paused') {
+            return [
+                'success' => false,
+                'message' => 'Game is not paused'
+            ];
+        }
+
+        $game->update([
+            'status' => 'active',
+            'paused_at' => null,
+            'paused_reason' => null,
+            'last_heartbeat_at' => now()
+        ]);
+
+        // TODO: Broadcast game resumed event
+        // broadcast(new GameResumedEvent($gameId, [
+        //     'resumed_by' => $userId,
+        //     'resumed_at' => now()->toISOString()
+        // ]));
+
+        Log::info('Game resumed from inactivity', [
+            'game_id' => $gameId,
+            'user_id' => $userId
+        ]);
+
+        return [
+            'success' => true,
+            'status' => 'active',
+            'message' => 'Game resumed'
+        ];
+    }
+
+    /**
+     * Forfeit game by timeout (inactive player loses)
+     */
+    public function forfeitByTimeout(int $gameId): array
+    {
+        return \DB::transaction(function () use ($gameId) {
+            $game = Game::lockForUpdate()->findOrFail($gameId);
+
+            if ($game->isFinished()) {
+                return [
+                    'success' => false,
+                    'message' => 'Game is already finished'
+                ];
+            }
+
+            // Determine inactive player based on last activity
+            $inactivePlayer = $this->getInactivePlayer($game);
+
+            if (!$inactivePlayer) {
+                return [
+                    'success' => false,
+                    'message' => 'Could not determine inactive player'
+                ];
+            }
+
+            // Inactive player loses
+            $inactiveColor = $this->getUserRole($inactivePlayer, $game);
+            $result = ($inactiveColor === 'white') ? '0-1' : '1-0';
+            $winnerUserId = ($inactiveColor === 'white')
+                ? $game->black_player_id
+                : $game->white_player_id;
+            $winnerColor = ($inactiveColor === 'white') ? 'black' : 'white';
+
+            $game->update([
+                'status' => 'finished',
+                'result' => $result,
+                'end_reason' => 'timeout_inactivity',
+                'winner_user_id' => $winnerUserId,
+                'winner_player' => $winnerColor,
+                'ended_at' => now()
+            ]);
+
+            $this->broadcastGameEnded($game->fresh());
+
+            Log::info('Game forfeited by timeout', [
+                'game_id' => $gameId,
+                'inactive_player' => $inactiveColor,
+                'winner' => $winnerColor
+            ]);
+
+            return [
+                'success' => true,
+                'message' => 'Game forfeited by timeout',
+                'result' => $result,
+                'winner' => $winnerColor
+            ];
+        });
+    }
+
+    /**
+     * Get the inactive player (helper for inactivity detection)
+     */
+    private function getInactivePlayer(Game $game): ?User
+    {
+        // Check last heartbeat for each player
+        $whiteActive = $this->isUserOnline($game->white_player_id, $game->id);
+        $blackActive = $this->isUserOnline($game->black_player_id, $game->id);
+
+        if (!$whiteActive && $blackActive) {
+            return $game->whitePlayer;
+        } elseif ($whiteActive && !$blackActive) {
+            return $game->blackPlayer;
+        }
+
+        // If both inactive or both active, check last move
+        if ($game->moves && count($game->moves) > 0) {
+            $lastMove = end($game->moves);
+            $lastMoveUserId = $lastMove['user_id'] ?? null;
+
+            if ($lastMoveUserId === $game->white_player_id) {
+                // White made last move, so black is inactive
+                return $game->blackPlayer;
+            } else {
+                // Black made last move, so white is inactive
+                return $game->whitePlayer;
+            }
+        }
+
+        // Default: assume current turn player is inactive
+        return $game->turn === 'white' ? $game->whitePlayer : $game->blackPlayer;
+    }
+
+    /**
+     * Update game heartbeat (called when player is active)
+     */
+    public function updateGameHeartbeat(int $gameId, int $userId): array
+    {
+        $game = Game::find($gameId);
+
+        if (!$game) {
+            return ['success' => false, 'error' => 'Game not found'];
+        }
+
+        $game->update(['last_heartbeat_at' => now()]);
+
+        // If game was paused due to inactivity, resume it
+        if ($game->status === 'paused' && $game->paused_reason === 'inactivity') {
+            $this->resumeGameFromInactivity($gameId, $userId);
+        }
+
+        return [
+            'success' => true,
+            'timestamp' => now()->toISOString()
         ];
     }
 }

@@ -863,13 +863,13 @@ const PlayMultiplayer = () => {
   };
 
   const handleKillGame = async () => {
-    if (!window.confirm('Are you sure you want to kill this game? This will permanently delete the game and return you to the lobby.')) {
+    if (!window.confirm('⚠️ Are you sure you want to forfeit this game? You will LOSE and your opponent will WIN. This action cannot be undone.')) {
       return;
     }
 
     try {
-      // First try to resign/end the game with abandoned status
-      await wsService.current.updateGameStatus('abandoned', null, 'killed');
+      // Forfeit the game - player loses, opponent wins
+      await wsService.current.updateGameStatus('finished', null, 'forfeit');
 
       // Disconnect WebSocket service
       if (wsService.current) {
@@ -935,7 +935,7 @@ const PlayMultiplayer = () => {
               gameInfo.turn === gameInfo.playerColor ?
                 "Your turn" :
                 `${gameInfo.opponentName}'s turn`
-            ) : gameInfo.status === 'completed' ? (
+            ) : gameInfo.status === 'finished' ? (
               `Game ${gameData?.result?.replace('_', ' ') || 'ended'}`
             ) : (
               `Game ${gameInfo.status}`
@@ -988,7 +988,7 @@ const PlayMultiplayer = () => {
                   Resume Game
                 </button>
               )}
-              {gameInfo.status === 'completed' && (
+              {gameInfo.status === 'finished' && (
                 <div className="game-ended-controls">
                   <button onClick={() => handleNewGame(true)} className="rematch-button">
                     Rematch
@@ -998,7 +998,7 @@ const PlayMultiplayer = () => {
                   </button>
                 </div>
               )}
-              <button onClick={handleKillGame} className="kill-game-button" style={{
+              <button onClick={handleKillGame} className="forfeit-game-button" style={{
                 backgroundColor: '#dc3545',
                 color: 'white',
                 border: 'none',
@@ -1008,7 +1008,7 @@ const PlayMultiplayer = () => {
                 marginTop: '10px',
                 fontSize: '14px'
               }}>
-                🗑️ Kill Game
+                ⚠️ Forfeit Game
               </button>
             </div>
           </div>

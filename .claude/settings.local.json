@@ -3,7 +3,8 @@
     "allow": [
       "Bash(php artisan:*)",
       "Read(//usr/**)",
-      "Bash(./vendor/bin/sail artisan optimize:clear:*)"
+      "Bash(./vendor/bin/sail artisan optimize:clear:*)",
+      "Bash(sqlite3:*)"
     ],
     "deny": [],
     "ask": []

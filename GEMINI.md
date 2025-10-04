@@ -1,42 +1,17 @@
-# Gemini Project Overview: Chess-Web
-
-This is a full-stack web-based chess application that allows users to play chess, review games, and track their history.
-
-## Architecture
-
-The project follows a modern client-server architecture:
-
-*   **`chess-frontend`**: A React-based single-page application that provides the main user interface.
-*   **`chess-backend`**: A Laravel (PHP) application that serves as the backend API.
-*   **`ChessNewLanding`**: A separate, newer landing page built with React and TypeScript.
-
-## Backend (`chess-backend`)
-
-*   **Framework**: Laravel (PHP)
-*   **Database**: MySQL
-*   **Core Responsibilities**:
-    *   Provides a RESTful API for the frontend.
-    *   Manages user authentication (including social logins) via Laravel Sanctum.
-    *   Handles CRUD operations for user data and game histories.
-    *   Calculates and serves user rankings and statistics.
-
-## Frontend (`chess-frontend`)
-
-*   **Framework**: React (JavaScript)
-*   **Core Features**:
-    *   Interactive chessboard for gameplay using `react-chessboard`.
-    *   Complete chess logic and move validation powered by `chess.js`.
-    *   AI opponent implemented using the **Stockfish** engine, which runs in a browser web worker for performance.
-    *   Game history review and visualization.
-    *   Ability to export completed games as animated GIFs.
-
-## New Landing Page (`ChessNewLanding`)
-
-*   A work-in-progress, modern landing page.
-*   **Stack**: React, TypeScript, and Vite.
-*   This suggests an ongoing effort to modernize the application's entry point.
-
-## Instructions for new code
-
-1. Keep in mind all the related logic and the stake holders of codeblocks before constructing them. The new code blocks should be consistent with existing related codes (imports and where exports happen)
-2. While editing or implementing additional functionality or building additional elements care msut be taken. Disturbing already working functionality would be catastrophic and it results in unintended side effects and subogate some unseen functionality. So keep this in mind to not disturb already tested and working functionality.
+* Read `docs/context.md`; map the exact code paths you’ll touch (call graph, data flow, entry points), list constraints/invariants, and note any global/shared primitives implicated.
+* Identify stakeholders (modules, services, users, jobs) and the public contracts they rely on; write down invariants and edge cases discovered in code, tests, and logs.
+* Propose a short plan (goal, approach, files to change, rollout/flags, observability, risks, tests) and wait for approval before coding.
+* Work in small, reversible slices behind feature flags; prefer additive code and local adapters over edits to shared primitives; include a kill-switch and default flags to off.
+* Match existing styles for imports/exports, naming, logging (structured), error handling, i18n, and accessibility; copy nearby patterns rather than inventing new ones.
+* Run a drift check before changes: align DB schema/migrations, server validators/types, and client constants/enums; document any mismatches and propose mapping/migration.
+* Preserve public APIs and data schemas; if a change is unavoidable, provide compatibility shims/versioning, safe migrations, and a documented rollback plan with precise steps.
+* Keep the build green locally: `pnpm build`, `pnpm test`, `pnpm lint`, `pnpm typecheck`; run migrations in dry-run/staging first and include seed/fixtures for new data.
+* Write targeted tests for new/changed behavior, including flag-off and legacy paths; cover failure modes, boundary cases, and schema/validator parity; update snapshots intentionally.
+* Exclude secrets/PII from code and logs; use env vars/secret manager; sanitize request/response logging; enforce authZ/authN and input validation on all new entry points.
+* Monitor performance on likely hot paths; add lightweight metrics/timers; avoid N+1s, excessive allocations, and unnecessary async/await; include a simple perf budget in PR notes.
+* Communicate high-level status after each slice (what/why/next/risks); call out assumptions and pause for re-approval if scope, contracts, or risk surface change.
+* Execute TODO items incrementally; convert TODOs into trackable tasks where useful; check them off in the update note as they’re completed.
+* Append a concise change log to `docs/updates/YYYY_MM_DD_HH_MM_update.md` (same timestamp as the TODO; “todo” → “update”) covering context, diff summary, risks, tests, rollout/flags, metrics, and links to PRs/dashboards.
+* For each debug fix, add `docs/success-stories/YYYY_MM_DD_HH_MM_<slug>.md` with problem, root cause, resolution, impact, lessons learned, and links to PR/tests; link it from the corresponding update note.
+* Use `pnpm` for Node workflows (`pnpm i`, `pnpm build`, `pnpm test`, `pnpm lint`, `pnpm typecheck`); keep the lockfile committed and avoid mixing package managers.
+* Use clear conventional commits (`type(scope): summary`); reference issues, mention flags/migrations in the body, and make changesets easy to trace and revert.
