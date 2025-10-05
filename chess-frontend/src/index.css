@@ -100,10 +100,9 @@
 }
    html, body, #root {
     width: 100%;
-    height: 100%; /* Ensure root and html/body have height */
+    min-height: 100%;
     margin: 0;
     padding: 0;
-    overflow-x: hidden; /* Prevent horizontal scroll */
   }
 
   *, *::before, *::after {
@@ -116,11 +115,11 @@
     font-family: 'Nunito', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background-color: transparent; /* Remove background to let landing page control it */
+    background-color: #eaf4ff; /* soft sky so any edge isn't stark white */
     color: #334155; /* Darker text for better readability */
-    height: 100vh;
-    width: 100vw;
-    overflow: hidden; /* Prevent any scroll bars */
+    width: 100%;
+    overflow-x: hidden;
+    overflow-y: auto; /* allow page to scroll */
   }
 
   /* Remove body::after background - let components control their own backgrounds */
@@ -149,8 +148,8 @@
     max-width: none;
     padding: 0;
     margin: 0;
-    width: 100vw;
-    height: 100vh;
+    width: 100%;
+    height: auto;
   }
 
   .app-container:has([data-page="landing"]) .app-header {
@@ -341,7 +340,7 @@
      ========================================= */
   .content-wrapper {
     flex-grow: 1;
-    overflow-y: hidden;
+    overflow-y: auto;
     overflow-x: hidden;
     padding: 0;
     display: flex;

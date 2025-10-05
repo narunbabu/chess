@@ -26,147 +26,147 @@ const LandingPage = () => {
   ];
 
   return (
-    <div data-page="landing" className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <span className="text-2xl font-bold text-yellow-500">♟️</span>
-              <span className="ml-2 text-xl font-bold text-gray-800">Chess99</span>
-            </div>
-            <nav className="hidden md:flex space-x-8">
-              <button onClick={() => navigate('/play')} className="text-gray-600 hover:text-gray-900">Play</button>
-              <Link to="/puzzles" className="text-gray-600 hover:text-gray-900">Puzzles</Link>
-              <Link to="/learn" className="text-gray-600 hover:text-gray-900">Learn</Link>
-              <button className="text-gray-600 hover:text-gray-900">Events</button>
-              <button className="text-gray-600 hover:text-gray-900">Resources</button>
-            </nav>
-            <div className="flex items-center space-x-4">
-              {!isAuthenticated && (
-                <>
-                  <button 
-                    onClick={() => navigate('/login')}
-                    className="text-gray-600 hover:text-gray-900"
-                  >
-                    Login
-                  </button>
-                  <button 
-                    onClick={() => navigate('/signup')}
-                    className="bg-yellow-400 text-gray-800 px-4 py-2 rounded-lg font-semibold hover:bg-yellow-500 transition-colors"
-                  >
-                    Sign Up
-                  </button>
-                </>
-              )}
-            </div>
+    <div data-page="landing" className="min-h-screen bg-white">
+      {/* Fixed Header - Dark Sky Blue */}
+      <header className="fixed top-0 inset-x-0 z-30 h-16 bg-sky-600/95 text-white backdrop-blur-sm shadow">
+        <div className="max-w-7xl mx-auto h-full px-4 sm:px-6 lg:px-8 flex items-center justify-between">
+          <div className="flex items-center">
+            <span className="text-2xl font-bold drop-shadow">♟️</span>
+            <span className="ml-2 text-xl font-bold drop-shadow">Chess99</span>
           </div>
-        </div>
-      </header>
-
-      {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-blue-400 via-blue-300 to-blue-200">
-        <div className="absolute inset-0">
-          {/* Decorative clouds */}
-          <div className="absolute top-10 left-10 w-24 h-12 bg-white rounded-full opacity-70"></div>
-          <div className="absolute top-20 right-20 w-32 h-16 bg-white rounded-full opacity-60"></div>
-          <div className="absolute top-32 left-1/3 w-20 h-10 bg-white rounded-full opacity-50"></div>
-          <div className="absolute top-8 right-1/3 w-28 h-14 bg-white rounded-full opacity-65"></div>
-        </div>
-
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <div className="text-center text-white mb-12">
-            <h1 className="text-5xl md:text-6xl font-bold mb-4">
-              The #1 Chess Site for Kids
-            </h1>
-            <p className="text-xl opacity-95">Learn, Play, and Have Fun with Chess!</p>
-          </div>
-
-          {/* Main Image Area */}
-          <div className="relative h-64 md:h-80 mb-12 rounded-2xl overflow-hidden bg-gradient-to-b from-green-400 to-green-500">
-            <img
-              src={chessPlayingKids}
-              alt="Kids playing chess"
-              className="w-full h-full object-cover"
-            />
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex flex-col md:flex-row gap-4 justify-center items-center">
-            {isAuthenticated ? (
-              <>
-                <div className="bg-white/95 rounded-xl p-6 shadow-lg">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-4">Choose Your Opponent</h3>
-                  <div className="flex flex-col space-y-3 mb-4">
-                    <label className="flex items-center cursor-pointer">
-                      <input type="radio" name="playWith" value="computer" className="mr-3 text-orange-500" defaultChecked />
-                      <span className="text-gray-700">🤖 Play with Computer</span>
-                    </label>
-                    <label className="flex items-center cursor-pointer">
-                      <input type="radio" name="playWith" value="human" className="mr-3 text-orange-500" />
-                      <span className="text-gray-700">👥 Play with Friends</span>
-                    </label>
-                    <label className="flex items-center cursor-pointer">
-                      <input type="radio" name="playWith" value="ai" className="mr-3 text-orange-500" />
-                      <span className="text-gray-700">🧠 Play with AI Coach</span>
-                    </label>
-                  </div>
-                  <button
-                    onClick={() => navigate('/play')}
-                    className="w-full bg-orange-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-orange-600 transform hover:scale-105 transition-all duration-200 text-lg"
-                  >
-                    Start Playing!
-                  </button>
-                </div>
-              </>
-            ) : (
+          <nav className="hidden md:flex space-x-8">
+            <button onClick={() => navigate('/play')} className="hover:text-yellow-300 transition-colors">Play</button>
+            <Link to="/puzzles" className="hover:text-yellow-300 transition-colors">Puzzles</Link>
+            <Link to="/learn" className="hover:text-yellow-300 transition-colors">Learn</Link>
+            <button className="hover:text-yellow-300 transition-colors">Events</button>
+            <button className="hover:text-yellow-300 transition-colors">Resources</button>
+          </nav>
+          <div className="flex items-center space-x-4">
+            {!isAuthenticated && (
               <>
                 <button
-                  onClick={() => navigate('/play')}
-                  className="bg-orange-500 text-white font-bold py-4 px-8 rounded-lg hover:bg-orange-600 transform hover:scale-105 transition-all duration-200 text-lg shadow-lg"
+                  onClick={() => navigate('/login')}
+                  className="hover:text-yellow-300 transition-colors"
                 >
-                  Play Now
+                  Login
                 </button>
                 <button
-                  onClick={() => navigate('/learn')}
-                  className="bg-white text-orange-500 font-bold py-4 px-8 rounded-lg hover:bg-gray-50 transform hover:scale-105 transition-all duration-200 text-lg shadow-lg"
+                  onClick={() => navigate('/signup')}
+                  className="bg-yellow-400 text-gray-800 px-4 py-2 rounded-lg font-semibold hover:bg-yellow-500 transition-colors shadow"
                 >
-                  Learn Chess
+                  Sign Up
                 </button>
               </>
             )}
           </div>
+        </div>
+      </header>
 
-          {/* Quick Login Options for Non-authenticated */}
-          {!isAuthenticated && (
-            <div className="mt-8 text-center">
-              <div className="inline-flex items-center space-x-4 bg-white/90 rounded-lg px-6 py-3">
-                <label className="flex items-center cursor-pointer">
-                  <input
-                    type="radio"
-                    name="loginType"
-                    value="guest"
-                    className="mr-2 text-orange-500"
-                    checked={loginType === 'guest'}
-                    onChange={() => setLoginType('guest')}
-                  />
-                  <span className="text-gray-700 font-medium">Play as Guest</span>
-                </label>
-                <span className="text-gray-400">|</span>
-                <label className="flex items-center cursor-pointer">
-                  <input
-                    type="radio"
-                    name="loginType"
-                    value="login"
-                    className="mr-2 text-orange-500"
-                    checked={loginType === 'login'}
-                    onChange={() => setLoginType('login')}
-                  />
-                  <span className="text-gray-700 font-medium">Login to Account</span>
-                </label>
-              </div>
+      {/* Hero Section - Top Portion Only */}
+      <section className="relative overflow-hidden pt-16 bg-gradient-to-b from-sky-400 via-sky-300 to-sky-200">
+        {/* Decorative clouds */}
+        <div className="absolute inset-0 z-0 pointer-events-none">
+          <div className="absolute top-20 left-10 w-24 h-12 bg-white rounded-full opacity-70"></div>
+          <div className="absolute top-32 right-20 w-32 h-16 bg-white rounded-full opacity-60"></div>
+          <div className="absolute top-48 left-1/3 w-20 h-10 bg-white rounded-full opacity-50"></div>
+          <div className="absolute top-24 right-1/3 w-28 h-14 bg-white rounded-full opacity-65"></div>
+        </div>
+
+        {/* Hero Content */}
+        <div className="relative w-full min-h-[58vh] md:min-h-[66vh]">
+          {/* Background image with overlay */}
+          <img
+            src={chessPlayingKids}
+            alt="Kids playing chess"
+            className="absolute inset-0 w-full h-full object-cover object-center"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-sky-400/40 via-sky-300/30 to-sky-200/60"></div>
+
+          {/* Content overlay */}
+          <div className="relative z-10 h-full flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 py-12">
+            {/* Headline */}
+            <div className="text-center text-white mb-12 max-w-4xl">
+              <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-4 drop-shadow-2xl">
+                The #1 Chess Site for Kids
+              </h1>
+              <p className="text-xl md:text-2xl opacity-95 drop-shadow-lg">Learn, Play, and Have Fun with Chess!</p>
             </div>
-          )}
+
+            {/* Action Buttons with depth */}
+            <div className="flex flex-col md:flex-row gap-6 justify-center items-center mb-8">
+              {isAuthenticated ? (
+                <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 shadow-2xl border border-white/20">
+                  <h3 className="text-xl font-semibold text-gray-800 mb-6">Choose Your Opponent</h3>
+                  <div className="flex flex-col space-y-4 mb-6">
+                    <label className="flex items-center cursor-pointer">
+                      <input type="radio" name="playWith" value="computer" className="mr-3 text-orange-500" defaultChecked />
+                      <span className="text-gray-700 font-medium">🤖 Play with Computer</span>
+                    </label>
+                    <label className="flex items-center cursor-pointer">
+                      <input type="radio" name="playWith" value="human" className="mr-3 text-orange-500" />
+                      <span className="text-gray-700 font-medium">👥 Play with Friends</span>
+                    </label>
+                    <label className="flex items-center cursor-pointer">
+                      <input type="radio" name="playWith" value="ai" className="mr-3 text-orange-500" />
+                      <span className="text-gray-700 font-medium">🧠 Play with AI Coach</span>
+                    </label>
+                  </div>
+                  <button
+                    onClick={() => navigate('/play')}
+                    className="w-full bg-orange-500 text-white font-bold py-4 px-8 rounded-xl hover:bg-orange-600 transform hover:scale-105 transition-all duration-200 text-lg shadow-xl"
+                  >
+                    Start Playing!
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <button
+                    onClick={() => navigate('/play')}
+                    className="bg-orange-500 text-white font-bold py-5 px-12 rounded-xl hover:bg-orange-600 transform hover:scale-110 transition-all duration-200 text-xl shadow-2xl backdrop-blur-sm border-2 border-orange-400"
+                  >
+                    Play Now
+                  </button>
+                  <button
+                    onClick={() => navigate('/learn')}
+                    className="bg-white/95 backdrop-blur-sm text-orange-500 font-bold py-5 px-12 rounded-xl hover:bg-white transform hover:scale-110 transition-all duration-200 text-xl shadow-2xl border-2 border-white"
+                  >
+                    Learn Chess
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Quick Login Options */}
+            {!isAuthenticated && (
+              <div className="text-center">
+                <div className="inline-flex items-center space-x-6 bg-white/90 backdrop-blur-sm rounded-xl px-8 py-4 shadow-xl border border-white/20">
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="radio"
+                      name="loginType"
+                      value="guest"
+                      className="mr-3 text-orange-500 w-4 h-4"
+                      checked={loginType === 'guest'}
+                      onChange={() => setLoginType('guest')}
+                    />
+                    <span className="text-gray-800 font-semibold">Play as Guest</span>
+                  </label>
+                  <span className="text-gray-400 text-2xl">|</span>
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="radio"
+                      name="loginType"
+                      value="login"
+                      className="mr-3 text-orange-500 w-4 h-4"
+                      checked={loginType === 'login'}
+                      onChange={() => setLoginType('login')}
+                    />
+                    <span className="text-gray-800 font-semibold">Login to Account</span>
+                  </label>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </section>
 
