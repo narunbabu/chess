@@ -1,3 +1,4 @@
+
 // src/App.js
 import React, { useState, useEffect, useCallback } from "react";
 import {
@@ -18,6 +19,8 @@ import Dashboard from "./components/Dashboard";
 import AuthCallback from "./components/auth/AuthCallback";
 import LandingPage from "./pages/LandingPage";
 import LobbyPage from "./pages/LobbyPage";
+import Puzzles from "./components/Puzzles";
+import Learn from "./components/Learn";
 import { AuthProvider } from "./contexts/AuthContext";  // Import the AuthProvider
 import { AppDataProvider } from "./contexts/AppDataContext"; // Import AppDataProvider for caching
 import Layout from "./components/layout/Layout";
@@ -91,6 +94,8 @@ const App = () => {
                 <Route path="/history" element={<GameHistory />} />
                 <Route path="/game-review" element={<GameReview />} />
                 <Route path="/play/review/:id" element={<GameReview />} />
+                <Route path="/puzzles" element={<Puzzles />} />
+                <Route path="/learn" element={<Learn />} />
               </Routes>
             </main>
           </div>

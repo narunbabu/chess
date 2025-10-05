@@ -14,6 +14,7 @@ Date:   Thu Oct 2 04:44:03 2025 +0530
 __________________________
 
 
+
 ssh root@69.62.73.225
 SonNaxxxxxx@..3
 
@@ -69,6 +70,8 @@ systemctl restart php8.3-fpm
 
 scp -r /mnt/c/ArunApps/Chess-Web/chess-backend/.env root@69.62.73.225:/opt/Chess-Web/chess-backend/.env
 scp chess-backend/.env.server  root@69.62.73.225:/opt/Chess-Web/chess-backend
+
+scp chess-backend/.env.onserver  root@69.62.73.225:/opt/Chess-Web/chess-backend/.env
 scp chess-frontend/.env.production root@69.62.73.225:/opt/Chess-Web/chess-frontend/.env
 # 3) Set sensible ownership/permissions
 chown www-data:www-data /opt/Chess-Web/chess-backend/.env

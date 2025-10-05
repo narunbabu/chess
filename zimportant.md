@@ -1,5 +1,8 @@
 php artisan tinker --execute="DB::table('invitations')->select('id', 'inviter_id', 'invited_id', 'inviter_preferred_color', 'status')->get()"
 
+ssh root@69.62.73.225
+SonNaxxxxxx@..3
+
 sqlite3 database/database.sqlite "SELECT * FROM invitations WHERE id = 1;"
 php artisan reverb:start --debug 
 

@@ -1,20 +1,19 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import Background from '../components/layout/Background';
-import chessPlayingKids from '../assets/images/chess-playing-kids.png';
 
 const LandingPage = () => {
-  const { isAuthenticated } = useAuth();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loginType, setLoginType] = useState('guest');
-  const navigate = useNavigate();
 
   const handlePlay = () => {
     if (loginType === 'guest') {
-      navigate('/play');
+      console.log('Navigate to /play');
     } else {
-      navigate('/login');
+      console.log('Navigate to /login');
     }
+  };
+
+  const handleNavigation = (path) => {
+    console.log(`Navigate to ${path}`);
   };
 
   const stats = [
@@ -33,12 +32,12 @@ const LandingPage = () => {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <span className="text-2xl font-bold text-yellow-500">♟️</span>
-              <span className="ml-2 text-xl font-bold text-gray-800">Chess99</span>
+              <span className="ml-2 text-xl font-bold text-gray-800">ChessKid</span>
             </div>
             <nav className="hidden md:flex space-x-8">
-              <button onClick={() => navigate('/play')} className="text-gray-600 hover:text-gray-900">Play</button>
-              <Link to="/puzzles" className="text-gray-600 hover:text-gray-900">Puzzles</Link>
-              <Link to="/learn" className="text-gray-600 hover:text-gray-900">Learn</Link>
+              <button onClick={() => handleNavigation('/play')} className="text-gray-600 hover:text-gray-900">Play</button>
+              <button onClick={() => handleNavigation('/puzzles')} className="text-gray-600 hover:text-gray-900">Puzzles</button>
+              <button onClick={() => handleNavigation('/learn')} className="text-gray-600 hover:text-gray-900">Learn</button>
               <button className="text-gray-600 hover:text-gray-900">Events</button>
               <button className="text-gray-600 hover:text-gray-900">Resources</button>
             </nav>
@@ -46,13 +45,13 @@ const LandingPage = () => {
               {!isAuthenticated && (
                 <>
                   <button 
-                    onClick={() => navigate('/login')}
+                    onClick={() => handleNavigation('/login')}
                     className="text-gray-600 hover:text-gray-900"
                   >
                     Login
                   </button>
                   <button 
-                    onClick={() => navigate('/signup')}
+                    onClick={() => handleNavigation('/signup')}
                     className="bg-yellow-400 text-gray-800 px-4 py-2 rounded-lg font-semibold hover:bg-yellow-500 transition-colors"
                   >
                     Sign Up
@@ -84,11 +83,18 @@ const LandingPage = () => {
 
           {/* Main Image Area */}
           <div className="relative h-64 md:h-80 mb-12 rounded-2xl overflow-hidden bg-gradient-to-b from-green-400 to-green-500">
-            <img
-              src={chessPlayingKids}
-              alt="Kids playing chess"
-              className="w-full h-full object-cover"
-            />
+            <div className="absolute inset-0 flex items-center justify-center">
+              {/* Placeholder for chess-playing-kids image */}
+              <div className="text-center">
+                <div className="flex justify-center space-x-8 mb-4">
+                  <div className="text-6xl animate-bounce" style={{animationDelay: '0.1s'}}>👦</div>
+                  <div className="text-6xl animate-bounce" style={{animationDelay: '0.2s'}}>♟️</div>
+                  <div className="text-6xl animate-bounce" style={{animationDelay: '0.3s'}}>👧</div>
+                </div>
+                <p className="text-white text-lg font-semibold">Kids Playing Chess</p>
+                <p className="text-white/80 text-sm">(Image: chess-playing-kids-crop.png)</p>
+              </div>
+            </div>
           </div>
 
           {/* Action Buttons */}
@@ -112,7 +118,7 @@ const LandingPage = () => {
                     </label>
                   </div>
                   <button
-                    onClick={() => navigate('/play')}
+                    onClick={() => handleNavigation('/play')}
                     className="w-full bg-orange-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-orange-600 transform hover:scale-105 transition-all duration-200 text-lg"
                   >
                     Start Playing!
@@ -122,13 +128,13 @@ const LandingPage = () => {
             ) : (
               <>
                 <button
-                  onClick={() => navigate('/play')}
+                  onClick={() => handleNavigation('/play')}
                   className="bg-orange-500 text-white font-bold py-4 px-8 rounded-lg hover:bg-orange-600 transform hover:scale-105 transition-all duration-200 text-lg shadow-lg"
                 >
                   Play Now
                 </button>
                 <button
-                  onClick={() => navigate('/learn')}
+                  onClick={() => handleNavigation('/learn')}
                   className="bg-white text-orange-500 font-bold py-4 px-8 rounded-lg hover:bg-gray-50 transform hover:scale-105 transition-all duration-200 text-lg shadow-lg"
                 >
                   Learn Chess
@@ -196,47 +202,32 @@ const LandingPage = () => {
           </p>
           
           <div className="grid md:grid-cols-3 gap-8">
-            <Link to="/puzzles" className="group">
+            <button onClick={() => handleNavigation('/puzzles')} className="group text-left">
               <div className="bg-white rounded-xl p-6 shadow-md hover:shadow-xl transition-shadow duration-200">
                 <div className="text-4xl mb-4 text-center">🧩</div>
                 <h3 className="text-xl font-semibold text-gray-800 mb-2">Solve Puzzles</h3>
                 <p className="text-gray-600">Challenge yourself with thousands of chess puzzles</p>
               </div>
-            </Link>
+            </button>
             
-            <Link to="/learn" className="group">
+            <button onClick={() => handleNavigation('/learn')} className="group text-left">
               <div className="bg-white rounded-xl p-6 shadow-md hover:shadow-xl transition-shadow duration-200">
                 <div className="text-4xl mb-4 text-center">📚</div>
                 <h3 className="text-xl font-semibold text-gray-800 mb-2">Start Learning</h3>
                 <p className="text-gray-600">Watch fun videos and interactive lessons</p>
               </div>
-            </Link>
+            </button>
             
-            <button onClick={() => navigate('/play')} className="group text-left">
+            <button onClick={() => handleNavigation('/play')} className="group text-left">
               <div className="bg-white rounded-xl p-6 shadow-md hover:shadow-xl transition-shadow duration-200">
                 <div className="text-4xl mb-4 text-center">🏆</div>
                 <h3 className="text-xl font-semibold text-gray-800 mb-2">Join Tournaments</h3>
-                <p className="text-gray-600">Compete with players from around the world</p>
+                <p className="text-gray-600">Compete in fun tournaments and challenges</p>
               </div>
             </button>
           </div>
         </div>
       </section>
-
-      {/* Footer */}
-      <footer className="bg-gray-800 text-white py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <p className="text-gray-400">© 2024 ChessKid. Making Chess Fun for Kids!</p>
-            <div className="mt-4 space-x-6">
-              <Link to="/puzzles" className="text-gray-400 hover:text-white transition-colors">Puzzles</Link>
-              <Link to="/learn" className="text-gray-400 hover:text-white transition-colors">Learn</Link>
-              <button className="text-gray-400 hover:text-white transition-colors">About</button>
-              <button className="text-gray-400 hover:text-white transition-colors">Contact</button>
-            </div>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 };

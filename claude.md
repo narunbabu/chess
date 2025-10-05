@@ -15,3 +15,4 @@
 * For each debug fix, add `docs/success-stories/YYYY_MM_DD_HH_MM_<slug>.md` with problem, root cause, resolution, impact, lessons learned, and links to PR/tests; link it from the corresponding update note.
 * Use `pnpm` for Node workflows (`pnpm i`, `pnpm build`, `pnpm test`, `pnpm lint`, `pnpm typecheck`); keep the lockfile committed and avoid mixing package managers.
 * Use clear conventional commits (`type(scope): summary`); reference issues, mention flags/migrations in the body, and make changesets easy to trace and revert.
+* Tests should be compatible to run in windows powershell
