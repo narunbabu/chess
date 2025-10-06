@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import AuthGateModal from '../components/layout/AuthGateModal';
 import Background from '../components/layout/Background';
 import chessPlayingKids from '../assets/images/chess-playing-kids-crop.png';
 
 const LandingPage = () => {
   const { isAuthenticated } = useAuth();
   const [loginType, setLoginType] = useState('guest');
+  const [showAuthGate, setShowAuthGate] = useState(false);
   const navigate = useNavigate();
 
   const handlePlay = () => {
@@ -129,25 +131,21 @@ const LandingPage = () => {
                 <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 shadow-2xl border border-white/20">
                   <h3 className="text-xl font-semibold text-gray-800 mb-6">Choose Your Opponent</h3>
                   <div className="flex flex-col space-y-4 mb-6">
-                    <label className="flex items-center cursor-pointer">
-                      <input type="radio" name="playWith" value="computer" className="mr-3 text-orange-500" defaultChecked />
-                      <span className="text-gray-700 font-medium">🤖 Play with Computer</span>
-                    </label>
-                    <label className="flex items-center cursor-pointer">
-                      <input type="radio" name="playWith" value="human" className="mr-3 text-orange-500" />
-                      <span className="text-gray-700 font-medium">👥 Play with Friends</span>
-                    </label>
-                    <label className="flex items-center cursor-pointer">
-                      <input type="radio" name="playWith" value="ai" className="mr-3 text-orange-500" />
-                      <span className="text-gray-700 font-medium">🧠 Play with AI Coach</span>
-                    </label>
+                    <button
+                      onClick={() => navigate('/play')}
+                      className="flex items-center justify-center w-full bg-orange-500 text-white font-bold py-3 px-6 rounded-xl hover:bg-orange-600 transition-all duration-200 shadow-lg"
+                    >
+                      <span className="mr-2">🤖</span>
+                      Play with Computer
+                    </button>
+                    <button
+                      onClick={() => navigate('/lobby')}
+                      className="flex items-center justify-center w-full bg-blue-500 text-white font-bold py-3 px-6 rounded-xl hover:bg-blue-600 transition-all duration-200 shadow-lg"
+                    >
+                      <span className="mr-2">👥</span>
+                      Play with Friends
+                    </button>
                   </div>
-                  <button
-                    onClick={() => navigate('/play')}
-                    className="w-full bg-orange-500 text-white font-bold py-4 px-8 rounded-xl hover:bg-orange-600 transform hover:scale-105 transition-all duration-200 text-lg shadow-xl"
-                  >
-                    Start Playing!
-                  </button>
                 </div>
               ) : (
                 <>
@@ -155,13 +153,19 @@ const LandingPage = () => {
                     onClick={() => navigate('/play')}
                     className="bg-orange-500 text-white font-bold py-4 sm:py-5 px-8 sm:px-12 rounded-xl hover:bg-orange-600 transform hover:scale-105 sm:hover:scale-110 transition-all duration-200 text-lg sm:text-xl shadow-2xl backdrop-blur-sm border-2 border-orange-400"
                   >
-                    Play Now
+                    🤖 Play Computer Now
+                  </button>
+                  <button
+                    onClick={() => setShowAuthGate(true)}
+                    className="bg-blue-500 text-white font-bold py-4 sm:py-5 px-8 sm:px-12 rounded-xl hover:bg-blue-600 transform hover:scale-105 sm:hover:scale-110 transition-all duration-200 text-lg sm:text-xl shadow-2xl backdrop-blur-sm border-2 border-blue-400"
+                  >
+                    👥 Play with Friends
                   </button>
                   <button
                     onClick={() => navigate('/learn')}
                     className="bg-white/95 backdrop-blur-sm text-orange-500 font-bold py-4 sm:py-5 px-8 sm:px-12 rounded-xl hover:bg-white transform hover:scale-105 sm:hover:scale-110 transition-all duration-200 text-lg sm:text-xl shadow-2xl border-2 border-white"
                   >
-                    Learn Chess
+                    📚 Learn Chess
                   </button>
                 </>
               )}
@@ -239,6 +243,15 @@ const LandingPage = () => {
           </div>
         </div>
       </footer>
+
+      {/* Auth Gate Modal */}
+      {showAuthGate && (
+        <AuthGateModal
+          reason="multiplayer"
+          returnTo="/lobby"
+          onClose={() => setShowAuthGate(false)}
+        />
+      )}
     </div>
   );
 };
