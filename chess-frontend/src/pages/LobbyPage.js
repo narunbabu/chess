@@ -7,6 +7,13 @@ import { getEcho } from '../services/echoSingleton';
 import { BACKEND_URL } from '../config';
 import './LobbyPage.css';
 
+// Lobby components
+import LobbyTabs from '../components/lobby/LobbyTabs';
+import PlayersList from '../components/lobby/PlayersList';
+import InvitationsList from '../components/lobby/InvitationsList';
+import ActiveGamesList from '../components/lobby/ActiveGamesList';
+import ChallengeModal from '../components/lobby/ChallengeModal';
+
 const LobbyPage = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
@@ -601,6 +608,21 @@ const LobbyPage = () => {
     );
   }
 
+  // Tab configuration
+  const tabs = [
+    { id: 'players', label: 'Players', badge: players.length },
+    { id: 'invitations', label: 'Invitations', badge: pendingInvitations.length },
+    { id: 'games', label: 'Active Games', badge: activeGames.length },
+  ];
+
+  // Handler for resuming game (extracted for clarity)
+  const handleResumeGame = (gameId) => {
+    sessionStorage.setItem('lastInvitationAction', 'resume_game');
+    sessionStorage.setItem('lastInvitationTime', Date.now().toString());
+    sessionStorage.setItem('lastGameId', gameId.toString());
+    navigate(`/play/multiplayer/${gameId}`);
+  };
+
   return (
     <div className="lobby-container">
       <div className="lobby-header">
@@ -631,383 +653,62 @@ const LobbyPage = () => {
         </div>
       </div>
 
-      <div className="lobby-tabs">
-        <button
-          className={`tab-button ${activeTab === 'players' ? 'active' : ''}`}
-          onClick={() => setActiveTab('players')}
-        >
-          Players
-        </button>
-        <button
-          className={`tab-button ${activeTab === 'invitations' ? 'active' : ''}`}
-          onClick={() => setActiveTab('invitations')}
-        >
-          Invitations
-        </button>
-        <button
-          className={`tab-button ${activeTab === 'games' ? 'active' : ''}`}
-          onClick={() => setActiveTab('games')}
-        >
-          Active Games
-        </button>
-      </div>
+      <LobbyTabs
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        tabs={tabs}
+      />
 
       <div className="lobby-content">
         {activeTab === 'players' && (
-          <div className="available-players-section">
-            <h2>🎯 Available Players</h2>
-            <div className="player-list">
-              {players.length > 0 ? (
-                players.map((player, index) => {
-                  const hasInvited = sentInvitations.some(
-                    (inv) => inv.invited_id === player.id
-                  );
-                  return (
-                    <div key={player.id || index} className="player-card">
-                      <img
-                        src={
-                          player.avatar ||
-                          `https://i.pravatar.cc/150?u=${player.email}`
-                        }
-                        alt={player.name}
-                        className="player-avatar"
-                      />
-                      <div className="player-info">
-                        <h3>{player.name}</h3>
-                        <p className="player-email">{player.email}</p>
-                        <p className="player-rating">
-                          Rating: {player.rating || 1200}
-                        </p>
-                        <p className="player-status">🟢 Online</p>
-                      </div>
-                      {hasInvited ? (
-                        <button className="invite-btn invited" disabled>
-                          ⏳ Invited
-                        </button>
-                      ) : (
-                        <button
-                          className="invite-btn"
-                          onClick={() => handleInvite(player)}
-                        >
-                          ⚡ Challenge
-                        </button>
-                      )}
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="no-players">
-                  <p>🤖 No other players available right now.</p>
-                  <p>Why not invite a friend to play?</p>
-                </div>
-              )}
-            </div>
-          </div>
+          <PlayersList
+            players={players}
+            sentInvitations={sentInvitations}
+            onChallenge={handleInvite}
+          />
         )}
 
         {activeTab === 'invitations' && (
-          <>
-            {/* Pending Invitations */}
-            {pendingInvitations.length > 0 && (
-              <div className="invitations-section">
-                <h2>🔔 Incoming Invitations</h2>
-                <div className="invitations-list">
-                  {pendingInvitations.map((invitation) => (
-                    <div key={invitation.id} className="invitation-card">
-                      <img
-                        src={
-                          invitation.inviter.avatar ||
-                          `https://i.pravatar.cc/150?u=${invitation.inviter.email}`
-                        }
-                        alt={invitation.inviter.name}
-                        className="invitation-avatar"
-                      />
-                      <div className="invitation-info">
-                        <h4>{invitation.inviter.name}</h4>
-                        <p>wants to play chess with you!</p>
-                        <p className="invitation-time">
-                          {new Date(
-                            invitation.created_at
-                          ).toLocaleTimeString()}
-                        </p>
-                      </div>
-                      <div className="invitation-actions">
-                        <button
-                          className="accept-btn"
-                          onClick={() =>
-                            handleInvitationResponse(invitation.id, 'accept')
-                          }
-                          disabled={processingInvitations.has(invitation.id)}
-                        >
-                          {processingInvitations.has(invitation.id)
-                            ? '⏳ Accepting...'
-                            : '✅ Accept'}
-                        </button>
-                        <button
-                          className="decline-btn"
-                          onClick={() =>
-                            handleInvitationResponse(invitation.id, 'decline')
-                          }
-                          disabled={processingInvitations.has(invitation.id)}
-                        >
-                          ❌ Decline
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Sent Invitations */}
-            {sentInvitations.length > 0 && (
-              <div className="invitations-section">
-                <h2>📤 Sent Invitations</h2>
-                <div className="invitations-list">
-                  {sentInvitations.map((invitation) => (
-                    <div key={invitation.id} className="invitation-card">
-                      <img
-                        src={
-                          invitation.invited.avatar ||
-                          `https://i.pravatar.cc/150?u=${invitation.invited.email}`
-                        }
-                        alt={invitation.invited.name}
-                        className="invitation-avatar"
-                      />
-                      <div className="invitation-info">
-                        <h4>{invitation.invited.name}</h4>
-                        <p>⏰ Waiting for response...</p>
-                        <p className="invitation-time">
-                          Sent:{' '}
-                          {new Date(
-                            invitation.created_at
-                          ).toLocaleTimeString()}
-                        </p>
-                        <p className="invitation-status">
-                          🔄 Waiting for acceptance...
-                        </p>
-                      </div>
-                      <div className="invitation-actions">
-                        <button
-                          className="cancel-btn"
-                          onClick={() => handleCancelInvitation(invitation.id)}
-                        >
-                          🚫 Cancel
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </>
+          <InvitationsList
+            pendingInvitations={pendingInvitations}
+            sentInvitations={sentInvitations}
+            processingInvitations={processingInvitations}
+            onAccept={(invitationId) => handleInvitationResponse(invitationId, 'accept')}
+            onDecline={(invitationId) => handleInvitationResponse(invitationId, 'decline')}
+            onCancel={handleCancelInvitation}
+          />
         )}
 
         {activeTab === 'games' && (
-          <>
-            {/* Active/Paused Games */}
-            {activeGames.length > 0 && (
-              <div className="invitations-section">
-                <h2>🎮 Active Games</h2>
-                <div className="invitations-list">
-                  {activeGames.map((game) => {
-                    const opponent =
-                      game.white_player_id === user.id
-                        ? game.blackPlayer
-                        : game.whitePlayer;
-                    const playerColor =
-                      game.white_player_id === user.id ? 'white' : 'black';
-                    const statusEmoji =
-                      game.status === 'active'
-                        ? '🟢'
-                        : game.status === 'paused'
-                        ? '⏸️'
-                        : '⏳';
-
-                    return (
-                      <div key={game.id} className="invitation-card">
-                        <img
-                          src={
-                            opponent?.avatar ||
-                            `https://i.pravatar.cc/150?u=${opponent?.email}`
-                          }
-                          alt={opponent?.name}
-                          className="invitation-avatar"
-                        />
-                        <div className="invitation-info">
-                          <h4>vs {opponent?.name}</h4>
-                          <p>
-                            {statusEmoji} {game.status} • Playing as{' '}
-                            {playerColor}
-                          </p>
-                          <p className="invitation-time">
-                            Last move:{' '}
-                            {game.last_move_at
-                              ? new Date(game.last_move_at).toLocaleString()
-                              : 'No moves yet'}
-                          </p>
-                        </div>
-                        <div className="invitation-actions">
-                          <button
-                            className="accept-btn"
-                            onClick={() => {
-                              sessionStorage.setItem(
-                                'lastInvitationAction',
-                                'resume_game'
-                              );
-                              sessionStorage.setItem(
-                                'lastInvitationTime',
-                                Date.now().toString()
-                              );
-                              sessionStorage.setItem(
-                                'lastGameId',
-                                game.id.toString()
-                              );
-                              navigate(`/play/multiplayer/${game.id}`);
-                            }}
-                          >
-                            ▶️ Resume Game
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </>
+          <ActiveGamesList
+            activeGames={activeGames}
+            currentUserId={user.id}
+            onResumeGame={handleResumeGame}
+          />
         )}
       </div>
 
-      {showColorModal && (
-        <div className="invitation-modal">
-          <div className="modal-content">
-            <h2>⚡ Challenge {selectedPlayer?.name}</h2>
-            <p>Choose your preferred color:</p>
-            <div className="color-choices">
-              <button
-                className="color-choice white"
-                onClick={() => sendInvitation('white')}
-              >
-                ♔ Play as White
-                <small>(Move first)</small>
-              </button>
-              <button
-                className="color-choice black"
-                onClick={() => sendInvitation('black')}
-              >
-                ♚ Play as Black
-                <small>(Move second)</small>
-              </button>
-              <button
-                className="color-choice random"
-                onClick={() => sendInvitation('random')}
-              >
-                🎲 Random
-                <small>(Let chance decide)</small>
-              </button>
-            </div>
-            <button
-              className="cancel-btn"
-              onClick={() => setShowColorModal(false)}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      {showResponseModal && (
-        <div className="invitation-modal">
-          <div className="modal-content">
-            <h2>🎯 Accept Challenge from {selectedInvitation?.inviter?.name}</h2>
-            <p>
-              {selectedInvitation?.inviter?.name} wants to play as{' '}
-              {selectedInvitation?.inviter_preferred_color === 'white' ? '♔ White' : '♚ Black'}
-            </p>
-            <p>Choose your response:</p>
-            <div className="color-choices">
-              <button
-                className="color-choice accept"
-                onClick={() => {
-                  const inviterColor = selectedInvitation?.inviter_preferred_color;
-                  const myColor = inviterColor === 'white' ? 'black' : 'white';
-                  handleInvitationResponse(selectedInvitation.id, 'accept', myColor);
-                }}
-                disabled={processingInvitations.has(selectedInvitation?.id)}
-              >
-                {processingInvitations.has(selectedInvitation?.id) ? '⏳ Accepting...' : '✅ Accept their choice'}
-                {!processingInvitations.has(selectedInvitation?.id) && (
-                  <small>
-                    (You'll play as {
-                      selectedInvitation?.inviter_preferred_color === 'white' ? '♚ Black' : '♔ White'
-                    })
-                  </small>
-                )}
-              </button>
-              <button
-                className="color-choice opposite"
-                onClick={() => {
-                  const inviterColor = selectedInvitation?.inviter_preferred_color;
-                  handleInvitationResponse(selectedInvitation.id, 'accept', inviterColor);
-                }}
-                disabled={processingInvitations.has(selectedInvitation?.id)}
-              >
-                {processingInvitations.has(selectedInvitation?.id)
-                  ? '⏳ Accepting...'
-                  : `🔄 Play as ${selectedInvitation?.inviter_preferred_color === 'white' ? '♔ White' : '♚ Black'}`
-                }
-                {!processingInvitations.has(selectedInvitation?.id) && (
-                  <small>
-                    (swap colors)
-                  </small>
-                )}
-              </button>
-            </div>
-            <div className="modal-actions">
-              <button
-                className="cancel-btn"
-                onClick={() => setShowResponseModal(false)}
-              >
-                Cancel
-              </button>
-              <button
-                className="decline-btn"
-                onClick={() => handleInvitationResponse(selectedInvitation.id, 'decline')}
-              >
-                Decline
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {inviteStatus && (
-        <div className="invitation-modal">
-          <div className="modal-content">
-            {inviteStatus === 'sending' && (
-              <>
-                <h2>Sending Invitation...</h2>
-                <p>Sending challenge to {invitedPlayer?.name}...</p>
-                <div className="loader"></div>
-              </>
-            )}
-            {inviteStatus === 'sent' && (
-              <>
-                <h2>✅ Invitation Sent!</h2>
-                <p>Your challenge has been sent to {invitedPlayer?.name}. They will be notified and can accept or decline.</p>
-                <p>You can see the status in your "Sent Invitations" section below.</p>
-              </>
-            )}
-            {inviteStatus === 'error' && (
-              <>
-                <h2>❌ Error</h2>
-                <p>Failed to send invitation to {invitedPlayer?.name}. Please try again.</p>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+      <ChallengeModal
+        // Color Choice Modal props
+        showColorModal={showColorModal}
+        selectedPlayer={selectedPlayer}
+        onColorChoice={sendInvitation}
+        onCancelColorChoice={() => setShowColorModal(false)}
+        // Response Modal props
+        showResponseModal={showResponseModal}
+        selectedInvitation={selectedInvitation}
+        processingInvitations={processingInvitations}
+        onAcceptWithColor={(invitationId, colorChoice) =>
+          handleInvitationResponse(invitationId, 'accept', colorChoice)
+        }
+        onCancelResponse={() => setShowResponseModal(false)}
+        onDeclineInvitation={(invitationId) =>
+          handleInvitationResponse(invitationId, 'decline')
+        }
+        // Status Modal props
+        inviteStatus={inviteStatus}
+        invitedPlayer={invitedPlayer}
+      />
     </div>
   );
 };
