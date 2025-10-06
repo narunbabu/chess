@@ -25,6 +25,38 @@ import { AuthProvider } from "./contexts/AuthContext";  // Import the AuthProvid
 import { AppDataProvider } from "./contexts/AppDataContext"; // Import AppDataProvider for caching
 import Layout from "./components/layout/Layout";
 
+// Component to conditionally render header
+const AppHeader = ({ isLoggedIn, handleLogout }) => {
+  const location = useLocation();
+
+  // Hide header on landing page
+  if (location.pathname === '/') {
+    return null;
+  }
+
+  return (
+    <header className="app-header">
+      <div className="logo">
+        <Link to="/" className="logo-link">
+          {/* Logo content or img tag can go here if needed */}
+        </Link>
+      </div>
+      <nav className="auth-nav">
+        {isLoggedIn ? (
+          <>
+            <Link to="/dashboard" className="nav-link">Dashboard</Link>
+            <button onClick={handleLogout} className="auth-button logout-button">
+              Logout
+            </button>
+          </>
+        ) : (
+          <Link to="/login" className="auth-button login-button">Login</Link>
+        )}
+      </nav>
+    </header>
+  );
+};
+
 const App = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
@@ -58,51 +90,44 @@ const App = () => {
       <AppDataProvider>
         <Router future={{ v7_relativeSplatPath: true }}>
           <Layout>
-          <header className="app-header">
-            <div className="logo">
-              <Link to="/" className="logo-link">
-                {/* Logo content or img tag can go here if needed */}
-              </Link>
-            </div>
-            <nav className="auth-nav">
-              {isLoggedIn ? (
-                <>
-                  <Link to="/dashboard" className="nav-link">Dashboard</Link>
-                  <button onClick={handleLogout} className="auth-button logout-button">
-                    Logout
-                  </button>
-                </>
-              ) : (
-                <Link to="/login" className="auth-button login-button">Login</Link>
-              )}
-            </nav>
-          </header>
-
-          <div className="content-wrapper">
-            <main className="main-content">
-              <Routes>
-                <Route path="/" element={<LandingPage />} />
-                <Route path="/play" element={<PlayComputer />} />
-                <Route path="/play/:gameId" element={<PlayMultiplayer />} />
-                <Route path="/play/multiplayer/:gameId" element={<PlayMultiplayer />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/lobby" element={<LobbyPage />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/auth/callback" element={<AuthCallback />} />
-                <Route path="/training" element={<TrainingHub />} />
-                <Route path="/training/:level/:id" element={<TrainingExercise />} />
-                <Route path="/history" element={<GameHistory />} />
-                <Route path="/game-review" element={<GameReview />} />
-                <Route path="/play/review/:id" element={<GameReview />} />
-                <Route path="/puzzles" element={<Puzzles />} />
-                <Route path="/learn" element={<Learn />} />
-              </Routes>
-            </main>
-          </div>
-        </Layout>
-      </Router>
+            <AppContent isLoggedIn={isLoggedIn} handleLogout={handleLogout} />
+          </Layout>
+        </Router>
       </AppDataProvider>
     </AuthProvider>
+  );
+};
+
+// Component to add full-bleed class for landing page
+const AppContent = ({ isLoggedIn, handleLogout }) => {
+  const location = useLocation();
+  const isLandingPage = location.pathname === '/';
+
+  return (
+    <div className={`app-container ${isLandingPage ? 'full-bleed' : ''}`}>
+      <AppHeader isLoggedIn={isLoggedIn} handleLogout={handleLogout} />
+      <div className="content-wrapper">
+        <main className="main-content">
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/play" element={<PlayComputer />} />
+            <Route path="/play/:gameId" element={<PlayMultiplayer />} />
+            <Route path="/play/multiplayer/:gameId" element={<PlayMultiplayer />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/lobby" element={<LobbyPage />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="/training" element={<TrainingHub />} />
+            <Route path="/training/:level/:id" element={<TrainingExercise />} />
+            <Route path="/history" element={<GameHistory />} />
+            <Route path="/game-review" element={<GameReview />} />
+            <Route path="/play/review/:id" element={<GameReview />} />
+            <Route path="/puzzles" element={<Puzzles />} />
+            <Route path="/learn" element={<Learn />} />
+          </Routes>
+        </main>
+      </div>
+    </div>
   );
 };
 

@@ -24,6 +24,7 @@ const LobbyPage = () => {
   const [webSocketService, setWebSocketService] = useState(null);
   const [hasFinishedGame, setHasFinishedGame] = useState(false);
   const [processingInvitations, setProcessingInvitations] = useState(new Set()); // Track processing state
+  const [activeTab, setActiveTab] = useState('players');
 
   // Polling control refs
   const pollTimerRef = React.useRef(null);
@@ -630,164 +631,252 @@ const LobbyPage = () => {
         </div>
       </div>
 
-      {/* Active/Paused Games */}
-      {activeGames.length > 0 && (
-        <div className="invitations-section">
-          <h2>🎮 Active Games</h2>
-          <div className="invitations-list">
-            {activeGames.map((game) => {
-              const opponent = game.white_player_id === user.id ? game.blackPlayer : game.whitePlayer;
-              const playerColor = game.white_player_id === user.id ? 'white' : 'black';
-              const statusEmoji = game.status === 'active' ? '🟢' : game.status === 'paused' ? '⏸️' : '⏳';
+      <div className="lobby-tabs">
+        <button
+          className={`tab-button ${activeTab === 'players' ? 'active' : ''}`}
+          onClick={() => setActiveTab('players')}
+        >
+          Players
+        </button>
+        <button
+          className={`tab-button ${activeTab === 'invitations' ? 'active' : ''}`}
+          onClick={() => setActiveTab('invitations')}
+        >
+          Invitations
+        </button>
+        <button
+          className={`tab-button ${activeTab === 'games' ? 'active' : ''}`}
+          onClick={() => setActiveTab('games')}
+        >
+          Active Games
+        </button>
+      </div>
 
-              return (
-                <div key={game.id} className="invitation-card">
-                  <img
-                    src={opponent?.avatar || `https://i.pravatar.cc/150?u=${opponent?.email}`}
-                    alt={opponent?.name}
-                    className="invitation-avatar"
-                  />
-                  <div className="invitation-info">
-                    <h4>vs {opponent?.name}</h4>
-                    <p>{statusEmoji} {game.status} • Playing as {playerColor}</p>
-                    <p className="invitation-time">
-                      Last move: {game.last_move_at ? new Date(game.last_move_at).toLocaleString() : 'No moves yet'}
-                    </p>
-                  </div>
-                  <div className="invitation-actions">
-                    <button
-                      className="accept-btn"
-                      onClick={() => {
-                        sessionStorage.setItem('lastInvitationAction', 'resume_game');
-                        sessionStorage.setItem('lastInvitationTime', Date.now().toString());
-                        sessionStorage.setItem('lastGameId', game.id.toString());
-                        navigate(`/play/multiplayer/${game.id}`);
-                      }}
-                    >
-                      ▶️ Resume Game
-                    </button>
-                  </div>
+      <div className="lobby-content">
+        {activeTab === 'players' && (
+          <div className="available-players-section">
+            <h2>🎯 Available Players</h2>
+            <div className="player-list">
+              {players.length > 0 ? (
+                players.map((player, index) => {
+                  const hasInvited = sentInvitations.some(
+                    (inv) => inv.invited_id === player.id
+                  );
+                  return (
+                    <div key={player.id || index} className="player-card">
+                      <img
+                        src={
+                          player.avatar ||
+                          `https://i.pravatar.cc/150?u=${player.email}`
+                        }
+                        alt={player.name}
+                        className="player-avatar"
+                      />
+                      <div className="player-info">
+                        <h3>{player.name}</h3>
+                        <p className="player-email">{player.email}</p>
+                        <p className="player-rating">
+                          Rating: {player.rating || 1200}
+                        </p>
+                        <p className="player-status">🟢 Online</p>
+                      </div>
+                      {hasInvited ? (
+                        <button className="invite-btn invited" disabled>
+                          ⏳ Invited
+                        </button>
+                      ) : (
+                        <button
+                          className="invite-btn"
+                          onClick={() => handleInvite(player)}
+                        >
+                          ⚡ Challenge
+                        </button>
+                      )}
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="no-players">
+                  <p>🤖 No other players available right now.</p>
+                  <p>Why not invite a friend to play?</p>
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Pending Invitations */}
-      {pendingInvitations.length > 0 && (
-        <div className="invitations-section">
-          <h2>🔔 Incoming Invitations</h2>
-          <div className="invitations-list">
-            {pendingInvitations.map((invitation) => (
-              <div key={invitation.id} className="invitation-card">
-                <img
-                  src={invitation.inviter.avatar || `https://i.pravatar.cc/150?u=${invitation.inviter.email}`}
-                  alt={invitation.inviter.name}
-                  className="invitation-avatar"
-                />
-                <div className="invitation-info">
-                  <h4>{invitation.inviter.name}</h4>
-                  <p>wants to play chess with you!</p>
-                  <p className="invitation-time">
-                    {new Date(invitation.created_at).toLocaleTimeString()}
-                  </p>
-                </div>
-                <div className="invitation-actions">
-                  <button
-                    className="accept-btn"
-                    onClick={() => handleInvitationResponse(invitation.id, 'accept')}
-                    disabled={processingInvitations.has(invitation.id)}
-                  >
-                    {processingInvitations.has(invitation.id) ? '⏳ Accepting...' : '✅ Accept'}
-                  </button>
-                  <button
-                    className="decline-btn"
-                    onClick={() => handleInvitationResponse(invitation.id, 'decline')}
-                    disabled={processingInvitations.has(invitation.id)}
-                  >
-                    ❌ Decline
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Sent Invitations */}
-      {sentInvitations.length > 0 && (
-        <div className="invitations-section">
-          <h2>📤 Sent Invitations</h2>
-          <div className="invitations-list">
-            {sentInvitations.map((invitation) => (
-              <div key={invitation.id} className="invitation-card">
-                <img
-                  src={invitation.invited.avatar || `https://i.pravatar.cc/150?u=${invitation.invited.email}`}
-                  alt={invitation.invited.name}
-                  className="invitation-avatar"
-                />
-                <div className="invitation-info">
-                  <h4>{invitation.invited.name}</h4>
-                  <p>⏰ Waiting for response...</p>
-                  <p className="invitation-time">
-                    Sent: {new Date(invitation.created_at).toLocaleTimeString()}
-                  </p>
-                  <p className="invitation-status">
-                    🔄 Waiting for acceptance...
-                  </p>
-                </div>
-                <div className="invitation-actions">
-                  <button
-                    className="cancel-btn"
-                    onClick={() => handleCancelInvitation(invitation.id)}
-                  >
-                    🚫 Cancel
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="available-players-section">
-        <h2>🎯 Available Players</h2>
-        <div className="player-list">
-          {players.length > 0 ? players.map((player, index) => {
-            const hasInvited = sentInvitations.some(inv => inv.invited_id === player.id);
-            return (
-              <div key={player.id || index} className="player-card">
-                <img
-                  src={player.avatar || `https://i.pravatar.cc/150?u=${player.email}`}
-                  alt={player.name}
-                  className="player-avatar"
-                />
-                <div className="player-info">
-                  <h3>{player.name}</h3>
-                  <p className="player-email">{player.email}</p>
-                  <p className="player-rating">Rating: {player.rating || 1200}</p>
-                  <p className="player-status">🟢 Online</p>
-                </div>
-                {hasInvited ? (
-                  <button className="invite-btn invited" disabled>
-                    ⏳ Invited
-                  </button>
-                ) : (
-                  <button className="invite-btn" onClick={() => handleInvite(player)}>
-                    ⚡ Challenge
-                  </button>
-                )}
-              </div>
-            );
-          }
-          ) : (
-            <div className="no-players">
-              <p>🤖 No other players available right now.</p>
-              <p>Why not invite a friend to play?</p>
+              )}
             </div>
-          )}
-        </div>
+          </div>
+        )}
+
+        {activeTab === 'invitations' && (
+          <>
+            {/* Pending Invitations */}
+            {pendingInvitations.length > 0 && (
+              <div className="invitations-section">
+                <h2>🔔 Incoming Invitations</h2>
+                <div className="invitations-list">
+                  {pendingInvitations.map((invitation) => (
+                    <div key={invitation.id} className="invitation-card">
+                      <img
+                        src={
+                          invitation.inviter.avatar ||
+                          `https://i.pravatar.cc/150?u=${invitation.inviter.email}`
+                        }
+                        alt={invitation.inviter.name}
+                        className="invitation-avatar"
+                      />
+                      <div className="invitation-info">
+                        <h4>{invitation.inviter.name}</h4>
+                        <p>wants to play chess with you!</p>
+                        <p className="invitation-time">
+                          {new Date(
+                            invitation.created_at
+                          ).toLocaleTimeString()}
+                        </p>
+                      </div>
+                      <div className="invitation-actions">
+                        <button
+                          className="accept-btn"
+                          onClick={() =>
+                            handleInvitationResponse(invitation.id, 'accept')
+                          }
+                          disabled={processingInvitations.has(invitation.id)}
+                        >
+                          {processingInvitations.has(invitation.id)
+                            ? '⏳ Accepting...'
+                            : '✅ Accept'}
+                        </button>
+                        <button
+                          className="decline-btn"
+                          onClick={() =>
+                            handleInvitationResponse(invitation.id, 'decline')
+                          }
+                          disabled={processingInvitations.has(invitation.id)}
+                        >
+                          ❌ Decline
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Sent Invitations */}
+            {sentInvitations.length > 0 && (
+              <div className="invitations-section">
+                <h2>📤 Sent Invitations</h2>
+                <div className="invitations-list">
+                  {sentInvitations.map((invitation) => (
+                    <div key={invitation.id} className="invitation-card">
+                      <img
+                        src={
+                          invitation.invited.avatar ||
+                          `https://i.pravatar.cc/150?u=${invitation.invited.email}`
+                        }
+                        alt={invitation.invited.name}
+                        className="invitation-avatar"
+                      />
+                      <div className="invitation-info">
+                        <h4>{invitation.invited.name}</h4>
+                        <p>⏰ Waiting for response...</p>
+                        <p className="invitation-time">
+                          Sent:{' '}
+                          {new Date(
+                            invitation.created_at
+                          ).toLocaleTimeString()}
+                        </p>
+                        <p className="invitation-status">
+                          🔄 Waiting for acceptance...
+                        </p>
+                      </div>
+                      <div className="invitation-actions">
+                        <button
+                          className="cancel-btn"
+                          onClick={() => handleCancelInvitation(invitation.id)}
+                        >
+                          🚫 Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {activeTab === 'games' && (
+          <>
+            {/* Active/Paused Games */}
+            {activeGames.length > 0 && (
+              <div className="invitations-section">
+                <h2>🎮 Active Games</h2>
+                <div className="invitations-list">
+                  {activeGames.map((game) => {
+                    const opponent =
+                      game.white_player_id === user.id
+                        ? game.blackPlayer
+                        : game.whitePlayer;
+                    const playerColor =
+                      game.white_player_id === user.id ? 'white' : 'black';
+                    const statusEmoji =
+                      game.status === 'active'
+                        ? '🟢'
+                        : game.status === 'paused'
+                        ? '⏸️'
+                        : '⏳';
+
+                    return (
+                      <div key={game.id} className="invitation-card">
+                        <img
+                          src={
+                            opponent?.avatar ||
+                            `https://i.pravatar.cc/150?u=${opponent?.email}`
+                          }
+                          alt={opponent?.name}
+                          className="invitation-avatar"
+                        />
+                        <div className="invitation-info">
+                          <h4>vs {opponent?.name}</h4>
+                          <p>
+                            {statusEmoji} {game.status} • Playing as{' '}
+                            {playerColor}
+                          </p>
+                          <p className="invitation-time">
+                            Last move:{' '}
+                            {game.last_move_at
+                              ? new Date(game.last_move_at).toLocaleString()
+                              : 'No moves yet'}
+                          </p>
+                        </div>
+                        <div className="invitation-actions">
+                          <button
+                            className="accept-btn"
+                            onClick={() => {
+                              sessionStorage.setItem(
+                                'lastInvitationAction',
+                                'resume_game'
+                              );
+                              sessionStorage.setItem(
+                                'lastInvitationTime',
+                                Date.now().toString()
+                              );
+                              sessionStorage.setItem(
+                                'lastGameId',
+                                game.id.toString()
+                              );
+                              navigate(`/play/multiplayer/${game.id}`);
+                            }}
+                          >
+                            ▶️ Resume Game
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       {showColorModal && (

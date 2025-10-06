@@ -844,12 +844,12 @@ const PlayComputer = () => {
       <div className="chess-game-container text-white">
         {/* Persistent Header */}
         <header className="game-header flex justify-between items-center mb-4">
-           <Link to="/" className="nav-button-play text-vivid-yellow">Home</Link>
-           <Link to="/dashboard" className="nav-button-play text-vivid-yellow">Dashboard</Link>
-         </header>
+          <Link to="/" className="nav-button-play text-vivid-yellow">Home</Link>
+          <Link to="/dashboard" className="nav-button-play text-vivid-yellow">Dashboard</Link>
+        </header>
 
         {/* Pre-Game Setup Screen */}
-                {!gameStarted && !isReplayMode && !isOnlineGame && gameMode === null && (
+        {!gameStarted && !isReplayMode && !isOnlineGame && gameMode === null && (
           <div className="pre-game-setup bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-8 text-center">
             <h2 className="text-3xl font-bold mb-6 text-vivid-yellow">Choose Your Game Mode</h2>
             <div className="flex flex-col gap-4">
@@ -875,22 +875,21 @@ const PlayComputer = () => {
                 max={MAX_DEPTH}
                 disabled={countdownActive}
               />
-
             </div>
             <div className="color-selection mb-6">
               <h3 className="text-xl font-semibold mb-2">Select Your Color:</h3>
-               <label className="color-toggle-container inline-flex items-center cursor-pointer" htmlFor="color-toggle">
-                   <span className="mr-3">White</span>
-                   <div className="relative">
-                       <input type="checkbox" id="color-toggle" className="sr-only"
-                           checked={playerColor === 'b'}
-                           onChange={handleColorToggle} // Stable callback
-                           disabled={countdownActive} />
-                       <div className="w-14 h-8 bg-gray-600 rounded-full"></div>
-                       <div className="dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition"></div>
-                   </div>
-                   <span className="ml-3">Black</span>
-               </label>
+              <label className="color-toggle-container inline-flex items-center cursor-pointer" htmlFor="color-toggle">
+                <span className="mr-3">White</span>
+                <div className="relative">
+                  <input type="checkbox" id="color-toggle" className="sr-only"
+                    checked={playerColor === 'b'}
+                    onChange={handleColorToggle} // Stable callback
+                    disabled={countdownActive} />
+                  <div className="w-14 h-8 bg-gray-600 rounded-full"></div>
+                  <div className="dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition"></div>
+                </div>
+                <span className="ml-3">Black</span>
+              </label>
             </div>
             {!countdownActive && (
               <button className="start-button large green bg-ufo-green hover:bg-vivid-yellow text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300" onClick={startGame} disabled={countdownActive}>
@@ -903,58 +902,39 @@ const PlayComputer = () => {
                 <Countdown startValue={3} onCountdownFinish={onCountdownFinish} />
               </div>
             )}
-             {/* Optional: Add button/checkbox to toggle settings.requireDoneButton here */}
-             {/* <label> */}
-             {/* <input type="checkbox" checked={settings.requireDoneButton} onChange={toggleDoneButtonSetting} /> */}
-             {/* Require 'Done' Button */}
-             {/* </label> */}
           </div>
         )}
 
         {/* Main Game/Replay Screen Layout */}
         {(gameStarted || isReplayMode) && (
-           <div className="game-layout">
-               {/* Compact Game Info Panel - Mobile optimized */}
-               <div className="game-info-compact">
-                   {/* Top row: Scores and Timers */}
-                   <div className="score-timer-row">
-                       <ScoreDisplay playerScore={playerScore} lastMoveEvaluation={lastMoveEvaluation} computerScore={computerScore} lastComputerEvaluation={lastComputerEvaluation} isOnlineGame={isOnlineGame} players={players} playerColor={playerColor} />
-                       <TimerDisplay playerTime={playerTime} computerTime={computerTime} activeTimer={activeTimer} playerColor={playerColor} isPortrait={isPortrait} isRunning={isTimerRunning && activeTimer === playerColor} isComputerRunning={isTimerRunning && activeTimer !== playerColor}/>
-                   </div>
-
-                   {/* Game status row - minimal */}
-                   <div className="game-status-row">
-                       <GameInfo gameStatus={gameStatus} playerColor={playerColor} game={game} moveCompleted={moveCompleted} activeTimer={activeTimer} isReplayMode={isReplayMode} currentReplayMove={currentReplayMove} totalMoves={gameHistory.length} settings={settings} isOnlineGame={isOnlineGame} players={players} />
-                   </div>
-               </div>
-
-               {/* Center Panel (Chessboard) - Maximum space */}
-               <div className="center-panel-full">
-                       <div className="board-container">
-                           <ChessBoard
-                               game={game} // Pass the Chess.js instance
-                               boardOrientation={boardOrientation} // 'white' or 'black'
-                               onDrop={onDrop} // Callback for piece drop
-                               moveFrom={moveFrom} // Square piece is being dragged from
-                               setMoveFrom={setMoveFrom} // To update moveFrom state
-                               rightClickedSquares={rightClickedSquares} // For highlighting
-                               setRightClickedSquares={setRightClickedSquares} // To update highlights
-                               moveSquares={moveSquares} // To show potential move squares
-                               setMoveSquares={setMoveSquares} // To update potential move squares
-                               playerColor={playerColor} // Player's color ('w' or 'b')
-                               isReplayMode={isReplayMode} // Disable interaction during replay
-                            />
-                       </div>
-               </div>
-
-               {/* Game Controls Panel - Minimal bottom area */}
-               <div className="game-controls-minimal">
-                   <GameControls gameStarted={gameStarted} countdownActive={countdownActive} isTimerRunning={isTimerRunning} resetGame={resetCurrentGameSetup} handleTimer={startTimerInterval} pauseTimer={pauseTimer} isReplayMode={isReplayMode} replayPaused={replayPaused} startReplay={startReplay} pauseReplay={pauseReplay} savedGames={savedGames} loadGame={loadGame} moveCount={moveCount} playerColor={playerColor} replayTimerRef={replayTimerRef} />
-                   {settings.requireDoneButton && !isReplayMode && (
-                       <TimerButton timerButtonColor={timerButtonColor} timerButtonText={timerButtonText} moveCompleted={moveCompleted} activeTimer={activeTimer} playerColor={playerColor} onClick={handleTimerButtonPress} disabled={gameOver || !moveCompleted || activeTimer !== playerColor}/>
-                   )}
-               </div>
-           </div>
+          <div className="play-computer-layout">
+            <div className="main-content-area">
+              <div className="board-container">
+                <ChessBoard
+                  game={game} // Pass the Chess.js instance
+                  boardOrientation={boardOrientation} // 'white' or 'black'
+                  onDrop={onDrop} // Callback for piece drop
+                  moveFrom={moveFrom} // Square piece is being dragged from
+                  setMoveFrom={setMoveFrom} // To update moveFrom state
+                  rightClickedSquares={rightClickedSquares} // For highlighting
+                  setRightClickedSquares={setRightClickedSquares} // To update highlights
+                  moveSquares={moveSquares} // To show potential move squares
+                  setMoveSquares={setMoveSquares} // To update potential move squares
+                  playerColor={playerColor} // Player's color ('w' or 'b')
+                  isReplayMode={isReplayMode} // Disable interaction during replay
+                />
+              </div>
+            </div>
+            <div className="sidebar">
+              <GameInfo gameStatus={gameStatus} playerColor={playerColor} game={game} moveCompleted={moveCompleted} activeTimer={activeTimer} isReplayMode={isReplayMode} currentReplayMove={currentReplayMove} totalMoves={gameHistory.length} settings={settings} isOnlineGame={isOnlineGame} players={players} />
+              <ScoreDisplay playerScore={playerScore} lastMoveEvaluation={lastMoveEvaluation} computerScore={computerScore} lastComputerEvaluation={lastComputerEvaluation} isOnlineGame={isOnlineGame} players={players} playerColor={playerColor} />
+              <TimerDisplay playerTime={playerTime} computerTime={computerTime} activeTimer={activeTimer} playerColor={playerColor} isPortrait={isPortrait} isRunning={isTimerRunning && activeTimer === playerColor} isComputerRunning={isTimerRunning && activeTimer !== playerColor} />
+              <GameControls gameStarted={gameStarted} countdownActive={countdownActive} isTimerRunning={isTimerRunning} resetGame={resetCurrentGameSetup} handleTimer={startTimerInterval} pauseTimer={pauseTimer} isReplayMode={isReplayMode} replayPaused={replayPaused} startReplay={startReplay} pauseReplay={pauseReplay} savedGames={savedGames} loadGame={loadGame} moveCount={moveCount} playerColor={playerColor} replayTimerRef={replayTimerRef} />
+              {settings.requireDoneButton && !isReplayMode && (
+                <TimerButton timerButtonColor={timerButtonColor} timerButtonText={timerButtonText} moveCompleted={moveCompleted} activeTimer={activeTimer} playerColor={playerColor} onClick={handleTimerButtonPress} disabled={gameOver || !moveCompleted || activeTimer !== playerColor} />
+              )}
+            </div>
+          </div>
         )}
 
         {/* Game Completion Modal/Animation */}
