@@ -7,6 +7,7 @@ import TimerDisplay from './TimerDisplay';
 import TimerButton from './TimerButton';
 import GameCompletionAnimation from '../GameCompletionAnimation';
 import CheckmateNotification from '../CheckmateNotification';
+import PlayShell from './PlayShell'; // Layout wrapper (Phase 4)
 import { useAuth } from '../../contexts/AuthContext';
 import { useParams, useNavigate } from 'react-router-dom';
 import { BACKEND_URL } from '../../config';
@@ -896,6 +897,7 @@ const PlayMultiplayer = () => {
     }
   };
 
+  // Loading and error states - return early before PlayShell wrapper
   if (loading) {
     return (
       <div className="game-container">
@@ -915,6 +917,252 @@ const PlayMultiplayer = () => {
     );
   }
 
+  // Check feature flag for PlayShell wrapper
+  const usePlayShell = process.env.REACT_APP_USE_PLAY_SHELL === 'true';
+
+  // Extract sections for PlayShell slots (COMPOSITION ONLY - no logic changes)
+  const headerSection = (
+    <div className="game-header">
+      <h2>Multiplayer Chess</h2>
+      <div className="game-status">
+        <div className="connection-status">
+          <span className={`status-indicator ${connectionStatus}`}>
+            ● {connectionStatus === 'connected' ? 'Connected' : 'Disconnected'}
+          </span>
+          {opponentOnline && (
+            <span className="opponent-status">
+              ● {gameInfo.opponentName} online
+            </span>
+          )}
+        </div>
+        <div className="turn-status">
+          {gameInfo.status === 'active' ? (
+            gameInfo.turn === gameInfo.playerColor ?
+              "Your turn" :
+              `${gameInfo.opponentName}'s turn`
+          ) : gameInfo.status === 'finished' ? (
+            `Game ${gameData?.result?.replace('_', ' ') || 'ended'}`
+          ) : (
+            `Game ${gameInfo.status}`
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  const boardAreaSection = (
+    <div className="board-section">
+      <div className="player-info opponent">
+        <span className="player-name">
+          {gameInfo.opponentName} ({gameInfo.playerColor === 'white' ? 'Black' : 'White'})
+        </span>
+      </div>
+
+      <div className="chessboard-wrapper">
+        <Chessboard
+          position={game.fen()}
+          onPieceDrop={onDrop}
+          onSquareClick={handleSquareClick}
+          boardOrientation={boardOrientation}
+          areArrowsAllowed={false}
+          customSquareStyles={{
+            [selectedSquare]: {
+              backgroundColor: 'rgba(255, 255, 0, 0.4)'
+            },
+            ...(kingInDangerSquare && {
+              [kingInDangerSquare]: {
+                animation: 'kingFlicker 0.5s ease-in-out 3',
+                backgroundColor: 'rgba(255, 0, 0, 0.6)'
+              }
+            })
+          }}
+        />
+      </div>
+
+      <div className="player-info current-player">
+        <span className="player-name">
+          {user.name} ({gameInfo.playerColor === 'white' ? 'White' : 'Black'})
+        </span>
+        <div className="game-controls">
+          {gameInfo.status === 'active' && (
+            <button onClick={handleResign} className="resign-button">
+              Resign
+            </button>
+          )}
+          {gameInfo.status === 'paused' && (
+            <button onClick={handleResumeGame} className="resume-button">
+              Resume Game
+            </button>
+          )}
+          {gameInfo.status === 'finished' && (
+            <div className="game-ended-controls">
+              <button onClick={() => handleNewGame(true)} className="rematch-button">
+                Rematch
+              </button>
+              <button onClick={() => handleNewGame(false)} className="new-game-button">
+                New Game
+              </button>
+            </div>
+          )}
+          <button onClick={handleKillGame} className="forfeit-game-button" style={{
+            backgroundColor: '#dc3545',
+            color: 'white',
+            border: 'none',
+            padding: '8px 16px',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            marginTop: '10px',
+            fontSize: '14px'
+          }}>
+            ⚠️ Forfeit Game
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const sidebarSection = (
+    <div className="game-sidebar">
+      {/* Timer Display */}
+      <div className="space-y-2" style={{ marginBottom: '20px' }}>
+        {/* Opponent Timer */}
+        <div className={`rounded-lg p-3 transition-all duration-300 ${
+          activeTimer === (gameInfo.playerColor === 'white' ? 'b' : 'w')
+            ? "bg-error/30 border border-error/50 shadow-lg scale-105"
+            : "bg-white/10 border border-white/20"
+        }`} style={{
+          backgroundColor: activeTimer === (gameInfo.playerColor === 'white' ? 'b' : 'w') ? 'rgba(239, 68, 68, 0.3)' : 'rgba(255, 255, 255, 0.1)',
+          border: `1px solid ${activeTimer === (gameInfo.playerColor === 'white' ? 'b' : 'w') ? 'rgba(239, 68, 68, 0.5)' : 'rgba(255, 255, 255, 0.2)'}`,
+          borderRadius: '8px',
+          padding: '12px',
+          transition: 'all 0.3s'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '18px' }}>👤</span>
+              <span style={{ fontSize: '14px', color: 'white' }}>{gameInfo.opponentName}</span>
+              {activeTimer === (gameInfo.playerColor === 'white' ? 'b' : 'w') && (
+                <div style={{ width: '8px', height: '8px', backgroundColor: '#ef4444', borderRadius: '50%', animation: 'pulse 2s infinite' }}></div>
+              )}
+            </div>
+            <div style={{
+              fontFamily: 'monospace',
+              fontSize: '18px',
+              fontWeight: 'bold',
+              color: activeTimer === (gameInfo.playerColor === 'white' ? 'b' : 'w') ? '#ef4444' : 'white'
+            }}>
+              {Math.floor(computerTime / 60).toString().padStart(2, '0')}:{(computerTime % 60).toString().padStart(2, '0')}
+            </div>
+          </div>
+        </div>
+
+        {/* Player Timer */}
+        <div className={`rounded-lg p-3 transition-all duration-300 ${
+          activeTimer === (gameInfo.playerColor === 'white' ? 'w' : 'b')
+            ? "bg-success/30 border border-success/50 shadow-lg scale-105"
+            : "bg-white/10 border border-white/20"
+        }`} style={{
+          backgroundColor: activeTimer === (gameInfo.playerColor === 'white' ? 'w' : 'b') ? 'rgba(34, 197, 94, 0.3)' : 'rgba(255, 255, 255, 0.1)',
+          border: `1px solid ${activeTimer === (gameInfo.playerColor === 'white' ? 'w' : 'b') ? 'rgba(34, 197, 94, 0.5)' : 'rgba(255, 255, 255, 0.2)'}`,
+          borderRadius: '8px',
+          padding: '12px',
+          transition: 'all 0.3s'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '18px' }}>👤</span>
+              <span style={{ fontSize: '14px', color: 'white' }}>{user.name}</span>
+              {activeTimer === (gameInfo.playerColor === 'white' ? 'w' : 'b') && (
+                <div style={{ width: '8px', height: '8px', backgroundColor: '#22c55e', borderRadius: '50%', animation: 'pulse 2s infinite' }}></div>
+              )}
+            </div>
+            <div style={{
+              fontFamily: 'monospace',
+              fontSize: '18px',
+              fontWeight: 'bold',
+              color: activeTimer === (gameInfo.playerColor === 'white' ? 'w' : 'b') ? '#22c55e' : 'white'
+            }}>
+              {Math.floor(playerTime / 60).toString().padStart(2, '0')}:{(playerTime % 60).toString().padStart(2, '0')}
+            </div>
+          </div>
+        </div>
+      </div>
+      <GameInfo
+        game={game}
+        gameHistory={gameHistory}
+        playerColor={gameInfo.playerColor}
+        opponent={gameInfo.opponentName}
+        gameStatus={gameInfo.status}
+      />
+      <ScoreDisplay
+        playerScore={playerScore}
+        lastMoveEvaluation={lastMoveEvaluation}
+        computerScore={opponentScore}
+        lastComputerEvaluation={lastOpponentEvaluation}
+        isOnlineGame={true}
+        players={{
+          'w': gameData?.white_player,
+          'b': gameData?.black_player
+        }}
+        playerColor={gameInfo.playerColor === 'white' ? 'w' : 'b'}
+      />
+    </div>
+  );
+
+  const modalsSection = (
+    <>
+      {/* Checkmate Notification */}
+      {showCheckmate && checkmateWinner && (
+        <CheckmateNotification
+          winner={checkmateWinner}
+          onComplete={() => setShowCheckmate(false)}
+        />
+      )}
+
+      {/* Game Completion Modal */}
+      {gameComplete && gameResult && (
+        <GameCompletionAnimation
+          result={gameResult}
+          playerColor={gameInfo.playerColor}
+          onClose={() => {
+            setGameComplete(false);
+            setGameResult(null);
+          }}
+          onRematch={() => handleNewGame(true)}
+          onNewGame={() => handleNewGame(false)}
+          onBackToLobby={() => {
+            // Clear invitation-related session storage to prevent auto-navigation
+            sessionStorage.removeItem('lastInvitationAction');
+            sessionStorage.removeItem('lastInvitationTime');
+            sessionStorage.removeItem('lastGameId');
+
+            // Set flag to indicate intentional lobby visit
+            sessionStorage.setItem('intentionalLobbyVisit', 'true');
+            sessionStorage.setItem('intentionalLobbyVisitTime', Date.now().toString());
+
+            navigate('/lobby');
+          }}
+          isMultiplayer={true}
+        />
+      )}
+    </>
+  );
+
+  // Render with PlayShell wrapper if feature flag is enabled
+  if (usePlayShell) {
+    return (
+      <PlayShell
+        header={headerSection}
+        boardArea={boardAreaSection}
+        sidebar={sidebarSection}
+        modals={modalsSection}
+        showBoard={true} // Multiplayer always shows board (no pre-game setup)
+        mode="multiplayer"
+      />
+    );
+  }
+
+  // Fallback to original layout (backward compatibility)
   return (
     <div className="game-container">
       <div className="game-header">

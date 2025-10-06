@@ -15,6 +15,7 @@ import TimerButton from "./TimerButton";
 import DifficultyMeter from "./DifficultyMeter";
 import Countdown from "../Countdown"; // Adjust path if needed
 import GameCompletionAnimation from "../GameCompletionAnimation"; // Adjust path if needed
+import PlayShell from "./PlayShell"; // Layout wrapper (Phase 4)
 
 // Import Utils & Hooks
 import { useGameTimer } from "../../utils/timerUtils"; // Adjust path if needed
@@ -839,6 +840,195 @@ const PlayComputer = () => {
     }, []);
 
   // --- RENDER ---
+  // Check feature flag for PlayShell wrapper
+  const usePlayShell = process.env.REACT_APP_USE_PLAY_SHELL === 'true';
+
+  // Extract sections for PlayShell slots (COMPOSITION ONLY - no logic changes)
+  const headerSection = (
+    <header className="game-header flex justify-between items-center mb-4">
+      <Link to="/" className="nav-button-play text-vivid-yellow">Home</Link>
+      <Link to="/dashboard" className="nav-button-play text-vivid-yellow">Dashboard</Link>
+    </header>
+  );
+
+  const preGameSetupSection = (
+    <>
+      {/* Game Mode Selection */}
+      {gameMode === null && (
+        <div className="pre-game-setup bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-8 text-center">
+          <h2 className="text-3xl font-bold mb-6 text-vivid-yellow">Choose Your Game Mode</h2>
+          <div className="flex flex-col gap-4">
+            <button className="start-button large green bg-ufo-green hover:bg-vivid-yellow text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300" onClick={() => setGameMode('computer')}>
+              Play Against Computer
+            </button>
+            <button className="start-button large blue bg-blue-500 hover:bg-blue-400 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300" onClick={() => navigate('/lobby')}>
+              Play Against a Friend
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Difficulty and Color Selection */}
+      {gameMode === 'computer' && (
+        <div className="pre-game-setup bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-8 text-center">
+          <h2 className="text-3xl font-bold mb-6 text-vivid-yellow">Play Against Computer</h2>
+          <div className="difficulty-selection mb-6">
+            <DifficultyMeter
+              value={computerDepth}
+              onChange={handleDifficultyChange}
+              min={MIN_DEPTH}
+              max={MAX_DEPTH}
+              disabled={countdownActive}
+            />
+          </div>
+          <div className="color-selection mb-6">
+            <h3 className="text-xl font-semibold mb-2">Select Your Color:</h3>
+            <label className="color-toggle-container inline-flex items-center cursor-pointer" htmlFor="color-toggle">
+              <span className="mr-3">White</span>
+              <div className="relative">
+                <input type="checkbox" id="color-toggle" className="sr-only"
+                  checked={playerColor === 'b'}
+                  onChange={handleColorToggle}
+                  disabled={countdownActive} />
+                <div className="w-14 h-8 bg-gray-600 rounded-full"></div>
+                <div className="dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition"></div>
+              </div>
+              <span className="ml-3">Black</span>
+            </label>
+          </div>
+          {!countdownActive && (
+            <button className="start-button large green bg-ufo-green hover:bg-vivid-yellow text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300" onClick={startGame} disabled={countdownActive}>
+              Start Game
+            </button>
+          )}
+          {countdownActive && (
+            <div className="countdown-in-setup">
+              <p className="text-xl mb-2">Starting in...</p>
+              <Countdown startValue={3} onCountdownFinish={onCountdownFinish} />
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  );
+
+  const boardAreaSection = (
+    <div className="main-content-area">
+      <div className="board-container">
+        <ChessBoard
+          game={game}
+          boardOrientation={boardOrientation}
+          onDrop={onDrop}
+          moveFrom={moveFrom}
+          setMoveFrom={setMoveFrom}
+          rightClickedSquares={rightClickedSquares}
+          setRightClickedSquares={setRightClickedSquares}
+          moveSquares={moveSquares}
+          setMoveSquares={setMoveSquares}
+          playerColor={playerColor}
+          isReplayMode={isReplayMode}
+        />
+      </div>
+    </div>
+  );
+
+  const sidebarSection = (
+    <div className="sidebar">
+      <GameInfo
+        gameStatus={gameStatus}
+        playerColor={playerColor}
+        game={game}
+        moveCompleted={moveCompleted}
+        activeTimer={activeTimer}
+        isReplayMode={isReplayMode}
+        currentReplayMove={currentReplayMove}
+        totalMoves={gameHistory.length}
+        settings={settings}
+        isOnlineGame={isOnlineGame}
+        players={players}
+      />
+      <ScoreDisplay
+        playerScore={playerScore}
+        lastMoveEvaluation={lastMoveEvaluation}
+        computerScore={computerScore}
+        lastComputerEvaluation={lastComputerEvaluation}
+        isOnlineGame={isOnlineGame}
+        players={players}
+        playerColor={playerColor}
+      />
+      <TimerDisplay
+        playerTime={playerTime}
+        computerTime={computerTime}
+        activeTimer={activeTimer}
+        playerColor={playerColor}
+        isPortrait={isPortrait}
+        isRunning={isTimerRunning && activeTimer === playerColor}
+        isComputerRunning={isTimerRunning && activeTimer !== playerColor}
+      />
+      <GameControls
+        gameStarted={gameStarted}
+        countdownActive={countdownActive}
+        isTimerRunning={isTimerRunning}
+        resetGame={resetCurrentGameSetup}
+        handleTimer={startTimerInterval}
+        pauseTimer={pauseTimer}
+        isReplayMode={isReplayMode}
+        replayPaused={replayPaused}
+        startReplay={startReplay}
+        pauseReplay={pauseReplay}
+        savedGames={savedGames}
+        loadGame={loadGame}
+        moveCount={moveCount}
+        playerColor={playerColor}
+        replayTimerRef={replayTimerRef}
+      />
+      {settings.requireDoneButton && !isReplayMode && (
+        <TimerButton
+          timerButtonColor={timerButtonColor}
+          timerButtonText={timerButtonText}
+          moveCompleted={moveCompleted}
+          activeTimer={activeTimer}
+          playerColor={playerColor}
+          onClick={handleTimerButtonPress}
+          disabled={gameOver || !moveCompleted || activeTimer !== playerColor}
+        />
+      )}
+    </div>
+  );
+
+  const modalsSection = (
+    <>
+      {showGameCompletion && (
+        <GameCompletionAnimation
+          result={gameStatus}
+          score={typeof playerScore === 'number' && !isNaN(playerScore) ? playerScore : 0}
+          computerScore={typeof computerScore === 'number' && !isNaN(computerScore) ? computerScore : 0}
+          playerColor={playerColor}
+          onClose={() => {
+            setShowGameCompletion(false);
+            resetGame();
+          }}
+        />
+      )}
+    </>
+  );
+
+  // Render with PlayShell wrapper if feature flag is enabled
+  if (usePlayShell) {
+    return (
+      <PlayShell
+        header={headerSection}
+        preGameSetup={preGameSetupSection}
+        boardArea={boardAreaSection}
+        sidebar={sidebarSection}
+        modals={modalsSection}
+        showBoard={!isOnlineGame && (gameStarted || isReplayMode)}
+        mode="computer"
+      />
+    );
+  }
+
+  // Fallback to original layout (backward compatibility)
   return (
     <>
       <div className="chess-game-container text-white">

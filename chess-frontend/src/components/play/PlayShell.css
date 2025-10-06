@@ -1,0 +1,140 @@
+/* src/components/play/PlayShell.css */
+/* PURE LAYOUT STYLES - NO GAME BEHAVIOR */
+
+.play-shell-container {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  color: white;
+}
+
+/* Header Section */
+.play-shell-header {
+  padding: 1rem 2rem;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+}
+
+/* Pre-Game Setup Screen */
+.play-shell-setup {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+}
+
+/* Main Game Layout - Board + Sidebar */
+.play-shell-layout {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(400px, 2fr) minmax(300px, 1fr);
+  gap: 2rem;
+  padding: 2rem;
+  max-width: 1600px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* Board Section - Center Focus */
+.play-shell-board {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 1.5rem;
+  min-height: 500px;
+}
+
+/* Sidebar Section - Game Info */
+.play-shell-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 1.5rem;
+  overflow-y: auto;
+  max-height: calc(100vh - 8rem);
+}
+
+/* Modals and Overlays */
+.play-shell-modals {
+  /* Modals handle their own positioning (fixed/absolute) */
+  /* This is just a container for organizational purposes */
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .play-shell-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .play-shell-sidebar {
+    max-height: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .play-shell-header {
+    padding: 0.75rem 1rem;
+  }
+
+  .play-shell-board {
+    padding: 1rem;
+    min-height: 300px;
+  }
+
+  .play-shell-sidebar {
+    padding: 1rem;
+  }
+
+  .play-shell-layout {
+    padding: 0.5rem;
+  }
+}
+
+/* Mode-specific customization */
+.play-shell-computer {
+  /* Computer mode specific styles (if needed) */
+}
+
+.play-shell-multiplayer {
+  /* Multiplayer mode specific styles (if needed) */
+}
+
+/* Preserve z-index hierarchy - don't create new stacking contexts */
+.play-shell-container {
+  /* DON'T use transform, will-change, or other properties that create stacking contexts */
+  /* Keep layout flat to preserve existing modal z-index behavior */
+}
+
+/* Animation support for smooth transitions */
+.play-shell-board,
+.play-shell-sidebar,
+.play-shell-setup {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+/* Loading state */
+.play-shell-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 1.25rem;
+}
