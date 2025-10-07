@@ -92,7 +92,7 @@ const PlayComputer = () => {
   const { user } = useAuth();
   const [isOnlineGame, setIsOnlineGame] = useState(false);
   const [players, setPlayers] = useState(null);
-  const [gameMode, setGameMode] = useState(null);
+  const [gameMode, setGameMode] = useState('computer'); // Default to computer mode for /play route
 
   // --- Custom timer hook ---
   const {

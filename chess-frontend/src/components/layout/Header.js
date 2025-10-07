@@ -17,8 +17,8 @@ const Header = () => {
   const { isAuthenticated, logout } = useAuth();
   const { activeGame, loading } = useActiveGame();
 
-  // Hide header on landing page (preserve existing behavior)
-  if (location.pathname === '/') {
+  // Hide header on landing page and play routes (preserve existing behavior)
+  if (location.pathname === '/' || location.pathname === '/play') {
     return null;
   }
 
