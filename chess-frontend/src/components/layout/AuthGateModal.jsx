@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { BASE_URL } from '../../config';
 import api from '../../services/api';
+import { trackAuth } from '../../utils/analytics';
 import MailIcon from "../../assets/icons/MailIcon";
 import LockIcon from "../../assets/icons/LockIcon";
 import EyeIcon from "../../assets/icons/EyeIcon";
@@ -61,6 +62,9 @@ const AuthGateModal = ({ reason = 'this feature', returnTo = '/dashboard' }) => 
         });
 
         if (response.data.status === 'success') {
+          // Track successful login
+          trackAuth('login', 'email', { reason, returnTo });
+
           // ✅ Use existing login function (handles Echo init)
           await login(response.data.token);
 
@@ -85,6 +89,9 @@ const AuthGateModal = ({ reason = 'this feature', returnTo = '/dashboard' }) => 
         });
 
         if (response.data.status === 'success') {
+          // Track successful registration
+          trackAuth('register', 'email', { reason, returnTo });
+
           // ✅ Use existing login function (handles Echo init)
           await login(response.data.token);
 
@@ -139,7 +146,10 @@ const AuthGateModal = ({ reason = 'this feature', returnTo = '/dashboard' }) => 
           {/* Toggle Buttons */}
           <div className="flex gap-2 mb-6 bg-gray-800/50 p-1 rounded-lg">
             <button
-              onClick={() => setIsLogin(true)}
+              onClick={() => {
+                setIsLogin(true);
+                trackAuth('tab_switch', 'login', { reason });
+              }}
               className={`flex-1 py-2 px-4 rounded-md font-medium text-sm transition-all duration-200 ${
                 isLogin
                   ? 'bg-accent text-white shadow-lg'
@@ -149,7 +159,10 @@ const AuthGateModal = ({ reason = 'this feature', returnTo = '/dashboard' }) => 
               Login
             </button>
             <button
-              onClick={() => setIsLogin(false)}
+              onClick={() => {
+                setIsLogin(false);
+                trackAuth('tab_switch', 'register', { reason });
+              }}
               className={`flex-1 py-2 px-4 rounded-md font-medium text-sm transition-all duration-200 ${
                 !isLogin
                   ? 'bg-accent text-white shadow-lg'
@@ -267,6 +280,7 @@ const AuthGateModal = ({ reason = 'this feature', returnTo = '/dashboard' }) => 
           <div>
             <a
               href={`${BASE_URL}/auth/google/redirect`}
+              onClick={() => trackAuth('social_login_attempt', 'google', { reason, returnTo })}
               className="w-full flex items-center justify-center px-4 py-3 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 transition-colors duration-200"
             >
               <svg

@@ -1,6 +1,7 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { trackSocial, trackUI } from '../utils/analytics';
 import api from '../services/api';
 import WebSocketGameService from '../services/WebSocketGameService';
 import { getEcho } from '../services/echoSingleton';
@@ -468,6 +469,13 @@ const LobbyPage = () => {
         preferred_color: colorChoice
       });
 
+      // Track successful challenge sent
+      trackSocial('challenge_sent', {
+        playerId: selectedPlayer.id,
+        colorChoice,
+        invitationId: response.data.invitation?.id
+      });
+
       // Optimistic update: add invitation to sent list immediately
       if (response.data.invitation) {
         setSentInvitations(prev => [response.data.invitation, ...prev]);
@@ -535,6 +543,13 @@ const LobbyPage = () => {
       setSelectedInvitation(null);
 
       if (action === 'accept') {
+        // Track successful invitation acceptance
+        trackSocial('invitation_accepted', {
+          invitationId,
+          colorChoice,
+          gameId: response.data.game?.id
+        });
+
         const data = response.data;
         if (data.game) {
           console.log('Invitation accepted, navigating to game:', data.game);
@@ -548,6 +563,12 @@ const LobbyPage = () => {
         } else {
           console.log('Invitation accepted but no game created');
         }
+      } else if (action === 'decline') {
+        // Track invitation decline
+        trackSocial('invitation_declined', { invitationId });
+
+        // Remove from pending list
+        setPendingInvitations(prev => prev.filter(inv => inv.id !== invitationId));
       }
     } catch (error) {
       console.error('Failed to respond to invitation:', error);
@@ -578,6 +599,9 @@ const LobbyPage = () => {
       console.log('Cancelling invitation:', invitationId);
       const response = await api.delete(`/invitations/${invitationId}`);
       console.log('Cancellation response:', response.data);
+
+      // Track invitation cancellation
+      trackSocial('invitation_cancelled', { invitationId });
 
       // Immediately update local state to remove the cancelled invitation
       setSentInvitations(prev => prev.filter(inv => inv.id !== invitationId));

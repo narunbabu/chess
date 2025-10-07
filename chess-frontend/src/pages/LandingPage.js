@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { trackNavigation, trackUI } from '../utils/analytics';
 import AuthGateModal from '../components/layout/AuthGateModal';
 import Background from '../components/layout/Background';
 import chessPlayingKids from '../assets/images/chess-playing-kids-crop.png';
@@ -132,14 +133,20 @@ const LandingPage = () => {
                   <h3 className="text-xl font-semibold text-gray-800 mb-6">Choose Your Opponent</h3>
                   <div className="flex flex-col space-y-4 mb-6">
                     <button
-                      onClick={() => navigate('/play')}
+                      onClick={() => {
+                        trackUI('cta_button', 'click', { button: 'play_computer', location: 'landing_authenticated' });
+                        navigate('/play');
+                      }}
                       className="flex items-center justify-center w-full bg-orange-500 text-white font-bold py-3 px-6 rounded-xl hover:bg-orange-600 transition-all duration-200 shadow-lg"
                     >
                       <span className="mr-2">🤖</span>
                       Play with Computer
                     </button>
                     <button
-                      onClick={() => navigate('/lobby')}
+                      onClick={() => {
+                        trackUI('cta_button', 'click', { button: 'play_friends', location: 'landing_authenticated' });
+                        navigate('/lobby');
+                      }}
                       className="flex items-center justify-center w-full bg-blue-500 text-white font-bold py-3 px-6 rounded-xl hover:bg-blue-600 transition-all duration-200 shadow-lg"
                     >
                       <span className="mr-2">👥</span>
@@ -150,19 +157,28 @@ const LandingPage = () => {
               ) : (
                 <>
                   <button
-                    onClick={() => navigate('/play')}
+                    onClick={() => {
+                      trackUI('cta_button', 'click', { button: 'play_computer', location: 'landing_hero' });
+                      navigate('/play');
+                    }}
                     className="bg-orange-500 text-white font-bold py-4 sm:py-5 px-8 sm:px-12 rounded-xl hover:bg-orange-600 transform hover:scale-105 sm:hover:scale-110 transition-all duration-200 text-lg sm:text-xl shadow-2xl backdrop-blur-sm border-2 border-orange-400"
                   >
                     🤖 Play Computer Now
                   </button>
                   <button
-                    onClick={() => setShowAuthGate(true)}
+                    onClick={() => {
+                      trackUI('cta_button', 'click', { button: 'play_friends', location: 'landing_hero' });
+                      setShowAuthGate(true);
+                    }}
                     className="bg-blue-500 text-white font-bold py-4 sm:py-5 px-8 sm:px-12 rounded-xl hover:bg-blue-600 transform hover:scale-105 sm:hover:scale-110 transition-all duration-200 text-lg sm:text-xl shadow-2xl backdrop-blur-sm border-2 border-blue-400"
                   >
                     👥 Play with Friends
                   </button>
                   <button
-                    onClick={() => navigate('/learn')}
+                    onClick={() => {
+                      trackUI('cta_button', 'click', { button: 'learn_chess', location: 'landing_hero' });
+                      navigate('/learn');
+                    }}
                     className="bg-white/95 backdrop-blur-sm text-orange-500 font-bold py-4 sm:py-5 px-8 sm:px-12 rounded-xl hover:bg-white transform hover:scale-105 sm:hover:scale-110 transition-all duration-200 text-lg sm:text-xl shadow-2xl border-2 border-white"
                   >
                     📚 Learn Chess
@@ -202,7 +218,11 @@ const LandingPage = () => {
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-            <Link to="/puzzles" className="group">
+            <Link
+              to="/puzzles"
+              className="group"
+              onClick={() => trackUI('feature_card', 'click', { feature: 'puzzles', location: 'landing_features' })}
+            >
               <div className="bg-white rounded-xl p-5 sm:p-6 shadow-md hover:shadow-xl transition-shadow duration-200 h-full">
                 <div className="text-3xl sm:text-4xl mb-3 sm:mb-4 text-center">🧩</div>
                 <h3 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2 text-center">Solve Puzzles</h3>
@@ -210,7 +230,11 @@ const LandingPage = () => {
               </div>
             </Link>
 
-            <Link to="/learn" className="group">
+            <Link
+              to="/learn"
+              className="group"
+              onClick={() => trackUI('feature_card', 'click', { feature: 'learn', location: 'landing_features' })}
+            >
               <div className="bg-white rounded-xl p-5 sm:p-6 shadow-md hover:shadow-xl transition-shadow duration-200 h-full">
                 <div className="text-3xl sm:text-4xl mb-3 sm:mb-4 text-center">📚</div>
                 <h3 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2 text-center">Start Learning</h3>
@@ -218,7 +242,13 @@ const LandingPage = () => {
               </div>
             </Link>
 
-            <button onClick={() => navigate('/play')} className="group text-left w-full">
+            <button
+              onClick={() => {
+                trackUI('feature_card', 'click', { feature: 'tournaments', location: 'landing_features' });
+                navigate('/play');
+              }}
+              className="group text-left w-full"
+            >
               <div className="bg-white rounded-xl p-5 sm:p-6 shadow-md hover:shadow-xl transition-shadow duration-200 h-full">
                 <div className="text-3xl sm:text-4xl mb-3 sm:mb-4 text-center">🏆</div>
                 <h3 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2 text-center">Join Tournaments</h3>

@@ -3,6 +3,7 @@ import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useActiveGame } from '../../hooks/useActiveGame';
+import { trackAuth, trackNavigation } from '../../utils/analytics';
 
 /**
  * Header component extracted from App.js AppHeader
@@ -22,12 +23,14 @@ const Header = () => {
   }
 
   const handleLogout = () => {
+    trackAuth('logout', 'manual');
     logout();
     window.location.href = '/';
   };
 
   const handleResumeGame = () => {
     if (activeGame) {
+      trackNavigation('game', 'resume_button', { gameId: activeGame.id });
       // Store session info for PlayMultiplayer component
       sessionStorage.setItem('lastInvitationAction', 'resume_game');
       sessionStorage.setItem('lastInvitationTime', Date.now().toString());
@@ -46,7 +49,13 @@ const Header = () => {
       <nav className="auth-nav">
         {isAuthenticated ? (
           <>
-            <Link to="/dashboard" className="nav-link">Dashboard</Link>
+            <Link
+              to="/dashboard"
+              className="nav-link"
+              onClick={() => trackNavigation('dashboard', 'header')}
+            >
+              Dashboard
+            </Link>
             {!loading && activeGame && (
               <button
                 onClick={handleResumeGame}
@@ -61,7 +70,13 @@ const Header = () => {
             </button>
           </>
         ) : (
-          <Link to="/login" className="auth-button login-button">Login</Link>
+          <Link
+            to="/login"
+            className="auth-button login-button"
+            onClick={() => trackNavigation('login', 'header')}
+          >
+            Login
+          </Link>
         )}
       </nav>
     </header>
