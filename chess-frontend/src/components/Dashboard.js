@@ -160,14 +160,9 @@ const Dashboard = () => {
                     <p
                       className={`unified-card-subtitle ${
                         game.result?.toLowerCase().includes("win")
-                          ? "text-success"
-                          : "text-error"
+                          ? "title-success"
+                          : "title-error"
                       }`}
-                      style={{
-                        color: game.result?.toLowerCase().includes("win")
-                          ? "#43b581"
-                          : "#f04747",
-                      }}
                     >
                       {game.result || "Unknown"}
                     </p>
@@ -194,47 +189,47 @@ const Dashboard = () => {
         {/* User Stats Section */}
         <section className="unified-section">
           <h2 className="unified-section-header">📊 Your Statistics</h2>
-          <div className="unified-card-grid cols-3">
-            <div className="unified-card">
-              <div className="unified-card-content" style={{ textAlign: 'center' }}>
-                <h3 className="unified-card-title" style={{ fontSize: '2rem', color: '#7289da' }}>
-                  {gameHistories.length}
-                </h3>
-                <p className="unified-card-subtitle">Games Played</p>
+            <div className="unified-card-grid cols-3">
+              <div className="unified-card centered">
+                <div className="unified-card-content">
+                  <h3 className="unified-card-title title-large title-primary">
+                    {gameHistories.length}
+                  </h3>
+                  <p className="unified-card-subtitle">Games Played</p>
+                </div>
+              </div>
+              <div className="unified-card centered">
+                <div className="unified-card-content">
+                  <h3 className="unified-card-title title-large title-success">
+                    {gameHistories.length > 0
+                      ? `${Math.round(
+                          (gameHistories.filter((g) =>
+                            g.result?.toLowerCase().includes("win")
+                          ).length /
+                            gameHistories.length) *
+                            100
+                        )}%`
+                      : "0%"}
+                  </h3>
+                  <p className="unified-card-subtitle">Win Rate</p>
+                </div>
+              </div>
+              <div className="unified-card centered">
+                <div className="unified-card-content">
+                  <h3 className="unified-card-title title-large title-accent">
+                    {gameHistories.length > 0
+                      ? (
+                          gameHistories.reduce((sum, game) => {
+                            const score = game.finalScore ?? game.score ?? 0;
+                            return sum + (typeof score === 'number' ? score : 0);
+                          }, 0) / gameHistories.length
+                        ).toFixed(1)
+                      : "0.0"}
+                  </h3>
+                  <p className="unified-card-subtitle">Average Score</p>
+                </div>
               </div>
             </div>
-            <div className="unified-card">
-              <div className="unified-card-content" style={{ textAlign: 'center' }}>
-                <h3 className="unified-card-title" style={{ fontSize: '2rem', color: '#43b581' }}>
-                  {gameHistories.length > 0
-                    ? `${Math.round(
-                        (gameHistories.filter((g) =>
-                          g.result?.toLowerCase().includes("win")
-                        ).length /
-                          gameHistories.length) *
-                          100
-                      )}%`
-                    : "0%"}
-                </h3>
-                <p className="unified-card-subtitle">Win Rate</p>
-              </div>
-            </div>
-            <div className="unified-card">
-              <div className="unified-card-content" style={{ textAlign: 'center' }}>
-                <h3 className="unified-card-title" style={{ fontSize: '2rem', color: '#FFA640' }}>
-                  {gameHistories.length > 0
-                    ? (
-                        gameHistories.reduce((sum, game) => {
-                          const score = game.finalScore ?? game.score ?? 0;
-                          return sum + (typeof score === 'number' ? score : 0);
-                        }, 0) / gameHistories.length
-                      ).toFixed(1)
-                    : "0.0"}
-                </h3>
-                <p className="unified-card-subtitle">Average Score</p>
-              </div>
-            </div>
-          </div>
         </section>
 
         {/* Quick Actions Section */}
@@ -243,30 +238,27 @@ const Dashboard = () => {
           <div className="unified-card-grid cols-3">
             <button
               onClick={() => navigate("/play")}
-              className="unified-card"
-              style={{ cursor: 'pointer', border: 'none', background: 'linear-gradient(135deg, #FFA640, #FF7C2A)' }}
+              className="unified-card gradient-accent centered"
             >
-              <div className="unified-card-content" style={{ textAlign: 'center' }}>
+              <div className="unified-card-content">
                 <h3 className="unified-card-title">♟️ Play Chess</h3>
                 <p className="unified-card-subtitle">Start a new game</p>
               </div>
             </button>
             <button
               onClick={() => navigate("/tutorial")}
-              className="unified-card"
-              style={{ cursor: 'pointer', border: 'none', background: 'linear-gradient(135deg, #7289da, #5f73bc)' }}
+              className="unified-card gradient-primary centered"
             >
-              <div className="unified-card-content" style={{ textAlign: 'center' }}>
+              <div className="unified-card-content">
                 <h3 className="unified-card-title">📚 Tutorial</h3>
                 <p className="unified-card-subtitle">Learn chess basics</p>
               </div>
             </button>
             <button
               onClick={() => navigate("/practice")}
-              className="unified-card"
-              style={{ cursor: 'pointer', border: 'none', background: 'linear-gradient(135deg, #43b581, #3ca374)' }}
+              className="unified-card gradient-success centered"
             >
-              <div className="unified-card-content" style={{ textAlign: 'center' }}>
+              <div className="unified-card-content">
                 <h3 className="unified-card-title">🎯 Practice</h3>
                 <p className="unified-card-subtitle">Improve your skills</p>
               </div>

@@ -5,6 +5,7 @@ import { trackNavigation, trackUI } from '../utils/analytics';
 import AuthGateModal from '../components/layout/AuthGateModal';
 import Background from '../components/layout/Background';
 import chessPlayingKids from '../assets/images/chess-playing-kids-crop.png';
+import '../styles/UnifiedCards.css';
 
 const LandingPage = () => {
   const { isAuthenticated } = useAuth();
@@ -129,15 +130,15 @@ const LandingPage = () => {
             {/* Action Buttons with depth */}
             <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center items-center mb-6 sm:mb-8 w-full px-4">
               {isAuthenticated ? (
-                <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 shadow-2xl border border-white/20">
-                  <h3 className="text-xl font-semibold text-gray-800 mb-6">Choose Your Opponent</h3>
-                  <div className="flex flex-col space-y-4 mb-6">
+                <div className="unified-card">
+                  <h3 className="unified-card-title centered">Choose Your Opponent</h3>
+                  <div className="unified-card-actions vertical">
                     <button
                       onClick={() => {
                         trackUI('cta_button', 'click', { button: 'play_computer', location: 'landing_authenticated' });
                         navigate('/play');
                       }}
-                      className="flex items-center justify-center w-full bg-orange-500 text-white font-bold py-3 px-6 rounded-xl hover:bg-orange-600 transition-all duration-200 shadow-lg"
+                      className="unified-card-btn primary"
                     >
                       <span className="mr-2">🤖</span>
                       Play with Computer
@@ -147,7 +148,7 @@ const LandingPage = () => {
                         trackUI('cta_button', 'click', { button: 'play_friends', location: 'landing_authenticated' });
                         navigate('/lobby');
                       }}
-                      className="flex items-center justify-center w-full bg-blue-500 text-white font-bold py-3 px-6 rounded-xl hover:bg-blue-600 transition-all duration-200 shadow-lg"
+                      className="unified-card-btn secondary"
                     >
                       <span className="mr-2">👥</span>
                       Play with Friends
@@ -155,35 +156,53 @@ const LandingPage = () => {
                   </div>
                 </div>
               ) : (
-                <>
-                  <button
-                    onClick={() => {
-                      trackUI('cta_button', 'click', { button: 'play_computer', location: 'landing_hero' });
-                      navigate('/play');
-                    }}
-                    className="bg-orange-500 text-white font-bold py-4 sm:py-5 px-8 sm:px-12 rounded-xl hover:bg-orange-600 transform hover:scale-105 sm:hover:scale-110 transition-all duration-200 text-lg sm:text-xl shadow-2xl backdrop-blur-sm border-2 border-orange-400"
-                  >
-                    🤖 Play Computer Now
-                  </button>
-                  <button
-                    onClick={() => {
-                      trackUI('cta_button', 'click', { button: 'play_friends', location: 'landing_hero' });
-                      setShowAuthGate(true);
-                    }}
-                    className="bg-blue-500 text-white font-bold py-4 sm:py-5 px-8 sm:px-12 rounded-xl hover:bg-blue-600 transform hover:scale-105 sm:hover:scale-110 transition-all duration-200 text-lg sm:text-xl shadow-2xl backdrop-blur-sm border-2 border-blue-400"
-                  >
-                    👥 Play with Friends
-                  </button>
-                  <button
-                    onClick={() => {
-                      trackUI('cta_button', 'click', { button: 'learn_chess', location: 'landing_hero' });
-                      navigate('/learn');
-                    }}
-                    className="bg-white/95 backdrop-blur-sm text-orange-500 font-bold py-4 sm:py-5 px-8 sm:px-12 rounded-xl hover:bg-white transform hover:scale-105 sm:hover:scale-110 transition-all duration-200 text-lg sm:text-xl shadow-2xl border-2 border-white"
-                  >
-                    📚 Learn Chess
-                  </button>
-                </>
+                <div className="unified-card-grid cols-1 sm:cols-3 gap-4 sm:gap-6">
+                  <div className="unified-card centered">
+                    <div className="unified-card-avatar">🤖</div>
+                    <h3 className="unified-card-title">Play Computer Now</h3>
+                    <div className="unified-card-actions">
+                      <button
+                        onClick={() => {
+                          trackUI('cta_button', 'click', { button: 'play_computer', location: 'landing_hero' });
+                          navigate('/play');
+                        }}
+                        className="unified-card-btn primary"
+                      >
+                        Play
+                      </button>
+                    </div>
+                  </div>
+                  <div className="unified-card centered">
+                    <div className="unified-card-avatar">👥</div>
+                    <h3 className="unified-card-title">Play with Friends</h3>
+                    <div className="unified-card-actions">
+                      <button
+                        onClick={() => {
+                          trackUI('cta_button', 'click', { button: 'play_friends', location: 'landing_hero' });
+                          setShowAuthGate(true);
+                        }}
+                        className="unified-card-btn secondary"
+                      >
+                        Play
+                      </button>
+                    </div>
+                  </div>
+                  <div className="unified-card centered">
+                    <div className="unified-card-avatar">📚</div>
+                    <h3 className="unified-card-title">Learn Chess</h3>
+                    <div className="unified-card-actions">
+                      <button
+                        onClick={() => {
+                          trackUI('cta_button', 'click', { button: 'learn_chess', location: 'landing_hero' });
+                          navigate('/learn');
+                        }}
+                        className="unified-card-btn neutral"
+                      >
+                        Learn
+                      </button>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
 
@@ -193,40 +212,40 @@ const LandingPage = () => {
       </section>
 
       {/* Stats Section */}
-      <section className="py-16 bg-white">
+      <div className="unified-section py-16 bg-white">
         <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12">
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 sm:gap-6 lg:gap-8 text-center">
+          <div className="unified-card-grid cols-2 md:cols-5 gap-4 sm:gap-6 lg:gap-8">
             {stats.map((stat, index) => (
-              <div key={index} className="transform hover:scale-105 sm:hover:scale-110 transition-transform duration-200 py-2">
-                <div className="text-3xl sm:text-4xl mb-2">{stat.icon}</div>
-                <div className="text-xl sm:text-2xl font-bold text-gray-800">{stat.number}</div>
-                <div className="text-gray-600 text-xs sm:text-sm">{stat.label}</div>
+              <div key={index} className="unified-card centered">
+                <div className="unified-card-avatar">{stat.icon}</div>
+                <div className="unified-card-title">{stat.number}</div>
+                <div className="unified-card-subtitle">{stat.label}</div>
               </div>
             ))}
           </div>
         </div>
-      </section>
+      </div>
 
       {/* Features Section */}
-      <section className="py-16 bg-gray-50">
+      <div className="unified-section py-16 bg-gray-50">
         <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12">
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-center text-gray-800 mb-8 lg:mb-12">
+          <h2 className="unified-section-header text-2xl sm:text-3xl lg:text-4xl font-bold text-center text-gray-800 mb-8 lg:mb-12">
             Play Chess with Other Kids
           </h2>
           <p className="text-center text-gray-600 mb-8 text-sm sm:text-base">
             Learning with ChessKid is fun! Play games, watch video lessons, and solve fun puzzles!
           </p>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+          <div className="unified-card-grid cols-1 sm:cols-2 lg:cols-3 gap-6 lg:gap-8">
             <Link
               to="/puzzles"
               className="group"
               onClick={() => trackUI('feature_card', 'click', { feature: 'puzzles', location: 'landing_features' })}
             >
-              <div className="bg-white rounded-xl p-5 sm:p-6 shadow-md hover:shadow-xl transition-shadow duration-200 h-full">
-                <div className="text-3xl sm:text-4xl mb-3 sm:mb-4 text-center">🧩</div>
-                <h3 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2 text-center">Solve Puzzles</h3>
-                <p className="text-sm sm:text-base text-gray-600 text-center">Challenge yourself with thousands of chess puzzles</p>
+              <div className="unified-card h-full">
+                <div className="unified-card-avatar">🧩</div>
+                <h3 className="unified-card-title centered">Solve Puzzles</h3>
+                <p className="unified-card-subtitle centered">Challenge yourself with thousands of chess puzzles</p>
               </div>
             </Link>
 
@@ -235,10 +254,10 @@ const LandingPage = () => {
               className="group"
               onClick={() => trackUI('feature_card', 'click', { feature: 'learn', location: 'landing_features' })}
             >
-              <div className="bg-white rounded-xl p-5 sm:p-6 shadow-md hover:shadow-xl transition-shadow duration-200 h-full">
-                <div className="text-3xl sm:text-4xl mb-3 sm:mb-4 text-center">📚</div>
-                <h3 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2 text-center">Start Learning</h3>
-                <p className="text-sm sm:text-base text-gray-600 text-center">Watch fun videos and interactive lessons</p>
+              <div className="unified-card h-full">
+                <div className="unified-card-avatar">📚</div>
+                <h3 className="unified-card-title centered">Start Learning</h3>
+                <p className="unified-card-subtitle centered">Watch fun videos and interactive lessons</p>
               </div>
             </Link>
 
@@ -249,15 +268,15 @@ const LandingPage = () => {
               }}
               className="group text-left w-full"
             >
-              <div className="bg-white rounded-xl p-5 sm:p-6 shadow-md hover:shadow-xl transition-shadow duration-200 h-full">
-                <div className="text-3xl sm:text-4xl mb-3 sm:mb-4 text-center">🏆</div>
-                <h3 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2 text-center">Join Tournaments</h3>
-                <p className="text-sm sm:text-base text-gray-600 text-center">Compete with players from around the world</p>
+              <div className="unified-card h-full">
+                <div className="unified-card-avatar">🏆</div>
+                <h3 className="unified-card-title centered">Join Tournaments</h3>
+                <p className="unified-card-subtitle centered">Compete with players from around the world</p>
               </div>
             </button>
           </div>
         </div>
-      </section>
+      </div>
 
       {/* Footer */}
       <footer className="bg-gray-800 text-white py-8">

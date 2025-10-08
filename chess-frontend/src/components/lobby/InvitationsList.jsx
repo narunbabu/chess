@@ -1,4 +1,5 @@
 import React from 'react';
+import '../../styles/UnifiedCards.css';
 
 /**
  * InvitationsList - Displays pending and sent invitations
@@ -23,29 +24,29 @@ const InvitationsList = ({
     <>
       {/* Pending Invitations */}
       {pendingInvitations.length > 0 && (
-        <div className="invitations-section">
-          <h2>🔔 Incoming Invitations</h2>
-          <div className="invitations-list">
+        <div className="unified-section">
+          <h2 className="unified-section-header">🔔 Incoming Invitations</h2>
+          <div className="unified-card-grid cols-2">
             {pendingInvitations.map((invitation) => (
-              <div key={invitation.id} className="invitation-card">
+              <div key={invitation.id} className="unified-card horizontal">
                 <img
                   src={
                     invitation.inviter.avatar ||
                     `https://i.pravatar.cc/150?u=${invitation.inviter.email}`
                   }
                   alt={invitation.inviter.name}
-                  className="invitation-avatar"
+                  className="unified-card-avatar"
                 />
-                <div className="invitation-info">
-                  <h4>{invitation.inviter.name}</h4>
-                  <p>wants to play chess with you!</p>
-                  <p className="invitation-time">
+                <div className="unified-card-content">
+                  <h3 className="unified-card-title">{invitation.inviter.name}</h3>
+                  <p className="unified-card-subtitle">wants to play chess with you!</p>
+                  <p className="unified-card-meta">
                     {new Date(invitation.created_at).toLocaleTimeString()}
                   </p>
                 </div>
-                <div className="invitation-actions">
+                <div className="unified-card-actions">
                   <button
-                    className="accept-btn"
+                    className="unified-card-btn primary"
                     onClick={() => onAccept(invitation.id)}
                     disabled={processingInvitations.has(invitation.id)}
                   >
@@ -54,7 +55,7 @@ const InvitationsList = ({
                       : '✅ Accept'}
                   </button>
                   <button
-                    className="decline-btn"
+                    className="unified-card-btn secondary"
                     onClick={() => onDecline(invitation.id)}
                     disabled={processingInvitations.has(invitation.id)}
                   >
@@ -69,32 +70,32 @@ const InvitationsList = ({
 
       {/* Sent Invitations */}
       {sentInvitations.length > 0 && (
-        <div className="invitations-section">
-          <h2>📤 Sent Invitations</h2>
-          <div className="invitations-list">
+        <div className="unified-section">
+          <h2 className="unified-section-header">📤 Sent Invitations</h2>
+          <div className="unified-card-grid cols-2">
             {sentInvitations.map((invitation) => (
-              <div key={invitation.id} className="invitation-card">
+              <div key={invitation.id} className="unified-card horizontal">
                 <img
                   src={
                     invitation.invited.avatar ||
                     `https://i.pravatar.cc/150?u=${invitation.invited.email}`
                   }
                   alt={invitation.invited.name}
-                  className="invitation-avatar"
+                  className="unified-card-avatar"
                 />
-                <div className="invitation-info">
-                  <h4>{invitation.invited.name}</h4>
-                  <p>⏰ Waiting for response...</p>
-                  <p className="invitation-time">
+                <div className="unified-card-content">
+                  <h3 className="unified-card-title">{invitation.invited.name}</h3>
+                  <p className="unified-card-subtitle">⏰ Waiting for response...</p>
+                  <p className="unified-card-meta">
                     Sent: {new Date(invitation.created_at).toLocaleTimeString()}
                   </p>
-                  <p className="invitation-status">
+                  <p className="unified-card-status paused">
                     🔄 Waiting for acceptance...
                   </p>
                 </div>
-                <div className="invitation-actions">
+                <div className="unified-card-actions">
                   <button
-                    className="cancel-btn"
+                    className="unified-card-btn neutral"
                     onClick={() => onCancel(invitation.id)}
                   >
                     🚫 Cancel
@@ -108,8 +109,8 @@ const InvitationsList = ({
 
       {/* Empty State */}
       {pendingInvitations.length === 0 && sentInvitations.length === 0 && (
-        <div className="invitations-section">
-          <div className="no-players">
+        <div className="unified-section">
+          <div className="unified-empty-state">
             <p>📭 No pending invitations</p>
             <p>Challenge a player to start a game!</p>
           </div>

@@ -98,6 +98,11 @@
   flex-wrap: wrap;
 }
 
+.unified-card-actions.vertical {
+  flex-direction: column;
+  width: 100%; /* Ensure buttons take full width in vertical stack */
+}
+
 .unified-card.horizontal .unified-card-actions {
   margin-left: auto;
 }
@@ -194,6 +199,8 @@
   display: grid;
   gap: 1.25rem;
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* 1 column for mobile */
@@ -203,12 +210,12 @@
 
 /* 2 columns for medium screens */
 .unified-card-grid.cols-2 {
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
 }
 
 /* 3 columns for large screens */
 .unified-card-grid.cols-3 {
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
 }
 
 /* Responsive Adjustments */
@@ -349,4 +356,47 @@
   .unified-empty-state p:first-child {
     font-size: 1.1rem;
   }
+}
+
+/* Utility Classes */
+.centered {
+  text-align: center;
+}
+
+/* Gradient Card Backgrounds */
+.unified-card.gradient-primary {
+  background: linear-gradient(135deg, #7289da, #5f73bc);
+  border-color: rgba(114, 137, 218, 0.4);
+}
+
+.unified-card.gradient-accent {
+  background: linear-gradient(135deg, #FFA640, #FF7C2A);
+  border-color: rgba(255, 166, 64, 0.4);
+}
+
+.unified-card.gradient-success {
+  background: linear-gradient(135deg, #43b581, #3ca374);
+  border-color: rgba(67, 181, 129, 0.4);
+}
+
+/* Title Color Utilities */
+.title-primary {
+  color: #7289da !important;
+}
+
+.title-success {
+  color: #43b581 !important;
+}
+
+.title-accent {
+  color: #FFA640 !important;
+}
+
+.title-error {
+  color: #f04747 !important;
+}
+
+/* Title Font Size Utilities */
+.title-large {
+  font-size: 2rem !important;
 }
