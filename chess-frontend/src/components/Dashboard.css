@@ -2,6 +2,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 1.5rem;
+  overflow-y: auto;
 }
 
 .dashboard-card {
@@ -11,6 +12,7 @@
   border: 1px solid rgba(255, 255, 255, 0.2);
   padding: 1.5rem;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
 }
 
 .card-title {
@@ -38,4 +40,58 @@
 
 .action-button:hover {
   transform: translateY(-2px);
+}
+
+/* Game card info - handle text overflow */
+.game-info {
+  overflow: hidden;
+  min-width: 0;
+}
+
+.game-info span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .dashboard-card {
+    padding: 1rem;
+  }
+
+  .game-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .game-info {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-card {
+    padding: 0.75rem;
+  }
+
+  .card-title {
+    font-size: 1.25rem;
+  }
+
+  .quick-actions-grid {
+    gap: 0.75rem;
+  }
+
+  .action-button {
+    padding: 0.75rem;
+    font-size: 1rem;
+  }
 }

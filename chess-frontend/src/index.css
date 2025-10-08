@@ -101,6 +101,7 @@
    html, body, #root {
     width: 100%;
     min-height: 100%;
+    height: auto;
     margin: 0;
     padding: 0;
   }
@@ -120,6 +121,7 @@
     width: 100%;
     overflow-x: hidden;
     overflow-y: auto; /* allow page to scroll */
+    -webkit-overflow-scrolling: touch; /* smooth scrolling on iOS */
   }
 
   /* Remove body::after background - let components control their own backgrounds */
@@ -134,7 +136,8 @@
   .app-container {
     width: 100%;
     max-width: 1200px; /* Max width for desktop, overridden below for mobile */
-    height: 100%;
+    height: auto;
+    min-height: 100vh;
     margin: 0 auto; /* Center container */
     padding: 0 10px; /* Add minimal horizontal padding back */
     display: flex;
@@ -177,7 +180,9 @@
     left: 0;
     right: 0;
     z-index: 50;
-    background: transparent;
+    background: linear-gradient(90deg, rgba(0, 136, 204, 0.12) 0%, rgba(30, 41, 59, 0.4) 50%, rgba(0, 136, 204, 0.12) 100%);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(0, 136, 204, 0.25);
   }
 
   /* Removed fixed height constraint to allow scrolling on landing page */
@@ -225,8 +230,10 @@
     justify-content: space-between;
     align-items: center;
     padding: 10px 5px; /* Padding inside the header */
-    background-color: transparent;
-    box-shadow: none;
+    background: linear-gradient(90deg, rgba(0, 136, 204, 0.15) 0%, rgba(30, 41, 59, 0.5) 50%, rgba(0, 136, 204, 0.15) 100%);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(0, 136, 204, 0.3);
+    box-shadow: 0 2px 10px rgba(0, 136, 204, 0.2);
     flex-shrink: 0;
     z-index: 1000;
   }
@@ -370,6 +377,7 @@
     display: flex;
     width: 100%;
     max-width: 100%;
+    -webkit-overflow-scrolling: touch; /* smooth scrolling on iOS */
   }
 
   .main-content {
@@ -1328,9 +1336,22 @@
       .app-container {
           max-width: 100%; /* Override desktop max-width */
           padding: 0; /* No horizontal padding */
+          height: auto; /* Allow height to expand */
+          min-height: 100vh; /* At least full viewport height */
       }
       .app-header {
           padding: 10px; /* Consistent padding */
+      }
+
+      /* Ensure content wrapper allows scrolling */
+      .content-wrapper {
+          height: auto;
+          overflow-y: auto;
+      }
+
+      .main-content {
+          height: auto;
+          overflow-y: visible;
       }
 
       /* Game Layout Portrait Adjustments */
@@ -1505,6 +1526,18 @@
     color: #c0c5cb;
     position: relative;
     z-index: 2;
+    overflow-y: auto;
+    height: auto;
+  }
+
+  /* Mobile dashboard scroll fix */
+  @media (max-width: 768px) {
+    .dashboard {
+      margin: 10px;
+      padding: 15px;
+      overflow-y: visible;
+      height: auto;
+    }
   }
   
   .dashboard-header {

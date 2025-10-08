@@ -45,36 +45,39 @@ const FloatingChessPiece = ({ Piece, delay = 0, duration = 6, ...props }) => (
     style={{
       animation: `float ${duration}s infinite ease-in-out`,
       animationDelay: `${delay}s`,
+      color: '#0088CC',
       ...props.style
     }}
     {...props}
   >
-    <Piece className="w-12 h-12 text-primary-500" />
+    <Piece className="w-12 h-12" />
   </div>
 );
 
 const Background = () => {
   return (
-    <div data-page="landing" className="fixed inset-0 w-screen h-screen bg-gradient-to-br from-primary-700 via-slate-800 to-slate-900 font-display overflow-hidden">
+    <div data-page="landing" className="fixed inset-0 w-screen h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-neutral-900 font-display overflow-hidden">
       {/* Chess Board Pattern Background */}
-      <div className="absolute inset-0 opacity-5">
+      <div className="absolute inset-0" style={{ opacity: 0.08 }}>
         <div className="grid grid-cols-8 grid-rows-8 h-full">
           {Array.from({ length: 64 }, (_, i) => (
             <div
               key={i}
-              className={`${(Math.floor(i / 8) + i) % 2 === 0 ? 'bg-white' : 'bg-transparent'}`}
+              style={{
+                backgroundColor: (Math.floor(i / 8) + i) % 2 === 0 ? '#0088CC' : 'transparent'
+              }}
             />
           ))}
         </div>
       </div>
 
       {/* Floating Chess Pieces Background */}
-      <FloatingChessPiece Piece={ChessKing} delay={0} style={{ top: '15%', left: '8%', opacity: 0.1 }} />
-      <FloatingChessPiece Piece={ChessQueen} delay={1.5} style={{ top: '25%', right: '12%', opacity: 0.15 }} />
-      <FloatingChessPiece Piece={ChessRook} delay={3} style={{ top: '65%', left: '6%', opacity: 0.1 }} />
-      <FloatingChessPiece Piece={ChessBishop} delay={4.5} style={{ top: '75%', right: '10%', opacity: 0.12 }} />
-      <FloatingChessPiece Piece={ChessKnight} delay={2} style={{ top: '45%', right: '8%', opacity: 0.1 }} />
-      <FloatingChessPiece Piece={ChessPawn} delay={6} style={{ top: '85%', left: '85%', opacity: 0.08 }} />
+      <FloatingChessPiece Piece={ChessKing} delay={0} style={{ top: '15%', left: '8%', opacity: 0.2 }} />
+      <FloatingChessPiece Piece={ChessQueen} delay={1.5} style={{ top: '25%', right: '12%', opacity: 0.25 }} />
+      <FloatingChessPiece Piece={ChessRook} delay={3} style={{ top: '65%', left: '6%', opacity: 0.18 }} />
+      <FloatingChessPiece Piece={ChessBishop} delay={4.5} style={{ top: '75%', right: '10%', opacity: 0.22 }} />
+      <FloatingChessPiece Piece={ChessKnight} delay={2} style={{ top: '45%', right: '8%', opacity: 0.2 }} />
+      <FloatingChessPiece Piece={ChessPawn} delay={6} style={{ top: '85%', left: '85%', opacity: 0.15 }} />
     </div>
   );
 };

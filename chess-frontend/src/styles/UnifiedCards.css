@@ -1,0 +1,352 @@
+/* =========================================
+   UNIFIED CARD DESIGN SYSTEM
+   Used across Dashboard, Lobby, and all pages
+   ========================================= */
+
+/* Base Card Container */
+.unified-card {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 1.25rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.unified-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Card with horizontal layout (avatar + content + action) */
+.unified-card.horizontal {
+  flex-direction: row;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* Card Avatar/Icon Section */
+.unified-card-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 2px solid rgba(114, 137, 218, 0.5);
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+.unified-card.horizontal .unified-card-avatar {
+  margin-right: 0;
+}
+
+/* Card Content Section */
+.unified-card-content {
+  flex: 1;
+  overflow: hidden;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.unified-card-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.unified-card-subtitle {
+  font-size: 0.9rem;
+  color: #b9bbbe;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.unified-card-meta {
+  font-size: 0.85rem;
+  color: #72767d;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.unified-card-info {
+  font-size: 0.9rem;
+  color: #43b581;
+  font-weight: 500;
+  margin: 0;
+}
+
+/* Card Actions Section */
+.unified-card-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.unified-card.horizontal .unified-card-actions {
+  margin-left: auto;
+}
+
+/* Card Buttons */
+.unified-card-btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.unified-card-btn.primary {
+  background: linear-gradient(135deg, #7289da, #5f73bc);
+  color: white;
+  box-shadow: 0 2px 8px rgba(114, 137, 218, 0.3);
+}
+
+.unified-card-btn.primary:hover {
+  background: linear-gradient(135deg, #5f73bc, #4e5d94);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(114, 137, 218, 0.4);
+}
+
+.unified-card-btn.secondary {
+  background-color: #43b581;
+  color: white;
+}
+
+.unified-card-btn.secondary:hover {
+  background-color: #3ca374;
+  transform: translateY(-1px);
+}
+
+.unified-card-btn.danger {
+  background-color: #f04747;
+  color: white;
+}
+
+.unified-card-btn.danger:hover {
+  background-color: #d73c3c;
+  transform: translateY(-1px);
+}
+
+.unified-card-btn.neutral {
+  background-color: #72767d;
+  color: white;
+}
+
+.unified-card-btn.neutral:hover {
+  background-color: #5f6368;
+  transform: translateY(-1px);
+}
+
+.unified-card-btn:disabled {
+  background-color: #72767d;
+  cursor: not-allowed;
+  opacity: 0.7;
+  transform: none !important;
+}
+
+/* Card Status Indicators */
+.unified-card-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.unified-card-status.online {
+  background-color: rgba(67, 181, 129, 0.2);
+  color: #43b581;
+}
+
+.unified-card-status.active {
+  background-color: rgba(76, 175, 80, 0.2);
+  color: #4CAF50;
+}
+
+.unified-card-status.paused {
+  background-color: rgba(255, 193, 7, 0.2);
+  color: #FFC107;
+}
+
+/* Grid Layout for Cards */
+.unified-card-grid {
+  display: grid;
+  gap: 1.25rem;
+  width: 100%;
+}
+
+/* 1 column for mobile */
+.unified-card-grid.cols-1 {
+  grid-template-columns: 1fr;
+}
+
+/* 2 columns for medium screens */
+.unified-card-grid.cols-2 {
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+
+/* 3 columns for large screens */
+.unified-card-grid.cols-3 {
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .unified-card {
+    padding: 1rem;
+  }
+
+  .unified-card.horizontal {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .unified-card-avatar {
+    width: 48px;
+    height: 48px;
+  }
+
+  .unified-card.horizontal .unified-card-avatar {
+    margin: 0 auto;
+  }
+
+  .unified-card-title {
+    font-size: 1rem;
+  }
+
+  .unified-card-subtitle,
+  .unified-card-meta {
+    font-size: 0.85rem;
+  }
+
+  .unified-card-actions {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .unified-card-btn {
+    flex: 1;
+    min-width: 100px;
+  }
+
+  /* Force single column on mobile */
+  .unified-card-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .unified-card {
+    padding: 0.75rem;
+  }
+
+  .unified-card-avatar {
+    width: 44px;
+    height: 44px;
+  }
+
+  .unified-card-title {
+    font-size: 0.95rem;
+  }
+
+  .unified-card-subtitle {
+    font-size: 0.8rem;
+  }
+
+  .unified-card-btn {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
+  }
+
+  .unified-card-grid {
+    gap: 0.75rem;
+  }
+}
+
+/* Section Headers */
+.unified-section {
+  margin: 2rem 0;
+}
+
+.unified-section-header {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #7289da;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@media (max-width: 768px) {
+  .unified-section {
+    margin: 1.5rem 0;
+  }
+
+  .unified-section-header {
+    font-size: 1.25rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .unified-section {
+    margin: 1rem 0;
+  }
+
+  .unified-section-header {
+    font-size: 1.1rem;
+  }
+}
+
+/* Empty State */
+.unified-empty-state {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  color: #b9bbbe;
+}
+
+.unified-empty-state p {
+  margin: 0.5rem 0;
+  font-size: 1rem;
+}
+
+.unified-empty-state p:first-child {
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .unified-empty-state {
+    padding: 2rem 1rem;
+  }
+
+  .unified-empty-state p {
+    font-size: 0.9rem;
+  }
+
+  .unified-empty-state p:first-child {
+    font-size: 1.1rem;
+  }
+}

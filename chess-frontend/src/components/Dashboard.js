@@ -4,7 +4,8 @@ import { useAuth } from "../contexts/AuthContext";
 import { useAppData } from "../contexts/AppDataContext";
 import { getGameHistories } from "../services/gameHistoryService";
 import api from "../services/api";
-import "./Dashboard.css"; // Ensure this file is imported if not using index.css for these styles
+import "./Dashboard.css";
+import "../styles/UnifiedCards.css"; // Import unified card styles
 
 const Dashboard = () => {
   const [gameHistories, setGameHistories] = useState([]);
@@ -62,10 +63,10 @@ const Dashboard = () => {
 
       <div className="dashboard-grid">
         {/* Active Games Section */}
-        <section className="dashboard-card active-games-card">
-          <h2 className="card-title">🎮 Active Games</h2>
+        <section className="unified-section">
+          <h2 className="unified-section-header">🎮 Active Games</h2>
           {activeGames.length > 0 ? (
-            <div className="game-list space-y-4">
+            <div className="unified-card-grid cols-1">
               {activeGames.map((game) => {
                 const opponent =
                   game.white_player_id === user.id
@@ -73,176 +74,202 @@ const Dashboard = () => {
                     : game.whitePlayer;
                 const playerColor =
                   game.white_player_id === user.id ? 'white' : 'black';
-                const statusEmoji =
+                const statusClass =
                   game.status === 'active'
-                    ? '🟢'
+                    ? 'active'
                     : game.status === 'paused'
-                    ? '⏸️'
-                    : '⏳';
+                    ? 'paused'
+                    : '';
 
                 return (
-                  <div
-                    key={game.id}
-                    className="game-item flex justify-between items-center bg-white/10 p-4 rounded-lg"
-                  >
-                    <div className="game-info flex items-center gap-4">
-                      <img
-                        src={
-                          opponent?.avatar ||
-                          `https://i.pravatar.cc/150?u=${opponent?.email}`
-                        }
-                        alt={opponent?.name}
-                        className="w-12 h-12 rounded-full"
-                      />
-                      <div>
-                        <span className="block font-bold text-white">
-                          vs {opponent?.name}
+                  <div key={game.id} className="unified-card horizontal">
+                    <img
+                      src={
+                        opponent?.avatar ||
+                        `https://i.pravatar.cc/150?u=${opponent?.email}`
+                      }
+                      alt={opponent?.name}
+                      className="unified-card-avatar"
+                    />
+                    <div className="unified-card-content">
+                      <h3 className="unified-card-title">vs {opponent?.name}</h3>
+                      <p className="unified-card-subtitle">
+                        <span className={`unified-card-status ${statusClass}`}>
+                          {game.status}
                         </span>
-                        <span className="block text-sm text-gray-300">
-                          {statusEmoji} {game.status} • Playing as {playerColor}
-                        </span>
-                        <span className="block text-xs text-gray-400">
-                          Last move:{' '}
-                          {game.last_move_at
-                            ? new Date(game.last_move_at).toLocaleString()
-                            : 'No moves yet'}
-                        </span>
-                      </div>
+                        {' • '}Playing as {playerColor}
+                      </p>
+                      <p className="unified-card-meta">
+                        Last move:{' '}
+                        {game.last_move_at
+                          ? new Date(game.last_move_at).toLocaleString()
+                          : 'No moves yet'}
+                      </p>
                     </div>
-                    <button
-                      onClick={() => {
-                        sessionStorage.setItem(
-                          'lastInvitationAction',
-                          'resume_game'
-                        );
-                        sessionStorage.setItem(
-                          'lastInvitationTime',
-                          Date.now().toString()
-                        );
-                        sessionStorage.setItem(
-                          'lastGameId',
-                          game.id.toString()
-                        );
-                        navigate(`/play/multiplayer/${game.id}`);
-                      }}
-                      className="bg-primary hover:bg-primary-600 transition-colors duration-300 px-4 py-2 rounded-lg text-white"
-                    >
-                      ▶️ Resume Game
-                    </button>
+                    <div className="unified-card-actions">
+                      <button
+                        onClick={() => {
+                          sessionStorage.setItem(
+                            'lastInvitationAction',
+                            'resume_game'
+                          );
+                          sessionStorage.setItem(
+                            'lastInvitationTime',
+                            Date.now().toString()
+                          );
+                          sessionStorage.setItem(
+                            'lastGameId',
+                            game.id.toString()
+                          );
+                          navigate(`/play/multiplayer/${game.id}`);
+                        }}
+                        className="unified-card-btn secondary"
+                      >
+                        ▶️ Resume Game
+                      </button>
+                    </div>
                   </div>
                 );
               })}
             </div>
           ) : (
-            <div className="no-games text-center py-10">No active games</div>
+            <div className="unified-empty-state">
+              <p>🎮 No active games</p>
+              <p>Start a new game from the lobby!</p>
+            </div>
           )}
         </section>
 
         {/* Recent Games Section */}
-        <section className="dashboard-card recent-games-card">
-          <h2 className="card-title">Recent Games</h2>
+        <section className="unified-section">
+          <h2 className="unified-section-header">📜 Recent Games</h2>
           {loading ? (
-            <div className="loading">Loading game history...</div>
+            <div className="unified-empty-state">
+              <p>Loading game history...</p>
+            </div>
           ) : gameHistories.length > 0 ? (
-            <div className="game-list space-y-4">
+            <div className="unified-card-grid cols-1">
               {gameHistories.map((game) => (
-                <div
-                  key={game.id}
-                  className="game-item flex justify-between items-center bg-white/10 p-4 rounded-lg"
-                >
-                  <div className="game-info">
-                    <span className="game-date block text-sm text-gray-300">
+                <div key={game.id} className="unified-card horizontal">
+                  <div className="unified-card-content">
+                    <h3 className="unified-card-title">
                       {new Date(
                         game.played_at || game.timestamp
                       ).toLocaleDateString()}
-                    </span>
-                    <span
-                      className={`game-result font-bold ${
+                    </h3>
+                    <p
+                      className={`unified-card-subtitle ${
                         game.result?.toLowerCase().includes("win")
                           ? "text-success"
                           : "text-error"
                       }`}
+                      style={{
+                        color: game.result?.toLowerCase().includes("win")
+                          ? "#43b581"
+                          : "#f04747",
+                      }}
                     >
                       {game.result || "Unknown"}
-                    </span>
+                    </p>
                   </div>
-                  <button
-                    onClick={() => handleReviewGame(game)}
-                    className="review-button bg-primary hover:bg-primary-600 transition-colors duration-300 px-4 py-2 rounded-lg text-white"
-                  >
-                    Review Game
-                  </button>
+                  <div className="unified-card-actions">
+                    <button
+                      onClick={() => handleReviewGame(game)}
+                      className="unified-card-btn primary"
+                    >
+                      Review Game
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="no-games text-center py-10">
-              No games played yet
+            <div className="unified-empty-state">
+              <p>📜 No games played yet</p>
+              <p>Play your first game to see your history!</p>
             </div>
           )}
         </section>
 
         {/* User Stats Section */}
-        <section className="dashboard-card user-stats-card">
-          <h2 className="card-title">Your Statistics</h2>
-          <div className="stats-grid grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-            <div className="stat-item bg-white/10 p-4 rounded-lg">
-              <span className="stat-value text-3xl font-bold block text-primary">
-                {gameHistories.length}
-              </span>
-              <span className="stat-label text-gray-300">Games Played</span>
+        <section className="unified-section">
+          <h2 className="unified-section-header">📊 Your Statistics</h2>
+          <div className="unified-card-grid cols-3">
+            <div className="unified-card">
+              <div className="unified-card-content" style={{ textAlign: 'center' }}>
+                <h3 className="unified-card-title" style={{ fontSize: '2rem', color: '#7289da' }}>
+                  {gameHistories.length}
+                </h3>
+                <p className="unified-card-subtitle">Games Played</p>
+              </div>
             </div>
-            <div className="stat-item bg-white/10 p-4 rounded-lg">
-              <span className="stat-value text-3xl font-bold block text-success">
-                {gameHistories.length > 0
-                  ? `${Math.round(
-                      (gameHistories.filter((g) =>
-                        g.result?.toLowerCase().includes("win")
-                      ).length /
-                        gameHistories.length) *
-                        100
-                    )}%`
-                  : "0%"}
-              </span>
-              <span className="stat-label text-gray-300">Win Rate</span>
+            <div className="unified-card">
+              <div className="unified-card-content" style={{ textAlign: 'center' }}>
+                <h3 className="unified-card-title" style={{ fontSize: '2rem', color: '#43b581' }}>
+                  {gameHistories.length > 0
+                    ? `${Math.round(
+                        (gameHistories.filter((g) =>
+                          g.result?.toLowerCase().includes("win")
+                        ).length /
+                          gameHistories.length) *
+                          100
+                      )}%`
+                    : "0%"}
+                </h3>
+                <p className="unified-card-subtitle">Win Rate</p>
+              </div>
             </div>
-            <div className="stat-item bg-white/10 p-4 rounded-lg">
-              <span className="stat-value text-3xl font-bold block text-accent">
-                {gameHistories.length > 0
-                  ? (
-                      gameHistories.reduce((sum, game) => {
-                        const score = game.finalScore ?? game.score ?? 0;
-                        return sum + (typeof score === 'number' ? score : 0);
-                      }, 0) / gameHistories.length
-                    ).toFixed(1)
-                  : "0.0"}
-              </span>
-              <span className="stat-label text-gray-300">Average Score</span>
+            <div className="unified-card">
+              <div className="unified-card-content" style={{ textAlign: 'center' }}>
+                <h3 className="unified-card-title" style={{ fontSize: '2rem', color: '#FFA640' }}>
+                  {gameHistories.length > 0
+                    ? (
+                        gameHistories.reduce((sum, game) => {
+                          const score = game.finalScore ?? game.score ?? 0;
+                          return sum + (typeof score === 'number' ? score : 0);
+                        }, 0) / gameHistories.length
+                      ).toFixed(1)
+                    : "0.0"}
+                </h3>
+                <p className="unified-card-subtitle">Average Score</p>
+              </div>
             </div>
           </div>
         </section>
 
         {/* Quick Actions Section */}
-        <section className="dashboard-card quick-actions-card">
-          <h2 className="card-title">Quick Actions</h2>
-          <div className="quick-actions-grid">
+        <section className="unified-section">
+          <h2 className="unified-section-header">⚡ Quick Actions</h2>
+          <div className="unified-card-grid cols-3">
             <button
               onClick={() => navigate("/play")}
-              className="action-button bg-accent hover:bg-accent-600"
+              className="unified-card"
+              style={{ cursor: 'pointer', border: 'none', background: 'linear-gradient(135deg, #FFA640, #FF7C2A)' }}
             >
-              Play Chess
+              <div className="unified-card-content" style={{ textAlign: 'center' }}>
+                <h3 className="unified-card-title">♟️ Play Chess</h3>
+                <p className="unified-card-subtitle">Start a new game</p>
+              </div>
             </button>
             <button
               onClick={() => navigate("/tutorial")}
-              className="action-button bg-primary hover:bg-primary-600"
+              className="unified-card"
+              style={{ cursor: 'pointer', border: 'none', background: 'linear-gradient(135deg, #7289da, #5f73bc)' }}
             >
-              Tutorial
+              <div className="unified-card-content" style={{ textAlign: 'center' }}>
+                <h3 className="unified-card-title">📚 Tutorial</h3>
+                <p className="unified-card-subtitle">Learn chess basics</p>
+              </div>
             </button>
             <button
               onClick={() => navigate("/practice")}
-              className="action-button bg-secondary hover:bg-secondary-600"
+              className="unified-card"
+              style={{ cursor: 'pointer', border: 'none', background: 'linear-gradient(135deg, #43b581, #3ca374)' }}
             >
-              Practice
+              <div className="unified-card-content" style={{ textAlign: 'center' }}>
+                <h3 className="unified-card-title">🎯 Practice</h3>
+                <p className="unified-card-subtitle">Improve your skills</p>
+              </div>
             </button>
           </div>
         </section>

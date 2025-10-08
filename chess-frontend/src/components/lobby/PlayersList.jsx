@@ -1,4 +1,5 @@
 import React from 'react';
+import '../../styles/UnifiedCards.css';
 
 /**
  * PlayersList - Displays available players to challenge
@@ -10,49 +11,51 @@ import React from 'react';
  */
 const PlayersList = ({ players, sentInvitations, onChallenge }) => {
   return (
-    <div className="available-players-section">
-      <h2>🎯 Available Players</h2>
-      <div className="player-list">
+    <div className="unified-section">
+      <h2 className="unified-section-header">🎯 Available Players</h2>
+      <div className="unified-card-grid cols-2">
         {players.length > 0 ? (
           players.map((player, index) => {
             const hasInvited = sentInvitations.some(
               (inv) => inv.invited_id === player.id
             );
             return (
-              <div key={player.id || index} className="player-card">
+              <div key={player.id || index} className="unified-card horizontal">
                 <img
                   src={
                     player.avatar ||
                     `https://i.pravatar.cc/150?u=${player.email}`
                   }
                   alt={player.name}
-                  className="player-avatar"
+                  className="unified-card-avatar"
                 />
-                <div className="player-info">
-                  <h3>{player.name}</h3>
-                  <p className="player-email">{player.email}</p>
-                  <p className="player-rating">
+                <div className="unified-card-content">
+                  <h3 className="unified-card-title">{player.name}</h3>
+                  <p className="unified-card-subtitle">{player.email}</p>
+                  <p className="unified-card-info">
                     Rating: {player.rating || 1200}
                   </p>
-                  <p className="player-status">🟢 Online</p>
+                  <span className="unified-card-status online">🟢 Online</span>
                 </div>
-                {hasInvited ? (
-                  <button className="invite-btn invited" disabled>
-                    ⏳ Invited
-                  </button>
-                ) : (
-                  <button
-                    className="invite-btn"
-                    onClick={() => onChallenge(player)}
-                  >
-                    ⚡ Challenge
-                  </button>
-                )}
+                <div className="unified-card-actions">
+                  {hasInvited ? (
+                    <button className="unified-card-btn neutral" disabled>
+                      ⏳ Invited
+                    </button>
+                  ) : (
+                    <button
+                      className="unified-card-btn primary"
+                      onClick={() => onChallenge(player)}
+                    >
+                      ⚡ Challenge
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })
         ) : (
-          <div className="no-players">
+          <div className="unified-empty-state">
             <p>🤖 No other players available right now.</p>
             <p>Why not invite a friend to play?</p>
           </div>

@@ -6,6 +6,8 @@
   border-radius: 12px;
   color: white;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  overflow-y: auto;
+  height: auto;
 }
 
 .loading-spinner {
@@ -136,18 +138,26 @@
 
 .player-info {
   flex: 1;
+  overflow: hidden;
+  min-width: 0;
 }
 
 .player-info h3 {
   margin: 0 0 0.25rem 0;
   font-size: 1.1rem;
   color: #ffffff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .player-email {
   margin: 0.2rem 0;
   color: #b9bbbe;
   font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .player-rating {
@@ -252,6 +262,9 @@
   .lobby-container {
     margin: 1rem;
     padding: 1rem;
+    height: auto;
+    min-height: auto;
+    overflow-y: visible;
   }
 
   .lobby-header h1 {
@@ -301,6 +314,9 @@
   .lobby-container {
     margin: 0.5rem;
     padding: 0.75rem;
+    height: auto;
+    min-height: auto;
+    overflow-y: visible;
   }
 
   .lobby-header h1 {
@@ -318,6 +334,17 @@
 
   .available-players-section h2 {
     font-size: 1.25rem;
+  }
+
+  /* Improve text wrapping on very small screens */
+  .player-info h3,
+  .invitation-info h4 {
+    font-size: 1rem;
+  }
+
+  .player-email,
+  .invitation-info p {
+    font-size: 0.8rem;
   }
 }
 
@@ -379,18 +406,26 @@
 
 .invitation-info {
   flex: 1;
+  overflow: hidden;
+  min-width: 0;
 }
 
 .invitation-info h4 {
   margin: 0 0 0.5rem 0;
   color: #ffffff;
   font-size: 1.1rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .invitation-info p {
   margin: 0.2rem 0;
   color: #b9bbbe;
   font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .invitation-time {
