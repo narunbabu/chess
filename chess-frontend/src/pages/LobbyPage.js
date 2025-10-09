@@ -33,6 +33,7 @@ const LobbyPage = () => {
   const [hasFinishedGame, setHasFinishedGame] = useState(false);
   const [processingInvitations, setProcessingInvitations] = useState(new Set()); // Track processing state
   const [activeTab, setActiveTab] = useState('players');
+  const [resumeRequestData, setResumeRequestData] = useState(null); // Track incoming resume requests
 
   // Polling control refs
   const pollTimerRef = React.useRef(null);
@@ -169,6 +170,26 @@ const LobbyPage = () => {
         }
       });
 
+      // Listen for resume requests
+      userChannel.listen('.resume.request.sent', (data) => {
+        console.log('[Lobby] 🔄 Resume request received:', data);
+
+        // Show resume request dialog
+        if (data.game_id && data.requesting_user) {
+          // Create resume request data similar to PlayMultiplayer
+          const resumeData = {
+            gameId: data.game_id,
+            requestingUserId: data.requesting_user.id,
+            requestingUserName: data.requesting_user.name,
+            expiresAt: data.expires_at,
+            game: data.game
+          };
+
+          // Store in state to show dialog
+          setResumeRequestData(resumeData);
+        }
+      });
+
       console.log('[Lobby] All user channel listeners registered');
 
       return () => {
@@ -176,6 +197,7 @@ const LobbyPage = () => {
         userChannel.stopListening('.invitation.accepted');
         userChannel.stopListening('.invitation.sent');
         userChannel.stopListening('.invitation.cancelled');
+        userChannel.stopListening('.resume.request.sent');
       };
     }
   }, [user, webSocketService, navigate]);
@@ -694,8 +716,124 @@ const LobbyPage = () => {
     navigate(`/play/multiplayer/${gameId}`);
   };
 
+  // Handler for responding to resume requests
+  const handleResumeRequestResponse = async (accepted) => {
+    if (!resumeRequestData) return;
+
+    try {
+      console.log(`[Lobby] ${accepted ? 'Accepting' : 'Declining'} resume request for game ${resumeRequestData.gameId}`);
+
+      // Make direct API call instead of using WebSocketGameService
+      // (WebSocketService in lobby isn't connected to the game channel)
+      const token = localStorage.getItem('auth_token');
+      const echo = getEcho();
+      const socketId = echo?.socketId();
+
+      const response = await api.post(
+        `/websocket/games/${resumeRequestData.gameId}/resume-response`,
+        {
+          socket_id: socketId,
+          response: accepted,
+        }
+      );
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Resume response failed');
+      }
+
+      console.log('[Lobby] Resume response sent successfully:', response.data);
+
+      if (accepted) {
+        console.log('[Lobby] Resume request accepted - navigating to game');
+        // Navigate to the game
+        sessionStorage.setItem('lastInvitationAction', 'resume_accepted');
+        sessionStorage.setItem('lastInvitationTime', Date.now().toString());
+        sessionStorage.setItem('lastGameId', resumeRequestData.gameId.toString());
+        navigate(`/play/multiplayer/${resumeRequestData.gameId}`);
+      } else {
+        console.log('[Lobby] Resume request declined');
+        // Clear the resume request
+        setResumeRequestData(null);
+      }
+    } catch (error) {
+      console.error('[Lobby] Failed to respond to resume request:', error);
+      alert('Failed to respond to resume request. Please try again.');
+    }
+  };
+
   return (
     <div className="lobby-container">
+      {/* Resume Request Modal */}
+      {resumeRequestData && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 10000
+        }}>
+          <div style={{
+            backgroundColor: '#2c2c2c',
+            padding: '32px',
+            borderRadius: '12px',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+            maxWidth: '400px',
+            width: '90%',
+            textAlign: 'center'
+          }}>
+            <h2 style={{ color: '#ffa726', marginBottom: '16px', fontSize: '24px' }}>
+              🔄 Resume Game Request
+            </h2>
+            <p style={{ color: '#fff', marginBottom: '24px', fontSize: '16px' }}>
+              <strong>{resumeRequestData.requestingUserName}</strong> wants to resume the game!
+            </p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <button
+                onClick={() => handleResumeRequestResponse(true)}
+                style={{
+                  backgroundColor: '#4CAF50',
+                  color: 'white',
+                  border: 'none',
+                  padding: '12px 32px',
+                  borderRadius: '8px',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseOver={(e) => e.target.style.backgroundColor = '#45a049'}
+                onMouseOut={(e) => e.target.style.backgroundColor = '#4CAF50'}
+              >
+                ✅ Accept
+              </button>
+              <button
+                onClick={() => handleResumeRequestResponse(false)}
+                style={{
+                  backgroundColor: '#f44336',
+                  color: 'white',
+                  border: 'none',
+                  padding: '12px 32px',
+                  borderRadius: '8px',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseOver={(e) => e.target.style.backgroundColor = '#da190b'}
+                onMouseOut={(e) => e.target.style.backgroundColor = '#f44336'}
+              >
+                ❌ Decline
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="lobby-header">
         <h1>🏆 Online Chess Lobby</h1>
         <div className="user-info">

@@ -1131,11 +1131,31 @@ class GameRoomService
             ];
         }
 
+        // Check if there's a pending request
         if ($game->resume_status === 'pending') {
-            return [
-                'success' => false,
-                'message' => 'Resume request already pending'
-            ];
+            // Check if the pending request has expired
+            if ($game->resume_request_expires_at && now()->isAfter($game->resume_request_expires_at)) {
+                // Auto-clear expired request
+                Log::info('Auto-clearing expired resume request', [
+                    'game_id' => $gameId,
+                    'expired_at' => $game->resume_request_expires_at
+                ]);
+
+                $game->update([
+                    'resume_status' => 'expired',
+                    'resume_requested_by' => null,
+                    'resume_requested_at' => null,
+                    'resume_request_expires_at' => null
+                ]);
+
+                // Allow new request to proceed
+            } else {
+                // Still pending and not expired
+                return [
+                    'success' => false,
+                    'message' => 'Resume request already pending'
+                ];
+            }
         }
 
         // Verify user is a player in this game
@@ -1172,11 +1192,20 @@ class GameRoomService
             'game_id' => $gameId,
             'requested_by' => $userId,
             'opponent' => $opponentId,
-            'channel' => "App.Models.User.{$opponentId}",
+            'channel' => "private-App.Models.User.{$opponentId}",
             'event' => 'resume.request.sent',
-            'invitation_id' => $resumeInvitation->id
+            'invitation_id' => $resumeInvitation->id,
+            'game_resume_status' => $game->resume_status,
+            'expires_at' => $game->resume_request_expires_at
         ]);
-        broadcast(new \App\Events\ResumeRequestSent($game, $userId));
+
+        $event = new \App\Events\ResumeRequestSent($game, $userId);
+        broadcast($event);
+
+        Log::info('✅ ResumeRequestSent event dispatched', [
+            'event_class' => get_class($event),
+            'broadcast_channel' => 'App.Models.User.' . $opponentId
+        ]);
 
         Log::info('Resume request created', [
             'game_id' => $gameId,
@@ -1227,12 +1256,46 @@ class GameRoomService
         }
 
         if ($game->resume_request_expires_at && now()->isAfter($game->resume_request_expires_at)) {
-            // Request has expired
+            // Request has expired - broadcast expiration event to both players
+            $requesterId = $game->resume_requested_by;
+            $responderId = $userId; // The user trying to respond
+
+            // Update the invitation record to expired
+            \App\Models\Invitation::where('type', 'resume_request')
+                ->where('game_id', $gameId)
+                ->where('inviter_id', $requesterId)
+                ->where('status', 'pending')
+                ->update([
+                    'status' => 'expired',
+                    'responded_by' => $responderId,
+                    'responded_at' => now()
+                ]);
+
+            // Clear resume request fields
             $game->update([
                 'resume_status' => 'expired',
                 'resume_requested_by' => null,
                 'resume_requested_at' => null,
                 'resume_request_expires_at' => null
+            ]);
+
+            // Broadcast expiration event to both players
+            Log::info('📨 Broadcasting ResumeRequestExpired event', [
+                'game_id' => $gameId,
+                'requester_id' => $requesterId,
+                'responder_id' => $responderId,
+                'channels' => [
+                    'App.Models.User.' . $requesterId,
+                    'App.Models.User.' . $responderId
+                ],
+                'event' => 'resume.request.expired'
+            ]);
+            broadcast(new \App\Events\ResumeRequestExpired($game, $requesterId, $responderId));
+
+            Log::info('Resume request expired and cleaned up', [
+                'game_id' => $gameId,
+                'requester_id' => $requesterId,
+                'responder_id' => $responderId
             ]);
 
             return [

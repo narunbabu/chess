@@ -167,17 +167,18 @@ class HandshakeProtocol
             'game_id' => $game->id,
             'current_status' => $game->status,
             'status_type' => gettype($game->status),
-            'allowed_statuses' => ['waiting', 'active'],
+            'allowed_statuses' => ['waiting', 'active', 'paused'],
             'user_id' => $user->id,
             'white_player_id' => $game->white_player_id,
             'black_player_id' => $game->black_player_id
         ]);
 
-        if (!in_array($game->status, ['waiting', 'active'])) {
+        // Allow paused games so players can reconnect to send/resume requests
+        if (!in_array($game->status, ['waiting', 'active', 'paused'])) {
             Log::error('Game not in joinable state', [
                 'game_id' => $game->id,
                 'current_status' => $game->status,
-                'allowed_statuses' => ['waiting', 'active']
+                'allowed_statuses' => ['waiting', 'active', 'paused']
             ]);
             throw new \Exception('Game is not in a joinable state');
         }

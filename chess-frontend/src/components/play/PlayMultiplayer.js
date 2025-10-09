@@ -59,16 +59,18 @@ const PlayMultiplayer = () => {
   const [resumeRequestData, setResumeRequestData] = useState(null);
   const [resumeRequestCountdown, setResumeRequestCountdown] = useState(0);
   const [isWaitingForResumeResponse, setIsWaitingForResumeResponse] = useState(false);
-  const [resumeRequestTimer, setResumeRequestTimer] = useState(null);
   const [isLobbyResume, setIsLobbyResume] = useState(false); // Track if this is a lobby-initiated resume
-  
-  // Refs for stable inactivity detection
+  const [shouldAutoSendResume, setShouldAutoSendResume] = useState(false); // Trigger auto-send after initialization
+
+  // Refs for stable inactivity detection and timers
   const lastActivityTimeRef = useRef(Date.now());
   const enabledRef = useRef(true);
   const gameActiveRef = useRef(false);
   const showPresenceDialogRef = useRef(false);
   const inactivityTimerRef = useRef(null);
   const isPausingRef = useRef(false);
+  const resumeRequestTimer = useRef(null); // Ref for countdown timer
+  const hasAutoRequestedResume = useRef(false); // Prevent duplicate auto-requests
 
   // Score tracking states
   const [playerScore, setPlayerScore] = useState(0);
@@ -275,6 +277,8 @@ const PlayMultiplayer = () => {
           setIsLobbyResume(true);
           // Show paused overlay but don't show regular resume button
           setShowPausedGame(true);
+          // Flag to auto-send resume request after initialization completes
+          setShouldAutoSendResume(true);
         }
 
         // Continue with initialization for paused games
@@ -352,14 +356,7 @@ const PlayMultiplayer = () => {
       wsService.current.on('connected', (data) => {
         console.log('WebSocket connected:', data);
         setConnectionStatus('connected');
-
-        // If this is a lobby-initiated resume and game is paused, automatically send resume request
-        if (isLobbyResumeInitiated && gameInfo.status === 'paused') {
-          console.log('🎯 Sending lobby resume request automatically');
-          setTimeout(() => {
-            handleRequestResume();
-          }, 1000); // Small delay to ensure connection is stable
-        }
+        // Note: Lobby resume request is sent after initialization completes, not here
       });
 
       wsService.current.on('disconnected', () => {
@@ -971,6 +968,12 @@ const PlayMultiplayer = () => {
           setResumeRequestCountdown(0);
           setIsLobbyResume(false); // Reset lobby resume flag
 
+          // Clear any countdown timer
+          if (resumeRequestTimer.current) {
+            clearInterval(resumeRequestTimer.current);
+            resumeRequestTimer.current = null;
+          }
+
           // Optionally show a toast message
           // toast.success('Your resume request was accepted!');
         } else if (data.response === 'declined') {
@@ -978,6 +981,13 @@ const PlayMultiplayer = () => {
           console.log('[PlayMultiplayer] Resume request declined');
           setResumeRequestData(null);
           setIsWaitingForResumeResponse(false);
+          setResumeRequestCountdown(0);
+
+          // Clear any countdown timer
+          if (resumeRequestTimer.current) {
+            clearInterval(resumeRequestTimer.current);
+            resumeRequestTimer.current = null;
+          }
 
           // Optionally show a toast message
           // toast.error('Your resume request was declined');
@@ -985,12 +995,60 @@ const PlayMultiplayer = () => {
       }
     });
 
+    // Listen for resume request expiration
+    userChannel.listen('.resume.request.expired', (data) => {
+      console.log('[PlayMultiplayer] 📨 Resume request expired event received:', data);
+
+      // Check if this is for the current game
+      if (data.game_id && parseInt(data.game_id) === parseInt(gameId)) {
+        console.log('[PlayMultiplayer] Resume request expired for current game');
+
+        // Clear all resume request state
+        setResumeRequestData(null);
+        setIsWaitingForResumeResponse(false);
+        setResumeRequestCountdown(0);
+
+        // Clear any countdown timer
+        if (resumeRequestTimer.current) {
+          clearInterval(resumeRequestTimer.current);
+          resumeRequestTimer.current = null;
+        }
+
+        // If we were the ones who sent the request, allow them to try again
+        if (isLobbyResume) {
+          setIsLobbyResume(false);
+        }
+
+        // Optionally show a toast message
+        // toast.info('Resume request expired');
+      }
+    });
+
     return () => {
       console.log('[PlayMultiplayer] Cleaning up resume request listeners');
       userChannel.stopListening('.resume.request.sent');
       userChannel.stopListening('.resume.request.response');
+      userChannel.stopListening('.resume.request.expired');
     };
   }, [user?.id, gameId]);
+
+  // Auto-send resume request for lobby-initiated resumes
+  useEffect(() => {
+    if (shouldAutoSendResume && connectionStatus === 'connected' && wsService.current && !hasAutoRequestedResume.current) {
+      console.log('🎯 Auto-sending lobby resume request after initialization complete');
+
+      // Mark as requested to prevent duplicates
+      hasAutoRequestedResume.current = true;
+
+      // Small delay to ensure all states are properly set
+      const timer = setTimeout(() => {
+        handleRequestResume();
+        setShouldAutoSendResume(false); // Reset flag after sending
+      }, 500);
+
+      return () => clearTimeout(timer);
+    }
+  }, [shouldAutoSendResume, connectionStatus]);
 
   const performMove = (source, target) => {
     if (gameComplete || gameInfo.status === 'finished') return false;
@@ -1523,7 +1581,18 @@ const PlayMultiplayer = () => {
     } catch (error) {
       console.error('[PlayMultiplayer] Failed to send resume request:', error);
       setIsWaitingForResumeResponse(false);
-      // You could show an error message here
+
+      // Show specific error message to user
+      if (error.message && error.message.includes('already pending')) {
+        // Resume request already pending - don't show error, just reset state
+        setResumeRequestData({ type: 'sent' });
+        // Try to get current countdown if we can, otherwise start fresh
+        setResumeRequestCountdown(10);
+        startResumeCountdown(10);
+      } else {
+        // Other errors - you could show a toast message here
+        // toast.error(error.message || 'Failed to send resume request');
+      }
     }
   };
 
@@ -1550,9 +1619,9 @@ const PlayMultiplayer = () => {
       }
 
       // Clear countdown timer
-      if (resumeRequestTimer) {
-        clearInterval(resumeRequestTimer);
-        setResumeRequestTimer(null);
+      if (resumeRequestTimer.current) {
+        clearInterval(resumeRequestTimer.current);
+        resumeRequestTimer.current = null;
       }
 
     } catch (error) {
@@ -1565,17 +1634,17 @@ const PlayMultiplayer = () => {
     setResumeRequestCountdown(0);
     setIsWaitingForResumeResponse(false);
 
-    if (resumeRequestTimer) {
-      clearInterval(resumeRequestTimer);
-      setResumeRequestTimer(null);
+    if (resumeRequestTimer.current) {
+      clearInterval(resumeRequestTimer.current);
+      resumeRequestTimer.current = null;
     }
   };
 
   const startResumeCountdown = (seconds) => {
     let countdown = seconds;
 
-    if (resumeRequestTimer) {
-      clearInterval(resumeRequestTimer);
+    if (resumeRequestTimer.current) {
+      clearInterval(resumeRequestTimer.current);
     }
 
     const timer = setInterval(() => {
@@ -1584,14 +1653,14 @@ const PlayMultiplayer = () => {
 
       if (countdown <= 0) {
         clearInterval(timer);
-        setResumeRequestTimer(null);
+        resumeRequestTimer.current = null;
         setResumeRequestData(null);
         setIsWaitingForResumeResponse(false);
-        console.log('[PlayMultiplayer] Resume request expired');
+        console.log('[PlayMultiplayer] Resume request expired - fallback timer');
       }
     }, 1000);
 
-    setResumeRequestTimer(timer);
+    resumeRequestTimer.current = timer;
   };
 
   // Fallback to original layout (backward compatibility)

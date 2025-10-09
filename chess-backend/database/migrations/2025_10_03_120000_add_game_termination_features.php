@@ -60,14 +60,35 @@ return new class extends Migration
             $table->dropColumn(['paused_at', 'paused_reason', 'last_heartbeat_at']);
         });
 
-        // Remove new end reasons
+        // Remove new end reasons - first nullify FK references to avoid constraint violations
+        $endReasonIds = DB::table('game_end_reasons')
+            ->whereIn('code', ['forfeit', 'abandoned_mutual', 'timeout_inactivity'])
+            ->pluck('id');
+
+        if ($endReasonIds->isNotEmpty()) {
+            DB::table('games')
+                ->whereIn('end_reason_id', $endReasonIds)
+                ->update(['end_reason_id' => null]);
+        }
+
         DB::table('game_end_reasons')->whereIn('code', [
             'forfeit',
             'abandoned_mutual',
             'timeout_inactivity',
         ])->delete();
 
-        // Remove 'paused' status
+        // Remove 'paused' status - first nullify FK references to avoid constraint violations
+        $pausedStatusId = DB::table('game_statuses')->where('code', 'paused')->value('id');
+
+        if ($pausedStatusId) {
+            // Get 'waiting' status as fallback
+            $waitingStatusId = DB::table('game_statuses')->where('code', 'waiting')->value('id');
+
+            DB::table('games')
+                ->where('status_id', $pausedStatusId)
+                ->update(['status_id' => $waitingStatusId]);
+        }
+
         DB::table('game_statuses')->where('code', 'paused')->delete();
     }
 };
