@@ -875,4 +875,66 @@ class WebSocketController extends Controller
             ], 400);
         }
     }
+
+    /**
+     * Ping opponent to remind them it's their turn
+     */
+    public function pingOpponent(Request $request, int $gameId): JsonResponse
+    {
+        try {
+            $game = Game::findOrFail($gameId);
+            $user = Auth::user();
+
+            // Verify user is part of the game
+            if ($game->white_player_id !== $user->id && $game->black_player_id !== $user->id) {
+                return response()->json([
+                    'error' => 'Unauthorized',
+                    'message' => 'You are not part of this game'
+                ], 403);
+            }
+
+            // Only allow pinging when it's NOT your turn
+            $userColor = $game->white_player_id === $user->id ? 'white' : 'black';
+            if ($game->turn === $userColor) {
+                return response()->json([
+                    'error' => 'Invalid action',
+                    'message' => 'Cannot ping opponent when it is your turn'
+                ], 400);
+            }
+
+            // Game must be active
+            if ($game->status !== 'active') {
+                return response()->json([
+                    'error' => 'Invalid game state',
+                    'message' => 'Game is not active'
+                ], 400);
+            }
+
+            // Broadcast ping event to the opponent
+            broadcast(new \App\Events\OpponentPingedEvent($game, $user))->toOthers();
+
+            Log::info('Opponent pinged', [
+                'user_id' => $user->id,
+                'game_id' => $gameId,
+                'opponent_turn' => $game->turn
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Opponent has been notified'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to ping opponent', [
+                'user_id' => Auth::id(),
+                'game_id' => $gameId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to ping opponent',
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
 }

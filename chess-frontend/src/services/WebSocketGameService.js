@@ -188,6 +188,14 @@ class WebSocketGameService {
             console.log('Game resumed event received:', event);
             this.emit('gameResumed', event);
         })
+        .listen('.game.paused', (event) => {
+            console.log('Game paused event received:', event);
+            this.emit('gamePaused', event);
+        })
+        .listen('.opponent.pinged', (event) => {
+            console.log('Opponent pinged event received:', event);
+            this.emit('opponentPinged', event);
+        })
         .listen('GameEndedEvent', (e) => {
            console.log('GameEndedEvent (class) received', e);
            this.emit('gameEnded', e);
@@ -613,6 +621,45 @@ class WebSocketGameService {
       return data;
     } catch (error) {
       console.error('Failed to respond to resume request:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Ping opponent to remind them it's their turn
+   */
+  async pingOpponent() {
+    if (!this.isWebSocketConnected()) {
+      throw new Error('WebSocket not connected');
+    }
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${BACKEND_URL}/websocket/games/${this.gameId}/ping-opponent`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          socket_id: this.socketId,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Ping failed');
+      }
+
+      // Check for backend success flag
+      if (data.success === false) {
+        throw new Error(data.message || 'Could not ping opponent');
+      }
+
+      console.log('✅ pingOpponent() - Opponent pinged successfully:', data);
+      return data;
+    } catch (error) {
+      console.error('Failed to ping opponent:', error);
       throw error;
     }
   }

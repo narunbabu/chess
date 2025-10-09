@@ -30,6 +30,7 @@ class Game extends Model
         'ended_at',
         'paused_at',
         'paused_reason',
+        'paused_by_user_id',
         'last_heartbeat_at',
         'parent_game_id',
         // Pause time tracking
@@ -79,6 +80,11 @@ class Game extends Model
     public function blackPlayer()
     {
         return $this->belongsTo(User::class, 'black_player_id');
+    }
+
+    public function pausedByUser()
+    {
+        return $this->belongsTo(User::class, 'paused_by_user_id');
     }
 
     public function getOpponent($userId)

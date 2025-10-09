@@ -52,6 +52,7 @@ const PlayMultiplayer = () => {
   // Inactivity detection state
   const [showPresenceDialog, setShowPresenceDialog] = useState(false);
   const [showPausedGame, setShowPausedGame] = useState(false);
+  const [pausedByUserName, setPausedByUserName] = useState(null); // Track who caused the pause
   const [_lastActivityTime, setLastActivityTime] = useState(Date.now());
   const [_isPausing, setIsPausing] = useState(false); // Presence lock to prevent dialog re-opening during pause attempts
 
@@ -67,10 +68,15 @@ const PlayMultiplayer = () => {
   const enabledRef = useRef(true);
   const gameActiveRef = useRef(false);
   const showPresenceDialogRef = useRef(false);
-  const inactivityTimerRef = useRef(null);
+  const inactivityCheckIntervalRef = useRef(null); // For setInterval (checking every 1s)
+  const inactivityTimerRef = useRef(null); // For setTimeout (10s countdown after dialog)
   const isPausingRef = useRef(false);
   const resumeRequestTimer = useRef(null); // Ref for countdown timer
   const hasAutoRequestedResume = useRef(false); // Prevent duplicate auto-requests
+
+  // Refs to prevent stale closures in inactivity timer
+  const turnRef = useRef(gameInfo.turn);
+  const myColorRef = useRef(gameInfo.playerColor);
 
   // Score tracking states
   const [playerScore, setPlayerScore] = useState(0);
@@ -389,6 +395,16 @@ const PlayMultiplayer = () => {
         handleGameResumed(event);
       });
 
+      wsService.current.on('gamePaused', (event) => {
+        console.log('⏸️ Game paused event received:', event);
+        handleGamePaused(event);
+      });
+
+      wsService.current.on('opponentPinged', (event) => {
+        console.log('🔔 Opponent pinged event received:', event);
+        handleOpponentPing(event);
+      });
+
       wsService.current.on('gameConnection', (event) => {
         console.log('Player connection event:', event);
         handlePlayerConnection(event);
@@ -441,6 +457,7 @@ const PlayMultiplayer = () => {
 
     // Close the presence dialog for both players
     setShowPausedGame(false);
+    setPausedByUserName(null); // Clear paused by user name
     setShowPresenceDialog(false);
     showPresenceDialogRef.current = false;
     setResumeRequestData(null);
@@ -456,6 +473,38 @@ const PlayMultiplayer = () => {
     }
 
     console.log('✅ Game resumed successfully - dialog closed, game state updated, inactivity timer reset');
+  }, []);
+
+  // Handle game paused event
+  const handleGamePaused = useCallback((event) => {
+    console.log('⏸️ Handling game paused:', event);
+
+    // Update game state to paused
+    setGameInfo(prev => ({
+      ...prev,
+      status: 'paused'
+    }));
+
+    // Set the name of the user who caused the pause
+    if (event.paused_by_user_name) {
+      setPausedByUserName(event.paused_by_user_name);
+    }
+
+    // Show the paused game UI for both players
+    setShowPausedGame(true);
+    setShowPresenceDialog(false); // Close presence dialog if open
+    showPresenceDialogRef.current = false;
+
+    console.log('✅ Game paused - showing paused UI to both players');
+  }, []);
+
+  // Handle opponent ping notification
+  const handleOpponentPing = useCallback((event) => {
+    console.log('🔔 Handling opponent ping:', event);
+
+    // Show a brief notification to the player
+    // You can use a toast notification library or a simple alert
+    alert(`${event.pinged_by_user_name || 'Your opponent'} is waiting for your move!`);
   }, []);
 
   // Handle incoming moves (always apply server's authoritative state)
@@ -801,14 +850,34 @@ const PlayMultiplayer = () => {
     // Update refs when state changes
     gameActiveRef.current = !gameComplete && gameInfo.status === 'active';
     showPresenceDialogRef.current = showPresenceDialog;
-    
-    console.log('[InactivityEffect] deps', { 
-      gameComplete, 
-      gameStatus: gameInfo.status, 
+
+    console.log('[InactivityEffect] deps', {
+      gameComplete,
+      gameStatus: gameInfo.status,
       showPresenceDialog,
-      gameActive: gameActiveRef.current 
+      gameActive: gameActiveRef.current
     });
   }, [gameComplete, gameInfo.status, showPresenceDialog]);
+
+  // Keep turn and color refs fresh to prevent stale closures
+  useEffect(() => {
+    turnRef.current = gameInfo.turn;
+    console.log('[TurnRef] updated to:', gameInfo.turn);
+  }, [gameInfo.turn]);
+
+  useEffect(() => {
+    myColorRef.current = gameInfo.playerColor;
+    console.log('[ColorRef] updated to:', gameInfo.playerColor);
+  }, [gameInfo.playerColor]);
+
+  // Reset baseline when MY turn starts
+  useEffect(() => {
+    const isMyTurnNow = gameInfo.turn === gameInfo.playerColor;
+    if (isMyTurnNow) {
+      lastActivityTimeRef.current = Date.now();
+      console.log('[Inactivity] Baseline reset - my turn started');
+    }
+  }, [gameInfo.turn, gameInfo.playerColor]);
 
   // Handle presence dialog timeout with guards
   const handlePresenceTimeout = async () => {
@@ -840,8 +909,12 @@ const PlayMultiplayer = () => {
 
   // Inactivity detection with proper guards
   useEffect(() => {
-    // Always clear previous timer
-    clearInterval(inactivityTimerRef.current);
+    // Always clear previous interval (prevent multiple intervals)
+    if (inactivityCheckIntervalRef.current) {
+      clearInterval(inactivityCheckIntervalRef.current);
+      inactivityCheckIntervalRef.current = null;
+      console.log('[InactivityInterval] stopped');
+    }
 
     const shouldRun =
       gameActiveRef.current &&
@@ -854,7 +927,7 @@ const PlayMultiplayer = () => {
       return;
     }
 
-    console.log('Starting inactivity detection - conditions met');
+    console.log('[InactivityInterval] starting - conditions met');
 
     const checkInactivity = () => {
       if (!enabledRef.current || !gameActiveRef.current) return;
@@ -863,13 +936,22 @@ const PlayMultiplayer = () => {
       const currentTime = Date.now();
       const inactiveDuration = (currentTime - lastActivityTimeRef.current) / 1000; // in seconds
 
+      // IMPORTANT: Use refs to prevent stale closures
+      const isMyTurn = turnRef.current === myColorRef.current;
+
       // Only log when significant time has passed to reduce spam
       if (inactiveDuration > 55 && inactiveDuration < 61) {
-        console.log('[Inactivity] Duration:', inactiveDuration.toFixed(1), 's');
+        console.log('[Inactivity] tick', {
+          turn: turnRef.current,
+          myColor: myColorRef.current,
+          isMyTurn,
+          inactiveFor: inactiveDuration.toFixed(1),
+          dialogOpen: showPresenceDialogRef.current
+        });
       }
 
-      if (inactiveDuration >= 60 && !showPresenceDialogRef.current && !isPausingRef.current) {
-        console.log('[Inactivity] Opening presence dialog after', inactiveDuration.toFixed(1), 's');
+      if (inactiveDuration >= 60 && !showPresenceDialogRef.current && !isPausingRef.current && isMyTurn) {
+        console.log('[Inactivity] Opening presence dialog after', inactiveDuration.toFixed(1), 's (my turn)');
         setShowPresenceDialog(true);
         showPresenceDialogRef.current = true;
 
@@ -885,13 +967,23 @@ const PlayMultiplayer = () => {
             handlePresenceTimeout();
           }
         }, 10000); // 10 seconds
+      } else if (inactiveDuration >= 60 && !isMyTurn) {
+        // Log but don't show dialog when it's not my turn
+        if (inactiveDuration < 65) { // Log once
+          console.log('[Inactivity] Inactive for', inactiveDuration.toFixed(1), 's but NOT my turn - no dialog shown');
+        }
       }
     };
 
-    const interval = setInterval(checkInactivity, 1000);
+    // Store interval ref to guarantee single interval
+    inactivityCheckIntervalRef.current = setInterval(checkInactivity, 1000);
 
     return () => {
-      clearInterval(interval);
+      if (inactivityCheckIntervalRef.current) {
+        clearInterval(inactivityCheckIntervalRef.current);
+        inactivityCheckIntervalRef.current = null;
+        console.log('[InactivityInterval] cleanup');
+      }
       if (inactivityTimerRef.current) {
         clearTimeout(inactivityTimerRef.current);
         inactivityTimerRef.current = null;
@@ -1239,6 +1331,19 @@ const PlayMultiplayer = () => {
     }
   };
 
+  const handlePingOpponent = async () => {
+    try {
+      console.log('🔔 Pinging opponent...');
+      await wsService.current?.pingOpponent();
+      console.log('✅ Opponent pinged successfully');
+      // You can add a toast notification here to confirm to the user
+      alert('Opponent has been notified!');
+    } catch (error) {
+      console.error('Failed to ping opponent:', error);
+      alert('Failed to ping opponent. Please try again.');
+    }
+  };
+
   // Loading and error states - return early before PlayShell wrapper
   if (loading) {
     return (
@@ -1405,9 +1510,26 @@ const PlayMultiplayer = () => {
         </span>
         <div className="game-controls">
           {gameInfo.status === 'active' && (
-            <button onClick={handleResign} className="resign-button">
-              Resign
-            </button>
+            <>
+              <button onClick={handleResign} className="resign-button">
+                Resign
+              </button>
+              {/* Show Ping button only when it's NOT your turn */}
+              {gameInfo.turn !== gameInfo.playerColor && (
+                <button onClick={handlePingOpponent} className="ping-button" style={{
+                  backgroundColor: '#ffa726',
+                  color: 'white',
+                  border: 'none',
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  marginTop: '10px',
+                  fontSize: '14px'
+                }}>
+                  🔔 Remind Opponent
+                </button>
+              )}
+            </>
           )}
           {gameInfo.status === 'paused' && (
             <button onClick={handleResumeGame} className="resume-button">
@@ -1697,7 +1819,9 @@ const PlayMultiplayer = () => {
               <p style={{ marginBottom: '24px', fontSize: '16px' }}>
                 {isLobbyResume
                   ? 'Requesting to resume this paused game from the lobby. Waiting for opponent to accept...'
-                  : 'Game has been paused due to inactivity.'
+                  : pausedByUserName
+                    ? `Game has been paused due to inactivity of ${pausedByUserName}.`
+                    : 'Game has been paused due to inactivity.'
                 }
               </p>
 
@@ -2028,9 +2152,26 @@ const PlayMultiplayer = () => {
               </span>
               <div className="game-controls">
                 {gameInfo.status === 'active' && (
-                  <button onClick={handleResign} className="resign-button">
-                    Resign
-                  </button>
+                  <>
+                    <button onClick={handleResign} className="resign-button">
+                      Resign
+                    </button>
+                    {/* Show Ping button only when it's NOT your turn */}
+                    {gameInfo.turn !== gameInfo.playerColor && (
+                      <button onClick={handlePingOpponent} className="ping-button" style={{
+                        backgroundColor: '#ffa726',
+                        color: 'white',
+                        border: 'none',
+                        padding: '8px 16px',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        marginTop: '10px',
+                        fontSize: '14px'
+                      }}>
+                        🔔 Remind Opponent
+                      </button>
+                    )}
+                  </>
                 )}
                 {gameInfo.status === 'paused' && (
                   <button onClick={handleResumeGame} className="resume-button">

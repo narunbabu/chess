@@ -96,6 +96,9 @@ Route::middleware('auth:sanctum')->group(function () {
         // Resume request functionality
         Route::post('/games/{gameId}/resume-request', [WebSocketController::class, 'requestResume']);
         Route::post('/games/{gameId}/resume-response', [WebSocketController::class, 'respondToResumeRequest']);
+
+        // Ping opponent (remind them to move)
+        Route::post('/games/{gameId}/ping-opponent', [WebSocketController::class, 'pingOpponent']);
     });
 });
 

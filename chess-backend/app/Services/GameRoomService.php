@@ -963,9 +963,10 @@ class GameRoomService
     /**
      * Pause game due to inactivity
      */
-    public function pauseGame(int $gameId, string $reason = 'inactivity'): array
+    public function pauseGame(int $gameId, int $pausedByUserId, string $reason = 'inactivity'): array
     {
         $game = Game::findOrFail($gameId);
+        $pausedByUser = User::findOrFail($pausedByUserId);
 
         if ($game->status !== 'active') {
             return [
@@ -986,6 +987,7 @@ class GameRoomService
             'status' => 'paused',
             'paused_at' => now(),
             'paused_reason' => $reason,
+            'paused_by_user_id' => $pausedByUserId,
             'white_time_paused_ms' => $whiteTimeRemaining,
             'black_time_paused_ms' => $blackTimeRemaining,
             'turn_at_pause' => $currentTurn,
@@ -995,18 +997,27 @@ class GameRoomService
 
         $game->update($updateData);
 
-        // TODO: Broadcast game paused event
-        // broadcast(new GamePausedEvent($gameId, [
-        //     'reason' => $reason,
-        //     'paused_at' => now()->toISOString(),
-        //     'white_time_remaining' => $whiteTimeRemaining,
-        //     'black_time_remaining' => $blackTimeRemaining,
-        //     'grace_time_player' => $currentTurn,
-        //     'grace_time_ms' => $graceTimeMs
-        // ]));
+        // Prepare pause data for event
+        $pauseData = [
+            'white_time_paused_ms' => $whiteTimeRemaining,
+            'black_time_paused_ms' => $blackTimeRemaining,
+            'turn_at_pause' => $currentTurn,
+            'grace_time_player' => $currentTurn,
+            'grace_time_ms' => $graceTimeMs
+        ];
+
+        // Broadcast game paused event to both players
+        broadcast(new \App\Events\GamePausedEvent(
+            $game,
+            $pausedByUser,
+            $reason,
+            $pauseData
+        ))->toOthers();
 
         Log::info('Game paused with time tracking', [
             'game_id' => $gameId,
+            'paused_by_user_id' => $pausedByUserId,
+            'paused_by_user_name' => $pausedByUser->name,
             'reason' => $reason,
             'white_time_paused_ms' => $whiteTimeRemaining,
             'black_time_paused_ms' => $blackTimeRemaining,
@@ -1019,6 +1030,8 @@ class GameRoomService
             'success' => true,
             'status' => 'paused',
             'reason' => $reason,
+            'paused_by_user_id' => $pausedByUserId,
+            'paused_by_user_name' => $pausedByUser->name,
             'white_time_paused_ms' => $whiteTimeRemaining,
             'black_time_paused_ms' => $blackTimeRemaining,
             'turn_at_pause' => $currentTurn,
