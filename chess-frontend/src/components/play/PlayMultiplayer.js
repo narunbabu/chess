@@ -1373,8 +1373,8 @@ const PlayMultiplayer = () => {
       <h2>Multiplayer Chess</h2>
       <div className="game-status">
         <div className="connection-status">
-          <span className={`status-indicator ${connectionStatus}`}>
-            ● {connectionStatus === 'connected' ? 'Connected' : 'Disconnected'}
+          <span className={`status-indicator ${connectionStatus}`} title={connectionStatus === 'connected' ? 'Connected' : 'Disconnected'}>
+            ●
           </span>
           {opponentOnline && (
             <span className="opponent-status">
@@ -1424,7 +1424,7 @@ const PlayMultiplayer = () => {
             {activeTimer === opponentColor && (
               <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#ef4444', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
             )}
-            {gameInfo.opponentName.split(' ')[0]}
+            {gameInfo.opponentName}
           </span>
           <span style={{
             fontFamily: 'monospace',
@@ -1463,7 +1463,7 @@ const PlayMultiplayer = () => {
             {activeTimer === playerColor && (
               <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#22c55e', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
             )}
-            {user.name.split(' ')[0]}
+            You
           </span>
           <span style={{
             fontFamily: 'monospace',
@@ -1475,12 +1475,6 @@ const PlayMultiplayer = () => {
             {Math.floor(playerTime / 60).toString().padStart(2, '0')}:{(playerTime % 60).toString().padStart(2, '0')}
           </span>
         </div>
-      </div>
-
-      <div className="player-info opponent">
-        <span className="player-name">
-          {gameInfo.opponentName} ({gameInfo.playerColor === 'white' ? 'Black' : 'White'})
-        </span>
       </div>
 
       <div className="chessboard-wrapper">
@@ -1504,61 +1498,56 @@ const PlayMultiplayer = () => {
         />
       </div>
 
-      <div className="player-info current-player">
-        <span className="player-name">
-          {user.name} ({gameInfo.playerColor === 'white' ? 'White' : 'Black'})
-        </span>
-        <div className="game-controls">
-          {gameInfo.status === 'active' && (
-            <>
-              <button onClick={handleResign} className="resign-button">
-                Resign
-              </button>
-              {/* Show Ping button only when it's NOT your turn */}
-              {gameInfo.turn !== gameInfo.playerColor && (
-                <button onClick={handlePingOpponent} className="ping-button" style={{
-                  backgroundColor: '#ffa726',
-                  color: 'white',
-                  border: 'none',
-                  padding: '8px 16px',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  marginTop: '10px',
-                  fontSize: '14px'
-                }}>
-                  🔔 Remind Opponent
-                </button>
-              )}
-            </>
-          )}
-          {gameInfo.status === 'paused' && (
-            <button onClick={handleResumeGame} className="resume-button">
-              Resume Game
+      <div className="game-controls" style={{ marginTop: '12px' }}>
+        {gameInfo.status === 'active' && (
+          <>
+            <button onClick={handleResign} className="resign-button">
+              Resign
             </button>
-          )}
-          {gameInfo.status === 'finished' && (
-            <div className="game-ended-controls">
-              <button onClick={() => handleNewGame(true)} className="rematch-button">
-                Rematch
+            {/* Show Ping button only when it's NOT your turn */}
+            {gameInfo.turn !== gameInfo.playerColor && (
+              <button onClick={handlePingOpponent} className="ping-button" style={{
+                backgroundColor: '#ffa726',
+                color: 'white',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                marginLeft: '10px',
+                fontSize: '14px'
+              }}>
+                🔔 Remind Opponent
               </button>
-              <button onClick={() => handleNewGame(false)} className="new-game-button">
-                New Game
-              </button>
-            </div>
-          )}
-          <button onClick={handleKillGame} className="forfeit-game-button" style={{
-            backgroundColor: '#dc3545',
-            color: 'white',
-            border: 'none',
-            padding: '8px 16px',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            marginTop: '10px',
-            fontSize: '14px'
-          }}>
-            ⚠️ Forfeit Game
+            )}
+          </>
+        )}
+        {gameInfo.status === 'paused' && (
+          <button onClick={handleResumeGame} className="resume-button">
+            Resume Game
           </button>
-        </div>
+        )}
+        {gameInfo.status === 'finished' && (
+          <div className="game-ended-controls">
+            <button onClick={() => handleNewGame(true)} className="rematch-button">
+              Rematch
+            </button>
+            <button onClick={() => handleNewGame(false)} className="new-game-button">
+              New Game
+            </button>
+          </div>
+        )}
+        <button onClick={handleKillGame} className="forfeit-game-button" style={{
+          backgroundColor: '#dc3545',
+          color: 'white',
+          border: 'none',
+          padding: '8px 16px',
+          borderRadius: '4px',
+          cursor: 'pointer',
+          marginTop: '10px',
+          fontSize: '14px'
+        }}>
+          ⚠️ Forfeit Game
+        </button>
       </div>
     </div>
   );
@@ -2016,8 +2005,8 @@ const PlayMultiplayer = () => {
           <h2>Multiplayer Chess</h2>
           <div className="game-status">
             <div className="connection-status">
-              <span className={`status-indicator ${connectionStatus}`}>
-                ● {connectionStatus === 'connected' ? 'Connected' : 'Disconnected'}
+              <span className={`status-indicator ${connectionStatus}`} title={connectionStatus === 'connected' ? 'Connected' : 'Disconnected'}>
+                ●
               </span>
               {opponentOnline && (
                 <span className="opponent-status">
@@ -2066,7 +2055,7 @@ const PlayMultiplayer = () => {
                   {activeTimer === opponentColor && (
                     <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#ef4444', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
                   )}
-                  {gameInfo.opponentName.split(' ')[0]}
+                  {gameInfo.opponentName}
                 </span>
                 <span style={{
                   fontFamily: 'monospace',
@@ -2105,7 +2094,7 @@ const PlayMultiplayer = () => {
                   {activeTimer === playerColor && (
                     <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#22c55e', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
                   )}
-                  {user.name.split(' ')[0]}
+                  You
                 </span>
                 <span style={{
                   fontFamily: 'monospace',
@@ -2117,12 +2106,6 @@ const PlayMultiplayer = () => {
                   {Math.floor(playerTime / 60).toString().padStart(2, '0')}:{(playerTime % 60).toString().padStart(2, '0')}
                 </span>
               </div>
-            </div>
-
-            <div className="player-info opponent">
-              <span className="player-name">
-                {gameInfo.opponentName} ({gameInfo.playerColor === 'white' ? 'Black' : 'White'})
-              </span>
             </div>
 
             <div className="chessboard-wrapper">
@@ -2146,61 +2129,56 @@ const PlayMultiplayer = () => {
               />
             </div>
 
-            <div className="player-info current-player">
-              <span className="player-name">
-                {user.name} ({gameInfo.playerColor === 'white' ? 'White' : 'Black'})
-              </span>
-              <div className="game-controls">
-                {gameInfo.status === 'active' && (
-                  <>
-                    <button onClick={handleResign} className="resign-button">
-                      Resign
-                    </button>
-                    {/* Show Ping button only when it's NOT your turn */}
-                    {gameInfo.turn !== gameInfo.playerColor && (
-                      <button onClick={handlePingOpponent} className="ping-button" style={{
-                        backgroundColor: '#ffa726',
-                        color: 'white',
-                        border: 'none',
-                        padding: '8px 16px',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        marginTop: '10px',
-                        fontSize: '14px'
-                      }}>
-                        🔔 Remind Opponent
-                      </button>
-                    )}
-                  </>
-                )}
-                {gameInfo.status === 'paused' && (
-                  <button onClick={handleResumeGame} className="resume-button">
-                    Resume Game
+            <div className="game-controls" style={{ marginTop: '12px' }}>
+              {gameInfo.status === 'active' && (
+                <>
+                  <button onClick={handleResign} className="resign-button">
+                    Resign
                   </button>
-                )}
-                {gameInfo.status === 'finished' && (
-                  <div className="game-ended-controls">
-                    <button onClick={() => handleNewGame(true)} className="rematch-button">
-                      Rematch
+                  {/* Show Ping button only when it's NOT your turn */}
+                  {gameInfo.turn !== gameInfo.playerColor && (
+                    <button onClick={handlePingOpponent} className="ping-button" style={{
+                      backgroundColor: '#ffa726',
+                      color: 'white',
+                      border: 'none',
+                      padding: '8px 16px',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      marginLeft: '10px',
+                      fontSize: '14px'
+                    }}>
+                      🔔 Remind Opponent
                     </button>
-                    <button onClick={() => handleNewGame(false)} className="new-game-button">
-                      New Game
-                    </button>
-                  </div>
-                )}
-                <button onClick={handleKillGame} className="forfeit-game-button" style={{
-                  backgroundColor: '#dc3545',
-                  color: 'white',
-                  border: 'none',
-                  padding: '8px 16px',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  marginTop: '10px',
-                  fontSize: '14px'
-                }}>
-                  ⚠️ Forfeit Game
+                  )}
+                </>
+              )}
+              {gameInfo.status === 'paused' && (
+                <button onClick={handleResumeGame} className="resume-button">
+                  Resume Game
                 </button>
-              </div>
+              )}
+              {gameInfo.status === 'finished' && (
+                <div className="game-ended-controls">
+                  <button onClick={() => handleNewGame(true)} className="rematch-button">
+                    Rematch
+                  </button>
+                  <button onClick={() => handleNewGame(false)} className="new-game-button">
+                    New Game
+                  </button>
+                </div>
+              )}
+              <button onClick={handleKillGame} className="forfeit-game-button" style={{
+                backgroundColor: '#dc3545',
+                color: 'white',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                marginTop: '10px',
+                fontSize: '14px'
+              }}>
+                ⚠️ Forfeit Game
+              </button>
             </div>
           </div>
 
