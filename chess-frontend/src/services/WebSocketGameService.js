@@ -19,6 +19,7 @@ class WebSocketGameService {
     this._pollTimer = null;
     this._lastETag = null;
     this.lastGameState = null;
+    this.isPausing = false; // Prevent duplicate pause attempts
   }
 
   /**
@@ -182,6 +183,10 @@ class WebSocketGameService {
         .listen('.game.activated', (event) => {
             console.log('Game activated event received:', event);
             this.emit('gameActivated', event);
+        })
+        .listen('.game.resumed', (event) => {
+            console.log('Game resumed event received:', event);
+            this.emit('gameResumed', event);
         })
         .listen('GameEndedEvent', (e) => {
            console.log('GameEndedEvent (class) received', e);
@@ -428,6 +433,67 @@ class WebSocketGameService {
   }
 
   /**
+   * Pause the current game
+   */
+  async pauseGame() {
+    console.log('🛑 pauseGame() called - attempting to pause game');
+
+    // Prevent duplicate pause attempts
+    if (this.isPausing) {
+      console.log('⚠️ pauseGame() - Already pausing, ignoring duplicate call');
+      return { success: false, reason: 'already-pausing' };
+    }
+
+    if (!this.isWebSocketConnected()) {
+      console.warn('⚠️ pauseGame() - WebSocket not connected, but continuing with request');
+      // Don't throw - allow the request to proceed even if WebSocket is not connected
+    }
+
+    this.isPausing = true;
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${BACKEND_URL}/websocket/games/${this.gameId}/pause`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          socket_id: this.socketId,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Pause failed');
+      }
+
+      // Check for backend success flag
+      if (data.success === false) {
+        throw new Error(data.message || 'Game could not be paused');
+      }
+
+      console.log('✅ pauseGame() - Game paused successfully:', data);
+
+      // Emit paused event
+      this.emit('gamePaused', data);
+      return data;
+    } catch (error) {
+      console.error('❌ pauseGame() - Failed to pause game:', error);
+      // Check if it's a "not active" error and handle gracefully
+      if (String(error?.message || '').includes('not active')) {
+        console.log('ℹ️ pauseGame() - Game already paused, treating as success');
+        this.isPausing = false;
+        return { success: true, message: 'already-paused' };
+      }
+      throw error;
+    } finally {
+      this.isPausing = false;
+    }
+  }
+
+  /**
    * Request game resume
    */
   async resumeGame(acceptResume = true) {
@@ -454,9 +520,99 @@ class WebSocketGameService {
         throw new Error(data.error || 'Resume failed');
       }
 
+      // Check for backend success flag
+      if (data.success === false) {
+        throw new Error(data.message || 'Game could not be resumed');
+      }
+
       return data;
     } catch (error) {
       console.error('Failed to resume game:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Request to resume a paused game
+   */
+  async requestResume() {
+    if (!this.isWebSocketConnected()) {
+      throw new Error('WebSocket not connected');
+    }
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${BACKEND_URL}/websocket/games/${this.gameId}/resume-request`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          socket_id: this.socketId,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Resume request failed');
+      }
+
+      // Check for backend success flag
+      if (data.success === false) {
+        throw new Error(data.message || 'Resume request could not be sent');
+      }
+
+      console.log('✅ requestResume() - Resume request sent successfully:', data);
+
+      // Emit resume request sent event
+      this.emit('resumeRequestSent', data);
+      return data;
+    } catch (error) {
+      console.error('Failed to request resume:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Respond to a resume request
+   */
+  async respondToResumeRequest(accepted) {
+    if (!this.isWebSocketConnected()) {
+      throw new Error('WebSocket not connected');
+    }
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${BACKEND_URL}/websocket/games/${this.gameId}/resume-response`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          socket_id: this.socketId,
+          response: accepted,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Resume response failed');
+      }
+
+      // Check for backend success flag
+      if (data.success === false) {
+        throw new Error(data.message || 'Resume response could not be sent');
+      }
+
+      console.log('✅ respondToResumeRequest() - Resume response sent successfully:', data);
+
+      // Emit resume response sent event
+      this.emit('resumeResponseSent', { accepted, ...data });
+      return data;
+    } catch (error) {
+      console.error('Failed to respond to resume request:', error);
       throw error;
     }
   }
@@ -604,33 +760,7 @@ class WebSocketGameService {
     }
   }
 
-  /**
-   * Disconnect and cleanup
-   */
-  disconnect() {
-    if (this.reconnectTimeout) {
-      clearTimeout(this.reconnectTimeout);
-    }
-
-    if (this.gameChannel) {
-      this.gameChannel.stopListening('GameConnectionEvent');
-      this.gameChannel.stopListening('GameMoveEvent');
-      this.gameChannel.stopListening('GameStatusEvent');
-      this.gameChannel.stopListening('.game.ended');
-    }
-
-    if (this.echo) {
-      this.echo.disconnect();
-    }
-
-    this.isConnected = false;
-    this.socketId = null;
-    this.gameChannel = null;
-    this.listeners = {};
-
-    console.log('WebSocket disconnected and cleaned up');
-  }
-
+  
   /**
    * Get connection status
    */
@@ -976,7 +1106,7 @@ class WebSocketGameService {
   }
 
   /**
-   * Override disconnect to stop polling
+   * Disconnect and cleanup
    */
   disconnect() {
     // Clear smart polling timer
@@ -1017,7 +1147,10 @@ class WebSocketGameService {
 
     this.isConnected = false;
     this.socketId = null;
+    this.listeners = {};
     this.emit('disconnected');
+
+    console.log('WebSocket disconnected and cleaned up');
   }
 }
 

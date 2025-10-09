@@ -11,7 +11,7 @@ const Dashboard = () => {
   const [gameHistories, setGameHistories] = useState([]);
   const [activeGames, setActiveGames] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { getGameHistory } = useAppData();
   const navigate = useNavigate();
   const didFetchRef = useRef(false); // Guard against StrictMode double-mount

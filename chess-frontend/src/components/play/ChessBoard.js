@@ -60,7 +60,7 @@ const ChessBoard = ({
         clearTimeout(resizeTimeoutRef.current);
       }
     };
-  }, []); // Remove boardSize dependency to prevent infinite loops
+  }); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Helper to check if the game prop is a valid Chess instance
   const isValidChessInstance = (g) => g && g instanceof Chess;

@@ -88,6 +88,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/games/{gameId}/abort/request', [WebSocketController::class, 'requestAbort']);
         Route::post('/games/{gameId}/abort/respond', [WebSocketController::class, 'respondToAbort']);
         Route::post('/games/{gameId}/heartbeat', [WebSocketController::class, 'gameHeartbeat']);
+        
+        // Game pause/resume functionality
+        Route::post('/games/{gameId}/pause', [WebSocketController::class, 'pauseGame']);
+        Route::post('/games/{gameId}/resume', [WebSocketController::class, 'resumeGame']);
+
+        // Resume request functionality
+        Route::post('/games/{gameId}/resume-request', [WebSocketController::class, 'requestResume']);
+        Route::post('/games/{gameId}/resume-response', [WebSocketController::class, 'respondToResumeRequest']);
     });
 });
 

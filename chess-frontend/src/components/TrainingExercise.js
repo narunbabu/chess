@@ -15,7 +15,6 @@ const TrainingExercise = () => {
   const [optionSquares, setOptionSquares] = useState({});
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
-  const [showSolution, setShowSolution] = useState(false);
 
   // Initialize the exercise
   useEffect(() => {
@@ -33,7 +32,6 @@ const TrainingExercise = () => {
     setMoveFrom('');
     setOptionSquares({});
     setRightClickedSquares({});
-    setShowSolution(false);
   }, [level, id, navigate]);
 
   // Function to get possible moves for a piece
@@ -111,18 +109,12 @@ const TrainingExercise = () => {
   // Handle piece move
   function onSquareClick(square) {
     if (!game) return false;
-    
+
     // Reset clicked squares
     setRightClickedSquares({});
 
     // If square already selected, move the piece
     if (moveFrom && moveFrom !== square) {
-      const move = {
-        from: moveFrom,
-        to: square,
-        promotion: 'q' // always promote to queen for simplicity
-      };
-      
       try {
         const result = onDrop(moveFrom, square);
         setMoveFrom('');
@@ -170,14 +162,11 @@ const TrainingExercise = () => {
     setMoveFrom('');
     setRightClickedSquares({});
     setOptionSquares({});
-    setShowSolution(false);
   };
 
   // Show the solution
   const revealSolution = () => {
     if (!exercise || !game) return;
-    
-    setShowSolution(true);
     
     // Highlight the solution move
     const [from, to] = exercise.solution[0].match(/.{1,2}/g) || [];

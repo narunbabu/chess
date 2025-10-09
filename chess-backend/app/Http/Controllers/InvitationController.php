@@ -70,7 +70,18 @@ class InvitationController extends Controller
         $invitations = Invitation::where([
             ['invited_id', Auth::id()],
             ['status', 'pending']
-        ])->with(['inviter'])->get();
+        ])->where(function ($query) {
+            // Include all game invitations
+            $query->where('type', 'game_invitation')
+                  // Only include non-expired resume requests
+                  ->orWhere(function ($subQuery) {
+                      $subQuery->where('type', 'resume_request')
+                               ->where(function ($expQuery) {
+                                   $expQuery->whereNull('expires_at')
+                                           ->orWhere('expires_at', '>', now());
+                               });
+                  });
+        })->with(['inviter', 'game'])->get();
 
         return response()->json($invitations);
     }
@@ -79,7 +90,18 @@ class InvitationController extends Controller
     {
         $invitations = Invitation::where('inviter_id', Auth::id())
             ->whereIn('status', ['pending', 'accepted'])
-            ->with(['invited'])
+            ->where(function ($query) {
+                // Include all game invitations
+                $query->where('type', 'game_invitation')
+                      // Only include non-expired resume requests
+                      ->orWhere(function ($subQuery) {
+                          $subQuery->where('type', 'resume_request')
+                                   ->where(function ($expQuery) {
+                                       $expQuery->whereNull('expires_at')
+                                               ->orWhere('expires_at', '>', now());
+                                   });
+                      });
+            })->with(['invited', 'game'])
             ->get();
 
         return response()->json($invitations);

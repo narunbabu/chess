@@ -156,7 +156,7 @@ export const trackUI = (element, action, metadata = {}) => {
   });
 };
 
-export default {
+const analytics = {
   track,
   trackPageView,
   trackAuth,
@@ -165,3 +165,5 @@ export default {
   trackSocial,
   trackUI
 };
+
+export default analytics;

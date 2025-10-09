@@ -39,20 +39,31 @@ const InvitationsList = ({
                 />
                 <div className="unified-card-content">
                   <h3 className="unified-card-title">{invitation.inviter.name}</h3>
-                  <p className="unified-card-subtitle">wants to play chess with you!</p>
+                  <p className="unified-card-subtitle">
+                    {invitation.type === 'resume_request'
+                      ? '🔄 wants to resume the paused game!'
+                      : 'wants to play chess with you!'
+                    }
+                  </p>
                   <p className="unified-card-meta">
                     {new Date(invitation.created_at).toLocaleTimeString()}
+                    {invitation.type === 'resume_request' && invitation.expires_at && (
+                      <span> • Expires: {new Date(invitation.expires_at).toLocaleTimeString()}</span>
+                    )}
                   </p>
                 </div>
                 <div className="unified-card-actions">
                   <button
-                    className="unified-card-btn primary"
+                    className={`unified-card-btn ${invitation.type === 'resume_request' ? 'warning' : 'primary'}`}
                     onClick={() => onAccept(invitation.id)}
                     disabled={processingInvitations.has(invitation.id)}
                   >
                     {processingInvitations.has(invitation.id)
                       ? '⏳ Accepting...'
-                      : '✅ Accept'}
+                      : invitation.type === 'resume_request'
+                        ? '▶️ Resume'
+                        : '✅ Accept'
+                    }
                   </button>
                   <button
                     className="unified-card-btn secondary"
@@ -85,12 +96,23 @@ const InvitationsList = ({
                 />
                 <div className="unified-card-content">
                   <h3 className="unified-card-title">{invitation.invited.name}</h3>
-                  <p className="unified-card-subtitle">⏰ Waiting for response...</p>
+                  <p className="unified-card-subtitle">
+                    {invitation.type === 'resume_request'
+                      ? '🔄 Resume request sent'
+                      : '⏰ Waiting for response...'
+                    }
+                  </p>
                   <p className="unified-card-meta">
                     Sent: {new Date(invitation.created_at).toLocaleTimeString()}
+                    {invitation.type === 'resume_request' && invitation.expires_at && (
+                      <span> • Expires: {new Date(invitation.expires_at).toLocaleTimeString()}</span>
+                    )}
                   </p>
-                  <p className="unified-card-status paused">
-                    🔄 Waiting for acceptance...
+                  <p className={`unified-card-status ${invitation.type === 'resume_request' ? 'paused' : 'pending'}`}>
+                    {invitation.type === 'resume_request'
+                      ? '⏱️ Waiting for opponent to accept...'
+                      : '🔄 Waiting for acceptance...'
+                    }
                   </p>
                 </div>
                 <div className="unified-card-actions">
@@ -98,7 +120,7 @@ const InvitationsList = ({
                     className="unified-card-btn neutral"
                     onClick={() => onCancel(invitation.id)}
                   >
-                    🚫 Cancel
+                    {invitation.type === 'resume_request' ? '❌ Cancel Request' : '🚫 Cancel'}
                   </button>
                 </div>
               </div>

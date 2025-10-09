@@ -181,7 +181,7 @@ export default function DifficultyMeter({
 
   useEffect(() => {
     draw();
-  }, [angle, value, disabled]);
+  }, [angle, value, disabled]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <canvas

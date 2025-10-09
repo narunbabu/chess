@@ -2,8 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Chess } from "chess.js";
-import axios from "axios"; // Make sure axios is installed
-import { BrowserRouter as Router, Link, useNavigate, useLocation } from "react-router-dom"; // Use Router if defining routes here, otherwise just Link/useNavigate
+import { Link, useNavigate, useLocation } from "react-router-dom"; // Use Router if defining routes here, otherwise just Link/useNavigate
 
 // Import Components
 import ChessBoard from "./ChessBoard";
@@ -27,8 +26,6 @@ import { encodeGameHistory, reconstructGameFromHistory } from "../../utils/gameH
 import { saveGameHistory, getGameHistories } from "../../services/gameHistoryService"; // Adjust paths if needed
 import { useAuth } from "../../contexts/AuthContext";
 
-// Import Config (ensure this file exists and exports BACKEND_URL)
-import { BACKEND_URL } from "../../config"; // Adjust path if needed
 
 // Import sound files (ensure paths are correct)
 import moveSound from '../../assets/sounds/move.mp3';
@@ -82,14 +79,14 @@ const PlayComputer = () => {
   const [replayPaused, setReplayPaused] = useState(true);
   const replayTimerRef = useRef(null); // Interval timer for replay
   const [currentReplayMove, setCurrentReplayMove] = useState(0); // Index for replay
-  const [settings, setSettings] = useState({ requireDoneButton: false }); // Game settings
+  const [settings] = useState({ requireDoneButton: false }); // Game settings
   const [moveCount, setMoveCount] = useState(0); // Simple move counter
   const [timerButtonColor, setTimerButtonColor] = useState("grey"); // Color of the TimerButton
   const [timerButtonText, setTimerButtonText] = useState("Your Turn"); // Text of the TimerButton
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth); // For layout adjustments
   const navigate = useNavigate(); // For navigation buttons
   const location = useLocation();
-  const { user } = useAuth();
+  useAuth();
   const [isOnlineGame, setIsOnlineGame] = useState(false);
   const [players, setPlayers] = useState(null);
   const [gameMode, setGameMode] = useState('computer'); // Default to computer mode for /play route
@@ -97,7 +94,7 @@ const PlayComputer = () => {
   // --- Custom timer hook ---
   const {
     playerTime, computerTime, activeTimer, isTimerRunning, timerRef,
-    setPlayerTime, setComputerTime, setActiveTimer, setIsTimerRunning,
+    setActiveTimer, setIsTimerRunning,
     handleTimer: startTimerInterval, pauseTimer, switchTimer, resetTimer
   } = useGameTimer(playerColor, game, setGameStatus, () => setGameOver(true)); // Pass callbacks
 
@@ -137,24 +134,12 @@ const PlayComputer = () => {
         setActiveTimer(null);
         setGameOver(true);
         setShowGameCompletion(true); // Show completion modal
-        const authToken = localStorage.getItem("auth_token");
         const now = new Date();
-        const formattedDate = now.toISOString().slice(0, 19).replace("T", " ");
 
         // Ensure encodeGameHistory exists and is used, otherwise stringify
         const conciseGameString = typeof encodeGameHistory === 'function'
             ? encodeGameHistory(finalHistory)
             : JSON.stringify(finalHistory);
-
-        const payload = {
-            played_at: formattedDate,
-            player_color: playerColor,
-            computer_depth: computerDepth,
-            moves: conciseGameString,
-            final_score: positiveScore,
-            result: resultText,
-        };
-        
 
         // Save game history (handles both local and online save)
         const gameHistoryData = {
@@ -190,13 +175,13 @@ const PlayComputer = () => {
         }
 
    }, [ // Dependencies for handleGameComplete
-     playerColor, computerDepth, playerScore, navigate, // State variables read + navigate
+     playerColor, computerDepth, playerScore, isOnlineGame, players, navigate, // State variables read + navigate
      setActiveTimer, setIsTimerRunning, // State setters (stable)
      playSound, // Stable callback
      // External functions/objects (assume stable refs unless they change based on props/state)
      encodeGameHistory, saveGameHistory, timerRef // Added timerRef
-     // Note: axios, BACKEND_URL, gameEndSoundEffect are constants/imports, typically stable
-   ]);
+     // Note: gameEndSoundEffect are constants/imports, typically stable
+   ]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- Effects ---
 
@@ -228,7 +213,7 @@ const PlayComputer = () => {
 
       startGame();
     }
-  }, [location.state]);
+  }, [location.state, startGame]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Effect for loading saved game histories on component mount
   useEffect(() => {
@@ -255,7 +240,7 @@ const PlayComputer = () => {
         }
     };
     loadSavedGames();
-  }, [getGameHistories]); // Depend on the imported function reference
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Effect for updating the TimerButton's appearance based on game state
   useEffect(() => {
@@ -498,12 +483,12 @@ const PlayComputer = () => {
     // No cleanup function needed here because the async function checks state flags internally
 
   }, [ // Dependencies for the computer turn useEffect
-    gameStarted, gameOver, isReplayMode, computerMoveInProgress, activeTimer, playerColor,
+    gameStarted, gameOver, isReplayMode, computerMoveInProgress, activeTimer, playerColor, isOnlineGame,
     game, computerDepth, gameHistory, // State values read or passed along
     handleGameComplete, playSound, switchTimer, startTimerInterval, // Stable Callbacks/Timer functions
     setGame, setGameStatus, setMoveCount, setMoveCompleted, setComputerMoveInProgress, setTimerButtonColor, // Stable Setters
     makeComputerMove, updateGameStatus, evaluateMove, DEFAULT_RATING, setLastComputerEvaluation, setComputerScore // Stable imported functions
-  ]);
+  ]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
   // --- Player Move Logic (onDrop on ChessBoard) ---
@@ -608,14 +593,14 @@ const PlayComputer = () => {
         }
         return true; // Indicate move was successful
     }, [ // Dependencies for onDrop useCallback
-        game, gameOver, isReplayMode, activeTimer, playerColor, computerMoveInProgress,
+        game, gameOver, isReplayMode, activeTimer, playerColor, computerMoveInProgress, computerDepth,
         gameHistory, settings.requireDoneButton, // State reads
         playSound, handleGameComplete, switchTimer, startTimerInterval, // Stable callbacks/timer fns
         setIsTimerRunning, setLastMoveEvaluation, setPlayerScore, setGameHistory, // Stable setters
         setMoveCount, setGame, setMoveFrom, setMoveSquares, setGameStatus, setMoveCompleted, // Stable setters
         timerRef, // Ref accessed
         updateGameStatus, evaluateMove, DEFAULT_RATING // Stable imported functions
-    ]);
+    ]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- Game Start/Reset/Load/Replay Logic Callbacks ---
 
@@ -733,7 +718,7 @@ const PlayComputer = () => {
             alert(`Failed to load game: ${error.message || 'Could not reconstruct moves.'}`);
             resetGame(); // Reset back to clean state on failure
         }
-    }, [resetGame, reconstructGameFromHistory]); // Dependencies: stable callback and imported fn
+    }, [resetGame, reconstructGameFromHistory, setActiveTimer, setIsTimerRunning, timerRef]); // Dependencies: stable callback and imported fn // eslint-disable-line react-hooks/exhaustive-deps
 
     // --- Replay Controls ---
      const startReplay = useCallback(() => {

@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Chess } from 'chess.js';
+import PresenceConfirmationDialogSimple from './PresenceConfirmationDialogSimple';
 import { Chessboard } from 'react-chessboard';
 import GameInfo from './GameInfo';
 import ScoreDisplay from './ScoreDisplay';
-import TimerDisplay from './TimerDisplay';
-import TimerButton from './TimerButton';
 import GameCompletionAnimation from '../GameCompletionAnimation';
 import CheckmateNotification from '../CheckmateNotification';
 import PlayShell from './PlayShell'; // Layout wrapper (Phase 4)
@@ -12,6 +11,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useParams, useNavigate } from 'react-router-dom';
 import { BACKEND_URL } from '../../config';
 import WebSocketGameService from '../../services/WebSocketGameService';
+import { getEcho } from '../../services/echoSingleton';
 import { evaluateMove } from '../../utils/gameStateUtils';
 import { encodeGameHistory } from '../../utils/gameHistoryStringUtils';
 import { saveGameHistory } from '../../services/gameHistoryService';
@@ -49,6 +49,27 @@ const PlayMultiplayer = () => {
   const [checkmateWinner, setCheckmateWinner] = useState(null);
   const [kingInDangerSquare, setKingInDangerSquare] = useState(null);
 
+  // Inactivity detection state
+  const [showPresenceDialog, setShowPresenceDialog] = useState(false);
+  const [showPausedGame, setShowPausedGame] = useState(false);
+  const [_lastActivityTime, setLastActivityTime] = useState(Date.now());
+  const [_isPausing, setIsPausing] = useState(false); // Presence lock to prevent dialog re-opening during pause attempts
+
+  // Resume request state
+  const [resumeRequestData, setResumeRequestData] = useState(null);
+  const [resumeRequestCountdown, setResumeRequestCountdown] = useState(0);
+  const [isWaitingForResumeResponse, setIsWaitingForResumeResponse] = useState(false);
+  const [resumeRequestTimer, setResumeRequestTimer] = useState(null);
+  const [isLobbyResume, setIsLobbyResume] = useState(false); // Track if this is a lobby-initiated resume
+  
+  // Refs for stable inactivity detection
+  const lastActivityTimeRef = useRef(Date.now());
+  const enabledRef = useRef(true);
+  const gameActiveRef = useRef(false);
+  const showPresenceDialogRef = useRef(false);
+  const inactivityTimerRef = useRef(null);
+  const isPausingRef = useRef(false);
+
   // Score tracking states
   const [playerScore, setPlayerScore] = useState(0);
   const [opponentScore, setOpponentScore] = useState(0);
@@ -59,7 +80,6 @@ const PlayMultiplayer = () => {
   const { gameId } = useParams();
   const navigate = useNavigate();
   const wsService = useRef(null);
-  const mateCheckTimer = useRef(null);
   const moveStartTimeRef = useRef(null); // Tracks when current turn started for move timing
 
   // Memoize timer callback to prevent infinite re-renders
@@ -67,23 +87,20 @@ const PlayMultiplayer = () => {
     setGameInfo(prev => ({ ...prev, status }));
   }, []);
 
-  // Timer hook for multiplayer game
+  // Timer hook for multiplayer game - using playerColor and opponentColor instead of computerTime
+  const playerColor = gameInfo.playerColor === 'white' ? 'w' : 'b';
+  const opponentColor = playerColor === 'w' ? 'b' : 'w';
+
   const {
     playerTime,
-    computerTime,
+    computerTime: opponentTime, // Rename computerTime to opponentTime for clarity
     activeTimer,
     isTimerRunning,
-    timerRef,
-    setPlayerTime,
-    setComputerTime,
     setActiveTimer,
-    setIsTimerRunning,
     handleTimer: startTimerInterval,
-    pauseTimer,
-    switchTimer,
-    resetTimer
+    switchTimer
   } = useGameTimer(
-    gameInfo.playerColor === 'white' ? 'w' : 'b',
+    playerColor,
     game,
     handleTimerStatusChange
   );
@@ -168,7 +185,14 @@ const PlayMultiplayer = () => {
 
     // Check if user has proper authorization to access this specific game
     const lastGameId = sessionStorage.getItem('lastGameId');
-    const hasRecentInvitationActivity = lastInvitationTime && (Date.now() - parseInt(lastInvitationTime)) < fiveMinutesAgo * 2; // 10 minutes
+
+    // Check if this is a lobby-initiated resume
+    const isLobbyResumeInitiated = lastInvitationAction === 'resume_game';
+    console.log('🎯 Lobby resume check:', {
+      lastInvitationAction,
+      isLobbyResumeInitiated,
+      gameId: parseInt(gameId)
+    });
 
 
 
@@ -203,8 +227,9 @@ const PlayMultiplayer = () => {
       console.log('🎨 BLACK PLAYER ID:', data.black_player_id);
       setGameData(data);
 
-      // Prevent rejoining a finished game (allow waiting and active statuses)
-      if (data.status !== 'active' && data.status !== 'waiting') {
+      // Prevent rejoining a finished game (only allow active and waiting statuses, paused is not finished)
+      const isGameFinished = data.status === 'finished' || data.status === 'aborted' || data.status === 'resigned';
+      if (isGameFinished) {
         console.log('🚫 Game is already finished, status:', data.status);
         setGameComplete(true);
         setGameInfo(p => ({...p, status: 'finished', ...data}));
@@ -231,13 +256,28 @@ const PlayMultiplayer = () => {
         sessionStorage.setItem('gameFinished_' + gameId, 'true');
 
         // Mark related invitation as processed
-        const processedInvitationIds = JSON.parse(sessionStorage.getItem('processedInvitationIds') || '[]');
         const lastGameId = sessionStorage.getItem('lastGameId');
         if (lastGameId === gameId.toString()) {
           console.log('✅ Game finished, marked to prevent auto-navigation loop');
         }
 
         return; // don't call joinGameChannel or initialize WebSocket
+      }
+
+      // Handle paused games - don't mark as complete
+      if (data.status === 'paused') {
+        console.log('⏸️ Game is paused, not finished');
+        setGameInfo(prev => ({ ...prev, status: 'paused' }));
+
+        // Check if this is a lobby-initiated resume
+        if (isLobbyResumeInitiated) {
+          console.log('🎯 Lobby resume detected - will request handshake');
+          setIsLobbyResume(true);
+          // Show paused overlay but don't show regular resume button
+          setShowPausedGame(true);
+        }
+
+        // Continue with initialization for paused games
       }
 
       // Set up the chess game from FEN (use starting position if no FEN)
@@ -312,6 +352,14 @@ const PlayMultiplayer = () => {
       wsService.current.on('connected', (data) => {
         console.log('WebSocket connected:', data);
         setConnectionStatus('connected');
+
+        // If this is a lobby-initiated resume and game is paused, automatically send resume request
+        if (isLobbyResumeInitiated && gameInfo.status === 'paused') {
+          console.log('🎯 Sending lobby resume request automatically');
+          setTimeout(() => {
+            handleRequestResume();
+          }, 1000); // Small delay to ensure connection is stable
+        }
       });
 
       wsService.current.on('disconnected', () => {
@@ -337,6 +385,11 @@ const PlayMultiplayer = () => {
       wsService.current.on('gameActivated', (event) => {
         console.log('Game activated event received:', event);
         handleGameActivated(event);
+      });
+
+      wsService.current.on('gameResumed', (event) => {
+        console.log('🎮 Game resumed event received:', event);
+        handleGameResumed(event);
       });
 
       wsService.current.on('gameConnection', (event) => {
@@ -367,6 +420,46 @@ const PlayMultiplayer = () => {
       setLoading(false);
     }
   }, [gameId, user]);
+
+  // Handle game activation
+  const handleGameActivated = useCallback((event) => {
+    setGameInfo(prev => ({
+      ...prev,
+      status: 'active'
+    }));
+  }, []);
+
+  // Handle game resumed event
+  const handleGameResumed = useCallback((event) => {
+    console.log('🎮 Handling game resumed:', event);
+
+    // Update game state to active
+    setGameInfo(prev => ({
+      ...prev,
+      status: 'active',
+      white_time_remaining_ms: event.white_time_remaining_ms,
+      black_time_remaining_ms: event.black_time_remaining_ms,
+      turn: event.turn
+    }));
+
+    // Close the presence dialog for both players
+    setShowPausedGame(false);
+    setShowPresenceDialog(false);
+    showPresenceDialogRef.current = false;
+    setResumeRequestData(null);
+    setIsWaitingForResumeResponse(false);
+    setResumeRequestCountdown(0);
+    setIsLobbyResume(false);
+
+    // Reset inactivity timer to start fresh from resume
+    lastActivityTimeRef.current = Date.now();
+    if (inactivityTimerRef.current) {
+      clearTimeout(inactivityTimerRef.current);
+      inactivityTimerRef.current = null;
+    }
+
+    console.log('✅ Game resumed successfully - dialog closed, game state updated, inactivity timer reset');
+  }, []);
 
   // Handle incoming moves (always apply server's authoritative state)
   const handleRemoteMove = useCallback((event) => {
@@ -434,6 +527,11 @@ const PlayMultiplayer = () => {
         turn: newTurn
       }));
 
+      // Update activity tracking when opponent makes a move
+      if (event.user_id !== user?.id) {
+        handleMoveActivity();
+      }
+
       // Start timing for player's turn
       if (newTurn === gameInfo.playerColor) {
         moveStartTimeRef.current = performance.now();
@@ -457,7 +555,7 @@ const PlayMultiplayer = () => {
     } catch (err) {
       console.error('Error processing remote move:', err);
     }
-  }, [user?.id, gameData, gameId, checkForCheckmate]);
+  }, [user?.id, gameData, gameId, checkForCheckmate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Handle game status changes
   const handleGameStatusChange = useCallback((event) => {
@@ -473,13 +571,6 @@ const PlayMultiplayer = () => {
         status: event.status
       }));
     }
-  }, []);
-
-  const handleGameActivated = useCallback((event) => {
-    setGameInfo(prev => ({
-      ...prev,
-      status: 'active'
-    }));
   }, []);
 
   // Handle player connection events
@@ -536,7 +627,6 @@ const PlayMultiplayer = () => {
     // Save multiplayer game to history (similar to PlayComputer.js)
     try {
       const now = new Date();
-      const formattedDate = now.toISOString().slice(0, 19).replace("T", " ");
 
       // Determine result text based on who won
       let resultText = 'Draw';
@@ -607,8 +697,8 @@ const PlayMultiplayer = () => {
       const finalPlayerScore = Math.abs(playerScore);
 
       // Get timer values for persistence
-      const whiteTimeRemaining = gameInfo.playerColor === 'white' ? playerTime * 1000 : computerTime * 1000;
-      const blackTimeRemaining = gameInfo.playerColor === 'black' ? playerTime * 1000 : computerTime * 1000;
+      const whiteTimeRemaining = gameInfo.playerColor === 'white' ? playerTime * 1000 : opponentTime * 1000;
+      const blackTimeRemaining = gameInfo.playerColor === 'black' ? playerTime * 1000 : opponentTime * 1000;
 
       const gameHistoryData = {
         id: `multiplayer_${gameId}_${Date.now()}`,
@@ -664,7 +754,7 @@ const PlayMultiplayer = () => {
     }
 
     console.log('✅ Game completion processed, showing result modal');
-  }, [user?.id, gameId, gameHistory, gameInfo, playerScore, playerTime, computerTime]);
+  }, [user?.id, gameId, gameHistory, gameInfo, playerScore, playerTime, opponentTime]);
 
   // Handle resign
   const handleResign = useCallback(async () => {
@@ -690,6 +780,128 @@ const PlayMultiplayer = () => {
   // Prevent double initialization in React StrictMode
   const didInitRef = useRef(false);
 
+  // Handle user activity - only track actual moves, not mouse hover
+  const handleMoveActivity = useCallback(() => {
+    const now = Date.now();
+    lastActivityTimeRef.current = now;
+
+    if (showPresenceDialogRef.current) {
+      setShowPresenceDialog(false);
+      showPresenceDialogRef.current = false;
+    }
+
+    if (inactivityTimerRef.current) {
+      clearTimeout(inactivityTimerRef.current);
+      inactivityTimerRef.current = null;
+    }
+  }, []);
+
+  // Remove mouse-based activity tracking - only track moves
+  // The presence detection will now only track actual chess moves
+
+  // Stable inactivity detection effect
+  useEffect(() => {
+    // Update refs when state changes
+    gameActiveRef.current = !gameComplete && gameInfo.status === 'active';
+    showPresenceDialogRef.current = showPresenceDialog;
+    
+    console.log('[InactivityEffect] deps', { 
+      gameComplete, 
+      gameStatus: gameInfo.status, 
+      showPresenceDialog,
+      gameActive: gameActiveRef.current 
+    });
+  }, [gameComplete, gameInfo.status, showPresenceDialog]);
+
+  // Handle presence dialog timeout with guards
+  const handlePresenceTimeout = async () => {
+    if (isPausingRef.current) return; // Prevent double fire
+    isPausingRef.current = true;
+
+    try {
+      if (gameInfo.status === 'active') {
+        console.log('[Inactivity] Attempting to pause game');
+        await wsService.current?.pauseGame();
+        // Game will be paused via WebSocket events
+      } else {
+        console.log('[Inactivity] Game not active, skipping pause attempt');
+      }
+    } catch (error) {
+      // If already paused, ignore "Game is not active" noise
+      if (!String(error?.message || '').includes('not active')) {
+        console.error('[Inactivity] pauseGame error:', error);
+      } else {
+        console.log('[Inactivity] Game already paused, ignoring error');
+      }
+    } finally {
+      // Close the dialog and stop inactivity loop
+      setShowPresenceDialog(false);
+      showPresenceDialogRef.current = false;
+      isPausingRef.current = false;
+    }
+  };
+
+  // Inactivity detection with proper guards
+  useEffect(() => {
+    // Always clear previous timer
+    clearInterval(inactivityTimerRef.current);
+
+    const shouldRun =
+      gameActiveRef.current &&
+      gameInfo.status === 'active' &&
+      !showPresenceDialog &&
+      !isWaitingForResumeResponse &&
+      !showPausedGame;
+
+    if (!shouldRun) {
+      return;
+    }
+
+    console.log('Starting inactivity detection - conditions met');
+
+    const checkInactivity = () => {
+      if (!enabledRef.current || !gameActiveRef.current) return;
+      if (showPresenceDialog || showPausedGame || isWaitingForResumeResponse) return;
+
+      const currentTime = Date.now();
+      const inactiveDuration = (currentTime - lastActivityTimeRef.current) / 1000; // in seconds
+
+      // Only log when significant time has passed to reduce spam
+      if (inactiveDuration > 55 && inactiveDuration < 61) {
+        console.log('[Inactivity] Duration:', inactiveDuration.toFixed(1), 's');
+      }
+
+      if (inactiveDuration >= 60 && !showPresenceDialogRef.current && !isPausingRef.current) {
+        console.log('[Inactivity] Opening presence dialog after', inactiveDuration.toFixed(1), 's');
+        setShowPresenceDialog(true);
+        showPresenceDialogRef.current = true;
+
+        // Clear any existing timeout
+        if (inactivityTimerRef.current) {
+          clearTimeout(inactivityTimerRef.current);
+        }
+
+        // Set timeout for dialog response
+        inactivityTimerRef.current = setTimeout(() => {
+          if (showPresenceDialogRef.current) {
+            console.log('[Inactivity] No response received - attempting to pause game');
+            handlePresenceTimeout();
+          }
+        }, 10000); // 10 seconds
+      }
+    };
+
+    const interval = setInterval(checkInactivity, 1000);
+
+    return () => {
+      clearInterval(interval);
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+        inactivityTimerRef.current = null;
+      }
+    };
+  }, [gameInfo.status, showPresenceDialog, showPausedGame, isWaitingForResumeResponse]); // Proper dependencies
+
   useEffect(() => {
     if (!gameId || !user) return;
 
@@ -709,15 +921,84 @@ const PlayMultiplayer = () => {
         wsService.current.disconnect();
       }
     };
-  }, [gameId, user?.id]); // Use gameId and user.id directly instead of initializeGame
+  }, [gameId, user?.id, initializeGame]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Set up user channel listeners for resume requests
+  useEffect(() => {
+    if (!user) return;
+
+    const echo = getEcho();
+    if (!echo) {
+      console.warn('[PlayMultiplayer] Echo not available for resume request listeners');
+      return;
+    }
+
+    const userChannel = echo.private(`App.Models.User.${user.id}`);
+
+    console.log('[PlayMultiplayer] Setting up resume request listeners for user:', user.id);
+
+    // Listen for resume requests from opponent
+    userChannel.listen('.resume.request.sent', (data) => {
+      console.log('[PlayMultiplayer] 📨 Resume request received:', data);
+
+      // Check if this is for the current game
+      if (data.game_id && parseInt(data.game_id) === parseInt(gameId)) {
+        // Show resume request notification in the paused dialog
+        setResumeRequestData({
+          type: 'received',
+          requested_by: data.requesting_user?.id,
+          requesting_user: data.requesting_user,
+          opponentName: data.requesting_user?.name || 'Opponent',
+          expires_at: data.expires_at
+        });
+
+        console.log('[PlayMultiplayer] Resume request for current game, showing notification');
+      }
+    });
+
+    // Listen for resume request responses
+    userChannel.listen('.resume.request.response', (data) => {
+      console.log('[PlayMultiplayer] 📨 Resume request response received:', data);
+
+      // Check if this is for the current game
+      if (data.game_id && parseInt(data.game_id) === parseInt(gameId)) {
+        if (data.response === 'accepted') {
+          // Game was resumed by opponent
+          console.log('[PlayMultiplayer] Resume request accepted, game should resume');
+          setShowPausedGame(false); // Close the presence dialog
+          setResumeRequestData(null);
+          setIsWaitingForResumeResponse(false);
+          setResumeRequestCountdown(0);
+          setIsLobbyResume(false); // Reset lobby resume flag
+
+          // Optionally show a toast message
+          // toast.success('Your resume request was accepted!');
+        } else if (data.response === 'declined') {
+          // Game was not resumed by opponent
+          console.log('[PlayMultiplayer] Resume request declined');
+          setResumeRequestData(null);
+          setIsWaitingForResumeResponse(false);
+
+          // Optionally show a toast message
+          // toast.error('Your resume request was declined');
+        }
+      }
+    });
+
+    return () => {
+      console.log('[PlayMultiplayer] Cleaning up resume request listeners');
+      userChannel.stopListening('.resume.request.sent');
+      userChannel.stopListening('.resume.request.response');
+    };
+  }, [user?.id, gameId]);
 
   const performMove = (source, target) => {
     if (gameComplete || gameInfo.status === 'finished') return false;
 
-    // Prevent moves if game is not active yet (waiting for opponent to connect)
+    // Prevent moves if game is not active or paused (wait for resume)
     if (gameInfo.status !== 'active') {
       console.log('Game not active yet, status:', gameInfo.status);
-      // Silently prevent move - user will see "Waiting for opponent" message
+      // Silently prevent move - user will see appropriate status message
       return false;
     }
 
@@ -757,6 +1038,9 @@ const PlayMultiplayer = () => {
     const moveTime = moveStartTimeRef.current
       ? (moveEndTime - moveStartTimeRef.current) / 1000
       : 0; // Convert to seconds
+
+    // Update activity tracking for move
+    handleMoveActivity();
 
     // Evaluate the move and update player score
     evaluateMove(
@@ -813,8 +1097,8 @@ const PlayMultiplayer = () => {
   }
 
   const onDrop = (sourceSquare, targetSquare) => {
-    // Disable drag and drop if game is complete
-    if (gameComplete || gameInfo.status === 'finished') {
+    // Disable drag and drop if game is complete or not active
+    if (gameComplete || gameInfo.status === 'finished' || gameInfo.status !== 'active') {
       return false;
     }
 
@@ -822,8 +1106,8 @@ const PlayMultiplayer = () => {
   };
 
   const handleSquareClick = (square) => {
-    // Disable input if game is complete
-    if (gameComplete || gameInfo.status === 'finished') {
+    // Disable input if game is complete or not active
+    if (gameComplete || gameInfo.status === 'finished' || gameInfo.status !== 'active') {
       return;
     }
 
@@ -952,6 +1236,84 @@ const PlayMultiplayer = () => {
 
   const boardAreaSection = (
     <div className="board-section">
+      {/* Compact Timer Display Above Board */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '12px',
+        gap: '8px',
+        fontSize: '14px'
+      }}>
+        {/* Opponent Timer - Compact */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          padding: '6px 10px',
+          borderRadius: '6px',
+          backgroundColor: activeTimer === opponentColor ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 255, 255, 0.1)',
+          border: `1px solid ${activeTimer === opponentColor ? 'rgba(239, 68, 68, 0.5)' : 'rgba(255, 255, 255, 0.2)'}`,
+          flex: '1',
+          minWidth: '120px'
+        }}>
+          <span style={{ fontSize: '16px', color: activeTimer === opponentColor ? '#ef4444' : '#ccc' }}>
+            {activeTimer === opponentColor && (
+              <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#ef4444', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
+            )}
+            {gameInfo.opponentName.split(' ')[0]}
+          </span>
+          <span style={{
+            fontFamily: 'monospace',
+            fontSize: '14px',
+            fontWeight: 'bold',
+            color: activeTimer === opponentColor ? '#ef4444' : '#ccc',
+            marginLeft: 'auto'
+          }}>
+            {Math.floor(opponentTime / 60).toString().padStart(2, '0')}:{(opponentTime % 60).toString().padStart(2, '0')}
+          </span>
+        </div>
+
+        {/* VS separator */}
+        <div style={{
+          fontSize: '12px',
+          color: '#666',
+          fontWeight: 'bold',
+          padding: '0 4px'
+        }}>
+          VS
+        </div>
+
+        {/* Player Timer - Compact */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          padding: '6px 10px',
+          borderRadius: '6px',
+          backgroundColor: activeTimer === playerColor ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255, 255, 255, 0.1)',
+          border: `1px solid ${activeTimer === playerColor ? 'rgba(34, 197, 94, 0.5)' : 'rgba(255, 255, 255, 0.2)'}`,
+          flex: '1',
+          minWidth: '120px'
+        }}>
+          <span style={{ fontSize: '16px', color: activeTimer === playerColor ? '#22c55e' : '#ccc' }}>
+            {activeTimer === playerColor && (
+              <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#22c55e', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
+            )}
+            {user.name.split(' ')[0]}
+          </span>
+          <span style={{
+            fontFamily: 'monospace',
+            fontSize: '14px',
+            fontWeight: 'bold',
+            color: activeTimer === playerColor ? '#22c55e' : '#ccc',
+            marginLeft: 'auto'
+          }}>
+            {Math.floor(playerTime / 60).toString().padStart(2, '0')}:{(playerTime % 60).toString().padStart(2, '0')}
+          </span>
+        </div>
+      </div>
+
       <div className="player-info opponent">
         <span className="player-name">
           {gameInfo.opponentName} ({gameInfo.playerColor === 'white' ? 'Black' : 'White'})
@@ -1023,70 +1385,6 @@ const PlayMultiplayer = () => {
 
   const sidebarSection = (
     <div className="game-sidebar">
-      {/* Timer Display */}
-      <div className="space-y-2" style={{ marginBottom: '20px' }}>
-        {/* Opponent Timer */}
-        <div className={`rounded-lg p-3 transition-all duration-300 ${
-          activeTimer === (gameInfo.playerColor === 'white' ? 'b' : 'w')
-            ? "bg-error/30 border border-error/50 shadow-lg scale-105"
-            : "bg-white/10 border border-white/20"
-        }`} style={{
-          backgroundColor: activeTimer === (gameInfo.playerColor === 'white' ? 'b' : 'w') ? 'rgba(239, 68, 68, 0.3)' : 'rgba(255, 255, 255, 0.1)',
-          border: `1px solid ${activeTimer === (gameInfo.playerColor === 'white' ? 'b' : 'w') ? 'rgba(239, 68, 68, 0.5)' : 'rgba(255, 255, 255, 0.2)'}`,
-          borderRadius: '8px',
-          padding: '12px',
-          transition: 'all 0.3s'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '18px' }}>👤</span>
-              <span style={{ fontSize: '14px', color: 'white' }}>{gameInfo.opponentName}</span>
-              {activeTimer === (gameInfo.playerColor === 'white' ? 'b' : 'w') && (
-                <div style={{ width: '8px', height: '8px', backgroundColor: '#ef4444', borderRadius: '50%', animation: 'pulse 2s infinite' }}></div>
-              )}
-            </div>
-            <div style={{
-              fontFamily: 'monospace',
-              fontSize: '18px',
-              fontWeight: 'bold',
-              color: activeTimer === (gameInfo.playerColor === 'white' ? 'b' : 'w') ? '#ef4444' : 'white'
-            }}>
-              {Math.floor(computerTime / 60).toString().padStart(2, '0')}:{(computerTime % 60).toString().padStart(2, '0')}
-            </div>
-          </div>
-        </div>
-
-        {/* Player Timer */}
-        <div className={`rounded-lg p-3 transition-all duration-300 ${
-          activeTimer === (gameInfo.playerColor === 'white' ? 'w' : 'b')
-            ? "bg-success/30 border border-success/50 shadow-lg scale-105"
-            : "bg-white/10 border border-white/20"
-        }`} style={{
-          backgroundColor: activeTimer === (gameInfo.playerColor === 'white' ? 'w' : 'b') ? 'rgba(34, 197, 94, 0.3)' : 'rgba(255, 255, 255, 0.1)',
-          border: `1px solid ${activeTimer === (gameInfo.playerColor === 'white' ? 'w' : 'b') ? 'rgba(34, 197, 94, 0.5)' : 'rgba(255, 255, 255, 0.2)'}`,
-          borderRadius: '8px',
-          padding: '12px',
-          transition: 'all 0.3s'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '18px' }}>👤</span>
-              <span style={{ fontSize: '14px', color: 'white' }}>{user.name}</span>
-              {activeTimer === (gameInfo.playerColor === 'white' ? 'w' : 'b') && (
-                <div style={{ width: '8px', height: '8px', backgroundColor: '#22c55e', borderRadius: '50%', animation: 'pulse 2s infinite' }}></div>
-              )}
-            </div>
-            <div style={{
-              fontFamily: 'monospace',
-              fontSize: '18px',
-              fontWeight: 'bold',
-              color: activeTimer === (gameInfo.playerColor === 'white' ? 'w' : 'b') ? '#22c55e' : 'white'
-            }}>
-              {Math.floor(playerTime / 60).toString().padStart(2, '0')}:{(playerTime % 60).toString().padStart(2, '0')}
-            </div>
-          </div>
-        </div>
-      </div>
       <GameInfo
         game={game}
         gameHistory={gameHistory}
@@ -1151,239 +1449,653 @@ const PlayMultiplayer = () => {
   // Render with PlayShell wrapper if feature flag is enabled
   if (usePlayShell) {
     return (
-      <PlayShell
-        header={headerSection}
-        boardArea={boardAreaSection}
-        sidebar={sidebarSection}
-        modals={modalsSection}
-        showBoard={true} // Multiplayer always shows board (no pre-game setup)
-        mode="multiplayer"
-      />
+      <>
+        <PlayShell
+          header={headerSection}
+          boardArea={boardAreaSection}
+          sidebar={sidebarSection}
+          modals={modalsSection}
+          showBoard={true} // Multiplayer always shows board (no pre-game setup)
+          mode="multiplayer"
+        />
+
+        {/* Presence Confirmation Dialog - OUTSIDE PlayShell to avoid z-index issues */}
+        <PresenceConfirmationDialogSimple
+          open={showPresenceDialog}
+          onConfirm={() => {
+            console.log('[PresenceConfirmationDialogSimple] User confirmed presence');
+            setShowPresenceDialog(false);
+            showPresenceDialogRef.current = false;
+            setLastActivityTime(Date.now());
+            lastActivityTimeRef.current = Date.now();
+          }}
+          onCloseTimeout={async () => {
+            console.log('[PresenceConfirmationDialogSimple] Timeout - pausing game');
+
+            // Set presence lock to prevent dialog re-opening during pause attempt
+            setIsPausing(true);
+            isPausingRef.current = true;
+
+            try {
+              const pauseResult = await wsService.current?.pauseGame();
+              console.log('[PresenceConfirmationDialogSimple] Game paused successfully:', pauseResult);
+
+              // Only close dialog if pause succeeded
+              setShowPresenceDialog(false);
+              showPresenceDialogRef.current = false;
+
+              // Show paused game UI instead of dialog
+              setShowPausedGame(true);
+
+              // Release presence lock after a short delay to prevent immediate re-opening
+              setTimeout(() => {
+                setIsPausing(false);
+                isPausingRef.current = false;
+              }, 2000);
+            } catch (error) {
+              console.error('[PresenceConfirmationDialogSimple] Failed to pause game:', error);
+              // If pausing fails, don't close the dialog - let it try again
+              setIsPausing(false);
+              isPausingRef.current = false;
+              return;
+            }
+          }}
+        />
+      </>
     );
   }
 
+  // Resume request handlers
+  const handleRequestResume = async () => {
+    if (!wsService.current) return;
+
+    try {
+      setIsWaitingForResumeResponse(true);
+      const result = await wsService.current.requestResume();
+
+      console.log('[PlayMultiplayer] Resume request sent:', result);
+
+      // Start countdown timer
+      setResumeRequestData({ type: 'sent' });
+      setResumeRequestCountdown(10);
+      startResumeCountdown(10);
+
+    } catch (error) {
+      console.error('[PlayMultiplayer] Failed to send resume request:', error);
+      setIsWaitingForResumeResponse(false);
+      // You could show an error message here
+    }
+  };
+
+  const handleResumeResponse = async (accepted) => {
+    if (!wsService.current) return;
+
+    try {
+      await wsService.current.respondToResumeRequest(accepted);
+
+      if (accepted) {
+        console.log('[PlayMultiplayer] Resume request accepted - game should resume');
+        setShowPausedGame(false);
+        setResumeRequestData(null);
+        setResumeRequestCountdown(0);
+        setIsWaitingForResumeResponse(false);
+        setIsLobbyResume(false); // Reset lobby resume flag
+        // The game should resume automatically via WebSocket events
+      } else {
+        console.log('[PlayMultiplayer] Resume request declined');
+        setResumeRequestData(null);
+        setResumeRequestCountdown(0);
+        setIsWaitingForResumeResponse(false);
+        // Keep lobby resume flag for declined requests so user can try again
+      }
+
+      // Clear countdown timer
+      if (resumeRequestTimer) {
+        clearInterval(resumeRequestTimer);
+        setResumeRequestTimer(null);
+      }
+
+    } catch (error) {
+      console.error('[PlayMultiplayer] Failed to respond to resume request:', error);
+    }
+  };
+
+  const cancelResumeRequest = () => {
+    setResumeRequestData(null);
+    setResumeRequestCountdown(0);
+    setIsWaitingForResumeResponse(false);
+
+    if (resumeRequestTimer) {
+      clearInterval(resumeRequestTimer);
+      setResumeRequestTimer(null);
+    }
+  };
+
+  const startResumeCountdown = (seconds) => {
+    let countdown = seconds;
+
+    if (resumeRequestTimer) {
+      clearInterval(resumeRequestTimer);
+    }
+
+    const timer = setInterval(() => {
+      countdown--;
+      setResumeRequestCountdown(countdown);
+
+      if (countdown <= 0) {
+        clearInterval(timer);
+        setResumeRequestTimer(null);
+        setResumeRequestData(null);
+        setIsWaitingForResumeResponse(false);
+        console.log('[PlayMultiplayer] Resume request expired');
+      }
+    }, 1000);
+
+    setResumeRequestTimer(timer);
+  };
+
   // Fallback to original layout (backward compatibility)
   return (
-    <div className="game-container">
-      <div className="game-header">
-        <h2>Multiplayer Chess</h2>
-        <div className="game-status">
-          <div className="connection-status">
-            <span className={`status-indicator ${connectionStatus}`}>
-              ● {connectionStatus === 'connected' ? 'Connected' : 'Disconnected'}
-            </span>
-            {opponentOnline && (
-              <span className="opponent-status">
-                ● {gameInfo.opponentName} online
-              </span>
-            )}
-          </div>
-          <div className="turn-status">
-            {gameInfo.status === 'active' ? (
-              gameInfo.turn === gameInfo.playerColor ?
-                "Your turn" :
-                `${gameInfo.opponentName}'s turn`
-            ) : gameInfo.status === 'finished' ? (
-              `Game ${gameData?.result?.replace('_', ' ') || 'ended'}`
-            ) : (
-              `Game ${gameInfo.status}`
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="game-layout">
-        <div className="board-section">
-          <div className="player-info opponent">
-            <span className="player-name">
-              {gameInfo.opponentName} ({gameInfo.playerColor === 'white' ? 'Black' : 'White'})
-            </span>
-          </div>
-
-          <div className="chessboard-wrapper">
-            <Chessboard
-              position={game.fen()}
-              onPieceDrop={onDrop}
-              onSquareClick={handleSquareClick}
-              boardOrientation={boardOrientation}
-              areArrowsAllowed={false}
-              customSquareStyles={{
-                [selectedSquare]: {
-                  backgroundColor: 'rgba(255, 255, 0, 0.4)'
-                },
-                ...(kingInDangerSquare && {
-                  [kingInDangerSquare]: {
-                    animation: 'kingFlicker 0.5s ease-in-out 3',
-                    backgroundColor: 'rgba(255, 0, 0, 0.6)'
-                  }
-                })
-              }}
-            />
-          </div>
-
-          <div className="player-info current-player">
-            <span className="player-name">
-              {user.name} ({gameInfo.playerColor === 'white' ? 'White' : 'Black'})
-            </span>
-            <div className="game-controls">
-              {gameInfo.status === 'active' && (
-                <button onClick={handleResign} className="resign-button">
-                  Resign
-                </button>
-              )}
-              {gameInfo.status === 'paused' && (
-                <button onClick={handleResumeGame} className="resume-button">
-                  Resume Game
-                </button>
-              )}
-              {gameInfo.status === 'finished' && (
-                <div className="game-ended-controls">
-                  <button onClick={() => handleNewGame(true)} className="rematch-button">
-                    Rematch
-                  </button>
-                  <button onClick={() => handleNewGame(false)} className="new-game-button">
-                    New Game
-                  </button>
-                </div>
-              )}
-              <button onClick={handleKillGame} className="forfeit-game-button" style={{
-                backgroundColor: '#dc3545',
-                color: 'white',
-                border: 'none',
-                padding: '8px 16px',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                marginTop: '10px',
-                fontSize: '14px'
-              }}>
-                ⚠️ Forfeit Game
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="game-sidebar">
-          {/* Timer Display */}
-          <div className="space-y-2" style={{ marginBottom: '20px' }}>
-            {/* Opponent Timer */}
-            <div className={`rounded-lg p-3 transition-all duration-300 ${
-              activeTimer === (gameInfo.playerColor === 'white' ? 'b' : 'w')
-                ? "bg-error/30 border border-error/50 shadow-lg scale-105"
-                : "bg-white/10 border border-white/20"
-            }`} style={{
-              backgroundColor: activeTimer === (gameInfo.playerColor === 'white' ? 'b' : 'w') ? 'rgba(239, 68, 68, 0.3)' : 'rgba(255, 255, 255, 0.1)',
-              border: `1px solid ${activeTimer === (gameInfo.playerColor === 'white' ? 'b' : 'w') ? 'rgba(239, 68, 68, 0.5)' : 'rgba(255, 255, 255, 0.2)'}`,
-              borderRadius: '8px',
-              padding: '12px',
-              transition: 'all 0.3s'
+    <>
+      <div className="game-container">
+        {/* Paused Game Overlay */}
+        {showPausedGame && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1000
+          }}>
+            <div style={{
+              backgroundColor: '#1a1a1a',
+              padding: '32px',
+              borderRadius: '12px',
+              textAlign: 'center',
+              color: 'white',
+              maxWidth: '450px',
+              border: '2px solid #333',
+              width: '90%'
             }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '18px' }}>👤</span>
-                  <span style={{ fontSize: '14px', color: 'white' }}>{gameInfo.opponentName}</span>
-                  {activeTimer === (gameInfo.playerColor === 'white' ? 'b' : 'w') && (
-                    <div style={{ width: '8px', height: '8px', backgroundColor: '#ef4444', borderRadius: '50%', animation: 'pulse 2s infinite' }}></div>
+              <h2 style={{ marginBottom: '16px', color: '#ffd700' }}>
+                {isLobbyResume ? '🎯 Resume Game' : '⏸️ Game Paused'}
+              </h2>
+              <p style={{ marginBottom: '24px', fontSize: '16px' }}>
+                {isLobbyResume
+                  ? 'Requesting to resume this paused game from the lobby. Waiting for opponent to accept...'
+                  : 'Game has been paused due to inactivity.'
+                }
+              </p>
+
+              {/* Resume Request Section */}
+              {!resumeRequestData ? (
+                // Request Resume Button or Auto-requesting Message
+                <div>
+                  {isLobbyResume ? (
+                    // Show auto-requesting message for lobby resumes
+                    <div>
+                      <div style={{
+                        backgroundColor: '#2196F3',
+                        color: 'white',
+                        border: 'none',
+                        padding: '14px 28px',
+                        borderRadius: '8px',
+                        fontSize: '16px',
+                        marginRight: '12px',
+                        marginBottom: '12px',
+                        display: 'inline-block'
+                      }}>
+                        📤 Sending resume request...
+                      </div>
+                      {isWaitingForResumeResponse && resumeRequestCountdown > 0 && (
+                        <div style={{
+                          fontSize: '14px',
+                          color: '#ffd700',
+                          marginTop: '8px'
+                        }}>
+                          Waiting for opponent to accept... {resumeRequestCountdown}s
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    // Regular resume button for inactivity pauses
+                    <div>
+                      <button
+                        onClick={handleRequestResume}
+                        disabled={isWaitingForResumeResponse}
+                        style={{
+                          backgroundColor: isWaitingForResumeResponse ? '#555' : '#4CAF50',
+                          color: 'white',
+                          border: 'none',
+                          padding: '14px 28px',
+                          borderRadius: '8px',
+                          fontSize: '16px',
+                          cursor: isWaitingForResumeResponse ? 'not-allowed' : 'pointer',
+                          marginRight: '12px',
+                          marginBottom: '12px'
+                        }}
+                      >
+                        {isWaitingForResumeResponse ? 'Requesting...' : 'Request Resume'}
+                      </button>
+                      {isWaitingForResumeResponse && resumeRequestCountdown > 0 && (
+                        <div style={{
+                          fontSize: '14px',
+                          color: '#ffd700',
+                          marginTop: '8px'
+                        }}>
+                          Waiting for response... {resumeRequestCountdown}s
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
-                <div style={{
-                  fontFamily: 'monospace',
-                  fontSize: '18px',
-                  fontWeight: 'bold',
-                  color: activeTimer === (gameInfo.playerColor === 'white' ? 'b' : 'w') ? '#ef4444' : 'white'
-                }}>
-                  {Math.floor(computerTime / 60).toString().padStart(2, '0')}:{(computerTime % 60).toString().padStart(2, '0')}
+              ) : (
+                // Show Resume Request Status
+                <div>
+                  {resumeRequestData.type === 'sent' ? (
+                    <div>
+                      <p style={{ color: '#4CAF50', marginBottom: '16px' }}>
+                        {isLobbyResume
+                          ? '📤 Resume request sent from lobby!'
+                          : 'Resume request sent to opponent!'
+                        }
+                      </p>
+                      {resumeRequestCountdown > 0 && (
+                        <div style={{
+                          fontSize: '14px',
+                          color: '#ffd700',
+                          marginBottom: '16px'
+                        }}>
+                          Waiting for opponent to accept... {resumeRequestCountdown}s
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                        <button
+                          onClick={cancelResumeRequest}
+                          style={{
+                            backgroundColor: '#ff6b6b',
+                            color: 'white',
+                            border: 'none',
+                            padding: '10px 20px',
+                            borderRadius: '6px',
+                            fontSize: '14px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Cancel Request
+                        </button>
+                        {isLobbyResume && (
+                          <button
+                            onClick={() => navigate('/lobby')}
+                            style={{
+                              backgroundColor: '#666',
+                              color: 'white',
+                              border: 'none',
+                              padding: '10px 20px',
+                              borderRadius: '6px',
+                              fontSize: '14px',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Back to Lobby
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <p style={{ color: '#ffa726', marginBottom: '16px' }}>
+                        {resumeRequestData.opponentName} wants to resume the game!
+                      </p>
+                      {resumeRequestCountdown > 0 && (
+                        <div style={{
+                          fontSize: '14px',
+                          color: '#ffd700',
+                          marginBottom: '16px'
+                        }}>
+                          Auto-declines in {resumeRequestCountdown}s
+                        </div>
+                      )}
+                      <div>
+                        <button
+                          onClick={() => handleResumeResponse(true)}
+                          style={{
+                            backgroundColor: '#4CAF50',
+                            color: 'white',
+                            border: 'none',
+                            padding: '12px 24px',
+                            borderRadius: '8px',
+                            fontSize: '16px',
+                            cursor: 'pointer',
+                            marginRight: '12px'
+                          }}
+                        >
+                          ✅ Accept
+                        </button>
+                        <button
+                          onClick={() => handleResumeResponse(false)}
+                          style={{
+                            backgroundColor: '#f44336',
+                            color: 'white',
+                            border: 'none',
+                            padding: '12px 24px',
+                            borderRadius: '8px',
+                            fontSize: '16px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          ❌ Decline
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
+              )}
+
+              <div style={{ marginTop: '24px', paddingTop: '20px', borderTop: '1px solid #444' }}>
+                <button
+                  onClick={() => {
+                    setShowPausedGame(false);
+                    navigate('/lobby');
+                  }}
+                  style={{
+                    backgroundColor: '#666',
+                    color: 'white',
+                    border: 'none',
+                    padding: '10px 20px',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Go To Lobby
+                </button>
               </div>
             </div>
+          </div>
+        )}
+        <div className="game-header">
+          <h2>Multiplayer Chess</h2>
+          <div className="game-status">
+            <div className="connection-status">
+              <span className={`status-indicator ${connectionStatus}`}>
+                ● {connectionStatus === 'connected' ? 'Connected' : 'Disconnected'}
+              </span>
+              {opponentOnline && (
+                <span className="opponent-status">
+                  ● {gameInfo.opponentName} online
+                </span>
+              )}
+            </div>
+            <div className="turn-status">
+              {gameInfo.status === 'active' ? (
+                gameInfo.turn === gameInfo.playerColor ?
+                  "Your turn" :
+                  `${gameInfo.opponentName}'s turn`
+              ) : gameInfo.status === 'finished' ? (
+                `Game ${gameData?.result?.replace('_', ' ') || 'ended'}`
+              ) : (
+                `Game ${gameInfo.status}`
+              )}
+            </div>
+          </div>
+        </div>
 
-            {/* Player Timer */}
-            <div className={`rounded-lg p-3 transition-all duration-300 ${
-              activeTimer === (gameInfo.playerColor === 'white' ? 'w' : 'b')
-                ? "bg-success/30 border border-success/50 shadow-lg scale-105"
-                : "bg-white/10 border border-white/20"
-            }`} style={{
-              backgroundColor: activeTimer === (gameInfo.playerColor === 'white' ? 'w' : 'b') ? 'rgba(34, 197, 94, 0.3)' : 'rgba(255, 255, 255, 0.1)',
-              border: `1px solid ${activeTimer === (gameInfo.playerColor === 'white' ? 'w' : 'b') ? 'rgba(34, 197, 94, 0.5)' : 'rgba(255, 255, 255, 0.2)'}`,
-              borderRadius: '8px',
-              padding: '12px',
-              transition: 'all 0.3s'
+        <div className="game-layout">
+          <div className="board-section">
+            {/* Compact Timer Display Above Board */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '12px',
+              gap: '8px',
+              fontSize: '14px'
             }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '18px' }}>👤</span>
-                  <span style={{ fontSize: '14px', color: 'white' }}>{user.name}</span>
-                  {activeTimer === (gameInfo.playerColor === 'white' ? 'w' : 'b') && (
-                    <div style={{ width: '8px', height: '8px', backgroundColor: '#22c55e', borderRadius: '50%', animation: 'pulse 2s infinite' }}></div>
+              {/* Opponent Timer - Compact */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 10px',
+                borderRadius: '6px',
+                backgroundColor: activeTimer === opponentColor ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 255, 255, 0.1)',
+                border: `1px solid ${activeTimer === opponentColor ? 'rgba(239, 68, 68, 0.5)' : 'rgba(255, 255, 255, 0.2)'}`,
+                flex: '1',
+                minWidth: '120px'
+              }}>
+                <span style={{ fontSize: '16px', color: activeTimer === opponentColor ? '#ef4444' : '#ccc' }}>
+                  {activeTimer === opponentColor && (
+                    <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#ef4444', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
                   )}
-                </div>
-                <div style={{
+                  {gameInfo.opponentName.split(' ')[0]}
+                </span>
+                <span style={{
                   fontFamily: 'monospace',
-                  fontSize: '18px',
+                  fontSize: '14px',
                   fontWeight: 'bold',
-                  color: activeTimer === (gameInfo.playerColor === 'white' ? 'w' : 'b') ? '#22c55e' : 'white'
+                  color: activeTimer === opponentColor ? '#ef4444' : '#ccc',
+                  marginLeft: 'auto'
+                }}>
+                  {Math.floor(opponentTime / 60).toString().padStart(2, '0')}:{(opponentTime % 60).toString().padStart(2, '0')}
+                </span>
+              </div>
+
+              {/* VS separator */}
+              <div style={{
+                fontSize: '12px',
+                color: '#666',
+                fontWeight: 'bold',
+                padding: '0 4px'
+              }}>
+                VS
+              </div>
+
+              {/* Player Timer - Compact */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 10px',
+                borderRadius: '6px',
+                backgroundColor: activeTimer === playerColor ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255, 255, 255, 0.1)',
+                border: `1px solid ${activeTimer === playerColor ? 'rgba(34, 197, 94, 0.5)' : 'rgba(255, 255, 255, 0.2)'}`,
+                flex: '1',
+                minWidth: '120px'
+              }}>
+                <span style={{ fontSize: '16px', color: activeTimer === playerColor ? '#22c55e' : '#ccc' }}>
+                  {activeTimer === playerColor && (
+                    <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#22c55e', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
+                  )}
+                  {user.name.split(' ')[0]}
+                </span>
+                <span style={{
+                  fontFamily: 'monospace',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  color: activeTimer === playerColor ? '#22c55e' : '#ccc',
+                  marginLeft: 'auto'
                 }}>
                   {Math.floor(playerTime / 60).toString().padStart(2, '0')}:{(playerTime % 60).toString().padStart(2, '0')}
-                </div>
+                </span>
+              </div>
+            </div>
+
+            <div className="player-info opponent">
+              <span className="player-name">
+                {gameInfo.opponentName} ({gameInfo.playerColor === 'white' ? 'Black' : 'White'})
+              </span>
+            </div>
+
+            <div className="chessboard-wrapper">
+              <Chessboard
+                position={game.fen()}
+                onPieceDrop={onDrop}
+                onSquareClick={handleSquareClick}
+                boardOrientation={boardOrientation}
+                areArrowsAllowed={false}
+                customSquareStyles={{
+                  [selectedSquare]: {
+                    backgroundColor: 'rgba(255, 255, 0, 0.4)'
+                  },
+                  ...(kingInDangerSquare && {
+                    [kingInDangerSquare]: {
+                      animation: 'kingFlicker 0.5s ease-in-out 3',
+                      backgroundColor: 'rgba(255, 0, 0, 0.6)'
+                    }
+                  })
+                }}
+              />
+            </div>
+
+            <div className="player-info current-player">
+              <span className="player-name">
+                {user.name} ({gameInfo.playerColor === 'white' ? 'White' : 'Black'})
+              </span>
+              <div className="game-controls">
+                {gameInfo.status === 'active' && (
+                  <button onClick={handleResign} className="resign-button">
+                    Resign
+                  </button>
+                )}
+                {gameInfo.status === 'paused' && (
+                  <button onClick={handleResumeGame} className="resume-button">
+                    Resume Game
+                  </button>
+                )}
+                {gameInfo.status === 'finished' && (
+                  <div className="game-ended-controls">
+                    <button onClick={() => handleNewGame(true)} className="rematch-button">
+                      Rematch
+                    </button>
+                    <button onClick={() => handleNewGame(false)} className="new-game-button">
+                      New Game
+                    </button>
+                  </div>
+                )}
+                <button onClick={handleKillGame} className="forfeit-game-button" style={{
+                  backgroundColor: '#dc3545',
+                  color: 'white',
+                  border: 'none',
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  marginTop: '10px',
+                  fontSize: '14px'
+                }}>
+                  ⚠️ Forfeit Game
+                </button>
               </div>
             </div>
           </div>
-          <GameInfo
-            game={game}
-            gameHistory={gameHistory}
-            playerColor={gameInfo.playerColor}
-            opponent={gameInfo.opponentName}
-            gameStatus={gameInfo.status}
-          />
-          <ScoreDisplay
-            playerScore={playerScore}
-            lastMoveEvaluation={lastMoveEvaluation}
-            computerScore={opponentScore}
-            lastComputerEvaluation={lastOpponentEvaluation}
-            isOnlineGame={true}
-            players={{
-              'w': gameData?.white_player,
-              'b': gameData?.black_player
-            }}
-            playerColor={gameInfo.playerColor === 'white' ? 'w' : 'b'}
-          />
+
+          <div className="game-sidebar">
+            <GameInfo
+              game={game}
+              gameHistory={gameHistory}
+              playerColor={gameInfo.playerColor}
+              opponent={gameInfo.opponentName}
+              gameStatus={gameInfo.status}
+            />
+            <ScoreDisplay
+              playerScore={playerScore}
+              lastMoveEvaluation={lastMoveEvaluation}
+              computerScore={opponentScore}
+              lastComputerEvaluation={lastOpponentEvaluation}
+              isOnlineGame={true}
+              players={{
+                'w': gameData?.white_player,
+                'b': gameData?.black_player
+              }}
+              playerColor={gameInfo.playerColor === 'white' ? 'w' : 'b'}
+            />
+          </div>
         </div>
+
+        {/* Checkmate Notification */}
+        {showCheckmate && checkmateWinner && (
+          <CheckmateNotification
+            winner={checkmateWinner}
+            onComplete={() => setShowCheckmate(false)}
+          />
+        )}
+
+        {/* Game Completion Modal */}
+        {gameComplete && gameResult && (
+          <GameCompletionAnimation
+            result={gameResult}
+            playerColor={gameInfo.playerColor}
+            onClose={() => {
+              setGameComplete(false);
+              setGameResult(null);
+            }}
+            onRematch={() => handleNewGame(true)}
+            onNewGame={() => handleNewGame(false)}
+            onBackToLobby={() => {
+              // Clear invitation-related session storage to prevent auto-navigation
+              sessionStorage.removeItem('lastInvitationAction');
+              sessionStorage.removeItem('lastInvitationTime');
+              sessionStorage.removeItem('lastGameId');
+
+              // Set flag to indicate intentional lobby visit
+              sessionStorage.setItem('intentionalLobbyVisit', 'true');
+              sessionStorage.setItem('intentionalLobbyVisitTime', Date.now().toString());
+
+              navigate('/lobby');
+            }}
+            isMultiplayer={true}
+          />
+        )}
       </div>
 
-      {/* Checkmate Notification */}
-      {showCheckmate && checkmateWinner && (
-        <CheckmateNotification
-          winner={checkmateWinner}
-          onComplete={() => setShowCheckmate(false)}
-        />
-      )}
+      {/* Presence Confirmation Dialog - OUTSIDE game-container to avoid z-index issues */}
+      <PresenceConfirmationDialogSimple
+        open={showPresenceDialog}
+        onConfirm={() => {
+          console.log('[PresenceConfirmationDialogSimple] User confirmed presence');
+          setShowPresenceDialog(false);
+          showPresenceDialogRef.current = false;
+          setLastActivityTime(Date.now());
+          lastActivityTimeRef.current = Date.now();
+        }}
+        onCloseTimeout={async () => {
+          console.log('[PresenceConfirmationDialogSimple] Timeout - attempting to pause game');
 
-      {/* Game Completion Modal */}
-      {gameComplete && gameResult && (
-        <GameCompletionAnimation
-          result={gameResult}
-          playerColor={gameInfo.playerColor}
-          onClose={() => {
-            setGameComplete(false);
-            setGameResult(null);
-          }}
-          onRematch={() => handleNewGame(true)}
-          onNewGame={() => handleNewGame(false)}
-          onBackToLobby={() => {
-            // Clear invitation-related session storage to prevent auto-navigation
-            sessionStorage.removeItem('lastInvitationAction');
-            sessionStorage.removeItem('lastInvitationTime');
-            sessionStorage.removeItem('lastGameId');
+          // Set presence lock to prevent dialog re-opening during pause attempt
+          setIsPausing(true);
+          isPausingRef.current = true;
 
-            // Set flag to indicate intentional lobby visit
-            sessionStorage.setItem('intentionalLobbyVisit', 'true');
-            sessionStorage.setItem('intentionalLobbyVisitTime', Date.now().toString());
+          try {
+            const pauseResult = await wsService.current?.pauseGame();
+            console.log('[PresenceConfirmationDialogSimple] Game paused successfully:', pauseResult);
 
-            navigate('/lobby');
-          }}
-          isMultiplayer={true}
-        />
-      )}
-    </div>
+            // Only close dialog if pause succeeded
+            setShowPresenceDialog(false);
+            showPresenceDialogRef.current = false;
+
+            // Show paused game UI instead of dialog
+            setShowPausedGame(true);
+
+            // Release presence lock after a short delay to prevent immediate re-opening
+            setTimeout(() => {
+              setIsPausing(false);
+              isPausingRef.current = false;
+            }, 2000);
+          } catch (error) {
+            console.error('[PresenceConfirmationDialogSimple] Failed to pause game:', error);
+            // If pausing fails, don't close the dialog - let it try again
+            setIsPausing(false);
+            isPausingRef.current = false;
+            return;
+          }
+        }}
+      />
+    </>
   );
 };
 

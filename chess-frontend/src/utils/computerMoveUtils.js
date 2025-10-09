@@ -42,8 +42,7 @@ const getStockfishTopMoves = (fen, numMoves, moveTimeMs) =>
     const stockfish = new Worker('/stockfish.js');
     let bestMoveFromEngine = null;
     const topMoves = new Array(numMoves).fill(null);
-    let moveCount = 0;
-
+  
     let safetyTimer = null;
     const safetyMargin = 2000;
     const timeoutDuration = moveTimeMs + safetyMargin;
@@ -80,7 +79,6 @@ const getStockfishTopMoves = (fen, numMoves, moveTimeMs) =>
                     const index = rank - 1;
                     if (topMoves[index] === null) {
                          topMoves[index] = move;
-                         moveCount++;
                     }
                 }
             }

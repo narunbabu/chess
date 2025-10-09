@@ -974,27 +974,56 @@ class GameRoomService
             ];
         }
 
-        $game->update([
+        // Store current time remaining for each player before pausing
+        $whiteTimeRemaining = $game->white_time_remaining_ms;
+        $blackTimeRemaining = $game->black_time_remaining_ms;
+        $currentTurn = $game->turn;
+
+        // Give 40 seconds grace time to the player whose turn it was when paused
+        $graceTimeMs = 40000; // 40 seconds in milliseconds
+
+        $updateData = [
             'status' => 'paused',
             'paused_at' => now(),
-            'paused_reason' => $reason
-        ]);
+            'paused_reason' => $reason,
+            'white_time_paused_ms' => $whiteTimeRemaining,
+            'black_time_paused_ms' => $blackTimeRemaining,
+            'turn_at_pause' => $currentTurn,
+            'white_grace_time_ms' => ($currentTurn === 'white') ? $graceTimeMs : 0,
+            'black_grace_time_ms' => ($currentTurn === 'black') ? $graceTimeMs : 0,
+        ];
+
+        $game->update($updateData);
 
         // TODO: Broadcast game paused event
         // broadcast(new GamePausedEvent($gameId, [
         //     'reason' => $reason,
-        //     'paused_at' => now()->toISOString()
+        //     'paused_at' => now()->toISOString(),
+        //     'white_time_remaining' => $whiteTimeRemaining,
+        //     'black_time_remaining' => $blackTimeRemaining,
+        //     'grace_time_player' => $currentTurn,
+        //     'grace_time_ms' => $graceTimeMs
         // ]));
 
-        Log::info('Game paused', [
+        Log::info('Game paused with time tracking', [
             'game_id' => $gameId,
-            'reason' => $reason
+            'reason' => $reason,
+            'white_time_paused_ms' => $whiteTimeRemaining,
+            'black_time_paused_ms' => $blackTimeRemaining,
+            'turn_at_pause' => $currentTurn,
+            'grace_time_given_to' => $currentTurn,
+            'grace_time_ms' => $graceTimeMs
         ]);
 
         return [
             'success' => true,
             'status' => 'paused',
-            'reason' => $reason
+            'reason' => $reason,
+            'white_time_paused_ms' => $whiteTimeRemaining,
+            'black_time_paused_ms' => $blackTimeRemaining,
+            'turn_at_pause' => $currentTurn,
+            'grace_time_player' => $currentTurn,
+            'grace_time_ms' => $graceTimeMs
         ];
     }
 
@@ -1017,29 +1046,289 @@ class GameRoomService
             ];
         }
 
-        $game->update([
+        // Restore time with grace time applied
+        $whiteTimeResumed = $game->white_time_paused_ms + $game->white_grace_time_ms;
+        $blackTimeResumed = $game->black_time_paused_ms + $game->black_grace_time_ms;
+
+        $updateData = [
             'status' => 'active',
             'paused_at' => null,
             'paused_reason' => null,
-            'last_heartbeat_at' => now()
+            'last_heartbeat_at' => now(),
+            'white_time_remaining_ms' => $whiteTimeResumed,
+            'black_time_remaining_ms' => $blackTimeResumed,
+            'last_move_time' => now(), // Reset the move timer to current time
+            'turn' => $game->turn_at_pause, // Restore the turn that was active when paused
+        ];
+
+        // Store pause info for response, then clear the pause fields
+        $pauseInfo = [
+            'white_time_paused_ms' => $game->white_time_paused_ms,
+            'black_time_paused_ms' => $game->black_time_paused_ms,
+            'white_grace_time_ms' => $game->white_grace_time_ms,
+            'black_grace_time_ms' => $game->black_grace_time_ms,
+            'turn_at_pause' => $game->turn_at_pause,
+        ];
+
+        // Clear pause-specific fields after resuming
+        $updateData = array_merge($updateData, [
+            'white_time_paused_ms' => null,
+            'black_time_paused_ms' => null,
+            'turn_at_pause' => null,
+            'white_grace_time_ms' => 0,
+            'black_grace_time_ms' => 0,
         ]);
 
-        // TODO: Broadcast game resumed event
-        // broadcast(new GameResumedEvent($gameId, [
-        //     'resumed_by' => $userId,
-        //     'resumed_at' => now()->toISOString()
-        // ]));
+        $game->update($updateData);
+        $game->refresh(); // Reload to get updated relationships
 
-        Log::info('Game resumed from inactivity', [
+        // Broadcast game resumed event to all players
+        broadcast(new \App\Events\GameResumedEvent($game, $userId, [
+            'white_time_remaining_ms' => $whiteTimeResumed,
+            'black_time_remaining_ms' => $blackTimeResumed,
+            'turn' => $pauseInfo['turn_at_pause'],
+            'grace_time_applied' => [
+                'white' => $pauseInfo['white_grace_time_ms'],
+                'black' => $pauseInfo['black_grace_time_ms']
+            ]
+        ]));
+
+        Log::info('Game resumed from inactivity with grace time applied', [
             'game_id' => $gameId,
-            'user_id' => $userId
+            'user_id' => $userId,
+            'white_time_resumed_ms' => $whiteTimeResumed,
+            'black_time_resumed_ms' => $blackTimeResumed,
+            'white_grace_applied_ms' => $pauseInfo['white_grace_time_ms'],
+            'black_grace_applied_ms' => $pauseInfo['black_grace_time_ms'],
+            'restored_turn' => $pauseInfo['turn_at_pause']
         ]);
 
         return [
             'success' => true,
             'status' => 'active',
-            'message' => 'Game resumed'
+            'message' => 'Game resumed',
+            'white_time_remaining_ms' => $whiteTimeResumed,
+            'black_time_remaining_ms' => $blackTimeResumed,
+            'grace_time_applied' => [
+                'white' => $pauseInfo['white_grace_time_ms'],
+                'black' => $pauseInfo['black_grace_time_ms']
+            ],
+            'turn' => $pauseInfo['turn_at_pause']
         ];
+    }
+
+    /**
+     * Request to resume a paused game
+     */
+    public function requestResume(int $gameId, int $userId): array
+    {
+        $game = Game::findOrFail($gameId);
+
+        if ($game->status !== 'paused') {
+            return [
+                'success' => false,
+                'message' => 'Game is not paused'
+            ];
+        }
+
+        if ($game->resume_status === 'pending') {
+            return [
+                'success' => false,
+                'message' => 'Resume request already pending'
+            ];
+        }
+
+        // Verify user is a player in this game
+        if ($game->white_player_id !== $userId && $game->black_player_id !== $userId) {
+            return [
+                'success' => false,
+                'message' => 'User is not a player in this game'
+            ];
+        }
+
+        // Determine opponent
+        $opponentId = ($game->white_player_id === $userId) ? $game->black_player_id : $game->white_player_id;
+
+        // Create resume request invitation record
+        $resumeInvitation = \App\Models\Invitation::create([
+            'inviter_id' => $userId,
+            'invited_id' => $opponentId,
+            'status' => 'pending',
+            'type' => 'resume_request',
+            'game_id' => $gameId,
+            'expires_at' => now()->addSeconds(10) // 10 second window
+        ]);
+
+        // Set resume request data
+        $game->update([
+            'resume_requested_by' => $userId,
+            'resume_requested_at' => now(),
+            'resume_request_expires_at' => $resumeInvitation->expires_at,
+            'resume_status' => 'pending'
+        ]);
+
+        // Broadcast resume request event to opponent
+        Log::info('📨 Broadcasting ResumeRequestSent event', [
+            'game_id' => $gameId,
+            'requested_by' => $userId,
+            'opponent' => $opponentId,
+            'channel' => "App.Models.User.{$opponentId}",
+            'event' => 'resume.request.sent',
+            'invitation_id' => $resumeInvitation->id
+        ]);
+        broadcast(new \App\Events\ResumeRequestSent($game, $userId));
+
+        Log::info('Resume request created', [
+            'game_id' => $gameId,
+            'requested_by' => $userId,
+            'opponent' => $opponentId,
+            'expires_at' => $game->resume_request_expires_at,
+            'invitation_id' => $resumeInvitation->id
+        ]);
+
+        return [
+            'success' => true,
+            'resume_requested_by' => $userId,
+            'resume_requested_at' => $game->resume_requested_at,
+            'resume_request_expires_at' => $game->resume_request_expires_at,
+            'opponent_id' => $opponentId,
+            'invitation_id' => $resumeInvitation->id
+        ];
+    }
+
+    /**
+     * Respond to a resume request
+     */
+    public function respondToResumeRequest(int $gameId, int $userId, bool $accepted): array
+    {
+        $game = Game::findOrFail($gameId);
+
+        if ($game->status !== 'paused') {
+            return [
+                'success' => false,
+                'message' => 'Game is not paused'
+            ];
+        }
+
+        if ($game->resume_status !== 'pending') {
+            return [
+                'success' => false,
+                'message' => 'No pending resume request'
+            ];
+        }
+
+        // Verify user is the opponent who received the request
+        $opponentId = ($game->white_player_id === $game->resume_requested_by) ? $game->black_player_id : $game->white_player_id;
+        if ($userId !== $opponentId) {
+            return [
+                'success' => false,
+                'message' => 'User is not authorized to respond to this request'
+            ];
+        }
+
+        if ($game->resume_request_expires_at && now()->isAfter($game->resume_request_expires_at)) {
+            // Request has expired
+            $game->update([
+                'resume_status' => 'expired',
+                'resume_requested_by' => null,
+                'resume_requested_at' => null,
+                'resume_request_expires_at' => null
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Resume request has expired'
+            ];
+        }
+
+        if ($accepted) {
+            // Resume the game
+            $resumeResult = $this->resumeGameFromInactivity($gameId, $userId);
+
+            if ($resumeResult['success']) {
+                // Update the invitation record to accepted
+                \App\Models\Invitation::where('type', 'resume_request')
+                    ->where('game_id', $gameId)
+                    ->where('invited_id', $userId)
+                    ->where('status', 'pending')
+                    ->update([
+                        'status' => 'accepted',
+                        'responded_by' => $userId,
+                        'responded_at' => now()
+                    ]);
+
+                // Clear resume request fields
+                $game->update([
+                    'resume_status' => 'accepted',
+                    'resume_requested_by' => null,
+                    'resume_requested_at' => null,
+                    'resume_request_expires_at' => null
+                ]);
+
+                // Broadcast resume accepted event
+                Log::info('📨 Broadcasting ResumeRequestResponse event (accepted)', [
+                    'game_id' => $gameId,
+                    'accepted_by' => $userId,
+                    'requested_by' => $game->resume_requested_by,
+                    'channel' => "App.Models.User.{$game->resume_requested_by}",
+                    'event' => 'resume.request.response'
+                ]);
+                broadcast(new \App\Events\ResumeRequestResponse($game, 'accepted', $userId));
+
+                Log::info('Resume request accepted, game resumed', [
+                    'game_id' => $gameId,
+                    'accepted_by' => $userId,
+                    'requested_by' => $game->resume_requested_by
+                ]);
+
+                return array_merge($resumeResult, [
+                    'resume_status' => 'accepted'
+                ]);
+            } else {
+                return $resumeResult;
+            }
+        } else {
+            // Update the invitation record to declined
+            \App\Models\Invitation::where('type', 'resume_request')
+                ->where('game_id', $gameId)
+                ->where('invited_id', $userId)
+                ->where('status', 'pending')
+                ->update([
+                    'status' => 'declined',
+                    'responded_by' => $userId,
+                    'responded_at' => now()
+                ]);
+
+            // Request declined
+            $game->update([
+                'resume_status' => 'none',
+                'resume_requested_by' => null,
+                'resume_requested_at' => null,
+                'resume_request_expires_at' => null
+            ]);
+
+            // Broadcast resume declined event
+            Log::info('📨 Broadcasting ResumeRequestResponse event (declined)', [
+                'game_id' => $gameId,
+                'declined_by' => $userId,
+                'requested_by' => $game->resume_requested_by,
+                'channel' => "App.Models.User.{$game->resume_requested_by}",
+                'event' => 'resume.request.response'
+            ]);
+            broadcast(new \App\Events\ResumeRequestResponse($game, 'declined', $userId));
+
+            Log::info('Resume request declined', [
+                'game_id' => $gameId,
+                'declined_by' => $userId,
+                'requested_by' => $game->resume_requested_by
+            ]);
+
+            return [
+                'success' => true,
+                'resume_status' => 'declined',
+                'message' => 'Resume request declined'
+            ];
+        }
     }
 
     /**

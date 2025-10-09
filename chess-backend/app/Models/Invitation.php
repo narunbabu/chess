@@ -16,12 +16,16 @@ class Invitation extends Model
         'game_id',
         'inviter_preferred_color',
         'responded_by',
-        'responded_at'
+        'responded_at',
+        'type',
+        'expires_at'
     ];
 
     protected $casts = [
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+        'responded_at' => 'datetime',
+        'expires_at' => 'datetime',
     ];
 
     public function inviter()
@@ -47,6 +51,35 @@ class Invitation extends Model
         return $query->where('status', 'accepted')
             ->whereHas('game', function ($q) {
                 $q->whereNotIn('status', ['finished', 'completed', 'aborted']);
+            });
+    }
+
+    /**
+     * Scope to get only resume requests
+     */
+    public function scopeResumeRequests($query)
+    {
+        return $query->where('type', 'resume_request');
+    }
+
+    /**
+     * Scope to get only game invitations
+     */
+    public function scopeGameInvitations($query)
+    {
+        return $query->where('type', 'game_invitation');
+    }
+
+    /**
+     * Scope to get only active (non-expired) resume requests
+     */
+    public function scopeActiveResumeRequests($query)
+    {
+        return $query->where('type', 'resume_request')
+            ->where('status', 'pending')
+            ->where(function ($q) {
+                $q->whereNull('expires_at')
+                  ->orWhere('expires_at', '>', now());
             });
     }
 }

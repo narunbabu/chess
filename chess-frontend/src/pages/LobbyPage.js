@@ -1,7 +1,7 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { trackSocial, trackUI } from '../utils/analytics';
+import { trackSocial } from '../utils/analytics';
 import api from '../services/api';
 import WebSocketGameService from '../services/WebSocketGameService';
 import { getEcho } from '../services/echoSingleton';
@@ -507,9 +507,56 @@ const LobbyPage = () => {
       return;
     }
 
-    // If accepting and no color choice provided, show modal
+    // Find the invitation to determine its type
+    const invitation = pendingInvitations.find(inv => inv.id === invitationId);
+    if (!invitation) {
+      console.error('Invitation not found:', invitationId);
+      return;
+    }
+
+    // Handle resume requests differently
+    if (invitation.type === 'resume_request') {
+      console.log(`Processing resume request ${invitationId} with action: ${action}`);
+      setProcessingInvitations(prev => new Set(prev).add(invitationId));
+
+      try {
+        if (!invitation.game_id) {
+          throw new Error('Resume request missing game_id');
+        }
+
+        const requestData = { response: action === 'accept' };
+        const response = await api.post(`/api/websocket/games/${invitation.game_id}/respond-resume-request`, requestData);
+        console.log('Resume request response successful:', response.data);
+
+        // Remove from pending list
+        setPendingInvitations(prev => prev.filter(inv => inv.id !== invitationId));
+
+        if (action === 'accept' && response.data.success) {
+          // Navigate to the game
+          navigate(`/play/multiplayer/${invitation.game_id}`);
+        }
+
+      } catch (error) {
+        console.error('Failed to respond to resume request:', error);
+        // Add it back to pending if there was an error
+        setPendingInvitations(prev => {
+          if (!prev.find(inv => inv.id === invitationId)) {
+            return [...prev, invitation];
+          }
+          return prev;
+        });
+      } finally {
+        setProcessingInvitations(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(invitationId);
+          return newSet;
+        });
+      }
+      return;
+    }
+
+    // If accepting and no color choice provided, show modal (for game invitations)
     if (action === 'accept' && !colorChoice) {
-      const invitation = pendingInvitations.find(inv => inv.id === invitationId);
       setSelectedInvitation(invitation);
       setShowResponseModal(true);
       return;

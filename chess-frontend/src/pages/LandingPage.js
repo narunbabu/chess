@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { trackNavigation, trackUI } from '../utils/analytics';
+import { trackUI } from '../utils/analytics';
 import AuthGateModal from '../components/layout/AuthGateModal';
-import Background from '../components/layout/Background';
 import chessPlayingKids from '../assets/images/chess-playing-kids-crop.png';
 import '../styles/UnifiedCards.css';
 
@@ -12,14 +11,6 @@ const LandingPage = () => {
   const [loginType, setLoginType] = useState('guest');
   const [showAuthGate, setShowAuthGate] = useState(false);
   const navigate = useNavigate();
-
-  const handlePlay = () => {
-    if (loginType === 'guest') {
-      navigate('/play');
-    } else {
-      navigate('/login');
-    }
-  };
 
   const stats = [
     { number: '12M+', label: 'Happy Kids', icon: '😊' },

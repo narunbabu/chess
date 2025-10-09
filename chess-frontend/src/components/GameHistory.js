@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import ReactDOM from 'react-dom'; // Import ReactDOM
-import { useNavigate, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { useAppData } from "../contexts/AppDataContext";
 import {
   getGameHistories,
@@ -39,8 +39,7 @@ const GameHistory = () => {
   const [gifExporting, setGifExporting] = useState(false); // State for GIF export loading
   const [mp4Exporting, setMp4Exporting] = useState(false); // State for MP4 export loading
 
-  const navigate = useNavigate();
-
+  
   // Handle incoming game ID from navigation state
   useEffect(() => {
     if (location.state?.gameIdToSelect) {

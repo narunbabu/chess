@@ -31,7 +31,18 @@ class Game extends Model
         'paused_at',
         'paused_reason',
         'last_heartbeat_at',
-        'parent_game_id'
+        'parent_game_id',
+        // Pause time tracking
+        'white_time_paused_ms',
+        'black_time_paused_ms',
+        'turn_at_pause',
+        'white_grace_time_ms',
+        'black_grace_time_ms',
+        // Resume request tracking
+        'resume_requested_by',
+        'resume_requested_at',
+        'resume_request_expires_at',
+        'resume_status'
     ];
 
     protected $casts = [
@@ -40,8 +51,15 @@ class Game extends Model
         'ended_at' => 'datetime',
         'paused_at' => 'datetime',
         'last_heartbeat_at' => 'datetime',
+        'resume_requested_at' => 'datetime',
+        'resume_request_expires_at' => 'datetime',
         'status_id' => 'integer',
-        'end_reason_id' => 'integer'
+        'end_reason_id' => 'integer',
+        'white_time_paused_ms' => 'integer',
+        'black_time_paused_ms' => 'integer',
+        'white_grace_time_ms' => 'integer',
+        'black_grace_time_ms' => 'integer',
+        'resume_requested_by' => 'integer'
     ];
 
     /**

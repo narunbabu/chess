@@ -774,4 +774,105 @@ class WebSocketController extends Controller
             ], 400);
         }
     }
+
+    /**
+     * Handle game pause request (inactivity detection)
+     */
+    public function pauseGame(Request $request, int $gameId): JsonResponse
+    {
+        try {
+            $result = $this->gameRoomService->pauseGame($gameId, Auth::id());
+
+            Log::info('Game paused due to inactivity', [
+                'user_id' => Auth::id(),
+                'game_id' => $gameId,
+                'reason' => 'inactivity',
+                'result' => $result['result'] ?? null
+            ]);
+
+            return response()->json($result);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to pause game', [
+                'user_id' => Auth::id(),
+                'game_id' => $gameId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to pause game',
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Handle resume request for paused game
+     */
+    public function requestResume(Request $request, int $gameId): JsonResponse
+    {
+        try {
+            $result = $this->gameRoomService->requestResume($gameId, Auth::id());
+
+            Log::info('Resume request sent', [
+                'user_id' => Auth::id(),
+                'game_id' => $gameId,
+                'result' => $result
+            ]);
+
+            return response()->json($result);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to request resume', [
+                'user_id' => Auth::id(),
+                'game_id' => $gameId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to request resume',
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Handle response to resume request
+     */
+    public function respondToResumeRequest(Request $request, int $gameId): JsonResponse
+    {
+        $request->validate([
+            'response' => 'required|boolean' // true for accept, false for decline
+        ]);
+
+        try {
+            $result = $this->gameRoomService->respondToResumeRequest(
+                $gameId,
+                Auth::id(),
+                $request->input('response')
+            );
+
+            Log::info('Resume request response', [
+                'user_id' => Auth::id(),
+                'game_id' => $gameId,
+                'response' => $request->input('response'),
+                'result' => $result
+            ]);
+
+            return response()->json($result);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to respond to resume request', [
+                'user_id' => Auth::id(),
+                'game_id' => $gameId,
+                'response' => $request->input('response'),
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to respond to resume request',
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
 }
