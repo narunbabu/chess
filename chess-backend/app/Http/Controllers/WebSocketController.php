@@ -937,4 +937,48 @@ class WebSocketController extends Controller
             ], 400);
         }
     }
+
+    /**
+     * Get move history for a game (for timer calculation)
+     */
+    public function getMoves(Request $request, int $gameId): JsonResponse
+    {
+        try {
+            $game = Game::findOrFail($gameId);
+            $user = Auth::user();
+
+            // Authorization check - only players in the game can access moves
+            if ($game->white_player_id !== $user->id && $game->black_player_id !== $user->id) {
+                return response()->json(['error' => 'Unauthorized'], 403);
+            }
+
+            $moves = \App\Models\GameMove::where('game_id', $gameId)
+                ->orderBy('move_number', 'asc')
+                ->select(['move_number', 'time_taken_ms', 'move_notation', 'move_timestamp'])
+                ->get();
+
+            Log::info('Move history fetched for timer calculation', [
+                'user_id' => $user->id,
+                'game_id' => $gameId,
+                'move_count' => $moves->count()
+            ]);
+
+            return response()->json([
+                'moves' => $moves,
+                'time_control_minutes' => $game->time_control_minutes
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch move history', [
+                'user_id' => Auth::id(),
+                'game_id' => $gameId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to fetch move history',
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
 }

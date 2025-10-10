@@ -99,6 +99,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Ping opponent (remind them to move)
         Route::post('/games/{gameId}/ping-opponent', [WebSocketController::class, 'pingOpponent']);
+
+        // Get move history for timer calculation
+        Route::get('/games/{gameId}/moves', [WebSocketController::class, 'getMoves']);
     });
 });
 
