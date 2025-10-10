@@ -23,25 +23,27 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Step 1: Create new indexes on status_id FIRST (before dropping old ones)
+        // This ensures foreign keys have required indexes in MySQL
         Schema::table('games', function (Blueprint $table) {
-            // Drop indexes that reference the status column first (SQLite requirement)
+            $table->index(['white_player_id', 'status_id'], 'games_white_player_id_status_id_index');
+            $table->index(['black_player_id', 'status_id'], 'games_black_player_id_status_id_index');
+            $table->index(['status_id'], 'games_status_id_index');
+        });
+
+        // Step 2: Drop old indexes that reference the status column
+        Schema::table('games', function (Blueprint $table) {
+            // These may be used by foreign keys in MySQL, so drop carefully
             $table->dropIndex(['white_player_id', 'status']); // games_white_player_id_status_index
             $table->dropIndex(['black_player_id', 'status']); // games_black_player_id_status_index
             $table->dropIndex(['status']); // games_status_index
         });
 
+        // Step 3: Now we can safely drop the old ENUM columns
+        // The FK columns (status_id, end_reason_id) now contain all the data
         Schema::table('games', function (Blueprint $table) {
-            // Now we can safely drop the old ENUM columns
-            // The FK columns (status_id, end_reason_id) now contain all the data
             $table->dropColumn('status');
             $table->dropColumn('end_reason');
-        });
-
-        // Recreate indexes using status_id instead
-        Schema::table('games', function (Blueprint $table) {
-            $table->index(['white_player_id', 'status_id'], 'games_white_player_id_status_id_index');
-            $table->index(['black_player_id', 'status_id'], 'games_black_player_id_status_id_index');
-            $table->index(['status_id'], 'games_status_id_index');
         });
 
         // Log the change
