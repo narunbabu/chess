@@ -20,6 +20,8 @@ return new class extends Migration
             $table->unsignedBigInteger('responded_by')->nullable();
             $table->timestamp('responded_at')->nullable();
             $table->foreignId('game_id')->nullable()->constrained('games')->onDelete('set null');
+            $table->enum('type', ['game_invitation', 'resume_request'])->default('game_invitation');
+            $table->timestamp('expires_at')->nullable();
             $table->timestamps();
 
             // Foreign keys
