@@ -65,6 +65,27 @@ return new class extends Migration
      */
     public function down(): void
     {
+        // For SQLite: Drop indexes that might reference status_id first
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            // Query sqlite_master to find all indexes on the games table that include status_id
+            $indexes = DB::select("
+                SELECT name FROM sqlite_master
+                WHERE type = 'index'
+                AND tbl_name = 'games'
+                AND sql LIKE '%status_id%'
+            ");
+
+            Schema::table('games', function (Blueprint $table) use ($indexes) {
+                foreach ($indexes as $index) {
+                    try {
+                        $table->dropIndex($index->name);
+                    } catch (\Exception $e) {
+                        // Index might not exist or already dropped, continue
+                    }
+                }
+            });
+        }
+
         Schema::table('games', function (Blueprint $table) {
             $table->dropForeign(['status_id']);
             $table->dropForeign(['end_reason_id']);

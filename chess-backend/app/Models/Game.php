@@ -56,6 +56,8 @@ class Game extends Model
         'resume_request_expires_at' => 'datetime',
         'status_id' => 'integer',
         'end_reason_id' => 'integer',
+        'white_player_id' => 'integer',
+        'black_player_id' => 'integer',
         'white_time_paused_ms' => 'integer',
         'black_time_paused_ms' => 'integer',
         'white_grace_time_ms' => 'integer',
