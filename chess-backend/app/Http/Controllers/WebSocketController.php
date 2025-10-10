@@ -952,15 +952,14 @@ class WebSocketController extends Controller
                 return response()->json(['error' => 'Unauthorized'], 403);
             }
 
-            $moves = \App\Models\GameMove::where('game_id', $gameId)
-                ->orderBy('move_number', 'asc')
-                ->select(['move_number', 'time_taken_ms', 'move_notation', 'move_timestamp'])
-                ->get();
+            // Get moves from the games.moves JSON column
+            $moves = $game->moves ?? [];
 
             Log::info('Move history fetched for timer calculation', [
                 'user_id' => $user->id,
                 'game_id' => $gameId,
-                'move_count' => $moves->count()
+                'move_count' => count($moves),
+                'moves_preview' => array_slice($moves, 0, 3) // Log first 3 moves for debugging
             ]);
 
             return response()->json([
