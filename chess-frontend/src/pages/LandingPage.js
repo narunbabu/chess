@@ -13,11 +13,11 @@ const LandingPage = () => {
   const navigate = useNavigate();
 
   const stats = [
-    { number: '12M+', label: 'Happy Kids', icon: '😊' },
-    { number: '28,000+', label: 'Schools', icon: '🏫' },
-    { number: '91M+', label: 'Games Played', icon: '♟️' },
-    { number: '113M+', label: 'Puzzles Solved', icon: '🧩' },
-    { number: '16M+', label: 'Lessons Taken', icon: '📚' }
+    { number: '12M+', label: 'Happy Kids', icon: '😊', colorClass: 'bg-orange' },
+    { number: '28,000+', label: 'Schools', icon: '🏫', colorClass: 'bg-blue' },
+    { number: '91M+', label: 'Games Played', icon: '♟️', colorClass: 'bg-green' },
+    { number: '113M+', label: 'Puzzles Solved', icon: '🧩', colorClass: 'bg-purple' },
+    { number: '16M+', label: 'Lessons Taken', icon: '📚', colorClass: 'bg-pink' }
   ];
 
   return (
@@ -29,12 +29,12 @@ const LandingPage = () => {
             <span className="text-xl sm:text-2xl font-bold drop-shadow">♟️</span>
             <span className="ml-2 text-lg sm:text-xl font-bold drop-shadow">Chess99</span>
           </div>
-          <nav className="hidden md:flex items-center space-x-4 lg:space-x-8">
-            <button onClick={() => navigate('/play')} className="hover:text-yellow-300 transition-colors text-sm lg:text-base font-medium">Play</button>
-            <Link to="/puzzles" className="hover:text-yellow-300 transition-colors text-sm lg:text-base font-medium">Puzzles</Link>
-            <Link to="/learn" className="hover:text-yellow-300 transition-colors text-sm lg:text-base font-medium">Learn</Link>
-            <button className="hover:text-yellow-300 transition-colors text-sm lg:text-base font-medium">Events</button>
-            <button className="hover:text-yellow-300 transition-colors text-sm lg:text-base font-medium">Resources</button>
+          <nav className="flex items-center space-x-2 sm:space-x-4 lg:space-x-8">
+            <button onClick={() => navigate('/play')} className="hover:text-yellow-300 transition-colors text-xs sm:text-sm lg:text-base font-medium">Play</button>
+            <Link to="/puzzles" className="hover:text-yellow-300 transition-colors text-xs sm:text-sm lg:text-base font-medium">Puzzles</Link>
+            <Link to="/learn" className="hover:text-yellow-300 transition-colors text-xs sm:text-sm lg:text-base font-medium">Learn</Link>
+            <button className="hover:text-yellow-300 transition-colors text-xs sm:text-sm lg:text-base font-medium">Events</button>
+            <button className="hover:text-yellow-300 transition-colors text-xs sm:text-sm lg:text-base font-medium">Resources</button>
           </nav>
           <div className="flex items-center space-x-2 sm:space-x-4">
             {!isAuthenticated && (
@@ -75,16 +75,19 @@ const LandingPage = () => {
             alt="Kids playing chess"
             className="absolute inset-0 w-full h-full object-cover object-center"
           />
+          <div className="hero-soft-glow" />
           <div className="absolute inset-0 bg-gradient-to-b from-sky-400/10 via-sky-300/5 to-sky-200/10"></div>
 
           {/* Content overlay */}
-          <div className="relative z-10 h-full flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 xl:px-12 py-12">
-            {/* Headline */}
+          <div className="relative z-10 h-full flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 xl:px-12 py-24 lg:py-32">
+            {/* Headline with dark backdrop */}
             <div className="text-center text-white mb-8 sm:mb-12 w-full">
-               <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-4 drop-shadow-2xl px-4">
-                India's Chess best Site for Kids
-              </h1> 
-              <p className="text-lg sm:text-xl md:text-2xl opacity-95 drop-shadow-lg px-4">Learn, Play, and Have Fun with Chess!</p>
+               <div className="inline-block rounded-2xl bg-black/30 backdrop-blur-sm px-6 py-4">
+                 <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-4 px-4">
+                   India's Best Chess Site for Kids
+                 </h1>
+                 <p className="text-lg sm:text-xl md:text-2xl opacity-95 px-4">Learn, Play, and Have Fun with Chess!</p>
+               </div>
             </div>
 
             {/* Quick Login Options */}
@@ -147,51 +150,30 @@ const LandingPage = () => {
                   </div>
                 </div>
               ) : (
-                <div className="unified-card-grid cols-1 sm:cols-3 gap-4 sm:gap-6">
-                  <div className="unified-card centered">
-                    <div className="unified-card-avatar">🤖</div>
-                    <h3 className="unified-card-title">Play Computer Now</h3>
-                    <div className="unified-card-actions">
-                      <button
-                        onClick={() => {
-                          trackUI('cta_button', 'click', { button: 'play_computer', location: 'landing_hero' });
-                          navigate('/play');
-                        }}
-                        className="unified-card-btn primary"
-                      >
-                        Play
-                      </button>
-                    </div>
-                  </div>
-                  <div className="unified-card centered">
-                    <div className="unified-card-avatar">👥</div>
-                    <h3 className="unified-card-title">Play with Friends</h3>
-                    <div className="unified-card-actions">
-                      <button
-                        onClick={() => {
-                          trackUI('cta_button', 'click', { button: 'play_friends', location: 'landing_hero' });
-                          setShowAuthGate(true);
-                        }}
-                        className="unified-card-btn secondary"
-                      >
-                        Play
-                      </button>
-                    </div>
-                  </div>
-                  <div className="unified-card centered">
-                    <div className="unified-card-avatar">📚</div>
-                    <h3 className="unified-card-title">Learn Chess</h3>
-                    <div className="unified-card-actions">
-                      <button
-                        onClick={() => {
-                          trackUI('cta_button', 'click', { button: 'learn_chess', location: 'landing_hero' });
-                          navigate('/learn');
-                        }}
-                        className="unified-card-btn neutral"
-                      >
-                        Learn
-                      </button>
-                    </div>
+                <div className="unified-card max-w-sm sm:max-w-md mx-auto">
+                  <h3 className="unified-card-title centered text-2xl">Start Your Adventure!</h3>
+                  <div className="unified-card-actions vertical">
+                    <button
+                      onClick={() => navigate('/play')}
+                      className="unified-card-btn primary"
+                    >
+                      <span className="mr-2">🤖</span>
+                      Play vs. Computer
+                    </button>
+                    <button
+                      onClick={() => setShowAuthGate(true)}
+                      className="unified-card-btn secondary"
+                    >
+                      <span className="mr-2">👥</span>
+                      Play with Friends
+                    </button>
+                    <button
+                      onClick={() => navigate('/learn')}
+                      className="unified-card-btn neutral"
+                    >
+                      <span className="mr-2">📚</span>
+                      Learn Chess
+                    </button>
                   </div>
                 </div>
               )}
@@ -203,37 +185,44 @@ const LandingPage = () => {
       </section>
 
       {/* Stats Section */}
-      <div className="unified-section py-16 bg-white">
-        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12">
-          <div className="unified-card-grid cols-2 md:cols-5 gap-4 sm:gap-6 lg:gap-8">
+      <section className="stats-band bg-sky-50 relative">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-16">
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-center mb-8 lg:mb-12" style={{color: 'var(--ink)'}}>
+            Our Impact in Numbers
+          </h2>
+          <div className="unified-card-grid cols-2 md:cols-5 gap-6 sm:gap-8">
             {stats.map((stat, index) => (
-              <div key={index} className="unified-card centered">
+              <div key={index} className={`unified-card light-theme stat centered ${stat.colorClass}`}>
                 <div className="unified-card-avatar">{stat.icon}</div>
-                <div className="unified-card-title">{stat.number}</div>
+                <div className="unified-card-title counter" data-target={stat.number}>
+                  {stat.number}
+                </div>
                 <div className="unified-card-subtitle">{stat.label}</div>
               </div>
             ))}
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Features Section */}
-      <div className="unified-section py-16 bg-gray-50">
-        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12">
-          <h2 className="unified-section-header text-2xl sm:text-3xl lg:text-4xl font-bold text-center text-gray-800 mb-8 lg:mb-12">
-            Play Chess with Other Kids
-          </h2>
-          <p className="text-center text-gray-600 mb-8 text-sm sm:text-base">
-            Learning with ChessKid is fun! Play games, watch video lessons, and solve fun puzzles!
-          </p>
+      <section className="features-band bg-gradient-to-br from-slate-50 to-gray-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-20">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold mb-6" style={{color: 'var(--ink)'}}>
+              Play Chess with Other Kids
+            </h2>
+            <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+              Learning with ChessKid is fun! Play games, watch video lessons, and solve fun puzzles!
+            </p>
+          </div>
 
-          <div className="unified-card-grid cols-1 sm:cols-2 lg:cols-3 gap-6 lg:gap-8">
+          <div className="unified-card-grid cols-1 sm:cols-2 lg:cols-3 gap-8 lg:gap-10">
             <Link
               to="/puzzles"
               className="group"
               onClick={() => trackUI('feature_card', 'click', { feature: 'puzzles', location: 'landing_features' })}
             >
-              <div className="unified-card h-full">
+              <div className="unified-card light-theme accented h-full cursor-pointer">
                 <div className="unified-card-avatar">🧩</div>
                 <h3 className="unified-card-title centered">Solve Puzzles</h3>
                 <p className="unified-card-subtitle centered">Challenge yourself with thousands of chess puzzles</p>
@@ -245,36 +234,34 @@ const LandingPage = () => {
               className="group"
               onClick={() => trackUI('feature_card', 'click', { feature: 'learn', location: 'landing_features' })}
             >
-              <div className="unified-card h-full">
+              <div className="unified-card light-theme accented h-full cursor-pointer">
                 <div className="unified-card-avatar">📚</div>
                 <h3 className="unified-card-title centered">Start Learning</h3>
                 <p className="unified-card-subtitle centered">Watch fun videos and interactive lessons</p>
               </div>
             </Link>
 
-            <button
-              onClick={() => {
-                trackUI('feature_card', 'click', { feature: 'tournaments', location: 'landing_features' });
-                navigate('/play');
-              }}
-              className="group text-left w-full"
+            <Link
+              to="/tournaments" // Or '/play', '/lobby', etc.
+              className="group"
+              onClick={() => trackUI('feature_card', 'click', { feature: 'tournaments', location: 'landing_features' })}
             >
-              <div className="unified-card h-full">
+              <div className="unified-card light-theme accented h-full cursor-pointer">
                 <div className="unified-card-avatar">🏆</div>
                 <h3 className="unified-card-title centered">Join Tournaments</h3>
                 <p className="unified-card-subtitle centered">Compete with players from around the world</p>
               </div>
-            </button>
+            </Link>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Footer */}
-      <footer className="bg-gray-800 text-white py-8">
-        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12">
+      <footer className="bg-gray-900 text-white py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-12">
           <div className="text-center">
-            <p className="text-gray-400 text-sm sm:text-base">© 2024 ChessKid. Making Chess Fun for Kids!</p>
-            <div className="mt-4 flex flex-wrap justify-center gap-4 sm:gap-6">
+            <p className="text-gray-400 text-sm sm:text-base mb-6">© 2024 Chess99. Making Chess Fun for Kids!</p>
+            <div className="flex flex-wrap justify-center gap-6 sm:gap-8">
               <Link to="/puzzles" className="text-gray-400 hover:text-white transition-colors text-sm sm:text-base">Puzzles</Link>
               <Link to="/learn" className="text-gray-400 hover:text-white transition-colors text-sm sm:text-base">Learn</Link>
               <button className="text-gray-400 hover:text-white transition-colors text-sm sm:text-base">About</button>

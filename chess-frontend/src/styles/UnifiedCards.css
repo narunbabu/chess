@@ -3,6 +3,15 @@
    Used across Dashboard, Lobby, and all pages
    ========================================= */
 
+/* CSS Variables for brand palette */
+:root{
+  --brand: #0284c7;   /* sky-600 */
+  --brand-2: #0ea5e9; /* sky-500 */
+  --accent: #f59e0b;  /* amber-500 */
+  --success:#10b981;  /* emerald-500 */
+  --ink: #1f2937;     /* slate-800 */
+}
+
 /* Base Card Container */
 .unified-card {
   background: rgba(255, 255, 255, 0.1);
@@ -10,7 +19,7 @@
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.2);
   padding: 1.25rem;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
   transition: all 0.3s ease;
   overflow: hidden;
   display: flex;
@@ -18,9 +27,23 @@
   gap: 0.75rem;
 }
 
+/* Light theme variant for cards on white/gray backgrounds */
+.unified-card.light-theme {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  transition: all 0.2s ease-in-out;
+}
+
+.unified-card.light-theme:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+  border-color: #d1d5db;
+}
+
 .unified-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
   border-color: rgba(255, 255, 255, 0.3);
 }
 
@@ -39,6 +62,151 @@
   border: 2px solid rgba(114, 137, 218, 0.5);
   flex-shrink: 0;
   object-fit: cover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+}
+
+/* Light theme avatar styling */
+.unified-card.light-theme .unified-card-avatar {
+  border: none;
+  background: #f0f2f5;
+  color: #4b5563;
+}
+
+/* Stat card variant */
+.unified-card.stat {
+  text-align:center;
+  min-height: 180px;
+  transition: transform .25s ease, box-shadow .25s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.unified-card.stat::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--brand), var(--brand-2));
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.unified-card.stat:hover::before {
+  opacity: 1;
+}
+
+.unified-card.stat .unified-card-avatar{
+  width:72px; height:72px; margin:0;
+  background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+  color: var(--brand);
+  font-size: 1.75rem;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.15);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.unified-card.stat:hover .unified-card-avatar {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(2, 132, 199, 0.25);
+}
+
+.unified-card.stat .unified-card-title{
+  font-size:2.25rem; /* 3xl+ */
+  font-weight:900;
+  color: var(--ink);
+  letter-spacing:-0.03em;
+  line-height: 1;
+  margin: 0;
+}
+
+.unified-card.stat .unified-card-subtitle{
+  font-size:0.875rem;
+  text-transform:uppercase;
+  letter-spacing:0.1em;
+  color: #64748b;
+  font-weight: 600;
+  margin: 0;
+}
+
+.unified-card.stat:hover{
+  transform:translateY(-8px) scale(1.02);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+}
+
+/* Accent card variant */
+.unified-card.accented {
+  border-top-width: 4px;
+  border-top-color: var(--brand, #0284c7);
+  position: relative;
+  overflow: hidden;
+}
+
+.unified-card.accented::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.02) 0%, rgba(14, 165, 233, 0.01) 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.unified-card.accented:hover::before {
+  opacity: 1;
+}
+
+.unified-card.light-theme.accented .unified-card-avatar {
+  background: linear-gradient(135deg, var(--brand), var(--brand-2));
+  color: white;
+  box-shadow: 0 4px 16px rgba(2, 132, 199, 0.25);
+  transition: all 0.3s ease;
+}
+
+.unified-card.light-theme.accented:hover .unified-card-avatar {
+  transform: translateY(-4px) scale(1.05);
+  box-shadow: 0 8px 24px rgba(2, 132, 199, 0.35);
+}
+
+.unified-card.light-theme.accented:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.12);
+  border-top-color: var(--brand-2);
+}
+
+.unified-card-avatar.bg-blue {
+  background-color: #e0e7ff;
+  color: #3730a3;
+}
+
+.unified-card-avatar.bg-green {
+  background-color: #d1fae5;
+  color: #047857;
+}
+
+.unified-card-avatar.bg-orange {
+  background-color: #ffedd5;
+  color: #9a3412;
+}
+
+.unified-card-avatar.bg-purple {
+  background-color: #f3e8ff;
+  color: #6b21a8;
+}
+
+.unified-card-avatar.bg-pink {
+  background-color: #fce7f3;
+  color: #9d174d;
 }
 
 .unified-card.horizontal .unified-card-avatar {
@@ -72,6 +240,18 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Light theme text colors */
+.unified-card.light-theme .unified-card-title {
+  color: #1f2937;
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.unified-card.light-theme .unified-card-subtitle {
+  color: #6b7280;
+  font-size: 0.875rem;
 }
 
 .unified-card-meta {
@@ -120,24 +300,24 @@
 }
 
 .unified-card-btn.primary {
-  background: linear-gradient(135deg, #7289da, #5f73bc);
+  background: linear-gradient(135deg, var(--brand), var(--brand-2));
   color: white;
-  box-shadow: 0 2px 8px rgba(114, 137, 218, 0.3);
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3);
 }
 
 .unified-card-btn.primary:hover {
-  background: linear-gradient(135deg, #5f73bc, #4e5d94);
+  background: linear-gradient(135deg, var(--brand-2), #0284c7);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(114, 137, 218, 0.4);
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4);
 }
 
 .unified-card-btn.secondary {
-  background-color: #43b581;
+  background-color: var(--success);
   color: white;
 }
 
 .unified-card-btn.secondary:hover {
-  background-color: #3ca374;
+  background-color: #0d9488;
   transform: translateY(-1px);
 }
 
