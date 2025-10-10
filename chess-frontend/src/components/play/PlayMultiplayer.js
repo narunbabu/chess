@@ -15,7 +15,8 @@ import { getEcho } from '../../services/echoSingleton';
 import { evaluateMove } from '../../utils/gameStateUtils';
 import { encodeGameHistory } from '../../utils/gameHistoryStringUtils';
 import { saveGameHistory } from '../../services/gameHistoryService';
-import { useGameTimer } from '../../utils/timerUtils';
+import { useGameTimer, formatTime } from '../../utils/timerUtils';
+import { calculateRemainingTime } from '../../utils/timerCalculator';
 
 // Import sounds
 import moveSound from '../../assets/sounds/move.mp3';
@@ -63,13 +64,20 @@ const PlayMultiplayer = () => {
   const [isLobbyResume, setIsLobbyResume] = useState(false); // Track if this is a lobby-initiated resume
   const [shouldAutoSendResume, setShouldAutoSendResume] = useState(false); // Trigger auto-send after initialization
 
+  // Initial timer state (calculated from move history)
+  const [initialTimerState, setInitialTimerState] = useState({
+    whiteMs: 10 * 60 * 1000,
+    blackMs: 10 * 60 * 1000
+  });
+
   // Refs for stable inactivity detection and timers
   const lastActivityTimeRef = useRef(Date.now());
   const enabledRef = useRef(true);
   const gameActiveRef = useRef(false);
   const showPresenceDialogRef = useRef(false);
   const inactivityCheckIntervalRef = useRef(null); // For setInterval (checking every 1s)
-  const inactivityTimerRef = useRef(null); // For setTimeout (10s countdown after dialog)
+  // Note: inactivityTimerRef removed - the PresenceConfirmationDialogSimple component
+  // now handles its own countdown timer internally via the onCloseTimeout callback
   const isPausingRef = useRef(false);
   const resumeRequestTimer = useRef(null); // Ref for countdown timer
   const hasAutoRequestedResume = useRef(false); // Prevent duplicate auto-requests
@@ -90,28 +98,46 @@ const PlayMultiplayer = () => {
   const wsService = useRef(null);
   const moveStartTimeRef = useRef(null); // Tracks when current turn started for move timing
 
-  // Memoize timer callback to prevent infinite re-renders
-  const handleTimerStatusChange = useCallback((status) => {
-    setGameInfo(prev => ({ ...prev, status }));
+  // Derive player color from IDs (single source of truth)
+  // Don't store in state - compute every render to stay in sync
+  const myColor = React.useMemo(() => {
+    if (!user?.id || !gameData) return null;
+    const userId = parseInt(user.id);
+    const whiteId = parseInt(gameData.white_player_id);
+    const blackId = parseInt(gameData.black_player_id);
+
+    if (userId === whiteId) return 'w';
+    if (userId === blackId) return 'b';
+
+    console.error('🚨 User ID does not match any player:', { userId, whiteId, blackId });
+    return null;
+  }, [user?.id, gameData?.white_player_id, gameData?.black_player_id]);
+
+  // Server turn comes from game state
+  const serverTurn = gameInfo.turn === 'white' ? 'w' : gameInfo.turn === 'black' ? 'b' : null;
+
+  // Use the same truth for both UI and timer
+  const isMyTurn = (myColor && serverTurn) ? (myColor === serverTurn) : false;
+
+  // Timer flag callback
+  const handleTimerFlag = useCallback((who) => {
+    console.log('[Timer] Flag:', who);
+    setGameInfo(prev => ({
+      ...prev,
+      status: 'finished'
+    }));
+    // TODO: Send time-out event to server
   }, []);
 
-  // Timer hook for multiplayer game - using playerColor and opponentColor instead of computerTime
-  const playerColor = gameInfo.playerColor === 'white' ? 'w' : 'b';
-  const opponentColor = playerColor === 'w' ? 'b' : 'w';
-
-  const {
-    playerTime,
-    computerTime: opponentTime, // Rename computerTime to opponentTime for clarity
-    activeTimer,
-    isTimerRunning,
-    setActiveTimer,
-    handleTimer: startTimerInterval,
-    switchTimer
-  } = useGameTimer(
-    playerColor,
-    game,
-    handleTimerStatusChange
-  );
+  // New simplified timer hook with calculated initial values
+  const { myMs, oppMs, setMyMs, setOppMs } = useGameTimer({
+    myColor,
+    serverTurn,
+    gameStatus: gameInfo.status,
+    onFlag: handleTimerFlag,
+    initialMyMs: myColor === 'w' ? initialTimerState.whiteMs : initialTimerState.blackMs,
+    initialOppMs: myColor === 'w' ? initialTimerState.blackMs : initialTimerState.whiteMs
+  });
 
   // Play sound helper
   const playSound = useCallback((soundEffect) => {
@@ -297,9 +323,56 @@ const PlayMultiplayer = () => {
 
       // Get user's color from server (authoritative source)
       // Priority: handshake response > game_state data > fallback calculation
-      const userColor = data.player_color ||
-                       data.game_state?.player_color ||
-                       (parseInt(data.white_player_id || data.game_state?.white_player_id) === parseInt(user?.id) ? 'white' : 'black');
+      console.log('🎨 DEBUG: Player color determination:', {
+        'data.player_color': data.player_color,
+        'data.game_state?.player_color': data.game_state?.player_color,
+        'userId': user?.id,
+        'userIdType': typeof user?.id,
+        'white_player_id': data.white_player_id,
+        'white_player_id_type': typeof data.white_player_id,
+        'black_player_id': data.black_player_id,
+        'black_player_id_type': typeof data.black_player_id,
+        'white_match_strict': data.white_player_id === user?.id,
+        'white_match_parsed': parseInt(data.white_player_id) === parseInt(user?.id),
+        'fallbackCalculation': (parseInt(data.white_player_id || data.game_state?.white_player_id) === parseInt(user?.id) ? 'white' : 'black')
+      });
+
+      // Use server-provided player_color as the authoritative source
+      // Fallback to calculation only if server doesn't provide it
+      let userColor;
+      if (data.player_color) {
+        userColor = data.player_color;
+        console.log('🎨 Using server-provided player_color:', userColor);
+      } else if (data.game_state?.player_color) {
+        userColor = data.game_state.player_color;
+        console.log('🎨 Using game_state player_color:', userColor);
+      } else {
+        // Fallback calculation - ensure proper type comparison
+        const whiteId = parseInt(data.white_player_id || data.game_state?.white_player_id);
+        const blackId = parseInt(data.black_player_id || data.game_state?.black_player_id);
+        const myId = parseInt(user?.id);
+
+        // Determine color based on player ID matching
+        if (myId === whiteId) {
+          userColor = 'white';
+        } else if (myId === blackId) {
+          userColor = 'black';
+        } else {
+          console.error('🚨 User ID does not match white or black player!', {
+            myId,
+            whiteId,
+            blackId
+          });
+          userColor = 'white'; // Default fallback
+        }
+
+        console.log('🎨 Using fallback calculation:', {
+          myId,
+          whiteId,
+          blackId,
+          result: userColor
+        });
+      }
       console.log('Board orientation setup:', {
         userId: user?.id,
         userIdType: typeof user?.id,
@@ -343,17 +416,70 @@ const PlayMultiplayer = () => {
       // Set game history from moves
       setGameHistory(data.moves || []);
 
-      // Initialize move timer if it's player's turn
-      if (data.turn === (userColor === 'white' ? 'w' : 'b')) {
-        moveStartTimeRef.current = performance.now();
+      // Fetch move history to calculate timer state
+      try {
+        const movesResponse = await fetch(`${BACKEND_URL}/websocket/games/${gameId}/moves`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        let calculatedWhiteMs = (data.time_control_minutes || 10) * 60 * 1000;
+        let calculatedBlackMs = (data.time_control_minutes || 10) * 60 * 1000;
+
+        if (movesResponse.ok) {
+          const movesData = await movesResponse.json();
+          const initialTimeMs = (movesData.time_control_minutes || 10) * 60 * 1000;
+
+          // Calculate remaining time from move history
+          const { whiteMs, blackMs } = calculateRemainingTime(
+            movesData.moves || [],
+            initialTimeMs
+          );
+
+          calculatedWhiteMs = whiteMs;
+          calculatedBlackMs = blackMs;
+
+          console.log('[Timer] Calculated from move history:', {
+            whiteMs: Math.floor(whiteMs / 1000) + 's',
+            blackMs: Math.floor(blackMs / 1000) + 's',
+            totalMoves: movesData.moves?.length || 0
+          });
+        } else {
+          console.warn('[Timer] Failed to fetch moves, using default 10min');
+        }
+
+        // Store these values to pass to timer hook
+        setInitialTimerState({
+          whiteMs: calculatedWhiteMs,
+          blackMs: calculatedBlackMs
+        });
+      } catch (error) {
+        console.error('[Timer] Error fetching move history:', error);
+        // Keep default 10min if fetch fails
       }
 
-      // Start game timer if game is active
-      if (data.status === 'active') {
-        const currentTurnColor = data.turn;
-        setActiveTimer(currentTurnColor);
-        startTimerInterval();
+      // Initialize move timer if it's player's turn
+      const isMyTurn = data.turn === (userColor === 'white' ? 'w' : 'b');
+      console.log('[MoveTimer] Initial setup:', {
+        dataTurn: data.turn,
+        userColor,
+        expectedTurn: userColor === 'white' ? 'w' : 'b',
+        isMyTurn
+      });
+
+      if (isMyTurn) {
+        moveStartTimeRef.current = performance.now();
+        console.log('[MoveTimer] Started tracking time for initial turn');
       }
+
+      // Timer will auto-start based on gameStatus === 'active'
+      console.log('[PlayMultiplayer] Initial game setup:', {
+        playerColor: userColor,
+        serverTurn: data.turn,
+        status: data.status
+      });
 
       // Initialize WebSocket connection
       wsService.current = new WebSocketGameService();
@@ -443,15 +569,59 @@ const PlayMultiplayer = () => {
   }, []);
 
   // Handle game resumed event
-  const handleGameResumed = useCallback((event) => {
+  const handleGameResumed = useCallback(async (event) => {
     console.log('🎮 Handling game resumed:', event);
+
+    // Re-fetch move history to get accurate timer state
+    try {
+      const token = localStorage.getItem('auth_token');
+      const movesResponse = await fetch(`${BACKEND_URL}/websocket/games/${gameId}/moves`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (movesResponse.ok) {
+        const movesData = await movesResponse.json();
+        const initialTimeMs = (movesData.time_control_minutes || 10) * 60 * 1000;
+
+        // Calculate base remaining time from move history
+        const { whiteMs, blackMs } = calculateRemainingTime(
+          movesData.moves || [],
+          initialTimeMs
+        );
+
+        // Apply grace time from backend (40 seconds bonus)
+        const whiteTimeWithGrace = whiteMs + (event.white_grace_time_ms || 0);
+        const blackTimeWithGrace = blackMs + (event.black_grace_time_ms || 0);
+
+        console.log('[Timer] Resume calculated:', {
+          whiteBase: Math.floor(whiteMs / 1000) + 's',
+          blackBase: Math.floor(blackMs / 1000) + 's',
+          whiteGrace: (event.white_grace_time_ms || 0) / 1000 + 's',
+          blackGrace: (event.black_grace_time_ms || 0) / 1000 + 's',
+          whiteFinal: Math.floor(whiteTimeWithGrace / 1000) + 's',
+          blackFinal: Math.floor(blackTimeWithGrace / 1000) + 's'
+        });
+
+        // Update timers based on player color
+        if (myColor === 'w') {
+          setMyMs(whiteTimeWithGrace);
+          setOppMs(blackTimeWithGrace);
+        } else if (myColor === 'b') {
+          setMyMs(blackTimeWithGrace);
+          setOppMs(whiteTimeWithGrace);
+        }
+      }
+    } catch (error) {
+      console.error('[Timer] Failed to recalculate on resume:', error);
+    }
 
     // Update game state to active
     setGameInfo(prev => ({
       ...prev,
       status: 'active',
-      white_time_remaining_ms: event.white_time_remaining_ms,
-      black_time_remaining_ms: event.black_time_remaining_ms,
       turn: event.turn
     }));
 
@@ -467,13 +637,9 @@ const PlayMultiplayer = () => {
 
     // Reset inactivity timer to start fresh from resume
     lastActivityTimeRef.current = Date.now();
-    if (inactivityTimerRef.current) {
-      clearTimeout(inactivityTimerRef.current);
-      inactivityTimerRef.current = null;
-    }
 
-    console.log('✅ Game resumed successfully - dialog closed, game state updated, inactivity timer reset');
-  }, []);
+    console.log('✅ Game resumed successfully - dialog closed, game state updated, timers recalculated, inactivity timer reset');
+  }, [gameId, myColor, setMyMs, setOppMs]);
 
   // Handle game paused event
   const handleGamePaused = useCallback((event) => {
@@ -510,7 +676,13 @@ const PlayMultiplayer = () => {
   // Handle incoming moves (always apply server's authoritative state)
   const handleRemoteMove = useCallback((event) => {
     try {
-      console.log('Processing move from server (authoritative):', event);
+      console.log('🎮 [handleRemoteMove] Processing move from server:', {
+        eventUserId: event.user_id,
+        currentUserId: user?.id,
+        isMyMove: event.user_id === user?.id,
+        eventTurn: event.turn,
+        currentPlayerColor: playerColorRef.current
+      });
 
       // Always apply the server's FEN as the source of truth
       const newGame = new Chess();
@@ -579,16 +751,19 @@ const PlayMultiplayer = () => {
       }
 
       // Start timing for player's turn
-      if (newTurn === gameInfo.playerColor) {
+      if (newTurn === playerColorRef.current) {
         moveStartTimeRef.current = performance.now();
+        console.log('[MoveTimer] Started tracking time after opponent move');
+      } else {
+        console.log('[MoveTimer] Not my turn, not tracking time');
       }
 
-      // Switch timer to the player whose turn it is
-      const newActiveColor = newTurn === 'white' ? 'w' : 'b';
-      switchTimer(newActiveColor);
-      if (!isTimerRunning && gameInfo.status === 'active') {
-        startTimerInterval();
-      }
+      // Timer will auto-update based on gameInfo.turn change (handled by useGameTimer hook)
+      console.log('[PlayMultiplayer] Move processed:', {
+        playerColor: playerColorRef.current,
+        newTurn: newTurn,
+        eventTurn: event.turn
+      });
 
       console.log('Move processed, updated turn to:', newTurn);
 
@@ -742,9 +917,9 @@ const PlayMultiplayer = () => {
       // Calculate final scores (use absolute values)
       const finalPlayerScore = Math.abs(playerScore);
 
-      // Get timer values for persistence
-      const whiteTimeRemaining = gameInfo.playerColor === 'white' ? playerTime * 1000 : opponentTime * 1000;
-      const blackTimeRemaining = gameInfo.playerColor === 'black' ? playerTime * 1000 : opponentTime * 1000;
+      // Get timer values for persistence (myMs and oppMs are already in milliseconds)
+      const whiteTimeRemaining = myColor === 'w' ? myMs : oppMs;
+      const blackTimeRemaining = myColor === 'b' ? myMs : oppMs;
 
       const gameHistoryData = {
         id: `multiplayer_${gameId}_${Date.now()}`,
@@ -800,7 +975,7 @@ const PlayMultiplayer = () => {
     }
 
     console.log('✅ Game completion processed, showing result modal');
-  }, [user?.id, gameId, gameHistory, gameInfo, playerScore, playerTime, opponentTime]);
+  }, [user?.id, gameId, gameHistory, gameInfo, playerScore, myMs, oppMs, myColor]);
 
   // Handle resign
   const handleResign = useCallback(async () => {
@@ -835,11 +1010,6 @@ const PlayMultiplayer = () => {
       setShowPresenceDialog(false);
       showPresenceDialogRef.current = false;
     }
-
-    if (inactivityTimerRef.current) {
-      clearTimeout(inactivityTimerRef.current);
-      inactivityTimerRef.current = null;
-    }
   }, []);
 
   // Remove mouse-based activity tracking - only track moves
@@ -860,6 +1030,8 @@ const PlayMultiplayer = () => {
   }, [gameComplete, gameInfo.status, showPresenceDialog]);
 
   // Keep turn and color refs fresh to prevent stale closures
+  const playerColorRef = useRef(gameInfo.playerColor);
+
   useEffect(() => {
     turnRef.current = gameInfo.turn;
     console.log('[TurnRef] updated to:', gameInfo.turn);
@@ -867,6 +1039,7 @@ const PlayMultiplayer = () => {
 
   useEffect(() => {
     myColorRef.current = gameInfo.playerColor;
+    playerColorRef.current = gameInfo.playerColor;
     console.log('[ColorRef] updated to:', gameInfo.playerColor);
   }, [gameInfo.playerColor]);
 
@@ -880,33 +1053,6 @@ const PlayMultiplayer = () => {
   }, [gameInfo.turn, gameInfo.playerColor]);
 
   // Handle presence dialog timeout with guards
-  const handlePresenceTimeout = async () => {
-    if (isPausingRef.current) return; // Prevent double fire
-    isPausingRef.current = true;
-
-    try {
-      if (gameInfo.status === 'active') {
-        console.log('[Inactivity] Attempting to pause game');
-        await wsService.current?.pauseGame();
-        // Game will be paused via WebSocket events
-      } else {
-        console.log('[Inactivity] Game not active, skipping pause attempt');
-      }
-    } catch (error) {
-      // If already paused, ignore "Game is not active" noise
-      if (!String(error?.message || '').includes('not active')) {
-        console.error('[Inactivity] pauseGame error:', error);
-      } else {
-        console.log('[Inactivity] Game already paused, ignoring error');
-      }
-    } finally {
-      // Close the dialog and stop inactivity loop
-      setShowPresenceDialog(false);
-      showPresenceDialogRef.current = false;
-      isPausingRef.current = false;
-    }
-  };
-
   // Inactivity detection with proper guards
   useEffect(() => {
     // Always clear previous interval (prevent multiple intervals)
@@ -955,18 +1101,8 @@ const PlayMultiplayer = () => {
         setShowPresenceDialog(true);
         showPresenceDialogRef.current = true;
 
-        // Clear any existing timeout
-        if (inactivityTimerRef.current) {
-          clearTimeout(inactivityTimerRef.current);
-        }
-
-        // Set timeout for dialog response
-        inactivityTimerRef.current = setTimeout(() => {
-          if (showPresenceDialogRef.current) {
-            console.log('[Inactivity] No response received - attempting to pause game');
-            handlePresenceTimeout();
-          }
-        }, 10000); // 10 seconds
+        // Note: The dialog itself handles the countdown and timeout via onCloseTimeout callback
+        // No need for a separate timeout here as it creates a race condition
       } else if (inactiveDuration >= 60 && !isMyTurn) {
         // Log but don't show dialog when it's not my turn
         if (inactiveDuration < 65) { // Log once
@@ -983,10 +1119,6 @@ const PlayMultiplayer = () => {
         clearInterval(inactivityCheckIntervalRef.current);
         inactivityCheckIntervalRef.current = null;
         console.log('[InactivityInterval] cleanup');
-      }
-      if (inactivityTimerRef.current) {
-        clearTimeout(inactivityTimerRef.current);
-        inactivityTimerRef.current = null;
       }
     };
   }, [gameInfo.status, showPresenceDialog, showPausedGame, isWaitingForResumeResponse]); // Proper dependencies
@@ -1011,6 +1143,23 @@ const PlayMultiplayer = () => {
       }
     };
   }, [gameId, user?.id, initializeGame]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sync timer values when initial timer state is set
+  useEffect(() => {
+    if (myColor) {
+      const myMs = myColor === 'w' ? initialTimerState.whiteMs : initialTimerState.blackMs;
+      const oppMs = myColor === 'w' ? initialTimerState.blackMs : initialTimerState.whiteMs;
+
+      setMyMs(myMs);
+      setOppMs(oppMs);
+
+      console.log('[Timer] Synced with initial state:', {
+        myColor,
+        myMs: Math.floor(myMs / 1000) + 's',
+        oppMs: Math.floor(oppMs / 1000) + 's'
+      });
+    }
+  }, [initialTimerState, myColor, setMyMs, setOppMs]);
 
   // Set up user channel listeners for resume requests
   useEffect(() => {
@@ -1188,6 +1337,13 @@ const PlayMultiplayer = () => {
     const moveTime = moveStartTimeRef.current
       ? (moveEndTime - moveStartTimeRef.current) / 1000
       : 0; // Convert to seconds
+
+    console.log('[MoveTimer] Move time calculation:', {
+      moveStartTime: moveStartTimeRef.current,
+      moveEndTime,
+      moveTimeSeconds: moveTime,
+      moveTimeMs: moveTime * 1000
+    });
 
     // Update activity tracking for move
     handleMoveActivity();
@@ -1415,13 +1571,13 @@ const PlayMultiplayer = () => {
           gap: '6px',
           padding: '6px 10px',
           borderRadius: '6px',
-          backgroundColor: activeTimer === opponentColor ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 255, 255, 0.1)',
-          border: `1px solid ${activeTimer === opponentColor ? 'rgba(239, 68, 68, 0.5)' : 'rgba(255, 255, 255, 0.2)'}`,
+          backgroundColor: !isMyTurn ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 255, 255, 0.1)',
+          border: `1px solid ${!isMyTurn ? 'rgba(239, 68, 68, 0.5)' : 'rgba(255, 255, 255, 0.2)'}`,
           flex: '1',
           minWidth: '120px'
         }}>
-          <span style={{ fontSize: '16px', color: activeTimer === opponentColor ? '#ef4444' : '#ccc' }}>
-            {activeTimer === opponentColor && (
+          <span style={{ fontSize: '16px', color: !isMyTurn ? '#ef4444' : '#ccc' }}>
+            {!isMyTurn && (
               <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#ef4444', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
             )}
             {gameInfo.opponentName}
@@ -1430,10 +1586,10 @@ const PlayMultiplayer = () => {
             fontFamily: 'monospace',
             fontSize: '14px',
             fontWeight: 'bold',
-            color: activeTimer === opponentColor ? '#ef4444' : '#ccc',
+            color: !isMyTurn ? '#ef4444' : '#ccc',
             marginLeft: 'auto'
           }}>
-            {Math.floor(opponentTime / 60).toString().padStart(2, '0')}:{(opponentTime % 60).toString().padStart(2, '0')}
+            {formatTime(oppMs)}
           </span>
         </div>
 
@@ -1454,13 +1610,13 @@ const PlayMultiplayer = () => {
           gap: '6px',
           padding: '6px 10px',
           borderRadius: '6px',
-          backgroundColor: activeTimer === playerColor ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255, 255, 255, 0.1)',
-          border: `1px solid ${activeTimer === playerColor ? 'rgba(34, 197, 94, 0.5)' : 'rgba(255, 255, 255, 0.2)'}`,
+          backgroundColor: isMyTurn ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255, 255, 255, 0.1)',
+          border: `1px solid ${isMyTurn ? 'rgba(34, 197, 94, 0.5)' : 'rgba(255, 255, 255, 0.2)'}`,
           flex: '1',
           minWidth: '120px'
         }}>
-          <span style={{ fontSize: '16px', color: activeTimer === playerColor ? '#22c55e' : '#ccc' }}>
-            {activeTimer === playerColor && (
+          <span style={{ fontSize: '16px', color: isMyTurn ? '#22c55e' : '#ccc' }}>
+            {isMyTurn && (
               <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#22c55e', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
             )}
             You
@@ -1469,10 +1625,10 @@ const PlayMultiplayer = () => {
             fontFamily: 'monospace',
             fontSize: '14px',
             fontWeight: 'bold',
-            color: activeTimer === playerColor ? '#22c55e' : '#ccc',
+            color: isMyTurn ? '#22c55e' : '#ccc',
             marginLeft: 'auto'
           }}>
-            {Math.floor(playerTime / 60).toString().padStart(2, '0')}:{(playerTime % 60).toString().padStart(2, '0')}
+            {formatTime(myMs)}
           </span>
         </div>
       </div>
@@ -1505,7 +1661,7 @@ const PlayMultiplayer = () => {
               Resign
             </button>
             {/* Show Ping button only when it's NOT your turn */}
-            {gameInfo.turn !== gameInfo.playerColor && (
+            {/* {gameInfo.turn !== gameInfo.playerColor && (
               <button onClick={handlePingOpponent} className="ping-button" style={{
                 backgroundColor: '#ffa726',
                 color: 'white',
@@ -1518,7 +1674,7 @@ const PlayMultiplayer = () => {
               }}>
                 🔔 Remind Opponent
               </button>
-            )}
+            )} */}
           </>
         )}
         {gameInfo.status === 'paused' && (
@@ -2046,13 +2202,13 @@ const PlayMultiplayer = () => {
                 gap: '6px',
                 padding: '6px 10px',
                 borderRadius: '6px',
-                backgroundColor: activeTimer === opponentColor ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 255, 255, 0.1)',
-                border: `1px solid ${activeTimer === opponentColor ? 'rgba(239, 68, 68, 0.5)' : 'rgba(255, 255, 255, 0.2)'}`,
+                backgroundColor: !isMyTurn ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 255, 255, 0.1)',
+                border: `1px solid ${!isMyTurn ? 'rgba(239, 68, 68, 0.5)' : 'rgba(255, 255, 255, 0.2)'}`,
                 flex: '1',
                 minWidth: '120px'
               }}>
-                <span style={{ fontSize: '16px', color: activeTimer === opponentColor ? '#ef4444' : '#ccc' }}>
-                  {activeTimer === opponentColor && (
+                <span style={{ fontSize: '16px', color: !isMyTurn ? '#ef4444' : '#ccc' }}>
+                  {!isMyTurn && (
                     <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#ef4444', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
                   )}
                   {gameInfo.opponentName}
@@ -2061,10 +2217,10 @@ const PlayMultiplayer = () => {
                   fontFamily: 'monospace',
                   fontSize: '14px',
                   fontWeight: 'bold',
-                  color: activeTimer === opponentColor ? '#ef4444' : '#ccc',
+                  color: !isMyTurn ? '#ef4444' : '#ccc',
                   marginLeft: 'auto'
                 }}>
-                  {Math.floor(opponentTime / 60).toString().padStart(2, '0')}:{(opponentTime % 60).toString().padStart(2, '0')}
+                  {formatTime(oppMs)}
                 </span>
               </div>
 
@@ -2085,13 +2241,13 @@ const PlayMultiplayer = () => {
                 gap: '6px',
                 padding: '6px 10px',
                 borderRadius: '6px',
-                backgroundColor: activeTimer === playerColor ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255, 255, 255, 0.1)',
-                border: `1px solid ${activeTimer === playerColor ? 'rgba(34, 197, 94, 0.5)' : 'rgba(255, 255, 255, 0.2)'}`,
+                backgroundColor: isMyTurn ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255, 255, 255, 0.1)',
+                border: `1px solid ${isMyTurn ? 'rgba(34, 197, 94, 0.5)' : 'rgba(255, 255, 255, 0.2)'}`,
                 flex: '1',
                 minWidth: '120px'
               }}>
-                <span style={{ fontSize: '16px', color: activeTimer === playerColor ? '#22c55e' : '#ccc' }}>
-                  {activeTimer === playerColor && (
+                <span style={{ fontSize: '16px', color: isMyTurn ? '#22c55e' : '#ccc' }}>
+                  {isMyTurn && (
                     <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#22c55e', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
                   )}
                   You
@@ -2100,10 +2256,10 @@ const PlayMultiplayer = () => {
                   fontFamily: 'monospace',
                   fontSize: '14px',
                   fontWeight: 'bold',
-                  color: activeTimer === playerColor ? '#22c55e' : '#ccc',
+                  color: isMyTurn ? '#22c55e' : '#ccc',
                   marginLeft: 'auto'
                 }}>
-                  {Math.floor(playerTime / 60).toString().padStart(2, '0')}:{(playerTime % 60).toString().padStart(2, '0')}
+                  {formatTime(myMs)}
                 </span>
               </div>
             </div>
@@ -2136,7 +2292,7 @@ const PlayMultiplayer = () => {
                     Resign
                   </button>
                   {/* Show Ping button only when it's NOT your turn */}
-                  {gameInfo.turn !== gameInfo.playerColor && (
+                  {/* {gameInfo.turn !== gameInfo.playerColor && (
                     <button onClick={handlePingOpponent} className="ping-button" style={{
                       backgroundColor: '#ffa726',
                       color: 'white',
@@ -2149,7 +2305,7 @@ const PlayMultiplayer = () => {
                     }}>
                       🔔 Remind Opponent
                     </button>
-                  )}
+                  )} */}
                 </>
               )}
               {gameInfo.status === 'paused' && (
