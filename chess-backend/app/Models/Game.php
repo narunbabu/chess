@@ -43,7 +43,14 @@ class Game extends Model
         'resume_requested_by',
         'resume_requested_at',
         'resume_request_expires_at',
-        'resume_status'
+        'resume_status',
+        // Server-authoritative clock fields
+        'white_ms',
+        'black_ms',
+        'running',
+        'last_server_ms',
+        'increment_ms',
+        'revision'
     ];
 
     protected $casts = [
@@ -60,7 +67,13 @@ class Game extends Model
         'black_time_paused_ms' => 'integer',
         'white_grace_time_ms' => 'integer',
         'black_grace_time_ms' => 'integer',
-        'resume_requested_by' => 'integer'
+        'resume_requested_by' => 'integer',
+        // Server-authoritative clock casts
+        'white_ms' => 'integer',
+        'black_ms' => 'integer',
+        'last_server_ms' => 'integer',
+        'increment_ms' => 'integer',
+        'revision' => 'integer'
     ];
 
     /**

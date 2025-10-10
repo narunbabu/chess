@@ -4,10 +4,13 @@ namespace App\Services;
 
 use App\Events\GameConnectionEvent;
 use App\Events\GameEndedEvent;
+use App\Events\GameClockUpdated;
 use App\Models\Game;
 use App\Models\GameConnection;
 use App\Models\User;
 use App\Services\ChessRulesService;
+use App\Services\ClockService;
+use App\Services\ClockStore;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -15,10 +18,17 @@ use Illuminate\Support\Facades\Log;
 class GameRoomService
 {
     protected $chessRules;
+    protected ClockService $clockService;
+    protected ClockStore $clockStore;
 
-    public function __construct(ChessRulesService $chessRules)
-    {
+    public function __construct(
+        ChessRulesService $chessRules,
+        ClockService $clockService,
+        ClockStore $clockStore
+    ) {
         $this->chessRules = $chessRules;
+        $this->clockService = $clockService;
+        $this->clockStore = $clockStore;
     }
     /**
      * Join a game room with WebSocket connection tracking
@@ -496,20 +506,60 @@ class GameRoomService
             'last_move_at' => now()
         ]);
 
-        // Check for game end conditions after move
-        $this->maybeFinalizeGame($game, $userId, $move);
+        // Server-Authoritative Clock Update
+        $clock = $this->clockStore->load($gameId);
+        if ($clock) {
+            // Apply move to clock (flip timer, add increment)
+            $clock = $this->clockService->onMove($clock, $userRole);
 
-        // Refresh game to get any updates from finalization
-        $game->refresh();
+            // Save with incremented revision and persist to DB
+            $clock = $this->clockStore->updateWithRevision($gameId, $clock, true);
 
-        // Broadcast move event (only if game is still active)
-        if ($game->status === 'active') {
-            // Extract turn from FEN for broadcast (chess notation 'w'/'b')
-            $chessTurn = explode(' ', $newFen)[1] ?? 'w';
-            broadcast(new \App\Events\GameMoveEvent($game, $user, $move, $newFen, $chessTurn, [
-                'socket_id' => $socketId,
-                'move_number' => count($moves)
-            ]))->toOthers();
+            // Check for game end conditions after move
+            $this->maybeFinalizeGame($game, $userId, $move);
+
+            // Refresh game to get any updates from finalization
+            $game->refresh();
+
+            // Broadcast clock update with move (TURN_UPDATE event)
+            broadcast(new GameClockUpdated(
+                $gameId,
+                $clock,
+                $newTurn,
+                'TURN_UPDATE',
+                null,
+                [
+                    'move' => $move,
+                    'fen' => $newFen,
+                    'socket_id' => $socketId,
+                    'move_number' => count($moves),
+                    'user_id' => $userId,
+                    'user_name' => $user->name
+                ]
+            ))->toOthers();
+
+            // Also broadcast legacy GameMoveEvent for backward compatibility
+            if ($game->status === 'active') {
+                $chessTurn = explode(' ', $newFen)[1] ?? 'w';
+                broadcast(new \App\Events\GameMoveEvent($game, $user, $move, $newFen, $chessTurn, [
+                    'socket_id' => $socketId,
+                    'move_number' => count($moves)
+                ]))->toOthers();
+            }
+        } else {
+            // Fallback: no clock state, use legacy behavior
+            Log::warning('Clock state not found for game, using legacy move broadcast', ['game_id' => $gameId]);
+
+            $this->maybeFinalizeGame($game, $userId, $move);
+            $game->refresh();
+
+            if ($game->status === 'active') {
+                $chessTurn = explode(' ', $newFen)[1] ?? 'w';
+                broadcast(new \App\Events\GameMoveEvent($game, $user, $move, $newFen, $chessTurn, [
+                    'socket_id' => $socketId,
+                    'move_number' => count($moves)
+                ]))->toOthers();
+            }
         }
 
         return [
