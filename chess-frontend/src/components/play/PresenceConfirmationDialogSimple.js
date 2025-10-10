@@ -28,6 +28,12 @@ const PresenceConfirmationDialogSimple = ({
   const [secondsLeft, setSecondsLeft] = useState(countdownSeconds);
   const deadlineRef = useRef(null);
   const prevOpenRef = useRef(open);
+  const onCloseTimeoutRef = useRef(onCloseTimeout);
+
+  // Keep callback ref up to date
+  useEffect(() => {
+    onCloseTimeoutRef.current = onCloseTimeout;
+  }, [onCloseTimeout]);
 
   useEffect(() => {
     // Log only when open actually changes
@@ -39,11 +45,9 @@ const PresenceConfirmationDialogSimple = ({
 
   useEffect(() => {
     if (open) {
-      // Set deadline only once per open
-      if (!deadlineRef.current) {
-        deadlineRef.current = Date.now() + countdownSeconds * 1000;
-        setSecondsLeft(countdownSeconds);
-      }
+      // Always reset deadline when dialog opens
+      deadlineRef.current = Date.now() + countdownSeconds * 1000;
+      setSecondsLeft(countdownSeconds);
     } else {
       // Cleanup when closed
       deadlineRef.current = null;
@@ -53,22 +57,31 @@ const PresenceConfirmationDialogSimple = ({
 
   // Drive countdown toward the deadline
   useEffect(() => {
-    if (!open || !deadlineRef.current) return;
+    if (!open || !deadlineRef.current) {
+      return;
+    }
+
+    console.log('[PresenceDialog] Starting countdown interval');
 
     const id = setInterval(() => {
       const remainingMs = deadlineRef.current - Date.now();
       const next = Math.max(0, Math.ceil(remainingMs / 1000));
+
       setSecondsLeft(next);
 
       if (next === 0) {
+        console.log('[PresenceDialog] Countdown reached 0 - calling onCloseTimeout');
         clearInterval(id);
         deadlineRef.current = null;
-        onCloseTimeout?.();
+        onCloseTimeoutRef.current?.();
       }
     }, 250); // Smooth updates
 
-    return () => clearInterval(id);
-  }, [open, onCloseTimeout]);
+    return () => {
+      console.log('[PresenceDialog] Cleaning up countdown interval');
+      clearInterval(id);
+    };
+  }, [open]);
 
   if (!open) {
     return null;

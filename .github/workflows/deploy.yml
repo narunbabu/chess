@@ -38,10 +38,13 @@ jobs:
             php artisan cache:clear
             php artisan view:clear
 
+            composer dump-autoload --optimize 
+
             # Rebuild caches
             php artisan config:cache
             php artisan route:cache
             php artisan view:cache
+            php artisan optimize 
 
             # Restart queue workers
             php artisan queue:restart || echo "No queue workers running"
