@@ -828,14 +828,7 @@ const PlayComputer = () => {
   // Check feature flag for PlayShell wrapper
   const usePlayShell = process.env.REACT_APP_USE_PLAY_SHELL === 'true';
 
-  // Extract sections for PlayShell slots (COMPOSITION ONLY - no logic changes)
-  const headerSection = (
-    <header className="game-header flex justify-between items-center mb-4">
-      <Link to="/" className="nav-button-play text-vivid-yellow">Home</Link>
-      <Link to="/dashboard" className="nav-button-play text-vivid-yellow">Dashboard</Link>
-    </header>
-  );
-
+  
   const preGameSetupSection = (
     <>
       {/* Game Mode Selection */}
@@ -1002,7 +995,7 @@ const PlayComputer = () => {
   if (usePlayShell) {
     return (
       <PlayShell
-        header={headerSection}
+        header={null}          // use the global site header only
         preGameSetup={preGameSetupSection}
         boardArea={boardAreaSection}
         sidebar={sidebarSection}
@@ -1016,12 +1009,7 @@ const PlayComputer = () => {
   // Fallback to original layout (backward compatibility)
   return (
     <>
-      <div className="chess-game-container text-white">
-        {/* Persistent Header */}
-        <header className="game-header flex justify-between items-center mb-4">
-          <Link to="/" className="nav-button-play text-vivid-yellow">Home</Link>
-          <Link to="/dashboard" className="nav-button-play text-vivid-yellow">Dashboard</Link>
-        </header>
+      <div className="chess-game-container text-white pt-4 md:pt-6">
 
         {/* Pre-Game Setup Screen */}
         {!gameStarted && !isReplayMode && !isOnlineGame && gameMode === null && (

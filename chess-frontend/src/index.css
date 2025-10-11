@@ -710,11 +710,18 @@
     box-sizing: border-box;
   }
 
+  
   /* Game Header - Navigation */
   .game-header {
     flex: none;
     margin-bottom: 1rem;
     z-index: 1000;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 10px 0;
+    position: relative;
   }
 
   /* Mobile adjustments - Orientation aware */

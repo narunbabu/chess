@@ -17,8 +17,8 @@ const Header = () => {
   const { isAuthenticated, logout } = useAuth();
   const { activeGame, loading } = useActiveGame();
 
-  // Hide header on landing page and play routes (preserve existing behavior)
-  if (location.pathname === '/' || location.pathname === '/play') {
+  // Hide header only on landing page
+  if (location.pathname === '/') {
     return null;
   }
 
@@ -55,6 +55,13 @@ const Header = () => {
               onClick={() => trackNavigation('dashboard', 'header')}
             >
               Dashboard
+            </Link>
+            <Link
+              to="/lobby"
+              className="nav-link"
+              onClick={() => trackNavigation('lobby', 'header')}
+            >
+              Lobby
             </Link>
             {!loading && activeGame && (
               <button
