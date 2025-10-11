@@ -60,9 +60,9 @@ const Dashboard = () => {
       <div className="dashboard p-6 text-white">
         <header className="dashboard-header text-center mb-10">
         <h1 className="text-4xl font-bold text-white">Welcome, {user?.username || "Player"}!</h1>
-      </header>
+        </header>
 
-      <div className="dashboard-grid">
+        <div className="dashboard-grid">
         {/* Active Games Section */}
         <section className="unified-section">
           <h2 className="unified-section-header">🎮 Active Games</h2>

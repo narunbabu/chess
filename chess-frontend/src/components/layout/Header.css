@@ -108,11 +108,18 @@
 /* Stats row - compact version for header */
 .stats-row.compact {
   display: flex;
-  gap: 0.5rem;
+  gap: 1rem;
+  
   align-items: center;
-  height: 28px;
+  height: 20px;
   max-height: 28px;
 }
+@media (max-width: 480px) {
+  .stats-row.compact {
+    padding-top: 3px;
+  }
+}
+
 
 .stat-item {
   display: flex;

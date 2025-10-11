@@ -3,7 +3,7 @@
   width: 100%;
   max-width: 1200px;
   margin: 0.1rem auto;
-  background: rgba(32, 34, 37, 0.8);
+  background: rgba(32, 34, 37, 0.85);
   backdrop-filter: blur(12px);
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 16px;
