@@ -15,7 +15,7 @@ import { getEcho } from '../../services/echoSingleton';
 import { evaluateMove } from '../../utils/gameStateUtils';
 import { encodeGameHistory } from '../../utils/gameHistoryStringUtils';
 import { saveGameHistory } from '../../services/gameHistoryService';
-import { useGameTimer, formatTime } from '../../utils/timerUtils';
+import { useMultiplayerTimer, formatTime } from '../../utils/timerUtils';
 import { calculateRemainingTime } from '../../utils/timerCalculator';
 
 // Import sounds
@@ -130,7 +130,7 @@ const PlayMultiplayer = () => {
   }, []);
 
   // New simplified timer hook with calculated initial values
-  const { myMs, oppMs, setMyMs, setOppMs } = useGameTimer({
+  const { myMs, oppMs, setMyMs, setOppMs } = useMultiplayerTimer({
     myColor,
     serverTurn,
     gameStatus: gameInfo.status,
@@ -1589,7 +1589,7 @@ const PlayMultiplayer = () => {
             color: !isMyTurn ? '#ef4444' : '#ccc',
             marginLeft: 'auto'
           }}>
-            {formatTime(oppMs)}
+            {formatTime(Math.floor(oppMs / 1000))}
           </span>
         </div>
 
@@ -1628,7 +1628,7 @@ const PlayMultiplayer = () => {
             color: isMyTurn ? '#22c55e' : '#ccc',
             marginLeft: 'auto'
           }}>
-            {formatTime(myMs)}
+            {formatTime(Math.floor(myMs / 1000))}
           </span>
         </div>
       </div>
@@ -2220,7 +2220,7 @@ const PlayMultiplayer = () => {
                   color: !isMyTurn ? '#ef4444' : '#ccc',
                   marginLeft: 'auto'
                 }}>
-                  {formatTime(oppMs)}
+                  {formatTime(Math.floor(oppMs / 1000))}
                 </span>
               </div>
 
@@ -2259,7 +2259,7 @@ const PlayMultiplayer = () => {
                   color: isMyTurn ? '#22c55e' : '#ccc',
                   marginLeft: 'auto'
                 }}>
-                  {formatTime(myMs)}
+                  {formatTime(Math.floor(myMs / 1000))}
                 </span>
               </div>
             </div>

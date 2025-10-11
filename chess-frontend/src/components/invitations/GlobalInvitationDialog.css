@@ -1,0 +1,274 @@
+/* src/components/invitations/GlobalInvitationDialog.css */
+
+.global-invitation-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.85);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.global-invitation-dialog {
+  background: linear-gradient(135deg, #2c2c2c 0%, #1a1a1a 100%);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  max-width: 500px;
+  width: 90%;
+  overflow: hidden;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.dialog-header {
+  background: linear-gradient(135deg, #ffa726 0%, #ff6f00 100%);
+  padding: 20px;
+  text-align: center;
+}
+
+.dialog-header h2 {
+  color: #fff;
+  margin: 0;
+  font-size: 24px;
+  font-weight: bold;
+}
+
+.dialog-body {
+  padding: 32px 24px;
+}
+
+.invitation-info {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.inviter-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 3px solid #ffa726;
+  object-fit: cover;
+}
+
+.invitation-text {
+  flex: 1;
+}
+
+.inviter-name {
+  color: #ffa726;
+  font-size: 20px;
+  font-weight: bold;
+  margin: 0 0 8px 0;
+}
+
+.invitation-message {
+  color: #fff;
+  font-size: 16px;
+  margin: 0 0 8px 0;
+}
+
+.invitation-meta {
+  color: #aaa;
+  font-size: 14px;
+  margin: 0;
+}
+
+.resume-info {
+  text-align: center;
+}
+
+.resume-message {
+  color: #fff;
+  font-size: 18px;
+  margin: 0 0 12px 0;
+}
+
+.resume-meta {
+  color: #ffa726;
+  font-size: 14px;
+  margin: 0;
+}
+
+.color-choice-intro {
+  color: #fff;
+  font-size: 16px;
+  text-align: center;
+  margin: 0 0 24px 0;
+}
+
+.color-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.color-choice-btn {
+  background: linear-gradient(135deg, #4CAF50 0%, #388E3C 100%);
+  color: white;
+  border: none;
+  padding: 16px 20px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.color-choice-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+}
+
+.color-choice-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.color-choice-btn.opposite {
+  background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+}
+
+.color-choice-btn.opposite:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
+}
+
+.color-choice-btn small {
+  font-size: 12px;
+  font-weight: normal;
+  opacity: 0.9;
+}
+
+.dialog-actions {
+  display: flex;
+  gap: 12px;
+  padding: 0 24px 24px 24px;
+  justify-content: center;
+}
+
+.btn-accept,
+.btn-decline,
+.btn-cancel {
+  flex: 1;
+  padding: 14px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+  max-width: 200px;
+}
+
+.btn-accept {
+  background: linear-gradient(135deg, #4CAF50 0%, #388E3C 100%);
+  color: white;
+}
+
+.btn-accept:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+}
+
+.btn-accept.resume {
+  background: linear-gradient(135deg, #ffa726 0%, #ff6f00 100%);
+}
+
+.btn-accept.resume:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(255, 167, 38, 0.4);
+}
+
+.btn-decline {
+  background: linear-gradient(135deg, #f44336 0%, #c62828 100%);
+  color: white;
+}
+
+.btn-decline:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(244, 67, 54, 0.4);
+}
+
+.btn-cancel {
+  background: linear-gradient(135deg, #757575 0%, #424242 100%);
+  color: white;
+}
+
+.btn-cancel:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(117, 117, 117, 0.4);
+}
+
+.btn-accept:disabled,
+.btn-decline:disabled,
+.btn-cancel:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Responsive Design */
+@media (max-width: 600px) {
+  .global-invitation-dialog {
+    max-width: 95%;
+  }
+
+  .dialog-header h2 {
+    font-size: 20px;
+  }
+
+  .invitation-info {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .inviter-avatar {
+    width: 60px;
+    height: 60px;
+  }
+
+  .inviter-name {
+    font-size: 18px;
+  }
+
+  .invitation-message {
+    font-size: 14px;
+  }
+
+  .dialog-actions {
+    flex-direction: column;
+  }
+
+  .btn-accept,
+  .btn-decline,
+  .btn-cancel {
+    max-width: 100%;
+  }
+}

@@ -23,6 +23,8 @@ import Learn from "./components/Learn";
 import { AuthProvider } from "./contexts/AuthContext";
 import { AppDataProvider } from "./contexts/AppDataContext";
 import { FeatureFlagsProvider } from "./contexts/FeatureFlagsContext";
+import { GlobalInvitationProvider } from "./contexts/GlobalInvitationContext";
+import GlobalInvitationDialog from "./components/invitations/GlobalInvitationDialog";
 import Layout from "./components/layout/Layout";
 import Footer from "./components/layout/Footer";
 import RouteGuard from "./components/routing/RouteGuard";
@@ -45,7 +47,11 @@ const App = () => {
         <FeatureFlagsProvider>
           <Router future={{ v7_relativeSplatPath: true }}>
             <Layout>
-              <AppContent />
+              <GlobalInvitationProvider>
+                <AppContent />
+                {/* Global Invitation Dialog - appears across all pages */}
+                <GlobalInvitationDialog />
+              </GlobalInvitationProvider>
             </Layout>
           </Router>
         </FeatureFlagsProvider>
