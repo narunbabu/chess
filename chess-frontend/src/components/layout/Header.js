@@ -141,10 +141,6 @@ const Header = () => {
         )}
       </div>
 
-      <div className="center-section">
-        {/* Empty center section - stats moved to right */}
-      </div>
-
       <div className="right-section">
         {/* Show stats in right section when on lobby page */}
         {location.pathname.includes('/lobby') && (
