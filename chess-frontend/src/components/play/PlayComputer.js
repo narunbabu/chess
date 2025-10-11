@@ -96,7 +96,7 @@ const PlayComputer = () => {
     playerTime, computerTime, activeTimer, isTimerRunning, timerRef,
     setActiveTimer, setIsTimerRunning,
     handleTimer: startTimerInterval, pauseTimer, switchTimer, resetTimer
-  } = useGameTimer(playerColor, game, setGameStatus, () => setGameOver(true)); // Pass callbacks
+  } = useGameTimer(playerColor, game, setGameStatus); // Pass callbacks
 
   // --- Utility Callbacks ---
    const safeGameMutate = useCallback((modify) => {
@@ -213,7 +213,7 @@ const PlayComputer = () => {
 
       startGame();
     }
-  }, [location.state, startGame]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [location.state]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Effect for loading saved game histories on component mount
   useEffect(() => {
