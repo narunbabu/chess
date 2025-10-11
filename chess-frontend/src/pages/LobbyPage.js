@@ -703,9 +703,27 @@ const LobbyPage = () => {
 
   // Tab configuration
   const tabs = [
-    { id: 'players', label: 'Players', badge: players.length },
-    { id: 'invitations', label: 'Invitations', badge: pendingInvitations.length },
-    { id: 'games', label: 'Active Games', badge: activeGames.length },
+    {
+      id: 'players',
+      label: 'Players',
+      short: 'Players',
+      icon: '👥',
+      badge: players.length
+    },
+    {
+      id: 'invitations',
+      label: 'Invitations',
+      short: 'Invites',
+      icon: '✉️',
+      badge: pendingInvitations.length
+    },
+    {
+      id: 'games',
+      label: 'Active Games',
+      short: 'Active',
+      icon: '♟️',
+      badge: activeGames.length
+    },
   ];
 
   // Handler for resuming game (extracted for clarity)
