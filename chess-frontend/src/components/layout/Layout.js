@@ -1,5 +1,6 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
+import Header from './Header';
 import Background from './Background';
 
 const Layout = ({ children }) => {
@@ -13,7 +14,8 @@ const Layout = ({ children }) => {
   return (
     <div>
       <Background />
-      <div className="relative z-10">{children}</div>
+      <Header />
+      <div className="relative z-0">{children}</div>
     </div>
   );
 };

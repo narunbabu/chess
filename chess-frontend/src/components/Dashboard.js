@@ -241,26 +241,26 @@ const Dashboard = () => {
               className="unified-card gradient-accent centered"
             >
               <div className="unified-card-content">
-                <h3 className="unified-card-title">♟️ Play Chess</h3>
-                <p className="unified-card-subtitle">Start a new game</p>
+                <h3 className="unified-card-title">🤖 Play Computer</h3>
+                <p className="unified-card-subtitle">Play against AI</p>
               </div>
             </button>
             <button
-              onClick={() => navigate("/tutorial")}
+              onClick={() => navigate("/lobby")}
               className="unified-card gradient-primary centered"
             >
               <div className="unified-card-content">
-                <h3 className="unified-card-title">📚 Tutorial</h3>
-                <p className="unified-card-subtitle">Learn chess basics</p>
+                <h3 className="unified-card-title">👥 Play Human</h3>
+                <p className="unified-card-subtitle">Challenge other players</p>
               </div>
             </button>
             <button
-              onClick={() => navigate("/practice")}
+              onClick={() => navigate("/training")}
               className="unified-card gradient-success centered"
             >
               <div className="unified-card-content">
-                <h3 className="unified-card-title">🎯 Practice</h3>
-                <p className="unified-card-subtitle">Improve your skills</p>
+                <h3 className="unified-card-title">🎓 Training Hub</h3>
+                <p className="unified-card-subtitle">Practice exercises</p>
               </div>
             </button>
           </div>

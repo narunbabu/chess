@@ -24,7 +24,6 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { AppDataProvider } from "./contexts/AppDataContext";
 import { FeatureFlagsProvider } from "./contexts/FeatureFlagsContext";
 import Layout from "./components/layout/Layout";
-import Header from "./components/layout/Header";
 import Footer from "./components/layout/Footer";
 import RouteGuard from "./components/routing/RouteGuard";
 import { requireAuth } from "./utils/guards";
@@ -62,7 +61,6 @@ const AppContent = () => {
 
   return (
     <div className={`app-container ${isLandingPage ? 'full-bleed' : ''} flex flex-col min-h-screen`}>
-      <Header />
       <div className="content-wrapper flex-grow">
         <main className="main-content">
           <Routes>

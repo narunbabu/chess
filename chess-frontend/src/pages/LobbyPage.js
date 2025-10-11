@@ -720,7 +720,7 @@ const LobbyPage = () => {
     {
       id: 'games',
       label: 'Active Games',
-      short: 'Active',
+      short: 'Games',
       icon: '♟️',
       badge: activeGames.length
     },
@@ -852,33 +852,7 @@ const LobbyPage = () => {
         </div>
       )}
 
-      <div className="lobby-header">
-        <h1>🏆 Online Chess Lobby</h1>
-        <div className="user-info">
-          <div className="current-user">
-            <img
-              src={user.avatar || `https://i.pravatar.cc/150?u=${user.email}`}
-              alt={user.name}
-              className="current-user-avatar"
-            />
-            <div className="current-user-details">
-              <h3>{user.name}</h3>
-              <p className="user-email">{user.email}</p>
-              <p className="user-rating">Rating: {user.rating || 1200}</p>
-            </div>
-          </div>
-          <div className="online-stats">
-            <div className="stat">
-              <span className="stat-number">{onlineCount}</span>
-              <span className="stat-label">Players Online</span>
-            </div>
-            <div className="stat">
-              <span className="stat-number">{players.length}</span>
-              <span className="stat-label">Available to Play</span>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* Header now handled globally in Header.js */}
 
       <LobbyTabs
         activeTab={activeTab}

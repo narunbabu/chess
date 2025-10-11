@@ -25,20 +25,26 @@ const ChessBoard = ({
 
   useEffect(() => {
     if (!boardBoxRef.current) return;
+
+    // Store the current board size to compare with new sizes
+    const currentSize = boardSize;
+
     const ro = new ResizeObserver(([entry]) => {
       /* 15 px padding above & below for safety */
       const { width, height } = entry.contentRect;
       // Use the smaller dimension to ensure square board fits within container
       const newSize = Math.floor(Math.min(width, height));
 
-      // Debug logging to track size changes
-      console.log(`🎯 ChessBoard ResizeObserver triggered:`, {
-        containerWidth: width,
-        containerHeight: height,
-        calculatedSize: newSize,
-        currentBoardSize: boardSize,
-        sizeChanged: newSize !== boardSize
-      });
+      // Debug logging to track size changes (only log when size actually changes)
+      if (newSize !== currentSize) {
+        console.log(`🎯 ChessBoard ResizeObserver triggered:`, {
+          containerWidth: width,
+          containerHeight: height,
+          calculatedSize: newSize,
+          currentBoardSize: currentSize,
+          sizeChanged: newSize !== currentSize
+        });
+      }
 
       // Debounce rapid resize events to prevent flickering
       if (resizeTimeoutRef.current) {
@@ -46,21 +52,24 @@ const ChessBoard = ({
       }
 
       resizeTimeoutRef.current = setTimeout(() => {
-        // Only update if size actually changed (prevent unnecessary re-renders)
-        if (newSize !== boardSize && newSize > 0) {
-          console.log(`📐 Setting new board size: ${boardSize} → ${newSize}`);
+        // Only update if size actually changed and is valid (prevent unnecessary re-renders)
+        if (newSize !== currentSize && newSize > 0) {
+          console.log(`📐 Setting new board size: ${currentSize} → ${newSize}`);
           setBoardSize(newSize);
         }
       }, 50); // 50ms debounce to prevent rapid recalculations
     });
+
     ro.observe(boardBoxRef.current);
+
+    // Cleanup function
     return () => {
       ro.disconnect();
       if (resizeTimeoutRef.current) {
         clearTimeout(resizeTimeoutRef.current);
       }
     };
-  }); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [boardSize]); // Add boardSize dependency to prevent re-creating observer on every render
 
   // Helper to check if the game prop is a valid Chess instance
   const isValidChessInstance = (g) => g && g instanceof Chess;
