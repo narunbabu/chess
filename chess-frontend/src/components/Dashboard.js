@@ -56,8 +56,9 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="dashboard p-6 min-h-screen text-white">
-      <header className="dashboard-header text-center mb-10">
+    <div className="dashboard-container">
+      <div className="dashboard p-6 text-white">
+        <header className="dashboard-header text-center mb-10">
         <h1 className="text-4xl font-bold text-white">Welcome, {user?.username || "Player"}!</h1>
       </header>
 
@@ -265,6 +266,7 @@ const Dashboard = () => {
             </button>
           </div>
         </section>
+        </div>
       </div>
     </div>
   );

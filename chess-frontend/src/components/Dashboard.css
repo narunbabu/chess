@@ -1,7 +1,28 @@
+.dashboard-container {
+  padding: 0.1rem 0.1rem;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0.1rem auto;
+  background: rgba(32, 34, 37, 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 16px;
+  color: white;
+  box-shadow: 0 4px 30px rgba(0,0,0,0.25);
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  height: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
 .dashboard {
-  max-width: 100vw;
+  max-width: 100%;
   box-sizing: border-box;
   overflow-x: hidden;
+  margin: 0 auto;
 }
 
 .dashboard-grid {

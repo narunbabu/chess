@@ -781,6 +781,7 @@ const LobbyPage = () => {
 
   return (
     <div className="lobby-container">
+      <div className="lobby p-6 text-white">
       {/* Resume Request Modal */}
       {resumeRequestData && (
         <div style={{
@@ -910,6 +911,7 @@ const LobbyPage = () => {
         inviteStatus={inviteStatus}
         invitedPlayer={invitedPlayer}
       />
+      </div>
     </div>
   );
 };
