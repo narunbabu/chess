@@ -33,11 +33,19 @@
   flex: 1;
   display: grid;
   grid-template-columns: minmax(400px, 2fr) minmax(300px, 1fr);
+  grid-template-rows: auto 1fr;
   gap: 2rem;
   padding: 2rem;
   max-width: 1600px;
   margin: 0 auto;
   width: 100%;
+}
+
+/* Timer/Score Section - positioned above board by default */
+.play-shell-timer-score {
+  grid-column: 1;
+  grid-row: 1;
+  margin-bottom: 1rem;
 }
 
 /* Board Section - Center Focus */
@@ -52,6 +60,8 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
   padding: 1.5rem;
   min-height: 500px;
+  grid-column: 1;
+  grid-row: 2;
 }
 
 /* Sidebar Section - Game Info */
@@ -66,6 +76,8 @@
   padding: 1.5rem;
   overflow-y: auto;
   max-height: calc(100vh - 8rem);
+  grid-column: 2;
+  grid-row: 1 / 3; /* Span both timer/score and board rows */
 }
 
 /* Modals and Overlays */
@@ -78,12 +90,24 @@
 @media (max-width: 1024px) {
   .play-shell-layout {
     grid-template-columns: 1fr;
-    grid-template-rows: auto auto;
+    grid-template-rows: auto auto auto;
     gap: 1rem;
     padding: 1rem;
   }
 
+  .play-shell-timer-score {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .play-shell-board {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
   .play-shell-sidebar {
+    grid-column: 1;
+    grid-row: 3;
     max-height: none;
   }
 }
@@ -129,6 +153,122 @@
   transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
+/* Mobile Landscape Layout - Sidebar Left, Board Right */
+@media (orientation: landscape) and (max-width: 900px) {
+  body.mobile-landscape .play-shell-layout {
+    display: grid;
+    grid-template-columns: minmax(140px, 30vw) 1fr;
+    gap: 0.4rem;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    padding: 0.4rem;
+  }
+
+  /* Sidebar to the left, stack items */
+  body.mobile-landscape .play-shell-sidebar {
+    order: 1;
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 0.5rem;
+    overflow-y: auto;
+    max-height: 100vh;
+  }
+
+  /* Board to the right, fill remaining space */
+  body.mobile-landscape .play-shell-board {
+    order: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    margin: 0;
+    min-height: auto;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+  }
+
+  /* Board container sizing for mobile landscape */
+  body.mobile-landscape .board-container {
+    width: min(95vh, 65vw);
+    height: min(95vh, 65vw);
+  }
+
+  /* Pre-game setup full-width in mobile landscape */
+  body.mobile-landscape .play-shell-setup {
+    width: 100vw;
+    height: 100vh;
+    padding: 1rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+  }
+
+  body.mobile-landscape .pre-game-setup {
+    max-width: 90vw;
+    width: 90vw;
+    max-height: 90vh;
+    padding: 1rem;
+    text-align: center;
+    overflow-y: auto;
+  }
+
+  /* Ensure buttons and controls fit within mobile landscape */
+  body.mobile-landscape .pre-game-setup .start-button.large {
+    font-size: 1.1rem;
+    padding: 0.75rem 1.5rem;
+    margin: 0.5rem;
+  }
+
+  body.mobile-landscape .pre-game-setup h2 {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+  }
+
+  body.mobile-landscape .pre-game-setup .difficulty-selection,
+  body.mobile-landscape .pre-game-setup .color-selection {
+    margin-bottom: 1rem;
+  }
+
+  /* Mobile landscape timer/score styling in sidebar */
+  body.mobile-landscape .play-shell-sidebar-timer-score .timer-score-display {
+    width: 100% !important;
+    font-size: 12px !important;
+    margin-bottom: 0 !important;
+  }
+
+  body.mobile-landscape .play-shell-sidebar-timer-score .timer-score-display > div:first-child,
+  body.mobile-landscape .play-shell-sidebar-timer-score .timer-score-display > div:last-child {
+    flex-direction: column !important;
+    gap: 6px !important;
+    margin-bottom: 6px !important;
+  }
+
+  body.mobile-landscape .play-shell-sidebar-timer-score .timer-score-display > div > div {
+    width: 100% !important;
+    min-width: unset !important;
+    padding: 4px 6px !important;
+    font-size: 11px !important;
+  }
+
+  body.mobile-landscape .play-shell-sidebar-timer-score .timer-score-display span {
+    font-size: 11px !important;
+  }
+
+  body.mobile-landscape .play-shell-sidebar-timer-score .timer-score-display .monospace {
+    font-size: 10px !important;
+  }
+
+  /* Hide sidebar timer/score in normal mode */
+  .play-shell-sidebar-timer-score {
+    display: none;
+  }
+}
+
 /* Loading state */
 .play-shell-loading {
   display: flex;
@@ -137,4 +277,66 @@
   min-height: 400px;
   color: rgba(255, 255, 255, 0.7);
   font-size: 1.25rem;
+}
+
+/* === FINAL LANDSCAPE OVERRIDES === */
+@media (orientation: landscape) and (max-width: 900px) {
+  body.mobile-landscape .play-shell-layout {
+    display: grid !important;
+    grid-template-columns: 1fr 28vw !important;
+    grid-template-rows: 1fr !important;
+    gap: 0.3rem !important;
+    height: 100vh !important;
+    width: 100vw !important;
+    overflow: hidden !important;
+    padding: 0.3rem !important;
+  }
+
+  /* Hide timer/score section from main layout in mobile landscape */
+  body.mobile-landscape .play-shell-timer-score {
+    display: none !important;
+  }
+
+  body.mobile-landscape .play-shell-board {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    order: 1 !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+  }
+
+  body.mobile-landscape .play-shell-sidebar {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    order: 2 !important;
+    width: 28vw !important;
+    max-width: 280px !important;
+    padding: 0.5rem !important;
+    overflow-y: auto !important;
+  }
+
+  /* Timer/Score inside sidebar for mobile landscape */
+  body.mobile-landscape .play-shell-sidebar-timer-score {
+    display: block !important;
+    margin-bottom: 1rem !important;
+    order: -1 !important; /* Show at top of sidebar */
+  }
+
+  body.mobile-landscape .board-container {
+    width: min(95vh, 75vw) !important;
+    height: min(95vh, 75vw) !important;
+  }
+
+  /* Fit start-game card properly */
+  body.mobile-landscape .play-shell-setup {
+    width: 100vw !important;
+    height: 100vh !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+  }
 }

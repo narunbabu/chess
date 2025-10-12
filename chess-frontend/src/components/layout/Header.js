@@ -21,6 +21,7 @@ const Header = () => {
   const [showNavPanel, setShowNavPanel] = useState(false);
   const [onlineStats, setOnlineStats] = useState({ onlineCount: 0, availablePlayers: 0 });
   const userMenuRef = useRef(null);
+  const hideTimeoutRef = useRef(null);
 
   // Handle clicks outside nav panel to close it
   useEffect(() => {
@@ -73,6 +74,83 @@ const Header = () => {
       return () => clearInterval(interval);
     }
   }, [isAuthenticated, location.pathname, user]);
+
+  // Auto-hide functionality for mobile landscape on play pages
+  useEffect(() => {
+    const isPlayPage = location.pathname === '/play' || location.pathname.startsWith('/play/');
+    if (!isPlayPage) return;
+
+    const checkLandscapeAndHide = () => {
+      const isLandscape = window.matchMedia('(orientation: landscape)').matches;
+      const isMobile = window.matchMedia('(max-width: 768px)').matches;
+      const headerElement = document.querySelector('.app-header');
+
+      if (isLandscape && isMobile && headerElement) {
+        // Clear any existing timeout
+        if (hideTimeoutRef.current) {
+          clearTimeout(hideTimeoutRef.current);
+        }
+
+        // Show header initially
+        headerElement.classList.remove('header-hidden');
+
+        // Hide after 1 second
+        hideTimeoutRef.current = setTimeout(() => {
+          if (headerElement) {
+            headerElement.classList.add('header-hidden');
+          }
+        }, 1000);
+      } else {
+        // Not in landscape mobile mode, ensure header is visible
+        if (headerElement) {
+          headerElement.classList.remove('header-hidden');
+        }
+      }
+    };
+
+    // Check on mount
+    checkLandscapeAndHide();
+
+    // Listen for orientation changes and user interactions
+    const orientationQuery = window.matchMedia('(orientation: landscape)');
+    const handleOrientationChange = () => {
+      checkLandscapeAndHide();
+    };
+
+    // Show header on user interaction
+    const handleUserInteraction = () => {
+      const headerElement = document.querySelector('.app-header');
+      if (headerElement) {
+        headerElement.classList.remove('header-hidden');
+
+        // Hide again after 1.5 seconds of inactivity
+        if (hideTimeoutRef.current) {
+          clearTimeout(hideTimeoutRef.current);
+        }
+        hideTimeoutRef.current = setTimeout(() => {
+          if (headerElement) {
+            headerElement.classList.add('header-hidden');
+          }
+        }, 1500);
+      }
+    };
+
+    orientationQuery.addEventListener('change', handleOrientationChange);
+    ['touchstart', 'mousemove', 'click'].forEach(ev =>
+      window.addEventListener(ev, handleUserInteraction)
+    );
+
+    // Cleanup
+    return () => {
+      if (hideTimeoutRef.current) {
+        clearTimeout(hideTimeoutRef.current);
+      }
+      orientationQuery.removeEventListener('change', handleOrientationChange);
+      ['touchstart', 'mousemove', 'click'].forEach(ev =>
+        window.removeEventListener(ev, handleUserInteraction)
+      );
+    };
+  }, [location.pathname]);
 
   // Hide header only on landing page
   if (location.pathname === '/') {

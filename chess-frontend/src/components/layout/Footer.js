@@ -1,13 +1,63 @@
 // src/components/layout/Footer.js
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 /**
  * Footer component for consistent site-wide footer
  * Hidden on landing page (has its own footer)
+ * Auto-hides on play pages in mobile landscape mode
  */
 const Footer = () => {
   const location = useLocation();
+  const footerRef = useRef(null);
+  const hideTimeoutRef = useRef(null);
+  const isPlayPage = location.pathname === '/play' || location.pathname.startsWith('/play/');
+
+  useEffect(() => {
+    // Only apply footer hiding logic on play pages in landscape mode on mobile
+    if (!isPlayPage) return;
+
+    const checkLandscapeAndHide = () => {
+      const isLandscape = window.innerWidth > window.innerHeight;
+      const isMobile = window.innerWidth <= 812; // iPhone X width in landscape
+
+      if (isLandscape && isMobile && footerRef.current) {
+        // Immediately hide footer in mobile landscape mode
+        footerRef.current.style.display = 'none';
+        footerRef.current.style.visibility = 'hidden';
+        footerRef.current.style.height = '0';
+        footerRef.current.style.overflow = 'hidden';
+      } else {
+        // Not in landscape mobile mode, ensure footer is visible
+        if (footerRef.current) {
+          footerRef.current.style.display = '';
+          footerRef.current.style.visibility = '';
+          footerRef.current.style.height = '';
+          footerRef.current.style.overflow = '';
+        }
+      }
+    };
+
+    // Check on mount
+    checkLandscapeAndHide();
+
+    // Listen for resize and orientation changes
+    window.addEventListener('resize', checkLandscapeAndHide);
+    window.addEventListener('orientationchange', checkLandscapeAndHide);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('resize', checkLandscapeAndHide);
+      window.removeEventListener('orientationchange', checkLandscapeAndHide);
+      // Restore footer visibility on cleanup
+      if (footerRef.current) {
+        footerRef.current.style.display = '';
+        footerRef.current.style.visibility = '';
+        footerRef.current.style.height = '';
+        footerRef.current.style.overflow = '';
+      }
+    };
+  }, [isPlayPage, location.pathname]);
 
   // Hide footer on landing page (has its own footer)
   if (location.pathname === '/') {
@@ -15,7 +65,10 @@ const Footer = () => {
   }
 
   return (
-    <footer className="bg-gray-800 text-white py-2 sm:py-4 md:py-6 mt-auto">
+    <footer
+      ref={footerRef}
+      className="bg-gray-800 text-white py-2 sm:py-4 md:py-6 mt-auto transition-all duration-300"
+    >
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center">
           <p className="text-gray-400 text-xs sm:text-sm md:text-base">

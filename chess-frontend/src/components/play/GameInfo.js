@@ -28,74 +28,74 @@ const GameInfo = ({
     return "ℹ️";
   };
 
-  const getPlayerColorIcon = () => {
-    return playerColor === "w" ? "⚪" : "⚫";
-  };
+  // Filter out redundant turn status since it's shown in timer section
+  const shouldShowStatus = () => {
+    if (!gameStatus) return false;
 
-  const getCurrentTurnIcon = () => {
-    if (!game) return "❓";
-    return game.turn() === "w" ? "⚪" : "⚫";
-  };
+    // Don't show basic turn status like "White's turn" or "Black's turn"
+    if (gameStatus.match(/^(White|Black)'s turn$/i)) return false;
 
-  const turnPlayerName = isOnlineGame && players && game ? players[game.turn()]?.name : (game && game.turn() === 'w' ? 'White' : 'Black');
-  const youArePlayerName = isOnlineGame && players ? players[playerColor]?.name : (playerColor === 'w' ? 'White' : 'Black');
+    // Show important game states
+    return true;
+  };
 
   return (
-    <div className="space-y-3">
-      {/* Game Status */}
-      {gameStatus && (
-        <div className="bg-white/10 rounded-lg p-3">
-          <div className="flex items-center gap-2">
-            <span className="text-lg">{getStatusIcon()}</span>
-            <span className="text-sm text-white font-medium">{gameStatus}</span>
-          </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+      {/* Important Game Status Only - not basic turn info */}
+      {shouldShowStatus() && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          padding: '0.5rem',
+          backgroundColor: 'rgba(255, 255, 255, 0.1)',
+          borderRadius: '0.375rem',
+          fontSize: '0.875rem'
+        }}>
+          <span style={{ fontSize: '1rem' }}>{getStatusIcon()}</span>
+          <span style={{ color: '#fff', fontWeight: '500' }}>{gameStatus}</span>
         </div>
       )}
-
-      {/* Player Info & Turn */}
-      <div className="bg-white/10 rounded-lg p-3">
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-lg">{getPlayerColorIcon()}</span>
-              <span className="text-xs text-white/80">You are</span>
-            </div>
-            <span className="text-sm text-white">{youArePlayerName}</span>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-lg">{getCurrentTurnIcon()}</span>
-              <span className="text-xs text-white/80">Turn</span>
-            </div>
-            <span className="text-sm text-white">{turnPlayerName}</span>
-          </div>
-        </div>
-      </div>
 
       {/* Move Completion Hint */}
       {moveCompleted &&
         activeTimer === playerColor &&
         !isReplayMode &&
         settings?.requireDoneButton && (
-          <div className="bg-success/20 border border-success/50 rounded-lg p-3">
-            <div className="flex items-center gap-2">
-              <span className="text-lg">✅</span>
-              <span className="text-xs text-success">Tap timer to confirm</span>
-            </div>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            padding: '0.5rem',
+            backgroundColor: 'rgba(34, 197, 94, 0.2)',
+            border: '1px solid rgba(34, 197, 94, 0.5)',
+            borderRadius: '0.375rem',
+            fontSize: '0.75rem'
+          }}>
+            <span style={{ fontSize: '1rem' }}>✅</span>
+            <span style={{ color: '#22c55e' }}>Tap timer to confirm</span>
           </div>
         )}
 
       {/* Replay Info */}
       {isReplayMode && (
-        <div className="bg-accent/20 border border-accent/50 rounded-lg p-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-lg">⏯️</span>
-              <span className="text-xs text-accent">Replay</span>
-            </div>
-            <span className="text-sm text-white">{currentReplayMove} / {totalMoves}</span>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0.5rem',
+          backgroundColor: 'rgba(59, 130, 246, 0.2)',
+          border: '1px solid rgba(59, 130, 246, 0.5)',
+          borderRadius: '0.375rem',
+          fontSize: '0.75rem'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontSize: '1rem' }}>⏯️</span>
+            <span style={{ color: '#3b82f6' }}>Replay</span>
           </div>
+          <span style={{ color: '#fff', fontSize: '0.875rem' }}>
+            {currentReplayMove} / {totalMoves}
+          </span>
         </div>
       )}
     </div>

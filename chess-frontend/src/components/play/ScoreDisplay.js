@@ -22,39 +22,85 @@ const ScoreDisplay = ({ playerScore, lastMoveEvaluation, computerScore, lastComp
   const opponentName = isOnlineGame && players ? players[playerColor === 'w' ? 'b' : 'w']?.name : "CPU";
 
   return (
-    <div className="space-y-3">
-      {/* Player Score */}
-      <div className="bg-primary/20 rounded-lg p-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-lg">👤</span>
-            <span className="text-sm font-medium text-white">{playerName}</span>
-          </div>
-          <span className="text-lg font-bold text-success">{formatScore(playerScore)}</span>
+    <div style={{
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      gap: '8px',
+      fontSize: '14px'
+    }}>
+      {/* Computer Score */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px',
+        padding: '6px 10px',
+        borderRadius: '6px',
+        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+        border: '1px solid rgba(239, 68, 68, 0.3)',
+        flex: '1'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <span style={{ fontSize: '14px', color: '#ef4444', fontWeight: '500' }}>
+            {isOnlineGame ? '👤' : '🤖'} {opponentName}
+          </span>
+          {lastComputerEvaluation && (
+            <span style={{ fontSize: '12px', color: '#ef4444' }}>
+              {getMoveClassIcon(lastComputerEvaluation.moveClassification)}
+            </span>
+          )}
         </div>
-        {lastMoveEvaluation && (
-          <div className="flex items-center gap-1 mt-1 text-xs text-white/80">
-            <span>{getMoveClassIcon(lastMoveEvaluation.moveClassification)}</span>
-            <span>+{formatScore(lastMoveEvaluation.total)}</span>
-          </div>
-        )}
+        <span style={{
+          fontFamily: 'monospace',
+          fontSize: '16px',
+          fontWeight: 'bold',
+          color: '#ef4444',
+          marginLeft: 'auto'
+        }}>
+          {formatScore(computerScore)}
+        </span>
       </div>
 
-      {/* Opponent Score */}
-      <div className="bg-secondary/20 rounded-lg p-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-lg">{isOnlineGame ? '👤' : '🤖'}</span>
-            <span className="text-sm font-medium text-white">{opponentName}</span>
-          </div>
-          <span className="text-lg font-bold text-error">{formatScore(computerScore)}</span>
+      {/* VS separator */}
+      <div style={{
+        fontSize: '12px',
+        color: '#666',
+        fontWeight: 'bold',
+        padding: '0 4px'
+      }}>
+        VS
+      </div>
+
+      {/* Player Score */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px',
+        padding: '6px 10px',
+        borderRadius: '6px',
+        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+        border: '1px solid rgba(34, 197, 94, 0.3)',
+        flex: '1'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <span style={{ fontSize: '14px', color: '#22c55e', fontWeight: '500' }}>
+            👤 {playerName}
+          </span>
+          {lastMoveEvaluation && (
+            <span style={{ fontSize: '12px', color: '#22c55e' }}>
+              {getMoveClassIcon(lastMoveEvaluation.moveClassification)}
+            </span>
+          )}
         </div>
-        {lastComputerEvaluation && (
-          <div className="flex items-center gap-1 mt-1 text-xs text-white/80">
-            <span>{getMoveClassIcon(lastComputerEvaluation.moveClassification)}</span>
-            <span>+{formatScore(lastComputerEvaluation.total)}</span>
-          </div>
-        )}
+        <span style={{
+          fontFamily: 'monospace',
+          fontSize: '16px',
+          fontWeight: 'bold',
+          color: '#22c55e',
+          marginLeft: 'auto'
+        }}>
+          {formatScore(playerScore)}
+        </span>
       </div>
     </div>
   );

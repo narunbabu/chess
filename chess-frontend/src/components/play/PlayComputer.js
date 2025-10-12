@@ -1,6 +1,6 @@
 // src/components/play/PlayComputer.js
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import { Chess } from "chess.js";
 import { Link, useNavigate, useLocation } from "react-router-dom"; // Use Router if defining routes here, otherwise just Link/useNavigate
 
@@ -17,7 +17,7 @@ import GameCompletionAnimation from "../GameCompletionAnimation"; // Adjust path
 import PlayShell from "./PlayShell"; // Layout wrapper (Phase 4)
 
 // Import Utils & Hooks
-import { useGameTimer } from "../../utils/timerUtils"; // Adjust path if needed
+import { useGameTimer, formatTime } from "../../utils/timerUtils"; // Adjust path if needed
 import { makeComputerMove } from "../../utils/computerMoveUtils"; // Adjust path if needed
 import { updateGameStatus, evaluateMove } from "../../utils/gameStateUtils"; // Adjust paths if needed (ensure evaluateMove exists)
 import { encodeGameHistory, reconstructGameFromHistory } from "../../utils/gameHistoryStringUtils"; // Adjust paths if needed
@@ -185,12 +185,40 @@ const PlayComputer = () => {
 
   // --- Effects ---
 
-  // Effect for handling screen orientation changes
-  useEffect(() => {
-    const handleResize = () => setIsPortrait(window.innerHeight > window.innerWidth);
-    window.addEventListener('resize', handleResize);
-    handleResize(); // Initial check
-    return () => window.removeEventListener('resize', handleResize);
+  // Effect for handling screen orientation changes and mobile landscape detection
+  useLayoutEffect(() => {
+    const handleOrientationChange = () => {
+      const isLandscape = window.innerWidth > window.innerHeight;
+      const isMobile = window.innerWidth <= 812; // iPhone X width in landscape
+      setIsPortrait(!isLandscape);
+
+      // Add mobile-landscape class to both html and body for maximum CSS specificity
+      const shouldApply = isLandscape && isMobile;
+      document.documentElement.classList.toggle('mobile-landscape', shouldApply);
+      document.body.classList.toggle('mobile-landscape', shouldApply);
+
+      // Debug logging
+      if (shouldApply) {
+        console.log('Mobile Landscape Active:', {
+          width: window.innerWidth,
+          height: window.innerHeight,
+          isLandscape,
+          isMobile
+        });
+      }
+    };
+
+    handleOrientationChange(); // Initial check before paint
+    window.addEventListener('resize', handleOrientationChange);
+    window.addEventListener('orientationchange', handleOrientationChange);
+
+    return () => {
+      window.removeEventListener('resize', handleOrientationChange);
+      window.removeEventListener('orientationchange', handleOrientationChange);
+      // Clean up classes on unmount
+      document.documentElement.classList.remove('mobile-landscape');
+      document.body.classList.remove('mobile-landscape');
+    };
   }, []); // setIsPortrait is stable
 
   useEffect(() => {
@@ -890,6 +918,114 @@ const PlayComputer = () => {
     </>
   );
 
+  const timerScoreDisplay = (
+    <div className="timer-score-display" style={{
+      display: 'flex',
+      flexDirection: 'column',
+      marginBottom: '12px',
+      gap: '8px',
+      fontSize: '14px'
+    }}>
+      {/* Computer Row - Timer and Score */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: '8px'
+      }}>
+        {/* Computer Timer and Score Combined */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          padding: '6px 10px',
+          borderRadius: '6px',
+          backgroundColor: activeTimer === (playerColor === 'w' ? 'b' : 'w') ? 'rgba(239, 68, 68, 0.2)' : 'rgba(239, 68, 68, 0.1)',
+          border: `1px solid ${activeTimer === (playerColor === 'w' ? 'b' : 'w') ? 'rgba(239, 68, 68, 0.5)' : 'rgba(239, 68, 68, 0.3)'}`,
+          flex: '1',
+          minWidth: '140px'
+        }}>
+          <span style={{ fontSize: '16px', color: activeTimer === (playerColor === 'w' ? 'b' : 'w') ? '#ef4444' : '#ef4444' }}>
+            {activeTimer === (playerColor === 'w' ? 'b' : 'w') && (
+              <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#ef4444', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
+            )}
+            🤖
+          </span>
+          <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+            <span style={{ fontSize: '12px', color: '#ef4444', fontWeight: '500' }}>Computer</span>
+            <span style={{
+              fontFamily: 'monospace',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              color: activeTimer === (playerColor === 'w' ? 'b' : 'w') ? '#ef4444' : '#ef4444'
+            }}>
+              {formatTime(computerTime)}
+            </span>
+          </div>
+          <span style={{
+            fontFamily: 'monospace',
+            fontSize: '16px',
+            fontWeight: 'bold',
+            color: '#ef4444',
+            marginLeft: '8px'
+          }}>
+            {computerScore || 0}
+          </span>
+        </div>
+
+        {/* VS separator */}
+        <div style={{
+          fontSize: '12px',
+          color: '#666',
+          fontWeight: 'bold',
+          padding: '0 4px'
+        }}>
+          VS
+        </div>
+
+        {/* Player Timer and Score Combined */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          padding: '6px 10px',
+          borderRadius: '6px',
+          backgroundColor: activeTimer === playerColor ? 'rgba(34, 197, 94, 0.2)' : 'rgba(34, 197, 94, 0.1)',
+          border: `1px solid ${activeTimer === playerColor ? 'rgba(34, 197, 94, 0.5)' : 'rgba(34, 197, 94, 0.3)'}`,
+          flex: '1',
+          minWidth: '140px'
+        }}>
+          <span style={{ fontSize: '16px', color: activeTimer === playerColor ? '#22c55e' : '#22c55e' }}>
+            {activeTimer === playerColor && (
+              <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#22c55e', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
+            )}
+            👤
+          </span>
+          <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+            <span style={{ fontSize: '12px', color: '#22c55e', fontWeight: '500' }}>You</span>
+            <span style={{
+              fontFamily: 'monospace',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              color: activeTimer === playerColor ? '#22c55e' : '#22c55e'
+            }}>
+              {formatTime(playerTime)}
+            </span>
+          </div>
+          <span style={{
+            fontFamily: 'monospace',
+            fontSize: '16px',
+            fontWeight: 'bold',
+            color: '#22c55e',
+            marginLeft: '8px'
+          }}>
+            {playerScore || 0}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+
   const boardAreaSection = (
     <div className="main-content-area">
       <div className="board-container">
@@ -974,6 +1110,195 @@ const PlayComputer = () => {
     </div>
   );
 
+  // const controlsSection = (
+  //   {/* Compact Timer Display Above Board */}
+  //   <>
+  //               <div style={{
+  //                 display: 'flex',
+  //                 flexDirection: 'column',
+  //                 marginBottom: '12px',
+  //                 gap: '8px',
+  //                 fontSize: '14px'
+  //               }}>
+  //                 {/* Player Info Row: You are & Turn */}
+  //                 <div style={{
+  //                   display: 'flex',
+  //                   justifyContent: 'space-between',
+  //                   alignItems: 'center',
+  //                   padding: '4px 8px',
+  //                   backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  //                   borderRadius: '4px',
+  //                   fontSize: '12px',
+  //                   color: '#ccc'
+  //                 }}>
+  //                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+  //                     <span>{playerColor === 'w' ? '⚪' : '⚫'}</span>
+  //                     <span>You are {playerColor === 'w' ? 'White' : 'Black'}</span>
+  //                   </div>
+  //                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+  //                     <span>Turn:</span>
+  //                     <span>{game?.turn() === 'w' ? '⚪ White' : '⚫ Black'}</span>
+  //                   </div>
+  //                 </div>
+
+  //                 {/* Timer Row */}
+  //                 <div style={{
+  //                   display: 'flex',
+  //                   justifyContent: 'space-between',
+  //                   alignItems: 'center',
+  //                   gap: '8px'
+  //                 }}>
+  //                   {/* Computer Timer - Compact */}
+  //                   <div style={{
+  //                     display: 'flex',
+  //                     alignItems: 'center',
+  //                     gap: '6px',
+  //                     padding: '6px 10px',
+  //                     borderRadius: '6px',
+  //                     backgroundColor: activeTimer === (playerColor === 'w' ? 'b' : 'w') ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 255, 255, 0.1)',
+  //                     border: `1px solid ${activeTimer === (playerColor === 'w' ? 'b' : 'w') ? 'rgba(239, 68, 68, 0.5)' : 'rgba(255, 255, 255, 0.2)'}`,
+  //                     flex: '1',
+  //                     minWidth: '120px'
+  //                   }}>
+  //                     <span style={{ fontSize: '16px', color: activeTimer === (playerColor === 'w' ? 'b' : 'w') ? '#ef4444' : '#ccc' }}>
+  //                       {activeTimer === (playerColor === 'w' ? 'b' : 'w') && (
+  //                         <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#ef4444', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
+  //                       )}
+  //                       🤖
+  //                     </span>
+  //                     <span style={{
+  //                       fontFamily: 'monospace',
+  //                       fontSize: '14px',
+  //                       fontWeight: 'bold',
+  //                       color: activeTimer === (playerColor === 'w' ? 'b' : 'w') ? '#ef4444' : '#ccc',
+  //                       marginLeft: 'auto'
+  //                     }}>
+  //                       {formatTime(computerTime)}
+  //                     </span>
+  //                   </div>
+
+  //                   {/* VS separator */}
+  //                   <div style={{
+  //                     fontSize: '12px',
+  //                     color: '#666',
+  //                     fontWeight: 'bold',
+  //                     padding: '0 4px'
+  //                   }}>
+  //                     VS
+  //                   </div>
+
+  //                   {/* Player Timer - Compact */}
+  //                   <div style={{
+  //                     display: 'flex',
+  //                     alignItems: 'center',
+  //                     gap: '6px',
+  //                     padding: '6px 10px',
+  //                     borderRadius: '6px',
+  //                     backgroundColor: activeTimer === playerColor ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255, 255, 255, 0.1)',
+  //                     border: `1px solid ${activeTimer === playerColor ? 'rgba(34, 197, 94, 0.5)' : 'rgba(255, 255, 255, 0.2)'}`,
+  //                     flex: '1',
+  //                     minWidth: '120px'
+  //                   }}>
+  //                     <span style={{ fontSize: '16px', color: activeTimer === playerColor ? '#22c55e' : '#ccc' }}>
+  //                       {activeTimer === playerColor && (
+  //                         <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#22c55e', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
+  //                       )}
+  //                       👤
+  //                     </span>
+  //                     <span style={{
+  //                       fontFamily: 'monospace',
+  //                       fontSize: '14px',
+  //                       fontWeight: 'bold',
+  //                       color: activeTimer === playerColor ? '#22c55e' : '#ccc',
+  //                       marginLeft: 'auto'
+  //                     }}>
+  //                       {formatTime(playerTime)}
+  //                     </span>
+  //                   </div>
+                    
+  //                 </div>
+  //                 <ScoreDisplay playerScore={playerScore} lastMoveEvaluation={lastMoveEvaluation} computerScore={computerScore} lastComputerEvaluation={lastComputerEvaluation} isOnlineGame={isOnlineGame} players={players} playerColor={playerColor} />
+              
+  //               </div>
+          
+  //               <div style={{
+  //                 display: 'flex',
+  //                 justifyContent: 'center',
+  //                 alignItems: 'center',
+  //                 marginTop: '12px',
+  //                 gap: '10px',
+  //                 flexWrap: 'wrap'
+  //               }}>
+  //                 {/* Pause/Resume Button (In-Game) */}
+  //                 {!isReplayMode && gameStarted && (
+  //                   <button
+  //                     onClick={() => {
+  //                       if (isTimerRunning) {
+  //                         pauseTimer();
+  //                       } else {
+  //                         startTimerInterval();
+  //                       }
+  //                     }}
+  //                     style={{
+  //                       padding: '8px 16px',
+  //                       fontSize: '14px',
+  //                       fontWeight: '500',
+  //                       borderRadius: '6px',
+  //                       border: '1px solid rgba(255, 255, 255, 0.3)',
+  //                       backgroundColor: isTimerRunning ? 'rgba(239, 68, 68, 0.2)' : 'rgba(34, 197, 94, 0.2)',
+  //                       color: isTimerRunning ? '#ef4444' : '#22c55e',
+  //                       cursor: 'pointer',
+  //                       transition: 'all 0.2s'
+  //                     }}
+  //                   >
+  //                     {isTimerRunning ? '⏸️ Pause' : '▶️ Resume'}
+  //                   </button>
+  //                 )}
+
+  //                 {/* Replay Controls */}
+  //                 {isReplayMode && (
+  //                   <>
+  //                     <button
+  //                       onClick={() => {
+  //                         replayPaused ? startReplay() : pauseReplay();
+  //                       }}
+  //                       style={{
+  //                         padding: '8px 16px',
+  //                         fontSize: '14px',
+  //                         fontWeight: '500',
+  //                         borderRadius: '6px',
+  //                         border: '1px solid rgba(255, 255, 255, 0.3)',
+  //                         backgroundColor: replayPaused ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+  //                         color: replayPaused ? '#22c55e' : '#ef4444',
+  //                         cursor: 'pointer',
+  //                         transition: 'all 0.2s'
+  //                       }}
+  //                     >
+  //                       {replayPaused ? '▶️ Continue' : '⏸️ Pause'}
+  //                     </button>
+  //                     <button
+  //                       onClick={resetCurrentGameSetup}
+  //                       style={{
+  //                         padding: '8px 16px',
+  //                         fontSize: '14px',
+  //                         fontWeight: '500',
+  //                         borderRadius: '6px',
+  //                         border: '1px solid rgba(255, 255, 255, 0.3)',
+  //                         backgroundColor: 'rgba(239, 68, 68, 0.2)',
+  //                         color: '#ef4444',
+  //                         cursor: 'pointer',
+  //                         transition: 'all 0.2s'
+  //                       }}
+  //                     >
+  //                       🚪 Exit Replay
+  //                     </button>
+  //                   </>
+  //                 )}
+  //               </div>
+  //   </>
+  // );
+    
+
   const modalsSection = (
     <>
       {showGameCompletion && (
@@ -999,6 +1324,7 @@ const PlayComputer = () => {
         preGameSetup={preGameSetupSection}
         boardArea={boardAreaSection}
         sidebar={sidebarSection}
+        timerScore={timerScoreDisplay}
         modals={modalsSection}
         showBoard={!isOnlineGame && (gameStarted || isReplayMode)}
         mode="computer"
@@ -1071,8 +1397,13 @@ const PlayComputer = () => {
         {/* Main Game/Replay Screen Layout */}
         {(gameStarted || isReplayMode) && (
           <div className="play-computer-layout">
+            <div className="sidebar">
+              {sidebarSection}
+            </div>  
             <div className="main-content-area">
               <div className="board-container">
+                
+
                 <ChessBoard
                   game={game} // Pass the Chess.js instance
                   boardOrientation={boardOrientation} // 'white' or 'black'
@@ -1086,17 +1417,13 @@ const PlayComputer = () => {
                   playerColor={playerColor} // Player's color ('w' or 'b')
                   isReplayMode={isReplayMode} // Disable interaction during replay
                 />
+
+                
+
               </div>
             </div>
-            <div className="sidebar">
-              <GameInfo gameStatus={gameStatus} playerColor={playerColor} game={game} moveCompleted={moveCompleted} activeTimer={activeTimer} isReplayMode={isReplayMode} currentReplayMove={currentReplayMove} totalMoves={gameHistory.length} settings={settings} isOnlineGame={isOnlineGame} players={players} />
-              <ScoreDisplay playerScore={playerScore} lastMoveEvaluation={lastMoveEvaluation} computerScore={computerScore} lastComputerEvaluation={lastComputerEvaluation} isOnlineGame={isOnlineGame} players={players} playerColor={playerColor} />
-              <TimerDisplay playerTime={playerTime} computerTime={computerTime} activeTimer={activeTimer} playerColor={playerColor} isPortrait={isPortrait} isRunning={isTimerRunning && activeTimer === playerColor} isComputerRunning={isTimerRunning && activeTimer !== playerColor} />
-              <GameControls gameStarted={gameStarted} countdownActive={countdownActive} isTimerRunning={isTimerRunning} resetGame={resetCurrentGameSetup} handleTimer={startTimerInterval} pauseTimer={pauseTimer} isReplayMode={isReplayMode} replayPaused={replayPaused} startReplay={startReplay} pauseReplay={pauseReplay} savedGames={savedGames} loadGame={loadGame} moveCount={moveCount} playerColor={playerColor} replayTimerRef={replayTimerRef} />
-              {settings.requireDoneButton && !isReplayMode && (
-                <TimerButton timerButtonColor={timerButtonColor} timerButtonText={timerButtonText} moveCompleted={moveCompleted} activeTimer={activeTimer} playerColor={playerColor} onClick={handleTimerButtonPress} disabled={gameOver || !moveCompleted || activeTimer !== playerColor} />
-              )}
-            </div>
+            
+            
           </div>
         )}
 
