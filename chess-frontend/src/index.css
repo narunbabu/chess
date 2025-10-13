@@ -902,11 +902,11 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 10px;
-    gap: 5px;
+    padding: 6px;
+    gap: 3px;
     color: #fff;
     max-width: 600px;
-    max-height: 60vh;
+    max-height: 70vh;
     overflow-y: auto;
     z-index: 999;
   }
@@ -936,7 +936,7 @@
   }
 
   .pre-game-setup h2 {
-      margin-bottom: 8px;
+      margin-bottom: 6px;
   }
 
   .pre-game-setup h3 {
@@ -1088,14 +1088,14 @@
 
   /* Start Button Styles (Keep the large green button) */
   .start-button {
-    padding: 12px 25px; /* Larger padding */
+    padding: 12px 20px; /* Larger padding */
     font-size: 1.2em;  /* Larger font size */
     cursor: pointer;
     border: none;
     border-radius: 5px;
     transition: background-color 0.2s ease;
     font-weight: bold;
-    margin-top: 20px; /* Ensure spacing above button */
+    margin-top: 5px; /* Ensure spacing above button */
   }
 
   .start-button.large { /* Class already applied */
@@ -1550,7 +1550,7 @@
   transform: translateX(26px);
 }
 .start-button.large.green {
-  padding: 15px 30px;
+  padding: 5px 5px;
   font-size: 1.5em;
   background-color: #4CAF50;
   color: white;
@@ -1953,7 +1953,7 @@
      }
 
      .start-button {
-       padding: 8px 16px;
+       padding: 8px 12px;
        font-size: 1em;
        margin-top: 12px;
        min-width: 140px;

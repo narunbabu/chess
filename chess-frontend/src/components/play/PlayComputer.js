@@ -861,7 +861,7 @@ const PlayComputer = () => {
     <>
       {/* Game Mode Selection */}
       {gameMode === null && (
-        <div className="pre-game-setup bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-8 text-center">
+        <div className="pre-game-setup bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-6 text-center">
           <h2 className="text-3xl font-bold mb-6 text-vivid-yellow">Choose Your Game Mode</h2>
           <div className="flex flex-col gap-4">
             <button className="start-button large green bg-ufo-green hover:bg-vivid-yellow text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300" onClick={() => setGameMode('computer')}>
@@ -876,9 +876,9 @@ const PlayComputer = () => {
 
       {/* Difficulty and Color Selection */}
       {gameMode === 'computer' && (
-        <div className="pre-game-setup bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-8 text-center">
-          <h2 className="text-3xl font-bold mb-3 text-vivid-yellow">Play Against Computer</h2>
-          <div className="difficulty-selection mb-3">
+        <div className="pre-game-setup bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-6 text-center">
+          <h2 className="text-3xl font-bold mb-2 text-vivid-yellow">Play Against Computer</h2>
+          <div className="difficulty-selection mb-2">
             <DifficultyMeter
               value={computerDepth}
               onChange={handleDifficultyChange}
@@ -887,7 +887,7 @@ const PlayComputer = () => {
               disabled={countdownActive}
             />
           </div>
-          <div className="color-selection mb-3">
+          <div className="color-selection mb-2">
             <h3 className="text-xl font-semibold mb-2">Select Your Color:</h3>
             <label className="color-toggle-container inline-flex items-center cursor-pointer" htmlFor="color-toggle">
               <span className="mr-3">White</span>
@@ -1339,7 +1339,7 @@ const PlayComputer = () => {
 
         {/* Pre-Game Setup Screen */}
         {!gameStarted && !isReplayMode && !isOnlineGame && gameMode === null && (
-          <div className="pre-game-setup bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-8 text-center">
+          <div className="pre-game-setup bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-6 text-center">
             <h2 className="text-3xl font-bold mb-6 text-vivid-yellow">Choose Your Game Mode</h2>
             <div className="flex flex-col gap-4">
               <button className="start-button large green bg-ufo-green hover:bg-vivid-yellow text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300" onClick={() => setGameMode('computer')}>
@@ -1354,9 +1354,9 @@ const PlayComputer = () => {
 
         {/* Pre-Game Setup Screen */}
         {!gameStarted && !isReplayMode && !isOnlineGame && gameMode === 'computer' && (
-          <div className="pre-game-setup bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-8 text-center">
-            <h2 className="text-3xl font-bold mb-3 text-vivid-yellow">Play Against Computer</h2>
-            <div className="difficulty-selection mb-3">
+          <div className="pre-game-setup bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-6 text-center">
+
+            <div className="difficulty-selection mb-2">
               <DifficultyMeter
                 value={computerDepth}
                 onChange={handleDifficultyChange}
@@ -1365,7 +1365,7 @@ const PlayComputer = () => {
                 disabled={countdownActive}
               />
             </div>
-            <div className="color-selection mb-3">
+            <div className="color-selection mb-2">
               <h3 className="text-xl font-semibold mb-2">Select Your Color:</h3>
               <label className="color-toggle-container inline-flex items-center cursor-pointer" htmlFor="color-toggle">
                 <span className="mr-3">White</span>

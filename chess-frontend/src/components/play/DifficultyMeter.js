@@ -34,10 +34,10 @@ export default function DifficultyMeter({
       let containerWidth, calculatedRadius, calculatedHeight;
 
       if (isMobile && isLandscape) {
-        // Mobile landscape - more compact sizing
-        containerWidth = Math.min(window.innerWidth - 40, 120); // Smaller max width for landscape
-        calculatedRadius = Math.min(containerWidth / 2 - 15, 60); // Smaller radius for landscape
-        calculatedHeight = calculatedRadius + 30; // Reduced height for landscape
+        // Mobile landscape - optimized sizing
+        containerWidth = Math.min(window.innerWidth - 40, 140); // Slightly larger width for landscape
+        calculatedRadius = Math.min(containerWidth / 2 - 20, 70); // Larger radius for landscape
+        calculatedHeight = calculatedRadius + 35; // Adjusted height for landscape
       } else if (isMobile) {
         // Mobile portrait
         containerWidth = Math.min(window.innerWidth - 40, 150);
