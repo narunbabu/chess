@@ -34,28 +34,45 @@ const ChallengeModal = ({
       <div className="invitation-modal">
         <div className="modal-content">
           <h2>⚡ Challenge {selectedPlayer.name}</h2>
-          <p>Choose your preferred color:</p>
+          <p> Your preferred color:</p>
           <div className="color-choices">
             <button
               className="color-choice white"
               onClick={() => onColorChoice('white')}
+              style={{
+                backgroundColor: '#f8f9fa',
+                border: '2px solid #dee2e6',
+                color: '#212529'
+              }}
             >
-              ♔ Play as White
-              <small>(Move first)</small>
+              <div style={{ fontSize: '24px', marginBottom: '4px' }}>♔ White</div>
+
+
             </button>
             <button
               className="color-choice black"
               onClick={() => onColorChoice('black')}
+              style={{
+                backgroundColor: '#212529',
+                border: '2px solid #495057',
+                color: '#f8f9fa'
+              }}
             >
-              ♚ Play as Black
-              <small>(Move second)</small>
+              <div style={{ fontSize: '24px', marginBottom: '4px' }}>♚ Black</div>
+
             </button>
             <button
               className="color-choice random"
               onClick={() => onColorChoice('random')}
+              style={{
+                backgroundColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                border: '2px solid #5a67d8',
+                color: '#ffffff'
+              }}
             >
-              🎲 Random
-              <small>(Let chance decide)</small>
+              <div style={{ fontSize: '24px', marginBottom: '4px' }}>🎲 Random</div>
+              
+
             </button>
           </div>
           <button className="cancel-btn" onClick={onCancelColorChoice}>

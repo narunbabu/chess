@@ -877,8 +877,8 @@ const PlayComputer = () => {
       {/* Difficulty and Color Selection */}
       {gameMode === 'computer' && (
         <div className="pre-game-setup bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-8 text-center">
-          <h2 className="text-3xl font-bold mb-6 text-vivid-yellow">Play Against Computer</h2>
-          <div className="difficulty-selection mb-6">
+          <h2 className="text-3xl font-bold mb-3 text-vivid-yellow">Play Against Computer</h2>
+          <div className="difficulty-selection mb-3">
             <DifficultyMeter
               value={computerDepth}
               onChange={handleDifficultyChange}
@@ -887,7 +887,7 @@ const PlayComputer = () => {
               disabled={countdownActive}
             />
           </div>
-          <div className="color-selection mb-6">
+          <div className="color-selection mb-3">
             <h3 className="text-xl font-semibold mb-2">Select Your Color:</h3>
             <label className="color-toggle-container inline-flex items-center cursor-pointer" htmlFor="color-toggle">
               <span className="mr-3">White</span>
@@ -1355,8 +1355,8 @@ const PlayComputer = () => {
         {/* Pre-Game Setup Screen */}
         {!gameStarted && !isReplayMode && !isOnlineGame && gameMode === 'computer' && (
           <div className="pre-game-setup bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-8 text-center">
-            <h2 className="text-3xl font-bold mb-6 text-vivid-yellow">Play Against Computer</h2>
-            <div className="difficulty-selection mb-6">
+            <h2 className="text-3xl font-bold mb-3 text-vivid-yellow">Play Against Computer</h2>
+            <div className="difficulty-selection mb-3">
               <DifficultyMeter
                 value={computerDepth}
                 onChange={handleDifficultyChange}
@@ -1365,7 +1365,7 @@ const PlayComputer = () => {
                 disabled={countdownActive}
               />
             </div>
-            <div className="color-selection mb-6">
+            <div className="color-selection mb-3">
               <h3 className="text-xl font-semibold mb-2">Select Your Color:</h3>
               <label className="color-toggle-container inline-flex items-center cursor-pointer" htmlFor="color-toggle">
                 <span className="mr-3">White</span>

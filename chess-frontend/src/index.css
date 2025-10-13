@@ -902,15 +902,41 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 20px;
-    gap: 25px;
+    padding: 10px;
+    gap: 5px;
     color: #fff;
     max-width: 600px;
+    max-height: 60vh;
+    overflow-y: auto;
     z-index: 999;
   }
 
+  /* Mobile responsive pre-game setup */
+  @media (max-width: 768px) {
+    .pre-game-setup {
+      width: 95vw;
+      max-width: 95vw;
+      max-height: 90vh;
+      padding: 1.5rem;
+      gap: 1.5rem;
+      border-radius: 1rem;
+    }
+  }
+
+  /* Very small mobile devices */
+  @media (max-width: 480px) {
+    .pre-game-setup {
+      width: 98vw;
+      max-width: 98vw;
+      max-height: 95vh;
+      padding: 1rem;
+      gap: 1rem;
+      font-size: 0.9rem;
+    }
+  }
+
   .pre-game-setup h2 {
-      margin-bottom: 15px;
+      margin-bottom: 8px;
   }
 
   .pre-game-setup h3 {
@@ -1904,7 +1930,7 @@
      .pre-game-setup {
        max-width: 90vw;
        padding: 10px 15px;
-       gap: 15px;
+       gap: 8px;
      }
 
      .level-wheel-container {

@@ -10,15 +10,59 @@ export default function DifficultyMeter({
   startAngle = -180,
   endAngle = 0,
   onChange,
-  width = 250,
-  height = 150, // Adjusted height to better fit the half-circle design
+  width,
+  height,
   value: initialValue = min,
   disabled = false,
 }) {
   const canvasRef = useRef(null);
   const [value, setValue] = useState(initialValue);
   const [angle, setAngle] = useState(valueToAngle(initialValue));
-  const center = { x: width / 2, y: height }; // Center at the bottom for a half-circle arc
+
+  // Responsive dimensions - use window width if width not provided
+  const [dimensions, setDimensions] = useState({
+    width: width || 150,
+    height: height || 100,
+    radius: radius
+  });
+
+  // Update dimensions on window resize for mobile responsiveness
+  useEffect(() => {
+    const updateDimensions = () => {
+      const isMobile = window.innerWidth <= 768; // Mobile breakpoint
+      const isLandscape = window.innerWidth > window.innerHeight;
+      let containerWidth, calculatedRadius, calculatedHeight;
+
+      if (isMobile && isLandscape) {
+        // Mobile landscape - more compact sizing
+        containerWidth = Math.min(window.innerWidth - 40, 120); // Smaller max width for landscape
+        calculatedRadius = Math.min(containerWidth / 2 - 15, 60); // Smaller radius for landscape
+        calculatedHeight = calculatedRadius + 30; // Reduced height for landscape
+      } else if (isMobile) {
+        // Mobile portrait
+        containerWidth = Math.min(window.innerWidth - 40, 150);
+        calculatedRadius = Math.min(containerWidth / 2 - 20, 80);
+        calculatedHeight = calculatedRadius + 40;
+      } else {
+        // Desktop
+        containerWidth = 150;
+        calculatedRadius = Math.min(containerWidth / 2 - 20, 100);
+        calculatedHeight = calculatedRadius + 50;
+      }
+
+      setDimensions({
+        width: width || containerWidth,
+        height: height || calculatedHeight,
+        radius: width ? radius : calculatedRadius
+      });
+    };
+
+    updateDimensions();
+    window.addEventListener('resize', updateDimensions);
+    return () => window.removeEventListener('resize', updateDimensions);
+  }, [width, height, radius]);
+
+  const center = { x: dimensions.width / 2, y: dimensions.height }; // Center at the bottom for a half-circle arc
 
   // --- Helper Functions ---
   const degToRad = (deg) => (deg * Math.PI) / 180;
@@ -48,16 +92,37 @@ export default function DifficultyMeter({
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
-    ctx.clearRect(0, 0, width, height);
+
+    // Set canvas actual size to match display size for proper scaling
+    const dpr = window.devicePixelRatio || 1;
+    const displayWidth = canvas.clientWidth;
+    const displayHeight = canvas.clientHeight;
+
+    // Only resize if different to avoid infinite loops
+    if (canvas.width !== displayWidth * dpr || canvas.height !== displayHeight * dpr) {
+      canvas.width = displayWidth * dpr;
+      canvas.height = displayHeight * dpr;
+      ctx.scale(dpr, dpr);
+    }
+
+    // Clear the canvas using display dimensions
+    ctx.clearRect(0, 0, displayWidth, displayHeight);
+
+    // Calculate drawing center and radius based on display dimensions
+    const drawCenter = {
+      x: displayWidth / 2,
+      y: displayHeight - 10 // Slight padding from bottom
+    };
+    const drawRadius = Math.min(displayWidth / 2 - 20, dimensions.radius);
 
     // Background arc in a lighter shade.
     ctx.beginPath();
     ctx.lineWidth = strokeWidth;
     ctx.strokeStyle = "#e0e0e0";
     ctx.arc(
-      center.x,
-      center.y,
-      radius,
+      drawCenter.x,
+      drawCenter.y,
+      drawRadius,
       degToRad(startAngle),
       degToRad(endAngle),
       false
@@ -66,10 +131,10 @@ export default function DifficultyMeter({
 
     // Active arc with a gradient for visual appeal.
     const gradient = ctx.createLinearGradient(
-      center.x - radius,
-      center.y,
-      center.x + radius,
-      center.y
+      drawCenter.x - drawRadius,
+      drawCenter.y,
+      drawCenter.x + drawRadius,
+      drawCenter.y
     );
     const startColor = getArcColor(min);
     const endColor = getArcColor(max);
@@ -86,9 +151,9 @@ export default function DifficultyMeter({
     ctx.lineWidth = strokeWidth;
     ctx.strokeStyle = gradient;
     ctx.arc(
-      center.x,
-      center.y,
-      radius,
+      drawCenter.x,
+      drawCenter.y,
+      drawRadius,
       degToRad(startAngle),
       degToRad(angle),
       false
@@ -96,8 +161,8 @@ export default function DifficultyMeter({
     ctx.stroke();
 
     // Draw the knob at the end of the active arc with a subtle shadow.
-    const knobX = center.x + radius * Math.cos(degToRad(angle));
-    const knobY = center.y + radius * Math.sin(degToRad(angle));
+    const knobX = drawCenter.x + drawRadius * Math.cos(degToRad(angle));
+    const knobY = drawCenter.y + drawRadius * Math.sin(degToRad(angle));
     ctx.beginPath();
     ctx.fillStyle = currentColor;
     ctx.shadowColor = "rgba(0, 0, 0, 0.3)";
@@ -113,21 +178,33 @@ export default function DifficultyMeter({
 
     // Write the current value in the center, slightly above the bottom.
     ctx.fillStyle = "#fff";
-    ctx.font = "bold 24px sans-serif";
+    // Responsive font size based on display dimensions
+    const fontSize = Math.max(12, Math.min(18, drawRadius / 4));
+    ctx.font = `bold ${fontSize}px sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText("Hardness: " + value, center.x, center.y - 30); // Adjust vertical position
+    ctx.fillText("Hardness: " + value, drawCenter.x, drawCenter.y - drawRadius / 3); // Adjust vertical position proportionally
   };
 
   const updateFromPosition = (clientX, clientY) => {
     if (disabled) return;
 
-    const rect = canvasRef.current.getBoundingClientRect();
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
     const x = clientX - rect.left;
     const y = clientY - rect.top;
 
-    const dx = x - center.x;
-    const dy = y - center.y;
+    // Use display dimensions for coordinate calculation
+    const displayWidth = canvas.clientWidth;
+    const displayHeight = canvas.clientHeight;
+    const drawCenter = {
+      x: displayWidth / 2,
+      y: displayHeight - 10
+    };
+    const drawRadius = Math.min(displayWidth / 2 - 20, dimensions.radius);
+
+    const dx = x - drawCenter.x;
+    const dy = y - drawCenter.y;
 
     let angleDeg = radToDeg(Math.atan2(dy, dx));
 
@@ -181,21 +258,23 @@ export default function DifficultyMeter({
 
   useEffect(() => {
     draw();
-  }, [angle, value, disabled]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [angle, value, disabled, dimensions]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <canvas
       ref={canvasRef}
-      width={width}
-      height={height}
       onMouseDown={handleMouseDown}
       onTouchStart={handleTouchStart}
       style={{
         cursor: disabled ? "not-allowed" : "pointer",
         borderRadius: "8px",
-        background: "transparent", // Set background to transparent
+        background: "transparent",
         touchAction: "none",
-        transition: "transform 0.1s ease-in-out", // Subtle scale animation on interaction
+        transition: "transform 0.1s ease-in-out",
+        width: `${dimensions.width}px`, // Use exact calculated width
+        height: `${dimensions.height}px`, // Use exact calculated height
+        maxWidth: "100%", // Ensure it fits container
+        display: "block", // Prevent inline spacing issues
       }}
     />
   );
