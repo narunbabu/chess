@@ -2383,6 +2383,43 @@
   }
 }
 
+@media (orientation: landscape) {
+  .game-sidebar {
+    width: 280px;
+    max-width: 32vw;
+    flex-shrink: 0;
+    order: 1;
+    overflow-y: auto;
+  }
+
+  .board-section {
+    flex: 1;
+    order: 2;
+    min-width: 0;
+  }
+}
+
+/* Game header inside sidebar adjustments */
+.game-sidebar > .game-header {
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+}
+
+.game-sidebar > .game-header h2 {
+  font-size: 1.4rem;
+  margin: 0 0 0.25rem 0;
+}
+
+@media (orientation: landscape) {
+  .game-sidebar > .game-header {
+    margin-bottom: 0.5rem;
+  }
+
+  .game-sidebar > .game-header h2 {
+    font-size: 1.2rem;
+  }
+}
+
 .loading-message,
 .error-message {
   display: flex;

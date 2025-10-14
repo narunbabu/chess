@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import { Chess } from 'chess.js';
 import PresenceConfirmationDialogSimple from './PresenceConfirmationDialogSimple';
 import { Chessboard } from 'react-chessboard';
@@ -7,6 +7,7 @@ import ScoreDisplay from './ScoreDisplay';
 import GameCompletionAnimation from '../GameCompletionAnimation';
 import CheckmateNotification from '../CheckmateNotification';
 import PlayShell from './PlayShell'; // Layout wrapper (Phase 4)
+import GameContainer from './GameContainer'; // Unified game container
 import { useAuth } from '../../contexts/AuthContext';
 import { useParams, useNavigate } from 'react-router-dom';
 import { BACKEND_URL } from '../../config';
@@ -91,6 +92,7 @@ const PlayMultiplayer = () => {
   const [opponentScore, setOpponentScore] = useState(0);
   const [lastMoveEvaluation, setLastMoveEvaluation] = useState(null);
   const [lastOpponentEvaluation, setLastOpponentEvaluation] = useState(null);
+  const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
 
   const { user } = useAuth();
   const { gameId } = useParams();
@@ -998,6 +1000,42 @@ const PlayMultiplayer = () => {
     }
   }, [gameComplete]);
 
+  // Effect for handling screen orientation changes and mobile landscape detection
+  useLayoutEffect(() => {
+    const handleOrientationChange = () => {
+      const isLandscape = window.innerWidth > window.innerHeight;
+      const isMobile = window.innerWidth <= 812; // iPhone X width in landscape
+      setIsPortrait(!isLandscape);
+
+      // Add mobile-landscape class to both html and body for maximum CSS specificity
+      const shouldApply = isLandscape && isMobile;
+      document.documentElement.classList.toggle('mobile-landscape', shouldApply);
+      document.body.classList.toggle('mobile-landscape', shouldApply);
+
+      // Debug logging
+      if (shouldApply) {
+        console.log('Mobile Landscape Active:', {
+          width: window.innerWidth,
+          height: window.innerHeight,
+          isLandscape,
+          isMobile
+        });
+      }
+    };
+
+    handleOrientationChange(); // Initial check before paint
+    window.addEventListener('resize', handleOrientationChange);
+    window.addEventListener('orientationchange', handleOrientationChange);
+
+    return () => {
+      window.removeEventListener('resize', handleOrientationChange);
+      window.removeEventListener('orientationchange', handleOrientationChange);
+      // Clean up classes on unmount
+      document.documentElement.classList.remove('mobile-landscape');
+      document.body.classList.remove('mobile-landscape');
+    };
+  }, []); // setIsPortrait is stable
+
   // Prevent double initialization in React StrictMode
   const didInitRef = useRef(false);
 
@@ -1553,86 +1591,34 @@ const PlayMultiplayer = () => {
     </div>
   );
 
-  const boardAreaSection = (
-    <div className="board-section">
-      {/* Compact Timer Display Above Board */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '12px',
-        gap: '8px',
-        fontSize: '14px'
-      }}>
-        {/* Opponent Timer - Compact */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          padding: '6px 10px',
-          borderRadius: '6px',
-          backgroundColor: !isMyTurn ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 255, 255, 0.1)',
-          border: `1px solid ${!isMyTurn ? 'rgba(239, 68, 68, 0.5)' : 'rgba(255, 255, 255, 0.2)'}`,
-          flex: '1',
-          minWidth: '120px'
-        }}>
-          <span style={{ fontSize: '16px', color: !isMyTurn ? '#ef4444' : '#ccc' }}>
-            {!isMyTurn && (
-              <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#ef4444', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
-            )}
-            {gameInfo.opponentName}
-          </span>
-          <span style={{
-            fontFamily: 'monospace',
-            fontSize: '14px',
-            fontWeight: 'bold',
-            color: !isMyTurn ? '#ef4444' : '#ccc',
-            marginLeft: 'auto'
-          }}>
-            {formatTime(Math.floor(oppMs / 1000))}
-          </span>
-        </div>
-
-        {/* VS separator */}
-        <div style={{
-          fontSize: '12px',
-          color: '#666',
-          fontWeight: 'bold',
-          padding: '0 4px'
-        }}>
-          VS
-        </div>
-
-        {/* Player Timer - Compact */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          padding: '6px 10px',
-          borderRadius: '6px',
-          backgroundColor: isMyTurn ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255, 255, 255, 0.1)',
-          border: `1px solid ${isMyTurn ? 'rgba(34, 197, 94, 0.5)' : 'rgba(255, 255, 255, 0.2)'}`,
-          flex: '1',
-          minWidth: '120px'
-        }}>
-          <span style={{ fontSize: '16px', color: isMyTurn ? '#22c55e' : '#ccc' }}>
-            {isMyTurn && (
-              <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#22c55e', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
-            )}
-            You
-          </span>
-          <span style={{
-            fontFamily: 'monospace',
-            fontSize: '14px',
-            fontWeight: 'bold',
-            color: isMyTurn ? '#22c55e' : '#ccc',
-            marginLeft: 'auto'
-          }}>
-            {formatTime(Math.floor(myMs / 1000))}
-          </span>
-        </div>
-      </div>
-
+  const gameContainerSection = (
+    <GameContainer
+      mode="multiplayer"
+      header={headerSection}
+      timerData={{
+        myMs,
+        oppMs,
+        isMyTurn,
+        opponentName: gameInfo.opponentName,
+        playerScore,
+        computerScore: opponentScore,
+        showScores: false
+      }}
+      gameData={{
+        game,
+        gameHistory,
+        gameStatus: gameInfo.status,
+        playerColor: gameInfo.playerColor,
+        isOnlineGame: true,
+        gameDataObj: gameData
+      }}
+      sidebarData={{
+        lastMoveEvaluation,
+        lastOpponentEvaluation,
+        opponent: gameInfo.opponentName,
+        isPortrait
+      }}
+    >
       <div className="chessboard-wrapper">
         <Chessboard
           position={game.fen()}
@@ -1660,21 +1646,6 @@ const PlayMultiplayer = () => {
             <button onClick={handleResign} className="resign-button">
               Resign
             </button>
-            {/* Show Ping button only when it's NOT your turn */}
-            {/* {gameInfo.turn !== gameInfo.playerColor && (
-              <button onClick={handlePingOpponent} className="ping-button" style={{
-                backgroundColor: '#ffa726',
-                color: 'white',
-                border: 'none',
-                padding: '8px 16px',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                marginLeft: '10px',
-                fontSize: '14px'
-              }}>
-                🔔 Remind Opponent
-              </button>
-            )} */}
           </>
         )}
         {gameInfo.status === 'paused' && (
@@ -1705,31 +1676,7 @@ const PlayMultiplayer = () => {
           ⚠️ Forfeit Game
         </button>
       </div>
-    </div>
-  );
-
-  const sidebarSection = (
-    <div className="game-sidebar">
-      <GameInfo
-        game={game}
-        gameHistory={gameHistory}
-        playerColor={gameInfo.playerColor}
-        opponent={gameInfo.opponentName}
-        gameStatus={gameInfo.status}
-      />
-      <ScoreDisplay
-        playerScore={playerScore}
-        lastMoveEvaluation={lastMoveEvaluation}
-        computerScore={opponentScore}
-        lastComputerEvaluation={lastOpponentEvaluation}
-        isOnlineGame={true}
-        players={{
-          'w': gameData?.white_player,
-          'b': gameData?.black_player
-        }}
-        playerColor={gameInfo.playerColor === 'white' ? 'w' : 'b'}
-      />
-    </div>
+    </GameContainer>
   );
 
   const modalsSection = (
@@ -1777,8 +1724,8 @@ const PlayMultiplayer = () => {
       <>
         <PlayShell
           header={headerSection}
-          boardArea={boardAreaSection}
-          sidebar={sidebarSection}
+          boardArea={gameContainerSection}
+          sidebar={null}
           modals={modalsSection}
           showBoard={true} // Multiplayer always shows board (no pre-game setup)
           mode="multiplayer"
@@ -2157,209 +2104,8 @@ const PlayMultiplayer = () => {
             </div>
           </div>
         )}
-        <div className="game-header">
-          <h2>Multiplayer Chess</h2>
-          <div className="game-status">
-            <div className="connection-status">
-              <span className={`status-indicator ${connectionStatus}`} title={connectionStatus === 'connected' ? 'Connected' : 'Disconnected'}>
-                ●
-              </span>
-              {opponentOnline && (
-                <span className="opponent-status">
-                  ● {gameInfo.opponentName} online
-                </span>
-              )}
-            </div>
-            <div className="turn-status">
-              {gameInfo.status === 'active' ? (
-                gameInfo.turn === gameInfo.playerColor ?
-                  "Your turn" :
-                  `${gameInfo.opponentName}'s turn`
-              ) : gameInfo.status === 'finished' ? (
-                `Game ${gameData?.result?.replace('_', ' ') || 'ended'}`
-              ) : (
-                `Game ${gameInfo.status}`
-              )}
-            </div>
-          </div>
-        </div>
 
-        <div className="game-layout">
-          <div className="board-section">
-            {/* Compact Timer Display Above Board */}
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '12px',
-              gap: '8px',
-              fontSize: '14px'
-            }}>
-              {/* Opponent Timer - Compact */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 10px',
-                borderRadius: '6px',
-                backgroundColor: !isMyTurn ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 255, 255, 0.1)',
-                border: `1px solid ${!isMyTurn ? 'rgba(239, 68, 68, 0.5)' : 'rgba(255, 255, 255, 0.2)'}`,
-                flex: '1',
-                minWidth: '120px'
-              }}>
-                <span style={{ fontSize: '16px', color: !isMyTurn ? '#ef4444' : '#ccc' }}>
-                  {!isMyTurn && (
-                    <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#ef4444', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
-                  )}
-                  {gameInfo.opponentName}
-                </span>
-                <span style={{
-                  fontFamily: 'monospace',
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  color: !isMyTurn ? '#ef4444' : '#ccc',
-                  marginLeft: 'auto'
-                }}>
-                  {formatTime(Math.floor(oppMs / 1000))}
-                </span>
-              </div>
-
-              {/* VS separator */}
-              <div style={{
-                fontSize: '12px',
-                color: '#666',
-                fontWeight: 'bold',
-                padding: '0 4px'
-              }}>
-                VS
-              </div>
-
-              {/* Player Timer - Compact */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 10px',
-                borderRadius: '6px',
-                backgroundColor: isMyTurn ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255, 255, 255, 0.1)',
-                border: `1px solid ${isMyTurn ? 'rgba(34, 197, 94, 0.5)' : 'rgba(255, 255, 255, 0.2)'}`,
-                flex: '1',
-                minWidth: '120px'
-              }}>
-                <span style={{ fontSize: '16px', color: isMyTurn ? '#22c55e' : '#ccc' }}>
-                  {isMyTurn && (
-                    <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#22c55e', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
-                  )}
-                  You
-                </span>
-                <span style={{
-                  fontFamily: 'monospace',
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  color: isMyTurn ? '#22c55e' : '#ccc',
-                  marginLeft: 'auto'
-                }}>
-                  {formatTime(Math.floor(myMs / 1000))}
-                </span>
-              </div>
-            </div>
-
-            <div className="chessboard-wrapper">
-              <Chessboard
-                position={game.fen()}
-                onPieceDrop={onDrop}
-                onSquareClick={handleSquareClick}
-                boardOrientation={boardOrientation}
-                areArrowsAllowed={false}
-                customSquareStyles={{
-                  [selectedSquare]: {
-                    backgroundColor: 'rgba(255, 255, 0, 0.4)'
-                  },
-                  ...(kingInDangerSquare && {
-                    [kingInDangerSquare]: {
-                      animation: 'kingFlicker 0.5s ease-in-out 3',
-                      backgroundColor: 'rgba(255, 0, 0, 0.6)'
-                    }
-                  })
-                }}
-              />
-            </div>
-
-            <div className="game-controls" style={{ marginTop: '12px' }}>
-              {gameInfo.status === 'active' && (
-                <>
-                  <button onClick={handleResign} className="resign-button">
-                    Resign
-                  </button>
-                  {/* Show Ping button only when it's NOT your turn */}
-                  {/* {gameInfo.turn !== gameInfo.playerColor && (
-                    <button onClick={handlePingOpponent} className="ping-button" style={{
-                      backgroundColor: '#ffa726',
-                      color: 'white',
-                      border: 'none',
-                      padding: '8px 16px',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      marginLeft: '10px',
-                      fontSize: '14px'
-                    }}>
-                      🔔 Remind Opponent
-                    </button>
-                  )} */}
-                </>
-              )}
-              {gameInfo.status === 'paused' && (
-                <button onClick={handleResumeGame} className="resume-button">
-                  Resume Game
-                </button>
-              )}
-              {gameInfo.status === 'finished' && (
-                <div className="game-ended-controls">
-                  <button onClick={() => handleNewGame(true)} className="rematch-button">
-                    Rematch
-                  </button>
-                  <button onClick={() => handleNewGame(false)} className="new-game-button">
-                    New Game
-                  </button>
-                </div>
-              )}
-              <button onClick={handleKillGame} className="forfeit-game-button" style={{
-                backgroundColor: '#dc3545',
-                color: 'white',
-                border: 'none',
-                padding: '8px 16px',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                marginTop: '10px',
-                fontSize: '14px'
-              }}>
-                ⚠️ Forfeit Game
-              </button>
-            </div>
-          </div>
-
-          <div className="game-sidebar">
-            <GameInfo
-              game={game}
-              gameHistory={gameHistory}
-              playerColor={gameInfo.playerColor}
-              opponent={gameInfo.opponentName}
-              gameStatus={gameInfo.status}
-            />
-            <ScoreDisplay
-              playerScore={playerScore}
-              lastMoveEvaluation={lastMoveEvaluation}
-              computerScore={opponentScore}
-              lastComputerEvaluation={lastOpponentEvaluation}
-              isOnlineGame={true}
-              players={{
-                'w': gameData?.white_player,
-                'b': gameData?.black_player
-              }}
-              playerColor={gameInfo.playerColor === 'white' ? 'w' : 'b'}
-            />
-          </div>
-        </div>
+        {gameContainerSection}
 
         {/* Checkmate Notification */}
         {showCheckmate && checkmateWinner && (

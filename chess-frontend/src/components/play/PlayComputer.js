@@ -15,6 +15,7 @@ import DifficultyMeter from "./DifficultyMeter";
 import Countdown from "../Countdown"; // Adjust path if needed
 import GameCompletionAnimation from "../GameCompletionAnimation"; // Adjust path if needed
 import PlayShell from "./PlayShell"; // Layout wrapper (Phase 4)
+import GameContainer from "./GameContainer"; // Unified game container
 
 // Import Utils & Hooks
 import { useGameTimer, formatTime } from "../../utils/timerUtils"; // Adjust path if needed
@@ -918,196 +919,68 @@ const PlayComputer = () => {
     </>
   );
 
-  const timerScoreDisplay = (
-    <div className="timer-score-display" style={{
-      display: 'flex',
-      flexDirection: 'column',
-      marginBottom: '12px',
-      gap: '8px',
-      fontSize: '14px'
-    }}>
-      {/* Computer Row - Timer and Score */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        gap: '8px'
-      }}>
-        {/* Computer Timer and Score Combined */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          padding: '6px 10px',
-          borderRadius: '6px',
-          backgroundColor: activeTimer === (playerColor === 'w' ? 'b' : 'w') ? 'rgba(239, 68, 68, 0.2)' : 'rgba(239, 68, 68, 0.1)',
-          border: `1px solid ${activeTimer === (playerColor === 'w' ? 'b' : 'w') ? 'rgba(239, 68, 68, 0.5)' : 'rgba(239, 68, 68, 0.3)'}`,
-          flex: '1',
-          minWidth: '140px'
-        }}>
-          <span style={{ fontSize: '16px', color: activeTimer === (playerColor === 'w' ? 'b' : 'w') ? '#ef4444' : '#ef4444' }}>
-            {activeTimer === (playerColor === 'w' ? 'b' : 'w') && (
-              <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#ef4444', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
-            )}
-            🤖
-          </span>
-          <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-            <span style={{ fontSize: '12px', color: '#ef4444', fontWeight: '500' }}>Computer</span>
-            <span style={{
-              fontFamily: 'monospace',
-              fontSize: '14px',
-              fontWeight: 'bold',
-              color: activeTimer === (playerColor === 'w' ? 'b' : 'w') ? '#ef4444' : '#ef4444'
-            }}>
-              {formatTime(computerTime)}
-            </span>
-          </div>
-          <span style={{
-            fontFamily: 'monospace',
-            fontSize: '16px',
-            fontWeight: 'bold',
-            color: '#ef4444',
-            marginLeft: '8px'
-          }}>
-            {computerScore || 0}
-          </span>
-        </div>
-
-        {/* VS separator */}
-        <div style={{
-          fontSize: '12px',
-          color: '#666',
-          fontWeight: 'bold',
-          padding: '0 4px'
-        }}>
-          VS
-        </div>
-
-        {/* Player Timer and Score Combined */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          padding: '6px 10px',
-          borderRadius: '6px',
-          backgroundColor: activeTimer === playerColor ? 'rgba(34, 197, 94, 0.2)' : 'rgba(34, 197, 94, 0.1)',
-          border: `1px solid ${activeTimer === playerColor ? 'rgba(34, 197, 94, 0.5)' : 'rgba(34, 197, 94, 0.3)'}`,
-          flex: '1',
-          minWidth: '140px'
-        }}>
-          <span style={{ fontSize: '16px', color: activeTimer === playerColor ? '#22c55e' : '#22c55e' }}>
-            {activeTimer === playerColor && (
-              <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#22c55e', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
-            )}
-            👤
-          </span>
-          <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-            <span style={{ fontSize: '12px', color: '#22c55e', fontWeight: '500' }}>You</span>
-            <span style={{
-              fontFamily: 'monospace',
-              fontSize: '14px',
-              fontWeight: 'bold',
-              color: activeTimer === playerColor ? '#22c55e' : '#22c55e'
-            }}>
-              {formatTime(playerTime)}
-            </span>
-          </div>
-          <span style={{
-            fontFamily: 'monospace',
-            fontSize: '16px',
-            fontWeight: 'bold',
-            color: '#22c55e',
-            marginLeft: '8px'
-          }}>
-            {playerScore || 0}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-
-  const boardAreaSection = (
-    <div className="main-content-area">
-      <div className="board-container">
-        <ChessBoard
-          game={game}
-          boardOrientation={boardOrientation}
-          onDrop={onDrop}
-          moveFrom={moveFrom}
-          setMoveFrom={setMoveFrom}
-          rightClickedSquares={rightClickedSquares}
-          setRightClickedSquares={setRightClickedSquares}
-          moveSquares={moveSquares}
-          setMoveSquares={setMoveSquares}
-          playerColor={playerColor}
-          isReplayMode={isReplayMode}
-        />
-      </div>
-    </div>
-  );
-
-  const sidebarSection = (
-    <div className="sidebar">
-      <GameInfo
-        gameStatus={gameStatus}
-        playerColor={playerColor}
+  const gameContainerSection = (
+    <GameContainer
+      mode="computer"
+      timerData={{
+        playerTime,
+        computerTime,
+        activeTimer,
+        playerColor,
+        isTimerRunning,
+        playerScore,
+        computerScore,
+        showScores: true
+      }}
+      gameData={{
+        game,
+        gameHistory,
+        gameStatus,
+        moveCompleted,
+        isReplayMode,
+        currentReplayMove,
+        settings,
+        isOnlineGame,
+        players
+      }}
+      sidebarData={{
+        lastMoveEvaluation,
+        lastComputerEvaluation
+      }}
+      controlsData={{
+        gameStarted,
+        countdownActive,
+        resetGame: resetCurrentGameSetup,
+        handleTimer: startTimerInterval,
+        pauseTimer,
+        replayPaused,
+        startReplay,
+        pauseReplay,
+        savedGames,
+        loadGame,
+        moveCount,
+        replayTimerRef,
+        timerButtonColor,
+        timerButtonText,
+        handleTimerButtonPress,
+        gameOver,
+        isPortrait
+      }}
+    >
+      <ChessBoard
         game={game}
-        moveCompleted={moveCompleted}
-        activeTimer={activeTimer}
+        boardOrientation={boardOrientation}
+        onDrop={onDrop}
+        moveFrom={moveFrom}
+        setMoveFrom={setMoveFrom}
+        rightClickedSquares={rightClickedSquares}
+        setRightClickedSquares={setRightClickedSquares}
+        moveSquares={moveSquares}
+        setMoveSquares={setMoveSquares}
+        playerColor={playerColor}
         isReplayMode={isReplayMode}
-        currentReplayMove={currentReplayMove}
-        totalMoves={gameHistory.length}
-        settings={settings}
-        isOnlineGame={isOnlineGame}
-        players={players}
       />
-      <ScoreDisplay
-        playerScore={playerScore}
-        lastMoveEvaluation={lastMoveEvaluation}
-        computerScore={computerScore}
-        lastComputerEvaluation={lastComputerEvaluation}
-        isOnlineGame={isOnlineGame}
-        players={players}
-        playerColor={playerColor}
-      />
-      <TimerDisplay
-        playerTime={playerTime}
-        computerTime={computerTime}
-        activeTimer={activeTimer}
-        playerColor={playerColor}
-        isPortrait={isPortrait}
-        isRunning={isTimerRunning && activeTimer === playerColor}
-        isComputerRunning={isTimerRunning && activeTimer !== playerColor}
-      />
-      <GameControls
-        gameStarted={gameStarted}
-        countdownActive={countdownActive}
-        isTimerRunning={isTimerRunning}
-        resetGame={resetCurrentGameSetup}
-        handleTimer={startTimerInterval}
-        pauseTimer={pauseTimer}
-        isReplayMode={isReplayMode}
-        replayPaused={replayPaused}
-        startReplay={startReplay}
-        pauseReplay={pauseReplay}
-        savedGames={savedGames}
-        loadGame={loadGame}
-        moveCount={moveCount}
-        playerColor={playerColor}
-        replayTimerRef={replayTimerRef}
-      />
-      {settings.requireDoneButton && !isReplayMode && (
-        <TimerButton
-          timerButtonColor={timerButtonColor}
-          timerButtonText={timerButtonText}
-          moveCompleted={moveCompleted}
-          activeTimer={activeTimer}
-          playerColor={playerColor}
-          onClick={handleTimerButtonPress}
-          disabled={gameOver || !moveCompleted || activeTimer !== playerColor}
-        />
-      )}
-    </div>
+    </GameContainer>
   );
 
   // const controlsSection = (
@@ -1322,9 +1195,9 @@ const PlayComputer = () => {
       <PlayShell
         header={null}          // use the global site header only
         preGameSetup={preGameSetupSection}
-        boardArea={boardAreaSection}
-        sidebar={sidebarSection}
-        timerScore={timerScoreDisplay}
+        boardArea={gameContainerSection}
+        sidebar={null}
+        timerScore={null}
         modals={modalsSection}
         showBoard={!isOnlineGame && (gameStarted || isReplayMode)}
         mode="computer"
@@ -1395,37 +1268,7 @@ const PlayComputer = () => {
         )}
 
         {/* Main Game/Replay Screen Layout */}
-        {(gameStarted || isReplayMode) && (
-          <div className="play-computer-layout">
-            <div className="sidebar">
-              {sidebarSection}
-            </div>  
-            <div className="main-content-area">
-              <div className="board-container">
-                
-
-                <ChessBoard
-                  game={game} // Pass the Chess.js instance
-                  boardOrientation={boardOrientation} // 'white' or 'black'
-                  onDrop={onDrop} // Callback for piece drop
-                  moveFrom={moveFrom} // Square piece is being dragged from
-                  setMoveFrom={setMoveFrom} // To update moveFrom state
-                  rightClickedSquares={rightClickedSquares} // For highlighting
-                  setRightClickedSquares={setRightClickedSquares} // To update highlights
-                  moveSquares={moveSquares} // To show potential move squares
-                  setMoveSquares={setMoveSquares} // To update potential move squares
-                  playerColor={playerColor} // Player's color ('w' or 'b')
-                  isReplayMode={isReplayMode} // Disable interaction during replay
-                />
-
-                
-
-              </div>
-            </div>
-            
-            
-          </div>
-        )}
+        {(gameStarted || isReplayMode) && gameContainerSection}
 
         {/* Game Completion Modal/Animation */}
         {showGameCompletion && (
