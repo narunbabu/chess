@@ -36,7 +36,7 @@ const PlayMultiplayer = () => {
     playerColor: 'white',
     turn: 'white',
     status: 'active',
-    opponentName: 'Opponent'
+    opponentName: 'Rival'
   });
   const [gameHistory, setGameHistory] = useState([]);
   const [selectedSquare, setSelectedSquare] = useState(null);
@@ -400,14 +400,14 @@ const PlayMultiplayer = () => {
         playerColor: userColor,
         gameTurn: data.turn,
         status: data.status,
-        opponentName: opponent?.name || 'Opponent'
+        opponentName: opponent?.name || 'Rival'
       });
 
       setGameInfo({
         playerColor: userColor,
         turn: data.turn,
         status: data.status,
-        opponentName: opponent?.name || 'Opponent'
+        opponentName: opponent?.name || 'Rival'
       });
 
       // Update WebSocket service with player color for smart polling
@@ -1224,7 +1224,7 @@ const PlayMultiplayer = () => {
           type: 'received',
           requested_by: data.requesting_user?.id,
           requesting_user: data.requesting_user,
-          opponentName: data.requesting_user?.name || 'Opponent',
+          opponentName: data.requesting_user?.name || 'Rival',
           expires_at: data.expires_at
         });
 

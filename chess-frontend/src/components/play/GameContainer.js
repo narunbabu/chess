@@ -44,7 +44,7 @@ const GameContainer = ({
     playerColor,
     isMyTurn,
     isTimerRunning,
-    opponentName = 'Opponent',
+    opponentName = 'Rival',
     playerScore = 0,
     computerScore = 0,
     showScores = false,
