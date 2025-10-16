@@ -670,6 +670,8 @@
     .board-container {
       width: min(85vh, 90vw);
       height: min(85vh, 90vw);
+      margin: 0;
+      padding: 0;
     }
   }
 
@@ -2103,6 +2105,7 @@
 @media (orientation: portrait) {
   .game-layout {
     flex-direction: column;
+    gap: 0.5rem;
   }
 }
 
@@ -2149,6 +2152,13 @@
   max-width: 600px;
 }
 
+@media (orientation: portrait) {
+  .chessboard-wrapper {
+    margin: 0;
+    padding: 0;
+  }
+}
+
 .player-name {
   font-weight: 600;
   font-size: 1rem;
@@ -2158,6 +2168,12 @@
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
+}
+
+@media (orientation: portrait) {
+  .game-controls {
+    margin-top: 0.5rem !important;
+  }
 }
 
 .resign-button,
@@ -2384,6 +2400,9 @@
 
   .board-section {
     order: 2;
+    justify-content: flex-start;
+    gap: 0.5rem;
+    flex: 0 1 auto;
   }
 }
 
