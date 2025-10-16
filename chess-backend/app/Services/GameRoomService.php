@@ -812,9 +812,9 @@ class GameRoomService
     /**
      * Handle player forfeit (unilateral abort - forfeiter loses)
      */
-    public function forfeitGame(int $gameId, int $userId): array
+    public function forfeitGame(int $gameId, int $userId, string $reason = 'forfeit'): array
     {
-        return \DB::transaction(function () use ($gameId, $userId) {
+        return \DB::transaction(function () use ($gameId, $userId, $reason) {
             $game = Game::lockForUpdate()->findOrFail($gameId);
             $user = User::findOrFail($userId);
 
@@ -834,10 +834,13 @@ class GameRoomService
                 : $game->white_player_id;
             $winnerColor = ($forfeiterColor === 'white') ? 'black' : 'white';
 
+            // Use the provided reason (e.g., 'timeout' or 'forfeit')
+            $endReason = in_array($reason, ['timeout', 'forfeit']) ? $reason : 'forfeit';
+
             $game->update([
                 'status' => 'finished',
                 'result' => $result,
-                'end_reason' => 'forfeit',
+                'end_reason' => $endReason,
                 'winner_user_id' => $winnerUserId,
                 'winner_player' => $winnerColor,
                 'ended_at' => now()
@@ -847,7 +850,7 @@ class GameRoomService
 
             return [
                 'success' => true,
-                'message' => 'Game forfeited',
+                'message' => $endReason === 'timeout' ? 'Game ended by timeout' : 'Game forfeited',
                 'result' => $result,
                 'winner' => $winnerColor
             ];

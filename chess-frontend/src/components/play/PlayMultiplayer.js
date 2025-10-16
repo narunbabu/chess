@@ -65,6 +65,10 @@ const PlayMultiplayer = () => {
   const [isLobbyResume, setIsLobbyResume] = useState(false); // Track if this is a lobby-initiated resume
   const [shouldAutoSendResume, setShouldAutoSendResume] = useState(false); // Trigger auto-send after initialization
 
+  // Draw offer state
+  const [drawOfferPending, setDrawOfferPending] = useState(false);
+  const [drawOfferedByMe, setDrawOfferedByMe] = useState(false);
+
   // Initial timer state (calculated from move history)
   const [initialTimerState, setInitialTimerState] = useState({
     whiteMs: 10 * 60 * 1000,
@@ -122,14 +126,51 @@ const PlayMultiplayer = () => {
   const isMyTurn = (myColor && serverTurn) ? (myColor === serverTurn) : false;
 
   // Timer flag callback
-  const handleTimerFlag = useCallback((who) => {
-    console.log('[Timer] Flag:', who);
+  const handleTimerFlag = useCallback(async (who) => {
+    console.log('[Timer] Flag - time ran out:', who);
+
+    // Immediately update local status to prevent further moves
     setGameInfo(prev => ({
       ...prev,
       status: 'finished'
     }));
-    // TODO: Send time-out event to server
-  }, []);
+
+    // Call server to forfeit game due to timeout
+    try {
+      if (wsService.current) {
+        console.log('[Timer] Sending forfeit request to server (timeout)...');
+        await wsService.current.forfeitGame('timeout');
+        console.log('[Timer] ✅ Forfeit request sent successfully');
+        // The gameEnd event from server will trigger handleGameEnd and show the modal
+      }
+    } catch (error) {
+      console.error('[Timer] ❌ Failed to send forfeit request:', error);
+
+      // Fallback: Show end modal manually if server call fails
+      const isPlayerTimeout = who === 'player';
+      const winnerUserId = isPlayerTimeout
+        ? (gameData?.white_player_id === user?.id ? gameData?.black_player_id : gameData?.white_player_id)
+        : user?.id;
+
+      const resultData = {
+        game_over: true,
+        result: isPlayerTimeout ? (myColor === 'w' ? '0-1' : '1-0') : (myColor === 'w' ? '1-0' : '0-1'),
+        end_reason: 'timeout',
+        winner_user_id: winnerUserId,
+        winner_player: isPlayerTimeout ? (myColor === 'w' ? 'black' : 'white') : myColor === 'w' ? 'white' : 'black',
+        fen_final: game.fen(),
+        move_count: game.history().length,
+        ended_at: new Date().toISOString(),
+        white_player: gameData?.whitePlayer,
+        black_player: gameData?.blackPlayer,
+        isPlayerWin: !isPlayerTimeout,
+        isPlayerDraw: false
+      };
+
+      setGameResult(resultData);
+      setGameComplete(true);
+    }
+  }, [wsService, gameData, user, myColor, game]);
 
   // New simplified timer hook with calculated initial values
   const { myMs, oppMs, setMyMs, setOppMs } = useMultiplayerTimer({
@@ -544,6 +585,18 @@ const PlayMultiplayer = () => {
         setError('Connection error: ' + errorMessage);
       });
 
+      // Draw offer event listeners
+      const userChannel = wsService.current.subscribeToUserChannel(user);
+      userChannel.listen('.draw.offer.sent', (event) => {
+        console.log('🤝 Draw offer received:', event);
+        handleDrawOfferReceived(event);
+      });
+
+      userChannel.listen('.draw.offer.declined', (event) => {
+        console.log('❌ Draw offer declined:', event);
+        handleDrawOfferDeclined(event);
+      });
+
       // Initialize the WebSocket connection
       await wsService.current.initialize(gameId, user);
 
@@ -673,6 +726,63 @@ const PlayMultiplayer = () => {
     // Show a brief notification to the player
     // You can use a toast notification library or a simple alert
     alert(`${event.pinged_by_user_name || 'Your opponent'} is waiting for your move!`);
+  }, []);
+
+  // Handle draw offer received from opponent
+  const handleDrawOfferReceived = useCallback((event) => {
+    console.log('🤝 Handling draw offer received:', event);
+    setDrawOfferPending(true);
+    setDrawOfferedByMe(false);
+  }, []);
+
+  // Handle draw offer declined by opponent
+  const handleDrawOfferDeclined = useCallback((event) => {
+    console.log('❌ Handling draw offer declined:', event);
+    setDrawOfferedByMe(false);
+    alert('Your draw offer was declined.');
+  }, []);
+
+  // Handle offering a draw
+  const handleOfferDraw = useCallback(async () => {
+    if (!wsService.current || drawOfferedByMe) return;
+
+    try {
+      await wsService.current.offerDraw();
+      setDrawOfferedByMe(true);
+      console.log('✅ Draw offer sent to opponent');
+    } catch (error) {
+      console.error('❌ Failed to offer draw:', error);
+      alert('Failed to offer draw: ' + error.message);
+    }
+  }, [drawOfferedByMe]);
+
+  // Handle accepting a draw offer
+  const handleAcceptDraw = useCallback(async () => {
+    if (!wsService.current) return;
+
+    try {
+      await wsService.current.acceptDraw();
+      setDrawOfferPending(false);
+      console.log('✅ Draw offer accepted, game will end as draw');
+      // The gameEnded event will be triggered automatically by the server
+    } catch (error) {
+      console.error('❌ Failed to accept draw:', error);
+      alert('Failed to accept draw: ' + error.message);
+    }
+  }, []);
+
+  // Handle declining a draw offer
+  const handleDeclineDraw = useCallback(async () => {
+    if (!wsService.current) return;
+
+    try {
+      await wsService.current.declineDraw();
+      setDrawOfferPending(false);
+      console.log('✅ Draw offer declined');
+    } catch (error) {
+      console.error('❌ Failed to decline draw:', error);
+      alert('Failed to decline draw: ' + error.message);
+    }
   }, []);
 
   // Handle incoming moves (always apply server's authoritative state)
@@ -1491,39 +1601,9 @@ const PlayMultiplayer = () => {
     }
   };
 
-  const handleKillGame = async () => {
-    if (!window.confirm('⚠️ Are you sure you want to forfeit this game? You will LOSE and your opponent will WIN. This action cannot be undone.')) {
-      return;
-    }
-
-    try {
-      // Forfeit the game - player loses, opponent wins
-      await wsService.current.updateGameStatus('finished', null, 'forfeit');
-
-      // Disconnect WebSocket service
-      if (wsService.current) {
-        wsService.current.disconnect();
-      }
-
-      // Clear session storage to prevent stale game access
-      sessionStorage.removeItem('lastInvitationAction');
-      sessionStorage.removeItem('lastInvitationTime');
-      sessionStorage.removeItem('lastGameId');
-
-      // Navigate back to lobby
-      navigate('/lobby');
-    } catch (err) {
-      console.error('Error killing game:', err);
-
-      // Clear session storage even if backend call fails
-      sessionStorage.removeItem('lastInvitationAction');
-      sessionStorage.removeItem('lastInvitationTime');
-      sessionStorage.removeItem('lastGameId');
-
-      // Even if backend call fails, still navigate back
-      navigate('/lobby');
-    }
-  };
+  // REMOVED: handleKillGame (Forfeit Game button)
+  // Reason: Forfeit should only happen automatically on timeout, not as a user action
+  // Users can use Resign button instead to admit defeat
 
   const handlePingOpponent = async () => {
     try {
@@ -1648,6 +1728,14 @@ const PlayMultiplayer = () => {
             <button onClick={handleResign} className="resign-button">
               Resign
             </button>
+            <button
+              onClick={handleOfferDraw}
+              className="draw-button"
+              disabled={drawOfferedByMe}
+              style={{ marginLeft: '8px' }}
+            >
+              {drawOfferedByMe ? 'Draw Offered' : 'Offer Draw'}
+            </button>
           </>
         )}
         {gameInfo.status === 'paused' && (
@@ -1665,18 +1753,6 @@ const PlayMultiplayer = () => {
             </button>
           </div>
         )}
-        <button onClick={handleKillGame} className="forfeit-game-button" style={{
-          backgroundColor: '#dc3545',
-          color: 'white',
-          border: 'none',
-          padding: '8px 16px',
-          borderRadius: '4px',
-          cursor: 'pointer',
-          marginTop: '10px',
-          fontSize: '14px'
-        }}>
-          ⚠️ Forfeit Game
-        </button>
       </div>
     </GameContainer>
   );
@@ -1689,6 +1765,24 @@ const PlayMultiplayer = () => {
           winner={checkmateWinner}
           onComplete={() => setShowCheckmate(false)}
         />
+      )}
+
+      {/* Draw Offer Notification */}
+      {drawOfferPending && (
+        <div className="draw-offer-modal-overlay">
+          <div className="draw-offer-modal">
+            <h3>Draw Offer</h3>
+            <p>Your opponent offers a draw</p>
+            <div className="draw-offer-buttons">
+              <button onClick={handleAcceptDraw} className="accept-draw-button">
+                Accept Draw
+              </button>
+              <button onClick={handleDeclineDraw} className="decline-draw-button">
+                Decline
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Game Completion Modal */}

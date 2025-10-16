@@ -100,6 +100,11 @@ Route::middleware('auth:sanctum')->group(function () {
         // Ping opponent (remind them to move)
         Route::post('/games/{gameId}/ping-opponent', [WebSocketController::class, 'pingOpponent']);
 
+        // Draw offer functionality
+        Route::post('/games/{gameId}/draw/offer', [WebSocketController::class, 'offerDraw']);
+        Route::post('/games/{gameId}/draw/accept', [WebSocketController::class, 'acceptDraw']);
+        Route::post('/games/{gameId}/draw/decline', [WebSocketController::class, 'declineDraw']);
+
         // Get move history for timer calculation
         Route::get('/games/{gameId}/moves', [WebSocketController::class, 'getMoves']);
     });

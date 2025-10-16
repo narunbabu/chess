@@ -664,11 +664,13 @@ class WebSocketController extends Controller
     public function forfeitGame(Request $request, int $gameId): JsonResponse
     {
         try {
-            $result = $this->gameRoomService->forfeitGame($gameId, Auth::id());
+            $reason = $request->input('reason', 'forfeit'); // Default to 'forfeit', but accept 'timeout'
+            $result = $this->gameRoomService->forfeitGame($gameId, Auth::id(), $reason);
 
             Log::info('Player forfeited game', [
                 'user_id' => Auth::id(),
                 'game_id' => $gameId,
+                'reason' => $reason,
                 'result' => $result['result'] ?? null,
                 'winner' => $result['winner'] ?? null
             ]);
@@ -976,6 +978,211 @@ class WebSocketController extends Controller
 
             return response()->json([
                 'error' => 'Failed to fetch move history',
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Offer a draw to the opponent
+     */
+    public function offerDraw(Request $request, int $gameId): JsonResponse
+    {
+        try {
+            $game = Game::with(['whitePlayer', 'blackPlayer'])->findOrFail($gameId);
+            $user = Auth::user();
+
+            // Verify user is part of the game
+            if ($game->white_player_id !== $user->id && $game->black_player_id !== $user->id) {
+                return response()->json([
+                    'error' => 'Unauthorized',
+                    'message' => 'You are not part of this game'
+                ], 403);
+            }
+
+            // Game must be active
+            if ($game->status !== 'active') {
+                return response()->json([
+                    'error' => 'Invalid game state',
+                    'message' => 'Game is not active'
+                ], 400);
+            }
+
+            // Store pending draw offer in cache (5 min expiry)
+            \Illuminate\Support\Facades\Cache::put("draw_offer:{$gameId}:{$user->id}", true, 300);
+
+            // Get opponent
+            $opponent = $game->white_player_id === $user->id ? $game->blackPlayer : $game->whitePlayer;
+
+            // Broadcast draw offer to opponent
+            broadcast(new \App\Events\DrawOfferSentEvent($game, $user, $opponent))->toOthers();
+
+            Log::info('Draw offer sent', [
+                'game_id' => $gameId,
+                'offerer_id' => $user->id,
+                'opponent_id' => $opponent->id
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Draw offer sent to opponent'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to offer draw', [
+                'user_id' => Auth::id(),
+                'game_id' => $gameId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to offer draw',
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Accept a draw offer
+     */
+    public function acceptDraw(Request $request, int $gameId): JsonResponse
+    {
+        try {
+            $game = Game::with(['whitePlayer', 'blackPlayer'])->findOrFail($gameId);
+            $user = Auth::user();
+
+            // Verify user is part of the game
+            if ($game->white_player_id !== $user->id && $game->black_player_id !== $user->id) {
+                return response()->json([
+                    'error' => 'Unauthorized',
+                    'message' => 'You are not part of this game'
+                ], 403);
+            }
+
+            // Get opponent
+            $opponent = $game->white_player_id === $user->id ? $game->blackPlayer : $game->whitePlayer;
+            $requestKey = "draw_offer:{$gameId}:{$opponent->id}";
+
+            // Check if there's a pending draw offer from opponent
+            if (!\Illuminate\Support\Facades\Cache::has($requestKey)) {
+                return response()->json([
+                    'error' => 'No pending draw offer',
+                    'message' => 'No draw offer found from opponent'
+                ], 400);
+            }
+
+            // Both players agreed - draw by mutual agreement
+            $game->update([
+                'status' => 'finished',
+                'result' => '1/2-1/2',  // Draw
+                'end_reason' => 'draw_agreed',
+                'ended_at' => now()
+            ]);
+
+            \Illuminate\Support\Facades\Cache::forget($requestKey);
+
+            // Broadcast game ended with draw
+            broadcast(new \App\Events\GameEndedEvent($game->id, [
+                'game_over' => true,
+                'result' => '1/2-1/2',
+                'end_reason' => 'draw_agreed',
+                'winner_user_id' => null,
+                'winner_player' => null,
+                'fen_final' => $game->fen,
+                'move_count' => $game->move_count,
+                'ended_at' => $game->ended_at?->toISOString(),
+                'white_player' => [
+                    'id' => $game->whitePlayer->id,
+                    'name' => $game->whitePlayer->name
+                ],
+                'black_player' => [
+                    'id' => $game->blackPlayer->id,
+                    'name' => $game->blackPlayer->name
+                ]
+            ]));
+
+            Log::info('Draw offer accepted, game ended', [
+                'game_id' => $gameId,
+                'accepter_id' => $user->id,
+                'offerer_id' => $opponent->id
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'result' => 'draw_agreed',
+                'message' => 'Draw offer accepted, game ended as draw'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to accept draw offer', [
+                'user_id' => Auth::id(),
+                'game_id' => $gameId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to accept draw offer',
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Decline a draw offer
+     */
+    public function declineDraw(Request $request, int $gameId): JsonResponse
+    {
+        try {
+            $game = Game::with(['whitePlayer', 'blackPlayer'])->findOrFail($gameId);
+            $user = Auth::user();
+
+            // Verify user is part of the game
+            if ($game->white_player_id !== $user->id && $game->black_player_id !== $user->id) {
+                return response()->json([
+                    'error' => 'Unauthorized',
+                    'message' => 'You are not part of this game'
+                ], 403);
+            }
+
+            // Get opponent
+            $opponent = $game->white_player_id === $user->id ? $game->blackPlayer : $game->whitePlayer;
+            $requestKey = "draw_offer:{$gameId}:{$opponent->id}";
+
+            // Check if there's a pending draw offer from opponent
+            if (!\Illuminate\Support\Facades\Cache::has($requestKey)) {
+                return response()->json([
+                    'error' => 'No pending draw offer',
+                    'message' => 'No draw offer found from opponent'
+                ], 400);
+            }
+
+            // Remove draw offer from cache
+            \Illuminate\Support\Facades\Cache::forget($requestKey);
+
+            // Broadcast draw offer declined to opponent
+            broadcast(new \App\Events\DrawOfferDeclinedEvent($game, $user, $opponent))->toOthers();
+
+            Log::info('Draw offer declined', [
+                'game_id' => $gameId,
+                'decliner_id' => $user->id,
+                'offerer_id' => $opponent->id
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'result' => 'declined',
+                'message' => 'Draw offer declined'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to decline draw offer', [
+                'user_id' => Auth::id(),
+                'game_id' => $gameId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to decline draw offer',
                 'message' => $e->getMessage()
             ], 400);
         }

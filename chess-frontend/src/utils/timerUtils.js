@@ -39,14 +39,14 @@ export const useMultiplayerTimer = ({
 
       // Start new timer
       timerRef.current = setInterval(() => {
-        const isMyTurn = (myColor === 'w' && serverTurn === 'white') ||
-                        (myColor === 'b' && serverTurn === 'black');
+        const isMyTurn = (myColor === 'w' && serverTurn === 'w') ||
+                        (myColor === 'b' && serverTurn === 'b');
 
         if (isMyTurn) {
           setMyMs(prev => {
             const newTime = Math.max(0, prev - 100);
             if (newTime === 0 && onFlag) {
-              onFlag();
+              onFlag('player'); // Player's time ran out
             }
             return newTime;
           });
@@ -54,7 +54,7 @@ export const useMultiplayerTimer = ({
           setOppMs(prev => {
             const newTime = Math.max(0, prev - 100);
             if (newTime === 0 && onFlag) {
-              onFlag();
+              onFlag('opponent'); // Opponent's time ran out
             }
             return newTime;
           });

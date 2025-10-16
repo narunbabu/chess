@@ -1152,6 +1152,132 @@ class WebSocketGameService {
     }
   }
 
+  async forfeitGame(reason = 'timeout') {
+    if (!this.gameId || !this.user) {
+      throw new Error('Game ID or user not set');
+    }
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${BACKEND_URL}/websocket/games/${this.gameId}/forfeit`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ reason })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to forfeit game');
+      }
+
+      console.log('✅ Game forfeited successfully:', data);
+      return data;
+    } catch (error) {
+      console.error('❌ Failed to forfeit game:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Offer a draw to the opponent
+   */
+  async offerDraw() {
+    if (!this.gameId || !this.user) {
+      throw new Error('Game ID or user not set');
+    }
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${BACKEND_URL}/websocket/games/${this.gameId}/draw/offer`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        }
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to offer draw');
+      }
+
+      console.log('✅ Draw offer sent successfully:', data);
+      return data;
+    } catch (error) {
+      console.error('❌ Failed to offer draw:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Accept a draw offer from the opponent
+   */
+  async acceptDraw() {
+    if (!this.gameId || !this.user) {
+      throw new Error('Game ID or user not set');
+    }
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${BACKEND_URL}/websocket/games/${this.gameId}/draw/accept`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        }
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to accept draw');
+      }
+
+      console.log('✅ Draw offer accepted successfully:', data);
+      return data;
+    } catch (error) {
+      console.error('❌ Failed to accept draw:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Decline a draw offer from the opponent
+   */
+  async declineDraw() {
+    if (!this.gameId || !this.user) {
+      throw new Error('Game ID or user not set');
+    }
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${BACKEND_URL}/websocket/games/${this.gameId}/draw/decline`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        }
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to decline draw');
+      }
+
+      console.log('✅ Draw offer declined successfully:', data);
+      return data;
+    } catch (error) {
+      console.error('❌ Failed to decline draw:', error);
+      throw error;
+    }
+  }
+
   /**
    * Disconnect and cleanup
    */
