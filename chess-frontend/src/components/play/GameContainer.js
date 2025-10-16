@@ -47,7 +47,9 @@ const GameContainer = ({
     opponentName = 'Opponent',
     playerScore = 0,
     computerScore = 0,
-    showScores = false
+    showScores = false,
+    playerData = null, // Player information with avatar
+    opponentData = null // Opponent/computer information
   } = timerData;
 
   // Extract game data
@@ -129,10 +131,10 @@ const GameContainer = ({
               flex: '1',
               minWidth: '140px'
             }}>
+              {isComputerTurn && (
+                <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#ef4444', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
+              )}
               <span style={{ fontSize: '16px', color: '#ef4444' }}>
-                {isComputerTurn && (
-                  <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#ef4444', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
-                )}
                 🤖
               </span>
               <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
@@ -181,12 +183,25 @@ const GameContainer = ({
               flex: '1',
               minWidth: '140px'
             }}>
-              <span style={{ fontSize: '16px', color: '#22c55e' }}>
-                {activeTimer === playerColor && (
-                  <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#22c55e', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
-                )}
-                👤
-              </span>
+              {activeTimer === playerColor && (
+                <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#22c55e', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
+              )}
+              {playerData?.avatar_url ? (
+                <img
+                  src={playerData.avatar_url}
+                  alt={playerData.name || 'You'}
+                  style={{
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '50%',
+                    objectFit: 'cover'
+                  }}
+                />
+              ) : (
+                <span style={{ fontSize: '16px', color: '#22c55e' }}>
+                  👤
+                </span>
+              )}
               <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
                 <span style={{ fontSize: '12px', color: '#22c55e', fontWeight: '500' }}>You</span>
                 <span style={{
@@ -236,10 +251,26 @@ const GameContainer = ({
             flex: '1',
             minWidth: '120px'
           }}>
+            {!isMyTurn && (
+              <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#ef4444', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
+            )}
+            {opponentData?.avatar_url ? (
+              <img
+                src={opponentData.avatar_url}
+                alt={opponentData.name || opponentName}
+                style={{
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '50%',
+                  objectFit: 'cover'
+                }}
+              />
+            ) : (
+              <span style={{ fontSize: '16px', color: !isMyTurn ? '#ef4444' : '#ccc' }}>
+                👤
+              </span>
+            )}
             <span style={{ fontSize: '16px', color: !isMyTurn ? '#ef4444' : '#ccc' }}>
-              {!isMyTurn && (
-                <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#ef4444', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
-              )}
               {opponentName}
             </span>
             <span style={{
@@ -275,10 +306,26 @@ const GameContainer = ({
             flex: '1',
             minWidth: '120px'
           }}>
+            {isMyTurn && (
+              <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#22c55e', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
+            )}
+            {playerData?.avatar_url ? (
+              <img
+                src={playerData.avatar_url}
+                alt={playerData.name || 'You'}
+                style={{
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '50%',
+                  objectFit: 'cover'
+                }}
+              />
+            ) : (
+              <span style={{ fontSize: '16px', color: isMyTurn ? '#22c55e' : '#ccc' }}>
+                👤
+              </span>
+            )}
             <span style={{ fontSize: '16px', color: isMyTurn ? '#22c55e' : '#ccc' }}>
-              {isMyTurn && (
-                <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#22c55e', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
-              )}
               You
             </span>
             <span style={{
@@ -346,6 +393,9 @@ const GameContainer = ({
           isPortrait={mode === 'computer' ? isPortrait : sidebarIsPortrait}
           isRunning={mode === 'computer' ? (isTimerRunning && activeTimer === playerColor) : isMyTurn}
           isComputerRunning={mode === 'computer' ? (isTimerRunning && activeTimer !== playerColor) : !isMyTurn}
+          mode={mode}
+          playerData={playerData}
+          opponentData={opponentData}
         />
 
         {/* GameControls - Computer mode only */}

@@ -1602,7 +1602,9 @@ const PlayMultiplayer = () => {
         opponentName: gameInfo.opponentName,
         playerScore,
         computerScore: opponentScore,
-        showScores: false
+        showScores: false,
+        playerData: gameInfo.playerColor === 'white' ? gameData?.whitePlayer : gameData?.blackPlayer,
+        opponentData: gameInfo.playerColor === 'white' ? gameData?.blackPlayer : gameData?.whitePlayer
       }}
       gameData={{
         game,

@@ -2378,8 +2378,12 @@
 
 @media (orientation: portrait) {
   .game-sidebar {
-    order: 4;
+    order: 1;
     width: 100%;
+  }
+
+  .board-section {
+    order: 2;
   }
 }
 

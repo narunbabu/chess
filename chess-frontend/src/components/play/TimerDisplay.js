@@ -7,6 +7,9 @@ const TimerDisplay = ({
   playerColor,
   isRunning,
   isComputerRunning,
+  mode = 'computer', // 'computer' or 'multiplayer'
+  playerData = null, // player object with avatar_url
+  opponentData = null, // opponent/computer data
 }) => {
   // Format time as mm:ss
   const formatTime = (seconds) => {
@@ -20,11 +23,31 @@ const TimerDisplay = ({
   const isPlayerActive = activeTimer === playerColor;
   const isComputerActive = activeTimer === (playerColor === "w" ? "b" : "w");
 
+  // Helper function to render avatar or icon
+  const renderAvatar = (data, isComputer = false) => {
+    if (isComputer || mode === 'computer') {
+      // Show computer icon for computer mode
+      return <span className="text-lg">🤖</span>;
+    }
+
+    // For multiplayer, show player avatar if available
+    if (data?.avatar_url) {
+      return (
+        <img
+          src={data.avatar_url}
+          alt={data.name || 'Player'}
+          className="w-6 h-6 rounded-full object-cover"
+        />
+      );
+    }
+
+    // Fallback to user icon
+    return <span className="text-lg">👤</span>;
+  };
+
   return (
     <div className="flex gap-2">
-      
-
-      {/* Computer Timer */}
+      {/* Opponent/Computer Timer */}
       <div className={`rounded-lg p-3 transition-all duration-300 flex-1 ${
         isComputerActive
           ? "bg-error/30 border border-error/50 shadow-lg scale-105"
@@ -32,7 +55,7 @@ const TimerDisplay = ({
       }`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-lg">🤖</span>
+            {renderAvatar(opponentData, mode === 'computer')}
             <div className="flex items-center gap-1">
               {isComputerActive && (
                 <div className="w-2 h-2 bg-error rounded-full animate-pulse"></div>
@@ -48,6 +71,7 @@ const TimerDisplay = ({
           </div>
         </div>
       </div>
+
       {/* Player Timer */}
       <div className={`rounded-lg p-3 transition-all duration-300 flex-1 ${
         isPlayerActive
@@ -56,7 +80,7 @@ const TimerDisplay = ({
       }`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-lg">👤</span>
+            {renderAvatar(playerData, false)}
             <div className="flex items-center gap-1">
               {isPlayerActive && (
                 <div className="w-2 h-2 bg-success rounded-full animate-pulse"></div>
@@ -72,8 +96,6 @@ const TimerDisplay = ({
           </div>
         </div>
       </div>
-
-
     </div>
   );
 };
