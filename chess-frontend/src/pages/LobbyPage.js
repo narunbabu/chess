@@ -474,20 +474,46 @@ const LobbyPage = () => {
   }, [user, hasFinishedGame]); // Minimal dependencies - no webSocketService
 
   const handleInvite = (player) => {
+    // Check if there's already a pending invitation to this player
+    const existingInvitation = sentInvitations.find(inv =>
+      inv.invited_id === player.id && inv.status === 'pending'
+    );
+
+    if (existingInvitation) {
+      alert(`You already have a pending invitation to ${player.name}. Please wait for them to respond or cancel the existing invitation first.`);
+      return;
+    }
+
     setSelectedPlayer(player);
     setShowColorModal(true);
   };
 
   const sendInvitation = async (colorChoice) => {
     setShowColorModal(false);
+
+    // Validate selectedPlayer before proceeding
+    if (!selectedPlayer || !selectedPlayer.id) {
+      console.error('❌ Cannot send invitation: selectedPlayer is invalid', selectedPlayer);
+      alert('Error: No player selected. Please try again.');
+      return;
+    }
+
     setInvitedPlayer(selectedPlayer);
     setInviteStatus('sending');
 
     try {
+      console.log('📤 Sending invitation with data:', {
+        invited_user_id: selectedPlayer.id,
+        preferred_color: colorChoice,
+        current_user_id: user?.id
+      });
+
       const response = await api.post('/invitations/send', {
         invited_user_id: selectedPlayer.id,
         preferred_color: colorChoice
       });
+
+      console.log('✅ Invitation sent successfully:', response.data);
 
       // Track successful challenge sent
       trackSocial('challenge_sent', {
@@ -510,7 +536,23 @@ const LobbyPage = () => {
         setSelectedPlayer(null);
       }, 3000);
     } catch (error) {
-      console.error('Failed to send invitation:', error);
+      console.error('❌ Failed to send invitation:', error);
+      console.error('Error response data:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      console.error('Error message:', error.message);
+
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message;
+
+      // If it's a duplicate invitation error, refresh the data to sync state
+      if (errorMessage === 'Invitation already sent') {
+        console.log('🔄 Duplicate invitation detected - refreshing data...');
+        fetchData(true);
+        alert(`You already have a pending invitation to ${selectedPlayer.name}. The page will refresh to show the current status.`);
+      } else {
+        // Show specific error message for other errors
+        alert(`Failed to send invitation: ${errorMessage}`);
+      }
+
       setInviteStatus('error');
       setTimeout(() => {
         setInviteStatus(null);

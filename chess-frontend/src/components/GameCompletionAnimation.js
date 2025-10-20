@@ -12,12 +12,13 @@ const GameCompletionAnimation = ({
   playerColor,
   onClose,
   moves,
-  onRematch,
   onNewGame,
   onBackToLobby,
+  onPreview,
   isMultiplayer = false
 }) => {
   const [isVisible, setIsVisible] = useState(false); // Controls card visibility for animation
+  const [selectedColor, setSelectedColor] = useState('random'); // Color preference for new game challenge
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
@@ -182,18 +183,77 @@ const GameCompletionAnimation = ({
           {isMultiplayer ? (
             /* Multiplayer specific buttons */
             <div className="multiplayer-actions">
-              {onRematch && (
-                <button onClick={onRematch} className="btn btn-primary">
-                  Rematch
-                </button>
-              )}
+              {/* Color Selection for New Game Challenge */}
               {onNewGame && (
-                <button onClick={onNewGame} className="btn btn-secondary">
-                  New Game
+                <div className="color-selection-section">
+                  <label className="color-selection-label">Challenge to New Game:</label>
+                  <div className="color-selection-options">
+                    <label className={`color-option ${selectedColor === 'white' ? 'selected' : ''}`}>
+                      <input
+                        type="radio"
+                        name="color"
+                        value="white"
+                        checked={selectedColor === 'white'}
+                        onChange={(e) => setSelectedColor(e.target.value)}
+                      />
+                      <span className="color-box white">⚪</span>
+                      <span>White</span>
+                    </label>
+                    <label className={`color-option ${selectedColor === 'black' ? 'selected' : ''}`}>
+                      <input
+                        type="radio"
+                        name="color"
+                        value="black"
+                        checked={selectedColor === 'black'}
+                        onChange={(e) => setSelectedColor(e.target.value)}
+                      />
+                      <span className="color-box black">⚫</span>
+                      <span>Black</span>
+                    </label>
+                    <label className={`color-option ${selectedColor === 'random' ? 'selected' : ''}`}>
+                      <input
+                        type="radio"
+                        name="color"
+                        value="random"
+                        checked={selectedColor === 'random'}
+                        onChange={(e) => setSelectedColor(e.target.value)}
+                      />
+                      <span className="color-box random">🎲</span>
+                      <span>Random</span>
+                    </label>
+                  </div>
+                  <button
+                    onClick={() => {
+                      console.log('🆕 Challenge to New Game clicked with color:', selectedColor);
+                      onNewGame(selectedColor);
+                    }}
+                    className="btn btn-primary challenge-btn"
+                  >
+                    Send Challenge
+                  </button>
+                </div>
+              )}
+
+              {/* Other Action Buttons */}
+              {onPreview && (
+                <button
+                  onClick={() => {
+                    console.log('👁️ Preview button clicked');
+                    onPreview();
+                  }}
+                  className="btn btn-secondary"
+                >
+                  Preview
                 </button>
               )}
               {onBackToLobby && (
-                <button onClick={onBackToLobby} className="btn btn-tertiary">
+                <button
+                  onClick={() => {
+                    console.log('🏠 Back to Lobby button clicked');
+                    onBackToLobby();
+                  }}
+                  className="btn btn-tertiary"
+                >
                   Back to Lobby
                 </button>
               )}

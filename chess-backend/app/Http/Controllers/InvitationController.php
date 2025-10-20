@@ -13,15 +13,38 @@ class InvitationController extends Controller
 {
     public function send(Request $request)
     {
-        $validated = $request->validate([
-            'invited_user_id' => 'required|exists:users,id',
-            'preferred_color' => 'nullable|in:white,black,random'
+        Log::info('📤 Invitation send request received', [
+            'request_data' => $request->all(),
+            'inviter_id' => Auth::id(),
+            'auth_user' => Auth::user()?->email ?? 'unknown'
         ]);
+
+        try {
+            $validated = $request->validate([
+                'invited_user_id' => 'required|exists:users,id',
+                'preferred_color' => 'nullable|in:white,black,random'
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('❌ Invitation validation failed', [
+                'errors' => $e->errors(),
+                'request_data' => $request->all()
+            ]);
+            throw $e;
+        }
 
         $inviterId = Auth::id();
         $invitedId = $validated['invited_user_id'];
 
+        Log::info('✅ Invitation data validated', [
+            'inviter_id' => $inviterId,
+            'invited_id' => $invitedId,
+            'preferred_color' => $validated['preferred_color'] ?? 'not specified'
+        ]);
+
         if ($inviterId === (int) $invitedId) {
+            Log::warning('⚠️ User tried to invite themselves', [
+                'user_id' => $inviterId
+            ]);
             return response()->json(['error' => 'Cannot invite yourself'], 400);
         }
 

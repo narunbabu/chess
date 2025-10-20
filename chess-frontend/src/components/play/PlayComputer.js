@@ -87,7 +87,7 @@ const PlayComputer = () => {
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth); // For layout adjustments
   const navigate = useNavigate(); // For navigation buttons
   const location = useLocation();
-  useAuth();
+  const { user } = useAuth(); // Get user for rating
   const [isOnlineGame, setIsOnlineGame] = useState(false);
   const [players, setPlayers] = useState(null);
   const [gameMode, setGameMode] = useState('computer'); // Default to computer mode for /play route
@@ -440,7 +440,7 @@ const PlayComputer = () => {
               // Evaluate computer's move
               const prev = previousGameStateRef.current;
               const compEval = typeof evaluateMove === 'function'
-                ? evaluateMove(result.newGame.history().slice(-1)[0], prev, newGame, (thinkingTime/1000), DEFAULT_RATING, setLastComputerEvaluation, setComputerScore, computerDepth) // Use slice(-1)[0] for safety
+                ? evaluateMove(result.newGame.history().slice(-1)[0], prev, newGame, (thinkingTime/1000), user?.rating || DEFAULT_RATING, setLastComputerEvaluation, setComputerScore, computerDepth) // Use slice(-1)[0] for safety
                 : null;
 
               // *** Add computer's move to gameHistory state ***
@@ -578,7 +578,7 @@ const PlayComputer = () => {
 
         // Evaluate the move (if evaluateMove function is available)
         const evaluationResult = typeof evaluateMove === 'function'
-            ? evaluateMove(moveResult, previousState, gameCopy, moveTimeInSeconds, DEFAULT_RATING, setLastMoveEvaluation, setPlayerScore, computerDepth)
+            ? evaluateMove(moveResult, previousState, gameCopy, moveTimeInSeconds, user?.rating || DEFAULT_RATING, setLastMoveEvaluation, setPlayerScore, computerDepth)
             : null; // Provides feedback/scoring
 
         // Add move to game history

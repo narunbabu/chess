@@ -16,8 +16,9 @@ const PlayersList = ({ players, sentInvitations, onChallenge }) => {
       <div className="unified-card-grid cols-2">
         {players.length > 0 ? (
           players.map((player, index) => {
-            const hasInvited = sentInvitations.some(
-              (inv) => inv.invited_id === player.id
+            // Only check for PENDING invitations (not accepted/declined)
+            const hasPendingInvitation = sentInvitations.some(
+              (inv) => inv.invited_id === player.id && inv.status === 'pending'
             );
             return (
               <div key={player.id || index} className="unified-card horizontal">
@@ -38,7 +39,7 @@ const PlayersList = ({ players, sentInvitations, onChallenge }) => {
                   <span className="unified-card-status online">🟢 Online</span>
                 </div>
                 <div className="unified-card-actions">
-                  {hasInvited ? (
+                  {hasPendingInvitation ? (
                     <button className="unified-card-btn neutral" disabled>
                       ⏳ Invited
                     </button>

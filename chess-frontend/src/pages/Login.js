@@ -7,6 +7,7 @@ import MailIcon from "../assets/icons/MailIcon";
 import LockIcon from "../assets/icons/LockIcon";
 import EyeIcon from "../assets/icons/EyeIcon";
 import EyeOffIcon from "../assets/icons/EyeOffIcon";
+import SkillAssessmentModal from '../components/auth/SkillAssessmentModal';
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
@@ -17,6 +18,8 @@ const LoginPage = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showSkillAssessment, setShowSkillAssessment] = useState(false);
+  const [isNewRegistration, setIsNewRegistration] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
 
@@ -54,7 +57,11 @@ const LoginPage = () => {
 
         if (response.data.status === 'success') {
           await login(response.data.token);
-          navigate("/lobby");
+          // Show skill assessment modal for new registrations
+          setIsNewRegistration(true);
+          setShowSkillAssessment(true);
+          setIsLoading(false);
+          return; // Don't navigate yet, wait for modal completion
         }
       }
     } catch (error) {
@@ -69,8 +76,27 @@ const LoginPage = () => {
     }
   };
 
+  const handleSkillAssessmentComplete = (rating) => {
+    console.log('Skill assessment completed with rating:', rating);
+    setShowSkillAssessment(false);
+    navigate("/lobby");
+  };
+
+  const handleSkillAssessmentSkip = () => {
+    console.log('Skill assessment skipped, using default 1200');
+    setShowSkillAssessment(false);
+    navigate("/lobby");
+  };
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 overflow-hidden relative">
+    <>
+      <SkillAssessmentModal
+        isOpen={showSkillAssessment}
+        onComplete={handleSkillAssessmentComplete}
+        onSkip={handleSkillAssessmentSkip}
+      />
+
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 overflow-hidden relative">
       <div
         className="absolute inset-0 z-0 opacity-10"
         style={{
@@ -175,6 +201,7 @@ const LoginPage = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 

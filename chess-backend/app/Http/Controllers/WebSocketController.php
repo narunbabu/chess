@@ -456,13 +456,13 @@ class WebSocketController extends Controller
     }
 
     /**
-     * Handle new game/rematch request
+     * Handle new game challenge request
      */
     public function newGame(Request $request, int $gameId): JsonResponse
     {
         $request->validate([
             'socket_id' => 'required|string',
-            'is_rematch' => 'boolean'
+            'color_preference' => 'nullable|string|in:white,black,random'
         ]);
 
         try {
@@ -470,14 +470,14 @@ class WebSocketController extends Controller
                 $gameId,
                 Auth::id(),
                 $request->input('socket_id'),
-                $request->boolean('is_rematch', false)
+                $request->input('color_preference', 'random')
             );
 
             Log::info('New game requested', [
                 'user_id' => Auth::id(),
                 'original_game_id' => $gameId,
                 'new_game_id' => $result['game_id'] ?? null,
-                'is_rematch' => $request->boolean('is_rematch', false)
+                'color_preference' => $request->input('color_preference', 'random')
             ]);
 
             return response()->json($result);

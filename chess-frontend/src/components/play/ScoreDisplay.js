@@ -1,5 +1,6 @@
 
 import React from "react";
+import { truncatePlayerName, getPlayerAvatar } from '../../utils/playerDisplayUtils';
 
 const ScoreDisplay = ({ playerScore, lastMoveEvaluation, computerScore, lastComputerEvaluation, isOnlineGame, players, playerColor }) => {
   const formatScore = (score) => {
@@ -18,8 +19,10 @@ const ScoreDisplay = ({ playerScore, lastMoveEvaluation, computerScore, lastComp
     }
   };
 
-  const playerName = isOnlineGame && players ? players[playerColor]?.name : "You";
-  const opponentName = isOnlineGame && players ? players[playerColor === 'w' ? 'b' : 'w']?.name : "CPU";
+  const playerData = isOnlineGame && players ? players[playerColor] : null;
+  const opponentData = isOnlineGame && players ? players[playerColor === 'w' ? 'b' : 'w'] : null;
+  const playerName = playerData?.name || "You";
+  const opponentName = opponentData?.name || "CPU";
 
   return (
     <div style={{
@@ -29,7 +32,7 @@ const ScoreDisplay = ({ playerScore, lastMoveEvaluation, computerScore, lastComp
       gap: '8px',
       fontSize: '14px'
     }}>
-      {/* Computer Score */}
+      {/* Computer/Opponent Score */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -41,8 +44,24 @@ const ScoreDisplay = ({ playerScore, lastMoveEvaluation, computerScore, lastComp
         flex: '1'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          {isOnlineGame && getPlayerAvatar(opponentData) ? (
+            <img
+              src={getPlayerAvatar(opponentData)}
+              alt={opponentName}
+              style={{
+                width: '20px',
+                height: '20px',
+                borderRadius: '50%',
+                objectFit: 'cover'
+              }}
+            />
+          ) : (
+            <span style={{ fontSize: '14px' }}>
+              {isOnlineGame ? '👤' : '🤖'}
+            </span>
+          )}
           <span style={{ fontSize: '14px', color: '#ef4444', fontWeight: '500' }}>
-            {isOnlineGame ? '👤' : '🤖'} {opponentName}
+            {isOnlineGame ? truncatePlayerName(opponentName) : opponentName}
           </span>
           {lastComputerEvaluation && (
             <span style={{ fontSize: '12px', color: '#ef4444' }}>
@@ -83,8 +102,22 @@ const ScoreDisplay = ({ playerScore, lastMoveEvaluation, computerScore, lastComp
         flex: '1'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          {isOnlineGame && getPlayerAvatar(playerData) ? (
+            <img
+              src={getPlayerAvatar(playerData)}
+              alt={playerName}
+              style={{
+                width: '20px',
+                height: '20px',
+                borderRadius: '50%',
+                objectFit: 'cover'
+              }}
+            />
+          ) : (
+            <span style={{ fontSize: '14px' }}>👤</span>
+          )}
           <span style={{ fontSize: '14px', color: '#22c55e', fontWeight: '500' }}>
-            👤 {playerName}
+            {isOnlineGame ? truncatePlayerName(playerName) : playerName}
           </span>
           {lastMoveEvaluation && (
             <span style={{ fontSize: '12px', color: '#22c55e' }}>

@@ -1,0 +1,303 @@
+/* RatingChangeNotification.css */
+
+.rating-notification-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.rating-notification-overlay.visible {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.rating-notification-overlay.exiting {
+  opacity: 0;
+}
+
+.rating-notification-card {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 32px;
+  max-width: 450px;
+  width: 90%;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+  position: relative;
+  transform: scale(0.9);
+  animation: ratingCardEnter 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes ratingCardEnter {
+  to {
+    transform: scale(1);
+  }
+}
+
+.rating-notification-overlay.exiting .rating-notification-card {
+  animation: ratingCardExit 0.3s ease-out forwards;
+}
+
+@keyframes ratingCardExit {
+  to {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+}
+
+.rating-notification-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: #94a3b8;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rating-notification-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  transform: rotate(90deg);
+}
+
+.rating-notification-header {
+  text-align: center;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.rating-notification-header h3 {
+  font-size: 24px;
+  font-weight: 700;
+  color: white;
+  margin: 0;
+}
+
+.rating-provisional-badge {
+  background: rgba(251, 191, 36, 0.2);
+  color: #fbbf24;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 12px;
+  border: 1px solid #fbbf24;
+}
+
+.rating-change-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.rating-old,
+.rating-new {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.rating-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.rating-value {
+  font-size: 48px;
+  font-weight: 800;
+  color: white;
+  line-height: 1;
+}
+
+.rating-new .rating-value {
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.rating-arrow {
+  font-size: 32px;
+  color: #64748b;
+  font-weight: 300;
+}
+
+.rating-change-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 16px 32px;
+  border-radius: 16px;
+  margin: 0 auto 20px auto;
+  width: fit-content;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.rating-change-amount {
+  font-size: 36px;
+  font-weight: 800;
+  color: white;
+  line-height: 1;
+}
+
+.rating-change-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.rating-category-badge {
+  text-align: center;
+  padding: 12px 24px;
+  border: 2px solid;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 20px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.rating-achievement {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.2) 0%, rgba(245, 158, 11, 0.2) 100%);
+  border: 2px solid #fbbf24;
+  color: #fbbf24;
+  padding: 12px 20px;
+  border-radius: 12px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 16px;
+  animation: achievementPulse 2s ease-in-out infinite;
+}
+
+@keyframes achievementPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(251, 191, 36, 0);
+  }
+}
+
+.rating-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.rating-stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.rating-stat-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-align: center;
+}
+
+.rating-stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: white;
+}
+
+.rating-tip {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: #60a5fa;
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* Mobile responsive */
+@media (max-width: 640px) {
+  .rating-notification-card {
+    padding: 24px 20px;
+  }
+
+  .rating-notification-header h3 {
+    font-size: 20px;
+  }
+
+  .rating-change-display {
+    gap: 16px;
+  }
+
+  .rating-value {
+    font-size: 36px;
+  }
+
+  .rating-arrow {
+    font-size: 24px;
+  }
+
+  .rating-change-amount {
+    font-size: 28px;
+  }
+
+  .rating-stats {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .rating-stat-item {
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+  }
+
+  .rating-stat-label {
+    text-align: left;
+  }
+
+  .rating-stat-value {
+    font-size: 16px;
+  }
+}

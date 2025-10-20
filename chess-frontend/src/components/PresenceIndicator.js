@@ -28,6 +28,7 @@ const PresenceIndicator = ({ user }) => {
       onConnectionChange: (connected) => {
         setIsConnected(connected);
         if (connected) {
+          // Load data only on initial connection
           loadOnlineUsers();
           loadPresenceStats();
         }
@@ -38,15 +39,23 @@ const PresenceIndicator = ({ user }) => {
           const newUsers = users.filter(u => !userIds.includes(u.user_id || u.id));
           return [...prev, ...newUsers];
         });
+        // Update stats when user joins (optional - can be removed if stats are calculated locally)
+        // loadPresenceStats(); // Commented out to reduce API calls
       },
       onUserOffline: (user) => {
         setOnlineUsers(prev =>
           prev.filter(u => (u.user_id || u.id) !== (user.user_id || user.id))
         );
+        // Update stats when user leaves (optional - can be removed if stats are calculated locally)
+        // loadPresenceStats(); // Commented out to reduce API calls
       },
       onPresenceUpdate: (event) => {
         console.log('Presence update received:', event);
-        loadPresenceStats();
+        // Only reload stats if it's a significant change (e.g., game status changes)
+        // For simple presence updates, rely on the onUserOnline/onUserOffline events
+        if (event.game_status_changed) {
+          loadPresenceStats();
+        }
       }
     });
 
@@ -54,8 +63,8 @@ const PresenceIndicator = ({ user }) => {
     const success = await presenceService.initialize(user, authToken);
     if (success) {
       setIsConnected(true);
-      loadOnlineUsers();
-      loadPresenceStats();
+      // Data will be loaded via onConnectionChange handler
+      // No need to duplicate calls here
     }
   };
 

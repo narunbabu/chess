@@ -48,7 +48,7 @@ const Header = () => {
     }
   }, [showNavPanel]);
 
-  // Fetch online stats only when on lobby page
+  // Fetch online stats only when on lobby page - event-driven, no polling
   useEffect(() => {
     if (isAuthenticated && location.pathname.includes('/lobby')) {
       const fetchOnlineStats = async () => {
@@ -83,10 +83,11 @@ const Header = () => {
         }
       };
 
+      // Fetch only on initial load when entering lobby
       fetchOnlineStats();
-      // Poll every 30 seconds for updates
-      const interval = setInterval(fetchOnlineStats, 30000);
-      return () => clearInterval(interval);
+
+      // No polling - stats will update via WebSocket presence events
+      // Future: Listen to presenceService events for real-time updates
     }
   }, [isAuthenticated, location.pathname, user]);
 

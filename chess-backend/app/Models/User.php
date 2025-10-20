@@ -19,6 +19,11 @@ class User extends Authenticatable
         'provider_id',
         'provider_token',
         'avatar_url',
+        'rating',
+        'is_provisional',
+        'games_played',
+        'peak_rating',
+        'rating_last_updated',
     ];
 
     protected $hidden = [
@@ -30,6 +35,8 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+        'is_provisional' => 'boolean',
+        'rating_last_updated' => 'datetime',
     ];
 
     /**
@@ -54,5 +61,75 @@ class User extends Authenticatable
     public function getAvatarAttribute()
     {
         return $this->avatar_url;
+    }
+
+    /**
+     * Calculate K-factor for Elo rating calculation
+     * Higher K-factor means faster rating changes
+     *
+     * @return int K-factor value
+     */
+    public function getKFactorAttribute()
+    {
+        // Provisional period: first 20 games use high K-factor for fast convergence
+        if ($this->is_provisional || $this->games_played < 20) {
+            return 64;
+        }
+
+        // Established players: K-factor based on rating level
+        if ($this->rating >= 2400) {
+            return 10; // Expert/Master level: very stable ratings
+        } elseif ($this->rating >= 2000) {
+            return 16; // Strong players: moderately stable
+        } else {
+            return 32; // Active players: normal adjustment
+        }
+    }
+
+    /**
+     * Update user rating after a game
+     *
+     * @param int $opponentRating Opponent's rating
+     * @param float $actualScore Player's score (1.0 = win, 0.5 = draw, 0.0 = loss)
+     * @return array Updated rating data
+     */
+    public function updateRating($opponentRating, $actualScore)
+    {
+        // Calculate expected score using Elo formula
+        $expectedScore = 1 / (1 + pow(10, ($opponentRating - $this->rating) / 400));
+
+        // Calculate rating change
+        $ratingChange = $this->k_factor * ($actualScore - $expectedScore);
+
+        // Update rating
+        $oldRating = $this->rating;
+        $newRating = round($oldRating + $ratingChange);
+
+        // Update peak rating if new high
+        $newPeakRating = max($this->peak_rating, $newRating);
+
+        // Increment games played
+        $newGamesPlayed = $this->games_played + 1;
+
+        // Exit provisional period after 20 games
+        $isProvisional = $newGamesPlayed < 20;
+
+        // Update model
+        $this->update([
+            'rating' => $newRating,
+            'games_played' => $newGamesPlayed,
+            'peak_rating' => $newPeakRating,
+            'is_provisional' => $isProvisional,
+            'rating_last_updated' => now(),
+        ]);
+
+        return [
+            'old_rating' => $oldRating,
+            'new_rating' => $newRating,
+            'rating_change' => round($ratingChange),
+            'expected_score' => round($expectedScore, 3),
+            'k_factor' => $this->k_factor,
+            'is_provisional' => $isProvisional,
+        ];
     }
 }

@@ -4,6 +4,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useAppData } from "../contexts/AppDataContext";
 import { getGameHistories } from "../services/gameHistoryService";
 import api from "../services/api";
+import SkillAssessmentModal from "./auth/SkillAssessmentModal";
 import "./Dashboard.css";
 import "../styles/UnifiedCards.css"; // Import unified card styles
 
@@ -11,6 +12,7 @@ const Dashboard = () => {
   const [gameHistories, setGameHistories] = useState([]);
   const [activeGames, setActiveGames] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showSkillAssessment, setShowSkillAssessment] = useState(false);
   const { user } = useAuth();
   const { getGameHistory } = useAppData();
   const navigate = useNavigate();
@@ -55,12 +57,49 @@ const Dashboard = () => {
     navigate(`/play/review/${game.id}`);
   };
 
+  const handleSkillAssessmentComplete = async (rating) => {
+    console.log('Skill assessment completed with rating:', rating);
+    setShowSkillAssessment(false);
+    // Refresh user data to show updated rating
+    window.location.reload();
+  };
+
+  const handleSkillAssessmentSkip = () => {
+    console.log('Skill assessment skipped');
+    setShowSkillAssessment(false);
+  };
+
+  // Check if user should be prompted to set their rating
+  const shouldShowRatingPrompt = user && user.rating === 1200 && (user.games_played === 0 || !user.games_played);
+
   return (
-    <div className="dashboard-container">
-      <div className="dashboard p-6 text-white">
-        <header className="dashboard-header text-center mb-10">
-        <h1 className="text-4xl font-bold text-white">Welcome, {user?.username || "Player"}!</h1>
-        </header>
+    <>
+      <SkillAssessmentModal
+        isOpen={showSkillAssessment}
+        onComplete={handleSkillAssessmentComplete}
+        onSkip={handleSkillAssessmentSkip}
+      />
+
+      <div className="dashboard-container">
+        <div className="dashboard p-6 text-white">
+          <header className="dashboard-header text-center mb-10">
+            <h1 className="text-4xl font-bold text-white">Welcome, {user?.username || "Player"}!</h1>
+
+            {/* Skill Assessment Prompt */}
+            {shouldShowRatingPrompt && (
+              <div className="rating-prompt-banner">
+                <p className="rating-prompt-text">
+                  ⭐ You're using the default rating (1200). Take a quick skill assessment to get a personalized rating!
+                </p>
+                <button
+                  className="rating-prompt-btn"
+                  onClick={() => setShowSkillAssessment(true)}
+                >
+                  Set My Skill Level
+                </button>
+              </div>
+            )}
+          </header>
 
         <div className="dashboard-grid">
         {/* Active Games Section */}
@@ -269,6 +308,7 @@ const Dashboard = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 

@@ -7,6 +7,7 @@ import TimerDisplay from './TimerDisplay';
 import GameControls from './GameControls';
 import TimerButton from './TimerButton';
 import { formatTime } from '../../utils/timerUtils';
+import { truncatePlayerName, getPlayerAvatar } from '../../utils/playerDisplayUtils';
 
 /**
  * GameContainer - Unified game layout component
@@ -254,10 +255,10 @@ const GameContainer = ({
             {!isMyTurn && (
               <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#ef4444', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
             )}
-            {opponentData?.avatar_url ? (
+            {getPlayerAvatar(opponentData) ? (
               <img
-                src={opponentData.avatar_url}
-                alt={opponentData.name || opponentName}
+                src={getPlayerAvatar(opponentData)}
+                alt={opponentData?.name || opponentName}
                 style={{
                   width: '24px',
                   height: '24px',
@@ -270,8 +271,8 @@ const GameContainer = ({
                 👤
               </span>
             )}
-            <span style={{ fontSize: '16px', color: !isMyTurn ? '#ef4444' : '#ccc' }}>
-              Opnt
+            <span style={{ fontSize: '14px', color: !isMyTurn ? '#ef4444' : '#ccc', fontWeight: '500' }}>
+              {truncatePlayerName(opponentData?.name || opponentName)}
             </span>
             <span style={{
               fontFamily: 'monospace',
@@ -309,10 +310,10 @@ const GameContainer = ({
             {isMyTurn && (
               <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#22c55e', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
             )}
-            {playerData?.avatar_url ? (
+            {getPlayerAvatar(playerData) ? (
               <img
-                src={playerData.avatar_url}
-                alt={playerData.name || 'You'}
+                src={getPlayerAvatar(playerData)}
+                alt={playerData?.name || 'You'}
                 style={{
                   width: '24px',
                   height: '24px',
@@ -325,8 +326,8 @@ const GameContainer = ({
                 👤
               </span>
             )}
-            <span style={{ fontSize: '16px', color: isMyTurn ? '#22c55e' : '#ccc' }}>
-              You
+            <span style={{ fontSize: '14px', color: isMyTurn ? '#22c55e' : '#ccc', fontWeight: '500' }}>
+              {truncatePlayerName(playerData?.name || 'You')}
             </span>
             <span style={{
               fontFamily: 'monospace',

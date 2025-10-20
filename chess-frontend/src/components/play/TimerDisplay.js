@@ -1,4 +1,5 @@
 import React from "react";
+import { truncatePlayerName, getPlayerAvatar } from '../../utils/playerDisplayUtils';
 
 const TimerDisplay = ({
   playerTime,
@@ -31,11 +32,12 @@ const TimerDisplay = ({
     }
 
     // For multiplayer, show player avatar if available
-    if (data?.avatar_url) {
+    const avatarUrl = getPlayerAvatar(data);
+    if (avatarUrl) {
       return (
         <img
-          src={data.avatar_url}
-          alt={data.name || 'Player'}
+          src={avatarUrl}
+          alt={data?.name || 'Player'}
           className="w-6 h-6 rounded-full object-cover"
         />
       );
@@ -43,6 +45,14 @@ const TimerDisplay = ({
 
     // Fallback to user icon
     return <span className="text-lg">👤</span>;
+  };
+
+  // Helper function to get display name
+  const getDisplayName = (data, isComputer = false, fallback = 'Player') => {
+    if (isComputer || mode === 'computer') {
+      return 'CPU';
+    }
+    return truncatePlayerName(data?.name || fallback);
   };
 
   return (
@@ -56,7 +66,12 @@ const TimerDisplay = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {renderAvatar(opponentData, mode === 'computer')}
-            <div className="flex items-center gap-1">
+            <div className="flex flex-col">
+              <span className={`text-xs font-medium ${
+                isComputerActive ? "text-error" : "text-white/70"
+              }`}>
+                {getDisplayName(opponentData, mode === 'computer', 'Rival')}
+              </span>
               {isComputerActive && (
                 <div className="w-2 h-2 bg-error rounded-full animate-pulse"></div>
               )}
@@ -81,7 +96,12 @@ const TimerDisplay = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {renderAvatar(playerData, false)}
-            <div className="flex items-center gap-1">
+            <div className="flex flex-col">
+              <span className={`text-xs font-medium ${
+                isPlayerActive ? "text-success" : "text-white/70"
+              }`}>
+                {getDisplayName(playerData, false, 'You')}
+              </span>
               {isPlayerActive && (
                 <div className="w-2 h-2 bg-success rounded-full animate-pulse"></div>
               )}

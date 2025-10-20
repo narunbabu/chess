@@ -371,6 +371,13 @@ class WebSocketGameService {
   }
 
   /**
+   * Get the current socket ID
+   */
+  getSocketId() {
+    return this.socketId || this.echo?.socketId() || null;
+  }
+
+  /**
    * Send a move through WebSocket
    */
   async sendMove(moveData) {

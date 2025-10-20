@@ -383,9 +383,9 @@ class GameRoomService
     }
 
     /**
-     * Create new game/rematch
+     * Create new game challenge with color preference
      */
-    public function createNewGame(int $originalGameId, int $userId, string $socketId, bool $isRematch = false): array
+    public function createNewGame(int $originalGameId, int $userId, string $socketId, string $colorPreference = 'random'): array
     {
         $originalGame = Game::findOrFail($originalGameId);
         $user = User::findOrFail($userId);
@@ -394,10 +394,38 @@ class GameRoomService
             throw new \Exception('User not authorized to create new game from this game');
         }
 
-        // Create new game with swapped colors for rematch
+        // Determine color assignments based on preference
+        $whitePlayerId = null;
+        $blackPlayerId = null;
+
+        // Get the opponent's user ID
+        $opponentId = ($originalGame->white_player_id === $userId)
+            ? $originalGame->black_player_id
+            : $originalGame->white_player_id;
+
+        if ($colorPreference === 'white') {
+            // Requester wants white
+            $whitePlayerId = $userId;
+            $blackPlayerId = $opponentId;
+        } elseif ($colorPreference === 'black') {
+            // Requester wants black
+            $whitePlayerId = $opponentId;
+            $blackPlayerId = $userId;
+        } else {
+            // Random assignment
+            if (rand(0, 1) === 0) {
+                $whitePlayerId = $userId;
+                $blackPlayerId = $opponentId;
+            } else {
+                $whitePlayerId = $opponentId;
+                $blackPlayerId = $userId;
+            }
+        }
+
+        // Create new game with specified colors
         $newGame = Game::create([
-            'white_player_id' => $isRematch ? $originalGame->black_player_id : $originalGame->white_player_id,
-            'black_player_id' => $isRematch ? $originalGame->white_player_id : $originalGame->black_player_id,
+            'white_player_id' => $whitePlayerId,
+            'black_player_id' => $blackPlayerId,
             'fen' => 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', // Starting position
             'status' => 'waiting',
             'turn' => 'white', // Use database format
@@ -413,25 +441,33 @@ class GameRoomService
             [
                 'user_agent' => request()->userAgent(),
                 'ip_address' => request()->ip(),
-                'join_type' => $isRematch ? 'rematch' : 'new_game'
+                'join_type' => 'new_game_challenge'
             ]
         );
 
-        // Broadcast new game event
-        // TODO: Re-enable broadcasting once configured
-        // broadcast(new GameConnectionEvent($newGame, $user, 'new_game', [
-        //     'connection_id' => $connection->connection_id,
-        //     'socket_id' => $socketId,
-        //     'is_rematch' => $isRematch,
-        //     'original_game_id' => $originalGameId
-        // ]));
+        // Broadcast new game request to opponent
+        broadcast(new \App\Events\NewGameRequestEvent(
+            $originalGame,
+            $newGame,
+            $user,
+            $colorPreference
+        ));
+
+        \Log::info('New game challenge broadcasted', [
+            'original_game_id' => $originalGameId,
+            'new_game_id' => $newGame->id,
+            'requester_id' => $userId,
+            'color_preference' => $colorPreference,
+            'white_player_id' => $whitePlayerId,
+            'black_player_id' => $blackPlayerId
+        ]);
 
         return [
             'success' => true,
             'game_id' => $newGame->id,
             'game' => $this->getGameRoomData($newGame),
             'connection_id' => $connection->connection_id,
-            'is_rematch' => $isRematch
+            'color_preference' => $colorPreference
         ];
     }
 

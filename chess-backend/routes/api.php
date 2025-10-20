@@ -12,6 +12,7 @@ use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\GameController;
 use App\Http\Controllers\UserPresenceController;
 use App\Http\Controllers\WebSocketController;
+use App\Http\Controllers\RatingController;
 // use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 
@@ -61,6 +62,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/game-history/{id}', [GameHistoryController::class, 'show']);
     Route::get('/rankings', [GameHistoryController::class, 'rankings']);
     Route::post('/game-history', [GameHistoryController::class, 'store']);
+
+    // Rating routes
+    Route::get('/rating', [RatingController::class, 'getRating']);
+    Route::post('/rating/initial', [RatingController::class, 'setInitialRating']);
+    Route::post('/rating/update', [RatingController::class, 'updateRating']);
+    Route::get('/rating/leaderboard', [RatingController::class, 'getLeaderboard']);
+    Route::get('/rating/history', [RatingController::class, 'getRatingHistory']);
 
     // WebSocket API routes for real-time game connections
     Route::prefix('websocket')->group(function () {

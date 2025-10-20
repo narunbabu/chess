@@ -7,6 +7,7 @@ import GameInfo from './GameInfo';
 import ScoreDisplay from './ScoreDisplay';
 import GameCompletionAnimation from '../GameCompletionAnimation';
 import CheckmateNotification from '../CheckmateNotification';
+import NewGameRequestDialog from '../NewGameRequestDialog';
 import PlayShell from './PlayShell'; // Layout wrapper (Phase 4)
 import GameContainer from './GameContainer'; // Unified game container
 import { useAuth } from '../../contexts/AuthContext';
@@ -61,6 +62,9 @@ const PlayMultiplayer = () => {
 
   // Resume request state
   const [resumeRequestData, setResumeRequestData] = useState(null);
+
+  // New game/rematch request state
+  const [newGameRequest, setNewGameRequest] = useState(null);
   const [resumeRequestCountdown, setResumeRequestCountdown] = useState(0);
   const [isWaitingForResumeResponse, setIsWaitingForResumeResponse] = useState(false);
   const [isLobbyResume, setIsLobbyResume] = useState(false); // Track if this is a lobby-initiated resume
@@ -621,6 +625,12 @@ const PlayMultiplayer = () => {
         handleDrawOfferDeclined(event);
       });
 
+      // New game challenge request listener
+      userChannel.listen('.new_game.request', (event) => {
+        console.log('🎮 New game challenge received:', event);
+        setNewGameRequest(event);
+      });
+
       // Initialize the WebSocket connection
       await wsService.current.initialize(gameId, user);
 
@@ -855,7 +865,8 @@ const PlayMultiplayer = () => {
               captured: event.move.captured || null
             };
 
-            // Evaluate opponent's move
+            // Evaluate opponent's move with universal scoring (human vs human)
+            // Use engineLevel = 1 to ensure consistent, deterministic evaluation across all clients
             evaluateMove(
               opponentMove,
               previousState,
@@ -863,10 +874,8 @@ const PlayMultiplayer = () => {
               (event.move.move_time_ms || 5000) / 1000, // Convert to seconds
               event.move.player_rating || 1200,
               setLastOpponentEvaluation,
-              (scoreToAdd) => {
-                setOpponentScore(prev => prev + scoreToAdd);
-              },
-              1 // Human vs Human
+              setOpponentScore,
+              1 // Always 1 for multiplayer - no difficulty scaling
             );
           } catch (evalError) {
             console.warn('Could not evaluate opponent move:', evalError);
@@ -1295,6 +1304,11 @@ const PlayMultiplayer = () => {
     };
   }, [gameInfo.status, showPresenceDialog, showPausedGame, isWaitingForResumeResponse]); // Proper dependencies
 
+  // Reset initialization flag when gameId changes (for game navigation)
+  useEffect(() => {
+    didInitRef.current = false;
+  }, [gameId]);
+
   useEffect(() => {
     if (!gameId || !user) return;
 
@@ -1520,7 +1534,8 @@ const PlayMultiplayer = () => {
     // Update activity tracking for move
     handleMoveActivity();
 
-    // Evaluate the move and update player score
+    // Evaluate the move and update player score with universal scoring (human vs human)
+    // Use engineLevel = 1 to ensure consistent, deterministic evaluation across all clients
     evaluateMove(
       move,
       game, // previous state
@@ -1528,10 +1543,8 @@ const PlayMultiplayer = () => {
       moveTime,
       user?.rating || 1200, // player rating
       setLastMoveEvaluation,
-      (scoreToAdd) => {
-        setPlayerScore(prev => prev + scoreToAdd);
-      },
-      1 // Human vs Human
+      setPlayerScore,
+      1 // Always 1 for multiplayer - no difficulty scaling
     );
 
     // Include metrics in the move data
@@ -1607,14 +1620,139 @@ const PlayMultiplayer = () => {
   // Use the resign handler from above (already defined)
   // handleResumeGame removed - paused overlay uses handleRequestResume instead
 
-  const handleNewGame = async (isRematch = false) => {
+  const handleNewGame = async (colorPreference = 'random') => {
     try {
-      const result = await wsService.current.createNewGame(isRematch);
+      console.log('🎮 Creating new game challenge...', { colorPreference, gameId, wsServiceExists: !!wsService.current });
+
+      // Make direct HTTP call since WebSocket might be disconnected after game ends
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        alert('Authentication required. Please login again.');
+        navigate('/login');
+        return;
+      }
+
+      // Get socket_id from Echo if available, otherwise use a placeholder
+      let socketId = 'game-end-request';
+      if (wsService.current && typeof wsService.current.getSocketId === 'function') {
+        socketId = wsService.current.getSocketId() || socketId;
+      }
+
+      console.log('📡 Making HTTP request to create new game challenge...', { socketId, colorPreference });
+
+      const response = await fetch(`${BACKEND_URL}/websocket/games/${gameId}/new-game`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          socket_id: socketId,
+          color_preference: colorPreference,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to create game');
+      }
+
+      const result = await response.json();
+      console.log('✅ New game challenge created:', result);
+
       if (result.game_id) {
-        navigate(`/play/multiplayer/${result.game_id}`);
+        const colorText = colorPreference === 'random'
+          ? 'random colors'
+          : `playing as ${colorPreference}`;
+        console.log(`📤 New game challenge sent to opponent with ${colorText}`);
+
+        // Show confirmation to user
+        alert(`Challenge sent to your opponent! (You requested ${colorText})\n\nWaiting for response...`);
+
+        // Store the game_id in case opponent accepts
+        sessionStorage.setItem('pendingNewGameId', result.game_id);
+
+        // Subscribe to the new game's channel to detect when opponent joins
+        const echo = getEcho();
+        const newGameChannel = echo.private(`game.${result.game_id}`);
+
+        console.log(`👂 Listening for game activation on game.${result.game_id}`);
+
+        // Track if we've already navigated to prevent double navigation
+        let hasNavigated = false;
+        let pollInterval = null;
+
+        const navigateToNewGame = () => {
+          if (hasNavigated) return;
+          hasNavigated = true;
+
+          console.log('✅ New game activated! Opponent has joined');
+
+          // Clean up
+          sessionStorage.removeItem('pendingNewGameId');
+          newGameChannel.stopListening('.game.activated');
+          if (pollInterval) clearInterval(pollInterval);
+
+          // Close all modals
+          setGameComplete(false);
+          setGameResult(null);
+
+          // Disconnect from current game
+          if (wsService.current) {
+            wsService.current.disconnect();
+          }
+
+          // Navigate to the new game
+          console.log(`🎯 Navigating to activated game: ${result.game_id}`);
+          navigate(`/play/multiplayer/${result.game_id}`);
+        };
+
+        newGameChannel.listen('.game.activated', (event) => {
+          console.log('📡 Received game.activated event via WebSocket:', event);
+          navigateToNewGame();
+        });
+
+        // FALLBACK: Poll game status in case WebSocket event is missed (race condition fix)
+        console.log('⏱️ Starting polling fallback for game activation...');
+        pollInterval = setInterval(async () => {
+          try {
+            const response = await fetch(`${BACKEND_URL}/websocket/games/${result.game_id}/state`, {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+              },
+            });
+
+            if (response.ok) {
+              const gameData = await response.json();
+              console.log('🔄 Polling game status:', gameData.status);
+
+              if (gameData.status === 'active') {
+                console.log('✅ Game became active (detected via polling)');
+                navigateToNewGame();
+              }
+            }
+          } catch (err) {
+            console.error('❌ Error polling game status:', err);
+          }
+        }, 1000); // Poll every 1 second
+
+        // Stop polling after 30 seconds
+        setTimeout(() => {
+          if (pollInterval) {
+            clearInterval(pollInterval);
+            console.log('⏱️ Stopped polling after 30 seconds');
+          }
+        }, 30000);
+
+        // Don't navigate yet - wait for opponent to accept
+        // The opponent will receive a WebSocket event and can accept/decline
+      } else {
+        console.error('❌ No game_id in result:', result);
+        alert('Failed to create game. Please try again.');
       }
     } catch (err) {
-      console.error('Error creating new game:', err);
+      console.error('❌ Error creating new game challenge:', err);
+      alert(`Failed to create game: ${err.message || 'Unknown error'}`);
     }
   };
 
@@ -1633,6 +1771,42 @@ const PlayMultiplayer = () => {
       console.error('Failed to ping opponent:', error);
       alert('Failed to ping opponent. Please try again.');
     }
+  };
+
+  const handleAcceptNewGameRequest = () => {
+    if (!newGameRequest) return;
+
+    console.log('✅ Accepting new game request:', newGameRequest);
+
+    // Store the new game ID
+    const newGameId = newGameRequest.new_game_id;
+
+    // Close all modals and dialogs
+    setNewGameRequest(null);
+    setGameComplete(false);
+    setGameResult(null);
+    setShowPresenceDialog(false);
+    setShowPausedGame(false);
+
+    // Disconnect current WebSocket
+    if (wsService.current) {
+      console.log('🔌 Disconnecting from current game before navigating...');
+      wsService.current.disconnect();
+    }
+
+    // Navigate to the new game
+    console.log(`🎯 Navigating to new game: ${newGameId}`);
+    navigate(`/play/multiplayer/${newGameId}`);
+  };
+
+  const handleDeclineNewGameRequest = () => {
+    if (!newGameRequest) return;
+
+    console.log('❌ Declining new game request:', newGameRequest);
+
+    // TODO: Notify the requester that request was declined
+    // For now, just close the dialog
+    setNewGameRequest(null);
   };
 
   // Loading and error states - return early before PlayShell wrapper
@@ -1824,11 +1998,15 @@ const PlayMultiplayer = () => {
           result={gameResult}
           playerColor={gameInfo.playerColor}
           onClose={() => {
-            setGameComplete(false);
-            setGameResult(null);
+            // X button should navigate to lobby
+            sessionStorage.removeItem('lastInvitationAction');
+            sessionStorage.removeItem('lastInvitationTime');
+            sessionStorage.removeItem('lastGameId');
+            sessionStorage.setItem('intentionalLobbyVisit', 'true');
+            sessionStorage.setItem('intentionalLobbyVisitTime', Date.now().toString());
+            navigate('/lobby');
           }}
-          onRematch={() => handleNewGame(true)}
-          onNewGame={() => handleNewGame(false)}
+          onNewGame={handleNewGame}
           onBackToLobby={() => {
             // Clear invitation-related session storage to prevent auto-navigation
             sessionStorage.removeItem('lastInvitationAction');
@@ -1840,6 +2018,10 @@ const PlayMultiplayer = () => {
             sessionStorage.setItem('intentionalLobbyVisitTime', Date.now().toString());
 
             navigate('/lobby');
+          }}
+          onPreview={() => {
+            // Navigate to game review/preview page
+            navigate(`/game-preview/${gameId}`);
           }}
           isMultiplayer={true}
         />
@@ -2250,11 +2432,15 @@ const PlayMultiplayer = () => {
             result={gameResult}
             playerColor={gameInfo.playerColor}
             onClose={() => {
-              setGameComplete(false);
-              setGameResult(null);
+              // X button should navigate to lobby
+              sessionStorage.removeItem('lastInvitationAction');
+              sessionStorage.removeItem('lastInvitationTime');
+              sessionStorage.removeItem('lastGameId');
+              sessionStorage.setItem('intentionalLobbyVisit', 'true');
+              sessionStorage.setItem('intentionalLobbyVisitTime', Date.now().toString());
+              navigate('/lobby');
             }}
-            onRematch={() => handleNewGame(true)}
-            onNewGame={() => handleNewGame(false)}
+            onNewGame={handleNewGame}
             onBackToLobby={() => {
               // Clear invitation-related session storage to prevent auto-navigation
               sessionStorage.removeItem('lastInvitationAction');
@@ -2267,10 +2453,23 @@ const PlayMultiplayer = () => {
 
               navigate('/lobby');
             }}
+            onPreview={() => {
+              // Navigate to game review/preview page
+              navigate(`/game-preview/${gameId}`);
+            }}
             isMultiplayer={true}
           />
         )}
       </div>
+
+      {/* New Game Request Dialog */}
+      {newGameRequest && (
+        <NewGameRequestDialog
+          request={newGameRequest}
+          onAccept={handleAcceptNewGameRequest}
+          onDecline={handleDeclineNewGameRequest}
+        />
+      )}
 
       {/* Presence Confirmation Dialog - OUTSIDE game-container to avoid z-index issues */}
       <PresenceConfirmationDialogSimple
