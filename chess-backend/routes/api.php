@@ -49,11 +49,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // User Presence routes
     Route::post('/presence/update', [UserPresenceController::class, 'updatePresence']);
-    Route::get('/presence/{user}', [UserPresenceController::class, 'getPresence']);
+    Route::get('/presence/stats', [UserPresenceController::class, 'getPresenceStats']);
     Route::get('/presence/online/users', [UserPresenceController::class, 'getOnlineUsers']);
     Route::post('/presence/heartbeat', [UserPresenceController::class, 'heartbeat']);
     Route::post('/presence/disconnect', [UserPresenceController::class, 'handleDisconnection']);
-    Route::get('/presence/stats', [UserPresenceController::class, 'getPresenceStats']);
+    Route::get('/presence/{user}', [UserPresenceController::class, 'getPresence']);
 
     // List summary (exclude moves) for dashboard or game list
     Route::get('/game-history', [GameHistoryController::class, 'index']);

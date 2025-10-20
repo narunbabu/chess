@@ -18,6 +18,7 @@ class User extends Authenticatable
         'provider',
         'provider_id',
         'provider_token',
+        'avatar_url',
     ];
 
     protected $hidden = [
@@ -30,4 +31,28 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
     ];
+
+    /**
+     * Get the avatar URL with fallback
+     * Ensures backward compatibility and provides a default avatar
+     */
+    public function getAvatarUrlAttribute($value)
+    {
+        // If avatar_url is set, use it
+        if ($value) {
+            return $value;
+        }
+
+        // Fallback to a dynamic avatar based on email
+        return 'https://i.pravatar.cc/150?u=' . urlencode($this->email);
+    }
+
+    /**
+     * Get avatar attribute for backward compatibility
+     * Some frontend components might still use 'avatar'
+     */
+    public function getAvatarAttribute()
+    {
+        return $this->avatar_url;
+    }
 }

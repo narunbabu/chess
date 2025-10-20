@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useActiveGame } from '../../hooks/useActiveGame';
 import { trackAuth, trackNavigation } from '../../utils/analytics';
+import { BACKEND_URL } from '../../config';
 import './Header.css';
 
 /**
@@ -52,19 +53,33 @@ const Header = () => {
     if (isAuthenticated && location.pathname.includes('/lobby')) {
       const fetchOnlineStats = async () => {
         try {
-          const response = await fetch('/api/users', {
+          const response = await fetch(`${BACKEND_URL}/presence/stats`, {
             headers: {
-              'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+              'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
             }
           });
+
+          // Check if response is OK and content-type is JSON
           if (response.ok) {
-            const users = await response.json();
-            const onlineCount = users.length;
-            const availablePlayers = users.filter(u => u.id !== user?.id).length;
-            setOnlineStats({ onlineCount, availablePlayers });
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+              const data = await response.json();
+              // data.stats contains: { total_online, total_away, in_game }
+              const onlineCount = data.stats?.total_online || 0;
+              // Available players = online users not in game, excluding self
+              const availablePlayers = Math.max(0, (data.stats?.total_online || 0) - (data.stats?.in_game || 0) - 1);
+              setOnlineStats({ onlineCount, availablePlayers });
+            } else {
+              console.warn('Online stats API returned non-JSON response');
+            }
+          } else {
+            console.warn(`Online stats API returned status ${response.status}`);
           }
         } catch (error) {
-          console.error('Failed to fetch online stats:', error);
+          // Silently fail for online stats - this is non-critical UI data
+          console.debug('Failed to fetch online stats:', error.message);
         }
       };
 
@@ -242,7 +257,7 @@ const Header = () => {
             </div>
             <div className="user-avatar" onClick={handleUserMenuClick}>
               <img
-                src={user?.avatar || `https://i.pravatar.cc/150?u=${user?.email}`}
+                src={user?.avatar_url || `https://i.pravatar.cc/150?u=${user?.email}`}
                 alt={user?.name}
               />
             </div>
@@ -272,7 +287,7 @@ const Header = () => {
             <div className="nav-panel-header">
               <div className="nav-user-info">
                 <img
-                  src={user?.avatar || `https://i.pravatar.cc/150?u=${user?.email}`}
+                  src={user?.avatar_url || `https://i.pravatar.cc/150?u=${user?.email}`}
                   alt={user?.name}
                   className="nav-user-avatar"
                 />

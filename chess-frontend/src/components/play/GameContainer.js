@@ -271,7 +271,7 @@ const GameContainer = ({
               </span>
             )}
             <span style={{ fontSize: '16px', color: !isMyTurn ? '#ef4444' : '#ccc' }}>
-              {opponentName}
+              Opnt
             </span>
             <span style={{
               fontFamily: 'monospace',

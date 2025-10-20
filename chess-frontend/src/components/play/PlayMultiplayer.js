@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import { Chess } from 'chess.js';
 import PresenceConfirmationDialogSimple from './PresenceConfirmationDialogSimple';
+import NetworkErrorDialog from './NetworkErrorDialog';
 import { Chessboard } from 'react-chessboard';
 import GameInfo from './GameInfo';
 import ScoreDisplay from './ScoreDisplay';
@@ -344,19 +345,30 @@ const PlayMultiplayer = () => {
       // Handle paused games - don't mark as complete
       if (data.status === 'paused') {
         console.log('⏸️ Game is paused, not finished');
-        setGameInfo(prev => ({ ...prev, status: 'paused' }));
 
         // Check if this is a lobby-initiated resume
         if (isLobbyResumeInitiated) {
           console.log('🎯 Lobby resume detected - will request handshake');
+          setGameInfo(prev => ({ ...prev, status: 'paused' }));
           setIsLobbyResume(true);
           // Show paused overlay but don't show regular resume button
           setShowPausedGame(true);
           // Flag to auto-send resume request after initialization completes
           setShouldAutoSendResume(true);
+        } else {
+          // Direct navigation to paused game (refresh or direct URL)
+          // Redirect to lobby where they can see paused game and request resume
+          console.log('⏸️ Paused game accessed directly - redirecting to lobby');
+          navigate('/lobby', {
+            state: {
+              message: 'This game is paused. Request resume from the lobby.',
+              pausedGameId: gameId
+            }
+          });
+          return; // Stop initialization
         }
 
-        // Continue with initialization for paused games
+        // Continue with initialization for lobby-initiated paused games only
       }
 
       // Set up the chess game from FEN (use starting position if no FEN)
@@ -581,8 +593,20 @@ const PlayMultiplayer = () => {
 
       wsService.current.on('error', (error) => {
         console.error('WebSocket error:', error);
-        const errorMessage = error?.message || error?.toString() || 'Unknown connection error';
-        setError('Connection error: ' + errorMessage);
+
+        // Parse error to get a user-friendly message
+        let errorMessage = 'Unknown connection error';
+
+        if (typeof error === 'string') {
+          errorMessage = error;
+        } else if (error?.message && typeof error.message === 'string') {
+          errorMessage = error.message;
+        } else if (error?.toString && error.toString() !== '[object Object]') {
+          errorMessage = error.toString();
+        }
+
+        // Don't add "Connection error:" prefix since NetworkErrorDialog will handle the message formatting
+        setError(errorMessage);
       });
 
       // Draw offer event listeners
@@ -1581,14 +1605,7 @@ const PlayMultiplayer = () => {
   };
 
   // Use the resign handler from above (already defined)
-
-  const handleResumeGame = async () => {
-    try {
-      await wsService.current.resumeGame(true);
-    } catch (err) {
-      console.error('Error resuming game:', err);
-    }
-  };
+  // handleResumeGame removed - paused overlay uses handleRequestResume instead
 
   const handleNewGame = async (isRematch = false) => {
     try {
@@ -1628,13 +1645,33 @@ const PlayMultiplayer = () => {
   }
 
   if (error) {
+    const handleRetry = async () => {
+      setError(null);
+      setLoading(true);
+      try {
+        // Re-initialize the game
+        await initializeGame();
+      } catch (err) {
+        console.error('Retry failed:', err);
+        setError(err.message || 'Failed to reconnect');
+      }
+    };
+
+    const handleGoBack = () => {
+      navigate('/lobby');
+    };
+
+    const handleDismiss = () => {
+      setError(null);
+    };
+
     return (
-      <div className="game-container">
-        <div className="error-message">Error: {error}</div>
-        <button onClick={() => navigate('/lobby')} className="back-button">
-          Back to Lobby
-        </button>
-      </div>
+      <NetworkErrorDialog
+        error={error}
+        onRetry={handleRetry}
+        onGoBack={handleGoBack}
+        onDismiss={handleDismiss}
+      />
     );
   }
 
@@ -1738,11 +1775,7 @@ const PlayMultiplayer = () => {
             </button>
           </>
         )}
-        {gameInfo.status === 'paused' && (
-          <button onClick={handleResumeGame} className="resume-button">
-            Resume Game
-          </button>
-        )}
+        {/* Resume button removed - paused overlay handles resume requests */}
         {gameInfo.status === 'finished' && (
           <div className="game-ended-controls">
             <button onClick={() => handleNewGame(true)} className="rematch-button">

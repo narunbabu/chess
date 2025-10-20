@@ -5,7 +5,9 @@
       "Read(//usr/**)",
       "Bash(./vendor/bin/sail artisan optimize:clear:*)",
       "Bash(sqlite3:*)",
-      "Bash(./vendor/bin/sail artisan migrate:*)"
+      "Bash(./vendor/bin/sail artisan migrate:*)",
+      "Bash(./vendor/bin/sail artisan make:migration:*)",
+      "Bash(powershell.exe:*)"
     ],
     "deny": [],
     "ask": []

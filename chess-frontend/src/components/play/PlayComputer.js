@@ -898,7 +898,7 @@ const PlayComputer = () => {
                   onChange={handleColorToggle}
                   disabled={countdownActive} />
                 <div className="w-14 h-8 bg-gray-600 rounded-full"></div>
-                <div className="dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition"></div>
+                <div className={`dot absolute top-1 bg-white w-6 h-6 rounded-full transition ${playerColor === 'b' ? 'left-7' : 'left-1'}`}></div>
               </div>
               <span className="ml-3">Black</span>
             </label>
@@ -1248,7 +1248,7 @@ const PlayComputer = () => {
                     onChange={handleColorToggle} // Stable callback
                     disabled={countdownActive} />
                   <div className="w-14 h-8 bg-gray-600 rounded-full"></div>
-                  <div className="dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition"></div>
+                  <div className={`dot absolute top-1 bg-white w-6 h-6 rounded-full transition ${playerColor === 'b' ? 'left-7' : 'left-1'}`}></div>
                 </div>
                 <span className="ml-3">Black</span>
               </label>

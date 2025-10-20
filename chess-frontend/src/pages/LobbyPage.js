@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { trackSocial } from '../utils/analytics';
 import api from '../services/api';
@@ -18,8 +18,10 @@ import ChallengeModal from '../components/lobby/ChallengeModal';
 const LobbyPage = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [players, setPlayers] = useState([]);
   const [inviteStatus, setInviteStatus] = useState(null);
+  const [redirectMessage, setRedirectMessage] = useState(null);
   const [invitedPlayer, setInvitedPlayer] = useState(null);
   const [showColorModal, setShowColorModal] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState(null);
@@ -39,6 +41,20 @@ const LobbyPage = () => {
   const inFlightRef = React.useRef(false);
   const stopPollingRef = React.useRef(false);
   const didInitPollingRef = React.useRef(false);
+
+  // Handle redirect messages from paused game
+  useEffect(() => {
+    if (location.state?.message) {
+      setRedirectMessage(location.state.message);
+      // Auto-clear after 8 seconds
+      const timer = setTimeout(() => setRedirectMessage(null), 8000);
+
+      // Clear the location state to prevent message from reappearing on refresh
+      navigate(location.pathname, { replace: true, state: {} });
+
+      return () => clearTimeout(timer);
+    }
+  }, [location.state, location.pathname, navigate]);
 
   useEffect(() => {
     if (user && !webSocketService) {
@@ -722,6 +738,37 @@ const LobbyPage = () => {
       <div className="lobby p-6 text-white">
       {/* Resume requests and invitations are now handled by GlobalInvitationDialog */}
       {/* Header now handled globally in Header.js */}
+
+      {/* Show redirect message for paused games */}
+      {redirectMessage && (
+        <div style={{
+          backgroundColor: '#ffa726',
+          color: '#000',
+          padding: '16px',
+          borderRadius: '8px',
+          marginBottom: '20px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          fontWeight: 'bold',
+          boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
+        }}>
+          <span>⏸️ {redirectMessage}</span>
+          <button
+            onClick={() => setRedirectMessage(null)}
+            style={{
+              backgroundColor: 'transparent',
+              border: 'none',
+              color: '#000',
+              fontSize: '20px',
+              cursor: 'pointer',
+              padding: '0 8px'
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       <LobbyTabs
         activeTab={activeTab}

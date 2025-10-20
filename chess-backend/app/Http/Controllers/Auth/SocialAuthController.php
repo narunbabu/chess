@@ -60,13 +60,14 @@ class SocialAuthController extends Controller
         try {
             Log::info('=== ATTEMPTING TO GET USER FROM GOOGLE ===');
             $socialUser = Socialite::driver($provider)->user();
-            
-            $user = User::firstOrCreate(
+
+            $user = User::updateOrCreate(
                 ['email' => $socialUser->getEmail()],
                 [
                     'name' => $socialUser->getName(),
                     'provider' => $provider,
-                    'provider_id' => $socialUser->getId()
+                    'provider_id' => $socialUser->getId(),
+                    'avatar_url' => $socialUser->getAvatar() // Save Google profile picture
                 ]
             );
 

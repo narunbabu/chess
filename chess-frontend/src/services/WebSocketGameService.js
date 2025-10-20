@@ -502,7 +502,9 @@ class WebSocketGameService {
   }
 
   /**
-   * Request game resume
+   * Direct game resume (legacy/admin use)
+   * NOTE: For normal multiplayer resume with opponent notification,
+   * use requestResume() instead which sends a resume request to the opponent.
    */
   async resumeGame(acceptResume = true) {
     if (!this.isWebSocketConnected()) {
