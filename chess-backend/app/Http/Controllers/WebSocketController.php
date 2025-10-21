@@ -527,6 +527,7 @@ class WebSocketController extends Controller
             'move.piece' => 'nullable|string',
             'move.color' => 'nullable|string',
             'move.captured' => 'nullable|string',
+            'move.flags' => 'nullable|string',
             'move.prev_fen' => 'required|string',
             'move.next_fen' => 'required|string',
             'move.is_mate_hint' => 'required|boolean',

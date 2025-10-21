@@ -1661,6 +1661,7 @@ const PlayMultiplayer = () => {
       piece: move.piece || null, // Which piece moved (e.g., 'q', 'r', 'n')
       color: move.color || null, // Color of player who moved ('w' or 'b')
       captured: move.captured || null, // Which piece was captured (if any)
+      flags: move.flags || null, // Move flags (e.g., 'k'=kingside castle, 'q'=queenside castle, 'e'=en passant)
       prev_fen: prevFen,
       next_fen: nextFen,
       is_mate_hint: !!(move.san?.includes('#') || gameCopy.isCheckmate()),
