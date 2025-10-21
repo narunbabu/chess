@@ -36,7 +36,11 @@ export const saveGameHistory = async (gameData) => {
     computer_level: gameData.computer_level || gameData.computer_depth || gameData.computerLevel,
     moves: typeof gameData.moves === 'string' ? gameData.moves : JSON.stringify(gameData.moves),
     final_score: gameData.final_score || gameData.finalScore || gameData.score,
-    result: gameData.result
+    result: gameData.result,
+    // Multiplayer game fields
+    game_id: gameData.game_id || null,
+    opponent_name: gameData.opponent_name || null,
+    game_mode: gameData.game_mode || 'computer'
   };
 
   // Prepare a history record for localStorage (keeps original format)

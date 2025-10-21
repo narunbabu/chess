@@ -105,15 +105,19 @@ const Dashboard = () => {
         {/* Active Games Section */}
         <section className="unified-section">
           <h2 className="unified-section-header">🎮 Active Games</h2>
-          {activeGames.length > 0 ? (
+          {!user ? (
+            <div className="unified-empty-state">
+              <p>Loading user data...</p>
+            </div>
+          ) : activeGames.length > 0 ? (
             <div className="unified-card-grid cols-1">
               {activeGames.map((game) => {
                 const opponent =
-                  game.white_player_id === user.id
+                  game.white_player_id === user?.id
                     ? game.blackPlayer
                     : game.whitePlayer;
                 const playerColor =
-                  game.white_player_id === user.id ? 'white' : 'black';
+                  game.white_player_id === user?.id ? 'white' : 'black';
                 const statusClass =
                   game.status === 'active'
                     ? 'active'

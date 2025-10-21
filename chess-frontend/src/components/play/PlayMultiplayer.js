@@ -52,6 +52,7 @@ const PlayMultiplayer = () => {
   const [showCheckmate, setShowCheckmate] = useState(false);
   const [checkmateWinner, setCheckmateWinner] = useState(null);
   const [kingInDangerSquare, setKingInDangerSquare] = useState(null);
+  const [savedGameHistoryId, setSavedGameHistoryId] = useState(null);
 
   // Inactivity detection state
   const [showPresenceDialog, setShowPresenceDialog] = useState(false);
@@ -1149,8 +1150,13 @@ const PlayMultiplayer = () => {
 
       if (typeof saveGameHistory === 'function') {
         try {
-          await saveGameHistory(gameHistoryData);
-          console.log('✅ Multiplayer game history saved successfully');
+          const savedGame = await saveGameHistory(gameHistoryData);
+          console.log('✅ Multiplayer game history saved successfully', savedGame);
+          // Store the saved game history ID for preview navigation
+          if (savedGame && savedGame.data && savedGame.data.id) {
+            setSavedGameHistoryId(savedGame.data.id);
+            console.log('📝 Saved game_history ID:', savedGame.data.id);
+          }
         } catch (saveError) {
           console.error('❌ Error saving multiplayer game history:', saveError);
         }
@@ -2134,8 +2140,10 @@ const PlayMultiplayer = () => {
             navigate('/lobby');
           }}
           onPreview={() => {
-            // Navigate to game review/preview page
-            navigate(`/game-preview/${gameId}`);
+            // Navigate to game review/preview page using saved game_history ID
+            const reviewId = savedGameHistoryId || gameId;
+            console.log('🎬 Preview button: navigating to /play/review/' + reviewId);
+            navigate(`/play/review/${reviewId}`);
           }}
           isMultiplayer={true}
         />
@@ -2568,8 +2576,10 @@ const PlayMultiplayer = () => {
               navigate('/lobby');
             }}
             onPreview={() => {
-              // Navigate to game review/preview page
-              navigate(`/game-preview/${gameId}`);
+              // Navigate to game review/preview page using saved game_history ID
+              const reviewId = savedGameHistoryId || gameId;
+              console.log('🎬 Preview button: navigating to /play/review/' + reviewId);
+              navigate(`/play/review/${reviewId}`);
             }}
             isMultiplayer={true}
           />
