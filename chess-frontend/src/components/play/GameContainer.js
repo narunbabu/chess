@@ -187,10 +187,10 @@ const GameContainer = ({
               {activeTimer === playerColor && (
                 <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#22c55e', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
               )}
-              {playerData?.avatar_url ? (
+              {getPlayerAvatar(playerData) && (
                 <img
-                  src={playerData.avatar_url}
-                  alt={playerData.name || 'You'}
+                  src={getPlayerAvatar(playerData)}
+                  alt={playerData?.name || 'You'}
                   style={{
                     width: '24px',
                     height: '24px',
@@ -198,10 +198,6 @@ const GameContainer = ({
                     objectFit: 'cover'
                   }}
                 />
-              ) : (
-                <span style={{ fontSize: '16px', color: '#22c55e' }}>
-                  👤
-                </span>
               )}
               <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
                 <span style={{ fontSize: '12px', color: '#22c55e', fontWeight: '500' }}>You</span>
@@ -255,7 +251,7 @@ const GameContainer = ({
             {!isMyTurn && (
               <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#ef4444', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
             )}
-            {getPlayerAvatar(opponentData) ? (
+            {getPlayerAvatar(opponentData) && (
               <img
                 src={getPlayerAvatar(opponentData)}
                 alt={opponentData?.name || opponentName}
@@ -266,10 +262,6 @@ const GameContainer = ({
                   objectFit: 'cover'
                 }}
               />
-            ) : (
-              <span style={{ fontSize: '16px', color: !isMyTurn ? '#ef4444' : '#ccc' }}>
-                👤
-              </span>
             )}
             <span style={{ fontSize: '14px', color: !isMyTurn ? '#ef4444' : '#ccc', fontWeight: '500' }}>
               {truncatePlayerName(opponentData?.name || opponentName)}
@@ -310,7 +302,7 @@ const GameContainer = ({
             {isMyTurn && (
               <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#22c55e', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
             )}
-            {getPlayerAvatar(playerData) ? (
+            {getPlayerAvatar(playerData) && (
               <img
                 src={getPlayerAvatar(playerData)}
                 alt={playerData?.name || 'You'}
@@ -321,10 +313,6 @@ const GameContainer = ({
                   objectFit: 'cover'
                 }}
               />
-            ) : (
-              <span style={{ fontSize: '16px', color: isMyTurn ? '#22c55e' : '#ccc' }}>
-                👤
-              </span>
             )}
             <span style={{ fontSize: '14px', color: isMyTurn ? '#22c55e' : '#ccc', fontWeight: '500' }}>
               {truncatePlayerName(playerData?.name || 'You')}
@@ -376,13 +364,9 @@ const GameContainer = ({
           computerScore={computerScore}
           lastComputerEvaluation={mode === 'computer' ? lastComputerEvaluation : lastOpponentEvaluation}
           isOnlineGame={isOnlineGame}
-          players={mode === 'multiplayer' ? {
-            'w': gameDataObj?.white_player,
-            'b': gameDataObj?.black_player
-          } : players}
-          playerColor={mode === 'multiplayer' && typeof playerColor === 'string' && playerColor.length > 1
-            ? (playerColor === 'white' ? 'w' : 'b')
-            : playerColor}
+          mode={mode}
+          playerData={playerData}
+          opponentData={opponentData}
         />
 
         {/* TimerDisplay - Both modes */}

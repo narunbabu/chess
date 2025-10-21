@@ -23,7 +23,13 @@ export const truncatePlayerName = (name) => {
  * @returns {string|null} Avatar URL or null if not available
  */
 export const getPlayerAvatar = (playerData) => {
-  return playerData?.avatar_url || playerData?.avatar || null;
+  if (!playerData) return null;
+
+  // Handle different naming conventions from backend
+  return playerData.avatar_url ||
+         playerData.avatar ||
+         playerData.avatarUrl ||
+         null;
 };
 
 /**

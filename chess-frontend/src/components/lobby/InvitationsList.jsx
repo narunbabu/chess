@@ -31,8 +31,8 @@ const InvitationsList = ({
               <div key={invitation.id} className="unified-card horizontal">
                 <img
                   src={
-                    invitation.inviter.avatar ||
-                    `https://i.pravatar.cc/150?u=${invitation.inviter.email}`
+                    invitation.inviter.avatar_url ||
+                    `https://i.pravatar.cc/150?u=${invitation.inviter.email || `user${invitation.inviter.id}`}`
                   }
                   alt={invitation.inviter.name}
                   className="unified-card-avatar"
@@ -88,8 +88,8 @@ const InvitationsList = ({
               <div key={invitation.id} className="unified-card horizontal">
                 <img
                   src={
-                    invitation.invited.avatar ||
-                    `https://i.pravatar.cc/150?u=${invitation.invited.email}`
+                    invitation.invited.avatar_url ||
+                    `https://i.pravatar.cc/150?u=${invitation.invited.email || `user${invitation.invited.id}`}`
                   }
                   alt={invitation.invited.name}
                   className="unified-card-avatar"

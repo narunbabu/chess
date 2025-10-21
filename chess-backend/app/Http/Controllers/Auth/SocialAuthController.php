@@ -61,15 +61,33 @@ class SocialAuthController extends Controller
             Log::info('=== ATTEMPTING TO GET USER FROM GOOGLE ===');
             $socialUser = Socialite::driver($provider)->user();
 
+            // Log the data we got from Google
+            Log::info('=== GOOGLE USER DATA ===');
+            Log::info('Name: ' . $socialUser->getName());
+            Log::info('Email: ' . $socialUser->getEmail());
+            Log::info('ID: ' . $socialUser->getId());
+            Log::info('Avatar URL: ' . $socialUser->getAvatar());
+            Log::info('Raw User Data: ', $socialUser->getRaw());
+
+            $avatarUrl = $socialUser->getAvatar();
+            Log::info('Avatar URL to save: ' . ($avatarUrl ?? 'NULL'));
+
             $user = User::updateOrCreate(
                 ['email' => $socialUser->getEmail()],
                 [
                     'name' => $socialUser->getName(),
                     'provider' => $provider,
                     'provider_id' => $socialUser->getId(),
-                    'avatar_url' => $socialUser->getAvatar() // Save Google profile picture
+                    'avatar_url' => $avatarUrl // Save Google profile picture
                 ]
             );
+
+            Log::info('=== USER CREATED/UPDATED ===');
+            Log::info('User ID: ' . $user->id);
+            Log::info('User Name: ' . $user->name);
+            Log::info('User Email: ' . $user->email);
+            Log::info('Avatar URL from DB: ' . $user->getRawOriginal('avatar_url'));
+            Log::info('Avatar URL after accessor: ' . $user->avatar_url);
 
             $token = $user->createToken('auth_token')->plainTextToken;
 

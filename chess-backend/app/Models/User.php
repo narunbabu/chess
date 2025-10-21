@@ -50,8 +50,13 @@ class User extends Authenticatable
             return $value;
         }
 
-        // Fallback to a dynamic avatar based on email
-        return 'https://i.pravatar.cc/150?u=' . urlencode($this->email);
+        // Fallback to a dynamic avatar based on email or ID
+        if ($this->email) {
+            return 'https://i.pravatar.cc/150?u=' . urlencode($this->email);
+        }
+
+        // Final fallback using user ID if email is not available
+        return 'https://i.pravatar.cc/150?u=user' . $this->id;
     }
 
     /**

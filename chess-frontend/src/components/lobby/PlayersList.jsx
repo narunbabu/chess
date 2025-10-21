@@ -24,8 +24,8 @@ const PlayersList = ({ players, sentInvitations, onChallenge }) => {
               <div key={player.id || index} className="unified-card horizontal">
                 <img
                   src={
-                    player.avatar ||
-                    `https://i.pravatar.cc/150?u=${player.email}`
+                    player.avatar_url ||
+                    `https://i.pravatar.cc/150?u=${player.email || `user${player.id}`}`
                   }
                   alt={player.name}
                   className="unified-card-avatar"

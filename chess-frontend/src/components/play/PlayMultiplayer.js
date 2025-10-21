@@ -1894,8 +1894,13 @@ const PlayMultiplayer = () => {
         playerScore,
         computerScore: opponentScore,
         showScores: false,
-        playerData: gameInfo.playerColor === 'white' ? gameData?.whitePlayer : gameData?.blackPlayer,
-        opponentData: gameInfo.playerColor === 'white' ? gameData?.blackPlayer : gameData?.whitePlayer
+        // Handle both naming conventions: whitePlayer/blackPlayer (camelCase) and white_player/black_player (snake_case)
+        playerData: gameInfo.playerColor === 'white'
+          ? (gameData?.whitePlayer || gameData?.white_player)
+          : (gameData?.blackPlayer || gameData?.black_player),
+        opponentData: gameInfo.playerColor === 'white'
+          ? (gameData?.blackPlayer || gameData?.black_player)
+          : (gameData?.whitePlayer || gameData?.white_player)
       }}
       gameData={{
         game,

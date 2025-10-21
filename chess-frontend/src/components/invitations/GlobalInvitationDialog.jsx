@@ -78,8 +78,8 @@ const GlobalInvitationDialog = () => {
               <div className="invitation-info">
                 <img
                   src={
-                    pendingInvitation.inviter.avatar ||
-                    `https://i.pravatar.cc/150?u=${pendingInvitation.inviter.email}`
+                    pendingInvitation.inviter.avatar_url ||
+                    `https://i.pravatar.cc/150?u=${pendingInvitation.inviter.email || `user${pendingInvitation.inviter.id}`}`
                   }
                   alt={pendingInvitation.inviter.name}
                   className="inviter-avatar"

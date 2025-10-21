@@ -43,8 +43,8 @@ const TimerDisplay = ({
       );
     }
 
-    // Fallback to user icon
-    return <span className="text-lg">👤</span>;
+    // No avatar available - don't show anything
+    return null;
   };
 
   // Helper function to get display name

@@ -2,7 +2,16 @@
 import React from "react";
 import { truncatePlayerName, getPlayerAvatar } from '../../utils/playerDisplayUtils';
 
-const ScoreDisplay = ({ playerScore, lastMoveEvaluation, computerScore, lastComputerEvaluation, isOnlineGame, players, playerColor }) => {
+const ScoreDisplay = ({
+  playerScore,
+  lastMoveEvaluation,
+  computerScore,
+  lastComputerEvaluation,
+  isOnlineGame,
+  mode = 'computer',
+  playerData = null,
+  opponentData = null
+}) => {
   const formatScore = (score) => {
     return typeof score === "number" ? score.toFixed(1) : "0.0";
   };
@@ -19,10 +28,43 @@ const ScoreDisplay = ({ playerScore, lastMoveEvaluation, computerScore, lastComp
     }
   };
 
-  const playerData = isOnlineGame && players ? players[playerColor] : null;
-  const opponentData = isOnlineGame && players ? players[playerColor === 'w' ? 'b' : 'w'] : null;
-  const playerName = playerData?.name || "You";
-  const opponentName = opponentData?.name || "CPU";
+  // Helper function to render avatar or icon
+  const renderAvatar = (data, isComputer = false) => {
+    if (isComputer || mode === 'computer') {
+      // Show computer icon for computer mode
+      return <span style={{ fontSize: '14px' }}>🤖</span>;
+    }
+
+    // For multiplayer, show player avatar if available
+    const avatarUrl = getPlayerAvatar(data);
+    if (avatarUrl) {
+      return (
+        <img
+          src={avatarUrl}
+          alt={data?.name || data?.user?.name || 'Player'}
+          style={{
+            width: '20px',
+            height: '20px',
+            borderRadius: '50%',
+            objectFit: 'cover'
+          }}
+        />
+      );
+    }
+
+    // No avatar available - don't show anything
+    return null;
+  };
+
+  // Helper function to get display name
+  const getDisplayName = (data, isComputer = false, fallback = 'Player') => {
+    if (isComputer || mode === 'computer') {
+      return 'CPU';
+    }
+    // Handle both naming conventions: data.name or data.user.name
+    const name = data?.name || data?.user?.name;
+    return truncatePlayerName(name || fallback);
+  };
 
   return (
     <div style={{
@@ -44,24 +86,9 @@ const ScoreDisplay = ({ playerScore, lastMoveEvaluation, computerScore, lastComp
         flex: '1'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          {isOnlineGame && getPlayerAvatar(opponentData) ? (
-            <img
-              src={getPlayerAvatar(opponentData)}
-              alt={opponentName}
-              style={{
-                width: '20px',
-                height: '20px',
-                borderRadius: '50%',
-                objectFit: 'cover'
-              }}
-            />
-          ) : (
-            <span style={{ fontSize: '14px' }}>
-              {isOnlineGame ? '👤' : '🤖'}
-            </span>
-          )}
+          {renderAvatar(opponentData, mode === 'computer')}
           <span style={{ fontSize: '14px', color: '#ef4444', fontWeight: '500' }}>
-            {isOnlineGame ? truncatePlayerName(opponentName) : opponentName}
+            {getDisplayName(opponentData, mode === 'computer', 'Rival')}
           </span>
           {lastComputerEvaluation && (
             <span style={{ fontSize: '12px', color: '#ef4444' }}>
@@ -102,22 +129,9 @@ const ScoreDisplay = ({ playerScore, lastMoveEvaluation, computerScore, lastComp
         flex: '1'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          {isOnlineGame && getPlayerAvatar(playerData) ? (
-            <img
-              src={getPlayerAvatar(playerData)}
-              alt={playerName}
-              style={{
-                width: '20px',
-                height: '20px',
-                borderRadius: '50%',
-                objectFit: 'cover'
-              }}
-            />
-          ) : (
-            <span style={{ fontSize: '14px' }}>👤</span>
-          )}
+          {renderAvatar(playerData, false)}
           <span style={{ fontSize: '14px', color: '#22c55e', fontWeight: '500' }}>
-            {isOnlineGame ? truncatePlayerName(playerName) : playerName}
+            {getDisplayName(playerData, false, 'You')}
           </span>
           {lastMoveEvaluation && (
             <span style={{ fontSize: '12px', color: '#22c55e' }}>

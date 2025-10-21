@@ -125,8 +125,8 @@ const Dashboard = () => {
                   <div key={game.id} className="unified-card horizontal">
                     <img
                       src={
-                        opponent?.avatar ||
-                        `https://i.pravatar.cc/150?u=${opponent?.email}`
+                        opponent?.avatar_url ||
+                        `https://i.pravatar.cc/150?u=${opponent?.email || `user${opponent?.id}`}`
                       }
                       alt={opponent?.name}
                       className="unified-card-avatar"
