@@ -84,7 +84,8 @@ function evaluatePlayerMove(
   // 1. Material evaluation
   if (move.captured) {
     // If player captured a piece, add positive score
-    if (move.color === newGameState.turn()) {
+    // After a move, turn switches to opponent, so move.color !== newGameState.turn()
+    if (move.color !== newGameState.turn()) {
       scoreComponents.material += PIECE_VALUES[move.captured.toLowerCase()];
     } else {
       // If player lost a piece, add negative score
