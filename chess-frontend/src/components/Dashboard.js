@@ -13,6 +13,7 @@ const Dashboard = () => {
   const [activeGames, setActiveGames] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showSkillAssessment, setShowSkillAssessment] = useState(false);
+  const [showDetailedStats, setShowDetailedStats] = useState(false);
   const { user } = useAuth();
   const { getGameHistory } = useAppData();
   const navigate = useNavigate();
@@ -37,6 +38,8 @@ const Dashboard = () => {
           })
         ]);
 
+        console.log('📊 [Dashboard] Raw game histories:', histories);
+        console.log('📊 [Dashboard] Sample game:', histories?.[0]);
         setGameHistories(histories || []);
         setActiveGames(activeGamesResponse.data || []);
       } catch (error) {
@@ -232,8 +235,19 @@ const Dashboard = () => {
 
         {/* User Stats Section */}
         <section className="unified-section">
-          <h2 className="unified-section-header">📊 Your Statistics</h2>
-            <div className="unified-card-grid cols-3">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h2 className="unified-section-header" style={{ margin: 0 }}>📊 Your Statistics</h2>
+            {gameHistories.length > 0 && (
+              <button
+                onClick={() => setShowDetailedStats(true)}
+                className="unified-card-btn primary"
+                style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}
+              >
+                📋 View Details
+              </button>
+            )}
+          </div>
+            <div className="unified-card-grid cols-4">
               <div className="unified-card centered">
                 <div className="unified-card-content">
                   <h3 className="unified-card-title title-large title-primary">
@@ -246,13 +260,15 @@ const Dashboard = () => {
                 <div className="unified-card-content">
                   <h3 className="unified-card-title title-large title-success">
                     {gameHistories.length > 0
-                      ? `${Math.round(
-                          (gameHistories.filter((g) =>
-                            g.result?.toLowerCase().includes("win")
-                          ).length /
-                            gameHistories.length) *
-                            100
-                        )}%`
+                      ? (() => {
+                          const wins = gameHistories.filter((g) => {
+                            const result = g.result?.toLowerCase() || '';
+                            // Check for various win formats: "wins", "win", "won", etc.
+                            return result.includes("win") && !result.includes("loss") && !result.includes("lost") && !result.includes("draw");
+                          }).length;
+                          console.log('📊 [Stats] Total games:', gameHistories.length, 'Wins:', wins);
+                          return `${Math.round((wins / gameHistories.length) * 100)}%`;
+                        })()
                       : "0%"}
                   </h3>
                   <p className="unified-card-subtitle">Win Rate</p>
@@ -262,15 +278,28 @@ const Dashboard = () => {
                 <div className="unified-card-content">
                   <h3 className="unified-card-title title-large title-accent">
                     {gameHistories.length > 0
-                      ? (
-                          gameHistories.reduce((sum, game) => {
-                            const score = game.finalScore ?? game.score ?? 0;
-                            return sum + (typeof score === 'number' ? score : 0);
-                          }, 0) / gameHistories.length
-                        ).toFixed(1)
+                      ? (() => {
+                          const scores = gameHistories.map(game => {
+                            const score = game.finalScore ?? game.final_score ?? game.score ?? 0;
+                            const numScore = typeof score === 'number' ? score : parseFloat(score) || 0;
+                            return numScore;
+                          });
+                          const sum = scores.reduce((a, b) => a + b, 0);
+                          const avg = sum / gameHistories.length;
+                          console.log('📊 [Stats] Scores:', scores, 'Average:', avg);
+                          return avg.toFixed(1);
+                        })()
                       : "0.0"}
                   </h3>
                   <p className="unified-card-subtitle">Average Score</p>
+                </div>
+              </div>
+              <div className="unified-card centered">
+                <div className="unified-card-content">
+                  <h3 className="unified-card-title title-large title-info">
+                    {user?.rating || 1200}
+                  </h3>
+                  <p className="unified-card-subtitle">Rating</p>
                 </div>
               </div>
             </div>

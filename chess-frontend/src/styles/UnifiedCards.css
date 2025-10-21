@@ -398,6 +398,11 @@
   grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
 }
 
+/* 4 columns for extra large screens */
+.unified-card-grid.cols-4 {
+  grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
+}
+
 /* Responsive Adjustments */
 @media (max-width: 768px) {
   .unified-card {
@@ -574,6 +579,10 @@
 
 .title-error {
   color: #f04747 !important;
+}
+
+.title-info {
+  color: #00b0ff !important;
 }
 
 /* Title Font Size Utilities */

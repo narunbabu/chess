@@ -11,6 +11,7 @@ import NewGameRequestDialog from '../NewGameRequestDialog';
 import PlayShell from './PlayShell'; // Layout wrapper (Phase 4)
 import GameContainer from './GameContainer'; // Unified game container
 import { useAuth } from '../../contexts/AuthContext';
+import { useAppData } from '../../contexts/AppDataContext';
 import { useParams, useNavigate } from 'react-router-dom';
 import { BACKEND_URL } from '../../config';
 import WebSocketGameService from '../../services/WebSocketGameService';
@@ -108,6 +109,7 @@ const PlayMultiplayer = () => {
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
 
   const { user } = useAuth();
+  const { invalidateGameHistory } = useAppData();
   const { gameId } = useParams();
   const navigate = useNavigate();
   const wsService = useRef(null);
@@ -1156,6 +1158,11 @@ const PlayMultiplayer = () => {
           if (savedGame && savedGame.data && savedGame.data.id) {
             setSavedGameHistoryId(savedGame.data.id);
             console.log('📝 Saved game_history ID:', savedGame.data.id);
+          }
+          // Invalidate cache so Dashboard shows the new game
+          if (invalidateGameHistory) {
+            invalidateGameHistory();
+            console.log('🔄 Game history cache invalidated');
           }
         } catch (saveError) {
           console.error('❌ Error saving multiplayer game history:', saveError);

@@ -7,7 +7,8 @@
       "Bash(sqlite3:*)",
       "Bash(./vendor/bin/sail artisan migrate:*)",
       "Bash(./vendor/bin/sail artisan make:migration:*)",
-      "Bash(powershell.exe:*)"
+      "Bash(powershell.exe:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []

@@ -26,6 +26,7 @@ import { encodeGameHistory, reconstructGameFromHistory } from "../../utils/gameH
 // Import Services
 import { saveGameHistory, getGameHistories } from "../../services/gameHistoryService"; // Adjust paths if needed
 import { useAuth } from "../../contexts/AuthContext";
+import { useAppData } from "../../contexts/AppDataContext";
 
 
 // Import sound files (ensure paths are correct)
@@ -88,6 +89,7 @@ const PlayComputer = () => {
   const navigate = useNavigate(); // For navigation buttons
   const location = useLocation();
   const { user } = useAuth(); // Get user for rating
+  const { invalidateGameHistory } = useAppData(); // Get cache invalidation
   const [isOnlineGame, setIsOnlineGame] = useState(false);
   const [players, setPlayers] = useState(null);
   const [gameMode, setGameMode] = useState('computer'); // Default to computer mode for /play route
@@ -158,6 +160,11 @@ const PlayComputer = () => {
             try {
                 await saveGameHistory(gameHistoryData);
                 console.log("Game history saved successfully");
+                // Invalidate cache so Dashboard shows the new game
+                if (invalidateGameHistory) {
+                    invalidateGameHistory();
+                    console.log('🔄 Game history cache invalidated');
+                }
             } catch (error) {
                 console.error("Error saving game history:", error);
             }
