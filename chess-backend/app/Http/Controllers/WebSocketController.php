@@ -524,6 +524,9 @@ class WebSocketController extends Controller
             'move.promotion' => 'nullable|string',
             'move.san' => 'required|string',
             'move.uci' => 'required|string',
+            'move.piece' => 'nullable|string',
+            'move.color' => 'nullable|string',
+            'move.captured' => 'nullable|string',
             'move.prev_fen' => 'required|string',
             'move.next_fen' => 'required|string',
             'move.is_mate_hint' => 'required|boolean',
@@ -531,6 +534,7 @@ class WebSocketController extends Controller
             'move.is_stalemate' => 'required|boolean',
             'move.move_time_ms' => 'nullable|numeric',
             'move.player_rating' => 'nullable|integer',
+            'move.player_score' => 'nullable|numeric',
             'socket_id' => 'required|string'
         ]);
 

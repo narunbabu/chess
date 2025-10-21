@@ -14,6 +14,8 @@ class Game extends Model
     protected $fillable = [
         'white_player_id',
         'black_player_id',
+        'white_player_score',
+        'black_player_score',
         'status',        // Virtual attribute (mutator converts to status_id)
         'status_id',     // FK to game_statuses table
         'result',
@@ -58,6 +60,8 @@ class Game extends Model
         'end_reason_id' => 'integer',
         'white_player_id' => 'integer',
         'black_player_id' => 'integer',
+        'white_player_score' => 'decimal:2',
+        'black_player_score' => 'decimal:2',
         'white_time_paused_ms' => 'integer',
         'black_time_paused_ms' => 'integer',
         'white_grace_time_ms' => 'integer',

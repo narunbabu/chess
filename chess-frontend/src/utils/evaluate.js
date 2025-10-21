@@ -139,11 +139,13 @@ function evaluatePlayerMove(
     newGameState
   );
 
-  // 9. Apply player skill adaptation
-  const adaptedScore = adaptScoreToPlayerSkill(scoreComponents, playerRating);
+  // 9. Universal scoring - no rating-based adaptation
+  // Rating-based skill adaptation has been removed for consistent scoring across all game modes
+  // Use raw scoreComponents for position-based evaluation only
+  // If training-style adaptation is needed, apply it separately as "XP Bonus" in PlayComputer.js
 
-  // Calculate total score
-  let totalScore = Object.values(adaptedScore).reduce((s, v) => s + v, 0);
+  // Calculate total score using raw components (no adaptation)
+  let totalScore = Object.values(scoreComponents).reduce((s, v) => s + v, 0);
 
   // Difficulty scaling (see README §Scoring)
   const difficultyFactor = 1 + (Math.max(1, engineLevel) - 1) * 0.08;
@@ -154,7 +156,30 @@ function evaluatePlayerMove(
       ? PIECE_VALUES[move.captured.toLowerCase()] + 4
       : 4) *
       difficultyFactor);
+  const totalBeforeCap = totalScore;
   totalScore = Math.max(-cap, Math.min(cap, totalScore));
+
+  // Console logging for debugging
+  console.log('📊 [Score Calculation]', {
+    move: move.san || `${move.from}-${move.to}`,
+    color: move.color,
+    components: {
+      material: scoreComponents.material.toFixed(2),
+      positional: scoreComponents.positional.toFixed(2),
+      tactical: scoreComponents.tactical.toFixed(2),
+      kingThreat: scoreComponents.kingThreat.toFixed(2),
+      development: scoreComponents.development.toFixed(2),
+      timeBonus: scoreComponents.timeBonus.toFixed(2),
+      risk: scoreComponents.risk.toFixed(2)
+    },
+    totalBeforeCap: totalBeforeCap.toFixed(2),
+    difficultyFactor: difficultyFactor.toFixed(2),
+    cap: cap.toFixed(2),
+    totalAfterCap: totalScore.toFixed(2),
+    playerRating: playerRating,
+    engineLevel: engineLevel,
+    gamePhase: gamePhase
+  });
 
   // Adjust score based on game result
   if (newGameState.isGameOver()) {
@@ -166,25 +191,33 @@ function evaluatePlayerMove(
       );
       if (newGameState.turn() === move.color) {
         totalScore -= bonus;
+        console.log('⚠️ [Checkmate Penalty]', { bonus: bonus.toFixed(2), newTotal: totalScore.toFixed(2) });
       } else {
         totalScore += bonus;
+        console.log('✅ [Checkmate Bonus]', { bonus: bonus.toFixed(2), newTotal: totalScore.toFixed(2) });
       }
     } else if (newGameState.isDraw()) {
       // Draw results in a small negative score
       totalScore -= 10;
+      console.log('⚖️ [Draw Penalty]', { penalty: -10, newTotal: totalScore.toFixed(2) });
     }
   }
 
+  const finalTotal = Math.round(totalScore * 10) / 10;
+  const classification = classifyMove(totalScore, engineEvaluation, playerRating);
+
+  console.log('🎯 [Final Score]', {
+    total: finalTotal,
+    classification: classification,
+    engineDifference: engineEvaluation
+  });
+
   return {
-    components: adaptedScore,
-    total: Math.round(totalScore * 10) / 10,
+    components: scoreComponents, // Return raw components (no rating adaptation)
+    total: finalTotal,
     difficultyFactor,
     engineDifference: engineEvaluation,
-    moveClassification: classifyMove(
-      totalScore,
-      engineEvaluation,
-      playerRating
-    ),
+    moveClassification: classification,
   };
 }
 

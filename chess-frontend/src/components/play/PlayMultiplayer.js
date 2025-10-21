@@ -101,6 +101,9 @@ const PlayMultiplayer = () => {
   const [opponentScore, setOpponentScore] = useState(0);
   const [lastMoveEvaluation, setLastMoveEvaluation] = useState(null);
   const [lastOpponentEvaluation, setLastOpponentEvaluation] = useState(null);
+
+  // Track evaluated moves to prevent StrictMode double-evaluation
+  const evaluatedMovesRef = useRef(new Set());
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
 
   const { user } = useAuth();
@@ -432,6 +435,26 @@ const PlayMultiplayer = () => {
           result: userColor
         });
       }
+
+      // Restore cumulative scores from database (parse as float to prevent string concatenation)
+      const myScore = parseFloat(userColor === 'white'
+        ? (data.white_player_score || 0)
+        : (data.black_player_score || 0));
+      const oppScore = parseFloat(userColor === 'white'
+        ? (data.black_player_score || 0)
+        : (data.white_player_score || 0));
+
+      console.log('📊 [Restoring Scores from Database]', {
+        userColor,
+        myScore,
+        oppScore,
+        whiteScore: data.white_player_score,
+        blackScore: data.black_player_score
+      });
+
+      setPlayerScore(myScore);
+      setOpponentScore(oppScore);
+
       console.log('Board orientation setup:', {
         userId: user?.id,
         userIdType: typeof user?.id,
@@ -835,9 +858,6 @@ const PlayMultiplayer = () => {
       newGame.load(event.fen);
       setGame(newGame);
 
-      // Determine the player color who made this move
-      const movePlayer = event.user_id === gameData?.white_player?.id ? 'white' : 'black';
-
       // Only add to history if this is a move from another player
       // (our own moves are already in history from makeMove)
       if (event.user_id !== user?.id) {
@@ -855,28 +875,54 @@ const PlayMultiplayer = () => {
               previousState.load(event.move.prev_fen);
             }
 
+            // IMPORTANT: Get the color from the previous game state, not from user mapping
+            // The player whose turn it was in the previous state made this move
+            const moveColor = previousState.turn(); // 'w' or 'b' - AUTHORITATIVE SOURCE
+
             const opponentMove = {
               from: event.move.from,
               to: event.move.to,
               san: event.move.san,
               promotion: event.move.promotion || null,
-              piece: event.move.piece || movePlayer.charAt(0), // 'w' or 'b'
-              color: movePlayer === 'white' ? 'w' : 'b',
+              piece: event.move.piece || moveColor, // Use move color from game state
+              color: moveColor, // Use authoritative color from chess.js
               captured: event.move.captured || null
             };
 
             // Evaluate opponent's move with universal scoring (human vs human)
             // Use engineLevel = 1 to ensure consistent, deterministic evaluation across all clients
-            evaluateMove(
-              opponentMove,
-              previousState,
-              newGame,
-              (event.move.move_time_ms || 5000) / 1000, // Convert to seconds
-              event.move.player_rating || 1200,
-              setLastOpponentEvaluation,
-              setOpponentScore,
-              1 // Always 1 for multiplayer - no difficulty scaling
-            );
+            // IMPORTANT: For multiplayer, use fixed DEFAULT_RATING (1200) for both players
+            // to ensure consistent scoring across all clients, regardless of individual ratings
+            const opponentMoveTime = (event.move.move_time_ms || 0) / 1000; // Use actual time, or 0 if not available
+            console.log('🔵 [Evaluating OPPONENT Move]', {
+              move: event.move.san,
+              piece: event.move.piece,
+              captured: event.move.captured,
+              color: moveColor,
+              opponentName: event.user_name,
+              moveTime: opponentMoveTime.toFixed(2) + 's',
+              moveTimeMs: event.move.move_time_ms
+            });
+
+            // Prevent StrictMode double-evaluation
+            const opponentMoveKey = `${event.user_id}_${event.move.san}_${event.fen}`;
+            if (!evaluatedMovesRef.current.has(opponentMoveKey)) {
+              evaluatedMovesRef.current.add(opponentMoveKey);
+              evaluateMove(
+                opponentMove,
+                previousState,
+                newGame,
+                opponentMoveTime, // Use consistent move time
+                1200, // Fixed rating for consistent cross-client scoring
+                setLastOpponentEvaluation,
+                setOpponentScore,
+                1 // Always 1 for multiplayer - no difficulty scaling
+              );
+              // Clean up old move keys after 5 seconds to prevent memory leak
+              setTimeout(() => evaluatedMovesRef.current.delete(opponentMoveKey), 5000);
+            } else {
+              console.log('⏭️ [Skipping Duplicate OPPONENT Evaluation]', opponentMoveKey);
+            }
           } catch (evalError) {
             console.warn('Could not evaluate opponent move:', evalError);
           }
@@ -1304,9 +1350,19 @@ const PlayMultiplayer = () => {
     };
   }, [gameInfo.status, showPresenceDialog, showPausedGame, isWaitingForResumeResponse]); // Proper dependencies
 
-  // Reset initialization flag when gameId changes (for game navigation)
+  // Reset initialization flag and scores when gameId changes (for game navigation)
   useEffect(() => {
     didInitRef.current = false;
+
+    // Reset scores for new game
+    console.log('🔄 [Game Reset] Resetting scores for new game:', gameId);
+    setPlayerScore(0);
+    setOpponentScore(0);
+    setLastMoveEvaluation(null);
+    setLastOpponentEvaluation(null);
+
+    // Clear evaluated moves cache
+    evaluatedMovesRef.current.clear();
   }, [gameId]);
 
   useEffect(() => {
@@ -1502,6 +1558,10 @@ const PlayMultiplayer = () => {
     // Capture current FEN before move
     const prevFen = game.fen();
 
+    // Create ISOLATED previous state instance to avoid reference issues
+    const previousState = new Chess();
+    previousState.load(prevFen);
+
     // Create a copy to test the move
     const gameCopy = new Chess(prevFen);
 
@@ -1514,6 +1574,10 @@ const PlayMultiplayer = () => {
 
     // Capture new FEN after move
     const nextFen = gameCopy.fen();
+
+    // Create ISOLATED new state instance
+    const newState = new Chess();
+    newState.load(nextFen);
 
     // Get UCI notation (e.g., "e2e4")
     const uci = `${source}${target}${move.promotion || ''}`;
@@ -1536,16 +1600,56 @@ const PlayMultiplayer = () => {
 
     // Evaluate the move and update player score with universal scoring (human vs human)
     // Use engineLevel = 1 to ensure consistent, deterministic evaluation across all clients
-    evaluateMove(
-      move,
-      game, // previous state
-      gameCopy, // new state
-      moveTime,
-      user?.rating || 1200, // player rating
-      setLastMoveEvaluation,
-      setPlayerScore,
-      1 // Always 1 for multiplayer - no difficulty scaling
-    );
+    // IMPORTANT: For multiplayer, use fixed DEFAULT_RATING (1200) for both players
+    // to ensure consistent scoring across all clients, regardless of individual ratings
+    // FIXED: Use isolated previousState and newState instances to ensure clean before/after comparison
+    console.log('🟢 [Evaluating MY Move]', {
+      move: move.san,
+      piece: move.piece,
+      captured: move.captured,
+      color: move.color,
+      playerName: user?.name || 'Player',
+      moveTime: moveTime.toFixed(2) + 's',
+      prevFEN: prevFen.substring(0, 30) + '...',
+      nextFEN: nextFen.substring(0, 30) + '...'
+    });
+
+    // Prevent StrictMode double-evaluation and calculate new cumulative score
+    const moveKey = `${user?.id}_${move.san}_${nextFen}`;
+    let newCumulativeScore = parseFloat(playerScore) || 0; // Default to current score, ensure numeric
+
+    if (!evaluatedMovesRef.current.has(moveKey)) {
+      evaluatedMovesRef.current.add(moveKey);
+      const evaluation = evaluateMove(
+        move,
+        previousState, // FIXED: isolated previous state
+        newState, // FIXED: isolated new state
+        moveTime,
+        1200, // Fixed rating for consistent cross-client scoring
+        setLastMoveEvaluation,
+        setPlayerScore,
+        1 // Always 1 for multiplayer - no difficulty scaling
+      );
+      // Calculate new cumulative score for database (ensure numeric addition)
+      const currentScore = parseFloat(playerScore) || 0;
+      const moveScore = parseFloat(evaluation?.total) || 0;
+      newCumulativeScore = currentScore + moveScore;
+      // Clean up old move keys after 5 seconds to prevent memory leak
+      setTimeout(() => evaluatedMovesRef.current.delete(moveKey), 5000);
+
+      console.log('💾 [Score for Database]', {
+        previousScore: currentScore,
+        moveScore: moveScore,
+        newCumulativeScore: newCumulativeScore,
+        types: {
+          previousScore: typeof currentScore,
+          moveScore: typeof moveScore,
+          newCumulativeScore: typeof newCumulativeScore
+        }
+      });
+    } else {
+      console.log('⏭️ [Skipping Duplicate Evaluation]', moveKey);
+    }
 
     // Include metrics in the move data
     const moveData = {
@@ -1554,6 +1658,9 @@ const PlayMultiplayer = () => {
       promotion: move.promotion || null,
       san: move.san,
       uci: uci,
+      piece: move.piece || null, // Which piece moved (e.g., 'q', 'r', 'n')
+      color: move.color || null, // Color of player who moved ('w' or 'b')
+      captured: move.captured || null, // Which piece was captured (if any)
       prev_fen: prevFen,
       next_fen: nextFen,
       is_mate_hint: !!(move.san?.includes('#') || gameCopy.isCheckmate()),
@@ -1561,7 +1668,8 @@ const PlayMultiplayer = () => {
       is_stalemate: gameCopy.isStalemate(),
       // Add evaluation metrics
       move_time_ms: moveTime * 1000,
-      player_rating: user?.rating || 1200
+      player_rating: user?.rating || 1200,
+      player_score: newCumulativeScore // Send cumulative score to database
     };
 
     wsService.current.sendMove(moveData);

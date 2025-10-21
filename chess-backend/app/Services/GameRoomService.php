@@ -524,13 +524,31 @@ class GameRoomService
         $moveWithUser = array_merge($move, ['user_id' => $userId]);
         $moves[] = $moveWithUser;
 
-        $game->update([
+        // Determine which player made the move and update their score
+        $updateData = [
             'fen' => $newFen,
             'turn' => $newTurn,
             'moves' => $moves,
             'move_count' => count($moves),
             'last_move_at' => now()
-        ]);
+        ];
+
+        // Update player's cumulative score if provided
+        if (isset($move['player_score']) && is_numeric($move['player_score'])) {
+            $playerColor = $this->getUserRole($user, $game); // 'white' or 'black'
+            $scoreField = $playerColor . '_player_score';
+            $updateData[$scoreField] = (float)$move['player_score'];
+
+            \Log::info('Updating player score', [
+                'game_id' => $gameId,
+                'user_id' => $userId,
+                'player_color' => $playerColor,
+                'score_field' => $scoreField,
+                'new_score' => $move['player_score']
+            ]);
+        }
+
+        $game->update($updateData);
 
         // Check for game end conditions after move
         $this->maybeFinalizeGame($game, $userId, $move);
