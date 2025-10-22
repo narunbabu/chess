@@ -19,6 +19,7 @@ import { getEcho } from '../../services/echoSingleton';
 import { evaluateMove } from '../../utils/gameStateUtils';
 import { encodeGameHistory } from '../../utils/gameHistoryStringUtils';
 import { saveGameHistory } from '../../services/gameHistoryService';
+import { createResultFromMultiplayerGame } from '../../utils/resultStandardization';
 import { useMultiplayerTimer, formatTime } from '../../utils/timerUtils';
 import { calculateRemainingTime } from '../../utils/timerCalculator';
 
@@ -1043,13 +1044,28 @@ const PlayMultiplayer = () => {
     try {
       const now = new Date();
 
-      // Determine result text based on who won
-      let resultText = 'Draw';
+      // Create human-readable result details
+      let resultDetails = 'Draw';
       if (event.winner_user_id === user?.id) {
-        resultText = 'won';
+        resultDetails = `You won by ${event.end_reason}!`;
       } else if (event.winner_user_id && event.winner_user_id !== user?.id) {
-        resultText = 'lost';
+        const opponentName = event.winner_player === 'white'
+          ? event.white_player?.name
+          : event.black_player?.name;
+        resultDetails = `${opponentName} won by ${event.end_reason}`;
+      } else {
+        resultDetails = `Draw by ${event.end_reason}`;
       }
+
+      // Create standardized result object
+      const standardizedResult = createResultFromMultiplayerGame(
+        event.winner_user_id,
+        user?.id,
+        event.end_reason,
+        resultDetails
+      );
+
+      console.log('🎯 [PlayMultiplayer] Created standardized result:', standardizedResult);
 
       // Fetch fresh game data from server to get authoritative move history
       const token = localStorage.getItem('auth_token');
@@ -1129,7 +1145,7 @@ const PlayMultiplayer = () => {
         final_score: finalPlayerScore,
         finalScore: finalPlayerScore, // Alternative field name
         score: finalPlayerScore, // Alternative field name
-        result: resultText,
+        result: standardizedResult, // Use standardized result object
         // Add timer persistence (Phase 2)
         white_time_remaining_ms: whiteTimeRemaining,
         black_time_remaining_ms: blackTimeRemaining,

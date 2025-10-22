@@ -24,7 +24,7 @@ class GameHistoryController extends Controller
             'computer_level' => 'nullable|integer',
             'moves'          => 'required|string',
             'final_score'    => 'required|numeric',
-            'result'         => 'required|string',
+            'result'         => 'required', // Accept both string and array/object
             'game_id'        => 'nullable|integer|exists:games,id',
             'opponent_name'  => 'nullable|string|max:255',
             'game_mode'      => 'nullable|in:computer,multiplayer',
@@ -35,6 +35,17 @@ class GameHistoryController extends Controller
         $userId = Auth::check() ? Auth::id() : null;
 
         try {
+            // Handle result field - accept both string and object formats
+            $resultValue = $validated['result'];
+            if (is_array($resultValue) || is_object($resultValue)) {
+                // New standardized format (object) - store as JSON
+                $resultValue = json_encode($resultValue);
+                Log::info('Converted result object to JSON for storage:', ['result' => $resultValue]);
+            } else {
+                // Legacy format (string) - store as-is
+                Log::info('Storing legacy string result format:', ['result' => $resultValue]);
+            }
+
             $game = new GameHistory();
             $game->user_id = $userId;
             $game->played_at = $validated['played_at'];
@@ -42,7 +53,7 @@ class GameHistoryController extends Controller
             $game->computer_level = $validated['computer_level'] ?? 0;
             $game->moves = $validated['moves'];
             $game->final_score = $validated['final_score'];
-            $game->result = $validated['result'];
+            $game->result = $resultValue;
             $game->game_id = $validated['game_id'] ?? null;
             $game->opponent_name = $validated['opponent_name'] ?? null;
             $game->game_mode = $validated['game_mode'] ?? 'computer';
@@ -73,13 +84,24 @@ class GameHistoryController extends Controller
                 'computer_level' => 'nullable|integer',
                 'moves'          => 'required|string',
                 'final_score'    => 'required|numeric',
-                'result'         => 'required|string',
+                'result'         => 'required', // Accept both string and array/object
                 'game_id'        => 'nullable|integer|exists:games,id',
                 'opponent_name'  => 'nullable|string|max:255',
                 'game_mode'      => 'nullable|in:computer,multiplayer',
             ]);
 
             Log::info('Validated public game data:', $validated);
+
+            // Handle result field - accept both string and object formats
+            $resultValue = $validated['result'];
+            if (is_array($resultValue) || is_object($resultValue)) {
+                // New standardized format (object) - store as JSON
+                $resultValue = json_encode($resultValue);
+                Log::info('Converted public result object to JSON for storage:', ['result' => $resultValue]);
+            } else {
+                // Legacy format (string) - store as-is
+                Log::info('Storing public legacy string result format:', ['result' => $resultValue]);
+            }
 
             $game = new GameHistory();
             $game->user_id = null; // Guest game
@@ -88,7 +110,7 @@ class GameHistoryController extends Controller
             $game->computer_level = $validated['computer_level'] ?? 0;
             $game->moves = $validated['moves'];
             $game->final_score = $validated['final_score'];
-            $game->result = $validated['result'];
+            $game->result = $resultValue;
             $game->game_id = $validated['game_id'] ?? null;
             $game->opponent_name = $validated['opponent_name'] ?? null;
             $game->game_mode = $validated['game_mode'] ?? 'computer';
@@ -122,9 +144,11 @@ class GameHistoryController extends Controller
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
-        // Select summary fields and join with games table to get player scores for multiplayer games
+        // Select summary fields and join with games table to get player scores and opponent info for multiplayer games
         $games = GameHistory::where('game_histories.user_id', $user->id)
             ->leftJoin('games', 'game_histories.game_id', '=', 'games.id')
+            ->leftJoin('users as white_player', 'games.white_player_id', '=', 'white_player.id')
+            ->leftJoin('users as black_player', 'games.black_player_id', '=', 'black_player.id')
             ->orderBy('game_histories.played_at', 'desc')
             ->get([
                 'game_histories.id',
@@ -135,10 +159,17 @@ class GameHistoryController extends Controller
                 'game_histories.result',
                 'game_histories.game_id',
                 'game_histories.game_mode',
+                'game_histories.moves',
                 'games.white_player_id',
                 'games.black_player_id',
                 'games.white_player_score',
                 'games.black_player_score',
+                'white_player.name as white_player_name',
+                'white_player.avatar_url as white_player_avatar',
+                'white_player.rating as white_player_rating',
+                'black_player.name as black_player_name',
+                'black_player.avatar_url as black_player_avatar',
+                'black_player.rating as black_player_rating',
             ])
             ->map(function ($game) use ($user) {
                 // Calculate the correct final_score for multiplayer games
@@ -156,13 +187,68 @@ class GameHistoryController extends Controller
                     }
                 }
 
+                // Parse result field - convert JSON string back to object if needed
+                if ($game->result && is_string($game->result)) {
+                    $decoded = json_decode($game->result, true);
+                    if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                        // Successfully decoded JSON - return as object
+                        $game->result = $decoded;
+                    }
+                    // If not JSON or decode fails, keep as string (legacy format)
+                }
+
+                // Add opponent info based on game mode
+                if ($game->game_mode === 'multiplayer' && $game->game_id) {
+                    // Multiplayer: show actual opponent with rating
+                    if ($game->player_color === 'w') {
+                        $game->opponent_name = $game->black_player_name;
+                        $game->opponent_avatar = $game->black_player_avatar;
+                        $game->opponent_score = $game->black_player_score;
+                        $game->opponent_rating = $game->black_player_rating ?? 1200;
+                    } else {
+                        $game->opponent_name = $game->white_player_name;
+                        $game->opponent_avatar = $game->white_player_avatar;
+                        $game->opponent_score = $game->white_player_score;
+                        $game->opponent_rating = $game->white_player_rating ?? 1200;
+                    }
+                } elseif ($game->game_mode === 'computer') {
+                    // Computer: show level and calculate score from moves
+                    $game->opponent_name = 'Computer';
+                    $game->opponent_avatar = null;
+                    $game->opponent_rating = null;
+
+                    // Calculate computer's score from moves (last evaluation is opponent's advantage)
+                    if ($game->moves && is_string($game->moves)) {
+                        $movesArray = array_filter(explode(';', $game->moves), fn($m) => !empty(trim($m)));
+                        if (count($movesArray) > 0) {
+                            $lastMove = end($movesArray);
+                            $parts = explode(',', $lastMove);
+                            if (count($parts) >= 2) {
+                                // Last eval is from player's perspective, invert for computer
+                                $game->opponent_score = -floatval($parts[1]);
+                            }
+                        }
+                    }
+
+                    // Fallback to 0 if can't calculate
+                    if (!isset($game->opponent_score)) {
+                        $game->opponent_score = 0.0;
+                    }
+                }
+
                 // Remove the extra fields we don't want to return
                 unset($game->white_player_id);
                 unset($game->black_player_id);
                 unset($game->white_player_score);
                 unset($game->black_player_score);
+                unset($game->white_player_name);
+                unset($game->black_player_name);
+                unset($game->white_player_avatar);
+                unset($game->black_player_avatar);
+                unset($game->white_player_rating);
+                unset($game->black_player_rating);
                 unset($game->game_id);
-                unset($game->game_mode);
+                // Keep game_mode, computer_level, moves, opponent_rating, opponent_score
 
                 return $game;
             });
@@ -204,6 +290,16 @@ class GameHistoryController extends Controller
                     ? ($game->white_player_score ?? $game->final_score)
                     : ($game->black_player_score ?? $game->final_score);
             }
+        }
+
+        // Parse result field - convert JSON string back to object if needed
+        if ($game->result && is_string($game->result)) {
+            $decoded = json_decode($game->result, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                // Successfully decoded JSON - return as object
+                $game->result = $decoded;
+            }
+            // If not JSON or decode fails, keep as string (legacy format)
         }
 
         // Remove the extra fields we don't want to return

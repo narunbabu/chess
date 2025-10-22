@@ -5,7 +5,9 @@ import { useAppData } from "../contexts/AppDataContext";
 import { getGameHistories } from "../services/gameHistoryService";
 import api from "../services/api";
 import SkillAssessmentModal from "./auth/SkillAssessmentModal";
+import DetailedStatsModal from "./DetailedStatsModal";
 import { getPlayerAvatar } from "../utils/playerDisplayUtils";
+import { isWin, getResultDisplayText } from "../utils/resultStandardization";
 import "./Dashboard.css";
 import "../styles/UnifiedCards.css"; // Import unified card styles
 
@@ -32,7 +34,7 @@ const Dashboard = () => {
       try {
         // Fetch both game histories and active games in parallel
         const [histories, activeGamesResponse] = await Promise.all([
-          getGameHistory().catch(() => getGameHistories()),
+          getGameHistory(true).catch(() => getGameHistories()), // Force refresh to bypass cache
           api.get('/games/active').catch(err => {
             console.error("[Dashboard] Error loading active games:", err);
             return { data: [] };
@@ -84,6 +86,13 @@ const Dashboard = () => {
         isOpen={showSkillAssessment}
         onComplete={handleSkillAssessmentComplete}
         onSkip={handleSkillAssessmentSkip}
+      />
+
+      <DetailedStatsModal
+        isOpen={showDetailedStats}
+        onClose={() => setShowDetailedStats(false)}
+        gameHistories={gameHistories}
+        user={user}
       />
 
       <div className="dashboard-container">
@@ -209,12 +218,12 @@ const Dashboard = () => {
                     </h3>
                     <p
                       className={`unified-card-subtitle ${
-                        game.result?.toLowerCase().includes("win")
+                        isWin(game.result)
                           ? "title-success"
                           : "title-error"
                       }`}
                     >
-                      {game.result || "Unknown"}
+                      {getResultDisplayText(game.result)}
                     </p>
                   </div>
                   <div className="unified-card-actions">
@@ -264,11 +273,7 @@ const Dashboard = () => {
                   <h3 className="unified-card-title title-large title-success">
                     {gameHistories.length > 0
                       ? (() => {
-                          const wins = gameHistories.filter((g) => {
-                            const result = g.result?.toLowerCase() || '';
-                            // Check for various win formats: "wins", "win", "won", etc.
-                            return result.includes("win") && !result.includes("loss") && !result.includes("lost") && !result.includes("draw");
-                          }).length;
+                          const wins = gameHistories.filter((g) => isWin(g.result)).length;
                           console.log('📊 [Stats] Total games:', gameHistories.length, 'Wins:', wins);
                           return `${Math.round((wins / gameHistories.length) * 100)}%`;
                         })()

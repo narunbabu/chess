@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { saveGameHistory } from "../services/gameHistoryService"; // Assuming this path is correct
 import { useAuth } from "../contexts/AuthContext";
+import { isWin, isDraw as isDrawResult, getResultDisplayText } from "../utils/resultStandardization";
 import GIF from 'gif.js';
 import "./GameCompletionAnimation.css";
 
@@ -41,31 +42,14 @@ const GameCompletionAnimation = ({
       return result.isPlayerWin;
     }
 
-    // For single player or legacy games, use the original logic
-    const lowerResult = (typeof result === 'string' ? result : result?.result || "").toLowerCase();
-    const isCheckmate = lowerResult.includes("checkmate");
-    const isWhiteWin = lowerResult.includes("white wins") || (isCheckmate && lowerResult.includes("white"));
-    const isBlackWin = lowerResult.includes("black wins") || (isCheckmate && lowerResult.includes("black"));
-
-    // Handle different playerColor formats
-    const playerColorKey = playerColor === "w" || playerColor === "white" ? "white" : "black";
-
-    if (playerColorKey === "white") {
-      return isWhiteWin;
-    } else if (playerColorKey === "black") {
-      return isBlackWin;
-    } else {
-      // Handle cases where playerColor isn't set or is observer?
-      // Defaulting to false or checking if 'win' is present generically
-      return lowerResult.includes("win") && !lowerResult.includes("wins by"); // Avoid matching 'X wins by timeout' if X is opponent
-    }
+    // For single player games, use the standardization utility
+    return isWin(result);
   })();
 
   // Check if it's a draw
   const isDraw = isMultiplayer
     ? result?.isPlayerDraw || result?.result === '1/2-1/2'
-    : (typeof result === 'string' ? result : result?.result || "").toLowerCase().includes("draw") ||
-      (typeof result === 'string' ? result : result?.result || "").includes("1/2-1/2");
+    : isDrawResult(result);
 
   const exportAsGIF = async () => {
     const canvas = document.createElement('canvas');
@@ -142,8 +126,8 @@ const GameCompletionAnimation = ({
       return `${winnerName} wins by ${reasonText}!`;
     }
 
-    // Fallback to original result text
-    return typeof result === 'string' ? result : result?.result || 'Game ended';
+    // Fallback to standardized result text
+    return getResultDisplayText(result);
   };
 
   const overlayClass = `completion-overlay ${isDraw ? "draw" : (isPlayerWin ? "win" : "loss")} ${

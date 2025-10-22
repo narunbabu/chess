@@ -2,6 +2,7 @@
 import { formatDistanceToNow } from "date-fns";
 import { Chess } from "chess.js";
 import { decodeGameHistory } from "./gameHistoryStringUtils";
+import { isWin, isLoss, isDraw } from "./resultStandardization";
 
 /**
  * Formats a date string to a relative time (e.g., "2 hours ago")
@@ -71,11 +72,7 @@ export const extractGameSummary = (gameHistory) => {
     rawDate: date,
     playerColor: playerColorRaw === "w" ? "White" : "Black",
     computerLevel: computerLevelRaw,
-    result: resultRaw.toLowerCase().includes("you won")
-      ? "Won"
-      : resultRaw.toLowerCase().includes("computer won")
-      ? "Lost"
-      : "Draw",
+    result: isWin(resultRaw) ? "Won" : isLoss(resultRaw) ? "Lost" : "Draw",
     finalScore: Math.abs(finalScoreRaw).toFixed(1),
     duration,
     moveCount,

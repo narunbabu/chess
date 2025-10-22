@@ -92,15 +92,15 @@ export const getGameHistories = async () => {
     if (token) {
       try {
         const res = await api.get("/game-history");
+        console.log('[gameHistoryService] ✅ NEW CODE LOADED - Keeping moves as string');
         return res.data.data.map(game => {
+          console.log(`[gameHistoryService] Game ${game.id}: moves type = ${typeof game.moves}, value =`, game.moves?.substring?.(0, 50));
           let parsedMoves = game.moves;
           if (typeof game.moves === 'string') {
-            try {
-              parsedMoves = JSON.parse(game.moves);
-            } catch (parseError) {
-              console.error(`Error parsing moves JSON for game ID ${game.id}:`, parseError, "Raw moves:", game.moves);
-              parsedMoves = []; // Assign empty array on parse error
-            }
+            // Keep as string - let the consuming component parse it
+            // This preserves the original semicolon-separated format: "e4,2.52;Nf6,0.98;..."
+            parsedMoves = game.moves;
+            console.log(`[gameHistoryService] Game ${game.id}: Keeping as string (${game.moves.length} chars)`);
           }
 
           // Normalize finalScore from backend data
@@ -124,14 +124,13 @@ export const getGameHistories = async () => {
     // Get from localStorage (either no token or backend failed)
     const games = JSON.parse(localStorage.getItem("chess_trainer_game_history") || "[]");
     return games.map(game => {
-      // 1) parse out the moves
+      // Keep moves as string - let the consuming component parse it
       let parsedMoves = game.moves;
       if (typeof parsedMoves === 'string') {
-        try { parsedMoves = JSON.parse(parsedMoves) }
-        catch (_){ parsedMoves = [] }
+        parsedMoves = game.moves; // Keep as string
       }
 
-      // 2) normalize finalScore into a Number
+      // Normalize finalScore into a Number
       const raw = game.finalScore ?? game.final_score ?? game.score;
       const finalScore = raw == null
         ? null

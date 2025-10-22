@@ -22,6 +22,7 @@ import { useGameTimer, formatTime } from "../../utils/timerUtils"; // Adjust pat
 import { makeComputerMove } from "../../utils/computerMoveUtils"; // Adjust path if needed
 import { updateGameStatus, evaluateMove } from "../../utils/gameStateUtils"; // Adjust paths if needed (ensure evaluateMove exists)
 import { encodeGameHistory, reconstructGameFromHistory } from "../../utils/gameHistoryStringUtils"; // Adjust paths if needed
+import { createResultFromComputerGame } from "../../utils/resultStandardization"; // Standardized result format
 
 // Import Services
 import { saveGameHistory, getGameHistories } from "../../services/gameHistoryService"; // Adjust paths if needed
@@ -144,6 +145,19 @@ const PlayComputer = () => {
             ? encodeGameHistory(finalHistory)
             : JSON.stringify(finalHistory);
 
+        // Create standardized result object
+        const standardizedResult = createResultFromComputerGame(
+            resultText,
+            playerColor,
+            {
+                in_checkmate: status.reason === 'checkmate',
+                in_stalemate: status.reason === 'stalemate',
+                in_draw: status.outcome === 'draw'
+            }
+        );
+
+        console.log('🎯 [PlayComputer] Created standardized result:', standardizedResult);
+
         // Save game history (handles both local and online save)
         const gameHistoryData = {
             id: `local_${Date.now()}`,
@@ -153,7 +167,7 @@ const PlayComputer = () => {
             computer_depth: computerDepth,
             moves: conciseGameString,
             final_score: positiveScore,
-            result: resultText,
+            result: standardizedResult, // Use standardized result object
         };
 
         if (typeof saveGameHistory === 'function') {

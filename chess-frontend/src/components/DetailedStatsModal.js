@@ -1,4 +1,6 @@
 import React from 'react';
+import { isWin, isLoss, isDraw, getResultDisplayText } from '../utils/resultStandardization';
+import { getPlayerAvatar } from '../utils/playerDisplayUtils';
 import './DetailedStatsModal.css';
 
 const DetailedStatsModal = ({ isOpen, onClose, gameHistories, user }) => {
@@ -6,15 +8,9 @@ const DetailedStatsModal = ({ isOpen, onClose, gameHistories, user }) => {
 
   // Calculate statistics
   const totalGames = gameHistories.length;
-  const wins = gameHistories.filter((g) => {
-    const result = g.result?.toLowerCase() || '';
-    return result.includes("win") && !result.includes("loss") && !result.includes("lost") && !result.includes("draw");
-  }).length;
-  const losses = gameHistories.filter((g) => {
-    const result = g.result?.toLowerCase() || '';
-    return result.includes("loss") || result.includes("lost");
-  }).length;
-  const draws = totalGames - wins - losses;
+  const wins = gameHistories.filter((g) => isWin(g.result)).length;
+  const losses = gameHistories.filter((g) => isLoss(g.result)).length;
+  const draws = gameHistories.filter((g) => isDraw(g.result)).length;
 
   // Sort games by date (newest first)
   const sortedGames = [...gameHistories].sort((a, b) => {
@@ -56,6 +52,77 @@ const DetailedStatsModal = ({ isOpen, onClose, gameHistories, user }) => {
           </div>
         </div>
 
+        {/* Performance Charts */}
+        <div className="stats-charts">
+          {/* Win/Loss/Draw Bar Chart */}
+          <div className="chart-card">
+            <h3 className="chart-title">Performance Distribution</h3>
+            <div className="bar-chart">
+              <div className="bar-item">
+                <div className="bar-label">Wins</div>
+                <div className="bar-container">
+                  <div
+                    className="bar-fill win"
+                    style={{ width: `${totalGames > 0 ? (wins / totalGames) * 100 : 0}%` }}
+                  >
+                    {wins}
+                  </div>
+                </div>
+                <div className="bar-percentage">{totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0}%</div>
+              </div>
+              <div className="bar-item">
+                <div className="bar-label">Losses</div>
+                <div className="bar-container">
+                  <div
+                    className="bar-fill loss"
+                    style={{ width: `${totalGames > 0 ? (losses / totalGames) * 100 : 0}%` }}
+                  >
+                    {losses}
+                  </div>
+                </div>
+                <div className="bar-percentage">{totalGames > 0 ? Math.round((losses / totalGames) * 100) : 0}%</div>
+              </div>
+              <div className="bar-item">
+                <div className="bar-label">Draws</div>
+                <div className="bar-container">
+                  <div
+                    className="bar-fill draw"
+                    style={{ width: `${totalGames > 0 ? (draws / totalGames) * 100 : 0}%` }}
+                  >
+                    {draws}
+                  </div>
+                </div>
+                <div className="bar-percentage">{totalGames > 0 ? Math.round((draws / totalGames) * 100) : 0}%</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Recent Performance Timeline */}
+          <div className="chart-card">
+            <h3 className="chart-title">Recent Performance (Last 10 Games)</h3>
+            <div className="timeline-chart">
+              {sortedGames.slice(0, 10).reverse().map((game, index) => {
+                const gameIsWin = isWin(game.result);
+                const gameIsLoss = isLoss(game.result);
+                const gameIsDraw = isDraw(game.result);
+                const resultClass = gameIsWin ? 'win' : gameIsLoss ? 'loss' : 'draw';
+                const resultIcon = gameIsWin ? '✓' : gameIsLoss ? '✗' : '=';
+
+                return (
+                  <div key={game.id || index} className={`timeline-item ${resultClass}`} title={getResultDisplayText(game.result)}>
+                    <span className="timeline-icon">{resultIcon}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="timeline-legend">
+              <span className="legend-item"><span className="legend-icon win">✓</span> Win</span>
+              <span className="legend-item"><span className="legend-icon loss">✗</span> Loss</span>
+              <span className="legend-item"><span className="legend-icon draw">=</span> Draw</span>
+            </div>
+          </div>
+        </div>
+
         {/* Games Table */}
         <div className="stats-table-container">
           <table className="stats-table">
@@ -66,7 +133,8 @@ const DetailedStatsModal = ({ isOpen, onClose, gameHistories, user }) => {
                 <th>Opponent</th>
                 <th>Color</th>
                 <th>Result</th>
-                <th>Score</th>
+                <th>Player Score</th>
+                <th>Opponent Score</th>
                 <th>Moves</th>
               </tr>
             </thead>
@@ -83,39 +151,47 @@ const DetailedStatsModal = ({ isOpen, onClose, gameHistories, user }) => {
                   minute: '2-digit'
                 });
 
-                const result = game.result || 'Unknown';
-                const isWin = result.toLowerCase().includes("win") &&
-                             !result.toLowerCase().includes("loss") &&
-                             !result.toLowerCase().includes("lost") &&
-                             !result.toLowerCase().includes("draw");
-                const isLoss = result.toLowerCase().includes("loss") ||
-                              result.toLowerCase().includes("lost");
-                const isDraw = result.toLowerCase().includes("draw") ||
-                              result.toLowerCase().includes("stalemate");
+                const result = getResultDisplayText(game.result);
+                const gameIsWin = isWin(game.result);
+                const gameIsLoss = isLoss(game.result);
+                const gameIsDraw = isDraw(game.result);
 
-                const score = game.finalScore ?? game.final_score ?? game.score ?? 0;
-                const opponent = game.opponent_name ||
-                               (game.game_mode === 'computer' ? `Computer (Lv ${game.computer_level || game.computer_depth || 1})` : 'Unknown');
+                const playerScore = game.final_score ?? game.finalScore ?? game.score ?? 0;
+                const opponentScore = game.opponent_score ?? 0;
+
+                // Opponent info
+                let opponentName = 'Unknown';
+                let opponentAvatar = null;
+
+                if (game.game_mode === 'computer') {
+                  opponentName = `Computer (Lv ${game.computer_level || game.computer_depth || 1})`;
+                  opponentAvatar = null; // Computer doesn't have avatar
+                } else if (game.opponent_name) {
+                  opponentName = game.opponent_name;
+                  opponentAvatar = game.opponent_avatar;
+                }
 
                 const color = game.player_color === 'w' ? '⚪ White' : '⚫ Black';
 
-                // Parse moves
+                // Parse moves - handle semicolon-separated format: "e4,2.52;Nf6,0.98;..."
                 let moveCount = 0;
+                console.log(`Game ${game.id}: moves type =`, typeof game.moves, 'value =', game.moves);
                 if (game.moves) {
                   if (typeof game.moves === 'string') {
-                    try {
-                      const parsedMoves = JSON.parse(game.moves);
-                      moveCount = Array.isArray(parsedMoves) ? parsedMoves.length : game.moves.split(';').length;
-                    } catch {
-                      moveCount = game.moves.split(';').length;
-                    }
+                    // Split by semicolon and count non-empty entries
+                    const movesArray = game.moves.split(';').filter(m => m.trim());
+                    moveCount = movesArray.length;
+                    console.log(`Game ${game.id}: Parsed ${moveCount} moves from string`);
                   } else if (Array.isArray(game.moves)) {
                     moveCount = game.moves.length;
+                    console.log(`Game ${game.id}: Got ${moveCount} moves from array`);
                   }
+                } else {
+                  console.log(`Game ${game.id}: No moves field found`);
                 }
 
                 return (
-                  <tr key={game.id || index} className={isWin ? 'row-win' : isLoss ? 'row-loss' : isDraw ? 'row-draw' : ''}>
+                  <tr key={game.id || index} className={gameIsWin ? 'row-win' : gameIsLoss ? 'row-loss' : gameIsDraw ? 'row-draw' : ''}>
                     <td>
                       <div className="date-cell">
                         <div className="date-main">{dateStr}</div>
@@ -127,14 +203,37 @@ const DetailedStatsModal = ({ isOpen, onClose, gameHistories, user }) => {
                         {game.game_mode === 'computer' ? '🤖 Computer' : '👥 Multiplayer'}
                       </span>
                     </td>
-                    <td>{opponent}</td>
+                    <td>
+                      <div className="opponent-cell">
+                        {opponentAvatar && (
+                          <img
+                            src={getPlayerAvatar(opponentAvatar)}
+                            alt={opponentName}
+                            className="opponent-avatar"
+                          />
+                        )}
+                        {!opponentAvatar && game.game_mode === 'computer' && (
+                          <span className="computer-icon">🤖</span>
+                        )}
+                        <span className="opponent-name">
+                          {opponentName}
+                          {game.game_mode === 'computer'
+                            ? ` (Level ${game.computer_level || 1})`
+                            : ` (${game.opponent_rating || 1200})`
+                          }
+                        </span>
+                      </div>
+                    </td>
                     <td>{color}</td>
                     <td>
-                      <span className={`result-badge ${isWin ? 'win' : isLoss ? 'loss' : isDraw ? 'draw' : 'unknown'}`}>
+                      <span className={`result-badge ${gameIsWin ? 'win' : gameIsLoss ? 'loss' : gameIsDraw ? 'draw' : 'unknown'}`}>
                         {result}
                       </span>
                     </td>
-                    <td className="score-cell">{typeof score === 'number' ? score.toFixed(1) : '0.0'}</td>
+                    <td className="score-cell">{typeof playerScore === 'number' ? playerScore.toFixed(1) : '0.0'}</td>
+                    <td className="score-cell">
+                      {typeof opponentScore === 'number' ? opponentScore.toFixed(1) : '0.0'}
+                    </td>
                     <td className="moves-cell">{moveCount}</td>
                   </tr>
                 );

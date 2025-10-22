@@ -16,6 +16,7 @@ import {
 import ChessBoard from "./play/ChessBoard";
 import { Chess } from "chess.js";
 import { reconstructGameFromHistory, formatMoveDescription } from "../utils/gameHistoryStringUtils"; // Import the new function
+import { isWin, isLoss, getResultDisplayText } from "../utils/resultStandardization";
 import GIF from 'gif.js';
 import html2canvas from 'html2canvas';
 import logo from '../assets/images/logo.png'; // Import the logo
@@ -282,8 +283,8 @@ const GameHistory = () => {
         await new Promise(resolve => {
             const playerColorFull = selectedGame.player_color === 'w' ? 'White' : 'Black';
             const opponentColorFull = selectedGame.player_color === 'w' ? 'Black' : 'White';
-            const gameResultText = selectedGame.result === 'won' ? `User Won on ${selectedGame.moves.length -1} move` : selectedGame.result === 'lost' ? `Computer Won on ${selectedGame.moves.length -1} move` : 'Draw';
-            const resultColor = selectedGame.result === 'won' ? '#4CAF50' : selectedGame.result === 'lost' ? '#f44336' : '#ff9800'; // Green for win, Red for loss, Orange for draw
+            const gameResultText = isWin(selectedGame.result) ? `User Won on ${selectedGame.moves.length -1} move` : isLoss(selectedGame.result) ? `Computer Won on ${selectedGame.moves.length -1} move` : 'Draw';
+            const resultColor = isWin(selectedGame.result) ? '#4CAF50' : isLoss(selectedGame.result) ? '#f44336' : '#ff9800'; // Green for win, Red for loss, Orange for draw
 
             ReactDOM.render(
                 <div style={{ width: boardSize, backgroundColor: '#f0f0f0' /* Optional background */ }}>
@@ -543,8 +544,8 @@ const GameHistory = () => {
             await new Promise(resolve => {
                 const playerColorFull = selectedGame.player_color === 'w' ? 'White' : 'Black';
                 const opponentColorFull = selectedGame.player_color === 'w' ? 'Black' : 'White';
-                const gameResultText = selectedGame.result === 'won' ? `User Won on ${selectedGame.moves.length -1} move` : selectedGame.result === 'lost' ? `Computer Won on ${selectedGame.moves.length -1} move` : 'Draw';
-                const resultColor = selectedGame.result === 'won' ? '#4CAF50' : selectedGame.result === 'lost' ? '#f44336' : '#ff9800'; // Green for win, Red for loss, Orange for draw
+                const gameResultText = isWin(selectedGame.result) ? `User Won on ${selectedGame.moves.length -1} move` : isLoss(selectedGame.result) ? `Computer Won on ${selectedGame.moves.length -1} move` : 'Draw';
+                const resultColor = isWin(selectedGame.result) ? '#4CAF50' : isLoss(selectedGame.result) ? '#f44336' : '#ff9800'; // Green for win, Red for loss, Orange for draw
 
                 ReactDOM.render(
                     <div style={{ width: boardSize, backgroundColor: '#f0f0f0' }}>
