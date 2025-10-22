@@ -2,6 +2,7 @@
 import React, { createContext, useState, useContext, useEffect } from "react";
 import api from '../services/api';
 import { initEcho, disconnectEcho } from '../services/echoSingleton';
+import presenceService from '../services/presenceService';
 
 // Create the AuthContext
 const AuthContext = createContext(null);
@@ -45,6 +46,19 @@ export const AuthProvider = ({ children }) => {
       const echoInstance = initEcho({ token, wsConfig });
       if (echoInstance) {
         console.log('[Auth] ✅ Echo singleton initialized successfully');
+
+        // Initialize presence service after Echo is ready
+        console.log('[Auth] Initializing presence service...');
+        try {
+          const presenceInitialized = await presenceService.initialize(response.data, token);
+          if (presenceInitialized) {
+            console.log('[Auth] ✅ Presence service initialized successfully');
+          } else {
+            console.warn('[Auth] ⚠️ Presence service initialization returned false');
+          }
+        } catch (presenceError) {
+          console.error('[Auth] ❌ Presence service initialization failed:', presenceError);
+        }
       } else {
         console.error('[Auth] ❌ Echo singleton initialization failed!');
       }
@@ -77,6 +91,10 @@ export const AuthProvider = ({ children }) => {
 
   // Logout function
   const logout = async () => {
+    // Disconnect presence service before logout
+    presenceService.disconnect();
+    console.log('[Auth] Presence service disconnected on logout');
+
     // Disconnect Echo WebSocket before logout
     disconnectEcho();
     console.log('[Auth] Echo disconnected on logout');

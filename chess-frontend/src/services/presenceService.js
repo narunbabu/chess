@@ -1,6 +1,6 @@
 // presenceService.js - Real-time user presence management
 import { getEcho, joinChannel, leaveChannel } from './echoSingleton';
-import { API_BASE_URL } from '../config';
+import { BASE_URL } from '../config';
 
 class PresenceService {
   constructor() {
@@ -98,22 +98,34 @@ class PresenceService {
    * Update user presence status
    */
   async updatePresence(status = 'online', socketId = null) {
+    // Don't attempt if not initialized or no user
+    if (!this.currentUser) {
+      console.log('[Presence] Skipping update - no user');
+      return null;
+    }
+
+    const authToken = localStorage.getItem('auth_token');
+    if (!authToken) {
+      console.log('[Presence] Skipping update - no auth token');
+      return null;
+    }
+
     try {
       const deviceInfo = {
         userAgent: navigator.userAgent,
         platform: navigator.platform,
         language: navigator.language,
         screen: {
-          width: screen.width,
-          height: screen.height
+          width: window.screen.width,
+          height: window.screen.height
         }
       };
 
-      const response = await fetch(`${API_BASE_URL}/api/presence/update`, {
+      const response = await fetch(`${BASE_URL}/api/presence/update`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          'Authorization': `Bearer ${authToken}`,
         },
         body: JSON.stringify({
           status,
@@ -122,12 +134,17 @@ class PresenceService {
         })
       });
 
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
       const data = await response.json();
-      console.log('Presence updated:', data);
+      console.log('[Presence] Updated:', data);
       return data;
     } catch (error) {
-      console.error('Failed to update presence:', error);
-      throw error;
+      console.error('[Presence] Failed to update:', error.message);
+      // Don't throw - allow app to continue functioning
+      return null;
     }
   }
 
@@ -135,19 +152,28 @@ class PresenceService {
    * Send heartbeat to maintain connection
    */
   async sendHeartbeat() {
+    const authToken = localStorage.getItem('auth_token');
+    if (!authToken || !this.currentUser) {
+      return false;
+    }
+
     try {
-      const response = await fetch(`${API_BASE_URL}/api/presence/heartbeat`, {
+      const response = await fetch(`${BASE_URL}/api/presence/heartbeat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          'Authorization': `Bearer ${authToken}`,
         }
       });
+
+      if (!response.ok) {
+        return false;
+      }
 
       const data = await response.json();
       return data.status === 'heartbeat_received';
     } catch (error) {
-      console.error('Heartbeat failed:', error);
+      console.error('[Presence] Heartbeat failed:', error.message);
       return false;
     }
   }
@@ -192,6 +218,12 @@ class PresenceService {
    * Setup event listeners for connection management
    */
   setupEventListeners() {
+    // Ensure document and window are available
+    if (typeof document === 'undefined' || typeof window === 'undefined') {
+      console.warn('[Presence] Document/window not available, skipping event listeners');
+      return;
+    }
+
     // Handle page visibility changes
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
@@ -208,12 +240,12 @@ class PresenceService {
 
     // Handle online/offline status
     window.addEventListener('online', () => {
-      console.log('Network connection restored');
+      console.log('[Presence] Network connection restored');
       this.connect();
     });
 
     window.addEventListener('offline', () => {
-      console.log('Network connection lost');
+      console.log('[Presence] Network connection lost');
       this.isConnected = false;
       this.onConnectionChange && this.onConnectionChange(false);
     });
@@ -223,17 +255,26 @@ class PresenceService {
    * Get online users
    */
   async getOnlineUsers() {
+    const authToken = localStorage.getItem('auth_token');
+    if (!authToken) {
+      return [];
+    }
+
     try {
-      const response = await fetch(`${API_BASE_URL}/api/presence/online/users`, {
+      const response = await fetch(`${BASE_URL}/api/presence/online/users`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          'Authorization': `Bearer ${authToken}`,
         }
       });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
 
       const data = await response.json();
       return data.online_users || [];
     } catch (error) {
-      console.error('Failed to get online users:', error);
+      console.error('[Presence] Failed to get online users:', error.message);
       return [];
     }
   }
@@ -242,18 +283,27 @@ class PresenceService {
    * Get presence statistics
    */
   async getPresenceStats() {
+    const authToken = localStorage.getItem('auth_token');
+    if (!authToken) {
+      return { online: 0, away: 0, offline: 0 };
+    }
+
     try {
-      const response = await fetch(`${API_BASE_URL}/api/presence/stats`, {
+      const response = await fetch(`${BASE_URL}/api/presence/stats`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          'Authorization': `Bearer ${authToken}`,
         }
       });
 
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
       const data = await response.json();
-      return data.stats || {};
+      return data.stats || { online: 0, away: 0, offline: 0 };
     } catch (error) {
-      console.error('Failed to get presence stats:', error);
-      return {};
+      console.error('[Presence] Failed to get presence stats:', error.message);
+      return { online: 0, away: 0, offline: 0 };
     }
   }
 
@@ -275,9 +325,16 @@ class PresenceService {
       // Don't disconnect the singleton Echo - other services may use it
       this.echo = null;
 
-      this.updatePresence('offline');
+      // Try to update presence to offline, but don't fail if it doesn't work
+      if (this.currentUser && localStorage.getItem('auth_token')) {
+        this.updatePresence('offline').catch(err => {
+          console.warn('[Presence] Could not update to offline status:', err.message);
+        });
+      }
+
       this.isConnected = false;
       this.onConnectionChange && this.onConnectionChange(false);
+      this.currentUser = null;
 
       console.log('[Presence] Service disconnected');
     } catch (error) {

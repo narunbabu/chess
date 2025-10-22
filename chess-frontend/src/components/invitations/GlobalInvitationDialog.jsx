@@ -1,6 +1,7 @@
 // src/components/invitations/GlobalInvitationDialog.jsx
 import React, { useState } from 'react';
 import { useGlobalInvitation } from '../../contexts/GlobalInvitationContext';
+import { getPlayerAvatar } from '../../utils/playerDisplayUtils';
 import './GlobalInvitationDialog.css';
 
 /**
@@ -78,7 +79,7 @@ const GlobalInvitationDialog = () => {
               <div className="invitation-info">
                 <img
                   src={
-                    pendingInvitation.inviter.avatar_url ||
+                    getPlayerAvatar(pendingInvitation.inviter) ||
                     `https://i.pravatar.cc/150?u=${pendingInvitation.inviter.email || `user${pendingInvitation.inviter.id}`}`
                   }
                   alt={pendingInvitation.inviter.name}

@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useActiveGame } from '../../hooks/useActiveGame';
 import { trackAuth, trackNavigation } from '../../utils/analytics';
 import { BACKEND_URL } from '../../config';
+import presenceService from '../../services/presenceService';
 import './Header.css';
 
 /**
@@ -23,6 +24,8 @@ const Header = () => {
   const [onlineStats, setOnlineStats] = useState({ onlineCount: 0, availablePlayers: 0 });
   const userMenuRef = useRef(null);
   const hideTimeoutRef = useRef(null);
+  const lastStatsRef = useRef(null); // Cache last stats to prevent redundant updates
+  const pollIntervalRef = useRef(null);
 
   // Handle clicks outside nav panel to close it
   useEffect(() => {
@@ -48,7 +51,7 @@ const Header = () => {
     }
   }, [showNavPanel]);
 
-  // Fetch online stats only when on lobby page - event-driven, no polling
+  // Fetch online stats and listen for real-time updates when on lobby page
   useEffect(() => {
     if (isAuthenticated && location.pathname.includes('/lobby')) {
       const fetchOnlineStats = async () => {
@@ -70,24 +73,70 @@ const Header = () => {
               const onlineCount = data.stats?.total_online || 0;
               // Available players = online users not in game, excluding self
               const availablePlayers = Math.max(0, (data.stats?.total_online || 0) - (data.stats?.in_game || 0) - 1);
-              setOnlineStats({ onlineCount, availablePlayers });
+
+              // Only update if stats have actually changed (prevent redundant renders)
+              const newStats = { onlineCount, availablePlayers };
+              const statsKey = `${newStats.onlineCount}-${newStats.availablePlayers}`;
+
+              if (lastStatsRef.current !== statsKey) {
+                console.debug('[Header] Stats changed:', newStats);
+                lastStatsRef.current = statsKey;
+                setOnlineStats(newStats);
+              }
             } else {
-              console.warn('Online stats API returned non-JSON response');
+              console.warn('[Header] Online stats API returned non-JSON response');
             }
           } else {
-            console.warn(`Online stats API returned status ${response.status}`);
+            console.warn(`[Header] Online stats API returned status ${response.status}`);
           }
         } catch (error) {
           // Silently fail for online stats - this is non-critical UI data
-          console.debug('Failed to fetch online stats:', error.message);
+          console.debug('[Header] Failed to fetch online stats:', error.message);
         }
       };
 
-      // Fetch only on initial load when entering lobby
+      // Initial fetch on load
       fetchOnlineStats();
 
-      // No polling - stats will update via WebSocket presence events
-      // Future: Listen to presenceService events for real-time updates
+      // Set up polling as fallback (every 30 seconds - reduced from 10s)
+      // This ensures stats update even if WebSocket events aren't working
+      pollIntervalRef.current = setInterval(fetchOnlineStats, 30000);
+
+      // Listen to presence service events for real-time updates
+      const handlePresenceUpdate = () => {
+        console.debug('[Header] Presence update event received');
+        fetchOnlineStats();
+      };
+
+      const handleUserOnline = (users) => {
+        console.debug('[Header] User(s) came online:', users);
+        fetchOnlineStats();
+      };
+
+      const handleUserOffline = (user) => {
+        console.debug('[Header] User went offline:', user);
+        fetchOnlineStats();
+      };
+
+      // Set up presence service event handlers for real-time updates
+      presenceService.setEventHandlers({
+        onPresenceUpdate: handlePresenceUpdate,
+        onUserOnline: handleUserOnline,
+        onUserOffline: handleUserOffline
+      });
+
+      return () => {
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
+        // Clear event handlers when leaving lobby
+        presenceService.setEventHandlers({
+          onPresenceUpdate: null,
+          onUserOnline: null,
+          onUserOffline: null
+        });
+      };
     }
   }, [isAuthenticated, location.pathname, user]);
 

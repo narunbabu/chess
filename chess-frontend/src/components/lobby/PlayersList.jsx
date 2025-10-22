@@ -1,4 +1,5 @@
 import React from 'react';
+import { getPlayerAvatar } from '../../utils/playerDisplayUtils';
 import '../../styles/UnifiedCards.css';
 
 /**
@@ -24,7 +25,7 @@ const PlayersList = ({ players, sentInvitations, onChallenge }) => {
               <div key={player.id || index} className="unified-card horizontal">
                 <img
                   src={
-                    player.avatar_url ||
+                    getPlayerAvatar(player) ||
                     `https://i.pravatar.cc/150?u=${player.email || `user${player.id}`}`
                   }
                   alt={player.name}

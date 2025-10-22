@@ -3,20 +3,36 @@ import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 
 // Add global styles for the pulse animation
-const styleSheet = document.createElement("style");
-styleSheet.textContent = `
-  @keyframes pulse {
-    from {
-      transform: scale(1);
-    }
-    to {
-      transform: scale(1.02);
-    }
+// Wrapped in a function to ensure document is ready
+const injectStyles = () => {
+  if (typeof document === 'undefined' || !document.head) {
+    return; // SSR or document not ready
   }
-`;
-if (!document.head.querySelector('style[data-presence-dialog]')) {
-  styleSheet.setAttribute('data-presence-dialog', 'true');
-  document.head.appendChild(styleSheet);
+
+  if (!document.head.querySelector('style[data-presence-dialog]')) {
+    const styleSheet = document.createElement("style");
+    styleSheet.textContent = `
+      @keyframes pulse {
+        from {
+          transform: scale(1);
+        }
+        to {
+          transform: scale(1.02);
+        }
+      }
+    `;
+    styleSheet.setAttribute('data-presence-dialog', 'true');
+    document.head.appendChild(styleSheet);
+  }
+};
+
+// Inject styles when DOM is ready
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', injectStyles);
+  } else {
+    injectStyles();
+  }
 }
 
 const PresenceConfirmationDialogSimple = ({

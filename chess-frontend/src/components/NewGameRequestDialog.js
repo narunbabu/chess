@@ -1,5 +1,6 @@
 // src/components/NewGameRequestDialog.js
 import React from 'react';
+import { getPlayerAvatar } from '../utils/playerDisplayUtils';
 import './NewGameRequestDialog.css';
 
 const NewGameRequestDialog = ({ request, onAccept, onDecline }) => {
@@ -42,7 +43,10 @@ const NewGameRequestDialog = ({ request, onAccept, onDecline }) => {
           <div className="player-matchup">
             <div className="player">
               <img
-                src={request.new_game.white_player.avatar}
+                src={
+                  getPlayerAvatar(request.new_game.white_player) ||
+                  `https://i.pravatar.cc/150?u=${request.new_game.white_player.email || `user${request.new_game.white_player.id}`}`
+                }
                 alt={request.new_game.white_player.name}
                 className="player-avatar"
               />
@@ -52,7 +56,10 @@ const NewGameRequestDialog = ({ request, onAccept, onDecline }) => {
             <span className="vs">VS</span>
             <div className="player">
               <img
-                src={request.new_game.black_player.avatar}
+                src={
+                  getPlayerAvatar(request.new_game.black_player) ||
+                  `https://i.pravatar.cc/150?u=${request.new_game.black_player.email || `user${request.new_game.black_player.id}`}`
+                }
                 alt={request.new_game.black_player.name}
                 className="player-avatar"
               />

@@ -1,4 +1,5 @@
 import React from 'react';
+import { getPlayerAvatar } from '../../utils/playerDisplayUtils';
 import '../../styles/UnifiedCards.css';
 
 /**
@@ -31,7 +32,7 @@ const InvitationsList = ({
               <div key={invitation.id} className="unified-card horizontal">
                 <img
                   src={
-                    invitation.inviter.avatar_url ||
+                    getPlayerAvatar(invitation.inviter) ||
                     `https://i.pravatar.cc/150?u=${invitation.inviter.email || `user${invitation.inviter.id}`}`
                   }
                   alt={invitation.inviter.name}
@@ -88,7 +89,7 @@ const InvitationsList = ({
               <div key={invitation.id} className="unified-card horizontal">
                 <img
                   src={
-                    invitation.invited.avatar_url ||
+                    getPlayerAvatar(invitation.invited) ||
                     `https://i.pravatar.cc/150?u=${invitation.invited.email || `user${invitation.invited.id}`}`
                   }
                   alt={invitation.invited.name}

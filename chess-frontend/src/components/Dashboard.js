@@ -5,6 +5,7 @@ import { useAppData } from "../contexts/AppDataContext";
 import { getGameHistories } from "../services/gameHistoryService";
 import api from "../services/api";
 import SkillAssessmentModal from "./auth/SkillAssessmentModal";
+import { getPlayerAvatar } from "../utils/playerDisplayUtils";
 import "./Dashboard.css";
 import "../styles/UnifiedCards.css"; // Import unified card styles
 
@@ -40,6 +41,8 @@ const Dashboard = () => {
 
         console.log('📊 [Dashboard] Raw game histories:', histories);
         console.log('📊 [Dashboard] Sample game:', histories?.[0]);
+        console.log('📊 [Dashboard] Active games response:', activeGamesResponse.data);
+        console.log('📊 [Dashboard] Sample active game:', activeGamesResponse.data?.[0]);
         setGameHistories(histories || []);
         setActiveGames(activeGamesResponse.data || []);
       } catch (error) {
@@ -117,8 +120,8 @@ const Dashboard = () => {
               {activeGames.map((game) => {
                 const opponent =
                   game.white_player_id === user?.id
-                    ? game.blackPlayer
-                    : game.whitePlayer;
+                    ? game.black_player
+                    : game.white_player;
                 const playerColor =
                   game.white_player_id === user?.id ? 'white' : 'black';
                 const statusClass =
@@ -132,7 +135,7 @@ const Dashboard = () => {
                   <div key={game.id} className="unified-card horizontal">
                     <img
                       src={
-                        opponent?.avatar_url ||
+                        getPlayerAvatar(opponent) ||
                         `https://i.pravatar.cc/150?u=${opponent?.email || `user${opponent?.id}`}`
                       }
                       alt={opponent?.name}

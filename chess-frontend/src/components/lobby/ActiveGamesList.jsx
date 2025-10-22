@@ -1,4 +1,5 @@
 import React from 'react';
+import { getPlayerAvatar } from '../../utils/playerDisplayUtils';
 import '../../styles/UnifiedCards.css';
 
 /**
@@ -18,8 +19,8 @@ const ActiveGamesList = ({ activeGames, currentUserId, onResumeGame }) => {
           {activeGames.map((game) => {
             const opponent =
               game.white_player_id === currentUserId
-                ? game.blackPlayer
-                : game.whitePlayer;
+                ? game.black_player
+                : game.white_player;
             const playerColor =
               game.white_player_id === currentUserId ? 'white' : 'black';
             const statusClass =
@@ -33,7 +34,7 @@ const ActiveGamesList = ({ activeGames, currentUserId, onResumeGame }) => {
               <div key={game.id} className="unified-card horizontal">
                 <img
                   src={
-                    opponent?.avatar_url ||
+                    getPlayerAvatar(opponent) ||
                     `https://i.pravatar.cc/150?u=${opponent?.email || `user${opponent?.id}`}`
                   }
                   alt={opponent?.name}
