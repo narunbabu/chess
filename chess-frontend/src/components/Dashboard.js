@@ -283,6 +283,7 @@ const Dashboard = () => {
                     {gameHistories.length > 0
                       ? (() => {
                           const scores = gameHistories.map(game => {
+                            // Backend now calculates final_score properly for all game types
                             const score = game.finalScore ?? game.final_score ?? game.score ?? 0;
                             const numScore = typeof score === 'number' ? score : parseFloat(score) || 0;
                             return numScore;

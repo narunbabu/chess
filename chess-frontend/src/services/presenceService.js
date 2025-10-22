@@ -52,7 +52,8 @@ class PresenceService {
   async connect() {
     try {
       // Join the general presence channel using singleton (idempotent)
-      this.presenceChannel = joinChannel('presence', 'presence');
+      // Note: Backend defines this as 'presence.online' in channels.php
+      this.presenceChannel = joinChannel('presence.online', 'presence');
       if (!this.presenceChannel) {
         throw new Error('Failed to join presence channel');
       }
@@ -96,100 +97,36 @@ class PresenceService {
 
   /**
    * Update user presence status
+   * NOTE: Presence is now handled automatically by WebSocket presence channels.
+   * This method is deprecated and kept only for backwards compatibility.
    */
   async updatePresence(status = 'online', socketId = null) {
-    // Don't attempt if not initialized or no user
-    if (!this.currentUser) {
-      console.log('[Presence] Skipping update - no user');
-      return null;
-    }
-
-    const authToken = localStorage.getItem('auth_token');
-    if (!authToken) {
-      console.log('[Presence] Skipping update - no auth token');
-      return null;
-    }
-
-    try {
-      const deviceInfo = {
-        userAgent: navigator.userAgent,
-        platform: navigator.platform,
-        language: navigator.language,
-        screen: {
-          width: window.screen.width,
-          height: window.screen.height
-        }
-      };
-
-      const response = await fetch(`${BASE_URL}/api/presence/update`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`,
-        },
-        body: JSON.stringify({
-          status,
-          socket_id: socketId,
-          device_info: deviceInfo
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      console.log('[Presence] Updated:', data);
-      return data;
-    } catch (error) {
-      console.error('[Presence] Failed to update:', error.message);
-      // Don't throw - allow app to continue functioning
-      return null;
-    }
+    // Presence is now handled automatically by WebSocket presence channels
+    // No need for HTTP polling - Laravel Reverb handles this efficiently
+    console.log('[Presence] Using WebSocket presence channels (HTTP polling disabled)');
+    return null;
   }
 
   /**
    * Send heartbeat to maintain connection
+   * NOTE: Heartbeat is now handled automatically by WebSocket presence channels.
+   * Laravel Reverb automatically tracks online/offline status.
    */
   async sendHeartbeat() {
-    const authToken = localStorage.getItem('auth_token');
-    if (!authToken || !this.currentUser) {
-      return false;
-    }
-
-    try {
-      const response = await fetch(`${BASE_URL}/api/presence/heartbeat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`,
-        }
-      });
-
-      if (!response.ok) {
-        return false;
-      }
-
-      const data = await response.json();
-      return data.status === 'heartbeat_received';
-    } catch (error) {
-      console.error('[Presence] Heartbeat failed:', error.message);
-      return false;
-    }
+    // WebSocket presence channels handle heartbeat automatically
+    // No HTTP polling needed - this saves significant server resources
+    return true;
   }
 
   /**
    * Start heartbeat interval
+   * NOTE: Disabled - WebSocket presence channels handle this automatically
    */
   startHeartbeat() {
-    this.heartbeatInterval = setInterval(async () => {
-      if (this.isConnected) {
-        const success = await this.sendHeartbeat();
-        if (!success) {
-          this.handleConnectionError();
-        }
-      }
-    }, 30000); // Every 30 seconds
+    // Heartbeat now handled automatically by WebSocket presence channels
+    // Laravel Reverb tracks user presence without HTTP polling
+    console.log('[Presence] Heartbeat managed by WebSocket presence channels');
+    this.heartbeatInterval = null;
   }
 
   /**
@@ -318,7 +255,7 @@ class PresenceService {
       }
 
       if (this.presenceChannel) {
-        leaveChannel('presence');
+        leaveChannel('presence.online', 'presence');
         this.presenceChannel = null;
       }
 

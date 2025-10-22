@@ -29,7 +29,7 @@ Broadcast::channel('presence.online', function ($user) {
         'name' => $user->name,
         'avatar' => $user->avatar ?? null,
         'status' => 'online',
-        'joined_at' => now()->toISOString()
+        'joined_at' => now()->toDateTimeString()
     ];
 });
 
@@ -41,7 +41,7 @@ Broadcast::channel('presence.lobby', function ($user) {
         'avatar' => $user->avatar ?? null,
         'looking_for_game' => true,
         'rating' => $user->rating ?? 1200,
-        'joined_lobby_at' => now()->toISOString()
+        'joined_lobby_at' => now()->toDateTimeString()
     ];
 });
 
@@ -60,6 +60,6 @@ Broadcast::channel('presence.game.{gameId}', function ($user, $gameId) {
         'avatar' => $user->avatar ?? null,
         'role' => ($game->white_player_id === $user->id || $game->black_player_id === $user->id)
                   ? 'player' : 'spectator',
-        'joined_at' => now()->toISOString()
+        'joined_at' => now()->toDateTimeString()
     ];
 });

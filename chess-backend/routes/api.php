@@ -116,10 +116,11 @@ Route::middleware('auth:sanctum')->group(function () {
         // Get move history for timer calculation
         Route::get('/games/{gameId}/moves', [WebSocketController::class, 'getMoves']);
     });
-});
 
-// Laravel Broadcasting Authentication Route (standard pattern)
-Route::post('/broadcasting/auth', [WebSocketController::class, 'authenticate'])->middleware('auth:sanctum');
+    // Laravel Broadcasting Authentication Route (standard Laravel pattern)
+    // This must be outside the websocket prefix to match Laravel Echo's default endpoint
+    Route::post('/broadcasting/auth', [WebSocketController::class, 'authenticate']);
+});
 
 // routes/api.php
 

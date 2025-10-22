@@ -1665,6 +1665,10 @@ const PlayMultiplayer = () => {
     }
 
     // Include metrics in the move data
+    // IMPORTANT: Send BOTH players' scores so server can update both columns
+    const white_player_score = myColor === 'w' ? newCumulativeScore : parseFloat(opponentScore) || 0;
+    const black_player_score = myColor === 'b' ? newCumulativeScore : parseFloat(opponentScore) || 0;
+
     const moveData = {
       from: source,
       to: target,
@@ -1683,7 +1687,9 @@ const PlayMultiplayer = () => {
       // Add evaluation metrics
       move_time_ms: moveTime * 1000,
       player_rating: user?.rating || 1200,
-      player_score: newCumulativeScore // Send cumulative score to database
+      // Send BOTH players' cumulative scores to preserve scoring across moves
+      white_player_score: white_player_score,
+      black_player_score: black_player_score
     };
 
     wsService.current.sendMove(moveData);

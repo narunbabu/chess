@@ -524,7 +524,7 @@ class GameRoomService
         $moveWithUser = array_merge($move, ['user_id' => $userId]);
         $moves[] = $moveWithUser;
 
-        // Determine which player made the move and update their score
+        // Prepare base update data
         $updateData = [
             'fen' => $newFen,
             'turn' => $newTurn,
@@ -533,20 +533,22 @@ class GameRoomService
             'last_move_at' => now()
         ];
 
-        // Update player's cumulative score if provided
-        if (isset($move['player_score']) && is_numeric($move['player_score'])) {
-            $playerColor = $this->getUserRole($user, $game); // 'white' or 'black'
-            $scoreField = $playerColor . '_player_score';
-            $updateData[$scoreField] = (float)$move['player_score'];
-
-            \Log::info('Updating player score', [
-                'game_id' => $gameId,
-                'user_id' => $userId,
-                'player_color' => $playerColor,
-                'score_field' => $scoreField,
-                'new_score' => $move['player_score']
-            ]);
+        // Update BOTH players' cumulative scores if provided
+        // This ensures scores are preserved even when opponent moves
+        if (isset($move['white_player_score']) && is_numeric($move['white_player_score'])) {
+            $updateData['white_player_score'] = (float)$move['white_player_score'];
         }
+
+        if (isset($move['black_player_score']) && is_numeric($move['black_player_score'])) {
+            $updateData['black_player_score'] = (float)$move['black_player_score'];
+        }
+
+        \Log::info('Updating game scores', [
+            'game_id' => $gameId,
+            'user_id' => $userId,
+            'white_score' => $updateData['white_player_score'] ?? 'not provided',
+            'black_score' => $updateData['black_player_score'] ?? 'not provided'
+        ]);
 
         $game->update($updateData);
 

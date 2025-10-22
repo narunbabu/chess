@@ -535,7 +535,9 @@ class WebSocketController extends Controller
             'move.is_stalemate' => 'required|boolean',
             'move.move_time_ms' => 'nullable|numeric',
             'move.player_rating' => 'nullable|integer',
-            'move.player_score' => 'nullable|numeric',
+            // Accept both players' scores to preserve scoring across moves
+            'move.white_player_score' => 'nullable|numeric',
+            'move.black_player_score' => 'nullable|numeric',
             'socket_id' => 'required|string'
         ]);
 

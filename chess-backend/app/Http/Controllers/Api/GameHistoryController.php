@@ -122,10 +122,50 @@ class GameHistoryController extends Controller
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
-        // Select summary fields (excluding moves)
-        $games = GameHistory::where('user_id', $user->id)
-            ->orderBy('played_at', 'desc')
-            ->get(['id', 'played_at', 'player_color', 'computer_level', 'final_score', 'result']);
+        // Select summary fields and join with games table to get player scores for multiplayer games
+        $games = GameHistory::where('game_histories.user_id', $user->id)
+            ->leftJoin('games', 'game_histories.game_id', '=', 'games.id')
+            ->orderBy('game_histories.played_at', 'desc')
+            ->get([
+                'game_histories.id',
+                'game_histories.played_at',
+                'game_histories.player_color',
+                'game_histories.computer_level',
+                'game_histories.final_score',
+                'game_histories.result',
+                'game_histories.game_id',
+                'game_histories.game_mode',
+                'games.white_player_id',
+                'games.black_player_id',
+                'games.white_player_score',
+                'games.black_player_score',
+            ])
+            ->map(function ($game) use ($user) {
+                // Calculate the correct final_score for multiplayer games
+                if ($game->game_mode === 'multiplayer' && $game->game_id) {
+                    // Determine which score to use based on player color
+                    if ($game->white_player_id === $user->id) {
+                        $game->final_score = $game->white_player_score ?? $game->final_score;
+                    } elseif ($game->black_player_id === $user->id) {
+                        $game->final_score = $game->black_player_score ?? $game->final_score;
+                    } else {
+                        // Fallback: use player_color if player IDs don't match
+                        $game->final_score = ($game->player_color === 'w')
+                            ? ($game->white_player_score ?? $game->final_score)
+                            : ($game->black_player_score ?? $game->final_score);
+                    }
+                }
+
+                // Remove the extra fields we don't want to return
+                unset($game->white_player_id);
+                unset($game->black_player_id);
+                unset($game->white_player_score);
+                unset($game->black_player_score);
+                unset($game->game_id);
+                unset($game->game_mode);
+
+                return $game;
+            });
 
         Log::info("Games summary:", $games->toArray());
         return response()->json(['success' => true, 'data' => $games], 200);
@@ -139,8 +179,38 @@ class GameHistoryController extends Controller
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
-        // Ensure the game belongs to the user
-        $game = GameHistory::where('user_id', $user->id)->findOrFail($id);
+        // Ensure the game belongs to the user and join with games table if it's a multiplayer game
+        $game = GameHistory::where('game_histories.user_id', $user->id)
+            ->where('game_histories.id', $id)
+            ->leftJoin('games', 'game_histories.game_id', '=', 'games.id')
+            ->select([
+                'game_histories.*',
+                'games.white_player_id',
+                'games.black_player_id',
+                'games.white_player_score',
+                'games.black_player_score',
+            ])
+            ->firstOrFail();
+
+        // Calculate the correct final_score for multiplayer games
+        if ($game->game_mode === 'multiplayer' && $game->game_id) {
+            if ($game->white_player_id === $user->id) {
+                $game->final_score = $game->white_player_score ?? $game->final_score;
+            } elseif ($game->black_player_id === $user->id) {
+                $game->final_score = $game->black_player_score ?? $game->final_score;
+            } else {
+                // Fallback: use player_color if player IDs don't match
+                $game->final_score = ($game->player_color === 'w')
+                    ? ($game->white_player_score ?? $game->final_score)
+                    : ($game->black_player_score ?? $game->final_score);
+            }
+        }
+
+        // Remove the extra fields we don't want to return
+        unset($game->white_player_id);
+        unset($game->black_player_id);
+        unset($game->white_player_score);
+        unset($game->black_player_score);
 
         return response()->json(['success' => true, 'data' => $game], 200);
     }
