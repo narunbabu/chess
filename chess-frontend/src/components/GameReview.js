@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import { Chess } from "chess.js";
 import { Chessboard } from "react-chessboard";
@@ -21,43 +20,75 @@ const GameReview = () => {
   // Load game data when component mounts or gameId changes
   useEffect(() => {
     const loadGameData = async () => {
-      if (!gameId) {
-        // If no gameId, try to get from location state or localStorage as fallback
+      let effectiveGameId = gameId;
+
+      // If no gameId in URL, try to get from location state or localStorage
+      if (!effectiveGameId) {
         let history = location.state?.gameHistory;
         if (!history) {
           const stored = localStorage.getItem('lastGameHistory');
-          history = stored ? JSON.parse(stored) : { moves: [] };
+          history = stored ? JSON.parse(stored) : null;
         }
-        setGameHistory(history);
-        setLoading(false);
-        return;
+        
+        if (history) {
+          setGameHistory(history);
+          setLoading(false);
+          return;
+        } else {
+          // If still no history, set an error or default state
+          setError('No game specified');
+          setGameHistory({ moves: [] });
+          setLoading(false);
+          return;
+        }
       }
 
       try {
         setLoading(true);
         setError(null);
-        const gameData = await getGameHistoryById(gameId);
+        const gameData = await getGameHistoryById(effectiveGameId);
 
         if (!gameData) {
           setError('Game not found');
           setGameHistory({ moves: [] });
+          setLoading(false); // Stop loading even if not found
           return;
         }
 
-        // Convert the game data to the expected format for the review component
-        const formattedGameHistory = {
-          ...gameData,
-          moves: Array.isArray(gameData.moves) ? gameData.moves : []
-        };
+        let formattedGameHistory = { ...gameData };
 
-        // If moves are in the format [{notation: "e4", time: 3.24}],
-        // convert to the expected format with SAN moves
-        if (formattedGameHistory.moves.length > 0 && formattedGameHistory.moves[0].notation) {
-          // Convert from API format to GameReview format
+        // Handle moves conversion from different formats
+        let convertedMoves = [{ move: { san: 'Start' }, fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1' }];
+
+        if (typeof gameData.moves === 'string') {
+          // Parse string format: "e4,2.52;Nf6,0.98;..."
+          console.log("Converting string moves format:", gameData.moves.substring(0, 50) + "...");
           const tempGame = new Chess();
-          const convertedMoves = [{ move: { san: 'Start' }, fen: tempGame.fen() }]; // Initial position
 
-          formattedGameHistory.moves.forEach(moveData => {
+          gameData.moves.split(';').forEach(moveStr => {
+            const [notation, time] = moveStr.split(',');
+            if (notation && notation.trim()) {
+              try {
+                const move = tempGame.move(notation.trim());
+                if (move) {
+                  convertedMoves.push({
+                    move: { san: move.san },
+                    fen: tempGame.fen(),
+                    time: parseFloat(time) || undefined
+                  });
+                }
+              } catch (moveError) {
+                console.error('Error processing move:', notation, moveError);
+              }
+            }
+          });
+          formattedGameHistory.moves = convertedMoves;
+        } else if (Array.isArray(gameData.moves) && gameData.moves.length > 0 && gameData.moves[0].notation) {
+          // Convert from API format [{notation: "e4", time: 2.5}]
+          console.log("Converting API moves format...");
+          const tempGame = new Chess();
+
+          gameData.moves.forEach(moveData => {
             try {
               const move = tempGame.move(moveData.notation);
               if (move) {
@@ -71,14 +102,18 @@ const GameReview = () => {
               console.error('Error processing move:', moveData.notation, moveError);
             }
           });
-
           formattedGameHistory.moves = convertedMoves;
+        } else if (!Array.isArray(gameData.moves)) {
+            formattedGameHistory.moves = convertedMoves; // Just have the start move
+        } else {
+          // Already in correct format
+          formattedGameHistory.moves = gameData.moves;
         }
 
         setGameHistory(formattedGameHistory);
       } catch (err) {
         console.error('Error loading game data:', err);
-        setError('Failed to load game data');
+        setError('Failed to load game data. ' + err.message);
         setGameHistory({ moves: [] });
       } finally {
         setLoading(false);
@@ -95,29 +130,31 @@ const GameReview = () => {
     setCurrentMoveIndex(0);
   }, [gameHistory]); // Reset when gameHistory changes
 
+  // REVISED: ResizeObserver logic
   useEffect(() => {
     if (!boardBoxRef.current) return;
     const ro = new ResizeObserver(([entry]) => {
-      const { width, height } = entry.contentRect;
+      const { width } = entry.contentRect; // Only need width
       const vh = window.innerHeight;
-      const newSize = Math.floor(Math.min(width, vh - 30, height));
-      setBoardSize(newSize);
+      
+      // Size is the container's width, but no more than viewport height minus padding
+      const newSize = Math.floor(Math.min(width, vh - 120)); // 120px for header/padding
+
+      if (newSize > 0) { // Only set if valid size
+        setBoardSize(newSize);
+      }
     });
     ro.observe(boardBoxRef.current);
     return () => ro.disconnect();
-  }, []);
+  }, []); // Empty dependency array is correct here
 
   const playMoves = () => {
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
       setCurrentMoveIndex((prevIndex) => {
         const nextIndex = prevIndex + 1;
-        // Ensure moves array exists and has the entry
         if (gameHistory && Array.isArray(gameHistory.moves) && nextIndex < gameHistory.moves.length) {
-          // Create a fresh game and replay all moves up to nextIndex
           const newGame = new Chess();
-
-          // Replay all moves from index 1 (skip initial position at index 0) up to nextIndex
           for (let i = 1; i <= nextIndex; i++) {
             const moveEntry = gameHistory.moves[i];
             if (moveEntry && moveEntry.move && moveEntry.move.san && moveEntry.move.san !== 'Start') {
@@ -129,7 +166,6 @@ const GameReview = () => {
               }
             }
           }
-
           setGame(newGame);
           return nextIndex;
         } else {
@@ -137,7 +173,7 @@ const GameReview = () => {
           return prevIndex;
         }
       });
-    }, 1000); // Adjust interval as needed
+    }, 1000);
   };
 
   const pauseMoves = () => {
@@ -145,48 +181,38 @@ const GameReview = () => {
   };
 
   const stepForward = () => {
-    // Ensure moves array exists and we are not at the end
     if (gameHistory && Array.isArray(gameHistory.moves) && currentMoveIndex < gameHistory.moves.length - 1) {
       const nextIndex = currentMoveIndex + 1;
-
-      // Create a fresh game and replay all moves up to nextIndex
       const newGame = new Chess();
-
-      // Replay all moves from index 1 (skip initial position at index 0) up to nextIndex
       for (let i = 1; i <= nextIndex; i++) {
         const moveEntry = gameHistory.moves[i];
         if (moveEntry && moveEntry.move && moveEntry.move.san && moveEntry.move.san !== 'Start') {
           const result = newGame.move(moveEntry.move.san);
           if (!result) {
             console.error(`Invalid replay move in stepForward (Index ${i}):`, moveEntry.move.san, 'FEN:', newGame.fen());
-            return; // Don't update state if move failed
+            return;
           }
         }
       }
-
       setGame(newGame);
       setCurrentMoveIndex(nextIndex);
     }
   };
 
   const stepBackward = () => {
-    if (currentMoveIndex <= 0) return; // Cannot go back from the start
-
+    if (currentMoveIndex <= 0) return;
     const targetIndex = currentMoveIndex - 1;
-    const newGame = new Chess(); // Start from initial position
-
-    // Replay moves from index 1 up to targetIndex (not including it)
+    const newGame = new Chess();
     for (let i = 1; i <= targetIndex; i++) {
       const moveEntry = gameHistory.moves[i];
       if (moveEntry && moveEntry.move && moveEntry.move.san && moveEntry.move.san !== 'Start') {
         const result = newGame.move(moveEntry.move.san);
         if (!result) {
-          console.error(`Invalid replay move during stepBackward reconstruction at index ${i}:`, moveEntry.move.san, 'FEN:', newGame.fen());
-          return; // Stop reconstruction if a move fails
+          console.error(`Invalid replay move during stepBackward at index ${i}:`, moveEntry.move.san, 'FEN:', newGame.fen());
+          return;
         }
       }
     }
-
     setGame(newGame);
     setCurrentMoveIndex(targetIndex);
   };
@@ -212,32 +238,168 @@ const GameReview = () => {
   }
 
   return (
-    <div className="game-review p-4 sm:p-6 md:p-8 min-h-screen text-white">
-      <h3 className="text-3xl font-bold text-center mb-6 text-vivid-yellow">Game Replay</h3>
-      <div className="game-info bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-4 mb-6 text-center">
-        <p><strong>Game ID:</strong> {gameHistory.id || 'Unknown'}</p>
-        <p><strong>Date:</strong> {gameHistory.played_at ? new Date(gameHistory.played_at).toLocaleDateString() : 'Unknown'}</p>
-        <p><strong>Result:</strong> {typeof gameHistory.result === 'object' ? (gameHistory.result?.text || gameHistory.result?.outcome || 'Unknown') : (gameHistory.result || 'Unknown')}</p>
-        <p><strong>Score:</strong> {gameHistory.finalScore || gameHistory.final_score || 'N/A'}</p>
-      </div>
-      <div ref={boardBoxRef} className="chessboard-area max-w-full mx-auto mb-6">
-        <Chessboard position={game.fen()} boardWidth={boardSize} />
-      </div>
-      <div className="review-controls flex justify-center items-center gap-2 p-2 bg-gray-900/50 rounded-lg">
-        <button onClick={playMoves} disabled={!gameHistory.moves || gameHistory.moves.length <= 1} className="control-button bg-ufo-green hover:bg-vivid-yellow text-white font-bold py-2 px-4 rounded-lg">▶ Play</button>
-        <button onClick={pauseMoves} className="control-button bg-ryb-orange hover:bg-vivid-yellow text-white font-bold py-2 px-4 rounded-lg">❚❚ Pause</button>
-        <button onClick={stepBackward} disabled={currentMoveIndex <= 0} className="control-button bg-picton-blue hover:bg-blue-violet text-white font-bold py-2 px-4 rounded-lg">⏪ Back</button>
-        <button onClick={stepForward} disabled={!gameHistory.moves || currentMoveIndex >= gameHistory.moves.length - 1} className="control-button bg-picton-blue hover:bg-blue-violet text-white font-bold py-2 px-4 rounded-lg">Forward ⏩</button>
-        <button onClick={() => navigate(-1)} className="control-button bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">Exit</button>
-      </div>
-      <div className="text-center mt-4">
-        Move: {currentMoveIndex} / {gameHistory.moves && gameHistory.moves.length > 0 ? gameHistory.moves.length - 1 : 0}
-      </div>
-      <div className="moves-debug mt-4">
-        <details>
-          <summary className="cursor-pointer">Debug Info</summary>
-          <pre className="bg-gray-900/50 p-2 rounded-lg mt-2 text-xs">{JSON.stringify(gameHistory.moves?.slice(0, 3), null, 2)}</pre>
-        </details>
+    <div className="game-review p-1 sm:p-2 min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
+      <h3 className="text-xl font-bold text-center mb-2 text-vivid-yellow">Game Replay</h3>
+
+      {/* Main Layout Container */}
+      <div className="flex flex-col items-center justify-center max-w-6xl mx-auto px-2">
+
+        {/* Chess Board Container */}
+        <div className="w-full flex justify-center mb-3" ref={boardBoxRef}>
+          <Chessboard position={game.fen()} boardWidth={boardSize} />
+        </div>
+
+        {/* Ultra-Compact Review Controls - Directly Below Board */}
+        <div className="review-controls w-full max-w-[400px] bg-slate-800/95 backdrop-blur-lg rounded-xl p-2 mb-3 border border-slate-500/60 shadow-xl">
+          {/* Control Buttons Row - Ultra Compact */}
+          <div className="flex justify-center items-center gap-1 mb-1">
+            <button onClick={playMoves} disabled={!gameHistory.moves || gameHistory.moves.length <= 1} className="control-button bg-ufo-green hover:bg-vivid-yellow text-white font-bold py-1 px-2 rounded transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed text-xs">▶</button>
+            <button onClick={pauseMoves} className="control-button bg-ryb-orange hover:bg-vivid-yellow text-white font-bold py-1 px-2 rounded transition-all duration-200 hover:scale-105 text-xs">❚❚</button>
+            <button onClick={stepBackward} disabled={currentMoveIndex <= 0} className="control-button bg-picton-blue hover:bg-blue-violet text-white font-bold py-1 px-2 rounded transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed text-xs">⏪</button>
+            <button onClick={stepForward} disabled={!gameHistory.moves || currentMoveIndex >= gameHistory.moves.length - 1} className="control-button bg-picton-blue hover:bg-blue-violet text-white font-bold py-1 px-2 rounded transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed text-xs">⏩</button>
+            <button onClick={() => navigate(-1)} className="control-button bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-2 rounded transition-all duration-200 hover:scale-105 text-xs">✕</button>
+          </div>
+
+          {/* Move Counter - Ultra Compact */}
+          <div className="text-center bg-slate-700/60 rounded px-2 py-1">
+            <p className="text-white text-xs"><span className="text-yellow-300 font-semibold">Move:</span> {currentMoveIndex} / {gameHistory.moves && gameHistory.moves.length > 0 ? gameHistory.moves.length - 1 : 0}</p>
+          </div>
+        </div>
+
+        {/* Game Info Section - Below Controls */}
+        <div className="w-full max-w-[400px] lg:max-w-[600px] grid grid-cols-1 lg:grid-cols-2 gap-3">
+          {/* Game Info Card */}
+          <div className="game-info bg-gradient-to-r from-slate-800/95 to-gray-800/95 backdrop-blur-lg rounded-xl border border-slate-500/60 shadow-2xl p-3 text-white">
+            <h4 className="text-yellow-300 font-semibold text-sm mb-2 text-center">Game Details</h4>
+
+            {/* Basic Game Info - Ultra-compact */}
+            <div className="space-y-1 mb-2">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-yellow-300">ID:</span>
+                <span className="text-white font-mono">{gameHistory.id || 'Unknown'}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-yellow-300">Date:</span>
+                <span className="text-white">{gameHistory.played_at ? new Date(gameHistory.played_at).toLocaleDateString() : 'Unknown'}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-yellow-300">Mode:</span>
+                <span className="text-white">{gameHistory.game_mode || 'Unknown'}</span>
+              </div>
+              {gameHistory.computer_level && (
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-yellow-300">Level:</span>
+                  <span className="text-white">{gameHistory.computer_level}</span>
+                </div>
+              )}
+              {gameHistory.player_color && (
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-yellow-300">Color:</span>
+                  <span className="text-white">{gameHistory.player_color === 'w' ? 'White' : 'Black'}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Result Info */}
+            <div className="bg-slate-700/60 rounded p-2 text-xs">
+              <p className="text-white text-center mb-1">
+                <span className="text-yellow-300">Result:</span> {typeof gameHistory.result === 'object' ? (gameHistory.result?.details || gameHistory.result?.status || 'Unknown') : (gameHistory.result || 'Unknown')}
+              </p>
+              <div className="grid grid-cols-2 gap-2 text-center">
+                <div>
+                  <p className="text-yellow-300 font-medium">You</p>
+                  <p className="text-white font-bold">{gameHistory.final_score || gameHistory.finalScore || 'N/A'}</p>
+                </div>
+                {gameHistory.opponent_score !== undefined && (
+                  <div>
+                    <p className="text-yellow-300 font-medium">Opp</p>
+                    <p className="text-white font-bold">{gameHistory.opponent_score || 'N/A'}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Additional Info Card */}
+          <div className="game-stats bg-gradient-to-r from-slate-800/95 to-gray-800/95 backdrop-blur-lg rounded-xl border border-slate-500/60 shadow-2xl p-3 text-white">
+            <h4 className="text-yellow-300 font-semibold text-sm mb-2 text-center">Statistics</h4>
+
+            <div className="bg-slate-700/60 rounded p-2 text-xs space-y-2">
+              <div className="grid grid-cols-2 gap-2 text-center">
+                {gameHistory.result?.end_reason && (
+                  <div>
+                    <p className="text-yellow-300 font-medium">End</p>
+                    <p className="capitalize">{gameHistory.result.end_reason}</p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-yellow-300 font-medium">Moves</p>
+                  <p className="font-bold">{gameHistory.moves && gameHistory.moves.length > 0 ? Math.max(0, gameHistory.moves.length - 1) : 0}</p>
+                </div>
+              </div>
+
+              {/* Time Remaining - Compact */}
+              {(gameHistory.white_time_remaining_ms !== null && gameHistory.white_time_remaining_ms !== undefined &&
+                gameHistory.black_time_remaining_ms !== null && gameHistory.black_time_remaining_ms !== undefined) && (
+                <div className="text-center pt-1 border-t border-slate-600/40">
+                  <p className="text-yellow-300 font-medium mb-1">Time Left</p>
+                  <div className="flex justify-center gap-3">
+                    <span className="text-white">W: {Math.floor((gameHistory.white_time_remaining_ms || 0) / 1000)}s</span>
+                    <span className="text-white">B: {Math.floor((gameHistory.black_time_remaining_ms || 0) / 1000)}s</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Compact Debug Section */}
+            <div className="mt-2">
+              <details className="bg-slate-800/50 rounded-lg p-1 border border-slate-600/30">
+                <summary className="cursor-pointer text-white hover:text-yellow-300 transition-colors duration-200 text-xs">Debug ({gameHistory.moves?.length || 0} moves)</summary>
+                <div className="bg-slate-900/70 p-1 rounded mt-1 text-xs text-slate-300 overflow-x-auto max-h-32 overflow-y-auto">
+                  <div className="mb-2 text-yellow-300">
+                    Total Moves: {gameHistory.moves?.length || 0} | Showing: {Math.min(10, gameHistory.moves?.length || 0)}
+                  </div>
+                  <pre className="text-xs">
+                    {JSON.stringify(gameHistory.moves?.slice(0, 10), null, 2)}
+                    {(gameHistory.moves?.length || 0) > 10 && (
+                      <div className="text-yellow-300 mt-2">
+                        ... and {gameHistory.moves.length - 10} more moves
+                      </div>
+                    )}
+                  </pre>
+                </div>
+              </details>
+            </div>
+          </div>
+        </div>
+
+        {/* Moves List Section */}
+        {gameHistory.moves && gameHistory.moves.length > 1 && (
+          <div className="w-full max-w-[600px] mt-3">
+            <details className="bg-slate-800/95 backdrop-blur-lg rounded-xl border border-slate-500/60 shadow-xl p-3">
+              <summary className="cursor-pointer text-white hover:text-yellow-300 transition-colors duration-200 font-medium text-sm">
+                All Moves ({Math.max(0, gameHistory.moves.length - 1)} total)
+              </summary>
+              <div className="mt-3 max-h-48 overflow-y-auto bg-slate-900/70 rounded-lg p-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1 text-xs">
+                  {gameHistory.moves.map((move, index) => (
+                    <div key={index} className={`text-center p-1 rounded ${index === currentMoveIndex ? 'bg-yellow-500/20 border border-yellow-400/40' : 'bg-slate-800/50'}`}>
+                      <div className="text-gray-400 mb-1">{index > 0 ? `${Math.ceil(index/2)}.` : 'Start'}</div>
+                      <div className="text-white font-mono">
+                        {move.move?.san || (index === 0 ? 'Start' : '?')}
+                      </div>
+                      {move.time && (
+                        <div className="text-gray-500 text-xs">
+                          {move.time.toFixed(1)}s
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </details>
+          </div>
+        )}
       </div>
     </div>
   );

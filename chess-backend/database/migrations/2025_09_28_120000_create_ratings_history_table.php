@@ -21,6 +21,7 @@ return new class extends Migration
             $table->integer('rating_change'); // Calculated: new - old
             $table->foreignId('opponent_id')->nullable()->constrained('users')->onDelete('set null');
             $table->integer('opponent_rating')->nullable();
+            $table->integer('computer_level')->nullable()->comment('Computer difficulty level (1-16) for computer games');
             $table->enum('result', ['win', 'loss', 'draw']);
             $table->enum('game_type', ['computer', 'multiplayer'])->default('multiplayer');
             $table->integer('k_factor'); // K-factor used in calculation

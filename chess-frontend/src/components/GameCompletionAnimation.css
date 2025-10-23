@@ -548,31 +548,38 @@
   }
 
   .multiplayer-score-display {
-    padding: 8px;
-    gap: 8px;
+    padding: 6px;
+    gap: 4px;
+    margin: 8px 0; /* Reduce vertical margin */
   }
 
   .player-score-row {
     /* Keep horizontal layout on mobile */
     flex-direction: row;
-    padding: 6px 8px;
-    gap: 5px;
+    padding: 4px 6px;
+    gap: 4px;
+    align-items: center; /* Better vertical alignment */
   }
 
   .player-score-row .player-name {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     flex: 1;
     min-width: 0; /* Allow text truncation if needed */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .player-score-row .player-rating {
-    font-size: 0.75rem;
-    margin: 0 5px;
+    font-size: 0.7rem;
+    margin: 0 3px;
     white-space: nowrap;
+    opacity: 0.8; /* Make rating slightly less prominent */
   }
 
   .player-score-row .player-score {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     white-space: nowrap;
+    font-weight: 600; /* Make score more prominent */
   }
 }

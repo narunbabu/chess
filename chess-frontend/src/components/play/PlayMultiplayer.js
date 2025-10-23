@@ -332,7 +332,8 @@ const PlayMultiplayer = () => {
           result: data.result || 'unknown',
           end_reason: data.end_reason || 'game_ended',
           winner_user_id: data.winner_user_id,
-          winner_player: data.winner_player,
+          // Derive winner_player from winner_user_id for GameCompletionAnimation
+          winner_player: data.winner_user_id === data.white_player?.id ? 'white' : (data.winner_user_id === data.black_player?.id ? 'black' : null),
           fen_final: data.fen,
           move_count: data.move_count,
           ended_at: data.ended_at,
@@ -1014,7 +1015,8 @@ const PlayMultiplayer = () => {
       result: event.result,
       end_reason: event.end_reason,
       winner_user_id: event.winner_user_id,
-      winner_player: event.winner_player,
+      // Derive winner_player from winner_user_id for GameCompletionAnimation
+      winner_player: event.winner_user_id === event.white_player?.id ? 'white' : (event.winner_user_id === event.black_player?.id ? 'black' : null),
       fen_final: event.fen_final,
       move_count: event.move_count,
       ended_at: event.ended_at,
