@@ -1,6 +1,7 @@
 // src/components/play/GameControls.js
 import React from "react";
 import PawnColorSwitch from './PawnColorSwitch'; // Assuming this component exists or will be created
+import { getResultDetails } from "../../utils/resultStandardization";
 
 const GameControls = ({
   gameStarted,
@@ -107,7 +108,7 @@ const GameControls = ({
             {savedGames.map((game, index) => (
               game && game.date ? (
                 <option key={game.id || index} value={JSON.stringify(game)}>
-                  {new Date(game.date).toLocaleString()} - {game.result} (Score:{" "}
+                  {new Date(game.date).toLocaleString()} - {getResultDetails(game.result)} (Score:{" "}
                   {game.finalScore !== undefined && game.finalScore !== null
                     ? Number(game.finalScore).toFixed(1)
                     : "N/A"}

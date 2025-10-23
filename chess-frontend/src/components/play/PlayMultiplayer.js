@@ -173,8 +173,10 @@ const PlayMultiplayer = () => {
         fen_final: game.fen(),
         move_count: game.history().length,
         ended_at: new Date().toISOString(),
-        white_player: gameData?.whitePlayer,
-        black_player: gameData?.blackPlayer,
+        white_player: gameData?.white_player, // ✅ Fixed: Use snake_case from backend
+        black_player: gameData?.black_player, // ✅ Fixed: Use snake_case from backend
+        white_player_score: 0, // Will be updated by backend
+        black_player_score: 0, // Will be updated by backend
         isPlayerWin: !isPlayerTimeout,
         isPlayerDraw: false
       };
@@ -334,8 +336,10 @@ const PlayMultiplayer = () => {
           fen_final: data.fen,
           move_count: data.move_count,
           ended_at: data.ended_at,
-          white_player: data.whitePlayer,
-          black_player: data.blackPlayer,
+          white_player: data.white_player, // ✅ Fixed: Use snake_case from backend
+          black_player: data.black_player, // ✅ Fixed: Use snake_case from backend
+          white_player_score: data.white_player_score || data.whitePlayerScore || 0,
+          black_player_score: data.black_player_score || data.blackPlayerScore || 0,
           isPlayerWin: data.winner_user_id === user?.id,
           isPlayerDraw: !data.winner_user_id && data.result === '1/2-1/2'
         };
@@ -1016,6 +1020,8 @@ const PlayMultiplayer = () => {
       ended_at: event.ended_at,
       white_player: event.white_player,
       black_player: event.black_player,
+      white_player_score: event.white_player_score,
+      black_player_score: event.black_player_score,
       // Determine user's result
       isPlayerWin: event.winner_user_id === user?.id,
       isPlayerDraw: !event.winner_user_id && event.result === '1/2-1/2'
@@ -1124,8 +1130,26 @@ const PlayMultiplayer = () => {
         isValid: conciseGameString.length > 0
       });
 
-      // Calculate final scores (use absolute values)
-      const finalPlayerScore = Math.abs(playerScore);
+      // Get scores from backend event data (more reliable than local state)
+      const whiteScore = parseFloat(event.white_player_score || 0);
+      const blackScore = parseFloat(event.black_player_score || 0);
+
+      // Determine which score belongs to the player based on their color
+      const myColor = gameInfo.playerColor === 'white' ? 'w' : 'b';
+      const finalPlayerScore = Math.abs(myColor === 'w' ? whiteScore : blackScore);
+      const finalOpponentScore = Math.abs(myColor === 'w' ? blackScore : whiteScore);
+
+      console.log('📊 Score assignment:', {
+        myColor,
+        whiteScore,
+        blackScore,
+        finalPlayerScore,
+        finalOpponentScore,
+        eventScores: {
+          white: event.white_player_score,
+          black: event.black_player_score
+        }
+      });
 
       // Get timer values for persistence (myMs and oppMs are already in milliseconds)
       const whiteTimeRemaining = myColor === 'w' ? myMs : oppMs;
@@ -1145,6 +1169,7 @@ const PlayMultiplayer = () => {
         final_score: finalPlayerScore,
         finalScore: finalPlayerScore, // Alternative field name
         score: finalPlayerScore, // Alternative field name
+        opponent_score: finalOpponentScore, // Opponent's score
         result: standardizedResult, // Use standardized result object
         // Add timer persistence (Phase 2)
         white_time_remaining_ms: whiteTimeRemaining,
@@ -1157,8 +1182,10 @@ const PlayMultiplayer = () => {
         movesPreview: gameHistoryData.moves.substring(0, 100)
       });
       console.log('📊 Game history details:', {
-        playerScore,
+        whiteScore,
+        blackScore,
         finalPlayerScore,
+        finalOpponentScore,
         movesLength: movesToSave.length,
         movesType: typeof conciseGameString,
         movesPreview: conciseGameString.substring(0, 100),
@@ -2148,7 +2175,29 @@ const PlayMultiplayer = () => {
       {gameComplete && gameResult && (
         <GameCompletionAnimation
           result={gameResult}
+          score={Math.abs(parseFloat(
+            gameInfo.playerColor === 'white'
+              ? gameResult.white_player_score
+              : gameResult.black_player_score
+          ) || 0)}
+          opponentScore={Math.abs(parseFloat(
+            gameInfo.playerColor === 'white'
+              ? gameResult.black_player_score
+              : gameResult.white_player_score
+          ) || 0)}
           playerColor={gameInfo.playerColor}
+          isMultiplayer={true}
+          opponentRating={
+            gameInfo.playerColor === 'white'
+              ? gameResult.black_player?.rating
+              : gameResult.white_player?.rating
+          }
+          opponentId={
+            gameInfo.playerColor === 'white'
+              ? gameResult.black_player?.id
+              : gameResult.white_player?.id
+          }
+          gameId={gameId}
           onClose={() => {
             // X button should navigate to lobby
             sessionStorage.removeItem('lastInvitationAction');
@@ -2177,7 +2226,6 @@ const PlayMultiplayer = () => {
             console.log('🎬 Preview button: navigating to /play/review/' + reviewId);
             navigate(`/play/review/${reviewId}`);
           }}
-          isMultiplayer={true}
         />
       )}
     </>
@@ -2584,7 +2632,31 @@ const PlayMultiplayer = () => {
         {gameComplete && gameResult && (
           <GameCompletionAnimation
             result={gameResult}
+            score={Math.abs(parseFloat(
+              gameInfo.playerColor === 'white'
+                ? gameResult.white_player_score
+                : gameResult.black_player_score
+            ) || 0)}
+            opponentScore={Math.abs(parseFloat(
+              gameInfo.playerColor === 'white'
+                ? gameResult.black_player_score
+                : gameResult.white_player_score
+            ) || 0)}
             playerColor={gameInfo.playerColor}
+            isMultiplayer={true}
+            opponentRating={
+              // Determine opponent based on player color
+              gameInfo.playerColor === 'white'
+                ? gameResult.black_player?.rating
+                : gameResult.white_player?.rating
+            }
+            opponentId={
+              // Determine opponent ID based on player color
+              gameInfo.playerColor === 'white'
+                ? gameResult.black_player?.id
+                : gameResult.white_player?.id
+            }
+            gameId={gameId}
             onClose={() => {
               // X button should navigate to lobby
               sessionStorage.removeItem('lastInvitationAction');
@@ -2613,20 +2685,6 @@ const PlayMultiplayer = () => {
               console.log('🎬 Preview button: navigating to /play/review/' + reviewId);
               navigate(`/play/review/${reviewId}`);
             }}
-            isMultiplayer={true}
-            opponentRating={
-              // Determine opponent based on player color
-              gameInfo.playerColor === 'white'
-                ? gameResult.black_player?.rating
-                : gameResult.white_player?.rating
-            }
-            opponentId={
-              // Determine opponent ID based on player color
-              gameInfo.playerColor === 'white'
-                ? gameResult.black_player?.id
-                : gameResult.white_player?.id
-            }
-            gameId={gameId}
           />
         )}
       </div>

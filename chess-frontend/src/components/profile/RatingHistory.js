@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { getRatingHistory } from '../../services/ratingService';
 import { formatRatingChange, getRatingCategory } from '../../utils/eloUtils';
+import { isWin, isLoss, isDraw, getResultDetails } from '../../utils/resultStandardization';
 import './RatingHistory.css';
 
 const RatingHistory = () => {
@@ -55,14 +56,14 @@ const RatingHistory = () => {
   };
 
   const getResultClass = (result) => {
-    if (result === 'win') return 'result-win';
-    if (result === 'loss') return 'result-loss';
+    if (isWin(result)) return 'result-win';
+    if (isLoss(result)) return 'result-loss';
     return 'result-draw';
   };
 
   const getResultIcon = (result) => {
-    if (result === 'win') return '✓';
-    if (result === 'loss') return '✗';
+    if (isWin(result)) return '✓';
+    if (isLoss(result)) return '✗';
     return '=';
   };
 
@@ -166,7 +167,7 @@ const RatingHistory = () => {
                   <td className="opponent-cell">{getOpponentDisplay(game)}</td>
                   <td className={`result-cell ${getResultClass(game.result)}`}>
                     <span className="result-icon">{getResultIcon(game.result)}</span>
-                    {game.result}
+                    {getResultDetails(game.result)}
                   </td>
                   <td className={`change-cell ${game.rating_change >= 0 ? 'positive' : 'negative'}`}>
                     {formatRatingChange(game.rating_change)}

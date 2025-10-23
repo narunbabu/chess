@@ -1,4 +1,5 @@
 // eloUtils.js - Elo rating system utilities for frontend
+import { isWin, isDraw } from "./resultStandardization";
 
 /**
  * Calculate expected score for Elo rating
@@ -243,7 +244,7 @@ export const calculatePerformanceRating = (games) => {
   let totalPerformance = 0;
 
   games.forEach(game => {
-    const score = game.result === 'win' ? 1.0 : game.result === 'draw' ? 0.5 : 0.0;
+    const score = isWin(game.result) ? 1.0 : isDraw(game.result) ? 0.5 : 0.0;
     // Performance rating = opponent rating + 400 * log10(score / (1 - score))
     // For wins: performance = opponent + 400
     // For losses: performance = opponent - 400

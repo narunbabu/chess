@@ -2,7 +2,7 @@
 import { formatDistanceToNow } from "date-fns";
 import { Chess } from "chess.js";
 import { decodeGameHistory } from "./gameHistoryStringUtils";
-import { isWin, isLoss, isDraw } from "./resultStandardization";
+import { isWin, isLoss, isDraw, getResultDetails } from "./resultStandardization";
 
 /**
  * Formats a date string to a relative time (e.g., "2 hours ago")
@@ -164,8 +164,11 @@ export const filterGameHistories = (gameHistories, filters = {}) => {
     if (filters.playerColor && game.player_color !== filters.playerColor) {
       match = false;
     }
-    if (filters.result && !game.result.includes(filters.result)) {
-      match = false;
+    if (filters.result) {
+      const resultText = getResultDetails(game.result);
+      if (!resultText.includes(filters.result)) {
+        match = false;
+      }
     }
     if (filters.level && game.computer_level !== filters.level) {
       match = false;
