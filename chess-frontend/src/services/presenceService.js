@@ -97,14 +97,46 @@ class PresenceService {
 
   /**
    * Update user presence status
-   * NOTE: Presence is now handled automatically by WebSocket presence channels.
-   * This method is deprecated and kept only for backwards compatibility.
+   * NOTE: Makes one-time API call to update database for stats endpoint.
+   * WebSocket presence channels handle real-time presence tracking.
    */
   async updatePresence(status = 'online', socketId = null) {
-    // Presence is now handled automatically by WebSocket presence channels
-    // No need for HTTP polling - Laravel Reverb handles this efficiently
-    console.log('[Presence] Using WebSocket presence channels (HTTP polling disabled)');
-    return null;
+    const authToken = localStorage.getItem('auth_token');
+    if (!authToken) {
+      console.warn('[Presence] No auth token - cannot update presence');
+      return null;
+    }
+
+    try {
+      const response = await fetch(`${BASE_URL}/api/presence/update`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          status: status,
+          ...(typeof socketId === 'string' && socketId.length > 0 ? { socket_id: socketId } : {}),
+          device_info: {
+            platform: navigator.platform,
+            userAgent: navigator.userAgent
+          }
+        })
+      });
+
+      if (!response.ok) {
+        console.warn(`[Presence] Update failed with status ${response.status}`);
+        return null;
+      }
+
+      const data = await response.json();
+      console.log('[Presence] Status updated successfully:', status);
+      return data;
+    } catch (error) {
+      console.error('[Presence] Failed to update presence:', error.message);
+      return null;
+    }
   }
 
   /**

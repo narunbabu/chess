@@ -1776,13 +1776,19 @@ const PlayMultiplayer = () => {
         return;
       }
 
-      // Get socket_id from Echo if available, otherwise use a placeholder
-      let socketId = 'game-end-request';
+      // Get socket_id from Echo if available
+      let socketId = undefined;
       if (wsService.current && typeof wsService.current.getSocketId === 'function') {
-        socketId = wsService.current.getSocketId() || socketId;
+        socketId = wsService.current.getSocketId();
       }
 
       console.log('📡 Making HTTP request to create new game challenge...', { socketId, colorPreference });
+
+      // Build request body, only include socket_id if it's a valid string
+      const requestBody = { color_preference: colorPreference };
+      if (typeof socketId === 'string' && socketId.length > 0) {
+        requestBody.socket_id = socketId;
+      }
 
       const response = await fetch(`${BACKEND_URL}/websocket/games/${gameId}/new-game`, {
         method: 'POST',
@@ -1790,10 +1796,7 @@ const PlayMultiplayer = () => {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          socket_id: socketId,
-          color_preference: colorPreference,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {

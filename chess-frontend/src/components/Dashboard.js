@@ -25,30 +25,29 @@ const Dashboard = () => {
   useEffect(() => {
     // Prevent duplicate fetches in StrictMode
     if (didFetchRef.current) {
-      console.log('[Dashboard] Already fetched game histories, skipping');
+      console.log('[Dashboard] ⏭️ Already fetched game histories, skipping');
       return;
     }
     didFetchRef.current = true;
 
     const loadGameHistories = async () => {
       try {
+        console.log('[Dashboard] 📊 Loading game histories and active games...');
         // Fetch both game histories and active games in parallel
         const [histories, activeGamesResponse] = await Promise.all([
           getGameHistory(true).catch(() => getGameHistories()), // Force refresh to bypass cache
           api.get('/games/active').catch(err => {
-            console.error("[Dashboard] Error loading active games:", err);
+            console.error("[Dashboard] ❌ Error loading active games:", err);
             return { data: [] };
           })
         ]);
 
-        console.log('📊 [Dashboard] Raw game histories:', histories);
-        console.log('📊 [Dashboard] Sample game:', histories?.[0]);
-        console.log('📊 [Dashboard] Active games response:', activeGamesResponse.data);
-        console.log('📊 [Dashboard] Sample active game:', activeGamesResponse.data?.[0]);
+        console.log('[Dashboard] ✅ Loaded', histories?.length || 0, 'game histories');
+        console.log('[Dashboard] ✅ Loaded', activeGamesResponse.data?.length || 0, 'active games');
         setGameHistories(histories || []);
         setActiveGames(activeGamesResponse.data || []);
       } catch (error) {
-        console.error("[Dashboard] Error loading data:", error);
+        console.error("[Dashboard] ❌ Error loading data:", error);
       } finally {
         setLoading(false);
       }
@@ -56,9 +55,7 @@ const Dashboard = () => {
 
     loadGameHistories();
 
-    return () => {
-      didFetchRef.current = false;
-    };
+    // No cleanup function - keep the guard active to prevent duplicate fetches
   }, [getGameHistory]);
 
   const handleReviewGame = (game) => {

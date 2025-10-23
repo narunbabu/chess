@@ -201,8 +201,15 @@ const LobbyPage = () => {
   }, [user, webSocketService, navigate]);
 
   const fetchData = async (skipDebounce = false) => {
+    // Global in-flight protection
+    if (inFlightRef.current) {
+      console.log('[Lobby] ⚠️ Fetch already in progress, skipping duplicate call');
+      return;
+    }
+
     try {
-      console.log('Fetching lobby data for user:', user);
+      inFlightRef.current = true;
+      console.log('[Lobby] 📊 Fetching lobby data for user:', user?.id);
 
       const [usersRes, pendingRes, sentRes, acceptedRes, activeGamesRes] = await Promise.all([
         api.get('/users'),
@@ -363,8 +370,10 @@ const LobbyPage = () => {
       setSentInvitations(activeSentInvitations);
       setActiveGames(activeGamesRes.data || []);
     } catch (error) {
-      console.error('Failed to fetch data:', error);
-      console.error('Error details:', error.response?.data);
+      console.error('[Lobby] ❌ Failed to fetch data:', error);
+      console.error('[Lobby] Error details:', error.response?.data);
+    } finally {
+      inFlightRef.current = false;
     }
   };
 
@@ -422,26 +431,19 @@ const LobbyPage = () => {
       }
       const hidden = document.visibilityState === 'hidden';
       const delay = hidden
-        ? (wsOK ? 60000 : 10000)  // Hidden: 60s with WS, 10s without
-        : (wsOK ? 30000 : 5000);   // Visible: 30s with WS, 5s without
+        ? (wsOK ? 60000 : 30000)  // Hidden: 60s with WS, 30s without (reduced from 10s)
+        : (wsOK ? 30000 : 15000);  // Visible: 30s with WS, 15s without (increased from 5s)
 
-      // Only fetch if not already in-flight
-      if (!inFlightRef.current) {
-        inFlightRef.current = true;
-        console.log(`[Lobby] Fetching data (WS: ${wsOK}, Hidden: ${hidden})`);
-        try {
-          await fetchData(true);
-        } catch (err) {
-          console.error('[Lobby] Fetch error:', err);
-        } finally {
-          inFlightRef.current = false;
-        }
-      } else {
-        console.log('[Lobby] Skipping fetch (already in-flight)');
+      // Fetch data (in-flight protection is handled inside fetchData)
+      console.log(`[Lobby] 🔄 Polling cycle (WS: ${wsOK ? '✅' : '❌'}, Hidden: ${hidden}, Delay: ${delay}ms)`);
+      try {
+        await fetchData(true);
+      } catch (err) {
+        console.error('[Lobby] Fetch error:', err);
       }
 
       // Schedule next cycle
-      console.log(`[Lobby] Next poll in ${delay}ms`);
+      console.log(`[Lobby] ⏱️ Next poll in ${(delay / 1000).toFixed(0)}s`);
       pollTimerRef.current = setTimeout(cycle, delay);
     };
 
@@ -471,7 +473,7 @@ const LobbyPage = () => {
       }
       // Don't reset didInitPollingRef here - keep the guard active
     };
-  }, [user, hasFinishedGame]); // Minimal dependencies - no webSocketService
+  }, [user]); // Only user dependency - avoid restarting polling unnecessarily
 
   const handleInvite = (player) => {
     // Check if there's already a pending invitation to this player

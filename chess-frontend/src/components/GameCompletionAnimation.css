@@ -126,6 +126,81 @@
   margin-top: 10px;
 }
 
+/* --- Rating Update Display --- */
+.rating-update-display {
+  margin: 15px 0;
+  padding: 12px;
+  background-color: rgba(0, 0, 0, 0.03);
+  border-radius: 8px;
+}
+
+.rating-loading {
+  font-family: var(--font-family-sans);
+  font-size: 0.95rem;
+  color: var(--color-text-medium);
+  font-style: italic;
+  margin: 0;
+}
+
+.rating-error {
+  font-family: var(--font-family-sans);
+  font-size: 0.9rem;
+  color: var(--color-loss-accent);
+  margin: 0;
+}
+
+.rating-change-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.rating-label {
+  font-family: var(--font-family-sans);
+  font-size: 0.9rem;
+  color: var(--color-text-medium);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.rating-values {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-family-sans);
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.old-rating {
+  color: var(--color-text-medium);
+}
+
+.rating-change {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.rating-change.positive {
+  color: var(--color-win-accent);
+}
+
+.rating-change.negative {
+  color: var(--color-loss-accent);
+}
+
+.arrow {
+  color: var(--color-text-medium);
+  font-weight: normal;
+}
+
+.new-rating {
+  color: var(--color-text-dark);
+  font-size: 1.5rem;
+}
+
 /* --- Action Buttons & Sections --- */
 .completion-actions {
   margin-top: 25px;

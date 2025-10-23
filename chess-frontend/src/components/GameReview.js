@@ -217,7 +217,7 @@ const GameReview = () => {
       <div className="game-info bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-4 mb-6 text-center">
         <p><strong>Game ID:</strong> {gameHistory.id || 'Unknown'}</p>
         <p><strong>Date:</strong> {gameHistory.played_at ? new Date(gameHistory.played_at).toLocaleDateString() : 'Unknown'}</p>
-        <p><strong>Result:</strong> {gameHistory.result || 'Unknown'}</p>
+        <p><strong>Result:</strong> {typeof gameHistory.result === 'object' ? (gameHistory.result?.text || gameHistory.result?.outcome || 'Unknown') : (gameHistory.result || 'Unknown')}</p>
         <p><strong>Score:</strong> {gameHistory.finalScore || gameHistory.final_score || 'N/A'}</p>
       </div>
       <div ref={boardBoxRef} className="chessboard-area max-w-full mx-auto mb-6">

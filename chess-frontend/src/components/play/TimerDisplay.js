@@ -26,12 +26,12 @@ const TimerDisplay = ({
 
   // Helper function to render avatar or icon
   const renderAvatar = (data, isComputer = false) => {
-    if (isComputer || mode === 'computer') {
-      // Show computer icon for computer mode
+    if (isComputer) {
+      // Show computer icon for computer side only
       return <span className="text-lg">🤖</span>;
     }
 
-    // For multiplayer, show player avatar if available
+    // For player, show avatar if available
     const avatarUrl = getPlayerAvatar(data);
     if (avatarUrl) {
       return (
@@ -43,13 +43,13 @@ const TimerDisplay = ({
       );
     }
 
-    // No avatar available - don't show anything
-    return null;
+    // No avatar available - show placeholder emoji
+    return <span className="text-lg">👤</span>;
   };
 
   // Helper function to get display name
   const getDisplayName = (data, isComputer = false, fallback = 'Player') => {
-    if (isComputer || mode === 'computer') {
+    if (isComputer) {
       return 'CPU';
     }
     return truncatePlayerName(data?.name || fallback);

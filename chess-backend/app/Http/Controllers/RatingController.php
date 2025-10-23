@@ -18,7 +18,7 @@ class RatingController extends Controller
     public function setInitialRating(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'rating' => 'required|integer|min:600|max:2600',
+            'rating' => 'required|integer|min:400|max:3200', // Match full rating range
         ]);
 
         if ($validator->fails()) {
@@ -64,10 +64,11 @@ class RatingController extends Controller
     public function updateRating(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'opponent_rating' => 'required|integer|min:600|max:3000',
+            'opponent_rating' => 'required|integer|min:400|max:3200', // Support full range of computer levels (1-16)
             'result' => 'required|in:win,draw,loss',
             'game_type' => 'nullable|in:computer,multiplayer',
             'opponent_id' => 'nullable|integer|exists:users,id',
+            'computer_level' => 'nullable|integer|min:1|max:16',
             'game_id' => 'nullable|integer|exists:games,id',
         ]);
 
@@ -104,8 +105,8 @@ class RatingController extends Controller
         $ratingChange = round($kFactor * ($actualScore - $expectedScore));
         $newRating = $oldRating + $ratingChange;
 
-        // Ensure rating stays within reasonable bounds
-        $newRating = max(600, min(3000, $newRating));
+        // Ensure rating stays within reasonable bounds (match computer level range)
+        $newRating = max(400, min(3200, $newRating));
 
         // Update user rating
         $user->rating = $newRating;
@@ -132,6 +133,7 @@ class RatingController extends Controller
             'rating_change' => $ratingChange,
             'opponent_id' => $request->input('opponent_id'),
             'opponent_rating' => $opponentRating,
+            'computer_level' => $request->input('computer_level'), // Store computer difficulty level
             'result' => $result,
             'game_type' => $gameType,
             'k_factor' => $kFactor,

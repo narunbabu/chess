@@ -16,6 +16,7 @@ class RatingHistory extends Model
         'rating_change',
         'opponent_id',
         'opponent_rating',
+        'computer_level',
         'result',
         'game_type',
         'k_factor',

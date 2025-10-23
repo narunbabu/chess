@@ -70,9 +70,14 @@ const Header = () => {
             if (contentType && contentType.includes('application/json')) {
               const data = await response.json();
               // data.stats contains: { total_online, total_away, in_game }
-              const onlineCount = data.stats?.total_online || 0;
+              // Exclude self from counts (current user is always included in total_online)
+              const totalOnline = data.stats?.total_online || 0;
+              const inGame = data.stats?.in_game || 0;
+
+              // Online count = total online users excluding self
+              const onlineCount = Math.max(0, totalOnline - 1);
               // Available players = online users not in game, excluding self
-              const availablePlayers = Math.max(0, (data.stats?.total_online || 0) - (data.stats?.in_game || 0) - 1);
+              const availablePlayers = Math.max(0, totalOnline - inGame - 1);
 
               // Only update if stats have actually changed (prevent redundant renders)
               const newStats = { onlineCount, availablePlayers };

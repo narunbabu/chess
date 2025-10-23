@@ -72,6 +72,7 @@ const PlayComputer = () => {
   const [computerMoveInProgress, setComputerMoveInProgress] = useState(false);
   const [showGameCompletion, setShowGameCompletion] = useState(false);
   const [gameOver, setGameOver] = useState(false);
+  const [gameResult, setGameResult] = useState(null); // Stores standardized result object
   const [playerScore, setPlayerScore] = useState(0);
   const [lastMoveEvaluation, setLastMoveEvaluation] = useState(null); // Stores result from evaluateMove
   const moveStartTimeRef = useRef(null); // Tracks when player's turn started for move timing
@@ -157,6 +158,9 @@ const PlayComputer = () => {
         );
 
         console.log('🎯 [PlayComputer] Created standardized result:', standardizedResult);
+
+        // Store the standardized result for GameCompletionAnimation
+        setGameResult(standardizedResult);
 
         // Save game history (handles both local and online save)
         const gameHistoryData = {
@@ -713,6 +717,7 @@ const PlayComputer = () => {
         setMoveCount(0);
         setGameOver(false);
         setShowGameCompletion(false);
+        setGameResult(null); // Reset standardized result
         // Note: Does not reset playerColor or computerDepth, keeping user selections
     }, [resetTimer, timerRef, replayTimerRef]); // Dependencies: stable hook fn and refs accessed
 
@@ -951,7 +956,15 @@ const PlayComputer = () => {
         isTimerRunning,
         playerScore,
         computerScore,
-        showScores: true
+        showScores: true,
+        playerData: user ? {
+          name: user.name || user.username || 'You',
+          avatar_url: user.avatar_url || user.avatar
+        } : null,
+        opponentData: {
+          name: 'Computer',
+          avatar_url: null // Computer uses emoji 🤖 instead
+        }
       }}
       gameData={{
         game,
@@ -1197,10 +1210,12 @@ const PlayComputer = () => {
     <>
       {showGameCompletion && (
         <GameCompletionAnimation
-          result={gameStatus}
+          result={gameResult || gameStatus} // Use standardized result object if available, fallback to text
           score={typeof playerScore === 'number' && !isNaN(playerScore) ? playerScore : 0}
           computerScore={typeof computerScore === 'number' && !isNaN(computerScore) ? computerScore : 0}
           playerColor={playerColor}
+          computerLevel={computerDepth} // Pass computer difficulty level for rating calculation
+          isMultiplayer={false} // This is computer mode
           onClose={() => {
             setShowGameCompletion(false);
             resetGame();
@@ -1294,10 +1309,12 @@ const PlayComputer = () => {
         {/* Game Completion Modal/Animation */}
         {showGameCompletion && (
           <GameCompletionAnimation
-            result={gameStatus} // Pass the actual status text/object from gameStatus state
+            result={gameResult || gameStatus} // Use standardized result object if available, fallback to text
             score={typeof playerScore === 'number' && !isNaN(playerScore) ? playerScore : 0}
             computerScore={typeof computerScore === 'number' && !isNaN(computerScore) ? computerScore : 0}
             playerColor={playerColor}
+            computerLevel={computerDepth} // Pass computer difficulty level for rating calculation
+            isMultiplayer={false} // This is computer mode
             onClose={() => {
               setShowGameCompletion(false); // Hide the animation
               resetGame(); // Reset back to the pre-game setup

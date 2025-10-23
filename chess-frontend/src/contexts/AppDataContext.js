@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useRef } from 'react';
+import React, { createContext, useContext, useState, useRef, useCallback } from 'react';
 import api from '../services/api';
 import { getGameHistories } from '../services/gameHistoryService';
 
@@ -25,7 +25,7 @@ export function AppDataProvider({ children }) {
    * @param {boolean} forceRefresh - Force a fresh fetch even if cached
    * @returns {Promise<Object>} User data
    */
-  const getMe = async (forceRefresh = false) => {
+  const getMe = useCallback(async (forceRefresh = false) => {
     // Return cached if available and not forcing refresh
     if (me && !forceRefresh) {
       console.log('[AppData] Returning cached user');
@@ -55,14 +55,14 @@ export function AppDataProvider({ children }) {
       });
 
     return meRequestRef.current;
-  };
+  }, [me]); // Memoize with me dependency
 
   /**
    * Get game history with caching and deduplication
    * @param {boolean} forceRefresh - Force a fresh fetch even if cached
    * @returns {Promise<Array>} Game history data
    */
-  const getGameHistory = async (forceRefresh = false) => {
+  const getGameHistory = useCallback(async (forceRefresh = false) => {
     // Return cached if available and not forcing refresh
     if (gameHistory && !forceRefresh) {
       console.log('[AppData] Returning cached game history');
@@ -91,32 +91,32 @@ export function AppDataProvider({ children }) {
       });
 
     return historyRequestRef.current;
-  };
+  }, [gameHistory]); // Memoize with gameHistory dependency
 
   /**
    * Invalidate cache for user data
    */
-  const invalidateMe = () => {
+  const invalidateMe = useCallback(() => {
     console.log('[AppData] Invalidating user cache');
     setMe(null);
-  };
+  }, []); // No dependencies needed
 
   /**
    * Invalidate cache for game history
    */
-  const invalidateGameHistory = () => {
+  const invalidateGameHistory = useCallback(() => {
     console.log('[AppData] Invalidating game history cache');
     setGameHistory(null);
-  };
+  }, []); // No dependencies needed
 
   /**
    * Clear all caches
    */
-  const clearCache = () => {
+  const clearCache = useCallback(() => {
     console.log('[AppData] Clearing all caches');
     setMe(null);
     setGameHistory(null);
-  };
+  }, []); // No dependencies needed
 
   const value = {
     // Data

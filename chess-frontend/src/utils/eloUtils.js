@@ -50,7 +50,7 @@ export const calculateNewRating = (currentRating, opponentRating, result, gamesP
   const kFactor = calculateKFactor(gamesPlayed, currentRating);
 
   const ratingChange = Math.round(kFactor * (actualScore - expectedScore));
-  const newRating = Math.max(600, Math.min(3000, currentRating + ratingChange));
+  const newRating = Math.max(400, Math.min(3200, currentRating + ratingChange)); // Match backend bounds
 
   return {
     newRating,
@@ -132,42 +132,63 @@ export const calculateWinProbability = (playerRating, opponentRating) => {
 };
 
 /**
- * Get appropriate engine level from opponent rating (for computer games)
- * @param {number} opponentRating - Opponent's rating
- * @returns {number} Engine level (1-20)
+ * 16-Level Computer Rating System
+ * Maps computer difficulty levels to estimated ELO ratings
  */
-export const getEngineLevelFromRating = (opponentRating) => {
-  if (opponentRating < 800) return 1;
-  if (opponentRating < 1000) return 2;
-  if (opponentRating < 1200) return 4;
-  if (opponentRating < 1400) return 6;
-  if (opponentRating < 1600) return 8;
-  if (opponentRating < 1800) return 10;
-  if (opponentRating < 2000) return 12;
-  if (opponentRating < 2200) return 14;
-  if (opponentRating < 2400) return 16;
-  if (opponentRating < 2600) return 18;
-  return 20;
+export const COMPUTER_LEVEL_RATINGS = {
+  1: 400,   // Complete Beginner
+  2: 600,   // Novice
+  3: 800,   // Learning
+  4: 1000,  // Casual Player
+  5: 1200,  // Intermediate
+  6: 1400,  // Club Player
+  7: 1600,  // Strong Club
+  8: 1800,  // Expert
+  9: 2000,  // Advanced Expert
+  10: 2200, // Master
+  11: 2400, // International Master
+  12: 2600, // Grandmaster
+  13: 2750, // Strong GM
+  14: 2900, // Super GM
+  15: 3050, // Elite
+  16: 3200  // Maximum Strength
 };
 
 /**
- * Estimate rating from engine level (inverse of above)
- * @param {number} level - Engine level (1-20)
+ * Get rating from computer level (1-16)
+ * @param {number} level - Computer difficulty level (1-16)
  * @returns {number} Estimated rating
  */
-export const getRatingFromEngineLevel = (level) => {
-  if (level <= 1) return 700;
-  if (level <= 2) return 900;
-  if (level <= 4) return 1100;
-  if (level <= 6) return 1300;
-  if (level <= 8) return 1500;
-  if (level <= 10) return 1700;
-  if (level <= 12) return 1900;
-  if (level <= 14) return 2100;
-  if (level <= 16) return 2300;
-  if (level <= 18) return 2500;
-  return 2700;
+export const getRatingFromLevel = (level) => {
+  return COMPUTER_LEVEL_RATINGS[level] || 1500; // Default to 1500 if invalid
 };
+
+/**
+ * Get appropriate computer level from rating (inverse mapping)
+ * @param {number} rating - Target rating
+ * @returns {number} Computer level (1-16)
+ */
+export const getLevelFromRating = (rating) => {
+  const levels = Object.entries(COMPUTER_LEVEL_RATINGS);
+
+  // Find closest level
+  let closestLevel = 1;
+  let minDiff = Math.abs(rating - COMPUTER_LEVEL_RATINGS[1]);
+
+  for (const [level, levelRating] of levels) {
+    const diff = Math.abs(rating - levelRating);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closestLevel = parseInt(level);
+    }
+  }
+
+  return closestLevel;
+};
+
+// Legacy function names for backward compatibility
+export const getEngineLevelFromRating = getLevelFromRating;
+export const getRatingFromEngineLevel = getRatingFromLevel;
 
 /**
  * Check if player should be prompted for skill reassessment
@@ -250,6 +271,9 @@ export default {
   calculateWinProbability,
   getEngineLevelFromRating,
   getRatingFromEngineLevel,
+  getRatingFromLevel,
+  getLevelFromRating,
+  COMPUTER_LEVEL_RATINGS,
   shouldReassessSkill,
   getRatingPercentile,
   calculatePerformanceRating,

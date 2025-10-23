@@ -162,12 +162,15 @@ export const GlobalInvitationProvider = ({ children }) => {
       const echo = getEcho();
       const socketId = echo?.socketId();
 
+      // Build request body, only include socket_id if it's a valid string
+      const requestBody = { response: true };
+      if (typeof socketId === 'string' && socketId.length > 0) {
+        requestBody.socket_id = socketId;
+      }
+
       const response = await api.post(
         `/websocket/games/${gameId}/resume-response`,
-        {
-          socket_id: socketId,
-          response: true,
-        }
+        requestBody
       );
 
       if (!response.data.success) {
@@ -203,12 +206,15 @@ export const GlobalInvitationProvider = ({ children }) => {
       const echo = getEcho();
       const socketId = echo?.socketId();
 
+      // Build request body, only include socket_id if it's a valid string
+      const requestBody = { response: false };
+      if (typeof socketId === 'string' && socketId.length > 0) {
+        requestBody.socket_id = socketId;
+      }
+
       await api.post(
         `/websocket/games/${gameId}/resume-response`,
-        {
-          socket_id: socketId,
-          response: false,
-        }
+        requestBody
       );
 
       // Clear the dialog

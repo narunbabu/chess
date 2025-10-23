@@ -2,6 +2,8 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { saveGameHistory } from "../services/gameHistoryService"; // Assuming this path is correct
+import { updateRating } from "../services/ratingService";
+import { getRatingFromLevel } from "../utils/eloUtils";
 import { useAuth } from "../contexts/AuthContext";
 import { isWin, isDraw as isDrawResult, getResultDisplayText } from "../utils/resultStandardization";
 import GIF from 'gif.js';
@@ -16,24 +18,23 @@ const GameCompletionAnimation = ({
   onNewGame,
   onBackToLobby,
   onPreview,
-  isMultiplayer = false
+  isMultiplayer = false,
+  computerLevel = null, // Computer difficulty level (1-16)
+  opponentRating = null, // For multiplayer games
+  opponentId = null, // For multiplayer games
+  gameId = null // Game ID for history tracking
 }) => {
   const [isVisible, setIsVisible] = useState(false); // Controls card visibility for animation
   const [selectedColor, setSelectedColor] = useState('random'); // Color preference for new game challenge
-  const { isAuthenticated } = useAuth();
+  const [ratingUpdate, setRatingUpdate] = useState({
+    isLoading: true,
+    oldRating: null,
+    newRating: null,
+    ratingChange: null,
+    error: null
+  });
+  const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    // Start fade-in animation shortly after component mounts
-    const timer = setTimeout(() => {
-      setIsVisible(true);
-    }, 100); // Short delay to allow mounting before transition
-
-    // Optional: Add logic for closing the modal after a delay or via onClose prop
-    // For example, automatically navigate away after 10 seconds if desired.
-
-    return () => clearTimeout(timer);
-  }, []); // Runs only once on mount
 
   // Determine win state for both single player and multiplayer
   const isPlayerWin = (() => {
@@ -50,6 +51,96 @@ const GameCompletionAnimation = ({
   const isDraw = isMultiplayer
     ? result?.isPlayerDraw || result?.result === '1/2-1/2'
     : isDrawResult(result);
+
+  useEffect(() => {
+    // Start fade-in animation shortly after component mounts
+    const timer = setTimeout(() => {
+      setIsVisible(true);
+    }, 100); // Short delay to allow mounting before transition
+
+    // Optional: Add logic for closing the modal after a delay or via onClose prop
+    // For example, automatically navigate away after 10 seconds if desired.
+
+    return () => clearTimeout(timer);
+  }, []); // Runs only once on mount
+
+  // Handle rating update
+  useEffect(() => {
+    const handleRatingUpdate = async () => {
+      // Only update rating if user is authenticated
+      if (!isAuthenticated || !user) {
+        setRatingUpdate(prev => ({ ...prev, isLoading: false }));
+        return;
+      }
+
+      try {
+        // Determine game result
+        const gameResult = isPlayerWin ? 'win' : (isDraw ? 'draw' : 'loss');
+
+        // Prepare rating update payload
+        let ratingData = {
+          result: gameResult,
+        };
+
+        if (isMultiplayer) {
+          // Multiplayer game rating update
+          if (!opponentRating) {
+            console.warn('Multiplayer game but no opponent rating provided');
+            setRatingUpdate(prev => ({ ...prev, isLoading: false }));
+            return;
+          }
+          ratingData = {
+            ...ratingData,
+            opponent_rating: opponentRating,
+            game_type: 'multiplayer',
+            opponent_id: opponentId,
+            game_id: gameId,
+          };
+        } else {
+          // Computer game rating update
+          if (!computerLevel) {
+            console.warn('Computer game but no computer level provided');
+            setRatingUpdate(prev => ({ ...prev, isLoading: false }));
+            return;
+          }
+          const computerRating = getRatingFromLevel(computerLevel);
+          ratingData = {
+            ...ratingData,
+            opponent_rating: computerRating,
+            game_type: 'computer',
+            computer_level: computerLevel,
+            game_id: gameId,
+          };
+        }
+
+        // Call rating API
+        const response = await updateRating(ratingData);
+
+        if (response.success) {
+          setRatingUpdate({
+            isLoading: false,
+            oldRating: response.data.old_rating,
+            newRating: response.data.new_rating,
+            ratingChange: response.data.rating_change,
+            error: null
+          });
+        } else {
+          throw new Error('Rating update failed');
+        }
+      } catch (error) {
+        console.error('Failed to update rating:', error);
+        setRatingUpdate({
+          isLoading: false,
+          oldRating: null,
+          newRating: null,
+          ratingChange: null,
+          error: error.message || 'Failed to update rating'
+        });
+      }
+    };
+
+    handleRatingUpdate();
+  }, [isAuthenticated, user, isPlayerWin, isDraw, isMultiplayer, computerLevel, opponentRating, opponentId, gameId]);
 
   const exportAsGIF = async () => {
     const canvas = document.createElement('canvas');
@@ -147,6 +238,30 @@ const GameCompletionAnimation = ({
 
         <div className="result-details">
           <p className="result-text">{getResultText()}</p> {/* Display the detailed result */}
+
+          {/* Rating Change Display */}
+          {isAuthenticated && (
+            <div className="rating-update-display">
+              {ratingUpdate.isLoading ? (
+                <p className="rating-loading">Calculating rating...</p>
+              ) : ratingUpdate.error ? (
+                <p className="rating-error">{ratingUpdate.error}</p>
+              ) : ratingUpdate.newRating !== null ? (
+                <div className="rating-change-container">
+                  <div className="rating-label">Rating:</div>
+                  <div className="rating-values">
+                    <span className="old-rating">{ratingUpdate.oldRating}</span>
+                    <span className={`rating-change ${ratingUpdate.ratingChange >= 0 ? 'positive' : 'negative'}`}>
+                      ({ratingUpdate.ratingChange >= 0 ? '+' : ''}{ratingUpdate.ratingChange})
+                    </span>
+                    <span className="arrow">→</span>
+                    <span className="new-rating">{ratingUpdate.newRating}</span>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          )}
+
           {!isMultiplayer && (
             <div className="score-display">
               Score:{" "}

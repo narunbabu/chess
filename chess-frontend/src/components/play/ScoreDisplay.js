@@ -24,18 +24,18 @@ const ScoreDisplay = ({
       case "inaccuracy": return "⚠️";
       case "mistake": return "❌";
       case "blunder": return "💥";
-      default: return "•";
+      default: return ""; // Don't show anything if no classification
     }
   };
 
   // Helper function to render avatar or icon
   const renderAvatar = (data, isComputer = false) => {
-    if (isComputer || mode === 'computer') {
-      // Show computer icon for computer mode
+    if (isComputer) {
+      // Show computer icon for computer side only
       return <span style={{ fontSize: '14px' }}>🤖</span>;
     }
 
-    // For multiplayer, show player avatar if available
+    // For player, show avatar if available
     const avatarUrl = getPlayerAvatar(data);
     if (avatarUrl) {
       return (
@@ -52,13 +52,13 @@ const ScoreDisplay = ({
       );
     }
 
-    // No avatar available - don't show anything
-    return null;
+    // No avatar available - show placeholder emoji
+    return <span style={{ fontSize: '14px' }}>👤</span>;
   };
 
   // Helper function to get display name
   const getDisplayName = (data, isComputer = false, fallback = 'Player') => {
-    if (isComputer || mode === 'computer') {
+    if (isComputer) {
       return 'CPU';
     }
     // Handle both naming conventions: data.name or data.user.name

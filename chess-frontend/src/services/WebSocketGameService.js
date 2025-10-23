@@ -23,6 +23,27 @@ class WebSocketGameService {
   }
 
   /**
+   * Get socket ID as string or undefined (for safe Laravel validation)
+   * @returns {string|undefined} Socket ID string or undefined if not available
+   */
+  getSocketId() {
+    const id = this.socketId || this.echo?.socketId();
+    // Only return if it's a valid non-empty string
+    return (typeof id === 'string' && id.length > 0) ? id : undefined;
+  }
+
+  /**
+   * Build request body with optional socket_id
+   * @param {Object} data - Request data
+   * @returns {Object} Request body with socket_id only if valid
+   */
+  buildRequestBody(data) {
+    const socketId = this.getSocketId();
+    // Only include socket_id if it's a valid string
+    return socketId ? { ...data, socket_id: socketId } : data;
+  }
+
+  /**
    * Initialize the WebSocket connection
    */
   async initialize(gameId, user) {
@@ -313,14 +334,13 @@ class WebSocketGameService {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
+        body: JSON.stringify(this.buildRequestBody({
           game_id: this.gameId,
-          socket_id: this.socketId,
           client_info: {
             user_agent: navigator.userAgent,
             timestamp: new Date().toISOString(),
           },
-        }),
+        })),
       });
 
       const data = await response.json();
@@ -393,10 +413,9 @@ class WebSocketGameService {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
+        body: JSON.stringify(this.buildRequestBody({
           move: moveData,
-          socket_id: this.socketId,
-        }),
+        })),
       });
 
       const data = await response.json();
@@ -427,12 +446,11 @@ class WebSocketGameService {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
+        body: JSON.stringify(this.buildRequestBody({
           status,
           result,
           reason,
-          socket_id: this.socketId,
-        }),
+        })),
       });
 
       const data = await response.json();
@@ -474,9 +492,7 @@ class WebSocketGameService {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          socket_id: this.socketId,
-        }),
+        body: JSON.stringify(this.buildRequestBody({})),
       });
 
       const data = await response.json();
@@ -526,10 +542,9 @@ class WebSocketGameService {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          socket_id: this.socketId,
+        body: JSON.stringify(this.buildRequestBody({
           accept_resume: acceptResume,
-        }),
+        })),
       });
 
       const data = await response.json();
@@ -566,7 +581,7 @@ class WebSocketGameService {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          socket_id: this.socketId,
+          socket_id: this.getSocketId(),
         }),
       });
 
@@ -608,7 +623,7 @@ class WebSocketGameService {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          socket_id: this.socketId,
+          socket_id: this.getSocketId(),
           response: accepted,
         }),
       });
@@ -651,7 +666,7 @@ class WebSocketGameService {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          socket_id: this.socketId,
+          socket_id: this.getSocketId(),
         }),
       });
 
@@ -690,7 +705,7 @@ class WebSocketGameService {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          socket_id: this.socketId,
+          socket_id: this.getSocketId(),
           is_rematch: isRematch,
         }),
       });
@@ -725,7 +740,7 @@ class WebSocketGameService {
         },
         body: JSON.stringify({
           game_id: this.gameId,
-          socket_id: this.socketId,
+          socket_id: this.getSocketId(),
         }),
       });
 

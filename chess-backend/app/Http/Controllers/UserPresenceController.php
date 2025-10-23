@@ -38,12 +38,18 @@ class UserPresenceController extends Controller
         );
 
         // Update Redis for real-time tracking
-        Redis::hset("user_presence:{$user->id}", [
+        $redisData = [
             'status' => $presence->status,
-            'socket_id' => $presence->socket_id,
             'last_activity' => $presence->last_activity->timestamp,
             'user_name' => $user->name
-        ]);
+        ];
+
+        // Only include socket_id if it's not null
+        if ($presence->socket_id) {
+            $redisData['socket_id'] = $presence->socket_id;
+        }
+
+        Redis::hmset("user_presence:{$user->id}", $redisData);
 
         // Broadcast presence update
         broadcast(new UserPresenceUpdated($user->id, $presence->status, $user->name));
