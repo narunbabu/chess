@@ -13,6 +13,7 @@ class GameHistory extends Model
         'computer_level',
         'moves',
         'final_score',
+        'opponent_score',
         'result',
         'game_id',
         'opponent_name',

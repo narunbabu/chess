@@ -105,6 +105,20 @@ class RatingController extends Controller
         $ratingChange = round($kFactor * ($actualScore - $expectedScore));
         $newRating = $oldRating + $ratingChange;
 
+        // Debug logging
+        \Log::info('Rating calculation debug', [
+            'user_id' => $user->id,
+            'old_rating' => $oldRating,
+            'opponent_rating' => $opponentRating,
+            'result' => $result,
+            'actual_score' => $actualScore,
+            'expected_score' => round($expectedScore, 4),
+            'games_played_before' => $gamesPlayed,
+            'k_factor' => $kFactor,
+            'rating_change' => $ratingChange,
+            'new_rating' => $newRating
+        ]);
+
         // Ensure rating stays within reasonable bounds (match computer level range)
         $newRating = max(400, min(3200, $newRating));
 

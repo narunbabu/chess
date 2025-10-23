@@ -120,7 +120,7 @@ const PlayComputer = () => {
     }, []); // No external dependencies needed
 
   // --- Game Completion Callback ---
-   const handleGameComplete = useCallback(async (finalHistory, status) => {
+   const handleGameComplete = useCallback(async (finalHistory, status, finalPlayerScore = null, finalComputerScore = null) => {
         // Prepare result text and positive score
         let resultText = status.text || "unknown";
         if (isOnlineGame && players) {
@@ -131,7 +131,11 @@ const PlayComputer = () => {
             }
         }
 
-        const positiveScore = Math.abs(playerScore);
+        // Use captured final scores if provided, otherwise use current state
+        const capturedPlayerScore = finalPlayerScore !== null ? finalPlayerScore : playerScore;
+        const capturedComputerScore = finalComputerScore !== null ? finalComputerScore : computerScore;
+
+        const positiveScore = Math.abs(capturedPlayerScore);
 
         // Stops timers, sets game over state, saves game locally and potentially online
         if (timerRef.current) clearInterval(timerRef.current);
@@ -171,6 +175,7 @@ const PlayComputer = () => {
             computer_depth: computerDepth,
             moves: conciseGameString,
             final_score: positiveScore,
+            opponent_score: Math.abs(capturedComputerScore), // Save computer score as positive
             result: standardizedResult, // Use standardized result object
         };
 
@@ -201,7 +206,7 @@ const PlayComputer = () => {
         }
 
    }, [ // Dependencies for handleGameComplete
-     playerColor, computerDepth, playerScore, isOnlineGame, players, navigate, // State variables read + navigate
+     playerColor, computerDepth, playerScore, computerScore, isOnlineGame, players, navigate, // State variables read + navigate
      setActiveTimer, setIsTimerRunning, // State setters (stable)
      playSound, // Stable callback
      // External functions/objects (assume stable refs unless they change based on props/state)
@@ -451,10 +456,17 @@ const PlayComputer = () => {
 
             // Check if the computer's move ended the game
             if (status.gameOver) {
+              // Evaluate the computer's final move before ending the game
+              const prev = previousGameStateRef.current;
+              const compEval = typeof evaluateMove === 'function'
+                ? evaluateMove(result.newGame.history().slice(-1)[0], prev, newGame, (thinkingTime/1000), user?.rating || DEFAULT_RATING, setLastComputerEvaluation, setComputerScore, computerDepth)
+                : null;
+
+              // Calculate final computer score synchronously (state updates are async)
+              const finalComputerScore = computerScore + (compEval?.total || 0);
+
               // Get the most recent game history before calling complete
-              // Note: history state might not include the *very last* computer move info yet
-              // handleGameComplete should ideally work with the final `newGame` state if needed
-              await handleGameComplete(gameHistory, status);
+              await handleGameComplete(gameHistory, status, playerScore, finalComputerScore);
             } else {
               // Game continues: Switch turn back to the player
               setMoveCompleted(false); // Player hasn't made their move yet
@@ -498,7 +510,7 @@ const PlayComputer = () => {
                    moveStartTimeRef.current = Date.now();
               } else {
                   // If game somehow ended during the failed move attempt
-                  await handleGameComplete(gameHistory, currentStatus);
+                  await handleGameComplete(gameHistory, currentStatus, playerScore, computerScore);
               }
           }
         } catch (error) {
@@ -511,7 +523,7 @@ const PlayComputer = () => {
                 startTimerInterval();
                 moveStartTimeRef.current = Date.now();
             } else {
-                 await handleGameComplete(gameHistory, currentStatus);
+                 await handleGameComplete(gameHistory, currentStatus, playerScore, computerScore);
             }
         } finally {
           // This block always runs, ensuring we reset the progress flag
@@ -631,8 +643,11 @@ const PlayComputer = () => {
             : { gameOver: gameCopy.isGameOver(), statusText: gameCopy.isGameOver() ? 'Game Over' : '' };
 
         if (status.gameOver) {
-            // Game ended by player's move
-            handleGameComplete(updatedHistory, status); // Pass the *final* history
+            // Game ended by player's move - calculate final score synchronously
+            // Note: setPlayerScore was called in evaluateMove, but state updates are async
+            // So we need to calculate the final score here to ensure accuracy
+            const finalPlayerScore = playerScore + (evaluationResult?.total || 0);
+            handleGameComplete(updatedHistory, status, finalPlayerScore, computerScore); // Pass the *final* history and current scores
         } else {
             // Game continues, prepare for computer's turn (or wait for 'Done' button)
             setMoveCompleted(true); // Mark player's move as completed for this turn
@@ -1212,7 +1227,7 @@ const PlayComputer = () => {
         <GameCompletionAnimation
           result={gameResult || gameStatus} // Use standardized result object if available, fallback to text
           score={typeof playerScore === 'number' && !isNaN(playerScore) ? playerScore : 0}
-          computerScore={typeof computerScore === 'number' && !isNaN(computerScore) ? computerScore : 0}
+          opponentScore={typeof computerScore === 'number' && !isNaN(computerScore) ? computerScore : 0}
           playerColor={playerColor}
           computerLevel={computerDepth} // Pass computer difficulty level for rating calculation
           isMultiplayer={false} // This is computer mode
@@ -1311,7 +1326,7 @@ const PlayComputer = () => {
           <GameCompletionAnimation
             result={gameResult || gameStatus} // Use standardized result object if available, fallback to text
             score={typeof playerScore === 'number' && !isNaN(playerScore) ? playerScore : 0}
-            computerScore={typeof computerScore === 'number' && !isNaN(computerScore) ? computerScore : 0}
+            opponentScore={typeof computerScore === 'number' && !isNaN(computerScore) ? computerScore : 0}
             playerColor={playerColor}
             computerLevel={computerDepth} // Pass computer difficulty level for rating calculation
             isMultiplayer={false} // This is computer mode

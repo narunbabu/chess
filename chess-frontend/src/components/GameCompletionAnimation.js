@@ -12,6 +12,7 @@ import "./GameCompletionAnimation.css";
 const GameCompletionAnimation = ({
   result,
   score,
+  opponentScore,
   playerColor,
   onClose,
   moves,
@@ -33,7 +34,8 @@ const GameCompletionAnimation = ({
     ratingChange: null,
     error: null
   });
-  const { isAuthenticated, user } = useAuth();
+  const [hasProcessedRating, setHasProcessedRating] = useState(false);
+  const { isAuthenticated, user, fetchUser } = useAuth();
   const navigate = useNavigate();
 
   // Determine win state for both single player and multiplayer
@@ -67,9 +69,11 @@ const GameCompletionAnimation = ({
   // Handle rating update
   useEffect(() => {
     const handleRatingUpdate = async () => {
-      // Only update rating if user is authenticated
-      if (!isAuthenticated || !user) {
-        setRatingUpdate(prev => ({ ...prev, isLoading: false }));
+      // Only update rating if user is authenticated and we haven't processed yet
+      if (!isAuthenticated || !user || hasProcessedRating) {
+        if (hasProcessedRating) {
+          setRatingUpdate(prev => ({ ...prev, isLoading: false }));
+        }
         return;
       }
 
@@ -114,7 +118,9 @@ const GameCompletionAnimation = ({
         }
 
         // Call rating API
+        console.log('🎯 Sending rating update:', ratingData);
         const response = await updateRating(ratingData);
+        console.log('📊 Rating update response:', response);
 
         if (response.success) {
           setRatingUpdate({
@@ -124,6 +130,15 @@ const GameCompletionAnimation = ({
             ratingChange: response.data.rating_change,
             error: null
           });
+
+          // Mark as processed to prevent duplicate requests
+          setHasProcessedRating(true);
+
+          // Refresh user data to sync the updated rating across the app
+          if (fetchUser) {
+            await fetchUser();
+            console.log('✅ User rating refreshed in AuthContext');
+          }
         } else {
           throw new Error('Rating update failed');
         }
@@ -136,11 +151,12 @@ const GameCompletionAnimation = ({
           ratingChange: null,
           error: error.message || 'Failed to update rating'
         });
+        setHasProcessedRating(true); // Mark as processed even on error to prevent retries
       }
     };
 
     handleRatingUpdate();
-  }, [isAuthenticated, user, isPlayerWin, isDraw, isMultiplayer, computerLevel, opponentRating, opponentId, gameId]);
+  }, [isAuthenticated, user, isPlayerWin, isDraw, isMultiplayer, computerLevel, opponentRating, opponentId, gameId, hasProcessedRating]);
 
   const exportAsGIF = async () => {
     const canvas = document.createElement('canvas');
@@ -172,6 +188,7 @@ const GameCompletionAnimation = ({
         await saveGameHistory({
           result,
           score,
+          opponentScore,
           playerColor,
           timestamp: new Date().toISOString(),
         });
@@ -267,6 +284,11 @@ const GameCompletionAnimation = ({
               Score:{" "}
               <span className="positive">
                 {Math.abs(score || 0).toFixed(1)}
+              </span>
+              {" | "}
+              {computerLevel ? "CPU" : "Opponent"}:{" "}
+              <span className="positive">
+                {Math.abs(opponentScore || 0).toFixed(1)}
               </span>
             </div>
           )}

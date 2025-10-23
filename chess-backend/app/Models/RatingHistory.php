@@ -9,6 +9,9 @@ class RatingHistory extends Model
 {
     use HasFactory;
 
+    // Specify the table name (migration created 'ratings_history' not 'rating_histories')
+    protected $table = 'ratings_history';
+
     protected $fillable = [
         'user_id',
         'old_rating',

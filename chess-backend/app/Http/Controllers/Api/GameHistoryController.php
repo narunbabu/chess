@@ -24,6 +24,7 @@ class GameHistoryController extends Controller
             'computer_level' => 'nullable|integer',
             'moves'          => 'required|string',
             'final_score'    => 'required|numeric',
+            'opponent_score' => 'nullable|numeric',
             'result'         => 'required', // Accept both string and array/object
             'game_id'        => 'nullable|integer|exists:games,id',
             'opponent_name'  => 'nullable|string|max:255',
@@ -53,6 +54,7 @@ class GameHistoryController extends Controller
             $game->computer_level = $validated['computer_level'] ?? 0;
             $game->moves = $validated['moves'];
             $game->final_score = $validated['final_score'];
+            $game->opponent_score = $validated['opponent_score'] ?? null;
             $game->result = $resultValue;
             $game->game_id = $validated['game_id'] ?? null;
             $game->opponent_name = $validated['opponent_name'] ?? null;
@@ -84,6 +86,7 @@ class GameHistoryController extends Controller
                 'computer_level' => 'nullable|integer',
                 'moves'          => 'required|string',
                 'final_score'    => 'required|numeric',
+                'opponent_score' => 'nullable|numeric',
                 'result'         => 'required', // Accept both string and array/object
                 'game_id'        => 'nullable|integer|exists:games,id',
                 'opponent_name'  => 'nullable|string|max:255',
@@ -110,6 +113,7 @@ class GameHistoryController extends Controller
             $game->computer_level = $validated['computer_level'] ?? 0;
             $game->moves = $validated['moves'];
             $game->final_score = $validated['final_score'];
+            $game->opponent_score = $validated['opponent_score'] ?? null;
             $game->result = $resultValue;
             $game->game_id = $validated['game_id'] ?? null;
             $game->opponent_name = $validated['opponent_name'] ?? null;
@@ -156,6 +160,7 @@ class GameHistoryController extends Controller
                 'game_histories.player_color',
                 'game_histories.computer_level',
                 'game_histories.final_score',
+                'game_histories.opponent_score',
                 'game_histories.result',
                 'game_histories.game_id',
                 'game_histories.game_mode',
@@ -212,25 +217,13 @@ class GameHistoryController extends Controller
                         $game->opponent_rating = $game->white_player_rating ?? 1200;
                     }
                 } elseif ($game->game_mode === 'computer') {
-                    // Computer: show level and calculate score from moves
+                    // Computer: show level and use stored opponent_score
                     $game->opponent_name = 'Computer';
                     $game->opponent_avatar = null;
                     $game->opponent_rating = null;
 
-                    // Calculate computer's score from moves (last evaluation is opponent's advantage)
-                    if ($game->moves && is_string($game->moves)) {
-                        $movesArray = array_filter(explode(';', $game->moves), fn($m) => !empty(trim($m)));
-                        if (count($movesArray) > 0) {
-                            $lastMove = end($movesArray);
-                            $parts = explode(',', $lastMove);
-                            if (count($parts) >= 2) {
-                                // Last eval is from player's perspective, invert for computer
-                                $game->opponent_score = -floatval($parts[1]);
-                            }
-                        }
-                    }
-
-                    // Fallback to 0 if can't calculate
+                    // Use the opponent_score from database (calculated on frontend during game)
+                    // Fallback to 0 if not set (for legacy games)
                     if (!isset($game->opponent_score)) {
                         $game->opponent_score = 0.0;
                     }

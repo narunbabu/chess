@@ -15,7 +15,7 @@ import api from './api';
  */
 export const updateRating = async (ratingData) => {
   try {
-    const response = await api.post('/api/rating/update', ratingData);
+    const response = await api.post('/rating/update', ratingData);
     return response.data;
   } catch (error) {
     console.error('Error updating rating:', error);
@@ -29,7 +29,7 @@ export const updateRating = async (ratingData) => {
  */
 export const getUserRating = async () => {
   try {
-    const response = await api.get('/api/rating');
+    const response = await api.get('/rating');
     return response.data;
   } catch (error) {
     console.error('Error fetching user rating:', error);
@@ -44,7 +44,7 @@ export const getUserRating = async () => {
  */
 export const getRatingHistory = async (limit = 50) => {
   try {
-    const response = await api.get(`/api/rating/history?limit=${limit}`);
+    const response = await api.get(`/rating/history?limit=${limit}`);
     return response.data;
   } catch (error) {
     console.error('Error fetching rating history:', error);
@@ -59,7 +59,7 @@ export const getRatingHistory = async (limit = 50) => {
  */
 export const getLeaderboard = async (limit = 100) => {
   try {
-    const response = await api.get(`/api/rating/leaderboard?limit=${limit}`);
+    const response = await api.get(`/rating/leaderboard?limit=${limit}`);
     return response.data;
   } catch (error) {
     console.error('Error fetching leaderboard:', error);

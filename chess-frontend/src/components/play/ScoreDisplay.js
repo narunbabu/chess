@@ -13,7 +13,7 @@ const ScoreDisplay = ({
   opponentData = null
 }) => {
   const formatScore = (score) => {
-    return typeof score === "number" ? score.toFixed(1) : "0.0";
+    return typeof score === "number" ? Math.abs(score).toFixed(1) : "0.0";
   };
 
   const getMoveClassIcon = (classification) => {

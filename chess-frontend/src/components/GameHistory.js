@@ -845,7 +845,7 @@ const GameHistory = () => {
                   <p><strong>Date:</strong> {new Date(selectedGame.played_at).toLocaleString()}</p>
                   <p><strong>Player Color:</strong> {selectedGame.player_color === "w" ? "White" : "Black"}</p>
                   <p><strong>Computer Level:</strong> {selectedGame.computer_level}</p>
-                  <p><strong>Result:</strong> {selectedGame.result}</p>
+                  <p><strong>Result:</strong> {getResultDisplayText(selectedGame.result)}</p>
                   <p><strong>Final Score:</strong> {typeof selectedGame.finalScore === 'number' ? selectedGame.finalScore.toFixed(1) : 'N/A'}</p>
                 </div>
               </div>

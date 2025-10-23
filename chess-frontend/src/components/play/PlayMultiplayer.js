@@ -2614,6 +2614,19 @@ const PlayMultiplayer = () => {
               navigate(`/play/review/${reviewId}`);
             }}
             isMultiplayer={true}
+            opponentRating={
+              // Determine opponent based on player color
+              gameInfo.playerColor === 'white'
+                ? gameResult.black_player?.rating
+                : gameResult.white_player?.rating
+            }
+            opponentId={
+              // Determine opponent ID based on player color
+              gameInfo.playerColor === 'white'
+                ? gameResult.black_player?.id
+                : gameResult.white_player?.id
+            }
+            gameId={gameId}
           />
         )}
       </div>
