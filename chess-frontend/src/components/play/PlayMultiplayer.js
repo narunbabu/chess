@@ -73,6 +73,10 @@ const PlayMultiplayer = () => {
   const [notificationMessage, setNotificationMessage] = useState('');
   const [showNotification, setShowNotification] = useState(false);
 
+  // Error notification state
+  const [errorMessage, setErrorMessage] = useState('');
+  const [showError, setShowError] = useState(false);
+
   // Draw offer state
   const [drawOfferPending, setDrawOfferPending] = useState(false);
   const [drawOfferedByMe, setDrawOfferedByMe] = useState(false);
@@ -1793,6 +1797,20 @@ const PlayMultiplayer = () => {
     }
   }, [shouldAutoSendResume, connectionStatus, handleRequestResume]);
 
+  // Proactive check warning when it's my turn and king is in check
+  useEffect(() => {
+    if (isMyTurn && game.inCheck() && myColor) {
+      const kingSquare = findKingSquare(game, myColor);
+      if (kingSquare) {
+        setKingInDangerSquare(kingSquare);
+        setTimeout(() => setKingInDangerSquare(null), 3000);
+      }
+      setErrorMessage('Your king is in check! Make a valid move to escape.');
+      setShowError(true);
+      setTimeout(() => setShowError(false), 4000);
+    }
+  }, [isMyTurn, game.fen(), myColor, game]);
+
   const performMove = (source, target) => {
     if (gameComplete || gameInfo.status === 'finished') return false;
 
@@ -1828,7 +1846,21 @@ const PlayMultiplayer = () => {
     try {
       const move = gameCopy.move({ from: source, to: target, promotion: 'q' });
       if (!move) {
-        console.log('Invalid move:', { from: source, to: target });
+        let reason = 'Invalid move.';
+        if (previousState.inCheck()) {
+          reason = 'You cannot move out of check! Your king is in danger.';
+          // Highlight king
+          const kingSquare = findKingSquare(previousState, gameInfo.playerColor.charAt(0));
+          if (kingSquare) {
+            setKingInDangerSquare(kingSquare);
+            setTimeout(() => setKingInDangerSquare(null), 3000);
+          }
+        }
+        setErrorMessage(reason);
+        setShowError(true);
+        // Auto-hide after 4s
+        setTimeout(() => setShowError(false), 4000);
+        console.log('Invalid move:', { from: source, to: target, reason });
         return false;
       }
 
@@ -2820,6 +2852,27 @@ const PlayMultiplayer = () => {
           animation: 'slideInRight 0.3s ease-out'
         }}>
           {notificationMessage}
+        </div>
+      )}
+
+      {/* Error Notification */}
+      {showError && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          backgroundColor: '#f44336',
+          color: 'white',
+          padding: '16px 24px',
+          borderRadius: '8px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          zIndex: 10000,
+          fontSize: '14px',
+          fontWeight: '500',
+          maxWidth: '300px',
+          animation: 'slideInRight 0.3s ease-out'
+        }}>
+          {errorMessage}
         </div>
       )}
 

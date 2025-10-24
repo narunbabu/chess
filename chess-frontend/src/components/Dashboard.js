@@ -93,7 +93,7 @@ const Dashboard = () => {
           const matchingGame = recentGames.find(game => {
             const gameDate = new Date(game.ended_at || game.played_at);
             const dateDiff = Math.abs(historyDate - gameDate) / 1000 / 60; // minutes
-            const movesMatch = (history.moves || '').substring(0, 100) === (game.moves || '').substring(0, 100);
+            const movesMatch = String(history.moves || '').substring(0, 100) === String(game.moves || '').substring(0, 100);
             return dateDiff < 2 && movesMatch && (game.white_player_id === parseInt(user.id) || game.black_player_id === parseInt(user.id));
           });
 
