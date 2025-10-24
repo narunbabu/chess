@@ -1100,12 +1100,16 @@ class WebSocketController extends Controller
                 'ended_at' => $game->ended_at?->toISOString(),
                 'white_player' => [
                     'id' => $game->whitePlayer->id,
-                    'name' => $game->whitePlayer->name
+                    'name' => $game->whitePlayer->name,
+                    'rating' => $game->whitePlayer->rating ?? 1200
                 ],
                 'black_player' => [
                     'id' => $game->blackPlayer->id,
-                    'name' => $game->blackPlayer->name
-                ]
+                    'name' => $game->blackPlayer->name,
+                    'rating' => $game->blackPlayer->rating ?? 1200
+                ],
+                'white_player_score' => $game->white_player_score ?? 0.0,
+                'black_player_score' => $game->black_player_score ?? 0.0
             ]));
 
             Log::info('Draw offer accepted, game ended', [

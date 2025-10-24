@@ -651,8 +651,18 @@ class GameRoomService
                         'fen_final' => $game->fen,
                         'move_count' => $game->move_count,
                         'ended_at' => $game->ended_at?->toISOString(),
-                        'white_player' => $game->whitePlayer,
-                        'black_player' => $game->blackPlayer,
+                        'white_player' => [
+                            'id' => $game->whitePlayer->id,
+                            'name' => $game->whitePlayer->name,
+                            'rating' => $game->whitePlayer->rating ?? 1200
+                        ],
+                        'black_player' => [
+                            'id' => $game->blackPlayer->id,
+                            'name' => $game->blackPlayer->name,
+                            'rating' => $game->blackPlayer->rating ?? 1200
+                        ],
+                        'white_player_score' => $game->white_player_score ?? 0.0,
+                        'black_player_score' => $game->black_player_score ?? 0.0
                     ];
                     broadcast(new GameEndedEvent($game->id, $gameData))->toOthers();
                 } catch (\Exception $e) {
@@ -808,12 +818,16 @@ class GameRoomService
             'ended_at' => $game->ended_at?->toISOString(),
             'white_player' => [
                 'id' => $whitePlayer->id,
-                'name' => $whitePlayer->name
+                'name' => $whitePlayer->name,
+                'rating' => $whitePlayer->rating ?? 1200
             ],
             'black_player' => [
                 'id' => $blackPlayer->id,
-                'name' => $blackPlayer->name
-            ]
+                'name' => $blackPlayer->name,
+                'rating' => $blackPlayer->rating ?? 1200
+            ],
+            'white_player_score' => $game->white_player_score ?? 0.0,
+            'black_player_score' => $game->black_player_score ?? 0.0
         ])); // REMOVED ->toOthers() so BOTH players receive the event!
 
         \Log::info('Game ended', [
@@ -994,8 +1008,18 @@ class GameRoomService
                     'fen_final' => $game->fen,
                     'move_count' => $game->move_count,
                     'ended_at' => $game->ended_at?->toISOString(),
-                    'white_player' => $game->whitePlayer,
-                    'black_player' => $game->blackPlayer
+                    'white_player' => [
+                        'id' => $game->whitePlayer->id,
+                        'name' => $game->whitePlayer->name,
+                        'rating' => $game->whitePlayer->rating ?? 1200
+                    ],
+                    'black_player' => [
+                        'id' => $game->blackPlayer->id,
+                        'name' => $game->blackPlayer->name,
+                        'rating' => $game->blackPlayer->rating ?? 1200
+                    ],
+                    'white_player_score' => $game->white_player_score ?? 0.0,
+                    'black_player_score' => $game->black_player_score ?? 0.0
                 ]));
 
                 return [

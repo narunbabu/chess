@@ -54,7 +54,7 @@ class GameHistoryController extends Controller
             $game->computer_level = $validated['computer_level'] ?? 0;
             $game->moves = $validated['moves'];
             $game->final_score = $validated['final_score'];
-            $game->opponent_score = $validated['opponent_score'] ?? null;
+            $game->opponent_score = $validated['opponent_score'] ?? 0;
             $game->result = $resultValue;
             $game->game_id = $validated['game_id'] ?? null;
             $game->opponent_name = $validated['opponent_name'] ?? null;
@@ -113,7 +113,7 @@ class GameHistoryController extends Controller
             $game->computer_level = $validated['computer_level'] ?? 0;
             $game->moves = $validated['moves'];
             $game->final_score = $validated['final_score'];
-            $game->opponent_score = $validated['opponent_score'] ?? null;
+            $game->opponent_score = $validated['opponent_score'] ?? 0;
             $game->result = $resultValue;
             $game->game_id = $validated['game_id'] ?? null;
             $game->opponent_name = $validated['opponent_name'] ?? null;
