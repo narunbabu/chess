@@ -1694,6 +1694,106 @@ const PlayMultiplayer = () => {
     }
   }, [gameComplete, gameResult]);
 
+  // Resume request handlers - wrapped in useCallback for stability
+  const startResumeCountdown = useCallback((seconds) => {
+    let countdown = seconds;
+
+    if (resumeRequestTimer.current) {
+      clearInterval(resumeRequestTimer.current);
+    }
+
+    const timer = setInterval(() => {
+      countdown--;
+      setResumeRequestCountdown(countdown);
+
+      if (countdown <= 0) {
+        clearInterval(timer);
+        resumeRequestTimer.current = null;
+        setResumeRequestData(null);
+        setIsWaitingForResumeResponse(false);
+        console.log('[PlayMultiplayer] Resume request expired - fallback timer');
+      }
+    }, 1000);
+
+    resumeRequestTimer.current = timer;
+  }, [setResumeRequestCountdown, setResumeRequestData, setIsWaitingForResumeResponse]);
+
+  const cancelResumeRequest = useCallback(() => {
+    setResumeRequestData(null);
+    setResumeRequestCountdown(0);
+    setIsWaitingForResumeResponse(false);
+
+    if (resumeRequestTimer.current) {
+      clearInterval(resumeRequestTimer.current);
+      resumeRequestTimer.current = null;
+    }
+  }, [setResumeRequestData, setResumeRequestCountdown, setIsWaitingForResumeResponse]);
+
+  const handleResumeResponse = useCallback(async (accepted) => {
+    if (!wsService.current) return;
+
+    try {
+      await wsService.current.respondToResumeRequest(accepted);
+
+      if (accepted) {
+        console.log('[PlayMultiplayer] Resume request accepted - game should resume');
+        setShowPausedGame(false);
+        setResumeRequestData(null);
+        setResumeRequestCountdown(0);
+        setIsWaitingForResumeResponse(false);
+        setIsLobbyResume(false); // Reset lobby resume flag
+        // The game should resume automatically via WebSocket events
+      } else {
+        console.log('[PlayMultiplayer] Resume request declined');
+        setResumeRequestData(null);
+        setResumeRequestCountdown(0);
+        setIsWaitingForResumeResponse(false);
+        // Keep lobby resume flag for declined requests so user can try again
+      }
+
+      // Clear countdown timer
+      if (resumeRequestTimer.current) {
+        clearInterval(resumeRequestTimer.current);
+        resumeRequestTimer.current = null;
+      }
+
+    } catch (error) {
+      console.error('[PlayMultiplayer] Failed to respond to resume request:', error);
+    }
+  }, [wsService, setShowPausedGame, setResumeRequestData, setResumeRequestCountdown, setIsWaitingForResumeResponse, setIsLobbyResume]);
+
+  const handleRequestResume = useCallback(async () => {
+    if (!wsService.current) return;
+
+    try {
+      setIsWaitingForResumeResponse(true);
+      const result = await wsService.current.requestResume();
+
+      console.log('[PlayMultiplayer] Resume request sent:', result);
+
+      // Start countdown timer
+      setResumeRequestData({ type: 'sent' });
+      setResumeRequestCountdown(10);
+      startResumeCountdown(10);
+
+    } catch (error) {
+      console.error('[PlayMultiplayer] Failed to send resume request:', error);
+      setIsWaitingForResumeResponse(false);
+
+      // Show specific error message to user
+      if (error.message && error.message.includes('already pending')) {
+        // Resume request already pending - don't show error, just reset state
+        setResumeRequestData({ type: 'sent' });
+        // Try to get current countdown if we can, otherwise start fresh
+        setResumeRequestCountdown(10);
+        startResumeCountdown(10);
+      } else {
+        // Other errors - you could show a toast message here
+        // toast.error(error.message || 'Failed to send resume request');
+      }
+    }
+  }, [wsService, setIsWaitingForResumeResponse, setResumeRequestData, setResumeRequestCountdown, startResumeCountdown]);
+
   // Auto-send resume request for lobby-initiated resumes
   useEffect(() => {
     if (shouldAutoSendResume && connectionStatus === 'connected' && wsService.current && !hasAutoRequestedResume.current) {
@@ -2416,106 +2516,6 @@ const PlayMultiplayer = () => {
     );
   }
 
-  // Resume request handlers
-  const handleRequestResume = async () => {
-    if (!wsService.current) return;
-
-    try {
-      setIsWaitingForResumeResponse(true);
-      const result = await wsService.current.requestResume();
-
-      console.log('[PlayMultiplayer] Resume request sent:', result);
-
-      // Start countdown timer
-      setResumeRequestData({ type: 'sent' });
-      setResumeRequestCountdown(10);
-      startResumeCountdown(10);
-
-    } catch (error) {
-      console.error('[PlayMultiplayer] Failed to send resume request:', error);
-      setIsWaitingForResumeResponse(false);
-
-      // Show specific error message to user
-      if (error.message && error.message.includes('already pending')) {
-        // Resume request already pending - don't show error, just reset state
-        setResumeRequestData({ type: 'sent' });
-        // Try to get current countdown if we can, otherwise start fresh
-        setResumeRequestCountdown(10);
-        startResumeCountdown(10);
-      } else {
-        // Other errors - you could show a toast message here
-        // toast.error(error.message || 'Failed to send resume request');
-      }
-    }
-  };
-
-  const handleResumeResponse = async (accepted) => {
-    if (!wsService.current) return;
-
-    try {
-      await wsService.current.respondToResumeRequest(accepted);
-
-      if (accepted) {
-        console.log('[PlayMultiplayer] Resume request accepted - game should resume');
-        setShowPausedGame(false);
-        setResumeRequestData(null);
-        setResumeRequestCountdown(0);
-        setIsWaitingForResumeResponse(false);
-        setIsLobbyResume(false); // Reset lobby resume flag
-        // The game should resume automatically via WebSocket events
-      } else {
-        console.log('[PlayMultiplayer] Resume request declined');
-        setResumeRequestData(null);
-        setResumeRequestCountdown(0);
-        setIsWaitingForResumeResponse(false);
-        // Keep lobby resume flag for declined requests so user can try again
-      }
-
-      // Clear countdown timer
-      if (resumeRequestTimer.current) {
-        clearInterval(resumeRequestTimer.current);
-        resumeRequestTimer.current = null;
-      }
-
-    } catch (error) {
-      console.error('[PlayMultiplayer] Failed to respond to resume request:', error);
-    }
-  };
-
-  const cancelResumeRequest = () => {
-    setResumeRequestData(null);
-    setResumeRequestCountdown(0);
-    setIsWaitingForResumeResponse(false);
-
-    if (resumeRequestTimer.current) {
-      clearInterval(resumeRequestTimer.current);
-      resumeRequestTimer.current = null;
-    }
-  };
-
-  const startResumeCountdown = (seconds) => {
-    let countdown = seconds;
-
-    if (resumeRequestTimer.current) {
-      clearInterval(resumeRequestTimer.current);
-    }
-
-    const timer = setInterval(() => {
-      countdown--;
-      setResumeRequestCountdown(countdown);
-
-      if (countdown <= 0) {
-        clearInterval(timer);
-        resumeRequestTimer.current = null;
-        setResumeRequestData(null);
-        setIsWaitingForResumeResponse(false);
-        console.log('[PlayMultiplayer] Resume request expired - fallback timer');
-      }
-    }, 1000);
-
-    resumeRequestTimer.current = timer;
-  };
-
   // Fallback to original layout (backward compatibility)
   return (
     <>
@@ -2754,6 +2754,64 @@ const PlayMultiplayer = () => {
           />
         )}
       </div>
+
+      {/* Game Completion Modal */}
+      {gameComplete && gameResult && (
+        <GameCompletionAnimation
+          result={gameResult}
+          score={Math.abs(parseFloat(
+            gameInfo.playerColor === 'white'
+              ? gameResult.white_player_score
+              : gameResult.black_player_score
+          ) || 0)}
+          opponentScore={Math.abs(parseFloat(
+            gameInfo.playerColor === 'white'
+              ? gameResult.black_player_score
+              : gameResult.white_player_score
+          ) || 0)}
+          playerColor={gameInfo.playerColor}
+          isMultiplayer={true}
+          opponentRating={
+            gameInfo.playerColor === 'white'
+              ? gameResult.black_player?.rating
+              : gameResult.white_player?.rating
+          }
+          opponentId={
+            gameInfo.playerColor === 'white'
+              ? gameResult.black_player?.id
+              : gameResult.white_player?.id
+          }
+          gameId={gameId}
+          onClose={() => {
+            // X button should navigate to lobby
+            sessionStorage.removeItem('lastInvitationAction');
+            sessionStorage.removeItem('lastInvitationTime');
+            sessionStorage.removeItem('lastGameId');
+            sessionStorage.setItem('intentionalLobbyVisit', 'true');
+            sessionStorage.setItem('intentionalLobbyVisitTime', Date.now().toString());
+            navigate('/lobby');
+          }}
+          onNewGame={handleNewGame}
+          onBackToLobby={() => {
+            // Clear invitation-related session storage to prevent auto-navigation
+            sessionStorage.removeItem('lastInvitationAction');
+            sessionStorage.removeItem('lastInvitationTime');
+            sessionStorage.removeItem('lastGameId');
+
+            // Set flag to indicate intentional lobby visit
+            sessionStorage.setItem('intentionalLobbyVisit', 'true');
+            sessionStorage.setItem('intentionalLobbyVisitTime', Date.now().toString());
+
+            navigate('/lobby');
+          }}
+          onPreview={() => {
+            // Navigate to game review/preview page using saved game_history ID
+            const reviewId = savedGameHistoryId || gameId;
+            console.log('🎬 Preview button: navigating to /play/review/' + reviewId);
+            navigate(`/play/review/${reviewId}`);
+          }}
+        />
+      )}
 
       {/* New Game Request Dialog */}
       {newGameRequest && (
