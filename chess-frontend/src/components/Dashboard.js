@@ -31,10 +31,13 @@ const Dashboard = () => {
     didFetchRef.current = true;
 
     const loadGameHistories = async () => {
+      let histories = [];
+      let activeGamesResponse = { data: [] };
+
       try {
         console.log('[Dashboard] 📊 Loading game histories and active games...');
         // Fetch both game histories and active games in parallel
-        const [histories, activeGamesResponse] = await Promise.all([
+        const [fetchedHistories, fetchedActiveGames] = await Promise.all([
           getGameHistory(true).catch(() => getGameHistories()), // Force refresh to bypass cache
           api.get('/games/active').catch(err => {
             console.error("[Dashboard] ❌ Error loading active games:", err);
@@ -42,21 +45,104 @@ const Dashboard = () => {
           })
         ]);
 
-        console.log('[Dashboard] ✅ Loaded', histories?.length || 0, 'game histories');
-        console.log('[Dashboard] ✅ Loaded', activeGamesResponse.data?.length || 0, 'active games');
-        setGameHistories(histories || []);
+        histories = fetchedHistories || [];
+        activeGamesResponse = fetchedActiveGames;
+
+        console.log('[Dashboard] ✅ Loaded', histories.length, 'game histories');
+        console.log('[Dashboard] ✅ Loaded', activeGamesResponse.data.length, 'active games');
+
+        // Correct multiplayer history scores and results
+        const correctedHistories = await correctMultiplayerHistories(histories);
+        setGameHistories(correctedHistories);
         setActiveGames(activeGamesResponse.data || []);
       } catch (error) {
         console.error("[Dashboard] ❌ Error loading data:", error);
+        setGameHistories([]);
+        setActiveGames([]);
       } finally {
         setLoading(false);
+      }
+    };
+
+    const correctMultiplayerHistories = async (histories) => {
+      if (!user?.id || !histories || histories.length === 0) return histories;
+
+      const multiplayerHistories = histories.filter(h => h.game_mode === 'multiplayer');
+      if (multiplayerHistories.length === 0) return histories;
+
+      try {
+        // Fetch recent finished games for this user
+        const gamesResponse = await api.get('/games', {
+          params: {
+            status: 'finished',
+            limit: 50, // Enough for recent games
+            user_id: user.id
+          }
+        });
+        const recentGames = gamesResponse.data || [];
+
+        console.log(`[Dashboard] 🔧 Correcting ${multiplayerHistories.length} multiplayer histories using ${recentGames.length} recent games`);
+
+        return histories.map(history => {
+          if (history.game_mode !== 'multiplayer' || history.final_score !== history.opponent_score) {
+            return history; // No correction needed
+          }
+
+          // Find matching game by moves preview and date (within 2 minutes)
+          const historyDate = new Date(history.played_at);
+          const matchingGame = recentGames.find(game => {
+            const gameDate = new Date(game.ended_at || game.played_at);
+            const dateDiff = Math.abs(historyDate - gameDate) / 1000 / 60; // minutes
+            const movesMatch = (history.moves || '').substring(0, 100) === (game.moves || '').substring(0, 100);
+            return dateDiff < 2 && movesMatch && (game.white_player_id === parseInt(user.id) || game.black_player_id === parseInt(user.id));
+          });
+
+          if (!matchingGame) {
+            console.warn(`[Dashboard] ⚠️ No matching game found for history ${history.id}`);
+            return history;
+          }
+
+          const playerColor = history.player_color;
+          const whiteScore = parseFloat(matchingGame.white_player_score || 0);
+          const blackScore = parseFloat(matchingGame.black_player_score || 0);
+          const isPlayerWin = matchingGame.winner_user_id === parseInt(user.id);
+          const opponentName = playerColor === 'w' ? matchingGame.black_player?.name : matchingGame.white_player?.name;
+
+          const correctedHistory = {
+            ...history,
+            final_score: playerColor === 'w' ? whiteScore : blackScore,
+            opponent_score: playerColor === 'w' ? blackScore : whiteScore,
+            result: {
+              ...history.result,
+              status: isPlayerWin ? 'won' : 'lost',
+              details: isPlayerWin 
+                ? `You won by ${matchingGame.end_reason}!` 
+                : `${opponentName} won by ${matchingGame.end_reason}`,
+              end_reason: matchingGame.end_reason,
+              winner: isPlayerWin ? 'player' : 'opponent'
+            }
+          };
+
+          console.log(`[Dashboard] ✅ Corrected history ${history.id}:`, {
+            oldPlayer: history.final_score,
+            oldOpp: history.opponent_score,
+            newPlayer: correctedHistory.final_score,
+            newOpp: correctedHistory.opponent_score,
+            newResult: correctedHistory.result.status
+          });
+
+          return correctedHistory;
+        });
+      } catch (error) {
+        console.error('[Dashboard] ❌ Error correcting multiplayer histories:', error);
+        return histories;
       }
     };
 
     loadGameHistories();
 
     // No cleanup function - keep the guard active to prevent duplicate fetches
-  }, [getGameHistory]);
+  }, [getGameHistory, user?.id]);
 
   const handleReviewGame = (game) => {
     navigate(`/play/review/${game.id}`);

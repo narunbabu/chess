@@ -482,7 +482,7 @@ const PlayMultiplayer = () => {
       console.log('✅ setBoardOrientation called with:', userColor);
 
       // Set game info (use server-provided color to determine opponent)
-      const opponent = userColor === 'white' ? data.blackPlayer : data.whitePlayer;
+      const opponent = userColor === 'white' ? (data.black_player || data.blackPlayer) : (data.white_player || data.whitePlayer);
       console.log('Game info setup:', {
         playerColor: userColor,
         gameTurn: data.turn,
@@ -1083,6 +1083,7 @@ const PlayMultiplayer = () => {
       // Fetch fresh game data from server to get authoritative move history
       const token = localStorage.getItem('auth_token');
       let serverMoves = [];
+      let serverGameData = null;
       try {
         const response = await fetch(`${BACKEND_URL}/games/${gameId}`, {
           headers: {
@@ -1091,7 +1092,7 @@ const PlayMultiplayer = () => {
           }
         });
         if (response.ok) {
-          const serverGameData = await response.json();
+          serverGameData = await response.json();
           serverMoves = serverGameData.moves || [];
           console.log('📥 Fetched moves from server:', {
             count: serverMoves.length,
@@ -1137,55 +1138,30 @@ const PlayMultiplayer = () => {
         isValid: conciseGameString.length > 0
       });
 
-      // Extract scores from moves string if backend doesn't provide them
+      // Use quality scores from serverGameData (authoritative), fallback to event
       let whiteScore = 0;
       let blackScore = 0;
-
-      if (event.white_player_score !== undefined && event.black_player_score !== undefined) {
-        // Use scores from backend event
+      if (serverGameData) {
+        whiteScore = parseFloat(serverGameData.white_player_score || serverGameData.whitePlayerScore || 0);
+        blackScore = parseFloat(serverGameData.black_player_score || serverGameData.blackPlayerScore || 0);
+        console.log('📊 Using quality scores from serverGameData:', { whiteScore, blackScore });
+      } else {
         whiteScore = parseFloat(event.white_player_score || 0);
         blackScore = parseFloat(event.black_player_score || 0);
-        console.log('📊 Using scores from backend event');
-      } else {
-        // Extract scores from moves string
-        const movePairs = conciseGameString.split(';');
-        let moveIndex = 0;
-
-        movePairs.forEach(pair => {
-          if (!pair.trim()) return;
-
-          const parts = pair.split(',');
-          if (parts.length < 2) return;
-
-          const score = parseFloat(parts[1]);
-
-          // Alternating moves: white moves first (index 0), then black (index 1), etc.
-          if (moveIndex % 2 === 0) {
-            // White's move
-            whiteScore += score;
-          } else {
-            // Black's move
-            blackScore += score;
-          }
-
-          moveIndex++;
-        });
-
-        console.log('📊 Extracted scores from moves string:', {
-          whiteScore,
-          blackScore,
-          totalMoves: moveIndex,
-          movesString: conciseGameString.substring(0, 100) + '...'
-        });
+        console.log('📊 Using quality scores from backend event (fallback):', { whiteScore, blackScore });
       }
 
-      // Determine which score belongs to the player based on their color
-      const myColor = gameInfo.playerColor === 'white' ? 'w' : 'b';
-      const finalPlayerScore = Math.abs(myColor === 'w' ? whiteScore : blackScore);
-      const finalOpponentScore = Math.abs(myColor === 'w' ? blackScore : whiteScore);
+      // Compute authoritative myColor from serverGameData (or fallback to gameData/event)
+      const computedMyColor = serverGameData 
+        ? (parseInt(serverGameData.white_player_id) === parseInt(user?.id) ? 'w' : 'b')
+        : (parseInt(gameData?.white_player_id) === parseInt(user?.id) ? 'w' : 'b');
+
+      // Determine which score belongs to the player based on computed color
+      const finalPlayerScore = computedMyColor === 'w' ? whiteScore : blackScore;
+      const finalOpponentScore = computedMyColor === 'w' ? blackScore : whiteScore;
 
       console.log('📊 Score assignment:', {
-        myColor,
+        computedMyColor,
         whiteScore,
         blackScore,
         finalPlayerScore,
@@ -1205,18 +1181,23 @@ const PlayMultiplayer = () => {
       console.log('🎮 Updated gameResult with scores:', { whiteScore, blackScore });
 
       // Get timer values for persistence (myMs and oppMs are already in milliseconds)
-      const whiteTimeRemaining = myColor === 'w' ? myMs : oppMs;
-      const blackTimeRemaining = myColor === 'b' ? myMs : oppMs;
+      const whiteTimeRemaining = computedMyColor === 'w' ? myMs : oppMs;
+      const blackTimeRemaining = computedMyColor === 'b' ? myMs : oppMs;
+
+      // Compute opponent name from serverGameData (authoritative)
+      const opponentName = computedMyColor === 'w' 
+        ? (serverGameData?.black_player?.name || serverGameData?.blackPlayer?.name || gameInfo.opponentName)
+        : (serverGameData?.white_player?.name || serverGameData?.whitePlayer?.name || gameInfo.opponentName);
 
       const gameHistoryData = {
         id: `multiplayer_${gameId}_${Date.now()}`,
         game_id: gameId,
         date: now.toISOString(),
         played_at: now.toISOString(),
-        player_color: gameInfo.playerColor === 'white' ? 'w' : 'b',
+        player_color: computedMyColor,
         computer_level: 0, // Multiplayer game (not vs computer)
         computer_depth: 0, // Alternative field name
-        opponent_name: gameInfo.opponentName,
+        opponent_name: opponentName,
         game_mode: 'multiplayer',
         moves: conciseGameString,
         final_score: finalPlayerScore,
@@ -2447,10 +2428,9 @@ const PlayMultiplayer = () => {
             navigate('/lobby');
           }}
           onPreview={() => {
-            // Navigate to game review/preview page using saved game_history ID
-            const reviewId = savedGameHistoryId || gameId;
-            console.log('🎬 Preview button: navigating to /play/review/' + reviewId);
-            navigate(`/play/review/${reviewId}`);
+            // Navigate to game review using game ID with multiplayer mode for correct score display
+            console.log('🎬 Preview button: navigating to /play/review/' + gameId + '?mode=multiplayer');
+            navigate(`/play/review/${gameId}?mode=multiplayer`);
           }}
         />
       )}

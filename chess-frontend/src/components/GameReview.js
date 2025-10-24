@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Chess } from "chess.js";
 import { Chessboard } from "react-chessboard";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { getGameHistoryById } from "../services/gameHistoryService";
+import api from "../services/api";
 
 const GameReview = () => {
   const location = useLocation();
@@ -16,6 +17,7 @@ const GameReview = () => {
   const timerRef = useRef(null);
   const boardBoxRef = useRef(null);
   const [boardSize, setBoardSize] = useState(400);
+  const [searchParams] = useSearchParams();
 
   // Load game data when component mounts or gameId changes
   useEffect(() => {
@@ -46,71 +48,168 @@ const GameReview = () => {
       try {
         setLoading(true);
         setError(null);
-        const gameData = await getGameHistoryById(effectiveGameId);
 
-        if (!gameData) {
-          setError('Game not found');
-          setGameHistory({ moves: [] });
-          setLoading(false); // Stop loading even if not found
-          return;
-        }
+        const mode = searchParams.get('mode');
 
-        let formattedGameHistory = { ...gameData };
+        let gameData;
+        let isMultiplayer = mode === 'multiplayer';
 
-        // Handle moves conversion from different formats
-        let convertedMoves = [{ move: { san: 'Start' }, fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1' }];
+        if (isMultiplayer) {
+          // For multiplayer, fetch from games API to get correct quality scores
+          const response = await api.get(`/games/${effectiveGameId}`);
+          gameData = response.data;
 
-        if (typeof gameData.moves === 'string') {
-          // Parse string format: "e4,2.52;Nf6,0.98;..."
-          console.log("Converting string moves format:", gameData.moves.substring(0, 50) + "...");
-          const tempGame = new Chess();
+          if (!gameData) {
+            setError('Game not found');
+            setGameHistory({ moves: [] });
+            setLoading(false);
+            return;
+          }
 
-          gameData.moves.split(';').forEach(moveStr => {
-            const [notation, time] = moveStr.split(',');
-            if (notation && notation.trim()) {
+          // Map game data to history format
+          const playerColor = gameData.player_color;
+          const formattedGameHistory = {
+            id: gameData.id,
+            played_at: gameData.ended_at || new Date().toISOString(),
+            player_color: playerColor,
+            game_mode: 'multiplayer',
+            opponent_name: playerColor === 'w' ? gameData.black_player?.name : gameData.white_player?.name,
+            moves: gameData.moves,
+            final_score: playerColor === 'w' ? parseFloat(gameData.white_player_score || 0) : parseFloat(gameData.black_player_score || 0),
+            opponent_score: playerColor === 'w' ? parseFloat(gameData.black_player_score || 0) : parseFloat(gameData.white_player_score || 0),
+            result: {
+              details: gameData.end_reason,
+              end_reason: gameData.end_reason,
+              status: gameData.result
+            },
+            white_time_remaining_ms: gameData.white_time_remaining_ms,
+            black_time_remaining_ms: gameData.black_time_remaining_ms,
+            // Add other fields as needed
+            computer_level: 0
+          };
+
+          // Handle moves conversion from different formats (reuse existing logic)
+          let convertedMoves = [{ move: { san: 'Start' }, fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1' }];
+
+          if (typeof gameData.moves === 'string') {
+            // Parse string format: "e4,2.52;Nf6,0.98;..."
+            console.log("Converting string moves format for multiplayer:", gameData.moves.substring(0, 50) + "...");
+            const tempGame = new Chess();
+
+            gameData.moves.split(';').forEach(moveStr => {
+              const [notation, time] = moveStr.split(',');
+              if (notation && notation.trim()) {
+                try {
+                  const move = tempGame.move(notation.trim());
+                  if (move) {
+                    convertedMoves.push({
+                      move: { san: move.san },
+                      fen: tempGame.fen(),
+                      time: parseFloat(time) || undefined
+                    });
+                  }
+                } catch (moveError) {
+                  console.error('Error processing move:', notation, moveError);
+                }
+              }
+            });
+            formattedGameHistory.moves = convertedMoves;
+          } else if (Array.isArray(gameData.moves) && gameData.moves.length > 0 && gameData.moves[0].notation) {
+            // Convert from API format [{notation: "e4", time: 2.5}]
+            console.log("Converting API moves format for multiplayer...");
+            const tempGame = new Chess();
+
+            gameData.moves.forEach(moveData => {
               try {
-                const move = tempGame.move(notation.trim());
+                const move = tempGame.move(moveData.notation);
                 if (move) {
                   convertedMoves.push({
                     move: { san: move.san },
                     fen: tempGame.fen(),
-                    time: parseFloat(time) || undefined
+                    time: moveData.time
                   });
                 }
               } catch (moveError) {
-                console.error('Error processing move:', notation, moveError);
+                console.error('Error processing move:', moveData.notation, moveError);
               }
-            }
-          });
-          formattedGameHistory.moves = convertedMoves;
-        } else if (Array.isArray(gameData.moves) && gameData.moves.length > 0 && gameData.moves[0].notation) {
-          // Convert from API format [{notation: "e4", time: 2.5}]
-          console.log("Converting API moves format...");
-          const tempGame = new Chess();
+            });
+            formattedGameHistory.moves = convertedMoves;
+          } else if (!Array.isArray(gameData.moves)) {
+              formattedGameHistory.moves = convertedMoves; // Just have the start move
+          } else {
+            // Already in correct format
+            formattedGameHistory.moves = gameData.moves;
+          }
 
-          gameData.moves.forEach(moveData => {
-            try {
-              const move = tempGame.move(moveData.notation);
-              if (move) {
-                convertedMoves.push({
-                  move: { san: move.san },
-                  fen: tempGame.fen(),
-                  time: moveData.time
-                });
-              }
-            } catch (moveError) {
-              console.error('Error processing move:', moveData.notation, moveError);
-            }
-          });
-          formattedGameHistory.moves = convertedMoves;
-        } else if (!Array.isArray(gameData.moves)) {
-            formattedGameHistory.moves = convertedMoves; // Just have the start move
+          setGameHistory(formattedGameHistory);
         } else {
-          // Already in correct format
-          formattedGameHistory.moves = gameData.moves;
-        }
+          // For non-multiplayer, use existing history fetch
+          gameData = await getGameHistoryById(effectiveGameId);
 
-        setGameHistory(formattedGameHistory);
+          if (!gameData) {
+            setError('Game not found');
+            setGameHistory({ moves: [] });
+            setLoading(false); // Stop loading even if not found
+            return;
+          }
+
+          let formattedGameHistory = { ...gameData };
+
+          // Handle moves conversion from different formats
+          let convertedMoves = [{ move: { san: 'Start' }, fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1' }];
+
+          if (typeof gameData.moves === 'string') {
+            // Parse string format: "e4,2.52;Nf6,0.98;..."
+            console.log("Converting string moves format:", gameData.moves.substring(0, 50) + "...");
+            const tempGame = new Chess();
+
+            gameData.moves.split(';').forEach(moveStr => {
+              const [notation, time] = moveStr.split(',');
+              if (notation && notation.trim()) {
+                try {
+                  const move = tempGame.move(notation.trim());
+                  if (move) {
+                    convertedMoves.push({
+                      move: { san: move.san },
+                      fen: tempGame.fen(),
+                      time: parseFloat(time) || undefined
+                    });
+                  }
+                } catch (moveError) {
+                  console.error('Error processing move:', notation, moveError);
+                }
+              }
+            });
+            formattedGameHistory.moves = convertedMoves;
+          } else if (Array.isArray(gameData.moves) && gameData.moves.length > 0 && gameData.moves[0].notation) {
+            // Convert from API format [{notation: "e4", time: 2.5}]
+            console.log("Converting API moves format...");
+            const tempGame = new Chess();
+
+            gameData.moves.forEach(moveData => {
+              try {
+                const move = tempGame.move(moveData.notation);
+                if (move) {
+                  convertedMoves.push({
+                    move: { san: move.san },
+                    fen: tempGame.fen(),
+                    time: moveData.time
+                  });
+                }
+              } catch (moveError) {
+                console.error('Error processing move:', moveData.notation, moveError);
+              }
+            });
+            formattedGameHistory.moves = convertedMoves;
+          } else if (!Array.isArray(gameData.moves)) {
+              formattedGameHistory.moves = convertedMoves; // Just have the start move
+          } else {
+            // Already in correct format
+            formattedGameHistory.moves = gameData.moves;
+          }
+
+          setGameHistory(formattedGameHistory);
+        }
       } catch (err) {
         console.error('Error loading game data:', err);
         setError('Failed to load game data. ' + err.message);
@@ -121,7 +220,7 @@ const GameReview = () => {
     };
 
     loadGameData();
-  }, [gameId, location.state]);
+  }, [gameId, location.state, searchParams]);
 
   useEffect(() => {
     // Reset the board to the initial position when the game history is loaded.
