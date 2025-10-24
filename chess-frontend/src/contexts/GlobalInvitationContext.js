@@ -1,5 +1,5 @@
 // src/contexts/GlobalInvitationContext.js
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { getEcho } from '../services/echoSingleton';
@@ -18,11 +18,11 @@ export const GlobalInvitationProvider = ({ children }) => {
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Check if user is currently in an active game (should NOT show dialogs)
-  const isInActiveGame = () => {
+  const isInActiveGame = useCallback(() => {
     const path = location.pathname;
     // Block dialogs when user is on a multiplayer game page
     return path.startsWith('/play/multiplayer/') || path.startsWith('/play/');
-  };
+  }, [location.pathname]);
 
   // Listen to WebSocket events for invitations
   useEffect(() => {
@@ -94,7 +94,7 @@ export const GlobalInvitationProvider = ({ children }) => {
       userChannel.stopListening('.resume.request.sent');
       userChannel.stopListening('.invitation.cancelled');
     };
-  }, [user, location.pathname]); // Re-run when route changes
+  }, [user, location.pathname, isInActiveGame, pendingInvitation?.id]); // Re-run when route changes
 
   // Accept game invitation
   const acceptInvitation = async (invitationId, colorChoice) => {

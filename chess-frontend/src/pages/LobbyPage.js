@@ -27,12 +27,10 @@ const LobbyPage = () => {
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [showResponseModal, setShowResponseModal] = useState(false);
   const [selectedInvitation, setSelectedInvitation] = useState(null);
-  const [onlineCount, setOnlineCount] = useState(0);
   const [pendingInvitations, setPendingInvitations] = useState([]);
   const [sentInvitations, setSentInvitations] = useState([]);
   const [activeGames, setActiveGames] = useState([]);
   const [webSocketService, setWebSocketService] = useState(null);
-  const [hasFinishedGame, setHasFinishedGame] = useState(false);
   const [processingInvitations, setProcessingInvitations] = useState(new Set()); // Track processing state
   const [activeTab, setActiveTab] = useState('players');
 
@@ -305,7 +303,6 @@ const LobbyPage = () => {
                 if (isGameFinished) {
                   console.log('Skipping finished game:', gameId);
                   sessionStorage.setItem('gameFinished_' + gameId, 'true');
-                  setHasFinishedGame(true);
 
                   // Mark invitation as processed
                   if (!processedInvitationIds.includes(invitationId)) {
@@ -365,7 +362,6 @@ const LobbyPage = () => {
       });
 
       setPlayers(otherUsers);
-      setOnlineCount(usersRes.data.length);
       setPendingInvitations(pendingRes.data);
       setSentInvitations(activeSentInvitations);
       setActiveGames(activeGamesRes.data || []);
@@ -473,7 +469,9 @@ const LobbyPage = () => {
       }
       // Don't reset didInitPollingRef here - keep the guard active
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]); // Only user dependency - avoid restarting polling unnecessarily
+  // Note: fetchData and webSocketService.echo are intentionally excluded to prevent polling restarts
 
   const handleInvite = (player) => {
     // Check if there's already a pending invitation to this player

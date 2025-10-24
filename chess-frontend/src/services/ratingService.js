@@ -67,9 +67,11 @@ export const getLeaderboard = async (limit = 100) => {
   }
 };
 
-export default {
+const ratingService = {
   updateRating,
   getUserRating,
   getRatingHistory,
   getLeaderboard,
 };
+
+export default ratingService;

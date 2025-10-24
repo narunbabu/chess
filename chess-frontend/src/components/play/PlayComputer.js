@@ -2,15 +2,10 @@
 
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import { Chess } from "chess.js";
-import { Link, useNavigate, useLocation } from "react-router-dom"; // Use Router if defining routes here, otherwise just Link/useNavigate
+import { useNavigate, useLocation } from "react-router-dom"; // Use Router if defining routes here, otherwise just useNavigate
 
 // Import Components
 import ChessBoard from "./ChessBoard";
-import GameControls from "./GameControls";
-import GameInfo from "./GameInfo";
-import ScoreDisplay from "./ScoreDisplay";
-import TimerDisplay from "./TimerDisplay";
-import TimerButton from "./TimerButton";
 import DifficultyMeter from "./DifficultyMeter";
 import Countdown from "../Countdown"; // Adjust path if needed
 import GameCompletionAnimation from "../GameCompletionAnimation"; // Adjust path if needed
@@ -18,7 +13,7 @@ import PlayShell from "./PlayShell"; // Layout wrapper (Phase 4)
 import GameContainer from "./GameContainer"; // Unified game container
 
 // Import Utils & Hooks
-import { useGameTimer, formatTime } from "../../utils/timerUtils"; // Adjust path if needed
+import { useGameTimer } from "../../utils/timerUtils"; // Adjust path if needed
 import { makeComputerMove } from "../../utils/computerMoveUtils"; // Adjust path if needed
 import { updateGameStatus, evaluateMove } from "../../utils/gameStateUtils"; // Adjust paths if needed (ensure evaluateMove exists)
 import { encodeGameHistory, reconstructGameFromHistory } from "../../utils/gameHistoryStringUtils"; // Adjust paths if needed
@@ -206,11 +201,11 @@ const PlayComputer = () => {
         }
 
    }, [ // Dependencies for handleGameComplete
-     playerColor, computerDepth, playerScore, computerScore, isOnlineGame, players, navigate, // State variables read + navigate
+     playerColor, computerDepth, playerScore, computerScore, isOnlineGame, players, // State variables read
      setActiveTimer, setIsTimerRunning, // State setters (stable)
      playSound, // Stable callback
-     // External functions/objects (assume stable refs unless they change based on props/state)
-     encodeGameHistory, saveGameHistory, timerRef // Added timerRef
+     timerRef, // Timer ref
+     invalidateGameHistory, // Query invalidation
      // Note: gameEndSoundEffect are constants/imports, typically stable
    ]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -550,11 +545,12 @@ const PlayComputer = () => {
 
   }, [ // Dependencies for the computer turn useEffect
     gameStarted, gameOver, isReplayMode, computerMoveInProgress, activeTimer, playerColor, isOnlineGame,
-    game, computerDepth, gameHistory, // State values read or passed along
+    game, computerDepth, gameHistory, computerScore, playerScore, user?.rating, // State values read or passed along
     handleGameComplete, playSound, switchTimer, startTimerInterval, // Stable Callbacks/Timer functions
     setGame, setGameStatus, setMoveCount, setMoveCompleted, setComputerMoveInProgress, setTimerButtonColor, // Stable Setters
-    makeComputerMove, updateGameStatus, evaluateMove, DEFAULT_RATING, setLastComputerEvaluation, setComputerScore // Stable imported functions
-  ]); // eslint-disable-line react-hooks/exhaustive-deps
+    setLastComputerEvaluation, setComputerScore // Stable Setters
+    // Note: makeComputerMove, updateGameStatus, evaluateMove, DEFAULT_RATING are imports/constants (stable)
+  ]);
 
 
   // --- Player Move Logic (onDrop on ChessBoard) ---
@@ -663,13 +659,13 @@ const PlayComputer = () => {
         return true; // Indicate move was successful
     }, [ // Dependencies for onDrop useCallback
         game, gameOver, isReplayMode, activeTimer, playerColor, computerMoveInProgress, computerDepth,
-        gameHistory, settings.requireDoneButton, // State reads
+        gameHistory, settings.requireDoneButton, computerScore, playerScore, user?.rating, // State reads
         playSound, handleGameComplete, switchTimer, startTimerInterval, // Stable callbacks/timer fns
         setIsTimerRunning, setLastMoveEvaluation, setPlayerScore, setGameHistory, // Stable setters
         setMoveCount, setGame, setMoveFrom, setMoveSquares, setGameStatus, setMoveCompleted, // Stable setters
-        timerRef, // Ref accessed
-        updateGameStatus, evaluateMove, DEFAULT_RATING // Stable imported functions
-    ]); // eslint-disable-line react-hooks/exhaustive-deps
+        timerRef // Ref accessed
+        // Note: updateGameStatus, evaluateMove, DEFAULT_RATING are imports/constants (stable)
+    ]);
 
   // --- Game Start/Reset/Load/Replay Logic Callbacks ---
 
@@ -788,7 +784,7 @@ const PlayComputer = () => {
             alert(`Failed to load game: ${error.message || 'Could not reconstruct moves.'}`);
             resetGame(); // Reset back to clean state on failure
         }
-    }, [resetGame, reconstructGameFromHistory, setActiveTimer, setIsTimerRunning, timerRef]); // Dependencies: stable callback and imported fn // eslint-disable-line react-hooks/exhaustive-deps
+    }, [resetGame, setActiveTimer, setIsTimerRunning, timerRef]); // Dependencies: stable callback and imported fn
 
     // --- Replay Controls ---
      const startReplay = useCallback(() => {

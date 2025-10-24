@@ -461,7 +461,7 @@ class WebSocketController extends Controller
     public function newGame(Request $request, int $gameId): JsonResponse
     {
         $request->validate([
-            'socket_id' => 'required|string',
+            'socket_id' => 'nullable|string',
             'color_preference' => 'nullable|string|in:white,black,random'
         ]);
 
@@ -469,7 +469,7 @@ class WebSocketController extends Controller
             $result = $this->gameRoomService->createNewGame(
                 $gameId,
                 Auth::id(),
-                $request->input('socket_id'),
+                $request->input('socket_id', ''), // Pass empty string if null
                 $request->input('color_preference', 'random')
             );
 

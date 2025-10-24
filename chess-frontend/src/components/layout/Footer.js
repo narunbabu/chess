@@ -10,12 +10,13 @@ import { Link, useLocation } from 'react-router-dom';
 const Footer = () => {
   const location = useLocation();
   const footerRef = useRef(null);
-  const hideTimeoutRef = useRef(null);
   const isPlayPage = location.pathname === '/play' || location.pathname.startsWith('/play/');
 
   useEffect(() => {
     // Only apply footer hiding logic on play pages in landscape mode on mobile
     if (!isPlayPage) return;
+
+    const footer = footerRef.current;
 
     const checkLandscapeAndHide = () => {
       const isLandscape = window.innerWidth > window.innerHeight;
@@ -50,11 +51,11 @@ const Footer = () => {
       window.removeEventListener('resize', checkLandscapeAndHide);
       window.removeEventListener('orientationchange', checkLandscapeAndHide);
       // Restore footer visibility on cleanup
-      if (footerRef.current) {
-        footerRef.current.style.display = '';
-        footerRef.current.style.visibility = '';
-        footerRef.current.style.height = '';
-        footerRef.current.style.overflow = '';
+      if (footer) {
+        footer.style.display = '';
+        footer.style.visibility = '';
+        footer.style.height = '';
+        footer.style.overflow = '';
       }
     };
   }, [isPlayPage, location.pathname]);

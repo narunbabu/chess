@@ -8,11 +8,12 @@ const Layout = ({ children }) => {
   const isLandingPage = location.pathname === '/';
   const isPlayPage = location.pathname === '/play' || location.pathname.startsWith('/play/');
   const headerRef = useRef(null);
-  const hideTimeoutRef = useRef(null);
 
   useEffect(() => {
     // Only apply header hiding logic on play pages in landscape mode on mobile
     if (!isPlayPage || isLandingPage) return;
+
+    const header = headerRef.current;
 
     const checkLandscapeAndHide = () => {
       const isLandscape = window.innerWidth > window.innerHeight;
@@ -47,11 +48,11 @@ const Layout = ({ children }) => {
       window.removeEventListener('resize', checkLandscapeAndHide);
       window.removeEventListener('orientationchange', checkLandscapeAndHide);
       // Restore header visibility on cleanup
-      if (headerRef.current) {
-        headerRef.current.style.display = '';
-        headerRef.current.style.visibility = '';
-        headerRef.current.style.height = '';
-        headerRef.current.style.overflow = '';
+      if (header) {
+        header.style.display = '';
+        header.style.visibility = '';
+        header.style.height = '';
+        header.style.overflow = '';
       }
     };
   }, [isPlayPage, isLandingPage, location.pathname]);

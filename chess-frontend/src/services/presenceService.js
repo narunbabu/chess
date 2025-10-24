@@ -82,6 +82,28 @@ class PresenceService {
         this.onPresenceUpdate && this.onPresenceUpdate(event);
       });
 
+      // Subscribe to user's private channel for new game requests and other notifications
+      if (this.currentUser && this.echo) {
+        this.userChannel = this.echo.private(`App.Models.User.${this.currentUser.id}`);
+        console.log(`[Presence] Subscribed to user channel: App.Models.User.${this.currentUser.id}`);
+
+        // Listen for new game requests
+        this.userChannel.listen('.new_game.request', (event) => {
+          console.log('[Presence] New game request received:', event);
+          // Store in localStorage for any active game component to pick up
+          localStorage.setItem('newGameRequest', JSON.stringify(event));
+          // Dispatch a custom event for any listeners
+          window.dispatchEvent(new CustomEvent('newGameRequest', { detail: event }));
+        });
+
+        // Listen for draw offers
+        this.userChannel.listen('.draw.offer.sent', (event) => {
+          console.log('[Presence] Draw offer received:', event);
+          localStorage.setItem('drawOffer', JSON.stringify(event));
+          window.dispatchEvent(new CustomEvent('drawOffer', { detail: event }));
+        });
+      }
+
       // Update user presence status
       await this.updatePresence('online', this.echo?.socketId());
 
@@ -291,6 +313,11 @@ class PresenceService {
         this.presenceChannel = null;
       }
 
+      if (this.userChannel) {
+        this.echo.leave(`private-App.Models.User.${this.currentUser.id}`);
+        this.userChannel = null;
+      }
+
       // Don't disconnect the singleton Echo - other services may use it
       this.echo = null;
 
@@ -329,5 +356,6 @@ class PresenceService {
   }
 }
 
-// Export singleton instance
-export default new PresenceService();
+// Create and export singleton instance
+const presenceService = new PresenceService();
+export default presenceService;

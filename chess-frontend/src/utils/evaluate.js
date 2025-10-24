@@ -657,6 +657,8 @@ function compareToEngineEvaluation(previousState, newState) {
  * @param {number} playerRating - Player's rating
  * @returns {Object} Adapted score components
  */
+// NOTE: Currently unused function - kept for potential future use
+/*
 function adaptScoreToPlayerSkill(rawScores, playerRating) {
   const adaptedScores = {};
 
@@ -721,6 +723,7 @@ function adaptScoreToPlayerSkill(rawScores, playerRating) {
 
   return adaptedScores;
 }
+*/
 
 /**
  * Classifies a move based on score and engine evaluation

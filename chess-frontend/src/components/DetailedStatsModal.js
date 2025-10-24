@@ -104,7 +104,6 @@ const DetailedStatsModal = ({ isOpen, onClose, gameHistories, user }) => {
               {sortedGames.slice(0, 10).reverse().map((game, index) => {
                 const gameIsWin = isWin(game.result);
                 const gameIsLoss = isLoss(game.result);
-                const gameIsDraw = isDraw(game.result);
                 const resultClass = gameIsWin ? 'win' : gameIsLoss ? 'loss' : 'draw';
                 const resultIcon = gameIsWin ? '✓' : gameIsLoss ? '✗' : '=';
 

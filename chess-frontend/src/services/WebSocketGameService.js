@@ -390,13 +390,7 @@ class WebSocketGameService {
     return this.isConnected && pusherState === 'connected';
   }
 
-  /**
-   * Get the current socket ID
-   */
-  getSocketId() {
-    return this.socketId || this.echo?.socketId() || null;
-  }
-
+  
   /**
    * Send a move through WebSocket
    */

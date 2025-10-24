@@ -385,7 +385,7 @@ class GameRoomService
     /**
      * Create new game challenge with color preference
      */
-    public function createNewGame(int $originalGameId, int $userId, string $socketId, string $colorPreference = 'random'): array
+    public function createNewGame(int $originalGameId, int $userId, ?string $socketId, string $colorPreference = 'random'): array
     {
         $originalGame = Game::findOrFail($originalGameId);
         $user = User::findOrFail($userId);
@@ -433,11 +433,11 @@ class GameRoomService
             'parent_game_id' => $originalGameId
         ]);
 
-        // Create connection for the requesting user
+        // Create connection for the requesting user (socket_id may be empty for post-game challenges)
         $connection = GameConnection::createConnection(
             $userId,
             $newGame->id,
-            $socketId,
+            $socketId ?: '', // Ensure empty string if socketId is null
             [
                 'user_agent' => request()->userAgent(),
                 'ip_address' => request()->ip(),

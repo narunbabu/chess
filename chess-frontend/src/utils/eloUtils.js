@@ -261,7 +261,7 @@ export const calculatePerformanceRating = (games) => {
   return Math.round(totalPerformance / games.length);
 };
 
-export default {
+const eloUtils = {
   calculateExpectedScore,
   calculateKFactor,
   calculateNewRating,
@@ -279,3 +279,5 @@ export default {
   getRatingPercentile,
   calculatePerformanceRating,
 };
+
+export default eloUtils;

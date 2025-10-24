@@ -19,7 +19,6 @@ const LoginPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showSkillAssessment, setShowSkillAssessment] = useState(false);
-  const [isNewRegistration, setIsNewRegistration] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
 
@@ -58,7 +57,6 @@ const LoginPage = () => {
         if (response.data.status === 'success') {
           await login(response.data.token);
           // Show skill assessment modal for new registrations
-          setIsNewRegistration(true);
           setShowSkillAssessment(true);
           setIsLoading(false);
           return; // Don't navigate yet, wait for modal completion

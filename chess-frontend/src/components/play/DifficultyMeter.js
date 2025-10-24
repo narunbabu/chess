@@ -62,8 +62,6 @@ export default function DifficultyMeter({
     return () => window.removeEventListener('resize', updateDimensions);
   }, [width, height, radius]);
 
-  const center = { x: dimensions.width / 2, y: dimensions.height }; // Center at the bottom for a half-circle arc
-
   // --- Helper Functions ---
   const degToRad = (deg) => (deg * Math.PI) / 180;
   const radToDeg = (rad) => (rad * 180) / Math.PI;
@@ -201,7 +199,6 @@ export default function DifficultyMeter({
       x: displayWidth / 2,
       y: displayHeight - 10
     };
-    const drawRadius = Math.min(displayWidth / 2 - 20, dimensions.radius);
 
     const dx = x - drawCenter.x;
     const dy = y - drawCenter.y;

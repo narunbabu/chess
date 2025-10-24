@@ -156,7 +156,7 @@ const GameCompletionAnimation = ({
     };
 
     handleRatingUpdate();
-  }, [isAuthenticated, user, isPlayerWin, isDraw, isMultiplayer, computerLevel, opponentRating, opponentId, gameId, hasProcessedRating]);
+  }, [isAuthenticated, user, fetchUser, isPlayerWin, isDraw, isMultiplayer, computerLevel, opponentRating, opponentId, gameId, hasProcessedRating]);
 
   const exportAsGIF = async () => {
     const canvas = document.createElement('canvas');

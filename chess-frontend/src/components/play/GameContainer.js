@@ -6,8 +6,6 @@ import ScoreDisplay from './ScoreDisplay';
 import TimerDisplay from './TimerDisplay';
 import GameControls from './GameControls';
 import TimerButton from './TimerButton';
-import { formatTime } from '../../utils/timerUtils';
-import { truncatePlayerName, getPlayerAvatar } from '../../utils/playerDisplayUtils';
 
 /**
  * GameContainer - Unified game layout component
@@ -45,10 +43,8 @@ const GameContainer = ({
     playerColor,
     isMyTurn,
     isTimerRunning,
-    opponentName = 'Rival',
-    playerScore = 0,
-    computerScore = 0,
-    showScores = false,
+    playerScore = 0, // Player's score
+    computerScore = 0, // Computer/opponent's score (for both computer and multiplayer modes)
     playerData = null, // Player information with avatar
     opponentData = null // Opponent/computer information
   } = timerData;
@@ -63,8 +59,7 @@ const GameContainer = ({
     currentReplayMove = 0,
     settings = {},
     isOnlineGame = false,
-    players = null,
-    gameDataObj = null
+    players = null
   } = gameData;
 
   // Extract sidebar data
@@ -97,240 +92,10 @@ const GameContainer = ({
     isPortrait
   } = controlsData || {};
 
-  // Determine if it's computer's turn for computer mode
-  const isComputerTurn = mode === 'computer'
-    ? activeTimer === (playerColor === 'w' ? 'b' : 'w')
-    : false;
+  
+  // Timer/Score Display Component (currently unused - kept for potential future use)
 
-  // Timer/Score Display Component
-  const renderTimerScoreDisplay = () => {
-    if (mode === 'computer') {
-      // Computer mode: Show computer vs player with scores
-      return (
-        <div className="timer-score-display" style={{
-          display: 'flex',
-          flexDirection: 'column',
-          marginBottom: '12px',
-          gap: '8px',
-          fontSize: '14px'
-        }}>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: '8px'
-          }}>
-            {/* Computer Timer and Score */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 10px',
-              borderRadius: '6px',
-              backgroundColor: isComputerTurn ? 'rgba(239, 68, 68, 0.2)' : 'rgba(239, 68, 68, 0.1)',
-              border: `1px solid ${isComputerTurn ? 'rgba(239, 68, 68, 0.5)' : 'rgba(239, 68, 68, 0.3)'}`,
-              flex: '1',
-              minWidth: '140px'
-            }}>
-              {isComputerTurn && (
-                <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#ef4444', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
-              )}
-              <span style={{ fontSize: '16px', color: '#ef4444' }}>
-                🤖
-              </span>
-              <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-                <span style={{ fontSize: '12px', color: '#ef4444', fontWeight: '500' }}>Computer</span>
-                <span style={{
-                  fontFamily: 'monospace',
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  color: '#ef4444'
-                }}>
-                  {formatTime(computerTime)}
-                </span>
-              </div>
-              {showScores && (
-                <span style={{
-                  fontFamily: 'monospace',
-                  fontSize: '16px',
-                  fontWeight: 'bold',
-                  color: '#ef4444',
-                  marginLeft: '8px'
-                }}>
-                  {computerScore || 0}
-                </span>
-              )}
-            </div>
 
-            {/* VS separator */}
-            <div style={{
-              fontSize: '12px',
-              color: '#666',
-              fontWeight: 'bold',
-              padding: '0 4px'
-            }}>
-              VS
-            </div>
-
-            {/* Player Timer and Score */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 10px',
-              borderRadius: '6px',
-              backgroundColor: activeTimer === playerColor ? 'rgba(34, 197, 94, 0.2)' : 'rgba(34, 197, 94, 0.1)',
-              border: `1px solid ${activeTimer === playerColor ? 'rgba(34, 197, 94, 0.5)' : 'rgba(34, 197, 94, 0.3)'}`,
-              flex: '1',
-              minWidth: '140px'
-            }}>
-              {activeTimer === playerColor && (
-                <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#22c55e', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
-              )}
-              {getPlayerAvatar(playerData) && (
-                <img
-                  src={getPlayerAvatar(playerData)}
-                  alt={playerData?.name || 'You'}
-                  style={{
-                    width: '24px',
-                    height: '24px',
-                    borderRadius: '50%',
-                    objectFit: 'cover'
-                  }}
-                />
-              )}
-              <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-                <span style={{ fontSize: '12px', color: '#22c55e', fontWeight: '500' }}>You</span>
-                <span style={{
-                  fontFamily: 'monospace',
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  color: '#22c55e'
-                }}>
-                  {formatTime(playerTime)}
-                </span>
-              </div>
-              {showScores && (
-                <span style={{
-                  fontFamily: 'monospace',
-                  fontSize: '16px',
-                  fontWeight: 'bold',
-                  color: '#22c55e',
-                  marginLeft: '8px'
-                }}>
-                  {playerScore || 0}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-      );
-    } else {
-      // Multiplayer mode: Show opponent vs player (no scores in timer)
-      return (
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '12px',
-          gap: '8px',
-          fontSize: '14px'
-        }}>
-          {/* Opponent Timer */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '6px 10px',
-            borderRadius: '6px',
-            backgroundColor: !isMyTurn ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 255, 255, 0.1)',
-            border: `1px solid ${!isMyTurn ? 'rgba(239, 68, 68, 0.5)' : 'rgba(255, 255, 255, 0.2)'}`,
-            flex: '1',
-            minWidth: '120px'
-          }}>
-            {!isMyTurn && (
-              <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#ef4444', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
-            )}
-            {getPlayerAvatar(opponentData) && (
-              <img
-                src={getPlayerAvatar(opponentData)}
-                alt={opponentData?.name || opponentName}
-                style={{
-                  width: '24px',
-                  height: '24px',
-                  borderRadius: '50%',
-                  objectFit: 'cover'
-                }}
-              />
-            )}
-            <span style={{ fontSize: '14px', color: !isMyTurn ? '#ef4444' : '#ccc', fontWeight: '500' }}>
-              {truncatePlayerName(opponentData?.name || opponentName)}
-            </span>
-            <span style={{
-              fontFamily: 'monospace',
-              fontSize: '14px',
-              fontWeight: 'bold',
-              color: !isMyTurn ? '#ef4444' : '#ccc',
-              marginLeft: 'auto'
-            }}>
-              {formatTime(Math.floor(oppMs / 1000))}
-            </span>
-          </div>
-
-          {/* VS separator */}
-          <div style={{
-            fontSize: '12px',
-            color: '#666',
-            fontWeight: 'bold',
-            padding: '0 4px'
-          }}>
-            VS
-          </div>
-
-          {/* Player Timer */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '6px 10px',
-            borderRadius: '6px',
-            backgroundColor: isMyTurn ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255, 255, 255, 0.1)',
-            border: `1px solid ${isMyTurn ? 'rgba(34, 197, 94, 0.5)' : 'rgba(255, 255, 255, 0.2)'}`,
-            flex: '1',
-            minWidth: '120px'
-          }}>
-            {isMyTurn && (
-              <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#22c55e', borderRadius: '50%', marginRight: '4px', animation: 'pulse 2s infinite' }}></span>
-            )}
-            {getPlayerAvatar(playerData) && (
-              <img
-                src={getPlayerAvatar(playerData)}
-                alt={playerData?.name || 'You'}
-                style={{
-                  width: '24px',
-                  height: '24px',
-                  borderRadius: '50%',
-                  objectFit: 'cover'
-                }}
-              />
-            )}
-            <span style={{ fontSize: '14px', color: isMyTurn ? '#22c55e' : '#ccc', fontWeight: '500' }}>
-              {truncatePlayerName(playerData?.name || 'You')}
-            </span>
-            <span style={{
-              fontFamily: 'monospace',
-              fontSize: '14px',
-              fontWeight: 'bold',
-              color: isMyTurn ? '#22c55e' : '#ccc',
-              marginLeft: 'auto'
-            }}>
-              {formatTime(Math.floor(myMs / 1000))}
-            </span>
-          </div>
-        </div>
-      );
-    }
-  };
 
   // Sidebar Component
   const renderSidebar = () => {
@@ -341,7 +106,7 @@ const GameContainer = ({
 
         {/* GameInfo */}
         <GameInfo
-          gameStatus={mode === 'computer' ? gameStatus : undefined}
+          gameStatus={gameStatus}
           playerColor={playerColor}
           game={game}
           gameHistory={gameHistory}
@@ -354,7 +119,6 @@ const GameContainer = ({
           isOnlineGame={isOnlineGame}
           players={players}
           opponent={mode === 'multiplayer' ? opponent : undefined}
-          gameStatus={mode === 'multiplayer' ? gameStatus : undefined}
         />
 
         {/* ScoreDisplay */}

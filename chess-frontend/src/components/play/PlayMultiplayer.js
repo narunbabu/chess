@@ -3,8 +3,6 @@ import { Chess } from 'chess.js';
 import PresenceConfirmationDialogSimple from './PresenceConfirmationDialogSimple';
 import NetworkErrorDialog from './NetworkErrorDialog';
 import { Chessboard } from 'react-chessboard';
-import GameInfo from './GameInfo';
-import ScoreDisplay from './ScoreDisplay';
 import GameCompletionAnimation from '../GameCompletionAnimation';
 import CheckmateNotification from '../CheckmateNotification';
 import NewGameRequestDialog from '../NewGameRequestDialog';
@@ -20,7 +18,7 @@ import { evaluateMove } from '../../utils/gameStateUtils';
 import { encodeGameHistory } from '../../utils/gameHistoryStringUtils';
 import { saveGameHistory } from '../../services/gameHistoryService';
 import { createResultFromMultiplayerGame } from '../../utils/resultStandardization';
-import { useMultiplayerTimer, formatTime } from '../../utils/timerUtils';
+import { useMultiplayerTimer } from '../../utils/timerUtils';
 import { calculateRemainingTime } from '../../utils/timerCalculator';
 
 // Import sounds
@@ -60,8 +58,6 @@ const PlayMultiplayer = () => {
   const [showPresenceDialog, setShowPresenceDialog] = useState(false);
   const [showPausedGame, setShowPausedGame] = useState(false);
   const [pausedByUserName, setPausedByUserName] = useState(null); // Track who caused the pause
-  const [_lastActivityTime, setLastActivityTime] = useState(Date.now());
-  const [_isPausing, setIsPausing] = useState(false); // Presence lock to prevent dialog re-opening during pause attempts
 
   // Resume request state
   const [resumeRequestData, setResumeRequestData] = useState(null);
@@ -72,6 +68,10 @@ const PlayMultiplayer = () => {
   const [isWaitingForResumeResponse, setIsWaitingForResumeResponse] = useState(false);
   const [isLobbyResume, setIsLobbyResume] = useState(false); // Track if this is a lobby-initiated resume
   const [shouldAutoSendResume, setShouldAutoSendResume] = useState(false); // Trigger auto-send after initialization
+
+  // Notification system
+  const [notificationMessage, setNotificationMessage] = useState('');
+  const [showNotification, setShowNotification] = useState(false);
 
   // Draw offer state
   const [drawOfferPending, setDrawOfferPending] = useState(false);
@@ -129,7 +129,7 @@ const PlayMultiplayer = () => {
 
     console.error('🚨 User ID does not match any player:', { userId, whiteId, blackId });
     return null;
-  }, [user?.id, gameData?.white_player_id, gameData?.black_player_id]);
+  }, [user?.id, gameData]);
 
   // Server turn comes from game state
   const serverTurn = gameInfo.turn === 'white' ? 'w' : gameInfo.turn === 'black' ? 'b' : null;
@@ -264,7 +264,6 @@ const PlayMultiplayer = () => {
     // Check if user came from proper invitation flow (optional security measure)
     const lastInvitationAction = sessionStorage.getItem('lastInvitationAction');
     const lastInvitationTime = sessionStorage.getItem('lastInvitationTime');
-    const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
 
     console.log('Game access check:', {
       gameId,
@@ -275,7 +274,6 @@ const PlayMultiplayer = () => {
     });
 
     // Check if user has proper authorization to access this specific game
-    const lastGameId = sessionStorage.getItem('lastGameId');
 
     // Check if this is a lobby-initiated resume
     const isLobbyResumeInitiated = lastInvitationAction === 'resume_game';
@@ -679,7 +677,10 @@ const PlayMultiplayer = () => {
       setError(err.message);
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameId, user]);
+  // Note: Event handlers (handleRemoteMove, handleGameEnd, etc.) and navigate are intentionally excluded
+  // to prevent circular dependencies. Event listeners are set up once and handlers are stable useCallback refs.
 
   // Handle game activation
   const handleGameActivated = useCallback((event) => {
@@ -1005,9 +1006,11 @@ const PlayMultiplayer = () => {
   // Handle game completion
   const handleGameEnd = useCallback(async (event) => {
     console.log('🏁 Processing game end event:', event);
+    console.log('🏁 About to set gameComplete to true');
 
     // Update game completion state
     setGameComplete(true);
+    setLoading(false); // Ensure loading is false when game ends
 
     // Prepare result data for modal
     const resultData = {
@@ -1030,6 +1033,8 @@ const PlayMultiplayer = () => {
     };
 
     setGameResult(resultData);
+    console.log('🎮 Game completed - result set:', { winner: resultData.winner_player, reason: resultData.end_reason });
+    console.log('🎮 State after game end:', { gameComplete: true, gameResult: !!resultData });
 
     // Update game info status
     setGameInfo(prev => ({
@@ -1132,9 +1137,47 @@ const PlayMultiplayer = () => {
         isValid: conciseGameString.length > 0
       });
 
-      // Get scores from backend event data (more reliable than local state)
-      const whiteScore = parseFloat(event.white_player_score || 0);
-      const blackScore = parseFloat(event.black_player_score || 0);
+      // Extract scores from moves string if backend doesn't provide them
+      let whiteScore = 0;
+      let blackScore = 0;
+
+      if (event.white_player_score !== undefined && event.black_player_score !== undefined) {
+        // Use scores from backend event
+        whiteScore = parseFloat(event.white_player_score || 0);
+        blackScore = parseFloat(event.black_player_score || 0);
+        console.log('📊 Using scores from backend event');
+      } else {
+        // Extract scores from moves string
+        const movePairs = conciseGameString.split(';');
+        let moveIndex = 0;
+
+        movePairs.forEach(pair => {
+          if (!pair.trim()) return;
+
+          const parts = pair.split(',');
+          if (parts.length < 2) return;
+
+          const score = parseFloat(parts[1]);
+
+          // Alternating moves: white moves first (index 0), then black (index 1), etc.
+          if (moveIndex % 2 === 0) {
+            // White's move
+            whiteScore += score;
+          } else {
+            // Black's move
+            blackScore += score;
+          }
+
+          moveIndex++;
+        });
+
+        console.log('📊 Extracted scores from moves string:', {
+          whiteScore,
+          blackScore,
+          totalMoves: moveIndex,
+          movesString: conciseGameString.substring(0, 100) + '...'
+        });
+      }
 
       // Determine which score belongs to the player based on their color
       const myColor = gameInfo.playerColor === 'white' ? 'w' : 'b';
@@ -1152,6 +1195,14 @@ const PlayMultiplayer = () => {
           black: event.black_player_score
         }
       });
+
+      // Update gameResult with the calculated scores
+      setGameResult(prev => ({
+        ...prev,
+        white_player_score: whiteScore,
+        black_player_score: blackScore
+      }));
+      console.log('🎮 Updated gameResult with scores:', { whiteScore, blackScore });
 
       // Get timer values for persistence (myMs and oppMs are already in milliseconds)
       const whiteTimeRemaining = myColor === 'w' ? myMs : oppMs;
@@ -1224,7 +1275,7 @@ const PlayMultiplayer = () => {
     }
 
     console.log('✅ Game completion processed, showing result modal');
-  }, [user?.id, gameId, gameHistory, gameInfo, playerScore, myMs, oppMs, myColor]);
+  }, [user?.id, gameId, gameHistory, gameInfo, myMs, oppMs, invalidateGameHistory]);
 
   // Handle resign
   const handleResign = useCallback(async () => {
@@ -1571,7 +1622,77 @@ const PlayMultiplayer = () => {
       userChannel.stopListening('.resume.request.response');
       userChannel.stopListening('.resume.request.expired');
     };
-  }, [user?.id, gameId]);
+  }, [user, gameId, isLobbyResume]);
+
+  // Listen for global new game requests from presence service
+  useEffect(() => {
+    const handleNewGameRequest = (event) => {
+      console.log('🎮 Global new game request received:', event.detail);
+      setNewGameRequest(event.detail);
+    };
+
+    const handleDrawOffer = (event) => {
+      console.log('🤝 Global draw offer received:', event.detail);
+      handleDrawOfferReceived(event.detail);
+    };
+
+    // Add event listeners
+    window.addEventListener('newGameRequest', handleNewGameRequest);
+    window.addEventListener('drawOffer', handleDrawOffer);
+
+    // Check for any pending requests in localStorage
+    const pendingNewGameRequest = localStorage.getItem('newGameRequest');
+    if (pendingNewGameRequest) {
+      try {
+        const request = JSON.parse(pendingNewGameRequest);
+        console.log('🎮 Found pending new game request in localStorage:', request);
+        setNewGameRequest(request);
+        localStorage.removeItem('newGameRequest');
+      } catch (error) {
+        console.error('Failed to parse pending new game request:', error);
+        localStorage.removeItem('newGameRequest');
+      }
+    }
+
+    const pendingDrawOffer = localStorage.getItem('drawOffer');
+    if (pendingDrawOffer) {
+      try {
+        const offer = JSON.parse(pendingDrawOffer);
+        console.log('🤝 Found pending draw offer in localStorage:', offer);
+        handleDrawOfferReceived(offer);
+        localStorage.removeItem('drawOffer');
+      } catch (error) {
+        console.error('Failed to parse pending draw offer:', error);
+        localStorage.removeItem('drawOffer');
+      }
+    }
+
+    // Cleanup event listeners
+    return () => {
+      window.removeEventListener('newGameRequest', handleNewGameRequest);
+      window.removeEventListener('drawOffer', handleDrawOffer);
+    };
+  }, [handleDrawOfferReceived]);
+
+  // Debug GameCompletionAnimation rendering
+  useEffect(() => {
+    console.log('🎮 GameCompletionAnimation state check:', {
+      gameComplete,
+      gameResult: !!gameResult,
+      gameResultData: gameResult,
+      renderCondition: gameComplete && gameResult
+    });
+    if (gameComplete && gameResult) {
+      console.log('🎮 GameCompletionAnimation should render:', {
+        gameComplete,
+        hasResult: !!gameResult,
+        winner: gameResult.winner_player,
+        reason: gameResult.end_reason,
+        whiteScore: gameResult.white_player_score,
+        blackScore: gameResult.black_player_score
+      });
+    }
+  }, [gameComplete, gameResult]);
 
   // Auto-send resume request for lobby-initiated resumes
   useEffect(() => {
@@ -1589,7 +1710,7 @@ const PlayMultiplayer = () => {
 
       return () => clearTimeout(timer);
     }
-  }, [shouldAutoSendResume, connectionStatus]);
+  }, [shouldAutoSendResume, connectionStatus, handleRequestResume]);
 
   const performMove = (source, target) => {
     if (gameComplete || gameInfo.status === 'finished') return false;
@@ -1807,8 +1928,17 @@ const PlayMultiplayer = () => {
 
       // Get socket_id from Echo if available
       let socketId = undefined;
-      if (wsService.current && typeof wsService.current.getSocketId === 'function') {
-        socketId = wsService.current.getSocketId();
+      try {
+        const echo = getEcho();
+        if (echo && typeof echo.socketId === 'function') {
+          socketId = echo.socketId();
+          console.log('🔌 Retrieved socket ID from Echo:', socketId);
+        } else {
+          console.warn('Echo instance available but no socketId method');
+        }
+      } catch (error) {
+        console.warn('Could not get socket ID from Echo:', error);
+        // Continue without socket_id - backend should handle this case
       }
 
       console.log('📡 Making HTTP request to create new game challenge...', { socketId, colorPreference });
@@ -1842,8 +1972,14 @@ const PlayMultiplayer = () => {
           : `playing as ${colorPreference}`;
         console.log(`📤 New game challenge sent to opponent with ${colorText}`);
 
-        // Show confirmation to user
-        alert(`Challenge sent to your opponent! (You requested ${colorText})\n\nWaiting for response...`);
+        // Show a professional notification instead of alert
+        setNotificationMessage(`Challenge sent! (You requested ${colorText})`);
+        setShowNotification(true);
+
+        // Auto-hide notification after 4 seconds
+        setTimeout(() => {
+          setShowNotification(false);
+        }, 4000);
 
         // Store the game_id in case opponent accepts
         sessionStorage.setItem('pendingNewGameId', result.game_id);
@@ -1936,19 +2072,7 @@ const PlayMultiplayer = () => {
   // Reason: Forfeit should only happen automatically on timeout, not as a user action
   // Users can use Resign button instead to admit defeat
 
-  const handlePingOpponent = async () => {
-    try {
-      console.log('🔔 Pinging opponent...');
-      await wsService.current?.pingOpponent();
-      console.log('✅ Opponent pinged successfully');
-      // You can add a toast notification here to confirm to the user
-      alert('Opponent has been notified!');
-    } catch (error) {
-      console.error('Failed to ping opponent:', error);
-      alert('Failed to ping opponent. Please try again.');
-    }
-  };
-
+  
   const handleAcceptNewGameRequest = () => {
     if (!newGameRequest) return;
 
@@ -2253,14 +2377,14 @@ const PlayMultiplayer = () => {
             console.log('[PresenceConfirmationDialogSimple] User confirmed presence');
             setShowPresenceDialog(false);
             showPresenceDialogRef.current = false;
-            setLastActivityTime(Date.now());
+            lastActivityTimeRef.current = Date.now();
             lastActivityTimeRef.current = Date.now();
           }}
           onCloseTimeout={async () => {
             console.log('[PresenceConfirmationDialogSimple] Timeout - pausing game');
 
             // Set presence lock to prevent dialog re-opening during pause attempt
-            setIsPausing(true);
+            isPausingRef.current = true;
             isPausingRef.current = true;
 
             try {
@@ -2276,13 +2400,13 @@ const PlayMultiplayer = () => {
 
               // Release presence lock after a short delay to prevent immediate re-opening
               setTimeout(() => {
-                setIsPausing(false);
+                isPausingRef.current = false;
                 isPausingRef.current = false;
               }, 2000);
             } catch (error) {
               console.error('[PresenceConfirmationDialogSimple] Failed to pause game:', error);
               // If pausing fails, don't close the dialog - let it try again
-              setIsPausing(false);
+              isPausingRef.current = false;
               isPausingRef.current = false;
               return;
             }
@@ -2629,66 +2753,6 @@ const PlayMultiplayer = () => {
             onComplete={() => setShowCheckmate(false)}
           />
         )}
-
-        {/* Game Completion Modal */}
-        {gameComplete && gameResult && (
-          <GameCompletionAnimation
-            result={gameResult}
-            score={Math.abs(parseFloat(
-              gameInfo.playerColor === 'white'
-                ? gameResult.white_player_score
-                : gameResult.black_player_score
-            ) || 0)}
-            opponentScore={Math.abs(parseFloat(
-              gameInfo.playerColor === 'white'
-                ? gameResult.black_player_score
-                : gameResult.white_player_score
-            ) || 0)}
-            playerColor={gameInfo.playerColor}
-            isMultiplayer={true}
-            opponentRating={
-              // Determine opponent based on player color
-              gameInfo.playerColor === 'white'
-                ? gameResult.black_player?.rating
-                : gameResult.white_player?.rating
-            }
-            opponentId={
-              // Determine opponent ID based on player color
-              gameInfo.playerColor === 'white'
-                ? gameResult.black_player?.id
-                : gameResult.white_player?.id
-            }
-            gameId={gameId}
-            onClose={() => {
-              // X button should navigate to lobby
-              sessionStorage.removeItem('lastInvitationAction');
-              sessionStorage.removeItem('lastInvitationTime');
-              sessionStorage.removeItem('lastGameId');
-              sessionStorage.setItem('intentionalLobbyVisit', 'true');
-              sessionStorage.setItem('intentionalLobbyVisitTime', Date.now().toString());
-              navigate('/lobby');
-            }}
-            onNewGame={handleNewGame}
-            onBackToLobby={() => {
-              // Clear invitation-related session storage to prevent auto-navigation
-              sessionStorage.removeItem('lastInvitationAction');
-              sessionStorage.removeItem('lastInvitationTime');
-              sessionStorage.removeItem('lastGameId');
-
-              // Set flag to indicate intentional lobby visit
-              sessionStorage.setItem('intentionalLobbyVisit', 'true');
-              sessionStorage.setItem('intentionalLobbyVisitTime', Date.now().toString());
-
-              navigate('/lobby');
-            }}
-            onPreview={() => {
-              // Navigate to game review/preview page using saved game_history ID
-              const reviewId = savedGameHistoryId || gameId;
-              console.log('🎬 Preview button: navigating to /play/review/' + reviewId);
-              navigate(`/play/review/${reviewId}`);
-            }}
-          />
-        )}
       </div>
 
       {/* New Game Request Dialog */}
@@ -2700,6 +2764,27 @@ const PlayMultiplayer = () => {
         />
       )}
 
+      {/* Toast Notification */}
+      {showNotification && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          backgroundColor: '#4CAF50',
+          color: 'white',
+          padding: '16px 24px',
+          borderRadius: '8px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          zIndex: 10000,
+          fontSize: '14px',
+          fontWeight: '500',
+          maxWidth: '300px',
+          animation: 'slideInRight 0.3s ease-out'
+        }}>
+          {notificationMessage}
+        </div>
+      )}
+
       {/* Presence Confirmation Dialog - OUTSIDE game-container to avoid z-index issues */}
       <PresenceConfirmationDialogSimple
         open={showPresenceDialog}
@@ -2707,14 +2792,14 @@ const PlayMultiplayer = () => {
           console.log('[PresenceConfirmationDialogSimple] User confirmed presence');
           setShowPresenceDialog(false);
           showPresenceDialogRef.current = false;
-          setLastActivityTime(Date.now());
+          lastActivityTimeRef.current = Date.now();
           lastActivityTimeRef.current = Date.now();
         }}
         onCloseTimeout={async () => {
           console.log('[PresenceConfirmationDialogSimple] Timeout - attempting to pause game');
 
           // Set presence lock to prevent dialog re-opening during pause attempt
-          setIsPausing(true);
+          isPausingRef.current = true;
           isPausingRef.current = true;
 
           try {
@@ -2730,13 +2815,13 @@ const PlayMultiplayer = () => {
 
             // Release presence lock after a short delay to prevent immediate re-opening
             setTimeout(() => {
-              setIsPausing(false);
+              isPausingRef.current = false;
               isPausingRef.current = false;
             }, 2000);
           } catch (error) {
             console.error('[PresenceConfirmationDialogSimple] Failed to pause game:', error);
             // If pausing fails, don't close the dialog - let it try again
-            setIsPausing(false);
+            isPausingRef.current = false;
             isPausingRef.current = false;
             return;
           }

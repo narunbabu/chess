@@ -2,7 +2,7 @@
 import { formatDistanceToNow } from "date-fns";
 import { Chess } from "chess.js";
 import { decodeGameHistory } from "./gameHistoryStringUtils";
-import { isWin, isLoss, isDraw, getResultDetails } from "./resultStandardization";
+import { isWin, isLoss, getResultDetails } from "./resultStandardization";
 
 /**
  * Formats a date string to a relative time (e.g., "2 hours ago")
