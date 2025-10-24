@@ -9,6 +9,53 @@ use Illuminate\Support\Facades\Log;
 
 class GameHistoryController extends Controller
 {
+    /**
+     * Extract final scores from moves string
+     * Moves format: "move1,score1;move2,score2;...;moveN,scoreN"
+     */
+    private function extractScoresFromMoves(string $moves, string $playerColor): array
+    {
+        $whiteScore = 0;
+        $blackScore = 0;
+
+        if (empty($moves)) {
+            return ['white_score' => 0, 'black_score' => 0];
+        }
+
+        $movePairs = explode(';', $moves);
+        $moveIndex = 0;
+
+        foreach ($movePairs as $pair) {
+            if (empty(trim($pair))) continue;
+
+            $parts = explode(',', $pair);
+            if (count($parts) < 2) continue;
+
+            $score = (float) end($parts);
+
+            // Alternating moves: white moves first (index 0), then black (index 1), etc.
+            if ($moveIndex % 2 === 0) {
+                // White's move
+                $whiteScore += $score;
+            } else {
+                // Black's move
+                $blackScore += $score;
+            }
+
+            $moveIndex++;
+        }
+
+        Log::info("Extracted scores from moves", [
+            'player_color' => $playerColor,
+            'white_score' => $whiteScore,
+            'black_score' => $blackScore,
+            'total_moves' => $moveIndex,
+            'moves_sample' => substr($moves, 0, 100) . '...'
+        ]);
+
+        return ['white_score' => $whiteScore, 'black_score' => $blackScore];
+    }
+
     // Save a new game history record (authenticated users)
     public function store(Request $request)
     {
@@ -36,6 +83,28 @@ class GameHistoryController extends Controller
         $userId = Auth::check() ? Auth::id() : null;
 
         try {
+            // Extract scores from moves string if not provided or if provided scores are 0
+            $extractedScores = $this->extractScoresFromMoves($validated['moves'], $validated['player_color']);
+
+            // Use provided scores if they exist and are not both 0, otherwise use extracted scores
+            $finalScore = $validated['final_score'];
+            $opponentScore = $validated['opponent_score'] ?? 0;
+
+            if ($finalScore == 0 && $opponentScore == 0) {
+                Log::info('Both scores are 0, using extracted scores from moves string');
+                if ($validated['player_color'] === 'w') {
+                    $finalScore = $extractedScores['white_score'];
+                    $opponentScore = $extractedScores['black_score'];
+                } else {
+                    $finalScore = $extractedScores['black_score'];
+                    $opponentScore = $extractedScores['white_score'];
+                }
+                Log::info('Updated scores from moves extraction', [
+                    'final_score' => $finalScore,
+                    'opponent_score' => $opponentScore
+                ]);
+            }
+
             // Handle result field - accept both string and object formats
             $resultValue = $validated['result'];
             if (is_array($resultValue) || is_object($resultValue)) {
@@ -53,8 +122,8 @@ class GameHistoryController extends Controller
             $game->player_color = $validated['player_color'];
             $game->computer_level = $validated['computer_level'] ?? 0;
             $game->moves = $validated['moves'];
-            $game->final_score = $validated['final_score'];
-            $game->opponent_score = $validated['opponent_score'] ?? 0;
+            $game->final_score = $finalScore;
+            $game->opponent_score = $opponentScore;
             $game->result = $resultValue;
             $game->game_id = $validated['game_id'] ?? null;
             $game->opponent_name = $validated['opponent_name'] ?? null;
@@ -95,6 +164,28 @@ class GameHistoryController extends Controller
 
             Log::info('Validated public game data:', $validated);
 
+            // Extract scores from moves string if not provided or if provided scores are 0
+            $extractedScores = $this->extractScoresFromMoves($validated['moves'], $validated['player_color']);
+
+            // Use provided scores if they exist and are not both 0, otherwise use extracted scores
+            $finalScore = $validated['final_score'];
+            $opponentScore = $validated['opponent_score'] ?? 0;
+
+            if ($finalScore == 0 && $opponentScore == 0) {
+                Log::info('Both scores are 0 in public game, using extracted scores from moves string');
+                if ($validated['player_color'] === 'w') {
+                    $finalScore = $extractedScores['white_score'];
+                    $opponentScore = $extractedScores['black_score'];
+                } else {
+                    $finalScore = $extractedScores['black_score'];
+                    $opponentScore = $extractedScores['white_score'];
+                }
+                Log::info('Updated public game scores from moves extraction', [
+                    'final_score' => $finalScore,
+                    'opponent_score' => $opponentScore
+                ]);
+            }
+
             // Handle result field - accept both string and object formats
             $resultValue = $validated['result'];
             if (is_array($resultValue) || is_object($resultValue)) {
@@ -112,8 +203,8 @@ class GameHistoryController extends Controller
             $game->player_color = $validated['player_color'];
             $game->computer_level = $validated['computer_level'] ?? 0;
             $game->moves = $validated['moves'];
-            $game->final_score = $validated['final_score'];
-            $game->opponent_score = $validated['opponent_score'] ?? 0;
+            $game->final_score = $finalScore;
+            $game->opponent_score = $opponentScore;
             $game->result = $resultValue;
             $game->game_id = $validated['game_id'] ?? null;
             $game->opponent_name = $validated['opponent_name'] ?? null;

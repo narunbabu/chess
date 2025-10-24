@@ -297,29 +297,45 @@ const GameCompletionAnimation = ({
           {/* Multiplayer Score Display */}
           {isMultiplayer && result?.white_player && result?.black_player && (
             <div className="multiplayer-score-display">
-              <div className="player-score-row">
-                <span className="player-name">
-                  {playerColor === 'white' ? result.white_player.name : result.black_player.name}
-                  {isAuthenticated && user && ` (You)`}
-                </span>
-                <span className="player-rating">
-                  Rating: {playerColor === 'white' ? result.white_player.rating : result.black_player.rating}
-                </span>
-                <span className="player-score positive">
-                  Score: {Math.abs(score || 0).toFixed(1)}
-                </span>
-              </div>
-              <div className="player-score-row">
-                <span className="player-name">
-                  {playerColor === 'white' ? result.black_player.name : result.white_player.name}
-                </span>
-                <span className="player-rating">
-                  Rating: {opponentRating || (playerColor === 'white' ? result.black_player.rating : result.white_player.rating)}
-                </span>
-                <span className="player-score positive">
-                  Score: {Math.abs(opponentScore || 0).toFixed(1)}
-                </span>
-              </div>
+              {/* Determine which player is the current user */}
+              {(() => {
+                const whitePlayerName = result.white_player.name;
+                const blackPlayerName = result.black_player.name;
+                const isUserWhite = isAuthenticated && user && user.name === whitePlayerName;
+                const isUserBlack = isAuthenticated && user && user.name === blackPlayerName;
+
+                return (
+                  <>
+                    {/* First player row - White player */}
+                    <div className="player-score-row">
+                      <span className="player-name">
+                        {whitePlayerName}
+                        {isUserWhite && " (You)"}
+                      </span>
+                      <span className="player-rating">
+                        Rating: {result.white_player.rating}
+                      </span>
+                      <span className="player-score positive">
+                        Score: {playerColor === 'white' ? Math.abs(score || 0).toFixed(1) : Math.abs(opponentScore || 0).toFixed(1)}
+                      </span>
+                    </div>
+
+                    {/* Second player row - Black player */}
+                    <div className="player-score-row">
+                      <span className="player-name">
+                        {blackPlayerName}
+                        {isUserBlack && " (You)"}
+                      </span>
+                      <span className="player-rating">
+                        Rating: {result.black_player.rating}
+                      </span>
+                      <span className="player-score positive">
+                        Score: {playerColor === 'black' ? Math.abs(score || 0).toFixed(1) : Math.abs(opponentScore || 0).toFixed(1)}
+                      </span>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           )}
 
