@@ -17,12 +17,15 @@ import { useGameTimer } from "../../utils/timerUtils"; // Adjust path if needed
 import { makeComputerMove } from "../../utils/computerMoveUtils"; // Adjust path if needed
 import { updateGameStatus, evaluateMove } from "../../utils/gameStateUtils"; // Adjust paths if needed (ensure evaluateMove exists)
 import { encodeGameHistory, reconstructGameFromHistory } from "../../utils/gameHistoryStringUtils"; // Adjust paths if needed
+import { encodeCompactGameHistory } from "../../utils/compactGameFormats"; // Enhanced compact format
+import { createComputerGameOptimizer } from "../../utils/evaluationOptimizer"; // Evaluation optimization
 import { createResultFromComputerGame } from "../../utils/resultStandardization"; // Standardized result format
 
 // Import Services
 import { saveGameHistory, getGameHistories } from "../../services/gameHistoryService"; // Adjust paths if needed
 import { useAuth } from "../../contexts/AuthContext";
 import { useAppData } from "../../contexts/AppDataContext";
+import { useFeatureFlags } from "../../contexts/FeatureFlagsContext";
 
 
 // Import sound files (ensure paths are correct)
@@ -87,6 +90,7 @@ const PlayComputer = () => {
   const location = useLocation();
   const { user } = useAuth(); // Get user for rating
   const { invalidateGameHistory } = useAppData(); // Get cache invalidation
+  const { isEnabled } = useFeatureFlags(); // Game optimization feature flags
   const [isOnlineGame, setIsOnlineGame] = useState(false);
   const [players, setPlayers] = useState(null);
   const [gameMode, setGameMode] = useState('computer'); // Default to computer mode for /play route
@@ -97,6 +101,35 @@ const PlayComputer = () => {
     setActiveTimer, setIsTimerRunning,
     handleTimer: startTimerInterval, pauseTimer, switchTimer, resetTimer
   } = useGameTimer(playerColor, game, setGameStatus); // Pass callbacks
+
+  // --- Evaluation Optimization ---
+  const evaluationOptimizerRef = useRef(null);
+
+  // Initialize evaluation optimizer when game starts
+  useEffect(() => {
+    if (gameStarted && isEnabled('GAME_OPT_COMPACT_MODE')) {
+      console.log('🧠 Initializing evaluation optimizer for computer game');
+      evaluationOptimizerRef.current = createComputerGameOptimizer();
+    } else {
+      evaluationOptimizerRef.current = null;
+    }
+  }, [gameStarted, isEnabled]);
+
+  // --- Evaluation Processing ---
+  const processEvaluationForStorage = useCallback((evaluation, moveData) => {
+    if (!evaluationOptimizerRef.current || !isEnabled('GAME_OPT_COMPACT_MODE')) {
+      return evaluation; // Return original if optimization not active
+    }
+
+    const optimizer = evaluationOptimizerRef.current;
+    const optimizedEval = optimizer.processEvaluation(evaluation, moveData);
+
+    if (optimizedEval) {
+      console.log(`🎯 Optimized evaluation: ${moveData.san} -> ${optimizedEval.total}`);
+    }
+
+    return optimizedEval || evaluation; // Return original if skipped
+  }, [isEnabled]);
 
   // --- Utility Callbacks ---
    const safeGameMutate = useCallback((modify) => {
@@ -140,10 +173,20 @@ const PlayComputer = () => {
         setShowGameCompletion(true); // Show completion modal
         const now = new Date();
 
-        // Ensure encodeGameHistory exists and is used, otherwise stringify
-        const conciseGameString = typeof encodeGameHistory === 'function'
-            ? encodeGameHistory(finalHistory)
-            : JSON.stringify(finalHistory);
+        // Use enhanced compact format if optimization flag is enabled, fallback to original
+        let conciseGameString;
+        if (isEnabled('GAME_OPT_COMPACT_MODE')) {
+          console.log('🗜️ Using enhanced compact format for game history');
+          conciseGameString = encodeCompactGameHistory(finalHistory, {
+            includeEvaluations: true,
+            maxDecimalPlaces: 2
+          });
+        } else {
+          console.log('📝 Using standard game history format');
+          conciseGameString = typeof encodeGameHistory === 'function'
+              ? encodeGameHistory(finalHistory)
+              : JSON.stringify(finalHistory);
+        }
 
         // Create standardized result object
         const standardizedResult = createResultFromComputerGame(
@@ -453,9 +496,17 @@ const PlayComputer = () => {
             if (status.gameOver) {
               // Evaluate the computer's final move before ending the game
               const prev = previousGameStateRef.current;
-              const compEval = typeof evaluateMove === 'function'
+              const rawEval = typeof evaluateMove === 'function'
                 ? evaluateMove(result.newGame.history().slice(-1)[0], prev, newGame, (thinkingTime/1000), user?.rating || DEFAULT_RATING, setLastComputerEvaluation, setComputerScore, computerDepth)
                 : null;
+
+              // Optimize evaluation storage if flag is enabled
+              const compEval = rawEval && result.newGame.history().length > 1
+                ? processEvaluationForStorage(rawEval, {
+                    san: result.newGame.history().slice(-1)[0].san,
+                    flags: result.newGame.history().slice(-1)[0].flags || ''
+                  })
+                : rawEval;
 
               // Calculate final computer score synchronously (state updates are async)
               const finalComputerScore = computerScore + (compEval?.total || 0);
@@ -471,9 +522,17 @@ const PlayComputer = () => {
 
               // Evaluate computer's move
               const prev = previousGameStateRef.current;
-              const compEval = typeof evaluateMove === 'function'
+              const rawEval = typeof evaluateMove === 'function'
                 ? evaluateMove(result.newGame.history().slice(-1)[0], prev, newGame, (thinkingTime/1000), user?.rating || DEFAULT_RATING, setLastComputerEvaluation, setComputerScore, computerDepth) // Use slice(-1)[0] for safety
                 : null;
+
+              // Optimize evaluation storage if flag is enabled
+              const compEval = rawEval && result.newGame.history().length > 1
+                ? processEvaluationForStorage(rawEval, {
+                    san: result.newGame.history().slice(-1)[0].san,
+                    flags: result.newGame.history().slice(-1)[0].flags || ''
+                  })
+                : rawEval;
 
               // *** Add computer's move to gameHistory state ***
               const computerMoveResult = result.newGame.history({ verbose: true }).slice(-1)[0]; // Get the last move object

@@ -528,9 +528,7 @@ class WebSocketController extends Controller
             'move.color' => 'nullable|string',
             'move.captured' => 'nullable|string',
             'move.flags' => 'nullable|string',
-            'move.prev_fen' => 'required|string',
-            'move.next_fen' => 'required|string',
-            'move.is_mate_hint' => 'required|boolean',
+              'move.is_mate_hint' => 'required|boolean',
             'move.is_check' => 'required|boolean',
             'move.is_stalemate' => 'required|boolean',
             'move.move_time_ms' => 'nullable|numeric',
@@ -964,16 +962,23 @@ class WebSocketController extends Controller
             // Get moves from the games.moves JSON column
             $moves = $game->moves ?? [];
 
-            Log::info('Move history fetched for timer calculation', [
+            Log::info('Move history fetched for game completion', [
                 'user_id' => $user->id,
                 'game_id' => $gameId,
                 'move_count' => count($moves),
-                'moves_preview' => array_slice($moves, 0, 3) // Log first 3 moves for debugging
+                'db_white_score' => $game->white_player_score,
+                'db_black_score' => $game->black_player_score,
+                'game_status' => $game->status
             ]);
 
             return response()->json([
                 'moves' => $moves,
-                'time_control_minutes' => $game->time_control_minutes
+                'time_control_minutes' => $game->time_control_minutes,
+                'white_player_score' => $game->white_player_score,
+                'black_player_score' => $game->black_player_score,
+                'white_player_id' => $game->white_player_id,
+                'black_player_id' => $game->black_player_id,
+                'move_count' => count($moves)
             ]);
 
         } catch (\Exception $e) {

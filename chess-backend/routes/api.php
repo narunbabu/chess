@@ -32,6 +32,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [UserController::class, 'me']);
     Route::get('/users', [UserController::class, 'index']);
 
+    // Profile routes
+    Route::put('/profile', [UserController::class, 'updateProfile']);
+    Route::get('/friends', [UserController::class, 'getFriends']);
+    Route::post('/friends/{friendId}', [UserController::class, 'addFriend']);
+    Route::delete('/friends/{friendId}', [UserController::class, 'removeFriend']);
+    Route::get('/friends/pending', [UserController::class, 'getPendingRequests']);
+    Route::post('/friends/{requesterId}/accept', [UserController::class, 'acceptRequest']);
+    Route::delete('/friends/{requesterId}/reject', [UserController::class, 'rejectRequest']);
+
     // Invitation routes
     Route::post('/invitations/send', [InvitationController::class, 'send']);
     Route::post('/invitations/{id}/respond', [InvitationController::class, 'respond']);
@@ -44,6 +53,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/games', [GameController::class, 'create']);
     Route::get('/games/active', [GameController::class, 'activeGames']);
     Route::get('/games/{id}', [GameController::class, 'show']);
+    Route::get('/games/{id}/moves', [GameController::class, 'moves']); // Efficient compact format
     Route::post('/games/{id}/move', [GameController::class, 'move']);
     Route::post('/games/{id}/resign', [GameController::class, 'resign']);
     Route::get('/games', [GameController::class, 'userGames']);
@@ -82,6 +92,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/leave-game', [WebSocketController::class, 'leaveGame']);
         Route::post('/heartbeat', [WebSocketController::class, 'heartbeat']);
         Route::get('/room-state', [WebSocketController::class, 'getRoomState']);
+        Route::get('/games/{gameId}/state', [WebSocketController::class, 'getRoomState']); // Alternative path for frontend
         Route::post('/validate-token', [WebSocketController::class, 'validateToken']);
 
         // New Phase 2A fix endpoints

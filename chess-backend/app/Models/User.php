@@ -137,4 +137,37 @@ class User extends Authenticatable
             'is_provisional' => $isProvisional,
         ];
     }
+
+    /**
+     * Friends relationship - many-to-many
+     */
+    public function friends()
+    {
+        return $this->belongsToMany(User::class, 'user_friends', 'user_id', 'friend_id')
+                    ->withPivot('status')
+                    ->withTimestamps()
+                    ->wherePivot('status', 'accepted');
+    }
+
+    /**
+     * Pending friend requests sent by this user
+     */
+    public function sentFriendRequests()
+    {
+        return $this->belongsToMany(User::class, 'user_friends', 'user_id', 'friend_id')
+                    ->withPivot('status')
+                    ->withTimestamps()
+                    ->wherePivot('status', 'pending');
+    }
+
+    /**
+     * Pending friend requests received by this user
+     */
+    public function receivedFriendRequests()
+    {
+        return $this->belongsToMany(User::class, 'user_friends', 'friend_id', 'user_id')
+                    ->withPivot('status')
+                    ->withTimestamps()
+                    ->wherePivot('status', 'pending');
+    }
 }

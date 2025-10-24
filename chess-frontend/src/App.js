@@ -13,6 +13,7 @@ import TrainingHub from "./components/TrainingHub";
 import TrainingExercise from "./components/TrainingExercise";
 import GameHistory from "./components/GameHistory";
 import GameReview from "./components/GameReview";
+import Profile from "./components/Profile";
 import Login from "./pages/Login";
 import Dashboard from "./components/Dashboard";
 import AuthCallback from "./components/auth/AuthCallback";
@@ -25,6 +26,7 @@ import { AppDataProvider } from "./contexts/AppDataContext";
 import { FeatureFlagsProvider } from "./contexts/FeatureFlagsContext";
 import { GlobalInvitationProvider } from "./contexts/GlobalInvitationContext";
 import GlobalInvitationDialog from "./components/invitations/GlobalInvitationDialog";
+import GameOptimizationPanel from "./components/Debug/GameOptimizationPanel";
 import Layout from "./components/layout/Layout";
 import Footer from "./components/layout/Footer";
 import RouteGuard from "./components/routing/RouteGuard";
@@ -51,6 +53,8 @@ const App = () => {
                 <AppContent />
                 {/* Global Invitation Dialog - appears across all pages */}
                 <GlobalInvitationDialog />
+                {/* Game Optimization Debug Panel - development only */}
+                <GameOptimizationPanel />
               </GlobalInvitationProvider>
             </Layout>
           </Router>
@@ -139,6 +143,14 @@ const AppContent = () => {
               element={
                 <RouteGuard>
                   <GameReview />
+                </RouteGuard>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <RouteGuard>
+                  <Profile />
                 </RouteGuard>
               }
             />

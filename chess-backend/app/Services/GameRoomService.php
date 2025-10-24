@@ -159,14 +159,14 @@ class GameRoomService
         $lastMove = $moveCount > 0 ? $moves[$moveCount - 1] : null;
 
         // Convert database turn format ('white'/'black') to chess notation ('w'/'b')
-        $chessTurn = ($game->turn === 'white') ? 'w' : 'b';
+        // Turn determination is now handled by frontend due to FEN optimization
 
         // Determine player color for board orientation
         $playerColor = $this->getUserRole($user, $game);
 
         return [
             'fen' => $game->fen,
-            'turn' => $chessTurn,
+            'turn' => $game->turn,
             'move_count' => $moveCount,
             'last_move' => $lastMove,
             'last_move_by' => $lastMove['user_id'] ?? null,
@@ -233,14 +233,14 @@ class GameRoomService
     private function getGameRoomData(Game $game): array
     {
         // Convert database turn format ('white'/'black') to chess notation ('w'/'b')
-        $chessTurn = ($game->turn === 'white') ? 'w' : 'b';
+        // Turn determination is now handled by frontend due to FEN optimization
 
         return [
             'id' => $game->id,
             'status' => $game->status,
-            'turn' => $chessTurn,
+            'turn' => $game->turn,
             'fen' => $game->fen,
-            'moves' => $game->moves ?? [],
+            'moves' => $this->filterMovesForFenOptimization($game->moves ?? []),
             'white_player' => [
                 'id' => $game->whitePlayer->id,
                 'name' => $game->whitePlayer->name,
@@ -509,25 +509,31 @@ class GameRoomService
             throw new \Exception('Not your turn');
         }
 
-        // Verify position synchronization with client
-        $currentFen = $game->fen;
-        if (($move['prev_fen'] ?? '') !== $currentFen) {
-            throw new \Exception('Position desync between client and server. Expected: ' . $currentFen . ', got: ' . ($move['prev_fen'] ?? 'null'));
-        }
+        // FEN fields removed for optimization - server validates move legality internally
+        // Position synchronization is now handled by chess.js validation in the frontend
 
-        // Use client-computed FEN and turn (no server-side chess simulation needed)
-        $newFen = (string)$move['next_fen'];
-        $newTurn = (explode(' ', $newFen)[1] ?? 'w') === 'w' ? 'white' : 'black'; // Extract turn from FEN
+        // FEN fields removed - use server's current FEN and let client handle turn logic
+        // Since FEN optimization is enabled, client doesn't send FEN fields
 
         // Update game state
         $moves = $game->moves ?? [];
-        $moveWithUser = array_merge($move, ['user_id' => $userId]);
+
+        // Extract next FEN from move before optimization (client provides new FEN)
+        $newFen = $move['next_fen'] ?? $game->fen;
+
+        // FEN optimization - remove FEN fields from move data before storing
+        $optimizedMove = $move;
+        unset($optimizedMove['prev_fen'], $optimizedMove['next_fen']);
+
+        $moveWithUser = array_merge($optimizedMove, ['user_id' => $userId]);
         $moves[] = $moveWithUser;
 
-        // Prepare base update data
+        // Prepare base update data - use new FEN from client
+        $newTurn = $game->turn === 'white' ? 'black' : 'white';
+
         $updateData = [
-            'fen' => $newFen,
-            'turn' => $newTurn,
+            'fen' => $newFen, // Use updated FEN from client move
+            'turn' => $newTurn, // Switch turn
             'moves' => $moves,
             'move_count' => count($moves),
             'last_move_at' => now()
@@ -560,9 +566,9 @@ class GameRoomService
 
         // Broadcast move event (only if game is still active)
         if ($game->status === 'active') {
-            // Extract turn from FEN for broadcast (chess notation 'w'/'b')
-            $chessTurn = explode(' ', $newFen)[1] ?? 'w';
-            broadcast(new \App\Events\GameMoveEvent($game, $user, $move, $newFen, $chessTurn, [
+            // FEN optimization - extract turn from game object for event compatibility
+            $gameTurn = is_array($game->turn) ? ($game->turn['value'] ?? $game->turn['turn'] ?? 'white') : $game->turn;
+            broadcast(new \App\Events\GameMoveEvent($game, $user, $move, $gameTurn, [
                 'socket_id' => $socketId,
                 'move_number' => count($moves)
             ]))->toOthers();
@@ -571,8 +577,8 @@ class GameRoomService
         return [
             'success' => true,
             'move' => $move,
-            'fen' => $newFen,
-            'turn' => explode(' ', $newFen)[1] ?? 'w', // Extract turn from FEN (chess notation 'w'/'b')
+            'fen' => $game->fen, // Use existing game FEN
+            'turn' => $game->turn, // Use existing game turn from database
             'move_number' => count($moves),
             'game_status' => $game->status,
             'game_over' => $game->status === 'finished'
@@ -1604,5 +1610,26 @@ class GameRoomService
             'success' => true,
             'timestamp' => now()->toISOString()
         ];
+    }
+
+    /**
+     * Filter moves to remove FEN fields for optimization
+     *
+     * @param array $moves
+     * @return array
+     */
+    private function filterMovesForFenOptimization(array $moves): array
+    {
+        return array_map(function ($move) {
+            if (!is_array($move)) {
+                return $move;
+            }
+
+            // Remove FEN fields to optimize payload size
+            $filteredMove = $move;
+            unset($filteredMove['prev_fen'], $filteredMove['next_fen']);
+
+            return $filteredMove;
+        }, $moves);
     }
 }

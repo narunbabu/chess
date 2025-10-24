@@ -16,10 +16,14 @@ import WebSocketGameService from '../../services/WebSocketGameService';
 import { getEcho } from '../../services/echoSingleton';
 import { evaluateMove } from '../../utils/gameStateUtils';
 import { encodeGameHistory } from '../../utils/gameHistoryStringUtils';
+import { encodeCompactGameHistory, reconstructGameFromCompact } from '../../utils/compactGameFormats';
 import { saveGameHistory } from '../../services/gameHistoryService';
 import { createResultFromMultiplayerGame } from '../../utils/resultStandardization';
 import { useMultiplayerTimer } from '../../utils/timerUtils';
 import { calculateRemainingTime } from '../../utils/timerCalculator';
+import { useTimerOptimization } from '../../utils/timerOptimizer';
+import { useFeatureFlags } from '../../contexts/FeatureFlagsContext';
+import { performanceMonitor } from '../../utils/performanceMonitor';
 
 // Import sounds
 import moveSound from '../../assets/sounds/move.mp3';
@@ -115,6 +119,7 @@ const PlayMultiplayer = () => {
 
   const { user } = useAuth();
   const { invalidateGameHistory } = useAppData();
+  const { isEnabled } = useFeatureFlags(); // Game optimization feature flags
   const { gameId } = useParams();
   const navigate = useNavigate();
   const wsService = useRef(null);
@@ -199,6 +204,33 @@ const PlayMultiplayer = () => {
     initialMyMs: myColor === 'w' ? initialTimerState.whiteMs : initialTimerState.blackMs,
     initialOppMs: myColor === 'w' ? initialTimerState.blackMs : initialTimerState.whiteMs
   });
+
+  // Client-side timer optimization (high risk - conservative implementation)
+  const timerOptimization = useTimerOptimization({
+    batchInterval: 200,  // Conservative: update every 200ms
+    maxBatchSize: 5,    // Conservative: smaller batches
+    enablePrediction: false, // Conservative: disable prediction
+    enableCompression: true  // Conservative: enable compression
+  });
+
+  // Enable timer optimization based on feature flag
+  useEffect(() => {
+    if (isEnabled('GAME_OPT_CLIENT_TIMER')) {
+      console.log('⏱️ Enabling client-side timer optimization (conservative mode)');
+      timerOptimization.setIsOptimized(true);
+
+      // Enable timer optimization with initial state
+      const initialTimers = {
+        white: myColor === 'w' ? myMs : oppMs,
+        black: myColor === 'w' ? oppMs : myMs
+      };
+      console.log('⏱️ Initial timer state for optimization:', initialTimers);
+    } else {
+      console.log('⏱️ Client-side timer optimization disabled');
+      timerOptimization.setIsOptimized(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEnabled]); // Only depend on isEnabled - timerOptimization methods are stable
 
   // Play sound helper
   const playSound = useCallback((soundEffect) => {
@@ -591,6 +623,10 @@ const PlayMultiplayer = () => {
 
       wsService.current.on('gameMove', (event) => {
         console.log('Received move:', event);
+
+        // Track incoming WebSocket message performance
+        performanceMonitor.trackWebSocketMessage('received', event, true);
+
         handleRemoteMove(event);
       });
 
@@ -667,6 +703,12 @@ const PlayMultiplayer = () => {
 
       // Initialize the WebSocket connection
       await wsService.current.initialize(gameId, user);
+
+      // Enable payload optimization if feature flag is active
+      if (isEnabled('GAME_OPT_WEBSOCKET_OPT')) {
+        console.log('🚀 Enabling WebSocket payload optimization for multiplayer');
+        wsService.current.enableOptimization(true);
+      }
 
       // Check if already connected (Echo singleton might be reused)
       if (wsService.current.isConnected) {
@@ -944,7 +986,7 @@ const PlayMultiplayer = () => {
       }
 
       // Always update turn based on server's authoritative state
-      const newTurn = event.turn === 'w' ? 'white' : 'black';
+      const newTurn = event.turn === 'white' ? 'white' : 'black';
       setGameInfo(prev => ({
         ...prev,
         turn: newTurn
@@ -1084,43 +1126,91 @@ const PlayMultiplayer = () => {
 
       console.log('🎯 [PlayMultiplayer] Created standardized result:', standardizedResult);
 
-      // Fetch fresh game data from server to get authoritative move history
+      // Fetch fresh game data from server using efficient compact format
       const token = localStorage.getItem('auth_token');
       let serverMoves = [];
       let serverGameData = null;
+      let compactMovesString = '';
       try {
-        const response = await fetch(`${BACKEND_URL}/games/${gameId}`, {
+        // Try efficient compact format first
+        const compactResponse = await fetch(`${BACKEND_URL}/games/${gameId}/moves`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           }
         });
-        if (response.ok) {
-          serverGameData = await response.json();
-          serverMoves = serverGameData.moves || [];
-          console.log('📥 Fetched moves from server:', {
-            count: serverMoves.length,
-            sample: serverMoves.slice(0, 3)
+
+        if (compactResponse.ok) {
+          const compactData = await compactResponse.json();
+          compactMovesString = compactData.moves || '';
+          serverGameData = compactData;
+
+          console.log('🚀 Fetched COMPACT moves from server:', {
+            count: compactData.move_count || 0,
+            format: compactData.format,
+            size_comparison: compactData.size_compared,
+            bytes_saved: compactData.size_compared?.original_json - compactData.size_compared?.compact,
+            sample: compactMovesString.substring(0, 100) + (compactMovesString.length > 100 ? '...' : '')
           });
+        } else {
+          // Fallback to original endpoint if compact endpoint fails
+          console.warn('⚠️ Compact endpoint failed, falling back to original format');
+          const originalResponse = await fetch(`${BACKEND_URL}/games/${gameId}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (originalResponse.ok) {
+            serverGameData = await originalResponse.json();
+            serverMoves = serverGameData.moves || [];
+            console.log('📥 Fallback: Fetched moves from original endpoint:', {
+              count: serverMoves.length,
+              sample: serverMoves.slice(0, 3)
+            });
+          }
         }
       } catch (fetchError) {
         console.warn('⚠️ Could not fetch server moves, using local gameHistory:', fetchError);
       }
 
-      // Use server moves if available, otherwise fall back to local gameHistory
-      const movesToSave = serverMoves.length > 0 ? serverMoves : gameHistory;
+      // Use compact format if available, otherwise fall back to server moves or local gameHistory
+      let movesToSave;
+      if (compactMovesString) {
+        // Reconstruct full move objects from compact string using existing utility
+        movesToSave = reconstructGameFromCompact(compactMovesString, {
+          includeEvaluations: true
+        });
+        console.log('🔄 Reconstructed moves from compact format:', {
+          compactLength: compactMovesString.length,
+          reconstructedCount: movesToSave.length,
+          sample: movesToSave.slice(0, 2)
+        });
+      } else {
+        movesToSave = serverMoves.length > 0 ? serverMoves : gameHistory;
+      }
       console.log('📋 Moves to encode:', {
         source: serverMoves.length > 0 ? 'server' : 'local',
         count: movesToSave.length,
         sample: movesToSave.slice(0, 3)
       });
 
-      // Encode game history to string format (same as PlayComputer)
+      // Use enhanced compact format if optimization flag is enabled, fallback to original
       let conciseGameString = "";
-      if (typeof encodeGameHistory === 'function' && movesToSave.length > 0) {
-        conciseGameString = encodeGameHistory(movesToSave);
-      } else if (movesToSave.length > 0) {
-        conciseGameString = JSON.stringify(movesToSave);
+      if (movesToSave.length > 0) {
+        if (isEnabled('GAME_OPT_COMPACT_MODE')) {
+          console.log('🗜️ Using enhanced compact format for multiplayer game history');
+          conciseGameString = encodeCompactGameHistory(movesToSave, {
+            includeEvaluations: true,
+            maxDecimalPlaces: 2
+          });
+        } else if (typeof encodeGameHistory === 'function') {
+          console.log('📝 Using standard game history format for multiplayer');
+          conciseGameString = encodeGameHistory(movesToSave);
+        } else {
+          conciseGameString = JSON.stringify(movesToSave);
+        }
       }
 
       // Validation: Ensure moves string is not empty
@@ -1142,13 +1232,21 @@ const PlayMultiplayer = () => {
         isValid: conciseGameString.length > 0
       });
 
-      // Use quality scores from serverGameData (authoritative), fallback to event
+      // Use quality scores from serverGameData (authoritative), fallback to event, then to last move scores
       let whiteScore = 0;
       let blackScore = 0;
       if (serverGameData) {
         whiteScore = parseFloat(serverGameData.white_player_score || serverGameData.whitePlayerScore || 0);
         blackScore = parseFloat(serverGameData.black_player_score || serverGameData.blackPlayerScore || 0);
         console.log('📊 Using quality scores from serverGameData:', { whiteScore, blackScore });
+
+        // If scores are 0, try to get them from the last move in the moves array
+        if (whiteScore === 0 && blackScore === 0 && serverGameData.moves && serverGameData.moves.length > 0) {
+          const lastMove = serverGameData.moves[serverGameData.moves.length - 1];
+          whiteScore = parseFloat(lastMove.white_player_score || 0);
+          blackScore = parseFloat(lastMove.black_player_score || 0);
+          console.log('📊 Using scores from last move as fallback:', { whiteScore, blackScore });
+        }
       } else {
         whiteScore = parseFloat(event.white_player_score || 0);
         blackScore = parseFloat(event.black_player_score || 0);
@@ -2414,16 +2512,16 @@ const PlayMultiplayer = () => {
       {gameComplete && gameResult && (
         <GameCompletionAnimation
           result={gameResult}
-          score={Math.abs(parseFloat(
+          score={parseFloat(
             gameInfo.playerColor === 'white'
               ? gameResult.white_player_score
               : gameResult.black_player_score
-          ) || 0)}
-          opponentScore={Math.abs(parseFloat(
+          ) || 0}
+          opponentScore={parseFloat(
             gameInfo.playerColor === 'white'
               ? gameResult.black_player_score
               : gameResult.white_player_score
-          ) || 0)}
+          ) || 0}
           playerColor={gameInfo.playerColor}
           isMultiplayer={true}
           opponentRating={
@@ -2771,16 +2869,16 @@ const PlayMultiplayer = () => {
       {gameComplete && gameResult && (
         <GameCompletionAnimation
           result={gameResult}
-          score={Math.abs(parseFloat(
+          score={parseFloat(
             gameInfo.playerColor === 'white'
               ? gameResult.white_player_score
               : gameResult.black_player_score
-          ) || 0)}
-          opponentScore={Math.abs(parseFloat(
+          ) || 0}
+          opponentScore={parseFloat(
             gameInfo.playerColor === 'white'
               ? gameResult.black_player_score
               : gameResult.white_player_score
-          ) || 0)}
+          ) || 0}
           playerColor={gameInfo.playerColor}
           isMultiplayer={true}
           opponentRating={
@@ -2817,10 +2915,10 @@ const PlayMultiplayer = () => {
             navigate('/lobby');
           }}
           onPreview={() => {
-            // Navigate to game review/preview page using saved game_history ID
+            // Navigate to game review/preview page using saved game_history ID with multiplayer mode
             const reviewId = savedGameHistoryId || gameId;
-            console.log('🎬 Preview button: navigating to /play/review/' + reviewId);
-            navigate(`/play/review/${reviewId}`);
+            console.log('🎬 Preview button: navigating to /play/review/' + reviewId + '?mode=multiplayer');
+            navigate(`/play/review/${reviewId}?mode=multiplayer`);
           }}
         />
       )}

@@ -331,8 +331,7 @@ class GameHistoryController extends Controller
                 unset($game->black_player_avatar);
                 unset($game->white_player_rating);
                 unset($game->black_player_rating);
-                unset($game->game_id);
-                // Keep game_mode, computer_level, moves, opponent_rating, opponent_score
+                // Keep game_mode, computer_level, moves, opponent_rating, opponent_score, game_id
 
                 return $game;
             });
@@ -360,19 +359,37 @@ class GameHistoryController extends Controller
                 'games.white_player_score',
                 'games.black_player_score',
             ])
-            ->firstOrFail();
+            ->first();
+
+        if (!$game) {
+            Log::warning("Game history not found", [
+                'user_id' => $user->id,
+                'game_history_id' => $id,
+                'error' => 'No query results for model [App\\Models\\GameHistory]'
+            ]);
+            return response()->json([
+                'error' => 'Game not found',
+                'message' => "Game history with ID {$id} not found for user {$user->id}"
+            ], 404);
+        }
 
         // Calculate the correct final_score for multiplayer games
         if ($game->game_mode === 'multiplayer' && $game->game_id) {
             if ($game->white_player_id === $user->id) {
                 $game->final_score = $game->white_player_score ?? $game->final_score;
+                $game->opponent_score = $game->black_player_score ?? $game->opponent_score;
             } elseif ($game->black_player_id === $user->id) {
                 $game->final_score = $game->black_player_score ?? $game->final_score;
+                $game->opponent_score = $game->white_player_score ?? $game->opponent_score;
             } else {
                 // Fallback: use player_color if player IDs don't match
-                $game->final_score = ($game->player_color === 'w')
-                    ? ($game->white_player_score ?? $game->final_score)
-                    : ($game->black_player_score ?? $game->final_score);
+                if ($game->player_color === 'w') {
+                    $game->final_score = $game->white_player_score ?? $game->final_score;
+                    $game->opponent_score = $game->black_player_score ?? $game->opponent_score;
+                } else {
+                    $game->final_score = $game->black_player_score ?? $game->final_score;
+                    $game->opponent_score = $game->white_player_score ?? $game->opponent_score;
+                }
             }
         }
 

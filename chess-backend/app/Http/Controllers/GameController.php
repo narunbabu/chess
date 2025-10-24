@@ -144,6 +144,81 @@ class GameController extends Controller
         ]);
     }
 
+    /**
+     * Get compact move history for a game (efficient format)
+     * Returns moves in compact format: "e4,2.50;a6,3.15;Nf3,1.80"
+     * instead of full JSON objects with FEN strings
+     */
+    public function moves($id)
+    {
+        $game = Game::find($id);
+
+        if (!$game) {
+            return response()->json(['error' => 'Game not found'], 404);
+        }
+
+        $user = Auth::user();
+
+        // Check if user is part of this game
+        if ($game->white_player_id !== $user->id && $game->black_player_id !== $user->id) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        \Log::info('🚀 Game moves requested in compact format', [
+            'game_id' => $id,
+            'user_id' => $user->id,
+            'move_count' => count($game->moves ?? [])
+        ]);
+
+        // Convert existing move objects to compact format
+        $compactMoves = $this->convertMovesToCompactFormat($game->moves ?? []);
+
+        return response()->json([
+            'game_id' => $game->id,
+            'moves' => $compactMoves,
+            'move_count' => count($game->moves ?? []),
+            'format' => 'compact',
+            'size_compared' => [
+                'original_json' => strlen(json_encode($game->moves ?? [])),
+                'compact' => strlen($compactMoves),
+                'savings_percent' => $game->moves ?
+                    round((1 - strlen($compactMoves) / strlen(json_encode($game->moves))) * 100, 1) : 0
+            ]
+        ]);
+    }
+
+    /**
+     * Convert existing move objects to compact format
+     * Format: "san,time,evaluation;san,time,evaluation;..."
+     */
+    private function convertMovesToCompactFormat($moves): string
+    {
+        if (empty($moves)) {
+            return '';
+        }
+
+        $compactParts = [];
+
+        foreach ($moves as $move) {
+            $san = $move['san'] ?? $move['move'] ?? '';
+            $timeInSeconds = isset($move['move_time_ms']) ?
+                number_format($move['move_time_ms'] / 1000, 2, '.', '') :
+                (isset($move['timeSpent']) ? number_format($move['timeSpent'], 2, '.', '') : '0.00');
+            $evaluation = $move['evaluation'] ?? '';
+
+            // Build compact part: san,time,evaluation (evaluation optional)
+            if (!empty($evaluation) && $evaluation !== '' && $evaluation !== null) {
+                // Handle evaluation objects or numbers
+                $evalValue = is_object($evaluation) ? ($evaluation->total ?? 0) : $evaluation;
+                $compactParts[] = "{$san},{$timeInSeconds}," . number_format($evalValue, 2, '.', '');
+            } else {
+                $compactParts[] = "{$san},{$timeInSeconds}";
+            }
+        }
+
+        return implode(';', $compactParts);
+    }
+
     public function resign($id)
     {
         $game = Game::find($id);

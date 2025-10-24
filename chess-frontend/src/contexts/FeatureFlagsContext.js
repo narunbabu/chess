@@ -11,6 +11,12 @@ const DEFAULT_FLAGS = {
   NEW_DASHBOARD: false,     // Future: Enhanced dashboard
   TELEMETRY: false,         // PR-7: Analytics and tracking
   EXPERIMENTAL: false,      // General experimental features
+
+  // Game Optimization Flags (Action 1)
+  GAME_OPT_COMPACT_MODE: false,    // Enable compact formats and reduced payloads
+  GAME_OPT_WEBSOCKET_OPT: false,    // Enable WebSocket optimizations
+  GAME_OPT_CLIENT_TIMER: false,    // Enable client-side timer batching
+  GAME_OPT_COMPRESSION: false,     // Enable message compression
 };
 
 const FeatureFlagsContext = createContext(null);
@@ -54,12 +60,36 @@ export const FeatureFlagsProvider = ({ children, initialFlags = {} }) => {
     return flags[flagName] === true;
   };
 
+  /**
+   * Check if any game optimization flags are enabled
+   * @returns {boolean} - Whether any optimization is active
+   */
+  const isAnyGameOptEnabled = () => {
+    return flags.GAME_OPT_COMPACT_MODE ||
+           flags.GAME_OPT_WEBSOCKET_OPT ||
+           flags.GAME_OPT_CLIENT_TIMER ||
+           flags.GAME_OPT_COMPRESSION;
+  };
+
+  /**
+   * Get all game optimization flags as an object
+   * @returns {object} - Game optimization flags
+   */
+  const getGameOptFlags = () => ({
+    compactMode: flags.GAME_OPT_COMPACT_MODE,
+    websocketOpt: flags.GAME_OPT_WEBSOCKET_OPT,
+    clientTimer: flags.GAME_OPT_CLIENT_TIMER,
+    compression: flags.GAME_OPT_COMPRESSION,
+  });
+
   const value = {
     flags,
     enableFlag,
     disableFlag,
     toggleFlag,
     isEnabled,
+    isAnyGameOptEnabled,
+    getGameOptFlags,
   };
 
   return (

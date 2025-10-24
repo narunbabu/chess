@@ -24,6 +24,12 @@ const GameReview = () => {
     const loadGameData = async () => {
       let effectiveGameId = gameId;
 
+      console.log('🎮 GameReview: Loading game data', {
+        urlGameId: gameId,
+        searchParams: Object.fromEntries(searchParams),
+        locationState: location.state
+      });
+
       // If no gameId in URL, try to get from location state or localStorage
       if (!effectiveGameId) {
         let history = location.state?.gameHistory;
@@ -50,17 +56,31 @@ const GameReview = () => {
         setError(null);
 
         const mode = searchParams.get('mode');
+        console.log('🎮 GameReview: Determining game mode', {
+          gameId: effectiveGameId,
+          mode: mode,
+          isMultiplayer: mode === 'multiplayer'
+        });
 
         let gameData;
         let isMultiplayer = mode === 'multiplayer';
 
         if (isMultiplayer) {
+          console.log('🎮 GameReview: Fetching multiplayer game from /games/${effectiveGameId}');
           // For multiplayer, fetch from games API to get correct quality scores
-          const response = await api.get(`/games/${effectiveGameId}`);
-          gameData = response.data;
+          try {
+            const response = await api.get(`/games/${effectiveGameId}`);
+            gameData = response.data;
 
-          if (!gameData) {
-            setError('Game not found');
+            if (!gameData) {
+              setError('Multiplayer game not found');
+              setGameHistory({ moves: [] });
+              setLoading(false);
+              return;
+            }
+          } catch (error) {
+            console.error(`Error fetching multiplayer game for ID ${effectiveGameId}:`, error);
+            setError('Failed to load multiplayer game: ' + (error.response?.data?.message || error.message));
             setGameHistory({ moves: [] });
             setLoading(false);
             return;
@@ -144,12 +164,96 @@ const GameReview = () => {
           setGameHistory(formattedGameHistory);
         } else {
           // For non-multiplayer, use existing history fetch
-          gameData = await getGameHistoryById(effectiveGameId);
+          console.log('🎮 GameReview: Fetching single-player game from /game-history/${effectiveGameId}');
+          try {
+            gameData = await getGameHistoryById(effectiveGameId);
 
-          if (!gameData) {
-            setError('Game not found');
+            if (!gameData) {
+              console.warn(`Game history not found for ID: ${effectiveGameId}. This might be a multiplayer game without mode=multiplayer parameter.`);
+
+              // Fallback: Try to fetch as multiplayer game if history not found
+              console.log('🎮 GameReview: Trying fallback as multiplayer game from /games/${effectiveGameId}');
+              try {
+                const multiplayerResponse = await api.get(`/games/${effectiveGameId}`);
+                const multiplayerGameData = multiplayerResponse.data;
+
+                if (multiplayerGameData) {
+                  console.log('🎮 GameReview: Found game as multiplayer, treating as multiplayer');
+                  // Map multiplayer game data to history format
+                  const playerColor = multiplayerGameData.player_color;
+                  const formattedGameHistory = {
+                    id: multiplayerGameData.id,
+                    played_at: multiplayerGameData.ended_at || new Date().toISOString(),
+                    player_color: playerColor,
+                    game_mode: 'multiplayer',
+                    opponent_name: playerColor === 'w' ? multiplayerGameData.black_player?.name : multiplayerGameData.white_player?.name,
+                    moves: multiplayerGameData.moves,
+                    final_score: playerColor === 'w' ? parseFloat(multiplayerGameData.white_player_score || 0) : parseFloat(multiplayerGameData.black_player_score || 0),
+                    opponent_score: playerColor === 'w' ? parseFloat(multiplayerGameData.black_player_score || 0) : parseFloat(multiplayerGameData.white_player_score || 0),
+                    result: {
+                      details: multiplayerGameData.end_reason,
+                      end_reason: multiplayerGameData.end_reason,
+                      status: multiplayerGameData.result
+                    },
+                    white_time_remaining_ms: multiplayerGameData.white_time_remaining_ms,
+                    black_time_remaining_ms: multiplayerGameData.black_time_remaining_ms,
+                    computer_level: 0
+                  };
+
+                  // Handle moves conversion (reuse existing logic)
+                  let convertedMoves = [{ move: { san: 'Start' }, fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1' }];
+
+                  if (typeof multiplayerGameData.moves === 'string') {
+                    console.log("Converting string moves format for multiplayer fallback:", multiplayerGameData.moves.substring(0, 50) + "...");
+                    const tempGame = new Chess();
+
+                    multiplayerGameData.moves.split(';').forEach(moveStr => {
+                      const [notation, quality] = moveStr.split(',');
+                      if (notation && notation.trim()) {
+                        try {
+                          const move = tempGame.move(notation.trim());
+                          if (move) {
+                            convertedMoves.push({
+                              move: { san: move.san },
+                              fen: tempGame.fen(),
+                              quality: parseFloat(quality) || undefined,
+                              evaluation: parseFloat(quality) || undefined
+                            });
+                          }
+                        } catch (moveError) {
+                          console.error('Error processing move:', notation, moveError);
+                        }
+                      }
+                    });
+                    formattedGameHistory.moves = convertedMoves;
+                  } else if (!Array.isArray(multiplayerGameData.moves)) {
+                    formattedGameHistory.moves = convertedMoves;
+                  } else {
+                    formattedGameHistory.moves = multiplayerGameData.moves;
+                  }
+
+                  setGameHistory(formattedGameHistory);
+                  setLoading(false);
+                  return;
+                }
+              } catch (multiplayerError) {
+                console.log('🎮 GameReview: Multiplayer fallback also failed:', multiplayerError.response?.status);
+              }
+
+              setError('Game not found. This might be a multiplayer game - try adding ?mode=multiplayer to the URL.');
+              setGameHistory({ moves: [] });
+              setLoading(false);
+              return;
+            }
+          } catch (error) {
+            console.error(`Error fetching game history for ID ${effectiveGameId}:`, error);
+            if (error.response?.status === 404) {
+              setError('Game not found. This might be a multiplayer game - try adding ?mode=multiplayer to the URL.');
+            } else {
+              setError('Failed to load game: ' + (error.response?.data?.message || error.message));
+            }
             setGameHistory({ moves: [] });
-            setLoading(false); // Stop loading even if not found
+            setLoading(false);
             return;
           }
 
@@ -212,7 +316,8 @@ const GameReview = () => {
         }
       } catch (err) {
         console.error('Error loading game data:', err);
-        setError('Failed to load game data. ' + err.message);
+        const errorMessage = err.response?.data?.message || err.message || 'Unknown error occurred';
+        setError('Failed to load game data: ' + errorMessage);
         setGameHistory({ moves: [] });
       } finally {
         setLoading(false);

@@ -29,22 +29,19 @@ class GameMoveEvent implements ShouldBroadcastNow
      * @param Game $game
      * @param User $user
      * @param array $move
-     * @param string $fen
      * @param string $turn
      * @param array $moveData
      */
-    public function __construct(Game $game, User $user, array $move, string $fen, string $turn, array $moveData = [])
+    public function __construct(Game $game, User $user, array $move, string $turn, array $moveData = [])
     {
         $this->game = $game;
         $this->user = $user;
         $this->move = $move;
-        $this->fen = $fen;
         $this->turn = $turn;
         $this->moveData = array_merge([
             'timestamp' => now()->toISOString(),
             'user_id' => $user->id,
-            'game_id' => $game->id,
-            'move_number' => ($game->moves ? count($game->moves) : 0) + 1
+            'rules'
         ], $moveData);
     }
 
@@ -73,9 +70,15 @@ class GameMoveEvent implements ShouldBroadcastNow
      */
     public function broadcastWith(): array
     {
+        // FEN optimization - filter out FEN fields from move data
+        $filteredMove = $this->move;
+        if (is_array($filteredMove)) {
+            unset($filteredMove['prev_fen'], $filteredMove['next_fen']);
+        }
+
         return [
-            'move' => $this->move,
-            'fen' => $this->fen,
+            'move' => $filteredMove,
+            'fen' => $this->game->fen,
             'turn' => $this->turn,
             'user_id' => $this->user->id,
             'user_name' => $this->user->name,
