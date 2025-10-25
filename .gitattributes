@@ -1,25 +1,18 @@
-# Auto-detect text; normalize text to LF in working tree
+# Auto normalize text files
 * text=auto eol=lf
 
-# Windows-only scripts keep CRLF
+# Ensure Windows scripts retain CRLF
 *.bat text eol=crlf
 *.ps1 text eol=crlf
 
-# Images & other binaries: never touch line endings
-*.png -text
-*.jpg -text
-*.jpeg -text
-*.gif -text
-*.ico -text
-*.pdf -text
-*.zip -text
-*.gz  -text
-*.7z  -text
-*.tar -text
-*.mp3 -text
-*.mp4 -text
-*.wav -text
-*.woff -text
-*.woff2 -text
-*.ttf -text
-*.otf -text
+# Prevent binary files from being modified
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.mp3 binary
+*.mp4 binary
+*.webp binary
+*.woff binary
+*.woff2 binary
