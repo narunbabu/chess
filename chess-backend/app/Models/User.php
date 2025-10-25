@@ -146,7 +146,8 @@ class User extends Authenticatable
         return $this->belongsToMany(User::class, 'user_friends', 'user_id', 'friend_id')
                     ->withPivot('status')
                     ->withTimestamps()
-                    ->wherePivot('status', 'accepted');
+                    ->wherePivot('status', 'accepted')
+                    ->select('users.id', 'users.name', 'users.avatar_url', 'users.rating');
     }
 
     /**
@@ -157,7 +158,8 @@ class User extends Authenticatable
         return $this->belongsToMany(User::class, 'user_friends', 'user_id', 'friend_id')
                     ->withPivot('status')
                     ->withTimestamps()
-                    ->wherePivot('status', 'pending');
+                    ->wherePivot('status', 'pending')
+                    ->select('users.id', 'users.name', 'users.avatar_url', 'users.rating');
     }
 
     /**
@@ -168,6 +170,7 @@ class User extends Authenticatable
         return $this->belongsToMany(User::class, 'user_friends', 'friend_id', 'user_id')
                     ->withPivot('status')
                     ->withTimestamps()
-                    ->wherePivot('status', 'pending');
+                    ->wherePivot('status', 'pending')
+                    ->select('users.id', 'users.name', 'users.avatar_url', 'users.rating');
     }
 }

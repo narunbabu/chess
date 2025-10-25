@@ -26,7 +26,6 @@ import { AppDataProvider } from "./contexts/AppDataContext";
 import { FeatureFlagsProvider } from "./contexts/FeatureFlagsContext";
 import { GlobalInvitationProvider } from "./contexts/GlobalInvitationContext";
 import GlobalInvitationDialog from "./components/invitations/GlobalInvitationDialog";
-import GameOptimizationPanel from "./components/Debug/GameOptimizationPanel";
 import Layout from "./components/layout/Layout";
 import Footer from "./components/layout/Footer";
 import RouteGuard from "./components/routing/RouteGuard";
@@ -53,9 +52,7 @@ const App = () => {
                 <AppContent />
                 {/* Global Invitation Dialog - appears across all pages */}
                 <GlobalInvitationDialog />
-                {/* Game Optimization Debug Panel - development only */}
-                <GameOptimizationPanel />
-              </GlobalInvitationProvider>
+                </GlobalInvitationProvider>
             </Layout>
           </Router>
         </FeatureFlagsProvider>

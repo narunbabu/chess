@@ -13,10 +13,10 @@ const DEFAULT_FLAGS = {
   EXPERIMENTAL: false,      // General experimental features
 
   // Game Optimization Flags (Action 1)
-  GAME_OPT_COMPACT_MODE: false,    // Enable compact formats and reduced payloads
-  GAME_OPT_WEBSOCKET_OPT: false,    // Enable WebSocket optimizations
-  GAME_OPT_CLIENT_TIMER: false,    // Enable client-side timer batching
-  GAME_OPT_COMPRESSION: false,     // Enable message compression
+  GAME_OPT_COMPACT_MODE: true,     // Enable compact formats and reduced payloads
+  GAME_OPT_WEBSOCKET_OPT: true,     // Enable WebSocket optimizations
+  GAME_OPT_CLIENT_TIMER: true,     // Enable client-side timer batching
+  GAME_OPT_COMPRESSION: true,      // Enable message compression
 };
 
 const FeatureFlagsContext = createContext(null);

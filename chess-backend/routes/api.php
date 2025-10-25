@@ -33,7 +33,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/users', [UserController::class, 'index']);
 
     // Profile routes
-    Route::put('/profile', [UserController::class, 'updateProfile']);
+    Route::post('/profile', [UserController::class, 'updateProfile']);
     Route::get('/friends', [UserController::class, 'getFriends']);
     Route::post('/friends/{friendId}', [UserController::class, 'addFriend']);
     Route::delete('/friends/{friendId}', [UserController::class, 'removeFriend']);
@@ -153,6 +153,20 @@ Route::get('/debug/oauth-config', function () {
     ]);
 });
 
+// Serve avatar files
+Route::get('/avatars/{filename}', function ($filename) {
+    $path = storage_path('app/public/avatars/' . $filename);
+
+    if (!file_exists($path)) {
+        return response()->json(['error' => 'Avatar not found'], 404);
+    }
+
+    $file = file_get_contents($path);
+    $mimeType = mime_content_type($path);
+
+    return response($file)->header('Content-Type', $mimeType);
+})->where('filename', '.*');
+
 Route::post('/debug-test', function (Illuminate\Http\Request $request) {
     Log::info('=== DEBUG TEST ENDPOINT HIT ===');
     Log::info('Method: ' . $request->method());
@@ -165,7 +179,6 @@ Route::post('/debug-test', function (Illuminate\Http\Request $request) {
         'received_data' => $request->all()
     ]);
 });
-
 
 // Add logging middleware to all routes
 Route::middleware('web')->group(function () {
