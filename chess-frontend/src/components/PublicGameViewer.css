@@ -1,0 +1,393 @@
+/* Public Game Viewer Styles */
+
+.public-game-viewer {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.public-game-viewer.loading,
+.public-game-viewer.error {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 60vh;
+}
+
+/* Loading State */
+.loading-spinner {
+  text-align: center;
+}
+
+.spinner {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #2980b9;
+  border-radius: 50%;
+  width: 60px;
+  height: 60px;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 20px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-spinner p {
+  font-size: 1.1rem;
+  color: #7f8c8d;
+}
+
+/* Error State */
+.error-message {
+  text-align: center;
+  padding: 40px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.error-message h2 {
+  color: #e74c3c;
+  margin-bottom: 16px;
+  font-size: 1.8rem;
+}
+
+.error-message p {
+  color: #7f8c8d;
+  margin-bottom: 24px;
+  font-size: 1.1rem;
+}
+
+/* Header */
+.viewer-header {
+  text-align: center;
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid #ecf0f1;
+}
+
+.viewer-header h1 {
+  font-size: 2.2rem;
+  color: #2c3e50;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+.game-info {
+  font-size: 1.1rem;
+  color: #7f8c8d;
+}
+
+.game-info .result {
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.game-info .result.win {
+  color: #27ae60;
+  background: rgba(46, 204, 113, 0.1);
+}
+
+.game-info .result.loss {
+  color: #c0392b;
+  background: rgba(231, 76, 60, 0.1);
+}
+
+.game-info .result.draw {
+  color: #f39c12;
+  background: rgba(243, 156, 18, 0.1);
+}
+
+/* Content Layout */
+.viewer-content {
+  display: grid;
+  grid-template-columns: 1fr 350px;
+  gap: 30px;
+  align-items: start;
+}
+
+/* Board Section */
+.board-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  align-items: center;
+}
+
+/* Controls */
+.controls {
+  width: 100%;
+  max-width: 600px;
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.progress-info {
+  text-align: center;
+  font-size: 1rem;
+  color: #7f8c8d;
+  margin-bottom: 15px;
+  font-weight: 500;
+}
+
+.control-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.control-buttons .btn-sm {
+  min-width: 50px;
+  font-size: 1.2rem;
+  padding: 10px;
+}
+
+.control-buttons .btn-sm:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.control-buttons .btn-sm.active {
+  background-color: #27ae60;
+}
+
+.control-buttons .btn-sm.active:hover {
+  background-color: #229954;
+}
+
+.current-move {
+  text-align: center;
+  padding: 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 8px;
+  color: white;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.current-move .move-number {
+  opacity: 0.9;
+}
+
+.current-move .move-san {
+  font-family: 'Courier New', monospace;
+  font-size: 1.3rem;
+}
+
+/* Sidebar */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.details-card,
+.share-card,
+.cta-card {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.details-card h3,
+.share-card h3,
+.cta-card h3 {
+  font-size: 1.3rem;
+  color: #2c3e50;
+  margin-bottom: 16px;
+  font-weight: 600;
+}
+
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #ecf0f1;
+}
+
+.detail-item:last-child {
+  border-bottom: none;
+}
+
+.detail-item .label {
+  font-weight: 500;
+  color: #7f8c8d;
+}
+
+.detail-item .value {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.detail-item .value.result {
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.detail-item .value.result.win {
+  color: #27ae60;
+  background: rgba(46, 204, 113, 0.1);
+}
+
+.detail-item .value.result.loss {
+  color: #c0392b;
+  background: rgba(231, 76, 60, 0.1);
+}
+
+.detail-item .value.result.draw {
+  color: #f39c12;
+  background: rgba(243, 156, 18, 0.1);
+}
+
+/* Share Card */
+.share-description {
+  color: #7f8c8d;
+  margin-bottom: 16px;
+  font-size: 0.95rem;
+}
+
+/* CTA Card */
+.cta-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.cta-card h3 {
+  color: white;
+}
+
+.cta-card p {
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 16px;
+}
+
+.cta-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cta-buttons .btn {
+  width: 100%;
+}
+
+.cta-buttons .btn-secondary {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.cta-buttons .btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Button Styles */
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-primary {
+  background-color: #2980b9;
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #3498db;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(41, 128, 185, 0.3);
+}
+
+.btn-secondary {
+  background-color: #95a5a6;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background-color: #7f8c8d;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(127, 140, 141, 0.3);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn:disabled:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .viewer-content {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    order: -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .public-game-viewer {
+    padding: 10px;
+  }
+
+  .viewer-header h1 {
+    font-size: 1.6rem;
+  }
+
+  .game-info {
+    font-size: 0.95rem;
+  }
+
+  .controls {
+    padding: 15px;
+  }
+
+  .control-buttons .btn-sm {
+    min-width: 40px;
+    padding: 8px;
+    font-size: 1rem;
+  }
+
+  .current-move {
+    font-size: 1rem;
+  }
+
+  .current-move .move-san {
+    font-size: 1.1rem;
+  }
+
+  .details-card,
+  .share-card,
+  .cta-card {
+    padding: 16px;
+  }
+
+  .details-card h3,
+  .share-card h3,
+  .cta-card h3 {
+    font-size: 1.1rem;
+  }
+}

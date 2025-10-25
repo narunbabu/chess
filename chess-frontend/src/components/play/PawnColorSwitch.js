@@ -1,10 +1,1 @@
-import React from 'react';
-
-export default function PawnColorSwitch({ onColorChange }) {
-  return (
-    <div className="pawn-color-switch">
-      <button onClick={() => onColorChange('white')}>White</button>
-      <button onClick={() => onColorChange('black')}>Black</button>
-    </div>
-  );
-}
+﻿import React from 'react';export default function PawnColorSwitch({ onColorChange }) {Â  return (Â  Â  <div className="pawn-color-switch">Â  Â  Â  <button onClick={() => onColorChange('white')}>White</button>Â  Â  Â  <button onClick={() => onColorChange('black')}>Black</button>Â  Â  </div>Â  );}
