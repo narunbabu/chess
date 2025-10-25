@@ -42,6 +42,10 @@ storage/logs/
 # Project specific ignores
 learn-laravel.zip
 
+# Temporary fix scripts
+chess-frontend/fix-js-files.ps1
+chess-frontend/fix-js-files.sh
+
 # OS generated files
 .DS_Store
 ehthumbs.db

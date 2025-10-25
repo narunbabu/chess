@@ -479,7 +479,7 @@ const GameReview = () => {
   }
 
   return (
-    <div className="game-review p-1 sm:p-2 min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
+    <div className="game-review p-1 sm:p-2 min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white overflow-y-auto mobile-scroll-container">
       <h3 className="text-xl font-bold text-center mb-2 text-vivid-yellow">Game Replay</h3>
 
       {/* Main Layout Container */}

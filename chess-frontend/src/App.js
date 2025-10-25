@@ -20,6 +20,7 @@ import LandingPage from "./pages/LandingPage";
 import LobbyPage from "./pages/LobbyPage";
 import Puzzles from "./components/Puzzles";
 import Learn from "./components/Learn";
+import Profile from "./components/Profile";
 import { AuthProvider } from "./contexts/AuthContext";
 import { AppDataProvider } from "./contexts/AppDataContext";
 import { FeatureFlagsProvider } from "./contexts/FeatureFlagsContext";
@@ -93,6 +94,15 @@ const AppContent = () => {
             <Route
               path="/lobby"
               element={requireAuth(<LobbyPage />, 'lobby')}
+            />
+            {/* Profile - Auth required */}
+            <Route
+              path="/profile"
+              element={
+                <RouteGuard>
+                  <Profile />
+                </RouteGuard>
+              }
             />
             <Route
               path="/dashboard"

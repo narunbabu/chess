@@ -2523,3 +2523,37 @@
     pointer-events: none !important;
   }
 }
+
+/* =========================================
+   Game Review Mobile Scrolling Fix
+   ========================================= */
+.mobile-scroll-container {
+  height: 100vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+}
+
+/* Mobile portrait mode adjustments */
+@media (max-width: 768px) and (orientation: portrait) {
+  .mobile-scroll-container {
+    height: 100vh;
+    min-height: -webkit-fill-available;
+    min-height: 100vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mobile-scroll-container .flex {
+    padding-bottom: 2rem;
+  }
+}
+
+/* Mobile landscape mode adjustments */
+@media (max-width: 768px) and (orientation: landscape) {
+  .mobile-scroll-container {
+    height: 100vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
