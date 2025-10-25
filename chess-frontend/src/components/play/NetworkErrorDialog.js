@@ -1,1 +1,145 @@
-﻿import React from 'react';import './NetworkErrorDialog.css';/** * NetworkErrorDialog - Professional error dialog for network/connection issues * * Features: * - User-friendly error messages * - Retry/Refresh options * - Dismissible * - Professional UI */const NetworkErrorDialog = ({ error, onRetry, onGoBack, onDismiss }) => {  // Parse error to get user-friendly message  const getErrorInfo = (err) => {    if (!err) {      return {        title: 'Connection Error',        message: 'Unable to connect to the game server. Please check your internet connection.',        showRetry: true      };    }    const errorStr = typeof err === 'string' ? err : err.message || err.toString();    // Check for common error patterns    if (errorStr.includes('[object Object]') || errorStr === 'Unknown connection error') {      return {        title: 'Connection Lost',        message: 'Your connection to the game server has been interrupted. This might be due to network issues or the server being temporarily unavailable.',        showRetry: true      };    }    if (errorStr.toLowerCase().includes('network') || errorStr.toLowerCase().includes('fetch')) {      return {        title: 'Network Error',        message: 'Unable to reach the game server. Please check your internet connection and try again.',        showRetry: true      };    }    if (errorStr.toLowerCase().includes('timeout')) {      return {        title: 'Connection Timeout',        message: 'The connection to the server timed out. Please check your internet connection and try again.',        showRetry: true      };    }    if (errorStr.toLowerCase().includes('websocket')) {      return {        title: 'Real-time Connection Failed',        message: 'Unable to establish a real-time connection. The game will work in polling mode, but may have delayed updates.',        showRetry: true      };    }    if (errorStr.toLowerCase().includes('not authorized') || errorStr.toLowerCase().includes('unauthorized')) {      return {        title: 'Authorization Error',        message: 'Your session may have expired. Please sign in again.',        showRetry: false      };    }    // Default to showing the actual error message if it's user-friendly    return {      title: 'Connection Error',      message: errorStr.length < 200 ? errorStr : 'An unexpected error occurred. Please try refreshing the page.',      showRetry: true    };  };  const errorInfo = getErrorInfo(error);  const handleRefresh = () => {    window.location.reload();  };  return (    <div className="network-error-overlay">      <div className="network-error-dialog">        {/* Icon */}        <div className="error-icon">          <svg width="64" height="64" viewBox="0 0 24 24" fill="none">            <circle cx="12" cy="12" r="10" stroke="#f44336" strokeWidth="2"/>            <path d="M12 7v6M12 16v.01" stroke="#f44336" strokeWidth="2" strokeLinecap="round"/>          </svg>        </div>        {/* Title */}        <h2 className="error-title">{errorInfo.title}</h2>        {/* Message */}        <p className="error-message">{errorInfo.message}</p>        {/* Actions */}        <div className="error-actions">          {errorInfo.showRetry && onRetry && (            <button className="btn btn-primary" onClick={onRetry}>              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">                <path d="M1 4v6h6M23 20v-6h-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>                <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>              </svg>              Retry Connection            </button>          )}          <button className="btn btn-secondary" onClick={handleRefresh}>            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">              <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>            </svg>            Refresh Page          </button>          {onGoBack && (            <button className="btn btn-text" onClick={onGoBack}>              Back to Lobby            </button>          )}          {onDismiss && (            <button className="btn btn-text" onClick={onDismiss}>              Dismiss            </button>          )}        </div>        {/* Helpful tips */}        <div className="error-tips">          <p className="tips-title">ðŸ’¡ Troubleshooting Tips:</p>          <ul>            <li>Check your internet connection</li>            <li>Try refreshing the page</li>            <li>Check if your firewall is blocking the connection</li>            <li>If the problem persists, try again in a few minutes</li>          </ul>        </div>      </div>    </div>  );};export default NetworkErrorDialog;
+import React from 'react';
+import './NetworkErrorDialog.css';
+
+/**
+ * NetworkErrorDialog - Professional error dialog for network/connection issues
+ *
+ * Features:
+ * - User-friendly error messages
+ * - Retry/Refresh options
+ * - Dismissible
+ * - Professional UI
+ */
+const NetworkErrorDialog = ({ error, onRetry, onGoBack, onDismiss }) => {
+  // Parse error to get user-friendly message
+  const getErrorInfo = (err) => {
+    if (!err) {
+      return {
+        title: 'Connection Error',
+        message: 'Unable to connect to the game server. Please check your internet connection.',
+        showRetry: true
+      };
+    }
+
+    const errorStr = typeof err === 'string' ? err : err.message || err.toString();
+
+    // Check for common error patterns
+    if (errorStr.includes('[object Object]') || errorStr === 'Unknown connection error') {
+      return {
+        title: 'Connection Lost',
+        message: 'Your connection to the game server has been interrupted. This might be due to network issues or the server being temporarily unavailable.',
+        showRetry: true
+      };
+    }
+
+    if (errorStr.toLowerCase().includes('network') || errorStr.toLowerCase().includes('fetch')) {
+      return {
+        title: 'Network Error',
+        message: 'Unable to reach the game server. Please check your internet connection and try again.',
+        showRetry: true
+      };
+    }
+
+    if (errorStr.toLowerCase().includes('timeout')) {
+      return {
+        title: 'Connection Timeout',
+        message: 'The connection to the server timed out. Please check your internet connection and try again.',
+        showRetry: true
+      };
+    }
+
+    if (errorStr.toLowerCase().includes('websocket')) {
+      return {
+        title: 'Real-time Connection Failed',
+        message: 'Unable to establish a real-time connection. The game will work in polling mode, but may have delayed updates.',
+        showRetry: true
+      };
+    }
+
+    if (errorStr.toLowerCase().includes('not authorized') || errorStr.toLowerCase().includes('unauthorized')) {
+      return {
+        title: 'Authorization Error',
+        message: 'Your session may have expired. Please sign in again.',
+        showRetry: false
+      };
+    }
+
+    // Default to showing the actual error message if it's user-friendly
+    return {
+      title: 'Connection Error',
+      message: errorStr.length < 200 ? errorStr : 'An unexpected error occurred. Please try refreshing the page.',
+      showRetry: true
+    };
+  };
+
+  const errorInfo = getErrorInfo(error);
+
+  const handleRefresh = () => {
+    window.location.reload();
+  };
+
+  return (
+    <div className="network-error-overlay">
+      <div className="network-error-dialog">
+        {/* Icon */}
+        <div className="error-icon">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="10" stroke="#f44336" strokeWidth="2"/>
+            <path d="M12 7v6M12 16v.01" stroke="#f44336" strokeWidth="2" strokeLinecap="round"/>
+          </svg>
+        </div>
+
+        {/* Title */}
+        <h2 className="error-title">{errorInfo.title}</h2>
+
+        {/* Message */}
+        <p className="error-message">{errorInfo.message}</p>
+
+        {/* Actions */}
+        <div className="error-actions">
+          {errorInfo.showRetry && onRetry && (
+            <button className="btn btn-primary" onClick={onRetry}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M1 4v6h6M23 20v-6h-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Retry Connection
+            </button>
+          )}
+
+          <button className="btn btn-secondary" onClick={handleRefresh}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Refresh Page
+          </button>
+
+          {onGoBack && (
+            <button className="btn btn-text" onClick={onGoBack}>
+              Back to Lobby
+            </button>
+          )}
+
+          {onDismiss && (
+            <button className="btn btn-text" onClick={onDismiss}>
+              Dismiss
+            </button>
+          )}
+        </div>
+
+        {/* Helpful tips */}
+        <div className="error-tips">
+          <p className="tips-title">💡 Troubleshooting Tips:</p>
+          <ul>
+            <li>Check your internet connection</li>
+            <li>Try refreshing the page</li>
+            <li>Check if your firewall is blocking the connection</li>
+            <li>If the problem persists, try again in a few minutes</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default NetworkErrorDialog;

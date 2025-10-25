@@ -1,1 +1,440 @@
-﻿import React, { useState, useEffect, useRef } from "react";import { useNavigate } from "react-router-dom";import { useAuth } from "../contexts/AuthContext";import { useAppData } from "../contexts/AppDataContext";import { getGameHistories } from "../services/gameHistoryService";import api from "../services/api";import SkillAssessmentModal from "./auth/SkillAssessmentModal";import DetailedStatsModal from "./DetailedStatsModal";import { getPlayerAvatar } from "../utils/playerDisplayUtils";import { isWin, getResultDisplayText } from "../utils/resultStandardization";import "./Dashboard.css";import "../styles/UnifiedCards.css"; // Import unified card stylesconst Dashboard = () => {  const [gameHistories, setGameHistories] = useState([]);  const [activeGames, setActiveGames] = useState([]);  const [loading, setLoading] = useState(true);  const [showSkillAssessment, setShowSkillAssessment] = useState(false);  const [showDetailedStats, setShowDetailedStats] = useState(false);  const { user } = useAuth();  const { getGameHistory } = useAppData();  const navigate = useNavigate();  const didFetchRef = useRef(false); // Guard against StrictMode double-mount  useEffect(() => {    // Prevent duplicate fetches in StrictMode    if (didFetchRef.current) {      console.log('[Dashboard] â­ï¸ Already fetched game histories, skipping');      return;    }    didFetchRef.current = true;    const loadGameHistories = async () => {      let histories = [];      let activeGamesResponse = { data: [] };      try {        console.log('[Dashboard] ðŸ“Š Loading game histories and active games...');        // Fetch both game histories and active games in parallel        const [fetchedHistories, fetchedActiveGames] = await Promise.all([          getGameHistory(true).catch(() => getGameHistories()), // Force refresh to bypass cache          api.get('/games/active').catch(err => {            console.error("[Dashboard] âŒ Error loading active games:", err);            return { data: [] };          })        ]);        histories = fetchedHistories || [];        activeGamesResponse = fetchedActiveGames;        console.log('[Dashboard] âœ… Loaded', histories.length, 'game histories');        console.log('[Dashboard] âœ… Loaded', activeGamesResponse.data.length, 'active games');        // Correct multiplayer history scores and results        const correctedHistories = await correctMultiplayerHistories(histories);        setGameHistories(correctedHistories);        setActiveGames(activeGamesResponse.data || []);      } catch (error) {        console.error("[Dashboard] âŒ Error loading data:", error);        setGameHistories([]);        setActiveGames([]);      } finally {        setLoading(false);      }    };    const correctMultiplayerHistories = async (histories) => {      if (!user?.id || !histories || histories.length === 0) return histories;      const multiplayerHistories = histories.filter(h => h.game_mode === 'multiplayer');      if (multiplayerHistories.length === 0) return histories;      try {        // Fetch recent finished games for this user        const gamesResponse = await api.get('/games', {          params: {            status: 'finished',            limit: 50, // Enough for recent games            user_id: user.id          }        });        const recentGames = gamesResponse.data || [];        console.log(`[Dashboard] ðŸ”§ Correcting ${multiplayerHistories.length} multiplayer histories using ${recentGames.length} recent games`);        return histories.map(history => {          if (history.game_mode !== 'multiplayer' || history.final_score !== history.opponent_score) {            return history; // No correction needed          }          // Find matching game by moves preview and date (within 2 minutes)          const historyDate = new Date(history.played_at);          const matchingGame = recentGames.find(game => {            const gameDate = new Date(game.ended_at || game.played_at);            const dateDiff = Math.abs(historyDate - gameDate) / 1000 / 60; // minutes            const movesMatch = String(history.moves || '').substring(0, 100) === String(game.moves || '').substring(0, 100);            return dateDiff < 2 && movesMatch && (game.white_player_id === parseInt(user.id) || game.black_player_id === parseInt(user.id));          });          if (!matchingGame) {            console.warn(`[Dashboard] âš ï¸ No matching game found for history ${history.id}`);            return history;          }          const playerColor = history.player_color;          const whiteScore = parseFloat(matchingGame.white_player_score || 0);          const blackScore = parseFloat(matchingGame.black_player_score || 0);          const isPlayerWin = matchingGame.winner_user_id === parseInt(user.id);          const opponentName = playerColor === 'w' ? matchingGame.black_player?.name : matchingGame.white_player?.name;          const correctedHistory = {            ...history,            final_score: playerColor === 'w' ? whiteScore : blackScore,            opponent_score: playerColor === 'w' ? blackScore : whiteScore,            result: {              ...history.result,              status: isPlayerWin ? 'won' : 'lost',              details: isPlayerWin                 ? `You won by ${matchingGame.end_reason}!`                 : `${opponentName} won by ${matchingGame.end_reason}`,              end_reason: matchingGame.end_reason,              winner: isPlayerWin ? 'player' : 'opponent'            }          };          console.log(`[Dashboard] âœ… Corrected history ${history.id}:`, {            oldPlayer: history.final_score,            oldOpp: history.opponent_score,            newPlayer: correctedHistory.final_score,            newOpp: correctedHistory.opponent_score,            newResult: correctedHistory.result.status          });          return correctedHistory;        });      } catch (error) {        console.error('[Dashboard] âŒ Error correcting multiplayer histories:', error);        return histories;      }    };    loadGameHistories();    // No cleanup function - keep the guard active to prevent duplicate fetches  }, [getGameHistory, user?.id]);  const handleReviewGame = (game) => {    // Add mode=multiplayer for multiplayer games to ensure correct scores are fetched    const reviewUrl = game.game_mode === 'multiplayer'      ? `/play/review/${game.id}?mode=multiplayer`      : `/play/review/${game.id}`;    navigate(reviewUrl);  };  const handleSkillAssessmentComplete = async (rating) => {    console.log('Skill assessment completed with rating:', rating);    setShowSkillAssessment(false);    // Refresh user data to show updated rating    window.location.reload();  };  const handleSkillAssessmentSkip = () => {    console.log('Skill assessment skipped');    setShowSkillAssessment(false);  };  // Check if user should be prompted to set their rating  const shouldShowRatingPrompt = user && user.rating === 1200 && (user.games_played === 0 || !user.games_played);  return (    <>      <SkillAssessmentModal        isOpen={showSkillAssessment}        onComplete={handleSkillAssessmentComplete}        onSkip={handleSkillAssessmentSkip}      />      <DetailedStatsModal        isOpen={showDetailedStats}        onClose={() => setShowDetailedStats(false)}        gameHistories={gameHistories}        user={user}      />      <div className="dashboard-container">        <div className="dashboard p-6 text-white">          <header className="dashboard-header text-center mb-10">            <h1 className="text-4xl font-bold text-white">Welcome, {user?.username || "Player"}!</h1>            {/* Skill Assessment Prompt */}            {shouldShowRatingPrompt && (              <div className="rating-prompt-banner">                <p className="rating-prompt-text">                  â­ You're using the default rating (1200). Take a quick skill assessment to get a personalized rating!                </p>                <button                  className="rating-prompt-btn"                  onClick={() => setShowSkillAssessment(true)}                >                  Set My Skill Level                </button>              </div>            )}          </header>        <div className="dashboard-grid">        {/* Active Games Section */}        <section className="unified-section">          <h2 className="unified-section-header">ðŸŽ® Active Games</h2>          {!user ? (            <div className="unified-empty-state">              <p>Loading user data...</p>            </div>          ) : activeGames.length > 0 ? (            <div className="unified-card-grid cols-1">              {activeGames.map((game) => {                const opponent =                  game.white_player_id === user?.id                    ? game.black_player                    : game.white_player;                const playerColor =                  game.white_player_id === user?.id ? 'white' : 'black';                const statusClass =                  game.status === 'active'                    ? 'active'                    : game.status === 'paused'                    ? 'paused'                    : '';                return (                  <div key={game.id} className="unified-card horizontal">                    <img                      src={                        getPlayerAvatar(opponent) ||                        `https://i.pravatar.cc/150?u=${opponent?.email || `user${opponent?.id}`}`                      }                      alt={opponent?.name}                      className="unified-card-avatar"                    />                    <div className="unified-card-content">                      <h3 className="unified-card-title">vs {opponent?.name}</h3>                      <p className="unified-card-subtitle">                        <span className={`unified-card-status ${statusClass}`}>                          {game.status}                        </span>                        {' â€¢ '}Playing as {playerColor}                      </p>                      <p className="unified-card-meta">                        Last move:{' '}                        {game.last_move_at                          ? new Date(game.last_move_at).toLocaleString()                          : 'No moves yet'}                      </p>                    </div>                    <div className="unified-card-actions">                      <button                        onClick={() => {                          sessionStorage.setItem(                            'lastInvitationAction',                            'resume_game'                          );                          sessionStorage.setItem(                            'lastInvitationTime',                            Date.now().toString()                          );                          sessionStorage.setItem(                            'lastGameId',                            game.id.toString()                          );                          navigate(`/play/multiplayer/${game.id}`);                        }}                        className="unified-card-btn secondary"                      >                        â–¶ï¸ Resume Game                      </button>                    </div>                  </div>                );              })}            </div>          ) : (            <div className="unified-empty-state">              <p>ðŸŽ® No active games</p>              <p>Start a new game from the lobby!</p>            </div>          )}        </section>        {/* Recent Games Section */}        <section className="unified-section">          <h2 className="unified-section-header">ðŸ“œ Recent Games</h2>          {loading ? (            <div className="unified-empty-state">              <p>Loading game history...</p>            </div>          ) : gameHistories.length > 0 ? (            <div className="unified-card-grid cols-1">              {gameHistories.map((game) => (                <div key={game.id} className="unified-card horizontal">                  <div className="unified-card-content">                    <h3 className="unified-card-title">                      {new Date(                        game.played_at || game.timestamp                      ).toLocaleDateString()}                    </h3>                    <p                      className={`unified-card-subtitle ${                        isWin(game.result)                          ? "title-success"                          : "title-error"                      }`}                    >                      {getResultDisplayText(game.result)}                    </p>                  </div>                  <div className="unified-card-actions">                    <button                      onClick={() => handleReviewGame(game)}                      className="unified-card-btn primary"                    >                      Review Game                    </button>                  </div>                </div>              ))}            </div>          ) : (            <div className="unified-empty-state">              <p>ðŸ“œ No games played yet</p>              <p>Play your first game to see your history!</p>            </div>          )}        </section>        {/* User Stats Section */}        <section className="unified-section">          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>            <h2 className="unified-section-header" style={{ margin: 0 }}>ðŸ“Š Your Statistics</h2>            {gameHistories.length > 0 && (              <button                onClick={() => setShowDetailedStats(true)}                className="unified-card-btn primary"                style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}              >                ðŸ“‹ View Details              </button>            )}          </div>            <div className="unified-card-grid cols-4">              <div className="unified-card centered">                <div className="unified-card-content">                  <h3 className="unified-card-title title-large title-primary">                    {gameHistories.length}                  </h3>                  <p className="unified-card-subtitle">Games Played</p>                </div>              </div>              <div className="unified-card centered">                <div className="unified-card-content">                  <h3 className="unified-card-title title-large title-success">                    {gameHistories.length > 0                      ? (() => {                          const wins = gameHistories.filter((g) => isWin(g.result)).length;                          console.log('ðŸ“Š [Stats] Total games:', gameHistories.length, 'Wins:', wins);                          return `${Math.round((wins / gameHistories.length) * 100)}%`;                        })()                      : "0%"}                  </h3>                  <p className="unified-card-subtitle">Win Rate</p>                </div>              </div>              <div className="unified-card centered">                <div className="unified-card-content">                  <h3 className="unified-card-title title-large title-accent">                    {gameHistories.length > 0                      ? (() => {                          const scores = gameHistories.map(game => {                            // Backend now calculates final_score properly for all game types                            const score = game.finalScore ?? game.final_score ?? game.score ?? 0;                            const numScore = typeof score === 'number' ? score : parseFloat(score) || 0;                            return numScore;                          });                          const sum = scores.reduce((a, b) => a + b, 0);                          const avg = sum / gameHistories.length;                          console.log('ðŸ“Š [Stats] Scores:', scores, 'Average:', avg);                          return avg.toFixed(1);                        })()                      : "0.0"}                  </h3>                  <p className="unified-card-subtitle">Average Score</p>                </div>              </div>              <div className="unified-card centered">                <div className="unified-card-content">                  <h3 className="unified-card-title title-large title-info">                    {user?.rating || 1200}                  </h3>                  <p className="unified-card-subtitle">Rating</p>                </div>              </div>            </div>        </section>        {/* Quick Actions Section */}        <section className="unified-section">          <h2 className="unified-section-header">âš¡ Quick Actions</h2>          <div className="unified-card-grid cols-4">            <button              onClick={() => navigate("/play")}              className="unified-card gradient-accent centered"            >              <div className="unified-card-content">                <h3 className="unified-card-title">ðŸ¤– Play Computer</h3>                <p className="unified-card-subtitle">Play against AI</p>              </div>            </button>            <button              onClick={() => navigate("/lobby")}              className="unified-card gradient-primary centered"            >              <div className="unified-card-content">                <h3 className="unified-card-title">ðŸ‘¥ Play Human</h3>                <p className="unified-card-subtitle">Challenge other players</p>              </div>            </button>            <button              onClick={() => navigate("/training")}              className="unified-card gradient-success centered"            >              <div className="unified-card-content">                <h3 className="unified-card-title">ðŸŽ“ Training Hub</h3>                <p className="unified-card-subtitle">Practice exercises</p>              </div>            </button>            <button              onClick={() => navigate("/profile")}              className="unified-card gradient-info centered"            >              <div className="unified-card-content">                <h3 className="unified-card-title">ðŸ‘¤ Profile</h3>                <p className="unified-card-subtitle">Manage settings & friends</p>              </div>            </button>          </div>        </section>        </div>      </div>    </div>    </>  );};export default Dashboard;
+import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+import { useAppData } from "../contexts/AppDataContext";
+import { getGameHistories } from "../services/gameHistoryService";
+import api from "../services/api";
+import SkillAssessmentModal from "./auth/SkillAssessmentModal";
+import DetailedStatsModal from "./DetailedStatsModal";
+import { getPlayerAvatar } from "../utils/playerDisplayUtils";
+import { isWin, getResultDisplayText } from "../utils/resultStandardization";
+import "./Dashboard.css";
+import "../styles/UnifiedCards.css"; // Import unified card styles
+
+const Dashboard = () => {
+  const [gameHistories, setGameHistories] = useState([]);
+  const [activeGames, setActiveGames] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showSkillAssessment, setShowSkillAssessment] = useState(false);
+  const [showDetailedStats, setShowDetailedStats] = useState(false);
+  const { user } = useAuth();
+  const { getGameHistory } = useAppData();
+  const navigate = useNavigate();
+  const didFetchRef = useRef(false); // Guard against StrictMode double-mount
+
+  useEffect(() => {
+    // Prevent duplicate fetches in StrictMode
+    if (didFetchRef.current) {
+      console.log('[Dashboard] ⏭️ Already fetched game histories, skipping');
+      return;
+    }
+    didFetchRef.current = true;
+
+    const loadGameHistories = async () => {
+      let histories = [];
+      let activeGamesResponse = { data: [] };
+
+      try {
+        console.log('[Dashboard] 📊 Loading game histories and active games...');
+        // Fetch both game histories and active games in parallel
+        const [fetchedHistories, fetchedActiveGames] = await Promise.all([
+          getGameHistory(true).catch(() => getGameHistories()), // Force refresh to bypass cache
+          api.get('/games/active').catch(err => {
+            console.error("[Dashboard] ❌ Error loading active games:", err);
+            return { data: [] };
+          })
+        ]);
+
+        histories = fetchedHistories || [];
+        activeGamesResponse = fetchedActiveGames;
+
+        console.log('[Dashboard] ✅ Loaded', histories.length, 'game histories');
+        console.log('[Dashboard] ✅ Loaded', activeGamesResponse.data.length, 'active games');
+
+        // Correct multiplayer history scores and results
+        const correctedHistories = await correctMultiplayerHistories(histories);
+        setGameHistories(correctedHistories);
+        setActiveGames(activeGamesResponse.data || []);
+      } catch (error) {
+        console.error("[Dashboard] ❌ Error loading data:", error);
+        setGameHistories([]);
+        setActiveGames([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const correctMultiplayerHistories = async (histories) => {
+      if (!user?.id || !histories || histories.length === 0) return histories;
+
+      const multiplayerHistories = histories.filter(h => h.game_mode === 'multiplayer');
+      if (multiplayerHistories.length === 0) return histories;
+
+      try {
+        // Fetch recent finished games for this user
+        const gamesResponse = await api.get('/games', {
+          params: {
+            status: 'finished',
+            limit: 50, // Enough for recent games
+            user_id: user.id
+          }
+        });
+        const recentGames = gamesResponse.data || [];
+
+        console.log(`[Dashboard] 🔧 Correcting ${multiplayerHistories.length} multiplayer histories using ${recentGames.length} recent games`);
+
+        return histories.map(history => {
+          if (history.game_mode !== 'multiplayer' || history.final_score !== history.opponent_score) {
+            return history; // No correction needed
+          }
+
+          // Find matching game by moves preview and date (within 2 minutes)
+          const historyDate = new Date(history.played_at);
+          const matchingGame = recentGames.find(game => {
+            const gameDate = new Date(game.ended_at || game.played_at);
+            const dateDiff = Math.abs(historyDate - gameDate) / 1000 / 60; // minutes
+            const movesMatch = String(history.moves || '').substring(0, 100) === String(game.moves || '').substring(0, 100);
+            return dateDiff < 2 && movesMatch && (game.white_player_id === parseInt(user.id) || game.black_player_id === parseInt(user.id));
+          });
+
+          if (!matchingGame) {
+            console.warn(`[Dashboard] ⚠️ No matching game found for history ${history.id}`);
+            return history;
+          }
+
+          const playerColor = history.player_color;
+          const whiteScore = parseFloat(matchingGame.white_player_score || 0);
+          const blackScore = parseFloat(matchingGame.black_player_score || 0);
+          const isPlayerWin = matchingGame.winner_user_id === parseInt(user.id);
+          const opponentName = playerColor === 'w' ? matchingGame.black_player?.name : matchingGame.white_player?.name;
+
+          const correctedHistory = {
+            ...history,
+            final_score: playerColor === 'w' ? whiteScore : blackScore,
+            opponent_score: playerColor === 'w' ? blackScore : whiteScore,
+            result: {
+              ...history.result,
+              status: isPlayerWin ? 'won' : 'lost',
+              details: isPlayerWin 
+                ? `You won by ${matchingGame.end_reason}!` 
+                : `${opponentName} won by ${matchingGame.end_reason}`,
+              end_reason: matchingGame.end_reason,
+              winner: isPlayerWin ? 'player' : 'opponent'
+            }
+          };
+
+          console.log(`[Dashboard] ✅ Corrected history ${history.id}:`, {
+            oldPlayer: history.final_score,
+            oldOpp: history.opponent_score,
+            newPlayer: correctedHistory.final_score,
+            newOpp: correctedHistory.opponent_score,
+            newResult: correctedHistory.result.status
+          });
+
+          return correctedHistory;
+        });
+      } catch (error) {
+        console.error('[Dashboard] ❌ Error correcting multiplayer histories:', error);
+        return histories;
+      }
+    };
+
+    loadGameHistories();
+
+    // No cleanup function - keep the guard active to prevent duplicate fetches
+  }, [getGameHistory, user?.id]);
+
+  const handleReviewGame = (game) => {
+    navigate(`/play/review/${game.id}`);
+  };
+
+  const handleSkillAssessmentComplete = async (rating) => {
+    console.log('Skill assessment completed with rating:', rating);
+    setShowSkillAssessment(false);
+    // Refresh user data to show updated rating
+    window.location.reload();
+  };
+
+  const handleSkillAssessmentSkip = () => {
+    console.log('Skill assessment skipped');
+    setShowSkillAssessment(false);
+  };
+
+  // Check if user should be prompted to set their rating
+  const shouldShowRatingPrompt = user && user.rating === 1200 && (user.games_played === 0 || !user.games_played);
+
+  return (
+    <>
+      <SkillAssessmentModal
+        isOpen={showSkillAssessment}
+        onComplete={handleSkillAssessmentComplete}
+        onSkip={handleSkillAssessmentSkip}
+      />
+
+      <DetailedStatsModal
+        isOpen={showDetailedStats}
+        onClose={() => setShowDetailedStats(false)}
+        gameHistories={gameHistories}
+        user={user}
+      />
+
+      <div className="dashboard-container">
+        <div className="dashboard p-6 text-white">
+          <header className="dashboard-header text-center mb-10">
+            <h1 className="text-4xl font-bold text-white">Welcome, {user?.username || "Player"}!</h1>
+
+            {/* Skill Assessment Prompt */}
+            {shouldShowRatingPrompt && (
+              <div className="rating-prompt-banner">
+                <p className="rating-prompt-text">
+                  ⭐ You're using the default rating (1200). Take a quick skill assessment to get a personalized rating!
+                </p>
+                <button
+                  className="rating-prompt-btn"
+                  onClick={() => setShowSkillAssessment(true)}
+                >
+                  Set My Skill Level
+                </button>
+              </div>
+            )}
+          </header>
+
+        <div className="dashboard-grid">
+        {/* Active Games Section */}
+        <section className="unified-section">
+          <h2 className="unified-section-header">🎮 Active Games</h2>
+          {!user ? (
+            <div className="unified-empty-state">
+              <p>Loading user data...</p>
+            </div>
+          ) : activeGames.length > 0 ? (
+            <div className="unified-card-grid cols-1">
+              {activeGames.map((game) => {
+                const opponent =
+                  game.white_player_id === user?.id
+                    ? game.black_player
+                    : game.white_player;
+                const playerColor =
+                  game.white_player_id === user?.id ? 'white' : 'black';
+                const statusClass =
+                  game.status === 'active'
+                    ? 'active'
+                    : game.status === 'paused'
+                    ? 'paused'
+                    : '';
+
+                return (
+                  <div key={game.id} className="unified-card horizontal">
+                    <img
+                      src={
+                        getPlayerAvatar(opponent) ||
+                        `https://i.pravatar.cc/150?u=${opponent?.email || `user${opponent?.id}`}`
+                      }
+                      alt={opponent?.name}
+                      className="unified-card-avatar"
+                    />
+                    <div className="unified-card-content">
+                      <h3 className="unified-card-title">vs {opponent?.name}</h3>
+                      <p className="unified-card-subtitle">
+                        <span className={`unified-card-status ${statusClass}`}>
+                          {game.status}
+                        </span>
+                        {' • '}Playing as {playerColor}
+                      </p>
+                      <p className="unified-card-meta">
+                        Last move:{' '}
+                        {game.last_move_at
+                          ? new Date(game.last_move_at).toLocaleString()
+                          : 'No moves yet'}
+                      </p>
+                    </div>
+                    <div className="unified-card-actions">
+                      <button
+                        onClick={() => {
+                          sessionStorage.setItem(
+                            'lastInvitationAction',
+                            'resume_game'
+                          );
+                          sessionStorage.setItem(
+                            'lastInvitationTime',
+                            Date.now().toString()
+                          );
+                          sessionStorage.setItem(
+                            'lastGameId',
+                            game.id.toString()
+                          );
+                          navigate(`/play/multiplayer/${game.id}`);
+                        }}
+                        className="unified-card-btn secondary"
+                      >
+                        ▶️ Resume Game
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="unified-empty-state">
+              <p>🎮 No active games</p>
+              <p>Start a new game from the lobby!</p>
+            </div>
+          )}
+        </section>
+
+        {/* Recent Games Section */}
+        <section className="unified-section">
+          <h2 className="unified-section-header">📜 Recent Games</h2>
+          {loading ? (
+            <div className="unified-empty-state">
+              <p>Loading game history...</p>
+            </div>
+          ) : gameHistories.length > 0 ? (
+            <div className="unified-card-grid cols-1">
+              {gameHistories.map((game) => (
+                <div key={game.id} className="unified-card horizontal">
+                  <div className="unified-card-content">
+                    <h3 className="unified-card-title">
+                      {new Date(
+                        game.played_at || game.timestamp
+                      ).toLocaleDateString()}
+                    </h3>
+                    <p
+                      className={`unified-card-subtitle ${
+                        isWin(game.result)
+                          ? "title-success"
+                          : "title-error"
+                      }`}
+                    >
+                      {getResultDisplayText(game.result)}
+                    </p>
+                  </div>
+                  <div className="unified-card-actions">
+                    <button
+                      onClick={() => handleReviewGame(game)}
+                      className="unified-card-btn primary"
+                    >
+                      Review Game
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="unified-empty-state">
+              <p>📜 No games played yet</p>
+              <p>Play your first game to see your history!</p>
+            </div>
+          )}
+        </section>
+
+        {/* User Stats Section */}
+        <section className="unified-section">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h2 className="unified-section-header" style={{ margin: 0 }}>📊 Your Statistics</h2>
+            {gameHistories.length > 0 && (
+              <button
+                onClick={() => setShowDetailedStats(true)}
+                className="unified-card-btn primary"
+                style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}
+              >
+                📋 View Details
+              </button>
+            )}
+          </div>
+            <div className="unified-card-grid cols-4">
+              <div className="unified-card centered">
+                <div className="unified-card-content">
+                  <h3 className="unified-card-title title-large title-primary">
+                    {gameHistories.length}
+                  </h3>
+                  <p className="unified-card-subtitle">Games Played</p>
+                </div>
+              </div>
+              <div className="unified-card centered">
+                <div className="unified-card-content">
+                  <h3 className="unified-card-title title-large title-success">
+                    {gameHistories.length > 0
+                      ? (() => {
+                          const wins = gameHistories.filter((g) => isWin(g.result)).length;
+                          console.log('📊 [Stats] Total games:', gameHistories.length, 'Wins:', wins);
+                          return `${Math.round((wins / gameHistories.length) * 100)}%`;
+                        })()
+                      : "0%"}
+                  </h3>
+                  <p className="unified-card-subtitle">Win Rate</p>
+                </div>
+              </div>
+              <div className="unified-card centered">
+                <div className="unified-card-content">
+                  <h3 className="unified-card-title title-large title-accent">
+                    {gameHistories.length > 0
+                      ? (() => {
+                          const scores = gameHistories.map(game => {
+                            // Backend now calculates final_score properly for all game types
+                            const score = game.finalScore ?? game.final_score ?? game.score ?? 0;
+                            const numScore = typeof score === 'number' ? score : parseFloat(score) || 0;
+                            return numScore;
+                          });
+                          const sum = scores.reduce((a, b) => a + b, 0);
+                          const avg = sum / gameHistories.length;
+                          console.log('📊 [Stats] Scores:', scores, 'Average:', avg);
+                          return avg.toFixed(1);
+                        })()
+                      : "0.0"}
+                  </h3>
+                  <p className="unified-card-subtitle">Average Score</p>
+                </div>
+              </div>
+              <div className="unified-card centered">
+                <div className="unified-card-content">
+                  <h3 className="unified-card-title title-large title-info">
+                    {user?.rating || 1200}
+                  </h3>
+                  <p className="unified-card-subtitle">Rating</p>
+                </div>
+              </div>
+            </div>
+        </section>
+
+        {/* Quick Actions Section */}
+        <section className="unified-section">
+          <h2 className="unified-section-header">⚡ Quick Actions</h2>
+          <div className="unified-card-grid cols-3">
+            <button
+              onClick={() => navigate("/play")}
+              className="unified-card gradient-accent centered"
+            >
+              <div className="unified-card-content">
+                <h3 className="unified-card-title">🤖 Play Computer</h3>
+                <p className="unified-card-subtitle">Play against AI</p>
+              </div>
+            </button>
+            <button
+              onClick={() => navigate("/lobby")}
+              className="unified-card gradient-primary centered"
+            >
+              <div className="unified-card-content">
+                <h3 className="unified-card-title">👥 Play Human</h3>
+                <p className="unified-card-subtitle">Challenge other players</p>
+              </div>
+            </button>
+            <button
+              onClick={() => navigate("/training")}
+              className="unified-card gradient-success centered"
+            >
+              <div className="unified-card-content">
+                <h3 className="unified-card-title">🎓 Training Hub</h3>
+                <p className="unified-card-subtitle">Practice exercises</p>
+              </div>
+            </button>
+          </div>
+        </section>
+        </div>
+      </div>
+    </div>
+    </>
+  );
+};
+
+export default Dashboard;

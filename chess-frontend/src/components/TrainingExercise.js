@@ -1,1 +1,233 @@
-﻿import React, { useState, useEffect } from 'react';import { useParams, useNavigate } from 'react-router-dom';import { Chess } from 'chess.js';import { Chessboard } from 'react-chessboard';import { getExercise } from '../utils/trainingExercises';const TrainingExercise = () => {  const { level, id } = useParams();  const navigate = useNavigate();    const [game, setGame] = useState(null);  const [exercise, setExercise] = useState(null);  const [moveFrom, setMoveFrom] = useState('');  const [rightClickedSquares, setRightClickedSquares] = useState({});  const [optionSquares, setOptionSquares] = useState({});  const [message, setMessage] = useState('');  const [messageType, setMessageType] = useState('');  // Initialize the exercise  useEffect(() => {    const exerciseData = getExercise(level, Number(id));    if (!exerciseData) {      navigate('/training');      return;    }        setExercise(exerciseData);    const newGame = new Chess(exerciseData.position);    setGame(newGame);    setMessage('');    setMessageType('');    setMoveFrom('');    setOptionSquares({});    setRightClickedSquares({});  }, [level, id, navigate]);  // Function to get possible moves for a piece  function getMoveOptions(square) {    if (!game) {      setOptionSquares({});      setMoveFrom('');      return;    }    const moves = game.moves({      square,      verbose: true    });    if (moves.length === 0) {      setMoveFrom('');      setOptionSquares({});      return;    }    const newSquares = {};    moves.forEach((move) => {      newSquares[move.to] = {        background:          game.get(move.to) && game.get(move.to).color !== game.get(square).color            ? 'radial-gradient(circle, rgba(0,0,0,.1) 85%, transparent 85%)'            : 'radial-gradient(circle, rgba(0,0,0,.1) 25%, transparent 25%)',        borderRadius: '50%'      };    });    newSquares[square] = {      background: 'rgba(255, 255, 0, 0.4)'    };    setMoveFrom(square);    setOptionSquares(newSquares);  }  // Handle piece drop (move)  function onDrop(sourceSquare, targetSquare) {    if (!game || !exercise) return false;        try {      const move = game.move({        from: sourceSquare,        to: targetSquare,        promotion: 'q' // always promote to queen for simplicity      });      if (move === null) return false;            // Check if the move is the solution      const moveString = sourceSquare + targetSquare;      if (exercise.solution.includes(moveString)) {        setMessage(exercise.successMessage);        setMessageType('success');      } else {        setMessage('That\'s not the correct move. Try again or check the solution.');        setMessageType('error');        // Undo the move        game.undo();        setGame(new Chess(game.fen()));        setOptionSquares({});        return false;      }            setGame(new Chess(game.fen()));      setOptionSquares({});      return true;    } catch (e) {      return false;    }  }  // Handle piece move  function onSquareClick(square) {    if (!game) return false;    // Reset clicked squares    setRightClickedSquares({});    // If square already selected, move the piece    if (moveFrom && moveFrom !== square) {      try {        const result = onDrop(moveFrom, square);        setMoveFrom('');        setOptionSquares({});        return result;      } catch (e) {        setMoveFrom('');        setOptionSquares({});        return false;      }    }    // Get piece on the square    const piece = game.get(square);    if (piece && piece.color === game.turn()) {      getMoveOptions(square);      return true;    }    setMoveFrom('');    setOptionSquares({});    return false;  }  // Handle right-click to mark squares  function onSquareRightClick(square) {    const color = "rgba(0, 0, 255, 0.4)";    setRightClickedSquares({      ...rightClickedSquares,      [square]:        rightClickedSquares[square] && rightClickedSquares[square].backgroundColor === color          ? undefined          : { backgroundColor: color }    });  }  // Reset exercise  const resetExercise = () => {    if (!exercise) return;    const newGame = new Chess(exercise.position);    setGame(newGame);    setMessage('');    setMessageType('');    setMoveFrom('');    setRightClickedSquares({});    setOptionSquares({});  };  // Show the solution  const revealSolution = () => {    if (!exercise || !game) return;        // Highlight the solution move    const [from, to] = exercise.solution[0].match(/.{1,2}/g) || [];    if (from && to) {      setRightClickedSquares({        [from]: { backgroundColor: 'rgba(0, 255, 0, 0.4)' },        [to]: { backgroundColor: 'rgba(0, 255, 0, 0.4)' }      });    }        setMessage(`Solution: Move from ${from} to ${to}`);    setMessageType('info');  };  // Go back to training hub  const goBack = () => {    navigate('/training');  };  // Combine all square styles  const customSquareStyles = {    ...optionSquares,    ...rightClickedSquares  };  if (!exercise || !game) {    return <div className="p-6 min-h-screen text-white flex items-center justify-center">Loading exercise...</div>;  }  return (    <div className="chess-game p-6 min-h-screen text-white flex flex-col items-center">      <h2 className="text-3xl font-bold mb-2 text-white">{exercise.title}</h2>            <div className="exercise-instructions bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-4 mb-6 max-w-2xl text-center">        <p>{exercise.description}</p>      </div>            <div className="board-container w-full max-w-lg mx-auto mb-6">        <Chessboard          position={game.fen()}          onPieceDrop={onDrop}          onSquareClick={onSquareClick}          onSquareRightClick={onSquareRightClick}          customSquareStyles={customSquareStyles}          boardOrientation="white"        />      </div>            {message && (        <div className={`message-box ${messageType === 'success' ? 'bg-success' : messageType === 'error' ? 'bg-error' : 'bg-info'} p-3 rounded-lg max-w-2xl text-center mb-6 text-white`}>          {message}        </div>      )}            <div className="game-controls flex gap-4">        <button onClick={resetExercise} className="control-button bg-accent hover:bg-accent-600 text-white font-bold py-2 px-4 rounded-lg">Reset</button>        <button onClick={revealSolution} className="control-button bg-primary hover:bg-primary-600 text-white font-bold py-2 px-4 rounded-lg">Solution</button>        <button onClick={goBack} className="control-button bg-secondary hover:bg-secondary-600 text-white font-bold py-2 px-4 rounded-lg">Back to Hub</button>      </div>    </div>  );};export default TrainingExercise;
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Chess } from 'chess.js';
+import { Chessboard } from 'react-chessboard';
+import { getExercise } from '../utils/trainingExercises';
+
+const TrainingExercise = () => {
+  const { level, id } = useParams();
+  const navigate = useNavigate();
+  
+  const [game, setGame] = useState(null);
+  const [exercise, setExercise] = useState(null);
+  const [moveFrom, setMoveFrom] = useState('');
+  const [rightClickedSquares, setRightClickedSquares] = useState({});
+  const [optionSquares, setOptionSquares] = useState({});
+  const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState('');
+
+  // Initialize the exercise
+  useEffect(() => {
+    const exerciseData = getExercise(level, Number(id));
+    if (!exerciseData) {
+      navigate('/training');
+      return;
+    }
+    
+    setExercise(exerciseData);
+    const newGame = new Chess(exerciseData.position);
+    setGame(newGame);
+    setMessage('');
+    setMessageType('');
+    setMoveFrom('');
+    setOptionSquares({});
+    setRightClickedSquares({});
+  }, [level, id, navigate]);
+
+  // Function to get possible moves for a piece
+  function getMoveOptions(square) {
+    if (!game) {
+      setOptionSquares({});
+      setMoveFrom('');
+      return;
+    }
+
+    const moves = game.moves({
+      square,
+      verbose: true
+    });
+
+    if (moves.length === 0) {
+      setMoveFrom('');
+      setOptionSquares({});
+      return;
+    }
+
+    const newSquares = {};
+    moves.forEach((move) => {
+      newSquares[move.to] = {
+        background:
+          game.get(move.to) && game.get(move.to).color !== game.get(square).color
+            ? 'radial-gradient(circle, rgba(0,0,0,.1) 85%, transparent 85%)'
+            : 'radial-gradient(circle, rgba(0,0,0,.1) 25%, transparent 25%)',
+        borderRadius: '50%'
+      };
+    });
+    newSquares[square] = {
+      background: 'rgba(255, 255, 0, 0.4)'
+    };
+    setMoveFrom(square);
+    setOptionSquares(newSquares);
+  }
+
+  // Handle piece drop (move)
+  function onDrop(sourceSquare, targetSquare) {
+    if (!game || !exercise) return false;
+    
+    try {
+      const move = game.move({
+        from: sourceSquare,
+        to: targetSquare,
+        promotion: 'q' // always promote to queen for simplicity
+      });
+
+      if (move === null) return false;
+      
+      // Check if the move is the solution
+      const moveString = sourceSquare + targetSquare;
+      if (exercise.solution.includes(moveString)) {
+        setMessage(exercise.successMessage);
+        setMessageType('success');
+      } else {
+        setMessage('That\'s not the correct move. Try again or check the solution.');
+        setMessageType('error');
+        // Undo the move
+        game.undo();
+        setGame(new Chess(game.fen()));
+        setOptionSquares({});
+        return false;
+      }
+      
+      setGame(new Chess(game.fen()));
+      setOptionSquares({});
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Handle piece move
+  function onSquareClick(square) {
+    if (!game) return false;
+
+    // Reset clicked squares
+    setRightClickedSquares({});
+
+    // If square already selected, move the piece
+    if (moveFrom && moveFrom !== square) {
+      try {
+        const result = onDrop(moveFrom, square);
+        setMoveFrom('');
+        setOptionSquares({});
+        return result;
+      } catch (e) {
+        setMoveFrom('');
+        setOptionSquares({});
+        return false;
+      }
+    }
+
+    // Get piece on the square
+    const piece = game.get(square);
+    if (piece && piece.color === game.turn()) {
+      getMoveOptions(square);
+      return true;
+    }
+
+    setMoveFrom('');
+    setOptionSquares({});
+    return false;
+  }
+
+  // Handle right-click to mark squares
+  function onSquareRightClick(square) {
+    const color = "rgba(0, 0, 255, 0.4)";
+    setRightClickedSquares({
+      ...rightClickedSquares,
+      [square]:
+        rightClickedSquares[square] && rightClickedSquares[square].backgroundColor === color
+          ? undefined
+          : { backgroundColor: color }
+    });
+  }
+
+  // Reset exercise
+  const resetExercise = () => {
+    if (!exercise) return;
+
+    const newGame = new Chess(exercise.position);
+    setGame(newGame);
+    setMessage('');
+    setMessageType('');
+    setMoveFrom('');
+    setRightClickedSquares({});
+    setOptionSquares({});
+  };
+
+  // Show the solution
+  const revealSolution = () => {
+    if (!exercise || !game) return;
+    
+    // Highlight the solution move
+    const [from, to] = exercise.solution[0].match(/.{1,2}/g) || [];
+    if (from && to) {
+      setRightClickedSquares({
+        [from]: { backgroundColor: 'rgba(0, 255, 0, 0.4)' },
+        [to]: { backgroundColor: 'rgba(0, 255, 0, 0.4)' }
+      });
+    }
+    
+    setMessage(`Solution: Move from ${from} to ${to}`);
+    setMessageType('info');
+  };
+
+  // Go back to training hub
+  const goBack = () => {
+    navigate('/training');
+  };
+
+  // Combine all square styles
+  const customSquareStyles = {
+    ...optionSquares,
+    ...rightClickedSquares
+  };
+
+  if (!exercise || !game) {
+    return <div className="p-6 min-h-screen text-white flex items-center justify-center">Loading exercise...</div>;
+  }
+
+  return (
+    <div className="chess-game p-6 min-h-screen text-white flex flex-col items-center">
+      <h2 className="text-3xl font-bold mb-2 text-white">{exercise.title}</h2>
+      
+      <div className="exercise-instructions bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-4 mb-6 max-w-2xl text-center">
+        <p>{exercise.description}</p>
+      </div>
+      
+      <div className="board-container w-full max-w-lg mx-auto mb-6">
+        <Chessboard
+          position={game.fen()}
+          onPieceDrop={onDrop}
+          onSquareClick={onSquareClick}
+          onSquareRightClick={onSquareRightClick}
+          customSquareStyles={customSquareStyles}
+          boardOrientation="white"
+        />
+      </div>
+      
+      {message && (
+        <div className={`message-box ${messageType === 'success' ? 'bg-success' : messageType === 'error' ? 'bg-error' : 'bg-info'} p-3 rounded-lg max-w-2xl text-center mb-6 text-white`}>
+          {message}
+        </div>
+      )}
+      
+      <div className="game-controls flex gap-4">
+        <button onClick={resetExercise} className="control-button bg-accent hover:bg-accent-600 text-white font-bold py-2 px-4 rounded-lg">Reset</button>
+        <button onClick={revealSolution} className="control-button bg-primary hover:bg-primary-600 text-white font-bold py-2 px-4 rounded-lg">Solution</button>
+        <button onClick={goBack} className="control-button bg-secondary hover:bg-secondary-600 text-white font-bold py-2 px-4 rounded-lg">Back to Hub</button>
+      </div>
+    </div>
+  );
+};
+
+export default TrainingExercise;

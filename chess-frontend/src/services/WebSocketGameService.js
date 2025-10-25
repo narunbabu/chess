@@ -1,7 +1,5 @@
 import { getEcho, joinChannel, leaveChannel } from './echoSingleton';
 import { BACKEND_URL } from '../config';
-import { optimizeMovePayload, decodeMovePayload, getPayloadOptimizationStats } from '../utils/websocketPayloadOptimizer';
-import { performanceMonitor } from '../utils/performanceMonitor';
 
 class WebSocketGameService {
   constructor() {
@@ -22,15 +20,6 @@ class WebSocketGameService {
     this._lastETag = null;
     this.lastGameState = null;
     this.isPausing = false; // Prevent duplicate pause attempts
-
-    // Payload optimization settings
-    this.optimizationEnabled = false;
-    this.optimizationStats = {
-      originalSize: 0,
-      optimizedSize: 0,
-      totalMoves: 0,
-      totalSavings: 0
-    };
   }
 
   /**
@@ -41,35 +30,6 @@ class WebSocketGameService {
     const id = this.socketId || this.echo?.socketId();
     // Only return if it's a valid non-empty string
     return (typeof id === 'string' && id.length > 0) ? id : undefined;
-  }
-
-  /**
-   * Enable/disable payload optimization
-   * @param {boolean} enabled - Whether to enable optimization
-   */
-  enableOptimization(enabled) {
-    this.optimizationEnabled = enabled;
-    console.log(`🚀 WebSocket payload optimization ${enabled ? 'ENABLED' : 'DISABLED'}`);
-  }
-
-  /**
-   * Get optimization statistics
-   * @returns {Object} Current optimization stats
-   */
-  getOptimizationStats() {
-    return { ...this.optimizationStats };
-  }
-
-  /**
-   * Reset optimization statistics
-   */
-  resetOptimizationStats() {
-    this.optimizationStats = {
-      originalSize: 0,
-      optimizedSize: 0,
-      totalMoves: 0,
-      totalSavings: 0
-    };
   }
 
   /**
@@ -439,95 +399,27 @@ class WebSocketGameService {
       throw new Error('WebSocket not connected');
     }
 
-    // Prepare payload outside try block for error logging access
-    let payload = this.buildRequestBody({ move: moveData });
-    let optimizedMoveData = moveData;
-
     try {
-      // Apply payload optimization if enabled
-      if (this.optimizationEnabled) {
-        try {
-          console.log('🔧 Optimizing move data:', moveData);
-          optimizedMoveData = optimizeMovePayload(moveData);
-          console.log('✅ Move optimization successful:', optimizedMoveData);
-
-          // Update optimization statistics
-          const originalSize = new Blob([JSON.stringify(moveData)]).size;
-          const optimizedSize = new Blob([JSON.stringify(optimizedMoveData)]).size;
-
-          this.optimizationStats.originalSize += originalSize;
-          this.optimizationStats.optimizedSize += optimizedSize;
-          this.optimizationStats.totalMoves += 1;
-          this.optimizationStats.totalSavings += (originalSize - optimizedSize);
-
-          // Track compression performance
-          performanceMonitor.trackCompression(originalSize, optimizedSize);
-
-          console.log(`🚀 WebSocket move optimized: ${moveData.san}`);
-          console.log(`📊 Size reduction: ${originalSize} → ${optimizedSize} bytes (${((originalSize - optimizedSize) / originalSize * 100).toFixed(1)}% reduction)`);
-        } catch (optimizationError) {
-          console.error('❌ Move optimization failed, using original data:', optimizationError);
-          console.error('Move data that failed to optimize:', moveData);
-
-          // Fallback to original move data if optimization fails
-          optimizedMoveData = moveData;
-
-          // Auto-disable optimization if it keeps failing
-          this.optimizationStats.failureCount = (this.optimizationStats.failureCount || 0) + 1;
-          if (this.optimizationStats.failureCount >= 3) {
-            console.warn('⚠️ Multiple optimization failures, auto-disabling WebSocket optimization');
-            this.optimizationEnabled = false;
-            this.optimizationStats.autoDisabled = true;
-          }
-        }
-      }
-
       const token = localStorage.getItem('auth_token');
-
-      // Track WebSocket message performance
-      payload = this.buildRequestBody({
-        move: optimizedMoveData,
-      });
-
-      // Track compression if optimization is enabled
-      if (this.optimizationEnabled) {
-        const originalPayload = this.buildRequestBody({ move: moveData });
-        const originalSize = new Blob([JSON.stringify(originalPayload)]).size;
-        const optimizedSize = new Blob([JSON.stringify(payload)]).size;
-        performanceMonitor.trackCompression(originalSize, optimizedSize);
-      }
-
-      performanceMonitor.trackWebSocketMessage('sent', payload, this.optimizationEnabled);
-
       const response = await fetch(`${BACKEND_URL}/websocket/games/${this.gameId}/move`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
-          // Add optimization flag to request headers
-          ...(this.optimizationEnabled && { 'X-Game-Optimized': 'true' })
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(this.buildRequestBody({
+          move: moveData,
+        })),
       });
 
       const data = await response.json();
       if (!response.ok) {
-        console.error('❌ WebSocket Move Failed:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: data.error,
-          details: data.details || data.message || 'No additional details',
-          payload: payload
-        });
-        throw new Error(data.error || `Server error (${response.status})`);
+        throw new Error(data.error || 'Move failed');
       }
 
-      console.log('✅ WebSocket move sent successfully:', data);
       return data;
     } catch (error) {
-      console.error('❌ Failed to send move:', error);
-      console.error('📤 Payload that failed:', JSON.stringify(payload, null, 2));
-      console.error('🔧 Optimization enabled:', this.optimizationEnabled);
+      console.error('Failed to send move:', error);
       throw error;
     }
   }

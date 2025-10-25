@@ -13,7 +13,6 @@ import TrainingHub from "./components/TrainingHub";
 import TrainingExercise from "./components/TrainingExercise";
 import GameHistory from "./components/GameHistory";
 import GameReview from "./components/GameReview";
-import Profile from "./components/Profile";
 import Login from "./pages/Login";
 import Dashboard from "./components/Dashboard";
 import AuthCallback from "./components/auth/AuthCallback";
@@ -52,7 +51,7 @@ const App = () => {
                 <AppContent />
                 {/* Global Invitation Dialog - appears across all pages */}
                 <GlobalInvitationDialog />
-                </GlobalInvitationProvider>
+              </GlobalInvitationProvider>
             </Layout>
           </Router>
         </FeatureFlagsProvider>
@@ -140,14 +139,6 @@ const AppContent = () => {
               element={
                 <RouteGuard>
                   <GameReview />
-                </RouteGuard>
-              }
-            />
-            <Route
-              path="/profile"
-              element={
-                <RouteGuard>
-                  <Profile />
                 </RouteGuard>
               }
             />
