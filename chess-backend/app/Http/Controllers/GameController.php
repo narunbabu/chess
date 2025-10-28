@@ -90,7 +90,21 @@ class GameController extends Controller
 
         $response = [
             ...$game->toArray(),
-            'player_color' => $playerColor
+            'player_color' => $playerColor,
+            'white_player' => [
+                'id' => $game->whitePlayer->id,
+                'name' => $game->whitePlayer->name,
+                'avatar' => $game->whitePlayer->avatar_url,
+                'rating' => $game->whitePlayer->rating,
+                'is_provisional' => $game->whitePlayer->is_provisional
+            ],
+            'black_player' => [
+                'id' => $game->blackPlayer->id,
+                'name' => $game->blackPlayer->name,
+                'avatar' => $game->blackPlayer->avatar_url,
+                'rating' => $game->blackPlayer->rating,
+                'is_provisional' => $game->blackPlayer->is_provisional
+            ]
         ];
 
         \Log::info('🎮 Final response player_color:', ['player_color' => $response['player_color']]);
@@ -264,11 +278,15 @@ class GameController extends Controller
             'ended_at' => $game->ended_at->toISOString(),
             'white_player' => [
                 'id' => $game->whitePlayer->id,
-                'name' => $game->whitePlayer->name
+                'name' => $game->whitePlayer->name,
+                'avatar' => $game->whitePlayer->avatar_url,
+                'rating' => $game->whitePlayer->rating
             ],
             'black_player' => [
                 'id' => $game->blackPlayer->id,
-                'name' => $game->blackPlayer->name
+                'name' => $game->blackPlayer->name,
+                'avatar' => $game->blackPlayer->avatar_url,
+                'rating' => $game->blackPlayer->rating
             ]
         ]));
 
@@ -289,7 +307,23 @@ class GameController extends Controller
         ->with(['whitePlayer', 'blackPlayer', 'statusRelation', 'endReasonRelation'])
         ->orderBy('last_move_at', 'desc')
         ->orderBy('created_at', 'desc')
-        ->get();
+        ->get()
+        ->map(function($game) {
+            $gameArray = $game->toArray();
+            $gameArray['white_player'] = [
+                'id' => $game->whitePlayer->id,
+                'name' => $game->whitePlayer->name,
+                'avatar' => $game->whitePlayer->avatar_url,
+                'rating' => $game->whitePlayer->rating
+            ];
+            $gameArray['black_player'] = [
+                'id' => $game->blackPlayer->id,
+                'name' => $game->blackPlayer->name,
+                'avatar' => $game->blackPlayer->avatar_url,
+                'rating' => $game->blackPlayer->rating
+            ];
+            return $gameArray;
+        });
 
         return response()->json($games);
     }

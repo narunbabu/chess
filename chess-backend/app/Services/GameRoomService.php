@@ -660,11 +660,13 @@ class GameRoomService
                         'white_player' => [
                             'id' => $game->whitePlayer->id,
                             'name' => $game->whitePlayer->name,
+                            'avatar' => $game->whitePlayer->avatar_url,
                             'rating' => $game->whitePlayer->rating ?? 1200
                         ],
                         'black_player' => [
                             'id' => $game->blackPlayer->id,
                             'name' => $game->blackPlayer->name,
+                            'avatar' => $game->blackPlayer->avatar_url,
                             'rating' => $game->blackPlayer->rating ?? 1200
                         ],
                         'white_player_score' => $game->white_player_score ?? 0.0,
@@ -825,11 +827,13 @@ class GameRoomService
             'white_player' => [
                 'id' => $whitePlayer->id,
                 'name' => $whitePlayer->name,
+                'avatar' => $whitePlayer->avatar_url,
                 'rating' => $whitePlayer->rating ?? 1200
             ],
             'black_player' => [
                 'id' => $blackPlayer->id,
                 'name' => $blackPlayer->name,
+                'avatar' => $blackPlayer->avatar_url,
                 'rating' => $blackPlayer->rating ?? 1200
             ],
             'white_player_score' => $game->white_player_score ?? 0.0,
@@ -1017,11 +1021,13 @@ class GameRoomService
                     'white_player' => [
                         'id' => $game->whitePlayer->id,
                         'name' => $game->whitePlayer->name,
+                        'avatar' => $game->whitePlayer->avatar_url,
                         'rating' => $game->whitePlayer->rating ?? 1200
                     ],
                     'black_player' => [
                         'id' => $game->blackPlayer->id,
                         'name' => $game->blackPlayer->name,
+                        'avatar' => $game->blackPlayer->avatar_url,
                         'rating' => $game->blackPlayer->rating ?? 1200
                     ],
                     'white_player_score' => $game->white_player_score ?? 0.0,

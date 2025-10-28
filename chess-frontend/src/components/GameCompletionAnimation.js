@@ -378,270 +378,135 @@ const GameCompletionAnimation = ({
 
   return (
     <div className={overlayClass}>
-      <div className={cardClass}>
-        <div className={`result-icon ${isPlayerWin ? "win" : "loss"}`}>
-          {icon}
-        </div>
-        <h1 className="result-title">{title}</h1>
+      {/* Main GameEndCard - now visible and centered */}
+      <div ref={gameEndCardRef} style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '100vh',
+        padding: '20px'
+      }}>
+        <GameEndCard
+          result={result}
+          user={user}
+          ratingUpdate={ratingUpdate}
+          score={score}
+          opponentScore={opponentScore}
+          playerColor={playerColor}
+          isMultiplayer={isMultiplayer}
+          computerLevel={computerLevel}
+          isAuthenticated={isAuthenticated}
+          className={`${isVisible ? "visible" : ""}`}
+        />
+      </div>
 
-        <div className="result-details">
-          <p className="result-text">{getResultText()}</p> {/* Display the detailed result */}
+      {/* Optional: Close button if onClose prop is provided */}
+      {onClose && (
+        <button
+          onClick={onClose}
+          className="close-button"
+          aria-label="Close"
+          style={{
+            position: 'fixed',
+            top: '20px',
+            right: '20px',
+            background: 'rgba(255, 255, 255, 0.9)',
+            border: 'none',
+            borderRadius: '50%',
+            width: '40px',
+            height: '40px',
+            fontSize: '24px',
+            cursor: 'pointer',
+            zIndex: 1000,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+            transition: 'all 0.2s'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 1)';
+            e.currentTarget.style.transform = 'scale(1.1)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.9)';
+            e.currentTarget.style.transform = 'scale(1)';
+          }}
+        >
+          &times;
+        </button>
+      )}
 
-          {/* Rating Change Display */}
-          {isAuthenticated && (
-            <div className="rating-update-display">
-              {ratingUpdate.isLoading ? (
-                <p className="rating-loading">Calculating rating...</p>
-              ) : ratingUpdate.error ? (
-                <p className="rating-error">{ratingUpdate.error}</p>
-              ) : ratingUpdate.newRating !== null ? (
-                <div className="rating-change-container">
-                  <div className="rating-label">Rating:</div>
-                  <div className="rating-values">
-                    <span className="old-rating">{ratingUpdate.oldRating}</span>
-                    <span className={`rating-change ${ratingUpdate.ratingChange >= 0 ? 'positive' : 'negative'}`}>
-                      ({ratingUpdate.ratingChange >= 0 ? '+' : ''}{ratingUpdate.ratingChange})
-                    </span>
-                    <span className="arrow">→</span>
-                    <span className="new-rating">{ratingUpdate.newRating}</span>
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          )}
-
-          {/* Score Display */}
-          {!isMultiplayer && (
-            <div className="score-display">
-              Score:{" "}
-              <span className="positive">
-                {Math.abs(score || 0).toFixed(1)}
-              </span>
-              {" | "}
-              {computerLevel ? "CPU" : "Opponent"}:{" "}
-              <span className="positive">
-                {Math.abs(opponentScore || 0).toFixed(1)}
-              </span>
-            </div>
-          )}
-
-          {/* Multiplayer Score Display */}
-          {isMultiplayer && result?.white_player && result?.black_player && (
-            <div className="multiplayer-score-display">
-              {/* Determine which player is the current user */}
-              {(() => {
-                const whitePlayerName = result.white_player.name;
-                const blackPlayerName = result.black_player.name;
-                const isUserWhite = isAuthenticated && user && user.name === whitePlayerName;
-                const isUserBlack = isAuthenticated && user && user.name === blackPlayerName;
-
-                return (
-                  <>
-                    {/* First player row - White player */}
-                    <div className="player-score-row">
-                      <span className="player-name">
-                        {whitePlayerName}
-                        {isUserWhite && " (You)"}
-                      </span>
-                      <span className="player-rating">
-                        Rating: {result.white_player.rating}
-                      </span>
-                      <span className="player-score positive">
-                        Score: {playerColor === 'white' ? Math.abs(score || 0).toFixed(1) : Math.abs(opponentScore || 0).toFixed(1)}
-                      </span>
-                    </div>
-
-                    {/* Second player row - Black player */}
-                    <div className="player-score-row">
-                      <span className="player-name">
-                        {blackPlayerName}
-                        {isUserBlack && " (You)"}
-                      </span>
-                      <span className="player-rating">
-                        Rating: {result.black_player.rating}
-                      </span>
-                      <span className="player-score positive">
-                        Score: {playerColor === 'black' ? Math.abs(score || 0).toFixed(1) : Math.abs(opponentScore || 0).toFixed(1)}
-                      </span>
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
-          )}
-
-          {/* Move Count Display */}
-          {isMultiplayer && result?.move_count && (
-            <div className="move-count-display">
-              Game lasted {result.move_count} moves
-            </div>
-          )}
-        </div>
-
-        {/* Action Buttons */}
-        <div className="completion-actions">
-          {isMultiplayer ? (
-            /* Multiplayer specific buttons */
-            <div className="multiplayer-actions">
-              {/* Color Selection for New Game Challenge */}
-              {onNewGame && (
-                <div className="color-selection-section">
-                  <label className="color-selection-label">Challenge to New Game:</label>
-                  <div className="color-selection-options">
-                    <label className={`color-option ${selectedColor === 'white' ? 'selected' : ''}`}>
-                      <input
-                        type="radio"
-                        name="color"
-                        value="white"
-                        checked={selectedColor === 'white'}
-                        onChange={(e) => setSelectedColor(e.target.value)}
-                      />
-                      <span className="color-box white">⚪</span>
-                      <span>White</span>
-                    </label>
-                    <label className={`color-option ${selectedColor === 'black' ? 'selected' : ''}`}>
-                      <input
-                        type="radio"
-                        name="color"
-                        value="black"
-                        checked={selectedColor === 'black'}
-                        onChange={(e) => setSelectedColor(e.target.value)}
-                      />
-                      <span className="color-box black">⚫</span>
-                      <span>Black</span>
-                    </label>
-                    <label className={`color-option ${selectedColor === 'random' ? 'selected' : ''}`}>
-                      <input
-                        type="radio"
-                        name="color"
-                        value="random"
-                        checked={selectedColor === 'random'}
-                        onChange={(e) => setSelectedColor(e.target.value)}
-                      />
-                      <span className="color-box random">🎲</span>
-                      <span>Random</span>
-                    </label>
-                  </div>
-                  <button
-                    onClick={() => {
-                      console.log('🆕 Challenge to New Game clicked with color:', selectedColor);
-                      onNewGame(selectedColor);
-                    }}
-                    className="btn btn-primary challenge-btn"
-                  >
-                    Send Challenge
-                  </button>
-                </div>
-              )}
-
-              {/* Other Action Buttons */}
-              {onPreview && (
-                <button
-                  onClick={() => {
-                    console.log('👁️ Preview button clicked');
-                    onPreview();
-                  }}
-                  className="btn btn-secondary"
-                >
-                  Preview
-                </button>
-              )}
-              <button
-                onClick={handleShareWithImage}
-                className="btn btn-secondary"
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-              >
-                <span>🔗</span>
-                <span>Share Game Result</span>
-              </button>
-              {onBackToLobby && (
-                <button
-                  onClick={() => {
-                    console.log('🏠 Back to Lobby button clicked');
-                    onBackToLobby();
-                  }}
-                  className="btn btn-tertiary"
-                >
-                  Back to Lobby
-                </button>
-              )}
-            </div>
-          ) : (
-            /* Single player actions */
-            isAuthenticated ? (
-              <button onClick={handleContinue} className="btn btn-primary btn-continue">
+      {/* Action buttons container - positioned at bottom */}
+      {!isMultiplayer && (
+        <div style={{
+          position: 'fixed',
+          bottom: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          display: 'flex',
+          gap: '10px',
+          flexWrap: 'wrap',
+          justifyContent: 'center',
+          zIndex: 1000,
+          maxWidth: '90%'
+        }}>
+          {isAuthenticated ? (
+            <>
+              <button onClick={handleContinue} className="btn btn-primary">
                 Continue to Dashboard
               </button>
-            ) : (
-              <div className="login-prompt">
-                <p>Login to save your game history!</p>
-                <div className="login-buttons">
-                  <button onClick={handleLoginRedirect} className="btn btn-secondary">
-                    Login
-                  </button>
-                  <button onClick={handleContinue} className="btn btn-tertiary">
-                    Skip
-                  </button>
-                </div>
-              </div>
-            )
+              <button onClick={handleViewInHistory} className="btn btn-secondary">
+                View in History
+              </button>
+              <button onClick={handlePlayAgain} className="btn btn-secondary">
+                Play Again
+              </button>
+            </>
+          ) : (
+            <>
+              <button onClick={handleLoginRedirect} className="btn btn-primary">
+                Login to Save
+              </button>
+              <button onClick={handlePlayAgain} className="btn btn-secondary">
+                Play Again
+              </button>
+            </>
           )}
         </div>
+      )}
 
-        {/* Additional Options */}
-        {!isMultiplayer && (
-          <div className="completion-additional-buttons">
-            <button onClick={handleViewInHistory} className="btn btn-secondary">
-              View in History
-            </button>
-            <button onClick={handlePlayAgain} className="btn btn-secondary">
-              Play Again
-            </button>
-            <button onClick={exportAsGIF} className="btn btn-secondary">
-              Export as GIF
-            </button>
-            <button onClick={handleExportEndCard} className="btn btn-secondary">
-              📸 Export Image
-            </button>
-            <button onClick={handleShareWithImage} className="btn btn-secondary">
-              🔗 Share with Image
-            </button>
-          </div>
-        )}
-
-        {/* Optional: Close button if onClose prop is provided */}
-        {onClose && (
-            <button onClick={onClose} className="close-button" aria-label="Close">
-                &times;
-            </button>
-        )}
-      </div>
-
-      {/* Hidden GameEndCard for sharing - rendered off-screen */}
-      <div
-        style={{
+      {/* Multiplayer action buttons */}
+      {isMultiplayer && (
+        <div style={{
           position: 'fixed',
-          left: '-9999px',
-          top: 0,
-          width: '1200px', // Fixed width for consistent capture
-          zIndex: -1,
-          pointerEvents: 'none'
-        }}
-      >
-        <div ref={gameEndCardRef}>
-          <GameEndCard
-            result={result}
-            user={user}
-            ratingUpdate={ratingUpdate}
-            score={score}
-            opponentScore={opponentScore}
-            playerColor={playerColor}
-            isMultiplayer={isMultiplayer}
-            computerLevel={computerLevel}
-            isAuthenticated={isAuthenticated}
-          />
+          bottom: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          display: 'flex',
+          gap: '10px',
+          flexWrap: 'wrap',
+          justifyContent: 'center',
+          zIndex: 1000,
+          maxWidth: '90%'
+        }}>
+          {onNewGame && (
+            <button
+              onClick={() => onNewGame('random')}
+              className="btn btn-primary"
+            >
+              New Game Challenge
+            </button>
+          )}
+          {onPreview && (
+            <button onClick={onPreview} className="btn btn-secondary">
+              Preview Game
+            </button>
+          )}
+          {onBackToLobby && (
+            <button onClick={onBackToLobby} className="btn btn-secondary">
+              Back to Lobby
+            </button>
+          )}
         </div>
-      </div>
+      )}
     </div>
   );
 };

@@ -21,10 +21,8 @@ return Application::configure(basePath: dirname(__DIR__))
             ->runInBackground();
     })
     ->withMiddleware(function (Middleware $middleware) {
-        // Add CORS middleware for API routes
-        $middleware->api(prepend: [
-            \App\Http\Middleware\AddCorsHeader::class,
-        ]);
+        // CORS is handled by \Fruitcake\Cors\HandleCors in Kernel.php (global middleware)
+        // using the configuration in config/cors.php
     })
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->render(function (Throwable $e, Illuminate\Http\Request $request) {

@@ -320,6 +320,22 @@ class GameHistoryController extends Controller
                     }
                 }
 
+                // Add player objects for GameEndCard compatibility (multiplayer only)
+                if ($game->game_mode === 'multiplayer' && $game->game_id) {
+                    $game->white_player = [
+                        'id' => $game->white_player_id,
+                        'name' => $game->white_player_name,
+                        'avatar' => $game->white_player_avatar,
+                        'rating' => $game->white_player_rating ?? 1200
+                    ];
+                    $game->black_player = [
+                        'id' => $game->black_player_id,
+                        'name' => $game->black_player_name,
+                        'avatar' => $game->black_player_avatar,
+                        'rating' => $game->black_player_rating ?? 1200
+                    ];
+                }
+
                 // Remove the extra fields we don't want to return
                 unset($game->white_player_id);
                 unset($game->black_player_id);
@@ -352,12 +368,20 @@ class GameHistoryController extends Controller
         $game = GameHistory::where('game_histories.user_id', $user->id)
             ->where('game_histories.id', $id)
             ->leftJoin('games', 'game_histories.game_id', '=', 'games.id')
+            ->leftJoin('users as white_player', 'games.white_player_id', '=', 'white_player.id')
+            ->leftJoin('users as black_player', 'games.black_player_id', '=', 'black_player.id')
             ->select([
                 'game_histories.*',
                 'games.white_player_id',
                 'games.black_player_id',
                 'games.white_player_score',
                 'games.black_player_score',
+                'white_player.name as white_player_name',
+                'white_player.avatar_url as white_player_avatar',
+                'white_player.rating as white_player_rating',
+                'black_player.name as black_player_name',
+                'black_player.avatar_url as black_player_avatar',
+                'black_player.rating as black_player_rating',
             ])
             ->first();
 
@@ -403,11 +427,33 @@ class GameHistoryController extends Controller
             // If not JSON or decode fails, keep as string (legacy format)
         }
 
+        // Add player objects if this is a multiplayer game
+        if ($game->game_mode === 'multiplayer' && $game->game_id) {
+            $game->white_player = [
+                'id' => $game->white_player_id,
+                'name' => $game->white_player_name,
+                'avatar' => $game->white_player_avatar,
+                'rating' => $game->white_player_rating ?? 1200
+            ];
+            $game->black_player = [
+                'id' => $game->black_player_id,
+                'name' => $game->black_player_name,
+                'avatar' => $game->black_player_avatar,
+                'rating' => $game->black_player_rating ?? 1200
+            ];
+        }
+
         // Remove the extra fields we don't want to return
         unset($game->white_player_id);
         unset($game->black_player_id);
         unset($game->white_player_score);
         unset($game->black_player_score);
+        unset($game->white_player_name);
+        unset($game->black_player_name);
+        unset($game->white_player_avatar);
+        unset($game->black_player_avatar);
+        unset($game->white_player_rating);
+        unset($game->black_player_rating);
 
         return response()->json(['success' => true, 'data' => $game], 200);
     }

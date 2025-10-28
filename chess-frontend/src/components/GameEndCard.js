@@ -4,6 +4,14 @@ import chessPlayingKids from '../assets/images/chess-playing-kids-crop.png';
 import logo from '../assets/images/logo.png';
 import './GameEndCard.css';
 
+// Social share URLs
+const SHARE_URLS = {
+  whatsapp: (text, imageUrl) => `https://wa.me/?text=${encodeURIComponent(text)}`,
+  facebook: (text, imageUrl) => `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent('https://chess99.com')}`,
+  twitter: (text, imageUrl) => `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent('https://chess99.com')}`,
+  linkedin: (text, imageUrl) => `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent('https://chess99.com')}`
+};
+
 // SVG Chess Piece Components (similar to Background.js)
 const ChessKing = ({ className = "" }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -31,6 +39,8 @@ const GameEndCard = ({
 }) => {
   const cardRef = useRef(null);
   const [isSharing, setIsSharing] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareImageUrl, setShareImageUrl] = useState(null);
 
   const {
     isPlayerWin,
@@ -48,7 +58,11 @@ const GameEndCard = ({
       playerColor: playerColor,
       resultUserId: result.user_id,
       resultWinnerUserId: result.winner_user_id,
-      gameMode: result.game_mode
+      gameMode: result.game_mode,
+      whitePlayer: result.white_player,
+      blackPlayer: result.black_player,
+      whitePlayerAvatar: result.white_player?.avatar,
+      blackPlayerAvatar: result.black_player?.avatar
     });
 
     const userId = user?.id;
@@ -88,7 +102,7 @@ const GameEndCard = ({
       name: playerIsWhite ? (user?.name || 'Player') : (isComputerGame ? `Computer Level ${effectiveComputerLevel || 8}` : (result.opponent_name || 'Opponent')),
       rating: playerIsWhite ? (user?.rating || 1200) : (isComputerGame ? (effectiveComputerLevel ? 1000 + (effectiveComputerLevel * 100) : 1800) : 1200),
       is_provisional: playerIsWhite ? (user?.is_provisional || false) : false,
-      avatar_url: playerIsWhite ? user?.avatar_url : (isComputerGame ? '🤖' : null),
+      avatar_url: playerIsWhite ? user?.avatar_url : (isComputerGame ? '🤖' : (result.white_player?.avatar || null)),
       isComputer: playerIsWhite ? false : isComputerGame
     };
 
@@ -97,7 +111,7 @@ const GameEndCard = ({
       name: !playerIsWhite ? (user?.name || 'Player') : (isComputerGame ? `Computer Level ${effectiveComputerLevel || 8}` : (result.opponent_name || 'Opponent')),
       rating: !playerIsWhite ? (user?.rating || 1200) : (isComputerGame ? (effectiveComputerLevel ? 1000 + (effectiveComputerLevel * 100) : 1800) : 1200),
       is_provisional: !playerIsWhite ? (user?.is_provisional || false) : false,
-      avatar_url: !playerIsWhite ? user?.avatar_url : (isComputerGame ? '🤖' : null),
+      avatar_url: !playerIsWhite ? user?.avatar_url : (isComputerGame ? '🤖' : (result.black_player?.avatar || null)),
       isComputer: !playerIsWhite ? false : isComputerGame
     };
 
@@ -222,40 +236,113 @@ const GameEndCard = ({
     return { isPlayerWin, isDraw, playersInfo, resultText, icon, title, gameDurationText };
   }, [result, user, score, opponentScore, playerColor, isMultiplayer, computerLevel, isAuthenticated]);
 
-  const handleAvatarError = (e, name, background) => {
-    e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=${background}&color=fff&size=128`;
+  const handleAvatarError = (e, name, color) => {
+    // Create a text-based avatar fallback instead of using external service
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+
+    // Background color based on player color
+    const backgroundColor = color === 'white' ? '#4f46e5' : '#1f2937';
+    ctx.fillStyle = backgroundColor;
+    ctx.fillRect(0, 0, 128, 128);
+
+    // Add initials
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 48px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // Get initials from name
+    const initials = name
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase())
+      .slice(0, 2)
+      .join('');
+
+    ctx.fillText(initials || 'P', 64, 64);
+
+    // Convert canvas to data URL
+    const dataUrl = canvas.toDataURL();
+    e.currentTarget.src = dataUrl;
   };
 
-  const PlayerCard = ({ player, isCurrentUser, color, score }) => (
-    <div className={`flex items-center gap-2 p-2 rounded-xl shadow-md transition-all duration-300 ${
-      isCurrentUser
-        ? 'bg-gradient-to-r from-sky-50 to-blue-50 border-2 border-sky-300'
-        : 'bg-white border-2 border-gray-200'
-    }`}>
-      <div className="relative flex-shrink-0">
-        {player.isComputer ? (
-          // Computer avatar - show emoji with modern styling
-          <div className="w-12 h-12 rounded-full border-2 flex items-center justify-center text-2xl bg-gradient-to-br from-gray-100 to-gray-200 shadow-lg"
-               style={{ borderColor: color === 'white' ? '#E5E7EB' : '#4B5563' }}>
-            🤖
+  // Generate avatar URL with fallback
+  const getAvatarUrl = (player, color) => {
+    // If player is computer, return null to use emoji
+    if (player.isComputer) {
+      return null;
+    }
+
+    // Check both avatar_url and avatar fields (backend sends as 'avatar')
+    const avatarUrl = player.avatar_url || player.avatar;
+    if (avatarUrl && avatarUrl.trim() !== '') {
+      return avatarUrl;
+    }
+
+    // Fallback: create a data URL avatar instead of using external service
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+
+    // Background color based on player color
+    const backgroundColor = color === 'white' ? '#4f46e5' : '#1f2937';
+    ctx.fillStyle = backgroundColor;
+    ctx.fillRect(0, 0, 128, 128);
+
+    // Add initials
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 48px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // Get initials from name
+    const initials = (player.name || 'Player')
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase())
+      .slice(0, 2)
+      .join('');
+
+    ctx.fillText(initials || 'P', 64, 64);
+
+    // Convert canvas to data URL
+    return canvas.toDataURL();
+  };
+
+  const PlayerCard = ({ player, isCurrentUser, color, score }) => {
+    const avatarUrl = getAvatarUrl(player, color);
+
+    return (
+      <div className={`flex items-center gap-2 p-2 rounded-xl shadow-md transition-all duration-300 ${
+        isCurrentUser
+          ? 'bg-gradient-to-r from-sky-50 to-blue-50 border-2 border-sky-300'
+          : 'bg-white border-2 border-gray-200'
+      }`}>
+        <div className="relative flex-shrink-0">
+          {player.isComputer ? (
+            // Computer avatar - show emoji with modern styling
+            <div className="w-12 h-12 rounded-full border-2 flex items-center justify-center text-2xl bg-gradient-to-br from-gray-100 to-gray-200 shadow-lg"
+                 style={{ borderColor: color === 'white' ? '#E5E7EB' : '#4B5563' }}>
+              🤖
+            </div>
+          ) : (
+            // Human avatar - show image with better styling
+            <img
+              src={avatarUrl}
+              alt={player.name}
+              className="w-12 h-12 rounded-full border-2 object-cover shadow-lg"
+              style={{ borderColor: color === 'white' ? '#E5E7EB' : '#4B5563' }}
+              onError={(e) => handleAvatarError(e, player.name, color === 'white' ? '4f46e5' : '1f2937')}
+            />
+          )}
+          <div className={`absolute -bottom-0.5 -right-0.5 text-xl shadow-md ${
+            color === 'white' ? 'text-gray-700' : 'text-gray-900'
+          }`}>
+            {color === 'white' ? <ChessKing className="w-5 h-5" /> : <ChessKing className="w-5 h-5" />}
           </div>
-        ) : (
-          // Human avatar - show image with better styling
-          <img
-            src={player.avatar_url}
-            alt={player.name}
-            className="w-12 h-12 rounded-full border-2 object-cover shadow-lg"
-            style={{ borderColor: color === 'white' ? '#E5E7EB' : '#4B5563' }}
-            onError={(e) => handleAvatarError(e, player.name, color === 'white' ? '4f46e5' : '1f2937')}
-            crossOrigin="anonymous"
-          />
-        )}
-        <div className={`absolute -bottom-0.5 -right-0.5 text-xl shadow-md ${
-          color === 'white' ? 'text-gray-700' : 'text-gray-900'
-        }`}>
-          {color === 'white' ? <ChessKing className="w-5 h-5" /> : <ChessKing className="w-5 h-5" />}
         </div>
-      </div>
       <div className="flex-grow">
         <div className="font-bold text-gray-800 text-base mb-0.5">
           {player.name}
@@ -278,7 +365,8 @@ const GameEndCard = ({
         <div className="text-xs text-gray-500 uppercase tracking-wide">Score</div>
       </div>
     </div>
-  );
+    );
+  };
 
   const handleShare = async () => {
     if (!cardRef.current || isSharing) return;
@@ -300,9 +388,45 @@ const GameEndCard = ({
         canvas.toBlob((blob) => resolve(blob), 'image/png');
       });
 
+      // Create object URL for preview
+      const imageUrl = URL.createObjectURL(blob);
+      setShareImageUrl(imageUrl);
+
+      // Show share modal with options
+      setShowShareModal(true);
+    } catch (error) {
+      console.error('Error preparing share:', error);
+      alert('Failed to prepare share. Please try again.');
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  const handleDownload = () => {
+    if (!shareImageUrl) return;
+
+    const link = document.createElement('a');
+    link.href = shareImageUrl;
+    link.download = `chess-game-${Date.now()}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleSocialShare = (platform) => {
+    const shareText = `${resultText} - Play chess at Chess99.com`;
+    const url = SHARE_URLS[platform](shareText, shareImageUrl);
+    window.open(url, '_blank', 'width=600,height=400');
+  };
+
+  const handleNativeShare = async () => {
+    if (!shareImageUrl) return;
+
+    try {
+      const response = await fetch(shareImageUrl);
+      const blob = await response.blob();
       const file = new File([blob], 'chess-game-result.png', { type: 'image/png' });
 
-      // Try Web Share API first (works on mobile)
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           title: 'Chess Game Result',
@@ -310,21 +434,20 @@ const GameEndCard = ({
           files: [file]
         });
       } else {
-        // Fallback: Download the image
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = 'chess-game-result.png';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        alert('Native sharing not supported on this device.');
       }
     } catch (error) {
-      console.error('Error sharing game result:', error);
-      alert('Failed to share game result. Please try again.');
-    } finally {
-      setIsSharing(false);
+      if (error.name !== 'AbortError') {
+        console.error('Error sharing:', error);
+      }
+    }
+  };
+
+  const closeShareModal = () => {
+    setShowShareModal(false);
+    if (shareImageUrl) {
+      URL.revokeObjectURL(shareImageUrl);
+      setShareImageUrl(null);
     }
   };
 
@@ -519,6 +642,246 @@ const GameEndCard = ({
           </div>
         </div>
       </div>
+
+      {/* Share Modal */}
+      {showShareModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 9999,
+            padding: '20px'
+          }}
+          onClick={closeShareModal}
+        >
+          <div
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '20px',
+              padding: '30px',
+              maxWidth: '500px',
+              width: '100%',
+              boxShadow: '0 10px 40px rgba(0,0,0,0.2)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+              <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#0284C7', marginBottom: '10px' }}>
+                Share Your Game Result
+              </h2>
+              <p style={{ color: '#6B7280', fontSize: '14px' }}>
+                Choose how you'd like to share your achievement
+              </p>
+            </div>
+
+            {/* Share preview */}
+            {shareImageUrl && (
+              <div style={{ marginBottom: '20px', borderRadius: '10px', overflow: 'hidden', border: '2px solid #E5E7EB' }}>
+                <img src={shareImageUrl} alt="Share preview" style={{ width: '100%', display: 'block' }} />
+              </div>
+            )}
+
+            {/* Share options grid */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gap: '15px',
+              marginBottom: '20px'
+            }}>
+              {/* WhatsApp */}
+              <button
+                onClick={() => handleSocialShare('whatsapp')}
+                style={{
+                  padding: '15px',
+                  borderRadius: '12px',
+                  border: '2px solid #25D366',
+                  backgroundColor: '#25D366',
+                  color: 'white',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#20BA5A';
+                  e.currentTarget.style.transform = 'scale(1.05)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#25D366';
+                  e.currentTarget.style.transform = 'scale(1)';
+                }}
+              >
+                <span style={{ fontSize: '24px' }}>💬</span>
+                WhatsApp
+              </button>
+
+              {/* Facebook */}
+              <button
+                onClick={() => handleSocialShare('facebook')}
+                style={{
+                  padding: '15px',
+                  borderRadius: '12px',
+                  border: '2px solid #1877F2',
+                  backgroundColor: '#1877F2',
+                  color: 'white',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#1666D9';
+                  e.currentTarget.style.transform = 'scale(1.05)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#1877F2';
+                  e.currentTarget.style.transform = 'scale(1)';
+                }}
+              >
+                <span style={{ fontSize: '24px' }}>📘</span>
+                Facebook
+              </button>
+
+              {/* Twitter */}
+              <button
+                onClick={() => handleSocialShare('twitter')}
+                style={{
+                  padding: '15px',
+                  borderRadius: '12px',
+                  border: '2px solid #1DA1F2',
+                  backgroundColor: '#1DA1F2',
+                  color: 'white',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#1A8FDB';
+                  e.currentTarget.style.transform = 'scale(1.05)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#1DA1F2';
+                  e.currentTarget.style.transform = 'scale(1)';
+                }}
+              >
+                <span style={{ fontSize: '24px' }}>🐦</span>
+                Twitter
+              </button>
+
+              {/* Download */}
+              <button
+                onClick={handleDownload}
+                style={{
+                  padding: '15px',
+                  borderRadius: '12px',
+                  border: '2px solid #10B981',
+                  backgroundColor: '#10B981',
+                  color: 'white',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#0EA472';
+                  e.currentTarget.style.transform = 'scale(1.05)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#10B981';
+                  e.currentTarget.style.transform = 'scale(1)';
+                }}
+              >
+                <span style={{ fontSize: '24px' }}>💾</span>
+                Download
+              </button>
+            </div>
+
+            {/* Native share button (if supported) */}
+            {navigator.share && (
+              <button
+                onClick={handleNativeShare}
+                style={{
+                  width: '100%',
+                  padding: '15px',
+                  borderRadius: '12px',
+                  border: '2px solid #6B7280',
+                  backgroundColor: 'white',
+                  color: '#374151',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  marginBottom: '15px'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#F3F4F6';
+                  e.currentTarget.style.transform = 'scale(1.02)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'white';
+                  e.currentTarget.style.transform = 'scale(1)';
+                }}
+              >
+                <span style={{ fontSize: '24px' }}>🔗</span>
+                More Share Options
+              </button>
+            )}
+
+            {/* Close button */}
+            <button
+              onClick={closeShareModal}
+              style={{
+                width: '100%',
+                padding: '12px',
+                borderRadius: '12px',
+                border: 'none',
+                backgroundColor: '#F3F4F6',
+                color: '#6B7280',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#E5E7EB';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#F3F4F6';
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
