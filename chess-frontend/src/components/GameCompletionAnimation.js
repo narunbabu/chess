@@ -1,5 +1,5 @@
 // src/components/GameCompletionAnimation.js
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { saveGameHistory } from "../services/gameHistoryService"; // Assuming this path is correct
 import { updateRating } from "../services/ratingService";
@@ -8,6 +8,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { isWin, isDraw as isDrawResult, getResultDisplayText } from "../utils/resultStandardization";
 import { getGameResultShareMessage } from "../utils/socialShareUtils";
 import GIF from 'gif.js';
+import GameEndCard from "./GameEndCard";
 import "./GameCompletionAnimation.css";
 
 const GameCompletionAnimation = ({
@@ -38,6 +39,7 @@ const GameCompletionAnimation = ({
   const [hasProcessedRating, setHasProcessedRating] = useState(false);
   const { isAuthenticated, user, fetchUser } = useAuth();
   const navigate = useNavigate();
+  const gameEndCardRef = useRef(null);
 
   // Determine win state for both single player and multiplayer
   const isPlayerWin = (() => {
@@ -295,37 +297,23 @@ const GameCompletionAnimation = ({
 
   const handleShareWithImage = async () => {
     try {
-      // Wait for card to render
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Wait for GameEndCard to render
+      await new Promise(resolve => setTimeout(resolve, 300));
 
-      // Find the completion card element
-      const completionCard = document.querySelector('.completion-card');
-      if (!completionCard) {
-        throw new Error('Completion card not found');
+      // Find the GameEndCard element
+      const gameEndCard = gameEndCardRef.current;
+      if (!gameEndCard) {
+        throw new Error('GameEndCard not found');
       }
 
-      // Clone the element for export
-      const clone = completionCard.cloneNode(true);
-      clone.style.position = 'absolute';
-      clone.style.left = '-9999px';
-      clone.style.visibility = 'visible';
-      clone.classList.add('share-mode'); // Add share-mode for better rendering
-      document.body.appendChild(clone);
-
-      // Wait a bit for styles to apply
-      await new Promise(resolve => setTimeout(resolve, 100));
-
       const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(clone, {
-        backgroundColor: null,
+      const canvas = await html2canvas(gameEndCard, {
+        backgroundColor: '#ffffff',
         scale: 2, // Higher quality
         useCORS: true, // Enable CORS to capture external images (avatars)
-        allowTaint: false,
+        allowTaint: true,
         logging: false
       });
-
-      // Remove clone
-      document.body.removeChild(clone);
 
       // Convert to blob
       canvas.toBlob(async (blob) => {
@@ -558,6 +546,14 @@ const GameCompletionAnimation = ({
                   Preview
                 </button>
               )}
+              <button
+                onClick={handleShareWithImage}
+                className="btn btn-secondary"
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+              >
+                <span>🔗</span>
+                <span>Share Game Result</span>
+              </button>
               {onBackToLobby && (
                 <button
                   onClick={() => {
@@ -619,6 +615,32 @@ const GameCompletionAnimation = ({
                 &times;
             </button>
         )}
+      </div>
+
+      {/* Hidden GameEndCard for sharing - rendered off-screen */}
+      <div
+        style={{
+          position: 'fixed',
+          left: '-9999px',
+          top: 0,
+          width: '1200px', // Fixed width for consistent capture
+          zIndex: -1,
+          pointerEvents: 'none'
+        }}
+      >
+        <div ref={gameEndCardRef}>
+          <GameEndCard
+            result={result}
+            user={user}
+            ratingUpdate={ratingUpdate}
+            score={score}
+            opponentScore={opponentScore}
+            playerColor={playerColor}
+            isMultiplayer={isMultiplayer}
+            computerLevel={computerLevel}
+            isAuthenticated={isAuthenticated}
+          />
+        </div>
       </div>
     </div>
   );

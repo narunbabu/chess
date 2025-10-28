@@ -943,34 +943,35 @@ const PlayMultiplayer = () => {
         }
       }
 
-      // Always update turn based on server's authoritative state
-      const newTurn = event.turn === 'w' ? 'white' : 'black';
-      setGameInfo(prev => ({
-        ...prev,
-        turn: newTurn
-      }));
+      // Get turn from server state (already in 'white'/'black' format)
+      const serverTurn = event.turn;
 
-      // Update activity tracking when opponent makes a move
+      // Update turn based on server's authoritative state
+      // Skip update for our own moves (already updated optimistically in performMove)
+      // to prevent double updates and turn desynchronization
       if (event.user_id !== user?.id) {
-        handleMoveActivity();
-      }
+        setGameInfo(prev => ({
+          ...prev,
+          turn: serverTurn
+        }));
 
-      // Start timing for player's turn
-      if (newTurn === playerColorRef.current) {
-        moveStartTimeRef.current = performance.now();
-        console.log('[MoveTimer] Started tracking time after opponent move');
-      } else {
-        console.log('[MoveTimer] Not my turn, not tracking time');
+        // Update activity tracking when opponent makes a move
+        handleMoveActivity();
+
+        // Start timing for player's turn (only after opponent moves)
+        if (serverTurn === playerColorRef.current) {
+          moveStartTimeRef.current = performance.now();
+          console.log('[MoveTimer] Started tracking time after opponent move');
+        }
       }
 
       // Timer will auto-update based on gameInfo.turn change (handled by useGameTimer hook)
       console.log('[PlayMultiplayer] Move processed:', {
         playerColor: playerColorRef.current,
-        newTurn: newTurn,
-        eventTurn: event.turn
+        isMyMove: event.user_id === user?.id,
+        serverTurn: serverTurn,
+        turnUpdated: event.user_id !== user?.id ? 'yes' : 'skipped (own move)'
       });
-
-      console.log('Move processed, updated turn to:', newTurn);
 
       // Check for checkmate/check and play appropriate sound
       checkForCheckmate(newGame);
