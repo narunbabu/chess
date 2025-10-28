@@ -764,7 +764,17 @@ const PlayMultiplayer = () => {
     // Reset inactivity timer to start fresh from resume
     lastActivityTimeRef.current = Date.now();
 
-    console.log('✅ Game resumed successfully - dialog closed, game state updated, timers recalculated, inactivity timer reset');
+    // CRITICAL: Reset move start time to prevent including pause time in move duration
+    // If it's currently our turn, start timing from now
+    if (event.turn === myColor) {
+      moveStartTimeRef.current = performance.now();
+      console.log('[MoveTimer] Reset move timer on resume - it\'s our turn');
+    } else {
+      moveStartTimeRef.current = null;
+      console.log('[MoveTimer] Reset move timer on resume - waiting for opponent');
+    }
+
+    console.log('✅ Game resumed successfully - dialog closed, game state updated, timers recalculated, inactivity timer reset, move timer reset');
   }, [gameId, myColor, setMyMs, setOppMs]);
 
   // Handle game paused event
@@ -787,7 +797,11 @@ const PlayMultiplayer = () => {
     setShowPresenceDialog(false); // Close presence dialog if open
     showPresenceDialogRef.current = false;
 
-    console.log('✅ Game paused - showing paused UI to both players');
+    // CRITICAL: Reset move start time when game is paused to prevent stale values
+    moveStartTimeRef.current = null;
+    console.log('[MoveTimer] Reset move timer on pause to prevent stale values');
+
+    console.log('✅ Game paused - showing paused UI to both players, move timer reset');
   }, []);
 
   // Handle opponent ping notification

@@ -124,26 +124,23 @@ const GameEndCard = ({
 
     let resultText;
     if (isDraw) {
-      resultText = `Draw by ${result.end_reason}`;
+      resultText = `${userPlayer.name} and ${opponentPlayer.name} drew by ${result.end_reason}`;
     } else {
-      // Determine winner name based on available data
-      let winnerName;
+      // Determine winner and loser names
+      let winnerName, loserName;
       if (result.winner_player === 'white' || (result.player_color === 'w' && result.result?.winner === 'player')) {
         winnerName = white_player.name;
+        loserName = black_player.name;
       } else if (result.winner_player === 'black' || (result.player_color === 'b' && result.result?.winner === 'player')) {
         winnerName = black_player.name;
+        loserName = white_player.name;
       } else {
-        winnerName = white_player.name; // Default fallback
+        winnerName = isPlayerWin ? userPlayer.name : opponentPlayer.name;
+        loserName = isPlayerWin ? opponentPlayer.name : userPlayer.name;
       }
       const reasonText = result.end_reason || result.result?.details || 'game completion';
-      if (userId && isPlayerWin) {
-        resultText = `You defeated ${opponentPlayer?.name || 'the opponent'} by ${reasonText}!`;
-      } else if (userId && !isPlayerWin) {
-        resultText = `${winnerName} defeated you by ${reasonText}!`;
-      } else {
-        // Guest/viewer mode
-        resultText = `${winnerName} won by ${reasonText}!`;
-      }
+      // Clear, straightforward statement using both names
+      resultText = `${winnerName} defeated ${loserName} by ${reasonText}`;
     }
 
     const icon = isDraw ? "🤝" : (isPlayerWin ? "🏆" : "💔");
@@ -165,7 +162,7 @@ const GameEndCard = ({
         ended_at: result.ended_at
       });
 
-      // Method 1: Calculate from moves (most accurate - actual play time)
+      // Method 1: Calculate from moves (sum individual move times, excluding erroneous pause times)
       if (result.moves) {
         let moves = [];
         // Handle different move formats
@@ -175,11 +172,14 @@ const GameEndCard = ({
             moves = JSON.parse(result.moves);
           } catch {
             // If not JSON, it might be in compact format "e4,2.52;Nf6,0.98;..."
-            const moveEntries = result.moves.split(';');
+            const moveEntries = result.moves.split(';').filter(entry => entry.trim());
             moveEntries.forEach(entry => {
               const [notation, time] = entry.split(',');
               if (time) {
-                moves.push({ time: parseFloat(time), timeSpent: parseFloat(time), time_spent: parseFloat(time) });
+                const timeValue = parseFloat(time);
+                if (!isNaN(timeValue) && timeValue > 0) {
+                  moves.push({ time: timeValue });
+                }
               }
             });
           }
@@ -187,15 +187,26 @@ const GameEndCard = ({
           moves = result.moves;
         }
 
-        // Sum up the time from all moves
+        // Sum up move times, but exclude any suspiciously large times (likely pause time bugs)
+        // Cap individual move times at 60 seconds (1 minute) as moves longer than this
+        // likely include pause/away time due to a bug in older game versions
+        let totalSeconds = 0;
+        let excludedMoves = 0;
         moves.forEach((move) => {
-          // Accept different time property formats: time_spent (snake_case), timeSpent (camelCase), or time
           const moveTime = move.time_spent || move.timeSpent || move.time || 0;
-          if (moveTime > 0) {
-            durationSeconds += moveTime;
+          if (moveTime > 0 && !isNaN(moveTime)) {
+            // Exclude moves > 60 seconds as they likely include pause time (bug)
+            if (moveTime > 60) {
+              console.warn(`Excluding suspiciously long move time: ${moveTime}s (likely includes pause time)`);
+              excludedMoves++;
+            } else {
+              totalSeconds += parseFloat(moveTime);
+            }
           }
         });
-        console.log('Duration from moves sum:', durationSeconds, 'seconds from', moves.length, 'moves');
+
+        durationSeconds = totalSeconds;
+        console.log(`Duration from ${moves.length} moves:`, durationSeconds, 'seconds (excluded', excludedMoves, 'moves with pause time bug)');
       }
 
       // Method 2: Fallback to timestamp differences if no moves data
@@ -219,11 +230,15 @@ const GameEndCard = ({
         }
       }
 
-      // Ensure we have a valid positive duration
+      // Ensure we have a valid positive duration and cap at 2 hours
       if (durationSeconds < 0) {
         durationSeconds = 0;
       }
+      if (durationSeconds > 7200) {
+        durationSeconds = 7200; // Cap at 2 hours
+      }
 
+      // Convert seconds to minutes and seconds
       const minutes = Math.floor(durationSeconds / 60);
       const seconds = Math.floor(durationSeconds % 60);
       gameDurationText = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
@@ -494,9 +509,11 @@ const GameEndCard = ({
 
       {/* Main content */}
       <div className="relative z-10 p-4">
-        {/* Header with logo */}
+        {/* Header with logo - blue background bar for visibility */}
         <div className="text-center mb-3">
-          <img src={logo} alt="Chess99" className="h-8 mx-auto mb-2" />
+          <div className="inline-block bg-sky-600/90 px-6 py-2 rounded-full mb-2">
+            <img src={logo} alt="Chess99" className="h-8" />
+          </div>
           <div className="inline-block bg-sky-600 text-white px-4 py-1 rounded-full font-semibold text-xs">
             {isMultiplayer ? 'Multiplayer Match' : `Computer Level ${computerLevel || 8}`}
           </div>
@@ -558,10 +575,18 @@ const GameEndCard = ({
             <div className="text-xs text-gray-600 uppercase tracking-wide mt-0.5">Duration</div>
           </div>
           <div className="bg-gradient-to-br from-purple-50 to-violet-50 p-2 rounded-xl text-center border border-purple-200">
-            <div className="text-xl font-bold text-purple-600 capitalize">
-              {result.end_reason || result.result?.end_reason || 'unknown'}
+            <div className="text-xl font-bold capitalize">
+              {isDraw ? (
+                <span className="text-gray-600">Draw</span>
+              ) : isPlayerWin ? (
+                <span className="text-green-600">Win</span>
+              ) : (
+                <span className="text-red-600">Lose</span>
+              )}
             </div>
-            <div className="text-xs text-gray-600 uppercase tracking-wide mt-0.5">Result</div>
+            <div className="text-xs text-purple-600 font-medium capitalize mt-0.5">
+              by {result.end_reason || result.result?.end_reason || 'completion'}
+            </div>
           </div>
         </div>
 
