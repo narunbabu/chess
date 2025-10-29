@@ -20,7 +20,8 @@ const SocialShare = ({
   showLabel = true,
   platforms = ['whatsapp', 'facebook', 'twitter', 'telegram', 'instagram', 'copy'],
   onShare = null, // Callback when share is clicked
-  className = ''
+  className = '',
+  customImageShareHandler = null // Custom handler for sharing images with end card
 }) => {
   const [copied, setCopied] = useState(false);
   const [instagramMessage, setInstagramMessage] = useState('');
@@ -56,8 +57,44 @@ const SocialShare = ({
     }
   };
 
-  const handleSocialClick = (platform, shareUrl) => {
-    window.open(shareUrl, '_blank', 'width=600,height=400');
+  const handleSocialClick = async (platform, shareUrl) => {
+    console.log(`Sharing to ${platform}:`, shareUrl);
+    console.log(`Text being shared:`, text);
+    console.log(`URL being shared:`, url);
+
+    // Special handling for WhatsApp to try Web Share API first (for image sharing)
+    if (platform === 'whatsapp' && navigator.share && navigator.canShare) {
+      try {
+        // Try to share using Web Share API for better experience
+        const shareData = {
+          title: title,
+          text: text,
+          url: url
+        };
+
+        // Check if we can share files (for future image sharing support)
+        if (shareData.files && navigator.canShare({ files: shareData.files })) {
+          await navigator.share(shareData);
+        } else {
+          await navigator.share(shareData);
+        }
+
+        onShare?.(platform);
+        return; // Success, exit early
+      } catch (shareError) {
+        if (shareError.name !== 'AbortError') {
+          console.log('Web Share API failed for WhatsApp, falling back to URL method:', shareError);
+        } else {
+          return; // User cancelled, exit
+        }
+      }
+    }
+
+    // Fallback: Use URL-based sharing
+    const windowWidth = platform === 'whatsapp' ? 800 : 600;
+    const windowHeight = platform === 'whatsapp' ? 700 : 400;
+
+    window.open(shareUrl, '_blank', `width=${windowWidth},height=${windowHeight}`);
     onShare?.(platform);
   };
 
@@ -67,28 +104,36 @@ const SocialShare = ({
       label: 'WhatsApp',
       color: '#25D366',
       url: getWhatsAppShareUrl(text, url),
-      available: true
+      available: true,
+      onClick: customImageShareHandler ? () => customImageShareHandler('whatsapp') : null,
+      isCustom: !!customImageShareHandler
     },
     facebook: {
       icon: '👥',
       label: 'Facebook',
       color: '#1877F2',
       url: getFacebookShareUrl(url || window.location.href),
-      available: !!url
+      available: !!url,
+      onClick: customImageShareHandler ? () => customImageShareHandler('facebook') : null,
+      isCustom: !!customImageShareHandler
     },
     twitter: {
       icon: '🐦',
       label: 'X',
       color: '#000000',
       url: getTwitterShareUrl(text, url, hashtags),
-      available: true
+      available: true,
+      onClick: customImageShareHandler ? () => customImageShareHandler('twitter') : null,
+      isCustom: !!customImageShareHandler
     },
     telegram: {
       icon: '✈️',
       label: 'Telegram',
       color: '#0088cc',
       url: getTelegramShareUrl(text, url),
-      available: true
+      available: true,
+      onClick: customImageShareHandler ? () => customImageShareHandler('telegram') : null,
+      isCustom: !!customImageShareHandler
     },
     instagram: {
       icon: '📷',

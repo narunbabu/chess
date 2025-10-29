@@ -25,6 +25,12 @@ const GameReview = () => {
   const [boardSize, setBoardSize] = useState(400);
   const [searchParams] = useSearchParams();
   const [showEndCard, setShowEndCard] = useState(false);
+  const [isCardReady, setIsCardReady] = useState(false); // Track if card is shown and ready to share
+
+  // Device detection utility
+  const isMobileDevice = () => {
+    return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  };
 
   // Load game data when component mounts or gameId changes
   useEffect(() => {
@@ -325,13 +331,21 @@ const GameReview = () => {
 
   // Export and Share functionality
   const handleExportEndCard = async () => {
-    // Show the end card first
-    setShowEndCard(true);
+    // First click: Show the end card and wait for confirmation
+    if (!isCardReady) {
+      console.log('First click: Showing end card for review');
+      setShowEndCard(true);
+      setIsCardReady(true);
+      return; // Stop here, wait for second click
+    }
 
-    // Wait for card to render
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Second click: Proceed with export
+    console.log('Second click: Exporting end card');
 
     try {
+      // Wait a bit to ensure card is fully rendered
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       // Find the end card element
       const cardElement = document.querySelector('.game-end-card');
       if (!cardElement) {
@@ -341,12 +355,32 @@ const GameReview = () => {
       // Add share-mode class for better rendering
       cardElement.classList.add('share-mode');
 
+      // CRITICAL FIX: Wait for all images (especially logo) to load before capturing
+      const images = cardElement.querySelectorAll('img');
+      await Promise.all(
+        Array.from(images).map(img => {
+          if (img.complete && img.naturalHeight !== 0) return Promise.resolve();
+          return new Promise((resolve) => {
+            img.onload = resolve;
+            img.onerror = () => {
+              console.warn('Image failed to load:', img.src);
+              resolve(); // Continue even if image fails
+            };
+            // Timeout after 3 seconds
+            setTimeout(resolve, 3000);
+          });
+        })
+      );
+
+      // Additional small delay to ensure rendering is complete
+      await new Promise(resolve => setTimeout(resolve, 200));
+
       const html2canvas = (await import('html2canvas')).default;
       const canvas = await html2canvas(cardElement, {
         backgroundColor: '#ffffff',
         scale: 2,
         useCORS: true, // Enable CORS to capture external images (avatars)
-        allowTaint: false,
+        allowTaint: true, // FIXED: Allow taint to capture logo and all images
         logging: false
       });
 
@@ -370,17 +404,26 @@ const GameReview = () => {
       console.error('Error exporting end card:', error);
       alert('Failed to export end card. Please try again.');
     } finally {
-      // Hide the end card after export
+      // Reset state after export
+      setIsCardReady(false);
       setTimeout(() => setShowEndCard(false), 1000);
     }
   };
 
   const handleShareWithImage = async () => {
-    // Show the end card first
-    setShowEndCard(true);
+    // First click: Show the end card and wait for confirmation
+    if (!isCardReady) {
+      console.log('First click: Showing end card for review');
+      setShowEndCard(true);
+      setIsCardReady(true);
+      return; // Stop here, wait for second click
+    }
 
-    // Wait for card to render
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Second click: Proceed with share
+    console.log('Second click: Sharing end card with image');
+
+    // Wait a bit to ensure card is fully rendered
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     try {
       // Select the GameEndCard element
@@ -392,12 +435,32 @@ const GameReview = () => {
       // Add share-mode class for better rendering
       cardElement.classList.add('share-mode');
 
+      // CRITICAL FIX: Wait for all images (especially logo) to load before capturing
+      const images = cardElement.querySelectorAll('img');
+      await Promise.all(
+        Array.from(images).map(img => {
+          if (img.complete && img.naturalHeight !== 0) return Promise.resolve();
+          return new Promise((resolve) => {
+            img.onload = resolve;
+            img.onerror = () => {
+              console.warn('Image failed to load:', img.src);
+              resolve(); // Continue even if image fails
+            };
+            // Timeout after 3 seconds
+            setTimeout(resolve, 3000);
+          });
+        })
+      );
+
+      // Additional small delay to ensure rendering is complete
+      await new Promise(resolve => setTimeout(resolve, 200));
+
       const html2canvas = (await import('html2canvas')).default;
       const canvas = await html2canvas(cardElement, {
         backgroundColor: '#ffffff',
         scale: 2,
         useCORS: true, // Enable CORS to capture external images (avatars)
-        allowTaint: false,
+        allowTaint: true, // FIXED: Allow taint to capture logo and all images
         logging: false
       });
 
@@ -409,40 +472,255 @@ const GameReview = () => {
         if (blob) {
           const file = new File([blob], 'chess-game-result.png', { type: 'image/png' });
 
+          const shareMessage = getGameResultShareMessage({
+              result: gameHistory.result,
+              playerColor: gameHistory.player_color === 'w' ? 'white' : 'black',
+              isWin: isWin(gameHistory.result),
+              isDraw: isDraw(gameHistory.result),
+              opponentName: gameHistory.opponent_name || (gameHistory.game_mode === 'computer' ? 'Computer' : 'Opponent'),
+              playerName: user?.name || 'Player'
+            });
+
+            console.log('Attempting to share image with message:', shareMessage);
+            console.log('File size:', file.size, 'bytes');
+
           // Check if Web Share API is supported
-          if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-            try {
-              await navigator.share({
-                title: 'Chess Game Result',
-                text: getGameResultShareMessage({
-                  result: gameHistory.result,
-                  playerColor: gameHistory.player_color === 'w' ? 'white' : 'black',
-                  isWin: isWin(gameHistory.result),
-                  isDraw: isDraw(gameHistory.result),
-                  opponentName: gameHistory.game_mode === 'computer' ? 'Computer' : 'Opponent'
-                }),
-                files: [file]
-              });
-            } catch (shareError) {
-              if (shareError.name !== 'AbortError') {
-                console.error('Error sharing:', shareError);
-                // Fallback to download if share fails
-                downloadBlob(blob, 'chess-game-result.png');
-                alert('Failed to share image. Image has been downloaded instead.');
+          if (navigator.share && navigator.canShare) {
+            // First try to share with files
+            if (navigator.canShare({ files: [file] })) {
+              try {
+                await navigator.share({
+                  title: 'Chess Game Result',
+                  text: shareMessage,
+                  files: [file]
+                });
+                console.log('Successfully shared with image');
+                return; // Success, exit early
+              } catch (shareError) {
+                if (shareError.name !== 'AbortError') {
+                  console.error('Error sharing with files:', shareError);
+                  console.log('Falling back to text-only sharing...');
+                } else {
+                  return; // User cancelled, exit
+                }
               }
             }
-          } else {
-            // Fallback: download the image
-            downloadBlob(blob, 'chess-game-result.png');
-            alert('Sharing not supported on this device. Image has been downloaded instead.');
+
+            // Fallback: try sharing text with URL
+            try {
+              const shareUrl = getShareableGameUrl(gameHistory.id);
+              const textWithUrl = `${shareMessage}\n\n${shareUrl}`;
+
+              await navigator.share({
+                title: 'Chess Game Result',
+                text: textWithUrl,
+                url: shareUrl
+              });
+              console.log('Shared text with URL');
+              // Also download the image separately
+              downloadBlob(blob, 'chess-game-result.png');
+              alert('Message shared! Image downloaded separately for better quality.');
+            } catch (textShareError) {
+              if (textShareError.name !== 'AbortError') {
+                console.error('Error sharing text:', textShareError);
+                console.log('Falling back to download only...');
+              } else {
+                return; // User cancelled, exit
+              }
+            }
           }
+
+          // Final fallback: download the image
+          console.log('Sharing not available or failed, downloading image');
+          downloadBlob(blob, 'chess-game-result.png');
+          alert('Image downloaded! You can share it manually from your photos.');
         }
       }, 'image/png');
     } catch (error) {
       console.error('Error sharing image:', error);
       alert('Failed to share image. Please try again.');
     } finally {
-      // Hide the end card after sharing
+      // Reset state after sharing
+      setIsCardReady(false);
+      setTimeout(() => setShowEndCard(false), 1000);
+    }
+  };
+
+  const handleSocialShareWithImage = async (platform) => {
+    // First click: Show the end card and wait for confirmation
+    if (!isCardReady) {
+      console.log(`First click: Showing end card for ${platform}`);
+      setShowEndCard(true);
+      setIsCardReady(true);
+      return; // Stop here, wait for second click
+    }
+
+    // Second click: Share directly to platform with image
+    console.log(`Second click: Sharing to ${platform} with image`);
+    await shareToPlatformWithImage(platform);
+  };
+
+  const shareToPlatformWithImage = async (platform) => {
+    // Wait a bit to ensure card is fully rendered
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    try {
+      // Select the GameEndCard element
+      const cardElement = document.querySelector('.game-end-card');
+      if (!cardElement) {
+        throw new Error('End card not found');
+      }
+
+      // Add share-mode class for better rendering
+      cardElement.classList.add('share-mode');
+
+      // CRITICAL FIX: Wait for all images (especially logo) to load before capturing
+      const images = cardElement.querySelectorAll('img');
+      await Promise.all(
+        Array.from(images).map(img => {
+          if (img.complete && img.naturalHeight !== 0) return Promise.resolve();
+          return new Promise((resolve) => {
+            img.onload = resolve;
+            img.onerror = () => {
+              console.warn('Image failed to load:', img.src);
+              resolve(); // Continue even if image fails
+            };
+            // Timeout after 3 seconds
+            setTimeout(resolve, 3000);
+          });
+        })
+      );
+
+      // Additional small delay to ensure rendering is complete
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      const html2canvas = (await import('html2canvas')).default;
+      const canvas = await html2canvas(cardElement, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+        useCORS: true, // Enable CORS to capture external images (avatars)
+        allowTaint: true, // FIXED: Allow taint to capture logo and all images
+        logging: false
+      });
+
+      // Remove share-mode
+      cardElement.classList.remove('share-mode');
+
+      // Convert to blob
+      canvas.toBlob(async (blob) => {
+        if (blob) {
+          const file = new File([blob], 'chess-game-result.png', { type: 'image/png' });
+          const shareMessage = getGameResultShareMessage({
+              result: gameHistory.result,
+              playerColor: gameHistory.player_color === 'w' ? 'white' : 'black',
+              isWin: isWin(gameHistory.result),
+              isDraw: isDraw(gameHistory.result),
+              opponentName: gameHistory.opponent_name || (gameHistory.game_mode === 'computer' ? 'Computer' : 'Opponent'),
+              playerName: user?.name || 'Player'
+            });
+
+          console.log(`Attempting to share image to ${platform}:`, shareMessage);
+          console.log('File size:', file.size, 'bytes');
+
+          // Detect if we're on mobile and can share files
+          const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+          const canShareFiles = navigator.share && navigator.canShare && navigator.canShare({ files: [file] });
+
+          console.log(`Device detection: Mobile=${isMobile}, CanShareFiles=${canShareFiles}`);
+
+          // **Mobile with file sharing support** - Best case scenario
+          if (canShareFiles && isMobile) {
+            try {
+              await navigator.share({
+                title: 'Chess Game Result',
+                text: shareMessage,
+                files: [file]
+              });
+              console.log(`✅ Successfully shared to ${platform} with image (mobile)`);
+              return; // Success, exit early
+            } catch (shareError) {
+              if (shareError.name !== 'AbortError') {
+                console.error(`Error sharing to ${platform} with files:`, shareError);
+                console.log(`Falling back to desktop sharing method...`);
+              } else {
+                return; // User cancelled, exit
+              }
+            }
+          }
+
+          // **Desktop / Mobile without file support** - Graceful fallback
+          const {
+            getWhatsAppShareUrl,
+            getFacebookShareUrl,
+            getTwitterShareUrl,
+            getTelegramShareUrl,
+            downloadBlob
+          } = await import('../utils/socialShareUtils');
+
+          const shareUrl = getShareableGameUrl(gameHistory.id);
+          let platformUrl = '';
+
+          switch (platform) {
+            case 'whatsapp':
+              platformUrl = getWhatsAppShareUrl(shareMessage, shareUrl);
+              break;
+            case 'facebook':
+              platformUrl = getFacebookShareUrl(shareUrl);
+              break;
+            case 'twitter':
+              platformUrl = getTwitterShareUrl(shareMessage, shareUrl, ['chess', 'chessweb', 'chess99']);
+              break;
+            case 'telegram':
+              platformUrl = getTelegramShareUrl(shareMessage, shareUrl);
+              break;
+            default:
+              console.error(`Unsupported platform: ${platform}`);
+              return;
+          }
+
+          // Always download the image for manual sharing
+          downloadBlob(blob, 'chess-game-result.png');
+
+          // Open the platform web interface
+          console.log(`Opening ${platform} web interface:`, platformUrl);
+          window.open(platformUrl, '_blank', 'width=800,height=700');
+
+          // Smart user feedback
+          const platformName = platform.charAt(0).toUpperCase() + platform.slice(1);
+          let userMessage = '';
+
+          if (isMobile) {
+            userMessage = `📱 ${platformName} opened! Your game image has been downloaded. Please attach it to your post for better presentation! 🎯`;
+          } else {
+            userMessage = `🖥️ ${platformName} opened! Your game image has been downloaded to your device. Please attach it manually in your ${platformName} post for the best visual impact! 📸`;
+          }
+
+          // Platform-specific tips
+          switch (platform) {
+            case 'whatsapp':
+              userMessage += `\n\n💡 Tip: In WhatsApp, click the 📎 attachment icon to add the image.`;
+              break;
+            case 'twitter':
+              userMessage += `\n\n💡 Tip: On Twitter/X, images get 3x more engagement than text-only posts!`;
+              break;
+            case 'facebook':
+              userMessage += `\n\n💡 Tip: Facebook posts with images get 2x more reach and engagement!`;
+              break;
+            case 'telegram':
+              userMessage += `\n\n💡 Tip: In Telegram, tap the 📎 paperclip icon to attach your image.`;
+              break;
+          }
+
+          alert(userMessage);
+
+        }
+      }, 'image/png');
+    } catch (error) {
+      console.error(`Error sharing to ${platform}:`, error);
+      alert(`❌ Failed to share to ${platform}. Please try again.\n\nError: ${error.message}`);
+    } finally {
+      // Reset state after sharing
+      setIsCardReady(false);
       setTimeout(() => setShowEndCard(false), 1000);
     }
   };
@@ -650,36 +928,59 @@ const GameReview = () => {
               <p className="text-center text-gray-300 text-xs mb-3">
                 Challenge your friends to beat this result!
               </p>
-              <SocialShare
-                text={getGameResultShareMessage({
-                  result: gameHistory.result,
-                  playerColor: gameHistory.player_color === 'w' ? 'white' : 'black',
-                  isWin: isWin(gameHistory.result),
-                  isDraw: isDraw(gameHistory.result),
-                  opponentName: gameHistory.game_mode === 'computer' ? 'Computer' : 'Opponent'
-                })}
-                url={getShareableGameUrl(gameHistory.id)}
-                title="Check out this chess game!"
-                hashtags={['chess', 'chessweb', 'chess99']}
-                showLabel={false}
-                className="flex justify-center"
-              />
 
-              {/* Export Buttons */}
-              <div className="flex justify-center gap-2 mt-3">
-                <button
-                  onClick={handleExportEndCard}
-                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors duration-200 flex items-center gap-1"
-                >
-                  📸 Export End Card
-                </button>
-                <button
-                  onClick={handleShareWithImage}
-                  className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg transition-colors duration-200 flex items-center gap-1"
-                >
-                  🔗 Share End Card
-                </button>
-              </div>
+              {isMobileDevice() ? (
+                /* Mobile: Show platform-specific buttons */
+                <div>
+                  <SocialShare
+                    text={getGameResultShareMessage({
+                      result: gameHistory.result,
+                      playerColor: gameHistory.player_color === 'w' ? 'white' : 'black',
+                      isWin: isWin(gameHistory.result),
+                      isDraw: isDraw(gameHistory.result),
+                      opponentName: gameHistory.opponent_name || (gameHistory.game_mode === 'computer' ? 'Computer' : 'Opponent'),
+                      playerName: user?.name || 'Player'
+                    })}
+                    url={getShareableGameUrl(gameHistory.id)}
+                    title="Check out this chess game!"
+                    hashtags={['chess', 'chessweb', 'chess99']}
+                    showLabel={false}
+                    className="flex justify-center"
+                    customImageShareHandler={handleSocialShareWithImage}
+                  />
+
+                  {/* Export Buttons for Mobile */}
+                  <div className="flex justify-center gap-2 mt-3">
+                    <button
+                      onClick={handleExportEndCard}
+                      className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors duration-200 flex items-center gap-1"
+                      title={isCardReady ? "Click again to confirm export" : "Export end card as image"}
+                    >
+                      📸 {isCardReady ? "Click Again to Export" : "Export End Card"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Desktop: Show single share button */
+                <div className="flex flex-col items-center gap-3">
+                  <button
+                    onClick={handleShareWithImage}
+                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors duration-200 flex items-center gap-2 shadow-lg"
+                    title={isCardReady ? "Click again to confirm share" : "Share game result with image"}
+                  >
+                    🔗 {isCardReady ? "Click Again to Share" : "Share Game Result"}
+                  </button>
+
+                  {/* Additional export option for desktop */}
+                  <button
+                    onClick={handleExportEndCard}
+                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors duration-200 flex items-center gap-1"
+                    title={isCardReady ? "Click again to confirm export" : "Export end card as image"}
+                  >
+                    📸 {isCardReady ? "Click Again to Export" : "Export Image Only"}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -687,17 +988,38 @@ const GameReview = () => {
 
       {/* GameEndCard Modal for Export/Share */}
       {showEndCard && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+          onClick={(e) => {
+            // Close modal when clicking on backdrop
+            if (e.target === e.currentTarget) {
+              setShowEndCard(false);
+              setIsCardReady(false);
+            }
+          }}
+        >
           <div className="relative max-w-4xl w-full max-h-[90vh] overflow-auto">
-            {/* Close button */}
+            {/* Close button - FIXED: Increased z-index and improved positioning */}
             <button
-              onClick={() => setShowEndCard(false)}
-              className="absolute top-4 right-4 z-10 bg-white bg-opacity-90 hover:bg-opacity-100 rounded-full p-2 shadow-lg transition-all duration-200"
+              onClick={(e) => {
+                e.stopPropagation(); // Prevent event bubbling
+                setShowEndCard(false);
+                setIsCardReady(false);
+              }}
+              className="absolute top-4 right-4 z-[9999] bg-white bg-opacity-90 hover:bg-opacity-100 rounded-full p-2 shadow-lg transition-all duration-200 hover:scale-110 cursor-pointer"
+              style={{ pointerEvents: 'auto' }}
             >
               <svg className="w-6 h-6 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
+
+            {/* Instruction message when card is ready for sharing */}
+            {isCardReady && (
+              <div className="absolute top-4 left-4 z-10 bg-black bg-opacity-75 text-white px-4 py-2 rounded-lg text-sm max-w-xs">
+                📸 Card ready! Click your chosen button again to confirm.
+              </div>
+            )}
 
             {/* GameEndCard */}
             <GameEndCard

@@ -7,7 +7,13 @@
  * @returns {string} WhatsApp share URL
  */
 export const getWhatsAppShareUrl = (text, url = '') => {
-  const message = url ? `${text}\n${url}` : text;
+  // Clean up the text for WhatsApp - make it more concise
+  let cleanText = text;
+
+  // Remove extra line breaks and make it more WhatsApp-friendly
+  cleanText = cleanText.replace(/\n\n+/g, '\n');
+
+  const message = url ? `${cleanText}\n${url}` : cleanText;
   return `https://wa.me/?text=${encodeURIComponent(message)}`;
 };
 
@@ -114,24 +120,16 @@ export const getFriendInvitationMessage = (userName, appUrl = 'www.chess99.com')
  * @returns {string} Share message
  */
 export const getGameResultShareMessage = (gameData) => {
-  const { result, playerColor, isWin, isDraw, opponentName } = gameData;
+  const { result, playerColor, isWin, isDraw, opponentName, playerName } = gameData;
 
-  let message = '♟️ Just finished a chess game!\n\n';
-
+  // Create a concise, clean message for WhatsApp/social media
   if (isDraw) {
-    message += `🤝 Drew against ${opponentName || 'opponent'}\n\n`;
+    return `🤝 I drew against ${opponentName || 'opponent'} in an exciting chess match! 🎯\n\nChallenge me on Chess99.com ♟️`;
   } else if (isWin) {
-    message += `🏆 Won as ${playerColor} against ${opponentName || 'opponent'}!\n\n`;
+    return `🏆 I defeated ${opponentName || 'opponent'} in chess! ♟️\n\nThink you can do better? Play me on Chess99.com! 🎯`;
   } else {
-    message += `Played as ${playerColor} against ${opponentName || 'opponent'}\n\n`;
+    return `♟️ I played against ${opponentName || 'opponent'} in chess! 🎯\n\nChallenge me to a rematch on Chess99.com! 🏆`;
   }
-
-  // Add invitation with link
-  message += `🎯 Think you can do better? Test your chess skills now!\n\n`;
-  message += `🌐 Register and play at: www.chess99.com\n\n`;
-  message += `Join thousands of players in thrilling chess battles! 🔥`;
-
-  return message;
 };
 
 /**

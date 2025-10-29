@@ -389,8 +389,30 @@ const GameEndCard = ({
     try {
       setIsSharing(true);
 
+      const cardElement = cardRef.current;
+
+      // CRITICAL FIX: Wait for all images (especially logo) to load before capturing
+      const images = cardElement.querySelectorAll('img');
+      await Promise.all(
+        Array.from(images).map(img => {
+          if (img.complete && img.naturalHeight !== 0) return Promise.resolve();
+          return new Promise((resolve) => {
+            img.onload = resolve;
+            img.onerror = () => {
+              console.warn('Image failed to load:', img.src);
+              resolve(); // Continue even if image fails
+            };
+            // Timeout after 3 seconds
+            setTimeout(resolve, 3000);
+          });
+        })
+      );
+
+      // Additional small delay to ensure rendering is complete
+      await new Promise(resolve => setTimeout(resolve, 200));
+
       // Capture the card as canvas
-      const canvas = await html2canvas(cardRef.current, {
+      const canvas = await html2canvas(cardElement, {
         backgroundColor: '#ffffff',
         scale: 2, // Higher quality
         logging: false,
