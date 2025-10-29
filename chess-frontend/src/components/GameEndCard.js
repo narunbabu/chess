@@ -4,12 +4,42 @@ import chessPlayingKids from '../assets/images/chess-playing-kids-crop.png';
 import logo from '../assets/images/logo.png';
 import './GameEndCard.css';
 
-// Social share URLs
+// Social share URLs - Note: These platforms don't support direct image URLs in share parameters
+// Images are only supported via Web Share API (navigator.share with files) on mobile devices
 const SHARE_URLS = {
-  whatsapp: (text, imageUrl) => `https://wa.me/?text=${encodeURIComponent(text)}`,
-  facebook: (text, imageUrl) => `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent('https://chess99.com')}`,
-  twitter: (text, imageUrl) => `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent('https://chess99.com')}`,
-  linkedin: (text, imageUrl) => `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent('https://chess99.com')}`
+  whatsapp: (text) => `https://wa.me/?text=${encodeURIComponent(text)}`,
+  facebook: (text) => `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent('https://chess99.com')}`,
+  twitter: (text) => `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent('https://chess99.com')}`,
+  linkedin: (text) => `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent('https://chess99.com')}`
+};
+
+// Helper function to convert all images within an element to data URLs
+// This robustly handles image loading for html2canvas capture.
+const convertImagesToDataURLs = async (element) => {
+  const images = Array.from(element.querySelectorAll('img'));
+  await Promise.all(
+    images.map(async (img) => {
+      // Don't re-convert if it's already a data URL
+      if (img.src.startsWith('data:')) return;
+
+      try {
+        const response = await fetch(img.src);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+        }
+        const blob = await response.blob();
+        const dataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        img.src = dataUrl;
+      } catch (error) {
+        console.error(`Could not convert image ${img.src} to data URL:`, error);
+      }
+    })
+  );
 };
 
 // SVG Chess Piece Components (similar to Background.js)
@@ -388,27 +418,15 @@ const GameEndCard = ({
 
     try {
       setIsSharing(true);
-
       const cardElement = cardRef.current;
+      
+      // Add a temporary class to apply styles specifically for capture
+      cardElement.classList.add('share-mode');
 
-      // CRITICAL FIX: Wait for all images (especially logo) to load before capturing
-      const images = cardElement.querySelectorAll('img');
-      await Promise.all(
-        Array.from(images).map(img => {
-          if (img.complete && img.naturalHeight !== 0) return Promise.resolve();
-          return new Promise((resolve) => {
-            img.onload = resolve;
-            img.onerror = () => {
-              console.warn('Image failed to load:', img.src);
-              resolve(); // Continue even if image fails
-            };
-            // Timeout after 3 seconds
-            setTimeout(resolve, 3000);
-          });
-        })
-      );
+      // **FIX:** Convert images to data URLs before capture
+      await convertImagesToDataURLs(cardElement);
 
-      // Additional small delay to ensure rendering is complete
+      // A small delay for the DOM to update with new image sources
       await new Promise(resolve => setTimeout(resolve, 200));
 
       // Capture the card as canvas
@@ -417,8 +435,10 @@ const GameEndCard = ({
         scale: 2, // Higher quality
         logging: false,
         useCORS: true,
-        allowTaint: true
       });
+
+      // Remove the temporary class after capture
+      cardElement.classList.remove('share-mode');
 
       // Convert canvas to blob
       const blob = await new Promise((resolve) => {
@@ -434,6 +454,8 @@ const GameEndCard = ({
     } catch (error) {
       console.error('Error preparing share:', error);
       alert('Failed to prepare share. Please try again.');
+      const cardElement = cardRef.current;
+      if (cardElement) cardElement.classList.remove('share-mode');
     } finally {
       setIsSharing(false);
     }
@@ -452,7 +474,7 @@ const GameEndCard = ({
 
   const handleSocialShare = (platform) => {
     const shareText = `${resultText} - Play chess at Chess99.com`;
-    const url = SHARE_URLS[platform](shareText, shareImageUrl);
+    const url = SHARE_URLS[platform](shareText);
     window.open(url, '_blank', 'width=600,height=400');
   };
 
@@ -534,7 +556,19 @@ const GameEndCard = ({
         {/* Header with logo - blue background bar for visibility */}
         <div className="text-center mb-3">
           <div className="inline-block bg-sky-600/90 px-6 py-2 rounded-full mb-2">
-            <img src={logo} alt="Chess99" className="h-8" />
+            {/* Use inline backgroundImage style for html2canvas compatibility - same approach as chess background */}
+            <div
+              style={{
+                backgroundImage: `url(${logo})`,
+                backgroundSize: 'contain',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat',
+                width: '120px',
+                height: '32px'
+              }}
+              role="img"
+              aria-label="Chess99 Logo"
+            />
           </div>
           <div className="inline-block bg-sky-600 text-white px-4 py-1 rounded-full font-semibold text-xs">
             {isMultiplayer ? 'Multiplayer Match' : `Computer Level ${computerLevel || 8}`}
@@ -586,7 +620,7 @@ const GameEndCard = ({
               {result.move_count || (result.moves ?
                 (typeof result.moves === 'string' ?
                   result.moves.split(';').length :
-                  (Array.isArray(result.moves) ? result.moves.length : '?')
+                  (Array.isArray(result.moves) ? result.moves.length-1 : '?')
                 ) : '?')
               }
             </div>

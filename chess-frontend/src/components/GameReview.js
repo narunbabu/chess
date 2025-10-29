@@ -10,6 +10,84 @@ import { getGameResultShareMessage, getShareableGameUrl } from "../utils/socialS
 import { isWin, isDraw } from "../utils/resultStandardization";
 import { useAuth } from "../contexts/AuthContext";
 
+// Helper function to convert all images within an element to data URLs
+// This robustly handles image loading for html2canvas capture.
+const convertImagesToDataURLs = async (element) => {
+  // Handle <img> tags
+  const images = Array.from(element.querySelectorAll('img'));
+  await Promise.all(
+    images.map(async (img) => {
+      // Don't re-convert if it's already a data URL
+      if (img.src.startsWith('data:')) return;
+
+      try {
+        const response = await fetch(img.src);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+        }
+        const blob = await response.blob();
+        const dataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        img.src = dataUrl;
+      } catch (error) {
+        console.error(`Could not convert image ${img.src} to data URL:`, error);
+        // We continue even if one image fails, so the capture process doesn't halt.
+      }
+    })
+  );
+
+  // Handle CSS background-image properties (for logo, etc.)
+  const allElements = Array.from(element.querySelectorAll('*'));
+  allElements.push(element); // Include the root element itself
+
+  await Promise.all(
+    allElements.map(async (el) => {
+      const bgImage = window.getComputedStyle(el).backgroundImage;
+
+      // Check if there's a background-image and it's a URL (not 'none' or gradient)
+      if (bgImage && bgImage !== 'none' && bgImage.includes('url(')) {
+        // Extract URL from background-image (handles multiple backgrounds)
+        const urlMatches = bgImage.match(/url\(["']?([^"')]+)["']?\)/g);
+
+        if (urlMatches) {
+          for (const urlMatch of urlMatches) {
+            const url = urlMatch.match(/url\(["']?([^"')]+)["']?\)/)[1];
+
+            // Skip if already a data URL
+            if (url.startsWith('data:')) continue;
+
+            try {
+              const response = await fetch(url);
+              if (!response.ok) {
+                throw new Error(`Failed to fetch background image: ${response.status} ${response.statusText}`);
+              }
+              const blob = await response.blob();
+              const dataUrl = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+              });
+
+              // Replace the URL in the background-image with the data URL
+              const newBgImage = bgImage.replace(url, dataUrl);
+              el.style.backgroundImage = newBgImage;
+            } catch (error) {
+              console.error(`Could not convert background image ${url} to data URL:`, error);
+              // We continue even if one image fails
+            }
+          }
+        }
+      }
+    })
+  );
+};
+
+
 const GameReview = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -355,32 +433,28 @@ const GameReview = () => {
       // Add share-mode class for better rendering
       cardElement.classList.add('share-mode');
 
-      // CRITICAL FIX: Wait for all images (especially logo) to load before capturing
-      const images = cardElement.querySelectorAll('img');
-      await Promise.all(
-        Array.from(images).map(img => {
-          if (img.complete && img.naturalHeight !== 0) return Promise.resolve();
-          return new Promise((resolve) => {
-            img.onload = resolve;
-            img.onerror = () => {
-              console.warn('Image failed to load:', img.src);
-              resolve(); // Continue even if image fails
-            };
-            // Timeout after 3 seconds
-            setTimeout(resolve, 3000);
-          });
-        })
-      );
+      // **FIX:** Convert all images to data URLs to ensure they are captured by html2canvas
+      await convertImagesToDataURLs(cardElement);
 
-      // Additional small delay to ensure rendering is complete
-      await new Promise(resolve => setTimeout(resolve, 200));
+      // **STEP 1:** Force re-render of background images after conversion
+      cardElement.querySelectorAll('[style*="background-image"]').forEach(el => {
+        const bg = el.style.backgroundImage;
+        el.style.backgroundImage = ''; // temporarily remove
+        void el.offsetHeight; // force reflow
+        el.style.backgroundImage = bg; // restore
+      });
+
+      // **STEP 2:** Give browser full repaint before capture (2 RAF cycles)
+      await new Promise(requestAnimationFrame);
+      await new Promise(requestAnimationFrame);
 
       const html2canvas = (await import('html2canvas')).default;
       const canvas = await html2canvas(cardElement, {
         backgroundColor: '#ffffff',
         scale: 2,
-        useCORS: true, // Enable CORS to capture external images (avatars)
-        allowTaint: true, // FIXED: Allow taint to capture logo and all images
+        useCORS: true,
+        allowTaint: true,
+        foreignObjectRendering: true, // **STEP 3:** Render CSS backgrounds correctly
         logging: false
       });
 
@@ -435,32 +509,28 @@ const GameReview = () => {
       // Add share-mode class for better rendering
       cardElement.classList.add('share-mode');
 
-      // CRITICAL FIX: Wait for all images (especially logo) to load before capturing
-      const images = cardElement.querySelectorAll('img');
-      await Promise.all(
-        Array.from(images).map(img => {
-          if (img.complete && img.naturalHeight !== 0) return Promise.resolve();
-          return new Promise((resolve) => {
-            img.onload = resolve;
-            img.onerror = () => {
-              console.warn('Image failed to load:', img.src);
-              resolve(); // Continue even if image fails
-            };
-            // Timeout after 3 seconds
-            setTimeout(resolve, 3000);
-          });
-        })
-      );
+      // **FIX:** Convert all images to data URLs to ensure they are captured by html2canvas
+      await convertImagesToDataURLs(cardElement);
 
-      // Additional small delay to ensure rendering is complete
-      await new Promise(resolve => setTimeout(resolve, 200));
+      // **STEP 1:** Force re-render of background images after conversion
+      cardElement.querySelectorAll('[style*="background-image"]').forEach(el => {
+        const bg = el.style.backgroundImage;
+        el.style.backgroundImage = ''; // temporarily remove
+        void el.offsetHeight; // force reflow
+        el.style.backgroundImage = bg; // restore
+      });
+
+      // **STEP 2:** Give browser full repaint before capture (2 RAF cycles)
+      await new Promise(requestAnimationFrame);
+      await new Promise(requestAnimationFrame);
 
       const html2canvas = (await import('html2canvas')).default;
       const canvas = await html2canvas(cardElement, {
         backgroundColor: '#ffffff',
         scale: 2,
-        useCORS: true, // Enable CORS to capture external images (avatars)
-        allowTaint: true, // FIXED: Allow taint to capture logo and all images
+        useCORS: true,
+        allowTaint: true,
+        foreignObjectRendering: true, // **STEP 3:** Render CSS backgrounds correctly
         logging: false
       });
 
@@ -574,32 +644,28 @@ const GameReview = () => {
       // Add share-mode class for better rendering
       cardElement.classList.add('share-mode');
 
-      // CRITICAL FIX: Wait for all images (especially logo) to load before capturing
-      const images = cardElement.querySelectorAll('img');
-      await Promise.all(
-        Array.from(images).map(img => {
-          if (img.complete && img.naturalHeight !== 0) return Promise.resolve();
-          return new Promise((resolve) => {
-            img.onload = resolve;
-            img.onerror = () => {
-              console.warn('Image failed to load:', img.src);
-              resolve(); // Continue even if image fails
-            };
-            // Timeout after 3 seconds
-            setTimeout(resolve, 3000);
-          });
-        })
-      );
+      // **FIX:** Convert all images to data URLs to ensure they are captured by html2canvas
+      await convertImagesToDataURLs(cardElement);
 
-      // Additional small delay to ensure rendering is complete
-      await new Promise(resolve => setTimeout(resolve, 200));
+      // **STEP 1:** Force re-render of background images after conversion
+      cardElement.querySelectorAll('[style*="background-image"]').forEach(el => {
+        const bg = el.style.backgroundImage;
+        el.style.backgroundImage = ''; // temporarily remove
+        void el.offsetHeight; // force reflow
+        el.style.backgroundImage = bg; // restore
+      });
+
+      // **STEP 2:** Give browser full repaint before capture (2 RAF cycles)
+      await new Promise(requestAnimationFrame);
+      await new Promise(requestAnimationFrame);
 
       const html2canvas = (await import('html2canvas')).default;
       const canvas = await html2canvas(cardElement, {
         backgroundColor: '#ffffff',
         scale: 2,
-        useCORS: true, // Enable CORS to capture external images (avatars)
-        allowTaint: true, // FIXED: Allow taint to capture logo and all images
+        useCORS: true,
+        allowTaint: true,
+        foreignObjectRendering: true, // **STEP 3:** Render CSS backgrounds correctly
         logging: false
       });
 
@@ -902,10 +968,10 @@ const GameReview = () => {
               <div className="mt-3 max-h-48 overflow-y-auto bg-slate-900/70 rounded-lg p-2">
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1 text-xs">
                   {gameHistory.moves.map((move, index) => (
-                    <div key={index} className={`text-center p-1 rounded ${index === currentMoveIndex ? 'bg-yellow-500/20 border border-yellow-400/40' : 'bg-slate-800/50'}`}>
-                      <div className="text-gray-400 mb-1">{index > 0 ? `${Math.ceil(index/2)}.` : 'Start'}</div>
+                    index > 0 && <div key={index} className={`text-center p-1 rounded ${index === currentMoveIndex ? 'bg-yellow-500/20 border border-yellow-400/40' : 'bg-slate-800/50'}`}>
+                      <div className="text-gray-400 mb-1">{`${Math.ceil(index/2)}.`}</div>
                       <div className="text-white font-mono">
-                        {move.move?.san || (index === 0 ? 'Start' : '?')}
+                        {move.move?.san || '?'}
                       </div>
                       {move.time && (
                         <div className="text-gray-500 text-xs">
