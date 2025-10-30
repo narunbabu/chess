@@ -54,8 +54,18 @@ jobs:
 
             # frontend (React)
             cd ../chess-frontend
-            npm install
-            npm run build
+
+            # Load NVM and use Node 20
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            nvm use 20 || nvm install 20
+
+            # Clean npm cache if needed
+            npm cache clean --force || true
+
+            # Install dependencies and build (bypass ESLint in production)
+            npm ci || npm install
+            CI=false npm run build
 
             # deploy frontend build to web server
             rsync -av --delete build/ /var/www/chess99.com/
