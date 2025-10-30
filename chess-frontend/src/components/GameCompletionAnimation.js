@@ -378,13 +378,16 @@ const GameCompletionAnimation = ({
 
   return (
     <div className={overlayClass}>
-      {/* Main GameEndCard - now visible and centered */}
+      {/* Main GameEndCard - now visible and centered with extra bottom padding for action buttons */}
       <div ref={gameEndCardRef} style={{
         display: 'flex',
         justifyContent: 'center',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         minHeight: '100vh',
-        padding: '20px'
+        padding: '20px',
+        paddingTop: '80px', // Extra top padding for close button
+        paddingBottom: '120px', // Extra bottom padding for action buttons
+        overflowY: 'auto' // Allow scrolling
       }}>
         <GameEndCard
           result={result}
@@ -434,7 +437,7 @@ const GameCompletionAnimation = ({
         </button>
       )}
 
-      {/* Action buttons container - positioned at bottom */}
+      {/* Action buttons container - positioned at top for single player */}
       {!isMultiplayer && (
         <div style={{
           position: 'fixed',

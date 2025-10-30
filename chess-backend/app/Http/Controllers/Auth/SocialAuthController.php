@@ -8,9 +8,52 @@ use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class SocialAuthController extends Controller
 {
+    /**
+     * Download avatar from external URL and store it locally
+     *
+     * @param string $url External avatar URL
+     * @param int $userId User ID for filename
+     * @return string|null Local storage path or null on failure
+     */
+    private function downloadAndStoreAvatar($url, $userId)
+    {
+        try {
+            // Create a unique filename
+            $extension = 'jpg'; // Default extension
+            $filename = 'avatars/' . $userId . '_' . time() . '.' . $extension;
+
+            // Download the image with a 10 second timeout
+            $imageContent = @file_get_contents($url, false, stream_context_create([
+                'http' => [
+                    'timeout' => 10,
+                    'header' => [
+                        'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                    ]
+                ]
+            ]));
+
+            if ($imageContent === false) {
+                Log::warning('Failed to download avatar from: ' . $url);
+                return null;
+            }
+
+            // Store the image in public storage
+            Storage::disk('public')->put($filename, $imageContent);
+
+            // Return the storage path (will be accessible via /storage/avatars/...)
+            return $filename;
+
+        } catch (\Exception $e) {
+            Log::error('Error downloading avatar: ' . $e->getMessage());
+            return null;
+        }
+    }
+
     public function redirect($provider)
     {
         Log::info('=== OAUTH REDIRECT REQUEST ===');
@@ -70,15 +113,15 @@ class SocialAuthController extends Controller
             Log::info('Raw User Data: ', $socialUser->getRaw());
 
             $avatarUrl = $socialUser->getAvatar();
-            Log::info('Avatar URL to save: ' . ($avatarUrl ?? 'NULL'));
+            Log::info('Original avatar URL from provider: ' . ($avatarUrl ?? 'NULL'));
 
+            // First create/update user without avatar
             $user = User::updateOrCreate(
                 ['email' => $socialUser->getEmail()],
                 [
                     'name' => $socialUser->getName(),
                     'provider' => $provider,
                     'provider_id' => $socialUser->getId(),
-                    'avatar_url' => $avatarUrl // Save Google profile picture
                 ]
             );
 
@@ -86,7 +129,23 @@ class SocialAuthController extends Controller
             Log::info('User ID: ' . $user->id);
             Log::info('User Name: ' . $user->name);
             Log::info('User Email: ' . $user->email);
-            Log::info('Avatar URL from DB: ' . $user->getRawOriginal('avatar_url'));
+
+            // Download and store avatar locally if provided
+            if ($avatarUrl) {
+                Log::info('Attempting to download and store avatar locally...');
+                $localAvatarPath = $this->downloadAndStoreAvatar($avatarUrl, $user->id);
+
+                if ($localAvatarPath) {
+                    // Update user with local avatar path
+                    $user->avatar_url = $localAvatarPath;
+                    $user->save();
+                    Log::info('Avatar downloaded and stored locally at: ' . $localAvatarPath);
+                } else {
+                    Log::warning('Failed to download avatar, user will use default');
+                }
+            }
+
+            Log::info('Final avatar URL in DB: ' . $user->getRawOriginal('avatar_url'));
             Log::info('Avatar URL after accessor: ' . $user->avatar_url);
 
             $token = $user->createToken('auth_token')->plainTextToken;

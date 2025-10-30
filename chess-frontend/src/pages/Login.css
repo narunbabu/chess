@@ -6,6 +6,26 @@
  * animated background elements are desired in the future.
  */
 
+/* iOS Safari specific fixes for scrolling */
+body, html {
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Ensure proper scrolling on mobile devices */
+@media (max-width: 768px) {
+  body {
+    position: relative;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Fix for iOS Safari viewport height with address bar */
+  .min-h-screen {
+    min-height: -webkit-fill-available;
+  }
+}
+
 /*
 @keyframes backgroundMove {
   0%, 100% { transform: translateX(0) translateY(0); }

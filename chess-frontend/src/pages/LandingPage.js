@@ -8,11 +8,19 @@ import logo from '../assets/images/logo.png';
 import '../styles/UnifiedCards.css';
 
 const LandingPage = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
   const [loginType, setLoginType] = useState('guest');
   const [showAuthGate, setShowAuthGate] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const navigate = useNavigate();
+
+  // Auto-redirect authenticated users to lobby
+  useEffect(() => {
+    if (!loading && isAuthenticated) {
+      console.log('[LandingPage] User is authenticated, redirecting to lobby');
+      navigate('/lobby');
+    }
+  }, [loading, isAuthenticated, navigate]);
 
   // Smooth scroll behavior for mobile
   useEffect(() => {

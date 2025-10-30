@@ -45,8 +45,14 @@ class User extends Authenticatable
      */
     public function getAvatarUrlAttribute($value)
     {
-        // If avatar_url is set, use it
+        // If avatar_url is set
         if ($value) {
+            // Check if it's a local storage path (e.g., 'avatars/123_1234567890.jpg')
+            if (str_starts_with($value, 'avatars/')) {
+                // Return full URL to storage
+                return asset('storage/' . $value);
+            }
+            // Otherwise, return as-is (for external URLs or backward compatibility)
             return $value;
         }
 

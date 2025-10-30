@@ -48,7 +48,7 @@ class InvitationController extends Controller
             return response()->json(['error' => 'Cannot invite yourself'], 400);
         }
 
-        // Check for existing pending invitation
+        // Check for existing pending invitation and replace it
         $existing = Invitation::where([
             ['inviter_id', $inviterId],
             ['invited_id', $invitedId],
@@ -56,7 +56,28 @@ class InvitationController extends Controller
         ])->first();
 
         if ($existing) {
-            return response()->json(['error' => 'Invitation already sent'], 400);
+            Log::info('🔄 Found existing pending invitation, replacing it', [
+                'existing_invitation_id' => $existing->id,
+                'inviter_id' => $inviterId,
+                'invited_id' => $invitedId
+            ]);
+
+            // Load relationships before deleting for broadcasting
+            $existingData = $existing->load(['inviter', 'invited']);
+
+            // Broadcast cancellation event to recipient
+            Log::info('🚫 Broadcasting InvitationCancelled event for replacement', [
+                'invitation_id' => $existingData->id,
+                'invited_user_id' => $existingData->invited_id,
+                'channel' => "App.Models.User.{$existingData->invited_id}",
+                'event' => 'invitation.cancelled'
+            ]);
+            broadcast(new \App\Events\InvitationCancelled($existingData));
+
+            // Delete the old invitation
+            $existing->delete();
+
+            Log::info('✅ Old invitation deleted, proceeding to create new one');
         }
 
         // Resolve 'random' immediately to a concrete color

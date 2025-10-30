@@ -20,7 +20,15 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showSkillAssessment, setShowSkillAssessment] = useState(false);
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, isAuthenticated, loading } = useAuth();
+
+  // Auto-redirect authenticated users to lobby
+  React.useEffect(() => {
+    if (!loading && isAuthenticated) {
+      console.log('[Login] User is already authenticated, redirecting to lobby');
+      navigate('/lobby');
+    }
+  }, [loading, isAuthenticated, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -94,7 +102,7 @@ const LoginPage = () => {
         onSkip={handleSkillAssessmentSkip}
       />
 
-      <div className="min-h-screen flex flex-col items-center justify-center p-6 overflow-hidden relative">
+      <div className="min-h-screen flex flex-col items-center justify-start md:justify-center p-6 py-12 overflow-y-auto relative">
       <div
         className="absolute inset-0 z-0 opacity-10"
         style={{

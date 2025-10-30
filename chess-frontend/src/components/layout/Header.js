@@ -314,6 +314,12 @@ const Header = () => {
               <img
                 src={user?.avatar_url || `https://i.pravatar.cc/150?u=${user?.email}`}
                 alt={user?.name}
+                onError={(e) => {
+                  // Fallback to pravatar if main avatar fails to load
+                  if (!e.target.src.includes('pravatar.cc')) {
+                    e.target.src = `https://i.pravatar.cc/150?u=${user?.email}`;
+                  }
+                }}
               />
             </div>
           </div>
@@ -345,6 +351,12 @@ const Header = () => {
                   src={user?.avatar_url || `https://i.pravatar.cc/150?u=${user?.email}`}
                   alt={user?.name}
                   className="nav-user-avatar"
+                  onError={(e) => {
+                    // Fallback to pravatar if main avatar fails to load
+                    if (!e.target.src.includes('pravatar.cc')) {
+                      e.target.src = `https://i.pravatar.cc/150?u=${user?.email}`;
+                    }
+                  }}
                 />
                 <div className="nav-user-details">
                   <h3>{user?.name}</h3>

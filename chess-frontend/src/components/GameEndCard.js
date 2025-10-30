@@ -513,12 +513,13 @@ const GameEndCard = ({
   return (
     <div
          ref={cardRef}
-         className={`game-end-card max-w-5xl w-full mx-auto rounded-3xl shadow-2xl overflow-hidden relative bg-white ${className}`}
+         className={`game-end-card w-full mx-auto rounded-3xl shadow-2xl overflow-hidden relative bg-white ${className}`}
          style={{
            backgroundImage: `linear-gradient(rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.6)), url(${chessPlayingKids})`,
            backgroundSize: 'cover',
            backgroundPosition: 'center',
-           backgroundRepeat: 'no-repeat'
+           backgroundRepeat: 'no-repeat',
+           maxWidth: window.innerWidth <= 480 ? '95vw' : '640px' // Responsive max-width
          }}>
       {/* Additional gradient overlay for better readability */}
       <div className="absolute inset-0 bg-gradient-to-br from-sky-50/20 via-white/30 to-blue-50/20"></div>
@@ -738,7 +739,8 @@ const GameEndCard = ({
             justifyContent: 'center',
             alignItems: 'center',
             zIndex: 9999,
-            padding: '20px'
+            padding: '20px',
+            overflowY: 'auto' // Allow scrolling if content overflows
           }}
           onClick={closeShareModal}
         >
@@ -746,10 +748,13 @@ const GameEndCard = ({
             style={{
               backgroundColor: 'white',
               borderRadius: '20px',
-              padding: '30px',
+              padding: '20px',
               maxWidth: '500px',
               width: '100%',
-              boxShadow: '0 10px 40px rgba(0,0,0,0.2)'
+              maxHeight: '90vh', // Limit height to viewport
+              overflowY: 'auto', // Make content scrollable
+              boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+              margin: 'auto' // Center vertically when scrolling
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -762,10 +767,26 @@ const GameEndCard = ({
               </p>
             </div>
 
-            {/* Share preview */}
+            {/* Share preview - smaller size */}
             {shareImageUrl && (
-              <div style={{ marginBottom: '20px', borderRadius: '10px', overflow: 'hidden', border: '2px solid #E5E7EB' }}>
-                <img src={shareImageUrl} alt="Share preview" style={{ width: '100%', display: 'block' }} />
+              <div style={{
+                marginBottom: '20px',
+                borderRadius: '10px',
+                overflow: 'hidden',
+                border: '2px solid #E5E7EB',
+                maxHeight: '200px' // Limit preview height
+              }}>
+                <img
+                  src={shareImageUrl}
+                  alt="Share preview"
+                  style={{
+                    width: '100%',
+                    height: 'auto',
+                    maxHeight: '200px',
+                    objectFit: 'cover',
+                    display: 'block'
+                  }}
+                />
               </div>
             )}
 
