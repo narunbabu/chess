@@ -103,19 +103,49 @@ class UserController extends Controller
 
             // Store new avatar
             try {
+                // Store the file with explicit visibility
                 $avatarPath = $avatarFile->store('avatars', 'public');
                 $filename = basename($avatarPath);
+                $fullPath = storage_path('app/public/' . $avatarPath);
+
+                // Ensure proper file permissions (644 = rw-r--r--)
+                if (file_exists($fullPath)) {
+                    chmod($fullPath, 0644);
+                    \Log::info('File permissions set', [
+                        'path' => $fullPath,
+                        'permissions' => substr(sprintf('%o', fileperms($fullPath)), -4)
+                    ]);
+                }
+
+                // Ensure directory has proper permissions (755 = rwxr-xr-x)
+                $dir = dirname($fullPath);
+                if (is_dir($dir)) {
+                    chmod($dir, 0755);
+                    \Log::info('Directory permissions set', [
+                        'directory' => $dir,
+                        'permissions' => substr(sprintf('%o', fileperms($dir)), -4)
+                    ]);
+                }
+
                 $fullUrl = url('/api/avatars/' . $filename);
 
                 \Log::info('New avatar stored:', [
                     'relative_path' => $avatarPath,
+                    'full_path' => $fullPath,
                     'full_url' => $fullUrl,
-                    'storage_exists' => Storage::disk('public')->exists($avatarPath)
+                    'storage_exists' => Storage::disk('public')->exists($avatarPath),
+                    'file_exists' => file_exists($fullPath),
+                    'file_readable' => is_readable($fullPath),
+                    'file_size' => filesize($fullPath),
+                    'file_permissions' => substr(sprintf('%o', fileperms($fullPath)), -4)
                 ]);
 
                 $user->avatar_url = $fullUrl;
             } catch (\Exception $e) {
-                \Log::error('Failed to store avatar:', ['error' => $e->getMessage()]);
+                \Log::error('Failed to store avatar:', [
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
                 return response()->json([
                     'message' => 'Failed to upload avatar',
                     'error' => $e->getMessage()

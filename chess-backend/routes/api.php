@@ -153,18 +153,122 @@ Route::get('/debug/oauth-config', function () {
     ]);
 });
 
-// Serve avatar files
-Route::get('/avatars/{filename}', function ($filename) {
-    $path = storage_path('app/public/avatars/' . $filename);
+// Debug endpoint for avatar storage diagnostics
+Route::get('/debug/avatar-storage', function () {
+    $avatarDir = storage_path('app/public/avatars');
+    $files = [];
 
-    if (!file_exists($path)) {
-        return response()->json(['error' => 'Avatar not found'], 404);
+    if (is_dir($avatarDir)) {
+        $items = array_diff(scandir($avatarDir), ['.', '..']);
+        foreach ($items as $item) {
+            $path = $avatarDir . '/' . $item;
+            $files[] = [
+                'filename' => $item,
+                'size' => filesize($path),
+                'readable' => is_readable($path),
+                'permissions' => substr(sprintf('%o', fileperms($path)), -4),
+                'modified' => date('Y-m-d H:i:s', filemtime($path))
+            ];
+        }
     }
 
-    $file = file_get_contents($path);
-    $mimeType = mime_content_type($path);
+    return response()->json([
+        'storage_path' => storage_path(),
+        'app_public_path' => storage_path('app/public'),
+        'avatars_directory' => $avatarDir,
+        'directory_exists' => is_dir($avatarDir),
+        'directory_readable' => is_dir($avatarDir) ? is_readable($avatarDir) : false,
+        'directory_writable' => is_dir($avatarDir) ? is_writable($avatarDir) : false,
+        'directory_permissions' => is_dir($avatarDir) ? substr(sprintf('%o', fileperms($avatarDir)), -4) : 'N/A',
+        'file_count' => count($files),
+        'files' => $files,
+        'php_user' => posix_getpwuid(posix_geteuid()),
+        'app_url' => config('app.url'),
+        'environment' => config('app.env')
+    ]);
+});
 
-    return response($file)->header('Content-Type', $mimeType);
+// Serve avatar files
+Route::get('/avatars/{filename}', function ($filename) {
+    // Enhanced logging for production debugging
+    \Log::info('=== AVATAR REQUEST ===', [
+        'filename' => $filename,
+        'storage_path' => storage_path('app/public/avatars/' . $filename),
+        'storage_base' => storage_path('app/public/avatars'),
+        'app_url' => config('app.url'),
+        'environment' => config('app.env')
+    ]);
+
+    // Sanitize filename to prevent directory traversal
+    $filename = basename($filename);
+    $path = storage_path('app/public/avatars/' . $filename);
+
+    \Log::info('Avatar file check:', [
+        'sanitized_filename' => $filename,
+        'full_path' => $path,
+        'exists' => file_exists($path),
+        'readable' => file_exists($path) ? is_readable($path) : false,
+        'permissions' => file_exists($path) ? substr(sprintf('%o', fileperms($path)), -4) : 'N/A'
+    ]);
+
+    if (!file_exists($path)) {
+        // Check if directory exists
+        $dir = storage_path('app/public/avatars');
+        \Log::error('Avatar file not found', [
+            'requested_path' => $path,
+            'directory_exists' => is_dir($dir),
+            'directory_readable' => is_dir($dir) ? is_readable($dir) : false,
+            'files_in_directory' => is_dir($dir) ? scandir($dir) : []
+        ]);
+
+        return response()->json([
+            'error' => 'Avatar not found',
+            'filename' => $filename,
+            'path' => $path,
+            'debug' => config('app.debug') ? [
+                'directory_exists' => is_dir($dir),
+                'available_files' => is_dir($dir) ? array_values(array_diff(scandir($dir), ['.', '..'])) : []
+            ] : null
+        ], 404);
+    }
+
+    if (!is_readable($path)) {
+        \Log::error('Avatar file not readable', [
+            'path' => $path,
+            'permissions' => substr(sprintf('%o', fileperms($path)), -4),
+            'owner' => posix_getpwuid(fileowner($path))
+        ]);
+
+        return response()->json([
+            'error' => 'Avatar file not accessible',
+            'filename' => $filename
+        ], 403);
+    }
+
+    try {
+        $file = file_get_contents($path);
+        $mimeType = mime_content_type($path);
+
+        \Log::info('Avatar served successfully', [
+            'filename' => $filename,
+            'size' => strlen($file),
+            'mime_type' => $mimeType
+        ]);
+
+        return response($file)
+            ->header('Content-Type', $mimeType)
+            ->header('Cache-Control', 'public, max-age=31536000');
+    } catch (\Exception $e) {
+        \Log::error('Failed to serve avatar', [
+            'filename' => $filename,
+            'error' => $e->getMessage()
+        ]);
+
+        return response()->json([
+            'error' => 'Failed to load avatar',
+            'message' => config('app.debug') ? $e->getMessage() : 'Internal server error'
+        ], 500);
+    }
 })->where('filename', '.*');
 
 Route::post('/debug-test', function (Illuminate\Http\Request $request) {
