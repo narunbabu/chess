@@ -485,19 +485,56 @@ const GameEndCard = ({
       const response = await fetch(shareImageUrl);
       const blob = await response.blob();
       const file = new File([blob], 'chess-game-result.png', { type: 'image/png' });
+      const shareText = `${resultText} - Join and play Chess99.com`;
 
+      // ✅ Try mobile native share (works on iOS Safari, Android Chrome)
+      // Mobile browsers support both files and text together
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           title: 'Chess Game Result',
-          text: `${resultText} - Play at Chess99.com`,
+          text: shareText,
           files: [file]
         });
+        return;
+      }
+
+      // 💻 Desktop fallback
+      // WhatsApp Desktop/Web can't receive both image and text from web share
+      // So we open WhatsApp with text and auto-download the image
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+      if (!isMobile) {
+        // For desktop browsers: Open WhatsApp Web with text + auto-download image
+        const encodedText = encodeURIComponent(shareText);
+        const whatsappUrl = `https://wa.me/?text=${encodedText}`;
+
+        // Open WhatsApp in new tab
+        window.open(whatsappUrl, '_blank');
+
+        // Auto-download the image
+        const link = document.createElement('a');
+        link.href = shareImageUrl;
+        link.download = 'chess-game-result.png';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // Show helpful message
+        setTimeout(() => {
+          alert('✅ WhatsApp opened with your message!\n\n💾 Image downloaded - please attach it manually to your WhatsApp message.');
+        }, 500);
       } else {
-        alert('Native sharing not supported on this device.');
+        // Mobile without native share support - just download
+        alert('Your browser doesn\'t support direct sharing. The image will be downloaded to your device.');
+        const link = document.createElement('a');
+        link.href = shareImageUrl;
+        link.download = 'chess-game-result.png';
+        link.click();
       }
     } catch (error) {
       if (error.name !== 'AbortError') {
         console.error('Error sharing:', error);
+        alert('Failed to share. Please try downloading the image instead.');
       }
     }
   };
@@ -763,7 +800,7 @@ const GameEndCard = ({
                 Share Your Game Result
               </h2>
               <p style={{ color: '#6B7280', fontSize: '14px' }}>
-                Choose how you'd like to share your achievement
+                Share your achievement with WhatsApp, Facebook, and more!
               </p>
             </div>
 
@@ -790,171 +827,87 @@ const GameEndCard = ({
               </div>
             )}
 
-            {/* Share options grid */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(2, 1fr)',
-              gap: '15px',
-              marginBottom: '20px'
-            }}>
-              {/* WhatsApp */}
-              <button
-                onClick={() => handleSocialShare('whatsapp')}
-                style={{
-                  padding: '15px',
-                  borderRadius: '12px',
-                  border: '2px solid #25D366',
-                  backgroundColor: '#25D366',
-                  color: 'white',
-                  fontSize: '16px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#20BA5A';
-                  e.currentTarget.style.transform = 'scale(1.05)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#25D366';
-                  e.currentTarget.style.transform = 'scale(1)';
-                }}
-              >
-                <span style={{ fontSize: '24px' }}>💬</span>
-                WhatsApp
-              </button>
-
-              {/* Facebook */}
-              <button
-                onClick={() => handleSocialShare('facebook')}
-                style={{
-                  padding: '15px',
-                  borderRadius: '12px',
-                  border: '2px solid #1877F2',
-                  backgroundColor: '#1877F2',
-                  color: 'white',
-                  fontSize: '16px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#1666D9';
-                  e.currentTarget.style.transform = 'scale(1.05)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#1877F2';
-                  e.currentTarget.style.transform = 'scale(1)';
-                }}
-              >
-                <span style={{ fontSize: '24px' }}>📘</span>
-                Facebook
-              </button>
-
-              {/* Twitter */}
-              <button
-                onClick={() => handleSocialShare('twitter')}
-                style={{
-                  padding: '15px',
-                  borderRadius: '12px',
-                  border: '2px solid #1DA1F2',
-                  backgroundColor: '#1DA1F2',
-                  color: 'white',
-                  fontSize: '16px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#1A8FDB';
-                  e.currentTarget.style.transform = 'scale(1.05)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#1DA1F2';
-                  e.currentTarget.style.transform = 'scale(1)';
-                }}
-              >
-                <span style={{ fontSize: '24px' }}>🐦</span>
-                Twitter
-              </button>
-
-              {/* Download */}
-              <button
-                onClick={handleDownload}
-                style={{
-                  padding: '15px',
-                  borderRadius: '12px',
-                  border: '2px solid #10B981',
-                  backgroundColor: '#10B981',
-                  color: 'white',
-                  fontSize: '16px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#0EA472';
-                  e.currentTarget.style.transform = 'scale(1.05)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#10B981';
-                  e.currentTarget.style.transform = 'scale(1)';
-                }}
-              >
-                <span style={{ fontSize: '24px' }}>💾</span>
-                Download
-              </button>
-            </div>
-
-            {/* Native share button (if supported) */}
-            {navigator.share && (
+            {/* Share options - Native share button prominently displayed */}
+            {navigator.share ? (
               <button
                 onClick={handleNativeShare}
                 style={{
                   width: '100%',
-                  padding: '15px',
+                  padding: '18px',
                   borderRadius: '12px',
-                  border: '2px solid #6B7280',
-                  backgroundColor: 'white',
-                  color: '#374151',
-                  fontSize: '16px',
-                  fontWeight: '600',
+                  border: 'none',
+                  backgroundColor: '#0284C7',
+                  color: 'white',
+                  fontSize: '18px',
+                  fontWeight: '700',
                   cursor: 'pointer',
                   transition: 'all 0.2s',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '8px',
-                  marginBottom: '15px'
+                  gap: '10px',
+                  marginBottom: '15px',
+                  boxShadow: '0 4px 12px rgba(2, 132, 199, 0.3)'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#F3F4F6';
-                  e.currentTarget.style.transform = 'scale(1.02)';
+                  e.currentTarget.style.backgroundColor = '#0369A1';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(2, 132, 199, 0.4)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'white';
-                  e.currentTarget.style.transform = 'scale(1)';
+                  e.currentTarget.style.backgroundColor = '#0284C7';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(2, 132, 199, 0.3)';
                 }}
               >
-                <span style={{ fontSize: '24px' }}>🔗</span>
-                More Share Options
+                <span style={{ fontSize: '28px' }}>🔗</span>
+                <span>Share Your Achievement</span>
               </button>
+            ) : (
+              /* Fallback for browsers without share API */
+              <div style={{ textAlign: 'center', marginBottom: '15px' }}>
+                <button
+                  onClick={handleDownload}
+                  style={{
+                    width: '100%',
+                    padding: '18px',
+                    borderRadius: '12px',
+                    border: 'none',
+                    backgroundColor: '#0284C7',
+                    color: 'white',
+                    fontSize: '18px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '10px',
+                    boxShadow: '0 4px 12px rgba(2, 132, 199, 0.3)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#0369A1';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(2, 132, 199, 0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = '#0284C7';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(2, 132, 199, 0.3)';
+                  }}
+                >
+                  <span style={{ fontSize: '28px' }}>💾</span>
+                  <span>Download Image</span>
+                </button>
+                <p style={{
+                  color: '#6B7280',
+                  fontSize: '13px',
+                  marginTop: '10px',
+                  lineHeight: '1.4'
+                }}>
+                  Download the image and share it with your friends!
+                </p>
+              </div>
             )}
 
             {/* Close button */}

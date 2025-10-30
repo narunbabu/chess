@@ -26,8 +26,11 @@ jobs:
             # backend (Laravel)
             cd chess-backend
 
+            # Allow composer to run as superuser (deployment context)
+            export COMPOSER_ALLOW_SUPERUSER=1
+
             # Install dependencies with optimizations
-            sudo -u www-data composer install --no-dev --optimize-autoloader --classmap-authoritative || true
+            composer install --no-dev --optimize-autoloader --classmap-authoritative || true
 
             # Run migrations
             php artisan migrate --force || true
