@@ -65,7 +65,7 @@ jobs:
 
             # Install dependencies and build (bypass ESLint in production)
             npm ci || npm install
-            CI=false npm run build
+            DISABLE_ESLINT_PLUGIN=true CI=false npm run build
 
             # deploy frontend build to web server
             rsync -av --delete build/ /var/www/chess99.com/
