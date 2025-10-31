@@ -503,6 +503,9 @@ const GameCompletionAnimation = ({
               Preview Game
             </button>
           )}
+          <button onClick={handleShareWithImage} className="btn btn-secondary">
+            Share Game Result
+          </button>
           {onBackToLobby && (
             <button onClick={onBackToLobby} className="btn btn-secondary">
               Back to Lobby
