@@ -123,13 +123,18 @@ export const getGameResultShareMessage = (gameData) => {
   const { result, playerColor, isWin, isDraw, opponentName, playerName } = gameData;
 
   // Create a concise, clean message for WhatsApp/social media
+  let gameResultText = '';
+
   if (isDraw) {
-    return `🤝 I drew against ${opponentName || 'opponent'} in an exciting chess match! 🎯\n\nChallenge me on Chess99.com ♟️`;
+    gameResultText = `🤝 I drew against ${opponentName || 'opponent'} in an exciting chess match!`;
   } else if (isWin) {
-    return `🏆 I defeated ${opponentName || 'opponent'} in chess! ♟️\n\nThink you can do better? Play me on Chess99.com! 🎯`;
+    gameResultText = `🏆 I defeated ${opponentName || 'opponent'} in chess!`;
   } else {
-    return `♟️ I played against ${opponentName || 'opponent'} in chess! 🎯\n\nChallenge me to a rematch on Chess99.com! 🏆`;
+    gameResultText = `♟️ I played against ${opponentName || 'opponent'} in chess!`;
   }
+
+  // Add friendly invitation message
+  return `${gameResultText}\n\n🎯 It is fun to play chess at www.chess99.com, Join me! ♟️`;
 };
 
 /**

@@ -440,9 +440,11 @@ const GameEndCard = ({
       // Remove the temporary class after capture
       cardElement.classList.remove('share-mode');
 
-      // Convert canvas to blob
+      // Convert canvas to blob with medium quality (JPEG format)
+      // Using JPEG with 0.8 quality provides good balance between quality and file size
+      // This aligns with "Medium" quality setting in Windows share dialog
       const blob = await new Promise((resolve) => {
-        canvas.toBlob((blob) => resolve(blob), 'image/png');
+        canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.8);
       });
 
       // Create object URL for preview
@@ -466,7 +468,7 @@ const GameEndCard = ({
 
     const link = document.createElement('a');
     link.href = shareImageUrl;
-    link.download = `chess-game-${Date.now()}.png`;
+    link.download = `chess-game-${Date.now()}.jpg`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -484,8 +486,19 @@ const GameEndCard = ({
     try {
       const response = await fetch(shareImageUrl);
       const blob = await response.blob();
-      const file = new File([blob], 'chess-game-result.png', { type: 'image/png' });
-      const shareText = `${resultText} - Join and play Chess99.com`;
+      const file = new File([blob], 'chess-game-result.jpg', { type: 'image/jpeg' });
+
+      // Generate friendly share message
+      const opponentName = playersInfo.opponentPlayer?.name || 'opponent';
+      const shareText = `${isPlayerWin ? '🏆 I defeated' : isDraw ? '🤝 I drew against' : '♟️ I played against'} ${opponentName} in chess!\n\n🎯 It is fun to play chess at www.chess99.com, Join me! ♟️`;
+
+      // Copy message to clipboard for easy pasting (WhatsApp workaround)
+      try {
+        await navigator.clipboard.writeText(shareText);
+        console.log('Share message copied to clipboard');
+      } catch (clipboardError) {
+        console.log('Could not copy to clipboard:', clipboardError);
+      }
 
       // ✅ Try mobile native share (works on iOS Safari, Android Chrome)
       // Mobile browsers support both files and text together
@@ -514,21 +527,21 @@ const GameEndCard = ({
         // Auto-download the image
         const link = document.createElement('a');
         link.href = shareImageUrl;
-        link.download = 'chess-game-result.png';
+        link.download = 'chess-game-result.jpg';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
 
         // Show helpful message
         setTimeout(() => {
-          alert('✅ WhatsApp opened with your message!\n\n💾 Image downloaded - please attach it manually to your WhatsApp message.');
+          alert('✅ WhatsApp opened!\n\n📋 Message copied to clipboard - paste it in WhatsApp\n💾 Image downloaded - attach it to your message');
         }, 500);
       } else {
         // Mobile without native share support - just download
         alert('Your browser doesn\'t support direct sharing. The image will be downloaded to your device.');
         const link = document.createElement('a');
         link.href = shareImageUrl;
-        link.download = 'chess-game-result.png';
+        link.download = 'chess-game-result.jpg';
         link.click();
       }
     } catch (error) {

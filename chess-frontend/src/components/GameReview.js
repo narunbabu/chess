@@ -461,19 +461,19 @@ const GameReview = () => {
       // Remove share-mode
       cardElement.classList.remove('share-mode');
 
-      // Convert to blob and download
+      // Convert to blob and download with medium quality (JPEG format)
       canvas.toBlob((blob) => {
         if (blob) {
           const url = URL.createObjectURL(blob);
           const link = document.createElement('a');
           link.href = url;
-          link.download = `chess-game-${gameHistory.id || 'result'}.png`;
+          link.download = `chess-game-${gameHistory.id || 'result'}.jpg`;
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
           URL.revokeObjectURL(url);
         }
-      }, 'image/png');
+      }, 'image/jpeg', 0.8);
     } catch (error) {
       console.error('Error exporting end card:', error);
       alert('Failed to export end card. Please try again.');
@@ -537,10 +537,10 @@ const GameReview = () => {
       // Remove share-mode
       cardElement.classList.remove('share-mode');
 
-      // Convert to blob
+      // Convert to blob with medium quality (JPEG format)
       canvas.toBlob(async (blob) => {
         if (blob) {
-          const file = new File([blob], 'chess-game-result.png', { type: 'image/png' });
+          const file = new File([blob], 'chess-game-result.jpg', { type: 'image/jpeg' });
 
           const shareMessage = getGameResultShareMessage({
               result: gameHistory.result,
@@ -553,6 +553,14 @@ const GameReview = () => {
 
             console.log('Attempting to share image with message:', shareMessage);
             console.log('File size:', file.size, 'bytes');
+
+            // Copy message to clipboard for easy pasting (WhatsApp workaround)
+            try {
+              await navigator.clipboard.writeText(shareMessage);
+              console.log('Share message copied to clipboard');
+            } catch (clipboardError) {
+              console.log('Could not copy to clipboard:', clipboardError);
+            }
 
           // Check if Web Share API is supported
           if (navigator.share && navigator.canShare) {
@@ -588,8 +596,8 @@ const GameReview = () => {
               });
               console.log('Shared text with URL');
               // Also download the image separately
-              downloadBlob(blob, 'chess-game-result.png');
-              alert('Message shared! Image downloaded separately for better quality.');
+              downloadBlob(blob, 'chess-game-result.jpg');
+              alert('✅ Message shared!\n\n📋 Text copied to clipboard\n💾 Image downloaded for better quality');
             } catch (textShareError) {
               if (textShareError.name !== 'AbortError') {
                 console.error('Error sharing text:', textShareError);
@@ -602,10 +610,10 @@ const GameReview = () => {
 
           // Final fallback: download the image
           console.log('Sharing not available or failed, downloading image');
-          downloadBlob(blob, 'chess-game-result.png');
-          alert('Image downloaded! You can share it manually from your photos.');
+          downloadBlob(blob, 'chess-game-result.jpg');
+          alert('💾 Image downloaded!\n\n📋 Message copied to clipboard - paste it when sharing\n\nShare the image manually from your photos.');
         }
-      }, 'image/png');
+      }, 'image/jpeg', 0.8);
     } catch (error) {
       console.error('Error sharing image:', error);
       alert('Failed to share image. Please try again.');
@@ -672,10 +680,10 @@ const GameReview = () => {
       // Remove share-mode
       cardElement.classList.remove('share-mode');
 
-      // Convert to blob
+      // Convert to blob with medium quality (JPEG format)
       canvas.toBlob(async (blob) => {
         if (blob) {
-          const file = new File([blob], 'chess-game-result.png', { type: 'image/png' });
+          const file = new File([blob], 'chess-game-result.jpg', { type: 'image/jpeg' });
           const shareMessage = getGameResultShareMessage({
               result: gameHistory.result,
               playerColor: gameHistory.player_color === 'w' ? 'white' : 'black',
@@ -687,6 +695,14 @@ const GameReview = () => {
 
           console.log(`Attempting to share image to ${platform}:`, shareMessage);
           console.log('File size:', file.size, 'bytes');
+
+          // Copy message to clipboard for easy pasting (WhatsApp workaround)
+          try {
+            await navigator.clipboard.writeText(shareMessage);
+            console.log('Share message copied to clipboard for', platform);
+          } catch (clipboardError) {
+            console.log('Could not copy to clipboard:', clipboardError);
+          }
 
           // Detect if we're on mobile and can share files
           const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
@@ -745,7 +761,7 @@ const GameReview = () => {
           }
 
           // Always download the image for manual sharing
-          downloadBlob(blob, 'chess-game-result.png');
+          downloadBlob(blob, 'chess-game-result.jpg');
 
           // Open the platform web interface
           console.log(`Opening ${platform} web interface:`, platformUrl);
@@ -756,9 +772,9 @@ const GameReview = () => {
           let userMessage = '';
 
           if (isMobile) {
-            userMessage = `📱 ${platformName} opened! Your game image has been downloaded. Please attach it to your post for better presentation! 🎯`;
+            userMessage = `📱 ${platformName} opened!\n\n📋 Message copied to clipboard - paste it in ${platformName}\n💾 Image downloaded - attach it to your post! 🎯`;
           } else {
-            userMessage = `🖥️ ${platformName} opened! Your game image has been downloaded to your device. Please attach it manually in your ${platformName} post for the best visual impact! 📸`;
+            userMessage = `🖥️ ${platformName} opened!\n\n📋 Message copied to clipboard - paste it in ${platformName}\n💾 Image downloaded - attach it to your post! 📸`;
           }
 
           // Platform-specific tips
@@ -780,7 +796,7 @@ const GameReview = () => {
           alert(userMessage);
 
         }
-      }, 'image/png');
+      }, 'image/jpeg', 0.8);
     } catch (error) {
       console.error(`Error sharing to ${platform}:`, error);
       alert(`❌ Failed to share to ${platform}. Please try again.\n\nError: ${error.message}`);
