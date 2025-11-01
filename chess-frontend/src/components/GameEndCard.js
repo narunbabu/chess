@@ -55,7 +55,7 @@ const ChessQueen = ({ className = "" }) => (
   </svg>
 );
 
-const GameEndCard = ({
+const GameEndCard = React.forwardRef(({
   result,
   user,
   ratingUpdate,
@@ -66,8 +66,9 @@ const GameEndCard = ({
   isMultiplayer,
   computerLevel,
   isAuthenticated
-}) => {
-  const cardRef = useRef(null);
+}, forwardedRef) => {
+  const internalRef = useRef(null);
+  const cardRef = forwardedRef || internalRef;
   const [isSharing, setIsSharing] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareImageUrl, setShareImageUrl] = useState(null);
@@ -608,7 +609,7 @@ const GameEndCard = ({
         <div className="text-center mb-3">
           <div className="inline-block bg-sky-600/90 px-6 py-2 rounded-full mb-2">
             {/* Use inline backgroundImage style for html2canvas compatibility - same approach as chess background */}
-            <div
+            {/* <div
               style={{
                 backgroundImage: `url(${logo})`,
                 backgroundSize: 'contain',
@@ -619,7 +620,8 @@ const GameEndCard = ({
               }}
               role="img"
               aria-label="Chess99 Logo"
-            />
+            /> */}
+            <div className="inline-block bg-sky-600 text-white px-4 py-1 rounded-full font-semibold text-xs">Chess99.com</div>
           </div>
           <div className="inline-block bg-sky-600 text-white px-4 py-1 rounded-full font-semibold text-xs">
             {isMultiplayer ? 'Multiplayer Match' : `Computer Level ${computerLevel || 8}`}
@@ -954,6 +956,8 @@ const GameEndCard = ({
       )}
     </div>
   );
-};
+});
+
+GameEndCard.displayName = 'GameEndCard';
 
 export default GameEndCard;

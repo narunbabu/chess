@@ -11,6 +11,35 @@ import GIF from 'gif.js';
 import GameEndCard from "./GameEndCard";
 import "./GameCompletionAnimation.css";
 
+// Helper function to convert all images within an element to data URLs
+// This robustly handles image loading for html2canvas capture.
+const convertImagesToDataURLs = async (element) => {
+  const images = Array.from(element.querySelectorAll('img'));
+  await Promise.all(
+    images.map(async (img) => {
+      // Don't re-convert if it's already a data URL
+      if (img.src.startsWith('data:')) return;
+
+      try {
+        const response = await fetch(img.src);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+        }
+        const blob = await response.blob();
+        const dataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        img.src = dataUrl;
+      } catch (error) {
+        console.error(`Could not convert image ${img.src} to data URL:`, error);
+      }
+    })
+  );
+};
+
 const GameCompletionAnimation = ({
   result,
   score,
@@ -39,7 +68,8 @@ const GameCompletionAnimation = ({
   const [hasProcessedRating, setHasProcessedRating] = useState(false);
   const { isAuthenticated, user, fetchUser } = useAuth();
   const navigate = useNavigate();
-  const gameEndCardRef = useRef(null);
+  const gameEndCardRef = useRef(null); // Ref for wrapper (used for layout)
+  const gameEndCardContentRef = useRef(null); // Ref for actual GameEndCard component (used for sharing)
 
   // Determine win state for both single player and multiplayer
   const isPlayerWin = (() => {
@@ -300,20 +330,33 @@ const GameCompletionAnimation = ({
       // Wait for GameEndCard to render
       await new Promise(resolve => setTimeout(resolve, 300));
 
-      // Find the GameEndCard element
-      const gameEndCard = gameEndCardRef.current;
-      if (!gameEndCard) {
+      // Find the actual GameEndCard element (not the wrapper)
+      const cardElement = gameEndCardContentRef.current;
+      if (!cardElement) {
         throw new Error('GameEndCard not found');
       }
 
+      // Add share-mode class for styling
+      cardElement.classList.add('share-mode');
+
+      // **CRITICAL FIX**: Convert all images to data URLs before capture
+      // This ensures logos, avatars, and background images load properly
+      await convertImagesToDataURLs(cardElement);
+
+      // Wait for DOM to update with converted images
+      await new Promise(resolve => setTimeout(resolve, 200));
+
       const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(gameEndCard, {
+      const canvas = await html2canvas(cardElement, {
         backgroundColor: '#ffffff',
         scale: 2, // Higher quality
         useCORS: true, // Enable CORS to capture external images (avatars)
-        allowTaint: true,
+        allowTaint: false, // Not needed since images are already data URLs
         logging: false
       });
+
+      // Remove share-mode class after capture
+      cardElement.classList.remove('share-mode');
 
       // Convert to blob with medium quality (JPEG format)
       canvas.toBlob(async (blob) => {
@@ -363,6 +406,9 @@ const GameCompletionAnimation = ({
     } catch (error) {
       console.error('Error sharing image:', error);
       alert('Failed to share image. Please try again.');
+      // Clean up share-mode class on error
+      const cardElement = gameEndCardContentRef.current;
+      if (cardElement) cardElement.classList.remove('share-mode');
     }
   };
 
@@ -398,6 +444,7 @@ const GameCompletionAnimation = ({
         overflowY: 'auto' // Allow scrolling
       }}>
         <GameEndCard
+          ref={gameEndCardContentRef}
           result={result}
           user={user}
           ratingUpdate={ratingUpdate}
