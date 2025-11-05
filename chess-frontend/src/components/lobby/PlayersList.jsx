@@ -9,30 +9,39 @@ import '../../styles/UnifiedCards.css';
  * @param {array} players - List of available players
  * @param {array} sentInvitations - List of sent invitations to check invited status
  * @param {function} onChallenge - Callback when challenge button is clicked
+ * @param {function} onComputerChallenge - Callback when computer challenge button is clicked
  */
-const PlayersList = ({ players, sentInvitations, onChallenge }) => {
+const PlayersList = ({ players, sentInvitations, onChallenge, onComputerChallenge }) => {
   return (
     <div className="unified-section">
       <h2 className="unified-section-header">🎯 Available Players</h2>
       <div className="unified-card-grid cols-2">
         {players.length > 0 ? (
           players.map((player, index) => {
-            // Only check for PENDING invitations (not accepted/declined)
-            const hasPendingInvitation = sentInvitations.some(
+            // Check if this is the Computer player
+            const isComputer = player.isComputer || player.id === 'computer';
+
+            // Only check for PENDING invitations (not accepted/declined) for human players
+            const hasPendingInvitation = !isComputer && sentInvitations.some(
               (inv) => inv.invited_id === player.id && inv.status === 'pending'
             );
             return (
               <div key={player.id || index} className="unified-card horizontal">
                 <img
                   src={
-                    getPlayerAvatar(player) ||
-                    `https://i.pravatar.cc/150?u=${player.email || `user${player.id}`}`
+                    isComputer
+                      ? 'https://api.dicebear.com/7.x/bottts/svg?seed=computer'
+                      : getPlayerAvatar(player) ||
+                        `https://i.pravatar.cc/150?u=${player.email || `user${player.id}`}`
                   }
                   alt={player.name}
                   className="unified-card-avatar"
                 />
                 <div className="unified-card-content">
-                  <h3 className="unified-card-title">{player.name}</h3>
+                  <h3 className="unified-card-title">
+                    {player.name}
+                    {isComputer && ' 🤖'}
+                  </h3>
                   <p className="unified-card-subtitle">{player.email}</p>
                   <p className="unified-card-info">
                     Rating: {player.rating || 1200}
@@ -47,9 +56,9 @@ const PlayersList = ({ players, sentInvitations, onChallenge }) => {
                   ) : (
                     <button
                       className="unified-card-btn primary"
-                      onClick={() => onChallenge(player)}
+                      onClick={() => isComputer ? onComputerChallenge() : onChallenge(player)}
                     >
-                      ⚡ Challenge
+                      ⚡ {isComputer ? 'Play' : 'Challenge'}
                     </button>
                   )}
                 </div>

@@ -12,6 +12,7 @@ const GameControls = ({
   handleTimer, // This function toggles the timer (resumes the timer)
   setIsTimerRunning,
   pauseTimer,
+  handleResign, // Handler for resignation
   isReplayMode,
   replayPaused,
   startReplay,
@@ -47,22 +48,41 @@ const GameControls = ({
         </button>
       )}
 
-      {/* In-Game Controls: Pause/Resume */}
+      {/* In-Game Controls: Pause/Resume and Resign */}
       {!isReplayMode && gameStarted && (
-        <button
-          onClick={() => {
-            if (isTimerRunning) {
-              // Pause the timer by clearing the interval
-              pauseTimer();
-            } else {
-              // Resume the timer using the provided function
-              handleTimer();
-            }
-          }}
-          style={{ marginLeft: '10px' }}
-        >
-          {isTimerRunning ? "Pause" : "Resume"}
-        </button>
+        <>
+          <button
+            onClick={() => {
+              if (isTimerRunning) {
+                // Pause the timer by clearing the interval
+                pauseTimer();
+              } else {
+                // Resume the timer using the provided function
+                handleTimer();
+              }
+            }}
+            style={{ marginLeft: '10px' }}
+          >
+            {isTimerRunning ? "Pause" : "Resume"}
+          </button>
+          {handleResign && (
+            <button
+              onClick={handleResign}
+              className="resign-button"
+              style={{
+                marginLeft: '10px',
+                backgroundColor: '#dc2626',
+                color: 'white',
+                padding: '8px 16px',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+            >
+              🏳️ Resign
+            </button>
+          )}
+        </>
       )}
 
       {/* Replay controls */}

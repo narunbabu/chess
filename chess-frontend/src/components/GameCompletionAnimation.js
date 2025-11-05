@@ -438,10 +438,13 @@ const GameCompletionAnimation = ({
         justifyContent: 'center',
         alignItems: 'flex-start',
         minHeight: '100vh',
+        height: '100vh',
         padding: window.innerWidth <= 480 ? '10px' : '20px',
         paddingTop: window.innerWidth <= 480 ? '50px' : '80px', // Extra top padding for close button
-        paddingBottom: window.innerWidth <= 480 ? '90px' : '120px', // Extra bottom padding for action buttons
-        overflowY: 'auto' // Allow scrolling
+        paddingBottom: window.innerWidth <= 480 ? '120px' : '140px', // Extra bottom padding for action buttons and share button
+        overflowY: 'auto', // Allow scrolling
+        overflowX: 'hidden', // Prevent horizontal scroll
+        WebkitOverflowScrolling: 'touch' // Smooth scrolling on iOS
       }}>
         <GameEndCard
           ref={gameEndCardContentRef}

@@ -17,6 +17,8 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [showSkillAssessment, setShowSkillAssessment] = useState(false);
   const [showDetailedStats, setShowDetailedStats] = useState(false);
+  const [visibleActiveGames, setVisibleActiveGames] = useState(3);
+  const [visibleRecentGames, setVisibleRecentGames] = useState(3);
   const { user } = useAuth();
   const { getGameHistory } = useAppData();
   const navigate = useNavigate();
@@ -200,6 +202,40 @@ const Dashboard = () => {
           </header>
 
         <div className="dashboard-grid">
+        {/* Quick Actions Section */}
+        <section className="unified-section">
+          <h2 className="unified-section-header">⚡ Quick Actions</h2>
+          <div className="unified-card-grid cols-3">
+            <button
+              onClick={() => navigate("/play")}
+              className="unified-card gradient-accent centered"
+            >
+              <div className="unified-card-content">
+                <h3 className="unified-card-title">🤖 Play Computer</h3>
+                <p className="unified-card-subtitle">Play against AI</p>
+              </div>
+            </button>
+            <button
+              onClick={() => navigate("/lobby")}
+              className="unified-card gradient-primary centered"
+            >
+              <div className="unified-card-content">
+                <h3 className="unified-card-title">👥 Play Human</h3>
+                <p className="unified-card-subtitle">Challenge other players</p>
+              </div>
+            </button>
+            <button
+              onClick={() => navigate("/training")}
+              className="unified-card gradient-success centered"
+            >
+              <div className="unified-card-content">
+                <h3 className="unified-card-title">🎓 Training Hub</h3>
+                <p className="unified-card-subtitle">Practice exercises</p>
+              </div>
+            </button>
+          </div>
+        </section>
+
         {/* Active Games Section */}
         <section className="unified-section">
           <h2 className="unified-section-header">🎮 Active Games</h2>
@@ -208,8 +244,9 @@ const Dashboard = () => {
               <p>Loading user data...</p>
             </div>
           ) : activeGames.length > 0 ? (
+            <>
             <div className="unified-card-grid cols-1">
-              {activeGames.map((game) => {
+              {activeGames.slice(0, visibleActiveGames).map((game) => {
                 const opponent =
                   game.white_player_id === user?.id
                     ? game.black_player
@@ -274,6 +311,17 @@ const Dashboard = () => {
                 );
               })}
             </div>
+            {activeGames.length > visibleActiveGames && (
+              <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+                <button
+                  onClick={() => setVisibleActiveGames(prev => prev + 10)}
+                  className="unified-card-btn primary"
+                >
+                  📂 Load 10 More ({activeGames.length - visibleActiveGames} remaining)
+                </button>
+              </div>
+            )}
+            </>
           ) : (
             <div className="unified-empty-state">
               <p>🎮 No active games</p>
@@ -290,8 +338,9 @@ const Dashboard = () => {
               <p>Loading game history...</p>
             </div>
           ) : gameHistories.length > 0 ? (
+            <>
             <div className="unified-card-grid cols-1">
-              {gameHistories.map((game) => (
+              {gameHistories.slice(0, visibleRecentGames).map((game) => (
                 <div key={game.id} className="unified-card horizontal">
                   <div className="unified-card-content">
                     <h3 className="unified-card-title">
@@ -320,6 +369,17 @@ const Dashboard = () => {
                 </div>
               ))}
             </div>
+            {gameHistories.length > visibleRecentGames && (
+              <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+                <button
+                  onClick={() => setVisibleRecentGames(prev => prev + 10)}
+                  className="unified-card-btn primary"
+                >
+                  📂 Load 10 More ({gameHistories.length - visibleRecentGames} remaining)
+                </button>
+              </div>
+            )}
+            </>
           ) : (
             <div className="unified-empty-state">
               <p>📜 No games played yet</p>
@@ -395,40 +455,6 @@ const Dashboard = () => {
                 </div>
               </div>
             </div>
-        </section>
-
-        {/* Quick Actions Section */}
-        <section className="unified-section">
-          <h2 className="unified-section-header">⚡ Quick Actions</h2>
-          <div className="unified-card-grid cols-3">
-            <button
-              onClick={() => navigate("/play")}
-              className="unified-card gradient-accent centered"
-            >
-              <div className="unified-card-content">
-                <h3 className="unified-card-title">🤖 Play Computer</h3>
-                <p className="unified-card-subtitle">Play against AI</p>
-              </div>
-            </button>
-            <button
-              onClick={() => navigate("/lobby")}
-              className="unified-card gradient-primary centered"
-            >
-              <div className="unified-card-content">
-                <h3 className="unified-card-title">👥 Play Human</h3>
-                <p className="unified-card-subtitle">Challenge other players</p>
-              </div>
-            </button>
-            <button
-              onClick={() => navigate("/training")}
-              className="unified-card gradient-success centered"
-            >
-              <div className="unified-card-content">
-                <h3 className="unified-card-title">🎓 Training Hub</h3>
-                <p className="unified-card-subtitle">Practice exercises</p>
-              </div>
-            </button>
-          </div>
         </section>
         </div>
       </div>

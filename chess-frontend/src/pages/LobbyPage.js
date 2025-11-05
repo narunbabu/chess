@@ -342,7 +342,19 @@ const LobbyPage = () => {
 
       // Filter out the current user from the list
       const otherUsers = usersRes.data.filter(p => p.id !== user.id);
-      console.log('Other users after filtering:', otherUsers);
+
+      // Add Computer as a special player option
+      const computerPlayer = {
+        id: 'computer',
+        name: 'Computer',
+        email: 'Play against AI',
+        rating: 1200,
+        isComputer: true
+      };
+
+      // Add computer player at the beginning of the list
+      const allPlayers = [computerPlayer, ...otherUsers];
+      console.log('Players after adding computer:', allPlayers.length);
 
       // Get processed invitations from session storage to filter them out
       const processedInvitations = JSON.parse(sessionStorage.getItem('processedInvitations') || '[]');
@@ -361,7 +373,7 @@ const LobbyPage = () => {
         return true;
       });
 
-      setPlayers(otherUsers);
+      setPlayers(allPlayers);
       setPendingInvitations(pendingRes.data);
       setSentInvitations(activeSentInvitations);
       setActiveGames(activeGamesRes.data || []);
@@ -486,6 +498,10 @@ const LobbyPage = () => {
 
     setSelectedPlayer(player);
     setShowColorModal(true);
+  };
+
+  const handleComputerChallenge = () => {
+    navigate('/play');
   };
 
   const sendInvitation = async (colorChoice) => {
@@ -824,6 +840,7 @@ const LobbyPage = () => {
             players={players}
             sentInvitations={sentInvitations}
             onChallenge={handleInvite}
+            onComputerChallenge={handleComputerChallenge}
           />
         )}
 

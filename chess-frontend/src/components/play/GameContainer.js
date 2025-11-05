@@ -78,6 +78,7 @@ const GameContainer = ({
     resetGame,
     handleTimer,
     pauseTimer,
+    handleResign,
     replayPaused,
     startReplay,
     pauseReplay,
@@ -156,6 +157,7 @@ const GameContainer = ({
             resetGame={resetGame}
             handleTimer={handleTimer}
             pauseTimer={pauseTimer}
+            handleResign={handleResign}
             isReplayMode={isReplayMode}
             replayPaused={replayPaused}
             startReplay={startReplay}

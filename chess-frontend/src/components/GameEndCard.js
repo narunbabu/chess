@@ -102,12 +102,24 @@ const GameEndCard = React.forwardRef(({
     // Fix result detection - handle multiple formats properly
     let isPlayerWin = false;
     if (userId && result.winner_user_id) {
+      // Multiplayer games: check if winner_user_id matches current user
       isPlayerWin = result.winner_user_id === userId;
-    } else if (result.result?.winner === 'player' && result.user_id === userId) {
+    } else if (result.winner_player && result.player_color) {
+      // Check if winner_player (white/black) matches player's color
+      const playerColorFull = result.player_color === 'w' ? 'white' : 'black';
+      isPlayerWin = result.winner_player === playerColorFull;
+    } else if (result.winner === 'player') {
+      // Standardized format: direct winner indication
       isPlayerWin = true;
-    } else if (result.player_color && result.result?.winner === 'player') {
-      // For computer games, check if player color matches winner
+    } else if (result.winner === 'opponent') {
+      // Standardized format: opponent won
+      isPlayerWin = false;
+    } else if (result.result?.winner === 'player') {
+      // Legacy nested format: player won
       isPlayerWin = true;
+    } else if (result.result?.winner === 'opponent') {
+      // Legacy nested format: opponent won
+      isPlayerWin = false;
     }
 
     const isDraw = result.result === '1/2-1/2' || result.end_reason === 'draw' || result.result?.status === 'draw';
@@ -159,13 +171,24 @@ const GameEndCard = React.forwardRef(({
     } else {
       // Determine winner and loser names
       let winnerName, loserName;
-      if (result.winner_player === 'white' || (result.player_color === 'w' && result.result?.winner === 'player')) {
+      if (result.winner_player === 'white') {
+        // winner_player explicitly set to 'white'
         winnerName = white_player.name;
         loserName = black_player.name;
-      } else if (result.winner_player === 'black' || (result.player_color === 'b' && result.result?.winner === 'player')) {
+      } else if (result.winner_player === 'black') {
+        // winner_player explicitly set to 'black'
+        winnerName = black_player.name;
+        loserName = white_player.name;
+      } else if (result.player_color === 'w' && (result.winner === 'player' || result.result?.winner === 'player')) {
+        // Player is white and won
+        winnerName = white_player.name;
+        loserName = black_player.name;
+      } else if (result.player_color === 'b' && (result.winner === 'player' || result.result?.winner === 'player')) {
+        // Player is black and won
         winnerName = black_player.name;
         loserName = white_player.name;
       } else {
+        // Fallback: use isPlayerWin
         winnerName = isPlayerWin ? userPlayer.name : opponentPlayer.name;
         loserName = isPlayerWin ? opponentPlayer.name : userPlayer.name;
       }

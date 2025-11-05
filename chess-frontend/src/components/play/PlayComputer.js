@@ -732,6 +732,67 @@ const PlayComputer = () => {
         // Note: Does not reset playerColor or computerDepth, keeping user selections
     }, [resetTimer, timerRef, replayTimerRef]); // Dependencies: stable hook fn and refs accessed
 
+    const handleResign = useCallback(() => {
+        // Handle player resignation
+        if (gameOver || !gameStarted || isReplayMode) {
+            return; // Can't resign if game is over, not started, or in replay mode
+        }
+
+        const confirmed = window.confirm('Are you sure you want to resign?');
+        if (!confirmed) {
+            return;
+        }
+
+        // Stop timers
+        if (timerRef.current) clearInterval(timerRef.current);
+        setIsTimerRunning(false);
+        setActiveTimer(null);
+        setGameOver(true);
+        setShowGameCompletion(true);
+
+        const now = new Date();
+
+        // Encode game history
+        const conciseGameString = typeof encodeGameHistory === 'function'
+            ? encodeGameHistory(gameHistory)
+            : JSON.stringify(gameHistory.map(h => h.move));
+
+        // Create standardized result for resignation (player loses)
+        const standardizedResult = createResultFromComputerGame(
+            'resignation', // Result type
+            playerColor === 'w' ? 'black' : 'white', // Winner (opponent wins)
+            playerScore || 0,
+            computerScore || 0,
+            playerColor,
+            user?.rating || DEFAULT_RATING,
+            computerDepth
+        );
+
+        console.log('🏳️ [PlayComputer] Player resigned, result:', standardizedResult);
+
+        // Store the standardized result for GameCompletionAnimation
+        setGameResult(standardizedResult);
+
+        // Save game history
+        const gameHistoryData = {
+            id: `local_${Date.now()}`,
+            date: now.toISOString(),
+            moves: gameHistory,
+            conciseGameString,
+            result: standardizedResult,
+            finalScore: playerScore || 0,
+            computerDepth,
+            playerColor,
+        };
+
+        saveGameHistory(gameHistoryData);
+        invalidateGameHistory(); // Invalidate cache so dashboard shows updated games
+        setGameStatus('You resigned. Game over.');
+    }, [
+        gameOver, gameStarted, isReplayMode, timerRef, gameHistory, playerColor,
+        playerScore, computerScore, computerDepth, user?.rating, invalidateGameHistory
+    ]);
+
      const resetCurrentGameSetup = useCallback(() => {
          // Prompts user before resetting an ongoing game
         if (gameStarted && moveCount > 0 && !gameOver && !isReplayMode) {
@@ -998,6 +1059,7 @@ const PlayComputer = () => {
         resetGame: resetCurrentGameSetup,
         handleTimer: startTimerInterval,
         pauseTimer,
+        handleResign,
         replayPaused,
         startReplay,
         pauseReplay,

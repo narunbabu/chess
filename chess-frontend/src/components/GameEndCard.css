@@ -170,6 +170,9 @@
     max-width: 95vw !important;
     padding: 8px !important;
     border-radius: 12px !important;
+    /* Ensure card doesn't exceed available height - leave room for action buttons */
+    max-height: calc(100vh - 180px) !important;
+    overflow-y: visible !important;
   }
 
   /* Compact the card container padding */
@@ -367,4 +370,25 @@
 
 .share-mode .animate-bounce {
   animation: none !important;
+}
+
+/* Scroll indicator for small screens */
+@media (max-width: 480px) {
+  /* Add a subtle shadow at the bottom of scrollable content */
+  .game-end-card::after {
+    content: '';
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 40px;
+    background: linear-gradient(to top, rgba(255, 255, 255, 0.95), transparent);
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  /* Remove the shadow effect when in share mode */
+  .share-mode::after {
+    display: none !important;
+  }
 }
