@@ -125,7 +125,8 @@ const GameEndCard = React.forwardRef(({
     const isDraw = result.result === '1/2-1/2' || result.end_reason === 'draw' || result.result?.status === 'draw';
 
     // Handle cases where white_player and black_player might not exist
-    const isComputerGame = result.game_mode === 'computer' || result.game_mode === 'local_ai';
+    // For computer games: use !isMultiplayer as primary check, with result.game_mode as fallback
+    const isComputerGame = !isMultiplayer || result.game_mode === 'computer' || result.game_mode === 'local_ai';
     const playerIsWhite = result.player_color === 'w';
 
     // Use the provided computerLevel if available, otherwise fall back to result.computer_level
@@ -443,7 +444,7 @@ const GameEndCard = React.forwardRef(({
     try {
       setIsSharing(true);
       const cardElement = cardRef.current;
-      
+
       // Add a temporary class to apply styles specifically for capture
       cardElement.classList.add('share-mode');
 
@@ -471,11 +472,43 @@ const GameEndCard = React.forwardRef(({
         canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.8);
       });
 
-      // Create object URL for preview
+      const file = new File([blob], 'chess-game-result.jpg', { type: 'image/jpeg' });
+
+      // Generate friendly share message
+      const opponentName = playersInfo.opponentPlayer?.name || 'opponent';
+      const shareText = `${isPlayerWin ? '🏆 I defeated' : isDraw ? '🤝 I drew against' : '♟️ I played against'} ${opponentName} in chess!\n\n🎯 It is fun to play chess at www.chess99.com, Join me! ♟️`;
+
+      // Copy message to clipboard for easy pasting (WhatsApp workaround)
+      try {
+        await navigator.clipboard.writeText(shareText);
+        console.log('Share message copied to clipboard');
+      } catch (clipboardError) {
+        console.log('Could not copy to clipboard:', clipboardError);
+      }
+
+      // ✅ Try mobile native share (works on iOS Safari, Android Chrome)
+      // Mobile browsers support both files and text together
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            title: 'Chess Game Result',
+            text: shareText,
+            files: [file]
+          });
+          return; // Success, exit early
+        } catch (shareError) {
+          if (shareError.name !== 'AbortError') {
+            console.error('Error sharing:', shareError);
+            // Fall through to show modal as fallback
+          } else {
+            return; // User cancelled, exit
+          }
+        }
+      }
+
+      // Fallback: Show modal for browsers without native share or if share failed
       const imageUrl = URL.createObjectURL(blob);
       setShareImageUrl(imageUrl);
-
-      // Show share modal with options
       setShowShareModal(true);
     } catch (error) {
       console.error('Error preparing share:', error);
@@ -653,6 +686,11 @@ const GameEndCard = React.forwardRef(({
 
         {/* Result display */}
         <div className="text-center mb-4">
+          <h1 className={`text-2xl md:text-3xl font-extrabold mb-2 ${
+            isPlayerWin ? "text-sky-600" : isDraw ? "text-gray-600" : "text-gray-500"
+          }`}>
+            CHESS GAME RESULT
+          </h1>
           <div className={`text-5xl mb-2 ${isPlayerWin ? "text-yellow-500" : isDraw ? "text-gray-500" : "text-gray-400"}`}>
             {icon}
           </div>
@@ -689,38 +727,6 @@ const GameEndCard = React.forwardRef(({
           />
         </div>
 
-        {/* Game stats */}
-        <div className="grid grid-cols-3 gap-2 mb-4">
-          <div className="bg-gradient-to-br from-sky-50 to-blue-50 p-2 rounded-xl text-center border border-sky-200">
-            <div className="text-xl font-bold text-sky-600">
-              {result.move_count || (result.moves ?
-                (typeof result.moves === 'string' ?
-                  result.moves.split(';').length :
-                  (Array.isArray(result.moves) ? result.moves.length-1 : '?')
-                ) : '?')
-              }
-            </div>
-            <div className="text-xs text-gray-600 uppercase tracking-wide mt-0.5">Moves</div>
-          </div>
-          <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-2 rounded-xl text-center border border-green-200">
-            <div className="text-xl font-bold text-green-600">{gameDurationText}</div>
-            <div className="text-xs text-gray-600 uppercase tracking-wide mt-0.5">Duration</div>
-          </div>
-          <div className="bg-gradient-to-br from-purple-50 to-violet-50 p-2 rounded-xl text-center border border-purple-200">
-            <div className="text-xl font-bold capitalize">
-              {isDraw ? (
-                <span className="text-gray-600">Draw</span>
-              ) : isPlayerWin ? (
-                <span className="text-green-600">Win</span>
-              ) : (
-                <span className="text-red-600">Lose</span>
-              )}
-            </div>
-            <div className="text-xs text-purple-600 font-medium capitalize mt-0.5">
-              by {result.end_reason || result.result?.end_reason || 'completion'}
-            </div>
-          </div>
-        </div>
 
         {/* Rating update */}
         {ratingUpdate && !ratingUpdate.isLoading && !ratingUpdate.error && ratingUpdate.newRating !== null && (

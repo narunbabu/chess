@@ -281,7 +281,11 @@ export const createResultFromComputerGame = (resultText, playerColor, gameStatus
     winner = null;
   }
 
-  return createStandardizedResult(status, resultText, endReason, winner);
+  const result = createStandardizedResult(status, resultText, endReason, winner);
+  // Add game_mode for computer games to help GameEndCard distinguish game types
+  result.game_mode = 'computer';
+  result.player_color = playerColor;
+  return result;
 };
 
 /**

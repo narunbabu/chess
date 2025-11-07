@@ -1,4 +1,5 @@
 * Read `docs/context.md`; map the exact code paths you’ll touch (call graph, data flow, entry points), list constraints/invariants, and note any global/shared primitives implicated.
+* While generating code for different pages/modules apply the principle of "Don't Repeat Yourself" (DRY) by extracting repetitive logic into functions or methods, using inheritance and interfaces, and consolidating duplicated classes or methods. This improves maintainability, reduces bugs, and saves time. 
 * Identify stakeholders (modules, services, users, jobs) and the public contracts they rely on; write down invariants and edge cases discovered in code, tests, and logs.
 * Propose a short plan (goal, approach, files to change, rollout/flags, observability, risks, tests) and wait for approval before coding.
 * Work in small, reversible slices behind feature flags; prefer additive code and local adapters over edits to shared primitives; include a kill-switch and default flags to off.
