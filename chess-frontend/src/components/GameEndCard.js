@@ -746,26 +746,15 @@ const GameEndCard = React.forwardRef(({
         <div className="text-center mb-3">
           <div className="bg-gradient-to-r from-sky-500 to-blue-600 text-white p-3 rounded-xl shadow-lg">
             <div className="text-lg font-bold mb-1">
-              {playersInfo.hasUser ? (
-                isPlayerWin ? "🏆 Congratulations!" : isDraw ? "🤝 Well Played!" : "💪 Great Effort!"
-              ) : (
-                "🏆 Exciting Game!"
-              )}
+              ♟️ Want to Play With Me?
             </div>
             <div className="text-sm mb-2">
-              {playersInfo.hasUser ? (
-                isPlayerWin
-                  ? "Ready for your next victory?"
-                  : isDraw
-                  ? "Want to go for the win this time?"
-                  : "Challenge yourself to improve!"
-              ) : (
-                "Ready to test your skills?"
-              )}
+              Think you can beat me? Join and challenge me!
+              
             </div>
-            <div className="flex items-center justify-center gap-2 text-sm font-semibold">
-              <span>Play at</span>
-              <a href="https://www.chess99.com" target="_blank" rel="noopener noreferrer" className="bg-white text-sky-600 px-2 py-1 rounded-lg font-bold hover:bg-sky-50 transition-colors">
+            <div className="flex flex-col items-center gap-1.5">
+              <div className="text-xs font-medium">Register and play at</div>
+              <a href="https://www.chess99.com" target="_blank" rel="noopener noreferrer" className="bg-white text-sky-600 px-3 py-1.5 rounded-lg font-bold hover:bg-sky-50 transition-colors text-base">
                 Chess99.com
               </a>
             </div>
