@@ -159,7 +159,8 @@ const convertImagesToDataURLs = async (element) => {
 
 // Helper function to escape special regex characters
 const escapeRegExp = (string) => {
-  return string.replace(/[.*+?
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+};
 
 // SVG Chess Piece Components (similar to Background.js)
 const ChessKing = ({ className = "" }) => (
