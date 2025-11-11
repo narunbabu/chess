@@ -7,6 +7,7 @@ import { getRatingFromLevel } from "../utils/eloUtils";
 import { useAuth } from "../contexts/AuthContext";
 import { isWin, isDraw as isDrawResult, getResultDisplayText } from "../utils/resultStandardization";
 import { getGameResultShareMessage } from "../utils/socialShareUtils";
+import { uploadGameResultImage } from "../services/sharedResultService";
 import GIF from 'gif.js';
 import GameEndCard from "./GameEndCard";
 import "./GameCompletionAnimation.css";
@@ -188,6 +189,7 @@ const GameCompletionAnimation = ({
     error: null
   });
   const [hasProcessedRating, setHasProcessedRating] = useState(false);
+  const [isTestSharing, setIsTestSharing] = useState(false); // Test Share state
   const { isAuthenticated, user, fetchUser } = useAuth();
   const navigate = useNavigate();
   const gameEndCardRef = useRef(null); // Ref for wrapper (used for layout)
@@ -562,6 +564,146 @@ const GameCompletionAnimation = ({
     URL.revokeObjectURL(url);
   };
 
+  // Test Share - Upload image to server and share URL with preview
+  const handleTestShare = async () => {
+    console.log('🔵 Test Share started');
+    try {
+      setIsTestSharing(true);
+      console.log('✅ State set to sharing');
+
+      // Wait for GameEndCard to render
+      await new Promise(resolve => setTimeout(resolve, 300));
+      console.log('✅ Wait completed');
+
+      // Find the actual GameEndCard element
+      const cardElement = gameEndCardContentRef.current;
+      console.log('🔍 Card element:', cardElement ? 'Found' : 'NOT FOUND');
+      if (!cardElement) {
+        throw new Error('GameEndCard not found');
+      }
+
+      // Add share-mode class for styling
+      cardElement.classList.add('share-mode');
+      console.log('✅ Share mode class added');
+
+      // **CRITICAL FIX**: Wait for all images to fully load first
+      await waitForImagesToLoad(cardElement);
+      console.log('✅ All images loaded');
+
+      // Convert all images to data URLs before capture
+      await convertImagesToDataURLs(cardElement);
+      console.log('✅ Images converted to data URLs');
+
+      // Wait for DOM to update with converted images
+      await new Promise(resolve => setTimeout(resolve, 200));
+      console.log('✅ DOM update wait completed');
+
+      const html2canvas = (await import('html2canvas')).default;
+      console.log('✅ html2canvas loaded');
+
+      const canvas = await html2canvas(cardElement, {
+        backgroundColor: '#ffffff',
+        scale: 2, // Higher quality
+        useCORS: true, // Enable CORS for cross-origin images
+        allowTaint: false, // Don't allow tainted canvas (required for CORS)
+        logging: true, // Enable logging for debugging in production
+        foreignObjectRendering: false, // Disable foreign object rendering for better compatibility
+        removeContainer: true, // Remove the temporary container after rendering
+        imageTimeout: 15000, // Increase timeout for image loading (15 seconds)
+        onclone: (clonedDoc) => {
+          // This function is called with the cloned document before rendering
+          console.log('📋 Document cloned, preparing for capture...');
+          // Ensure all images are visible in the cloned document
+          const clonedImages = clonedDoc.querySelectorAll('img');
+          clonedImages.forEach((img, idx) => {
+            if (img.src && img.src.startsWith('data:')) {
+              console.log(`✅ Cloned image ${idx + 1} is using data URL`);
+            } else {
+              console.warn(`⚠️ Cloned image ${idx + 1} is NOT using data URL: ${img.src.substring(0, 50)}`);
+            }
+          });
+        }
+      });
+      console.log('✅ Canvas created:', canvas.width, 'x', canvas.height);
+
+      // Remove share-mode class after capture
+      cardElement.classList.remove('share-mode');
+
+      // Convert canvas to data URL (base64)
+      const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+      console.log('✅ Image data URL created, length:', imageDataUrl.length);
+
+      // Upload to server
+      console.log('📤 Uploading to server...');
+      const response = await uploadGameResultImage(imageDataUrl, {
+        game_id: gameId,
+        user_id: user?.id,
+        winner: isPlayerWin ? 'player' : (isDraw ? 'draw' : 'opponent'),
+        playerName: user?.name || 'Player',
+        opponentName: isMultiplayer ? (playerColor === 'w' ? result?.black_player?.name : result?.white_player?.name) : 'Computer',
+        result: result,
+        gameMode: isMultiplayer ? 'multiplayer' : 'computer'
+      });
+      console.log('✅ Server response:', response);
+
+      if (response.success && response.share_url) {
+        const shareUrl = response.share_url;
+
+        // Generate share message
+        const shareMessage = `🏆 Check out my chess game result!\n\n${shareUrl}`;
+
+        // Copy share URL to clipboard
+        try {
+          await navigator.clipboard.writeText(shareUrl);
+          console.log('Share URL copied to clipboard');
+        } catch (clipboardError) {
+          console.log('Could not copy to clipboard:', clipboardError);
+        }
+
+        // Try native share with URL (works great on WhatsApp)
+        if (navigator.share) {
+          try {
+            await navigator.share({
+              title: 'Chess Game Result',
+              text: shareMessage,
+              url: shareUrl
+            });
+          } catch (shareError) {
+            if (shareError.name !== 'AbortError') {
+              console.error('Error sharing:', shareError);
+              // Fallback: show share URL
+              alert(`Share URL copied!\n\n${shareUrl}\n\nPaste this link on WhatsApp to share with preview!`);
+            }
+          }
+        } else {
+          // Desktop fallback: show share URL and instructions
+          alert(`Share URL copied!\n\n${shareUrl}\n\nPaste this link on WhatsApp to share with preview!`);
+        }
+      } else {
+        throw new Error('Failed to upload image');
+      }
+
+    } catch (error) {
+      console.error('Error in test share:', error);
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        stack: error.stack
+      });
+
+      // Show more detailed error message
+      const errorMessage = error.response?.data?.message || error.message || 'Unknown error';
+      alert(`Failed to create shareable link.\n\nError: ${errorMessage}\n\nCheck console for details.`);
+
+      // Clean up share-mode class on error
+      const cardElement = gameEndCardContentRef.current;
+      if (cardElement) cardElement.classList.remove('share-mode');
+    } finally {
+      setIsTestSharing(false);
+    }
+  };
+
   const overlayClass = `completion-overlay ${isDraw ? "draw" : (isPlayerWin ? "win" : "loss")} ${
     isVisible ? "visible" : ""
   }`;
@@ -732,6 +874,75 @@ const GameCompletionAnimation = ({
               />
             </svg>
             Share Game Result
+          </button>
+          {/* Test Share button - shares URL with preview */}
+          <button
+            onClick={handleTestShare}
+            disabled={isTestSharing}
+            style={{
+              backgroundColor: isTestSharing ? '#6B7280' : '#3B82F6',
+              color: 'white',
+              padding: window.innerWidth <= 480 ? '9px 16px' : '12px 24px',
+              borderRadius: '10px',
+              border: 'none',
+              fontSize: window.innerWidth <= 480 ? '0.85rem' : '1rem',
+              fontWeight: '700',
+              cursor: isTestSharing ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s ease',
+              display: 'flex',
+              alignItems: 'center',
+              gap: window.innerWidth <= 480 ? '6px' : '8px',
+              boxShadow: '0 4px 12px rgba(59, 130, 246, 0.4)',
+              opacity: isTestSharing ? 0.6 : 1
+            }}
+            onMouseEnter={(e) => {
+              if (!isTestSharing) {
+                e.currentTarget.style.backgroundColor = '#2563EB';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(59, 130, 246, 0.5)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isTestSharing) {
+                e.currentTarget.style.backgroundColor = '#3B82F6';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.4)';
+              }
+            }}
+          >
+            {isTestSharing ? (
+              <>
+                <svg
+                  className="animate-spin"
+                  style={{ width: window.innerWidth <= 480 ? '16px' : '20px', height: window.innerWidth <= 480 ? '16px' : '20px' }}
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Creating Link...</span>
+              </>
+            ) : (
+              <>
+                <svg
+                  style={{ width: window.innerWidth <= 480 ? '16px' : '20px', height: window.innerWidth <= 480 ? '16px' : '20px' }}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2.5}
+                    d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                  />
+                </svg>
+                Test Share
+              </>
+            )}
           </button>
           {onNewGame && (
             <button

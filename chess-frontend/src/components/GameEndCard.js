@@ -2,6 +2,8 @@ import React, { useMemo, useRef, useState } from 'react';
 import html2canvas from 'html2canvas';
 import chessPlayingKids from '../assets/images/chess-playing-kids-crop.png';
 import logo from '../assets/images/logo.png';
+import { uploadGameResultImage } from '../services/sharedResultService';
+import { isWin as isWinUtil, isDraw as isDrawUtil } from '../utils/resultStandardization';
 import './GameEndCard.css';
 
 // Social share URLs - Note: These platforms don't support direct image URLs in share parameters
@@ -934,12 +936,12 @@ const handleShare = async () => {
               Think you can beat me? Join and challenge me!
               
             </div>
-            <div className="flex flex-col items-center gap-1.5">
+            {/* <div className="flex flex-col items-center gap-1.5">
               <div className="text-xs font-medium">Register and play at</div>
               <a href="https://www.chess99.com" target="_blank" rel="noopener noreferrer" className="bg-white text-sky-600 px-3 py-1.5 rounded-lg font-bold hover:bg-sky-50 transition-colors text-base">
                 Chess99.com
               </a>
-            </div>
+            </div> */}
           </div>
         </div>
 
