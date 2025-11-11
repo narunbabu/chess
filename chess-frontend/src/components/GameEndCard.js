@@ -54,45 +54,75 @@ const waitForImagesToLoad = async (element) => {
   console.log('✅ All images loaded (or timed out) in GameEndCard');
 };
 
+const loadImageToDataURL = (src) => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous'; // Use CORS for cross-origin images
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth || img.width;
+        canvas.height = img.naturalHeight || img.height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
+          const dataURL = canvas.toDataURL('image/jpeg', 0.8);
+          resolve(dataURL);
+        } else {
+          reject(new Error('Failed to get canvas context'));
+        }
+      } catch (error) {
+        reject(error);
+      }
+    };
+    img.onerror = () => {
+      reject(new Error(`Failed to load image: ${src}`));
+    };
+    img.src = src;
+  });
+};
+
 // Helper function to convert all images within an element to data URLs
-// This robustly handles image loading for html2canvas capture.
+// This robustly handles image loading for html2canvas capture using canvas extraction.
 const convertImagesToDataURLs = async (element) => {
+  console.log('🔄 Converting images to data URLs...');
+
   // Handle <img> tags
   const images = Array.from(element.querySelectorAll('img'));
+  console.log(`📸 Found ${images.length} <img> tags to convert`);
+
   await Promise.all(
-    images.map(async (img) => {
+    images.map(async (img, index) => {
       // Don't re-convert if it's already a data URL
-      if (img.src.startsWith('data:')) return;
+      if (img.src.startsWith('data:')) {
+        console.log(`✅ Image ${index + 1} already a data URL`);
+        return;
+      }
 
       try {
-        const response = await fetch(img.src, { mode: 'cors' });
-        if (!response.ok) {
-          throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
-        }
-        const blob = await response.blob();
-        const dataUrl = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result);
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
+        console.log(`🔄 Converting image ${index + 1}: ${img.src.substring(0, 50)}...`);
+        const dataUrl = await loadImageToDataURL(img.src);
         img.src = dataUrl;
+        console.log(`✅ Image ${index + 1} converted successfully`);
       } catch (error) {
-        console.error(`Could not convert image ${img.src} to data URL:`, error);
+        console.error(`❌ Could not convert image ${index + 1} (${img.src}) to data URL:`, error);
+        // We continue even if one image fails, so the capture process doesn't halt.
       }
     })
   );
 
-  // Handle CSS background-image properties (for backgrounds, etc.)
+  // Handle CSS background-image properties (for logo, etc.)
   const allElements = Array.from(element.querySelectorAll('*'));
   allElements.push(element); // Include the root element itself
 
+  let bgImageCount = 0;
   await Promise.all(
-    allElements.map(async (el) => {
+    allElements.map(async (el, elIndex) => {
       const bgImage = window.getComputedStyle(el).backgroundImage;
 
       // Check if there's a background-image and it's a URL (not 'none' or gradient)
       if (bgImage && bgImage !== 'none' && bgImage.includes('url(')) {
+        bgImageCount++;
         // Extract URL from background-image (handles multiple backgrounds)
         const urlMatches = bgImage.match(/url\(["']?([^"')]+)["']?\)/g);
 
@@ -101,26 +131,21 @@ const convertImagesToDataURLs = async (element) => {
             const url = urlMatch.match(/url\(["']?([^"')]+)["']?\)/)[1];
 
             // Skip if already a data URL
-            if (url.startsWith('data:')) continue;
+            if (url.startsWith('data:')) {
+              console.log(`✅ Background image already a data URL on element ${elIndex}`);
+              continue;
+            }
 
             try {
-              const response = await fetch(url, { mode: 'cors' });
-              if (!response.ok) {
-                throw new Error(`Failed to fetch background image: ${response.status} ${response.statusText}`);
-              }
-              const blob = await response.blob();
-              const dataUrl = await new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result);
-                reader.onerror = reject;
-                reader.readAsDataURL(blob);
-              });
+              console.log(`🔄 Converting background image: ${url.substring(0, 50)}...`);
+              const dataUrl = await loadImageToDataURL(url);
 
               // Replace the URL in the background-image with the data URL
-              const newBgImage = bgImage.replace(url, dataUrl);
+              const newBgImage = bgImage.replace(new RegExp(escapeRegExp(url), 'g'), dataUrl);
               el.style.backgroundImage = newBgImage;
+              console.log(`✅ Background image converted successfully on element ${elIndex}`);
             } catch (error) {
-              console.error(`Could not convert background image ${url} to data URL:`, error);
+              console.error(`❌ Could not convert background image ${url} to data URL on element ${elIndex}:`, error);
               // We continue even if one image fails
             }
           }
@@ -128,7 +153,13 @@ const convertImagesToDataURLs = async (element) => {
       }
     })
   );
+
+  console.log(`✅ Image conversion complete. Found ${bgImageCount} background images.`);
 };
+
+// Helper function to escape special regex characters
+const escapeRegExp = (string) => {
+  return string.replace(/[.*+?
 
 // SVG Chess Piece Components (similar to Background.js)
 const ChessKing = ({ className = "" }) => (
@@ -557,105 +588,105 @@ const GameEndCard = React.forwardRef(({
     );
   };
 
-  const handleShare = async () => {
-    if (!cardRef.current || isSharing) return;
+const handleShare = async () => {
+  if (!cardRef.current || isSharing) return;
 
-    try {
-      setIsSharing(true);
-      const cardElement = cardRef.current;
+  try {
+    setIsSharing(true);
+    const cardElement = cardRef.current;
 
-      // Add a temporary class to apply styles specifically for capture
-      cardElement.classList.add('share-mode');
+    // Add a temporary class to apply styles specifically for capture
+    cardElement.classList.add('share-mode');
 
-      // **CRITICAL FIX**: Wait for all images to fully load first
-      await waitForImagesToLoad(cardElement);
+    // **CRITICAL FIX**: Wait for all images to fully load first
+    await waitForImagesToLoad(cardElement);
 
-      // **FIX:** Convert images to data URLs before capture
-      await convertImagesToDataURLs(cardElement);
+    // **FIX:** Convert images to data URLs before capture
+    await convertImagesToDataURLs(cardElement);
 
-      // A small delay for the DOM to update with new image sources
-      await new Promise(resolve => setTimeout(resolve, 200));
+    // A small delay for the DOM to update with new image sources
+    await new Promise(resolve => setTimeout(resolve, 200));
 
-      // Capture the card as canvas with improved configuration
-      const canvas = await html2canvas(cardElement, {
-        backgroundColor: '#ffffff',
-        scale: 2, // Higher quality
-        useCORS: true, // Enable CORS for cross-origin images
-        allowTaint: false, // Don't allow tainted canvas (required for CORS)
-        logging: true, // Enable logging for debugging
-        foreignObjectRendering: false, // Disable foreign object rendering for better compatibility
-        removeContainer: true, // Remove the temporary container after rendering
-        imageTimeout: 15000, // Increase timeout for image loading (15 seconds)
-        onclone: (clonedDoc) => {
-          console.log('📋 Document cloned in GameEndCard, preparing for capture...');
-          const clonedImages = clonedDoc.querySelectorAll('img');
-          clonedImages.forEach((img, idx) => {
-            if (img.src && img.src.startsWith('data:')) {
-              console.log(`✅ Cloned image ${idx + 1} is using data URL`);
-            } else {
-              console.warn(`⚠️ Cloned image ${idx + 1} is NOT using data URL: ${img.src.substring(0, 50)}`);
-            }
-          });
-        }
-      });
-
-      // Remove the temporary class after capture
-      cardElement.classList.remove('share-mode');
-
-      // Convert canvas to blob with medium quality (JPEG format)
-      // Using JPEG with 0.8 quality provides good balance between quality and file size
-      // This aligns with "Medium" quality setting in Windows share dialog
-      const blob = await new Promise((resolve) => {
-        canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.8);
-      });
-
-      const file = new File([blob], 'chess-game-result.jpg', { type: 'image/jpeg' });
-
-      // Generate friendly share message
-      const opponentName = playersInfo.opponentPlayer?.name || 'opponent';
-      const shareText = `${isPlayerWin ? '🏆 I defeated' : isDraw ? '🤝 I drew against' : '♟️ I played against'} ${opponentName} in chess!\n\n🎯 It is fun to play chess at www.chess99.com, Join me! ♟️`;
-
-      // Copy message to clipboard for easy pasting (WhatsApp workaround)
-      try {
-        await navigator.clipboard.writeText(shareText);
-        console.log('Share message copied to clipboard');
-      } catch (clipboardError) {
-        console.log('Could not copy to clipboard:', clipboardError);
-      }
-
-      // ✅ Try mobile native share (works on iOS Safari, Android Chrome)
-      // Mobile browsers support both files and text together
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-        try {
-          await navigator.share({
-            title: 'Chess Game Result',
-            text: shareText,
-            files: [file]
-          });
-          return; // Success, exit early
-        } catch (shareError) {
-          if (shareError.name !== 'AbortError') {
-            console.error('Error sharing:', shareError);
-            // Fall through to show modal as fallback
+    // Capture the card as canvas with improved configuration
+    const canvas = await html2canvas(cardElement, {
+      backgroundColor: '#ffffff',
+      scale: 2, // Higher quality
+      useCORS: true, // Enable CORS for cross-origin images
+      allowTaint: false, // Don't allow tainted canvas (required for CORS)
+      logging: true, // Enable logging for debugging
+      foreignObjectRendering: false, // Disable foreign object rendering for better compatibility
+      removeContainer: true, // Remove the temporary container after rendering
+      imageTimeout: 15000, // Increase timeout for image loading (15 seconds)
+      onclone: (clonedDoc) => {
+        console.log('📋 Document cloned in GameEndCard, preparing for capture...');
+        const clonedImages = clonedDoc.querySelectorAll('img');
+        clonedImages.forEach((img, idx) => {
+          if (img.src && img.src.startsWith('data:')) {
+            console.log(`✅ Cloned image ${idx + 1} is using data URL`);
           } else {
-            return; // User cancelled, exit
+            console.warn(`⚠️ Cloned image ${idx + 1} is NOT using data URL: ${img.src.substring(0, 50)}`);
           }
+        });
+      }
+    });
+
+    // Remove the temporary class after capture
+    cardElement.classList.remove('share-mode');
+
+    // Convert canvas to blob with medium quality (JPEG format)
+    // Using JPEG with 0.8 quality provides good balance between quality and file size
+    // This aligns with "Medium" quality setting in Windows share dialog
+    const blob = await new Promise((resolve) => {
+      canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.8);
+    });
+
+    const file = new File([blob], 'chess-game-result.jpg', { type: 'image/jpeg' });
+
+    // Generate friendly share message
+    const opponentName = playersInfo.opponentPlayer?.name || 'opponent';
+    const shareText = `${isPlayerWin ? '🏆 I defeated' : isDraw ? '🤝 I drew against' : '♟️ I played against'} ${opponentName} in chess!\n\n🎯 It is fun to play chess at www.chess99.com, Join me! ♟️`;
+
+    // Copy message to clipboard for easy pasting (WhatsApp workaround)
+    try {
+      await navigator.clipboard.writeText(shareText);
+      console.log('Share message copied to clipboard');
+    } catch (clipboardError) {
+      console.log('Could not copy to clipboard:', clipboardError);
+    }
+
+    // ✅ Try mobile native share (works on iOS Safari, Android Chrome)
+    // Mobile browsers support both files and text together
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({
+          title: 'Chess Game Result',
+          text: shareText,
+          files: [file]
+        });
+        return; // Success, exit early
+      } catch (shareError) {
+        if (shareError.name !== 'AbortError') {
+          console.error('Error sharing:', shareError);
+          // Fall through to show modal as fallback
+        } else {
+          return; // User cancelled, exit
         }
       }
-
-      // Fallback: Show modal for browsers without native share or if share failed
-      const imageUrl = URL.createObjectURL(blob);
-      setShareImageUrl(imageUrl);
-      setShowShareModal(true);
-    } catch (error) {
-      console.error('Error preparing share:', error);
-      alert('Failed to prepare share. Please try again.');
-      const cardElement = cardRef.current;
-      if (cardElement) cardElement.classList.remove('share-mode');
-    } finally {
-      setIsSharing(false);
     }
-  };
+
+    // Fallback: Show modal for browsers without native share or if share failed
+    const imageUrl = URL.createObjectURL(blob);
+    setShareImageUrl(imageUrl);
+    setShowShareModal(true);
+  } catch (error) {
+    console.error('Error preparing share:', error);
+    alert('Failed to prepare share. Please try again.');
+    const cardElement = cardRef.current;
+    if (cardElement) cardElement.classList.remove('share-mode');
+  } finally {
+    setIsSharing(false);
+  }
+};
 
   const handleDownload = () => {
     if (!shareImageUrl) return;
