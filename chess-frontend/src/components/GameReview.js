@@ -51,8 +51,36 @@ const waitForImagesToLoad = async (element) => {
   console.log('✅ All images loaded (or timed out)');
 };
 
+const loadImageToDataURL = (src) => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous'; // Use CORS for cross-origin images
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth || img.width;
+        canvas.height = img.naturalHeight || img.height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
+          const dataURL = canvas.toDataURL('image/jpeg', 0.8);
+          resolve(dataURL);
+        } else {
+          reject(new Error('Failed to get canvas context'));
+        }
+      } catch (error) {
+        reject(error);
+      }
+    };
+    img.onerror = () => {
+      reject(new Error(`Failed to load image: ${src}`));
+    };
+    img.src = src;
+  });
+};
+
 // Helper function to convert all images within an element to data URLs
-// This robustly handles image loading for html2canvas capture.
+// This robustly handles image loading for html2canvas capture using canvas extraction.
 const convertImagesToDataURLs = async (element) => {
   console.log('🔄 Converting images to data URLs...');
 
@@ -70,17 +98,7 @@ const convertImagesToDataURLs = async (element) => {
 
       try {
         console.log(`🔄 Converting image ${index + 1}: ${img.src.substring(0, 50)}...`);
-        const response = await fetch(img.src, { mode: 'cors', credentials: 'same-origin' });
-        if (!response.ok) {
-          throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
-        }
-        const blob = await response.blob();
-        const dataUrl = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result);
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
+        const dataUrl = await loadImageToDataURL(img.src);
         img.src = dataUrl;
         console.log(`✅ Image ${index + 1} converted successfully`);
       } catch (error) {
@@ -117,20 +135,10 @@ const convertImagesToDataURLs = async (element) => {
 
             try {
               console.log(`🔄 Converting background image: ${url.substring(0, 50)}...`);
-              const response = await fetch(url, { mode: 'cors', credentials: 'same-origin' });
-              if (!response.ok) {
-                throw new Error(`Failed to fetch background image: ${response.status} ${response.statusText}`);
-              }
-              const blob = await response.blob();
-              const dataUrl = await new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result);
-                reader.onerror = reject;
-                reader.readAsDataURL(blob);
-              });
+              const dataUrl = await loadImageToDataURL(url);
 
               // Replace the URL in the background-image with the data URL
-              const newBgImage = bgImage.replace(url, dataUrl);
+              const newBgImage = bgImage.replace(new RegExp(escapeRegExp(url), 'g'), dataUrl);
               el.style.backgroundImage = newBgImage;
               console.log(`✅ Background image converted successfully on element ${elIndex}`);
             } catch (error) {
@@ -144,6 +152,11 @@ const convertImagesToDataURLs = async (element) => {
   );
 
   console.log(`✅ Image conversion complete. Found ${bgImageCount} background images.`);
+};
+
+// Helper function to escape special regex characters
+const escapeRegExp = (string) => {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 };
 
 
