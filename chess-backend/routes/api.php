@@ -13,6 +13,7 @@ use App\Http\Controllers\GameController;
 use App\Http\Controllers\UserPresenceController;
 use App\Http\Controllers\WebSocketController;
 use App\Http\Controllers\RatingController;
+use App\Http\Controllers\SharedResultController;
 // use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 
@@ -288,6 +289,11 @@ Route::post('/debug-test', function (Illuminate\Http\Request $request) {
 Route::middleware('web')->group(function () {
     Log::info('=== API ROUTES LOADING ===');
 });
+
+// Shared game result routes (public - no auth required)
+Route::post('/shared-results', [SharedResultController::class, 'store']);
+Route::get('/shared-results/{uniqueId}', [SharedResultController::class, 'show']);
+Route::get('/shared-results/{uniqueId}/og-data', [SharedResultController::class, 'getOgData']);
 
 // Public endpoint to store game history (allows guest records with user_id null)
 Route::post('/public/game-history', function (Illuminate\Http\Request $request) {

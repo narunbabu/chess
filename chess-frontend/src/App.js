@@ -21,6 +21,7 @@ import LobbyPage from "./pages/LobbyPage";
 import Puzzles from "./components/Puzzles";
 import Learn from "./components/Learn";
 import Profile from "./components/Profile";
+import SharedResultPage from "./pages/SharedResultPage";
 import { AuthProvider } from "./contexts/AuthContext";
 import { AppDataProvider } from "./contexts/AppDataContext";
 import { FeatureFlagsProvider } from "./contexts/FeatureFlagsContext";
@@ -77,6 +78,7 @@ const AppContent = () => {
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/puzzles" element={<Puzzles />} />
             <Route path="/learn" element={<Learn />} />
+            <Route path="/share/result/:uniqueId" element={<SharedResultPage />} />
 
             {/* Play computer - No auth required */}
             <Route path="/play" element={<PlayComputer />} />

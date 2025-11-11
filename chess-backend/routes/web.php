@@ -44,6 +44,10 @@ Route::get('/storage/{path}', function ($path) {
     }
 })->where('path', '.*')->name('storage.local');
 
+// Shared result page with Open Graph meta tags for social media
+Route::get('/share/result/{uniqueId}', [\App\Http\Controllers\SharedResultController::class, 'showHtml'])
+    ->name('share.result.html');
+
 Route::group(['prefix' => 'auth'], function () {
     Route::get('{provider}/redirect', [SocialAuthController::class, 'redirect'])->name('auth.redirect');
     Route::get('{provider}/callback', [SocialAuthController::class, 'callback'])->name('auth.callback');

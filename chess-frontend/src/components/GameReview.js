@@ -8,6 +8,7 @@ import GameEndCard from "./GameEndCard";
 import { getGameResultShareMessage, getShareableGameUrl } from "../utils/socialShareUtils";
 import { isWin, isDraw } from "../utils/resultStandardization";
 import { useAuth } from "../contexts/AuthContext";
+import { uploadGameResultImage } from "../services/sharedResultService";
 
 // Helper function to convert all images within an element to data URLs
 // This robustly handles image loading for html2canvas capture.
@@ -102,6 +103,7 @@ const GameReview = () => {
   const [boardSize, setBoardSize] = useState(400);
   const [searchParams] = useSearchParams();
   const [showEndCard, setShowEndCard] = useState(false);
+  const [isTestSharing, setIsTestSharing] = useState(false);
 
   // Load game data when component mounts or gameId changes
   useEffect(() => {
@@ -506,6 +508,132 @@ const GameReview = () => {
     URL.revokeObjectURL(url);
   };
 
+  // Test Share - Upload image to server and share URL with preview
+  const handleTestShare = async () => {
+    console.log('🔵 Test Share started');
+    try {
+      setIsTestSharing(true);
+      console.log('✅ State set to sharing');
+
+      // Show the card temporarily for capture
+      setShowEndCard(true);
+      console.log('✅ End card shown');
+
+      // Wait for GameEndCard to render
+      await new Promise(resolve => setTimeout(resolve, 300));
+      console.log('✅ Wait completed');
+
+      // Find the actual GameEndCard element
+      const cardElement = document.querySelector('.game-end-card');
+      console.log('🔍 Card element:', cardElement ? 'Found' : 'NOT FOUND');
+      if (!cardElement) {
+        throw new Error('GameEndCard not found');
+      }
+
+      // Add share-mode class for styling
+      cardElement.classList.add('share-mode');
+      console.log('✅ Share mode class added');
+
+      // Convert all images to data URLs before capture
+      await convertImagesToDataURLs(cardElement);
+      console.log('✅ Images converted to data URLs');
+
+      // Wait for DOM to update with converted images
+      await new Promise(resolve => setTimeout(resolve, 200));
+      console.log('✅ DOM update wait completed');
+
+      const html2canvas = (await import('html2canvas')).default;
+      console.log('✅ html2canvas loaded');
+
+      const canvas = await html2canvas(cardElement, {
+        backgroundColor: '#ffffff',
+        scale: 2, // Higher quality
+        useCORS: true,
+        allowTaint: false,
+        logging: false
+      });
+      console.log('✅ Canvas created:', canvas.width, 'x', canvas.height);
+
+      // Remove share-mode class after capture
+      cardElement.classList.remove('share-mode');
+
+      // Convert canvas to data URL (base64)
+      const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+      console.log('✅ Image data URL created, length:', imageDataUrl.length);
+
+      // Upload to server
+      console.log('📤 Uploading to server...');
+      const response = await uploadGameResultImage(imageDataUrl, {
+        game_id: gameHistory.id,
+        user_id: user?.id,
+        winner: isWin(gameHistory.result) ? 'player' : (isDraw(gameHistory.result) ? 'draw' : 'opponent'),
+        playerName: user?.name || 'Player',
+        opponentName: gameHistory.opponent_name || (gameHistory.game_mode === 'computer' ? 'Computer' : 'Opponent'),
+        result: gameHistory.result,
+        gameMode: gameHistory.game_mode
+      });
+      console.log('✅ Server response:', response);
+
+      if (response.success && response.share_url) {
+        const shareUrl = response.share_url;
+
+        // Generate share message
+        const shareMessage = `🏆 Check out my chess game result!\n\n${shareUrl}`;
+
+        // Copy share URL to clipboard
+        try {
+          await navigator.clipboard.writeText(shareUrl);
+          console.log('Share URL copied to clipboard');
+        } catch (clipboardError) {
+          console.log('Could not copy to clipboard:', clipboardError);
+        }
+
+        // Try native share with URL (works great on WhatsApp)
+        if (navigator.share) {
+          try {
+            await navigator.share({
+              title: 'Chess Game Result',
+              text: shareMessage,
+              url: shareUrl
+            });
+          } catch (shareError) {
+            if (shareError.name !== 'AbortError') {
+              console.error('Error sharing:', shareError);
+              // Fallback: show share URL
+              alert(`Share URL copied!\n\n${shareUrl}\n\nPaste this link on WhatsApp to share with preview!`);
+            }
+          }
+        } else {
+          // Desktop fallback: show share URL and instructions
+          alert(`Share URL copied!\n\n${shareUrl}\n\nPaste this link on WhatsApp to share with preview!`);
+        }
+      } else {
+        throw new Error('Failed to upload image');
+      }
+
+    } catch (error) {
+      console.error('Error in test share:', error);
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        stack: error.stack
+      });
+
+      // Show more detailed error message
+      const errorMessage = error.response?.data?.message || error.message || 'Unknown error';
+      alert(`Failed to create shareable link.\n\nError: ${errorMessage}\n\nCheck console for details.`);
+
+      // Clean up share-mode class on error
+      const cardElement = document.querySelector('.game-end-card');
+      if (cardElement) cardElement.classList.remove('share-mode');
+    } finally {
+      setIsTestSharing(false);
+      // Hide the card after a short delay
+      setTimeout(() => setShowEndCard(false), 1000);
+    }
+  };
+
   if (loading) {
     return (
       <div className="game-review p-6 min-h-screen text-white flex flex-col items-center justify-center">
@@ -699,7 +827,83 @@ const GameReview = () => {
                 Challenge your friends to beat this result!
               </p>
 
-              {/* Prominent Share button with bright green color - works on all devices */}
+              {/* Share buttons container */}
+              <div className="flex flex-col gap-3">
+                {/* Test Share button - shares URL with preview */}
+                <button
+                  onClick={handleTestShare}
+                  disabled={isTestSharing}
+                  style={{
+                    backgroundColor: isTestSharing ? '#6B7280' : '#3B82F6',
+                    color: 'white',
+                    padding: window.innerWidth <= 480 ? '12px 20px' : '14px 28px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    fontSize: window.innerWidth <= 480 ? '0.95rem' : '1.1rem',
+                    fontWeight: '700',
+                    cursor: isTestSharing ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: window.innerWidth <= 480 ? '8px' : '10px',
+                    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.4)',
+                    width: '100%',
+                    maxWidth: '400px',
+                    margin: '0 auto',
+                    opacity: isTestSharing ? 0.6 : 1
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isTestSharing) {
+                      e.currentTarget.style.backgroundColor = '#2563EB';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 6px 16px rgba(59, 130, 246, 0.5)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isTestSharing) {
+                      e.currentTarget.style.backgroundColor = '#3B82F6';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.4)';
+                    }
+                  }}
+                >
+                  {isTestSharing ? (
+                    <>
+                      <svg
+                        className="animate-spin"
+                        style={{ width: window.innerWidth <= 480 ? '18px' : '22px', height: window.innerWidth <= 480 ? '18px' : '22px' }}
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span>Creating Link...</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg
+                        style={{ width: window.innerWidth <= 480 ? '18px' : '22px', height: window.innerWidth <= 480 ? '18px' : '22px' }}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2.5}
+                          d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                        />
+                      </svg>
+                      Test Share
+                    </>
+                  )}
+                </button>
+
+                {/* Original Share button */}
               <button
                 onClick={handleShareWithImage}
                 style={{
@@ -748,6 +952,7 @@ const GameReview = () => {
                 </svg>
                 Share Game Result
               </button>
+              </div>
             </div>
           </div>
         )}
