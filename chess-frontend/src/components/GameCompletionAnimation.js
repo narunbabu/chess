@@ -180,7 +180,7 @@ const GameCompletionAnimation = ({
   gameId = null // Game ID for history tracking
 }) => {
   const [isVisible, setIsVisible] = useState(false); // Controls card visibility for animation
-  const [selectedColor, setSelectedColor] = useState('random'); // Color preference for new game challenge
+  // const [selectedColor, setSelectedColor] = useState('random'); // Color preference for new game challenge - UNUSED
   const [ratingUpdate, setRatingUpdate] = useState({
     isLoading: true,
     oldRating: null,
@@ -315,29 +315,30 @@ const GameCompletionAnimation = ({
     handleRatingUpdate();
   }, [isAuthenticated, user, fetchUser, isPlayerWin, isDraw, isMultiplayer, computerLevel, opponentRating, opponentId, gameId, hasProcessedRating]);
 
-  const exportAsGIF = async () => {
-    const canvas = document.createElement('canvas');
-    // Setup canvas and capture frames here
-    
-    const gif = new GIF({
-      workerScript: process.env.PUBLIC_URL + '/gif.worker.js',
-      quality: 10,
-      width: canvas.width,
-      height: canvas.height
-    });
-
-    // Add frames to gif
-    // gif.addFrame(...);
-    
-    gif.on('finished', (blob) => {
-      const link = document.createElement('a');
-      link.download = 'chess-game.gif';
-      link.href = URL.createObjectURL(blob);
-      link.click();
-    });
-
-    gif.render();
-  };
+  // UNUSED - Commented out to remove ESLint warning
+  // const exportAsGIF = async () => {
+  //   const canvas = document.createElement('canvas');
+  //   // Setup canvas and capture frames here
+  //
+  //   const gif = new GIF({
+  //     workerScript: process.env.PUBLIC_URL + '/gif.worker.js',
+  //     quality: 10,
+  //     width: canvas.width,
+  //     height: canvas.height
+  //   });
+  //
+  //   // Add frames to gif
+  //   // gif.addFrame(...);
+  //
+  //   gif.on('finished', (blob) => {
+  //     const link = document.createElement('a');
+  //     link.download = 'chess-game.gif';
+  //     link.href = URL.createObjectURL(blob);
+  //     link.click();
+  //   });
+  //
+  //   gif.render();
+  // };
 
   const handleContinue = async () => {
     if (isAuthenticated) {
@@ -374,80 +375,82 @@ const GameCompletionAnimation = ({
     navigate("/play"); // Ensure '/play' route exists
   };
 
+  // UNUSED - Commented out to remove ESLint warning
   // Generate result text for multiplayer games
-  const getResultText = () => {
-    if (isMultiplayer && result?.white_player && result?.black_player) {
-      const { white_player, black_player, end_reason, winner_player } = result;
+  // const getResultText = () => {
+  //   if (isMultiplayer && result?.white_player && result?.black_player) {
+  //     const { white_player, black_player, end_reason, winner_player } = result;
+  //
+  //     if (isDraw) {
+  //       return `Draw by ${end_reason}`;
+  //     }
+  //
+  //     const winnerName = winner_player === 'white' ? white_player.name : black_player.name;
+  //     const reasonText = end_reason === 'checkmate' ? 'checkmate' :
+  //                       end_reason === 'resignation' ? 'resignation' :
+  //                       end_reason === 'timeout' ? 'timeout' : end_reason;
+  //
+  //     return `${winnerName} wins by ${reasonText}!`;
+  //   }
+  //
+  //   // Fallback to standardized result text
+  //   return getResultDisplayText(result);
+  // };
 
-      if (isDraw) {
-        return `Draw by ${end_reason}`;
-      }
-
-      const winnerName = winner_player === 'white' ? white_player.name : black_player.name;
-      const reasonText = end_reason === 'checkmate' ? 'checkmate' :
-                        end_reason === 'resignation' ? 'resignation' :
-                        end_reason === 'timeout' ? 'timeout' : end_reason;
-
-      return `${winnerName} wins by ${reasonText}!`;
-    }
-
-    // Fallback to standardized result text
-    return getResultDisplayText(result);
-  };
-
+  // UNUSED - Commented out to remove ESLint warning
   // Export and Share functionality
-  const handleExportEndCard = async () => {
-    try {
-      // Wait for card to render
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // Find the end card element (clone it for export)
-      const completionCard = document.querySelector('.completion-card');
-      if (!completionCard) {
-        throw new Error('Completion card not found');
-      }
-
-      // Clone the element for export
-      const clone = completionCard.cloneNode(true);
-      clone.style.position = 'absolute';
-      clone.style.left = '-9999px';
-      clone.style.visibility = 'visible';
-      clone.classList.add('share-mode'); // Add share-mode for better rendering
-      document.body.appendChild(clone);
-
-      // Wait a bit for styles to apply
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(clone, {
-        backgroundColor: null,
-        scale: 2, // Higher quality
-        useCORS: true, // Enable CORS to capture external images (avatars)
-        allowTaint: false,
-        logging: false
-      });
-
-      // Remove clone
-      document.body.removeChild(clone);
-
-      // Convert to blob and download with medium quality (JPEG format)
-      canvas.toBlob((blob) => {
-        if (blob) {
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = `chess-game-${Date.now()}.jpg`;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          URL.revokeObjectURL(url);
-        }
-      }, 'image/jpeg', 0.8);
-    } catch (error) {
-      console.error('Error exporting end card:', error);
-      alert('Failed to export end card. Please try again.');
-    }
-  };
+  // const handleExportEndCard = async () => {
+  //   try {
+  //     // Wait for card to render
+  //     await new Promise(resolve => setTimeout(resolve, 100));
+  //
+  //     // Find the end card element (clone it for export)
+  //     const completionCard = document.querySelector('.completion-card');
+  //     if (!completionCard) {
+  //       throw new Error('Completion card not found');
+  //     }
+  //
+  //     // Clone the element for export
+  //     const clone = completionCard.cloneNode(true);
+  //     clone.style.position = 'absolute';
+  //     clone.style.left = '-9999px';
+  //     clone.style.visibility = 'visible';
+  //     clone.classList.add('share-mode'); // Add share-mode for better rendering
+  //     document.body.appendChild(clone);
+  //
+  //     // Wait a bit for styles to apply
+  //     await new Promise(resolve => setTimeout(resolve, 100));
+  //
+  //     const html2canvas = (await import('html2canvas')).default;
+  //     const canvas = await html2canvas(clone, {
+  //       backgroundColor: null,
+  //       scale: 2, // Higher quality
+  //       useCORS: true, // Enable CORS to capture external images (avatars)
+  //       allowTaint: false,
+  //       logging: false
+  //     });
+  //
+  //     // Remove clone
+  //     document.body.removeChild(clone);
+  //
+  //     // Convert to blob and download with medium quality (JPEG format)
+  //     canvas.toBlob((blob) => {
+  //       if (blob) {
+  //         const url = URL.createObjectURL(blob);
+  //         const link = document.createElement('a');
+  //         link.href = url;
+  //         link.download = `chess-game-${Date.now()}.jpg`;
+  //         document.body.appendChild(link);
+  //         link.click();
+  //         document.body.removeChild(link);
+  //         URL.revokeObjectURL(url);
+  //       }
+  //     }, 'image/jpeg', 0.8);
+  //   } catch (error) {
+  //     console.error('Error exporting end card:', error);
+  //     alert('Failed to export end card. Please try again.');
+  //   }
+  // };
 
   const handleShareWithImage = async () => {
     try {
@@ -707,9 +710,10 @@ const GameCompletionAnimation = ({
   const overlayClass = `completion-overlay ${isDraw ? "draw" : (isPlayerWin ? "win" : "loss")} ${
     isVisible ? "visible" : ""
   }`;
-  const cardClass = `completion-card ${isVisible ? "visible" : ""}`;
-  const icon = isDraw ? "🤝" : (isPlayerWin ? "🏆" : "💔"); // Handshake for draw, Trophy for win, Broken Heart for loss
-  const title = isDraw ? "Draw!" : (isPlayerWin ? "Victory!" : "Defeat"); // Handle all three cases
+  // UNUSED - Commented out to remove ESLint warnings
+  // const cardClass = `completion-card ${isVisible ? "visible" : ""}`;
+  // const icon = isDraw ? "🤝" : (isPlayerWin ? "🏆" : "💔"); // Handshake for draw, Trophy for win, Broken Heart for loss
+  // const title = isDraw ? "Draw!" : (isPlayerWin ? "Victory!" : "Defeat"); // Handle all three cases
 
   return (
     <div className={overlayClass}>

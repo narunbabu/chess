@@ -86,21 +86,37 @@ jobs:
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             nvm use 20 || nvm install 20
 
-            # Clean npm cache if needed
-            npm cache clean --force || true
-
-            # Remove corrupted lock file and reinstall fresh
-            echo "📦 Installing npm dependencies..."
-            if [ -f package-lock.json ]; then
-              echo "🗑️  Removing old package-lock.json..."
-              rm package-lock.json
+            # Check if pnpm is available, otherwise use npm
+            if command -v pnpm &> /dev/null; then
+              echo "📦 Using pnpm for package management..."
+              PKG_MANAGER="pnpm"
+            else
+              echo "📦 Using npm for package management..."
+              PKG_MANAGER="npm"
             fi
 
-            # Fresh install with new lock file
-            npm install || {
-              echo "❌ npm install failed - this is critical!"
-              exit 1
-            }
+            # Install dependencies
+            echo "📦 Installing dependencies with $PKG_MANAGER..."
+            if [ "$PKG_MANAGER" = "pnpm" ]; then
+              pnpm install || {
+                echo "❌ pnpm install failed - this is critical!"
+                exit 1
+              }
+            else
+              # Clean npm cache if needed
+              npm cache clean --force || true
+
+              # Remove corrupted lock file and reinstall fresh
+              if [ -f package-lock.json ]; then
+                echo "🗑️  Removing old package-lock.json..."
+                rm package-lock.json
+              fi
+
+              npm install || {
+                echo "❌ npm install failed - this is critical!"
+                exit 1
+              }
+            fi
 
             # Verify react-scripts is installed
             if ! command -v react-scripts &> /dev/null && ! [ -f node_modules/.bin/react-scripts ]; then
@@ -109,24 +125,35 @@ jobs:
             fi
             echo "✅ Dependencies installed successfully"
 
-            # Check for vulnerabilities (informational only, don't fix)
-            echo "🔒 Checking npm security..."
-            npm audit || {
-              echo "ℹ️  Some npm vulnerabilities detected (informational only)"
-            }
+            # Check for vulnerabilities (informational only)
+            echo "🔒 Checking security..."
+            if [ "$PKG_MANAGER" = "pnpm" ]; then
+              pnpm audit || {
+                echo "ℹ️  Some vulnerabilities detected (informational only)"
+              }
+            else
+              npm audit || {
+                echo "ℹ️  Some vulnerabilities detected (informational only)"
+              }
+            fi
 
             # Build with improved error handling and source map suppression
             echo "🏗️  Building React application..."
             export DISABLE_ESLINT_PLUGIN=true
             export CI=false
             export GENERATE_SOURCEMAP=false  # Suppress source map warnings
-            npm run build || {
-              echo "❌ Build failed - this is critical!"
-              echo "📋 Checking if react-scripts is available..."
-              which react-scripts || echo "react-scripts not in PATH"
-              ls -la node_modules/.bin/react-scripts || echo "react-scripts not in node_modules"
-              exit 1  # This is a critical failure
-            }
+
+            if [ "$PKG_MANAGER" = "pnpm" ]; then
+              pnpm run build || {
+                echo "❌ Build failed - this is critical!"
+                exit 1
+              }
+            else
+              npm run build || {
+                echo "❌ Build failed - this is critical!"
+                exit 1
+              }
+            fi
 
             # Deploy frontend build to web server
             echo "📤 Deploying build to web server..."
