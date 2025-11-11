@@ -107,16 +107,16 @@ jobs:
             # Verify CORS headers (non-blocking check)
             echo ""
             echo "🔍 Verifying CORS configuration..."
-            # Use a more robust check that doesn't fail the deployment
-            CORS_CHECK=$(curl -s -I https://api.chess99.com/storage/ 2>/dev/null || echo "FAILED")
-            # Use grep without -q and redirect to /dev/null to avoid exit code issues
-            if echo "$CORS_CHECK" | grep "Access-Control-Allow-Origin" > /dev/null 2>&1; then
+            # Temporarily disable exit-on-error for this informational check
+            set +e
+            CORS_CHECK=$(curl -s -I https://api.chess99.com/storage/ 2>/dev/null)
+            if echo "$CORS_CHECK" | grep -q "Access-Control-Allow-Origin"; then
               echo "✅ CORS headers are configured correctly!"
-            elif [ "$CORS_CHECK" = "FAILED" ]; then
-              echo "⚠️  Could not verify CORS headers - curl command failed, but deployment continues"
             else
-              echo "⚠️  CORS headers not detected - avatars may not load in shared images"
-            fi || true
+              echo "⚠️  CORS headers not detected (non-critical - deployment continues)"
+            fi
+            # Re-enable exit-on-error
+            set -e
 
             echo ""
             echo "✅ Deployment complete!"
