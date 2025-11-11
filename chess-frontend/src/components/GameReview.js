@@ -995,7 +995,26 @@ const GameReview = () => {
       {/* GameEndCard Modal - Temporarily shown during share process */}
       {showEndCard && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'flex-start',
+            zIndex: 9999,
+            minHeight: '100vh',
+            height: '100vh',
+            padding: window.innerWidth <= 480 ? '10px' : '20px',
+            paddingTop: window.innerWidth <= 480 ? '50px' : '80px',
+            paddingBottom: window.innerWidth <= 480 ? '120px' : '140px',
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            WebkitOverflowScrolling: 'touch'
+          }}
           onClick={(e) => {
             // Close modal when clicking on backdrop
             if (e.target === e.currentTarget) {
@@ -1003,33 +1022,50 @@ const GameReview = () => {
             }
           }}
         >
-          <div className="relative max-w-4xl w-full max-h-[90vh] overflow-auto">
-            {/* Close button */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation(); // Prevent event bubbling
-                setShowEndCard(false);
-              }}
-              className="absolute top-4 right-4 z-[9999] bg-white bg-opacity-90 hover:bg-opacity-100 rounded-full p-2 shadow-lg transition-all duration-200 hover:scale-110 cursor-pointer"
-              style={{ pointerEvents: 'auto' }}
-            >
-              <svg className="w-6 h-6 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+          {/* Close button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowEndCard(false);
+            }}
+            style={{
+              position: 'fixed',
+              top: '20px',
+              right: '20px',
+              background: 'rgba(255, 255, 255, 0.9)',
+              border: 'none',
+              borderRadius: '50%',
+              width: '40px',
+              height: '40px',
+              fontSize: '24px',
+              cursor: 'pointer',
+              zIndex: 10000,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 1)';
+              e.currentTarget.style.transform = 'scale(1.1)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.9)';
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+          >
+            ×
+          </button>
 
-            {/* GameEndCard */}
-            <GameEndCard
-              result={gameHistory}
-              user={user || {}}
-              isAuthenticated={isAuthenticated}
-              playerColor={gameHistory.player_color === 'w' ? 'white' : 'black'}
-              score={gameHistory.final_score || 0}
-              opponentScore={gameHistory.opponent_score || 0}
-              isMultiplayer={gameHistory.game_mode === 'multiplayer'}
-              computerLevel={gameHistory.computer_level}
-            />
-          </div>
+          {/* GameEndCard - Same structure as GameCompletionAnimation */}
+          <GameEndCard
+            result={gameHistory}
+            user={user || {}}
+            isAuthenticated={isAuthenticated}
+            playerColor={gameHistory.player_color === 'w' ? 'white' : 'black'}
+            score={gameHistory.final_score || 0}
+            opponentScore={gameHistory.opponent_score || 0}
+            isMultiplayer={gameHistory.game_mode === 'multiplayer'}
+            computerLevel={gameHistory.computer_level}
+          />
         </div>
       )}
     </div>
