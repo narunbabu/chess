@@ -11,6 +11,47 @@ import GIF from 'gif.js';
 import GameEndCard from "./GameEndCard";
 import "./GameCompletionAnimation.css";
 
+// Helper function to wait for all images to fully load
+const waitForImagesToLoad = async (element) => {
+  console.log('⏳ Waiting for all images to load in GameCompletionAnimation...');
+
+  const images = Array.from(element.querySelectorAll('img'));
+  console.log(`📸 Found ${images.length} images to check`);
+
+  const imageLoadPromises = images.map((img, index) => {
+    return new Promise((resolve) => {
+      // Check if image is already loaded
+      if (img.complete && img.naturalHeight > 0) {
+        console.log(`✅ Image ${index + 1} already loaded`);
+        resolve();
+      } else {
+        console.log(`⏳ Waiting for image ${index + 1} to load...`);
+
+        // Wait for image to load
+        img.onload = () => {
+          console.log(`✅ Image ${index + 1} loaded successfully`);
+          resolve();
+        };
+
+        // Handle errors - resolve anyway to not block the process
+        img.onerror = () => {
+          console.warn(`⚠️ Image ${index + 1} failed to load, continuing anyway`);
+          resolve();
+        };
+
+        // Timeout after 5 seconds to prevent indefinite waiting
+        setTimeout(() => {
+          console.warn(`⏱️ Timeout waiting for image ${index + 1}, continuing anyway`);
+          resolve();
+        }, 5000);
+      }
+    });
+  });
+
+  await Promise.all(imageLoadPromises);
+  console.log('✅ All images loaded (or timed out) in GameCompletionAnimation');
+};
+
 // Helper function to convert all images within an element to data URLs
 // This robustly handles image loading for html2canvas capture.
 const convertImagesToDataURLs = async (element) => {
@@ -403,6 +444,9 @@ const GameCompletionAnimation = ({
 
       // Add share-mode class for styling
       cardElement.classList.add('share-mode');
+
+      // **CRITICAL FIX**: Wait for all images to fully load first
+      await waitForImagesToLoad(cardElement);
 
       // **CRITICAL FIX**: Convert all images to data URLs before capture
       // This ensures logos, avatars, and background images load properly
