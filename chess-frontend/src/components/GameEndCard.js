@@ -146,7 +146,9 @@ const GameEndCard = React.forwardRef(({
       name: playerIsWhite ? (user?.name || 'Player') : (isComputerGame ? `Computer Level ${effectiveComputerLevel || 8}` : (result.opponent_name || 'Opponent')),
       rating: playerIsWhite ? (user?.rating || 1200) : (isComputerGame ? (effectiveComputerLevel ? 1000 + (effectiveComputerLevel * 100) : 1800) : 1200),
       is_provisional: playerIsWhite ? (user?.is_provisional || false) : false,
-      avatar_url: playerIsWhite ? user?.avatar_url : (isComputerGame ? '🤖' : (result.white_player?.avatar || null)),
+      // Check multiple avatar field names from backend
+      avatar_url: playerIsWhite ? (user?.avatar_url || user?.avatar) : (isComputerGame ? '🤖' : (result.white_player?.avatar || result.white_player?.avatar_url || null)),
+      avatar: playerIsWhite ? (user?.avatar || user?.avatar_url) : (isComputerGame ? '🤖' : (result.white_player?.avatar || result.white_player?.avatar_url || null)),
       isComputer: playerIsWhite ? false : isComputerGame
     };
 
@@ -155,7 +157,9 @@ const GameEndCard = React.forwardRef(({
       name: !playerIsWhite ? (user?.name || 'Player') : (isComputerGame ? `Computer Level ${effectiveComputerLevel || 8}` : (result.opponent_name || 'Opponent')),
       rating: !playerIsWhite ? (user?.rating || 1200) : (isComputerGame ? (effectiveComputerLevel ? 1000 + (effectiveComputerLevel * 100) : 1800) : 1200),
       is_provisional: !playerIsWhite ? (user?.is_provisional || false) : false,
-      avatar_url: !playerIsWhite ? user?.avatar_url : (isComputerGame ? '🤖' : (result.black_player?.avatar || null)),
+      // Check multiple avatar field names from backend
+      avatar_url: !playerIsWhite ? (user?.avatar_url || user?.avatar) : (isComputerGame ? '🤖' : (result.black_player?.avatar || result.black_player?.avatar_url || null)),
+      avatar: !playerIsWhite ? (user?.avatar || user?.avatar_url) : (isComputerGame ? '🤖' : (result.black_player?.avatar || result.black_player?.avatar_url || null)),
       isComputer: !playerIsWhite ? false : isComputerGame
     };
 
@@ -345,13 +349,20 @@ const GameEndCard = React.forwardRef(({
       return null;
     }
 
-    // Check both avatar_url and avatar fields (backend sends as 'avatar')
-    const avatarUrl = player.avatar_url || player.avatar;
-    if (avatarUrl && avatarUrl.trim() !== '') {
+    // Check multiple avatar field names that might come from backend
+    // Priority: avatar_url > avatar > profile_image > photo_url
+    const avatarUrl = player.avatar_url || player.avatar || player.profile_image || player.photo_url;
+
+    // Check if avatar URL is valid (not empty, not null, not just whitespace)
+    if (avatarUrl && typeof avatarUrl === 'string' && avatarUrl.trim() !== '') {
+      // If it's a relative path, make it absolute
+      if (avatarUrl.startsWith('/')) {
+        return `${window.location.origin}${avatarUrl}`;
+      }
       return avatarUrl;
     }
 
-    // Fallback: create a data URL avatar instead of using external service
+    // Fallback: create a data URL avatar with initials
     const canvas = document.createElement('canvas');
     canvas.width = 128;
     canvas.height = 128;
@@ -381,8 +392,28 @@ const GameEndCard = React.forwardRef(({
     return canvas.toDataURL();
   };
 
+  // Calculate chess game scores: 1.0 for winner, 0.0 for loser, 0.5 for draw
+  const calculateGameScore = (isWinner, isDraw) => {
+    if (isDraw) return 0.5;
+    return isWinner ? 1.0 : 0.0;
+  };
+
   const PlayerCard = ({ player, isCurrentUser, color, score }) => {
     const avatarUrl = getAvatarUrl(player, color);
+
+    // For multiplayer games, use chess scoring if score is 0 or undefined
+    // Check if this is a multiplayer game by seeing if both players have IDs
+    const isMultiplayerGame = playersInfo.white_player.id && playersInfo.black_player.id && !playersInfo.white_player.isComputer && !playersInfo.black_player.isComputer;
+
+    let displayScore = score;
+    if (isMultiplayerGame && (score === 0 || score === undefined)) {
+      // Determine if this player is the winner
+      const isThisPlayerWhite = color === 'white';
+      const isThisPlayerWinner = (result.winner_player === 'white' && isThisPlayerWhite) ||
+                                  (result.winner_player === 'black' && !isThisPlayerWhite) ||
+                                  (isUserWhite === isThisPlayerWhite && isPlayerWin);
+      displayScore = calculateGameScore(isThisPlayerWinner, isDraw);
+    }
 
     return (
       <div className={`flex items-center gap-2 p-2 rounded-xl shadow-md transition-all duration-300 ${
@@ -430,7 +461,7 @@ const GameEndCard = React.forwardRef(({
       </div>
       <div className="text-center">
         <div className="text-xl font-bold text-gray-800">
-          {typeof score === 'number' ? score.toFixed(1) : '0.0'}
+          {typeof displayScore === 'number' ? displayScore.toFixed(1) : '0.0'}
         </div>
         <div className="text-xs text-gray-500 uppercase tracking-wide">Score</div>
       </div>
