@@ -104,18 +104,19 @@ jobs:
             systemctl is-active php8.3-fpm || echo "❌ PHP-FPM not running"
             systemctl is-active laravel-reverb || echo "⚠️  Reverb not running - WebSockets will not work"
 
-            # Verify CORS headers
+            # Verify CORS headers (non-blocking check)
             echo ""
             echo "🔍 Verifying CORS configuration..."
-            # Use a more robust check that doesn't fail the deployment if curl has issues
+            # Use a more robust check that doesn't fail the deployment
             CORS_CHECK=$(curl -s -I https://api.chess99.com/storage/ 2>/dev/null || echo "FAILED")
-            if echo "$CORS_CHECK" | grep -q "Access-Control-Allow-Origin"; then
+            # Use grep without -q and redirect to /dev/null to avoid exit code issues
+            if echo "$CORS_CHECK" | grep "Access-Control-Allow-Origin" > /dev/null 2>&1; then
               echo "✅ CORS headers are configured correctly!"
             elif [ "$CORS_CHECK" = "FAILED" ]; then
               echo "⚠️  Could not verify CORS headers - curl command failed, but deployment continues"
             else
               echo "⚠️  CORS headers not detected - avatars may not load in shared images"
-            fi
+            fi || true
 
             echo ""
             echo "✅ Deployment complete!"

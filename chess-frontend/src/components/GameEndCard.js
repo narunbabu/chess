@@ -522,16 +522,29 @@ const GameEndCard = React.forwardRef(({
     const avatarUrl = getAvatarUrl(player, color);
 
     // For multiplayer games, use chess scoring if score is 0 or undefined
-    // Check if this is a multiplayer game by seeing if both players have IDs
-    const isMultiplayerGame = playersInfo.white_player.id && playersInfo.black_player.id && !playersInfo.white_player.isComputer && !playersInfo.black_player.isComputer;
+    // Check using isMultiplayer prop and ensure neither player is a computer
+    const isMultiplayerGameCheck = isMultiplayer && !playersInfo.white_player.isComputer && !playersInfo.black_player.isComputer;
 
     let displayScore = score;
-    if (isMultiplayerGame && (score === 0 || score === undefined)) {
+    if (isMultiplayerGameCheck && (score === 0 || score === undefined || score === null)) {
       // Determine if this player is the winner
       const isThisPlayerWhite = color === 'white';
-      const isThisPlayerWinner = (result.winner_player === 'white' && isThisPlayerWhite) ||
-                                  (result.winner_player === 'black' && !isThisPlayerWhite) ||
-                                  (isUserWhite === isThisPlayerWhite && isPlayerWin);
+
+      // Check multiple winner indicators from the result object
+      let isThisPlayerWinner = false;
+      if (result.winner_player === 'white') {
+        isThisPlayerWinner = isThisPlayerWhite;
+      } else if (result.winner_player === 'black') {
+        isThisPlayerWinner = !isThisPlayerWhite;
+      } else if (result.winner_user_id) {
+        // Winner determined by user ID
+        const thisPlayerId = isThisPlayerWhite ? playersInfo.white_player.id : playersInfo.black_player.id;
+        isThisPlayerWinner = result.winner_user_id === thisPlayerId;
+      } else {
+        // Fallback: check if this card is for the user and the user won
+        isThisPlayerWinner = (isUserWhite === isThisPlayerWhite && isPlayerWin);
+      }
+
       displayScore = calculateGameScore(isThisPlayerWinner, isDraw);
     }
 
