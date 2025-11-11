@@ -229,6 +229,10 @@ const GameReview = () => {
             },
             white_time_remaining_ms: gameData.white_time_remaining_ms,
             black_time_remaining_ms: gameData.black_time_remaining_ms,
+            // **CRITICAL**: Pass full player objects with avatar data
+            white_player: gameData.white_player,
+            black_player: gameData.black_player,
+            winner_user_id: gameData.winner_user_id,
             // Add other fields as needed
             computer_level: 0
           };

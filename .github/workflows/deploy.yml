@@ -74,6 +74,25 @@ jobs:
             chown -R www-data:www-data /opt/Chess-Web/chess-backend/storage
             chown -R www-data:www-data /opt/Chess-Web/chess-backend/bootstrap/cache
 
+            # Update nginx configuration for CORS
+            echo "📝 Updating nginx configuration..."
+            cd /opt/Chess-Web
+            if [ -f nginx-api-fix.conf ]; then
+              # Backup current config
+              cp /etc/nginx/sites-available/api.chess99.com /etc/nginx/sites-available/api.chess99.com.backup-$(date +%Y%m%d-%H%M%S) || true
+              # Copy new config
+              cp nginx-api-fix.conf /etc/nginx/sites-available/api.chess99.com
+              # Test nginx config
+              if nginx -t 2>&1 | grep -q "successful"; then
+                echo "✅ Nginx configuration updated successfully"
+              else
+                echo "⚠️  Nginx configuration test failed, reverting..."
+                cp /etc/nginx/sites-available/api.chess99.com.backup-* /etc/nginx/sites-available/api.chess99.com || true
+              fi
+            else
+              echo "⚠️  nginx-api-fix.conf not found, skipping nginx config update"
+            fi
+
             # restart services
             systemctl restart php8.3-fpm || true
             systemctl reload nginx || true
@@ -85,4 +104,14 @@ jobs:
             systemctl is-active php8.3-fpm || echo "❌ PHP-FPM not running"
             systemctl is-active laravel-reverb || echo "⚠️  Reverb not running - WebSockets will not work"
 
+            # Verify CORS headers
+            echo ""
+            echo "🔍 Verifying CORS configuration..."
+            if curl -s -I https://api.chess99.com/storage/ 2>&1 | grep -q "Access-Control-Allow-Origin"; then
+              echo "✅ CORS headers are configured correctly!"
+            else
+              echo "⚠️  CORS headers not detected - avatars may not load in shared images"
+            fi
+
+            echo ""
             echo "✅ Deployment complete!"
