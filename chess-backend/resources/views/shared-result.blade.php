@@ -28,15 +28,6 @@
     <!-- WhatsApp specific (uses Open Graph) -->
     <meta property="og:image:alt" content="Chess game result">
 
-    @if (!$isCrawler)
-    <!-- Auto-redirect regular users to React app -->
-    <meta http-equiv="refresh" content="0; url={{ $frontendUrl }}/share/result/{{ $uniqueId }}">
-    <script>
-        // Instant redirect for non-crawler users
-        window.location.href = "{{ $frontendUrl }}/share/result/{{ $uniqueId }}";
-    </script>
-    @endif
-
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
@@ -110,10 +101,6 @@
         <a href="{{ $frontendUrl }}" class="cta-button">
             ♟️ Play Chess at Chess99.com
         </a>
-
-        @if (!$isCrawler)
-        <p class="loading">Redirecting to full experience...</p>
-        @endif
     </div>
 </body>
 </html>

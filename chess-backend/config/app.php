@@ -56,6 +56,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Share URL for Social Media
+    |--------------------------------------------------------------------------
+    |
+    | This URL is used for generating shareable links for social media.
+    | Typically this should be your main domain (e.g., https://chess99.com)
+    | rather than the API subdomain, for cleaner and more professional URLs.
+    |
+    */
+
+    'share_url' => env('SHARE_URL', env('APP_URL', 'http://localhost')),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

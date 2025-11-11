@@ -60,8 +60,8 @@ class SharedResultController extends Controller
                 'view_count' => 0,
             ]);
 
-            // Generate shareable URL - use BACKEND URL so crawlers get meta tags
-            $shareUrl = config('app.url') . '/share/result/' . $uniqueId;
+            // Generate shareable URL - use main domain (chess99.com) for cleaner URLs
+            $shareUrl = config('app.share_url', config('app.url')) . '/share/result/' . $uniqueId;
 
             Log::info('Game result shared', [
                 'unique_id' => $uniqueId,
@@ -73,7 +73,7 @@ class SharedResultController extends Controller
                 'success' => true,
                 'share_url' => $shareUrl,
                 'unique_id' => $uniqueId,
-                'image_url' => config('app.url') . '/storage/' . $path,
+                'image_url' => config('app.share_url', config('app.url')) . '/storage/' . $path,
             ]);
 
         } catch (\Exception $e) {
@@ -101,7 +101,7 @@ class SharedResultController extends Controller
             $sharedResult->increment('view_count');
 
             // Get full image URL
-            $imageUrl = config('app.url') . '/storage/' . $sharedResult->image_path;
+            $imageUrl = config('app.share_url', config('app.url')) . '/storage/' . $sharedResult->image_path;
 
             return response()->json([
                 'success' => true,
@@ -135,7 +135,7 @@ class SharedResultController extends Controller
         try {
             $sharedResult = SharedResult::where('unique_id', $uniqueId)->firstOrFail();
 
-            $imageUrl = config('app.url') . '/storage/' . $sharedResult->image_path;
+            $imageUrl = config('app.share_url', config('app.url')) . '/storage/' . $sharedResult->image_path;
             $resultData = json_decode($sharedResult->result_data, true);
 
             // Generate title and description from result data
@@ -159,7 +159,7 @@ class SharedResultController extends Controller
                     'og:title' => $title,
                     'og:description' => $description,
                     'og:image' => $imageUrl,
-                    'og:url' => config('app.frontend_url') . '/share/result/' . $uniqueId,
+                    'og:url' => config('app.share_url', config('app.frontend_url')) . '/share/result/' . $uniqueId,
                     'og:type' => 'website',
                     'og:site_name' => 'Chess99.com',
                     'twitter:card' => 'summary_large_image',
@@ -188,7 +188,7 @@ class SharedResultController extends Controller
             // Increment view count
             $sharedResult->increment('view_count');
 
-            $imageUrl = config('app.url') . '/storage/' . $sharedResult->image_path;
+            $imageUrl = config('app.share_url', config('app.url')) . '/storage/' . $sharedResult->image_path;
             $resultData = json_decode($sharedResult->result_data, true);
 
             // Generate title and description from result data
@@ -206,7 +206,7 @@ class SharedResultController extends Controller
                 }
             }
 
-            $shareUrl = config('app.frontend_url') . '/share/result/' . $uniqueId;
+            $shareUrl = config('app.share_url', config('app.frontend_url')) . '/share/result/' . $uniqueId;
 
             // Detect if request is from a crawler/bot
             $userAgent = request()->header('User-Agent', '');
