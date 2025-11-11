@@ -16,6 +16,7 @@ const SHARE_URLS = {
 // Helper function to convert all images within an element to data URLs
 // This robustly handles image loading for html2canvas capture.
 const convertImagesToDataURLs = async (element) => {
+  // Handle <img> tags
   const images = Array.from(element.querySelectorAll('img'));
   await Promise.all(
     images.map(async (img) => {
@@ -23,7 +24,7 @@ const convertImagesToDataURLs = async (element) => {
       if (img.src.startsWith('data:')) return;
 
       try {
-        const response = await fetch(img.src);
+        const response = await fetch(img.src, { mode: 'cors' });
         if (!response.ok) {
           throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
         }
@@ -37,6 +38,52 @@ const convertImagesToDataURLs = async (element) => {
         img.src = dataUrl;
       } catch (error) {
         console.error(`Could not convert image ${img.src} to data URL:`, error);
+      }
+    })
+  );
+
+  // Handle CSS background-image properties (for backgrounds, etc.)
+  const allElements = Array.from(element.querySelectorAll('*'));
+  allElements.push(element); // Include the root element itself
+
+  await Promise.all(
+    allElements.map(async (el) => {
+      const bgImage = window.getComputedStyle(el).backgroundImage;
+
+      // Check if there's a background-image and it's a URL (not 'none' or gradient)
+      if (bgImage && bgImage !== 'none' && bgImage.includes('url(')) {
+        // Extract URL from background-image (handles multiple backgrounds)
+        const urlMatches = bgImage.match(/url\(["']?([^"')]+)["']?\)/g);
+
+        if (urlMatches) {
+          for (const urlMatch of urlMatches) {
+            const url = urlMatch.match(/url\(["']?([^"')]+)["']?\)/)[1];
+
+            // Skip if already a data URL
+            if (url.startsWith('data:')) continue;
+
+            try {
+              const response = await fetch(url, { mode: 'cors' });
+              if (!response.ok) {
+                throw new Error(`Failed to fetch background image: ${response.status} ${response.statusText}`);
+              }
+              const blob = await response.blob();
+              const dataUrl = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+              });
+
+              // Replace the URL in the background-image with the data URL
+              const newBgImage = bgImage.replace(url, dataUrl);
+              el.style.backgroundImage = newBgImage;
+            } catch (error) {
+              console.error(`Could not convert background image ${url} to data URL:`, error);
+              // We continue even if one image fails
+            }
+          }
+        }
       }
     })
   );
@@ -485,12 +532,27 @@ const GameEndCard = React.forwardRef(({
       // A small delay for the DOM to update with new image sources
       await new Promise(resolve => setTimeout(resolve, 200));
 
-      // Capture the card as canvas
+      // Capture the card as canvas with improved configuration
       const canvas = await html2canvas(cardElement, {
         backgroundColor: '#ffffff',
         scale: 2, // Higher quality
-        logging: false,
-        useCORS: true,
+        useCORS: true, // Enable CORS for cross-origin images
+        allowTaint: false, // Don't allow tainted canvas (required for CORS)
+        logging: true, // Enable logging for debugging
+        foreignObjectRendering: false, // Disable foreign object rendering for better compatibility
+        removeContainer: true, // Remove the temporary container after rendering
+        imageTimeout: 15000, // Increase timeout for image loading (15 seconds)
+        onclone: (clonedDoc) => {
+          console.log('📋 Document cloned in GameEndCard, preparing for capture...');
+          const clonedImages = clonedDoc.querySelectorAll('img');
+          clonedImages.forEach((img, idx) => {
+            if (img.src && img.src.startsWith('data:')) {
+              console.log(`✅ Cloned image ${idx + 1} is using data URL`);
+            } else {
+              console.warn(`⚠️ Cloned image ${idx + 1} is NOT using data URL: ${img.src.substring(0, 50)}`);
+            }
+          });
+        }
       });
 
       // Remove the temporary class after capture

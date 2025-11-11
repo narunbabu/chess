@@ -13,15 +13,23 @@ import { uploadGameResultImage } from "../services/sharedResultService";
 // Helper function to convert all images within an element to data URLs
 // This robustly handles image loading for html2canvas capture.
 const convertImagesToDataURLs = async (element) => {
+  console.log('🔄 Converting images to data URLs...');
+
   // Handle <img> tags
   const images = Array.from(element.querySelectorAll('img'));
+  console.log(`📸 Found ${images.length} <img> tags to convert`);
+
   await Promise.all(
-    images.map(async (img) => {
+    images.map(async (img, index) => {
       // Don't re-convert if it's already a data URL
-      if (img.src.startsWith('data:')) return;
+      if (img.src.startsWith('data:')) {
+        console.log(`✅ Image ${index + 1} already a data URL`);
+        return;
+      }
 
       try {
-        const response = await fetch(img.src);
+        console.log(`🔄 Converting image ${index + 1}: ${img.src.substring(0, 50)}...`);
+        const response = await fetch(img.src, { mode: 'cors', credentials: 'same-origin' });
         if (!response.ok) {
           throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
         }
@@ -33,8 +41,9 @@ const convertImagesToDataURLs = async (element) => {
           reader.readAsDataURL(blob);
         });
         img.src = dataUrl;
+        console.log(`✅ Image ${index + 1} converted successfully`);
       } catch (error) {
-        console.error(`Could not convert image ${img.src} to data URL:`, error);
+        console.error(`❌ Could not convert image ${index + 1} (${img.src}) to data URL:`, error);
         // We continue even if one image fails, so the capture process doesn't halt.
       }
     })
@@ -44,12 +53,14 @@ const convertImagesToDataURLs = async (element) => {
   const allElements = Array.from(element.querySelectorAll('*'));
   allElements.push(element); // Include the root element itself
 
+  let bgImageCount = 0;
   await Promise.all(
-    allElements.map(async (el) => {
+    allElements.map(async (el, elIndex) => {
       const bgImage = window.getComputedStyle(el).backgroundImage;
 
       // Check if there's a background-image and it's a URL (not 'none' or gradient)
       if (bgImage && bgImage !== 'none' && bgImage.includes('url(')) {
+        bgImageCount++;
         // Extract URL from background-image (handles multiple backgrounds)
         const urlMatches = bgImage.match(/url\(["']?([^"')]+)["']?\)/g);
 
@@ -58,10 +69,14 @@ const convertImagesToDataURLs = async (element) => {
             const url = urlMatch.match(/url\(["']?([^"')]+)["']?\)/)[1];
 
             // Skip if already a data URL
-            if (url.startsWith('data:')) continue;
+            if (url.startsWith('data:')) {
+              console.log(`✅ Background image already a data URL on element ${elIndex}`);
+              continue;
+            }
 
             try {
-              const response = await fetch(url);
+              console.log(`🔄 Converting background image: ${url.substring(0, 50)}...`);
+              const response = await fetch(url, { mode: 'cors', credentials: 'same-origin' });
               if (!response.ok) {
                 throw new Error(`Failed to fetch background image: ${response.status} ${response.statusText}`);
               }
@@ -76,8 +91,9 @@ const convertImagesToDataURLs = async (element) => {
               // Replace the URL in the background-image with the data URL
               const newBgImage = bgImage.replace(url, dataUrl);
               el.style.backgroundImage = newBgImage;
+              console.log(`✅ Background image converted successfully on element ${elIndex}`);
             } catch (error) {
-              console.error(`Could not convert background image ${url} to data URL:`, error);
+              console.error(`❌ Could not convert background image ${url} to data URL on element ${elIndex}:`, error);
               // We continue even if one image fails
             }
           }
@@ -85,6 +101,8 @@ const convertImagesToDataURLs = async (element) => {
       }
     })
   );
+
+  console.log(`✅ Image conversion complete. Found ${bgImageCount} background images.`);
 };
 
 
@@ -548,9 +566,25 @@ const GameReview = () => {
       const canvas = await html2canvas(cardElement, {
         backgroundColor: '#ffffff',
         scale: 2, // Higher quality
-        useCORS: true,
-        allowTaint: false,
-        logging: false
+        useCORS: true, // Enable CORS for cross-origin images
+        allowTaint: false, // Don't allow tainted canvas (required for CORS)
+        logging: true, // Enable logging for debugging in production
+        foreignObjectRendering: false, // Disable foreign object rendering for better compatibility
+        removeContainer: true, // Remove the temporary container after rendering
+        imageTimeout: 15000, // Increase timeout for image loading (15 seconds)
+        onclone: (clonedDoc) => {
+          // This function is called with the cloned document before rendering
+          console.log('📋 Document cloned, preparing for capture...');
+          // Ensure all images are visible in the cloned document
+          const clonedImages = clonedDoc.querySelectorAll('img');
+          clonedImages.forEach((img, idx) => {
+            if (img.src && img.src.startsWith('data:')) {
+              console.log(`✅ Cloned image ${idx + 1} is using data URL`);
+            } else {
+              console.warn(`⚠️ Cloned image ${idx + 1} is NOT using data URL: ${img.src.substring(0, 50)}`);
+            }
+          });
+        }
       });
       console.log('✅ Canvas created:', canvas.width, 'x', canvas.height);
 
