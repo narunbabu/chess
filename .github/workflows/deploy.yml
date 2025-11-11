@@ -89,16 +89,30 @@ jobs:
             # Clean npm cache if needed
             npm cache clean --force || true
 
-            # Install dependencies
+            # Remove corrupted lock file and reinstall fresh
             echo "📦 Installing npm dependencies..."
-            npm ci || npm install || {
-              echo "⚠️  npm install encountered issues, but continuing..."
+            if [ -f package-lock.json ]; then
+              echo "🗑️  Removing old package-lock.json..."
+              rm package-lock.json
+            fi
+
+            # Fresh install with new lock file
+            npm install || {
+              echo "❌ npm install failed - this is critical!"
+              exit 1
             }
 
-            # Try to fix npm vulnerabilities (non-blocking)
+            # Verify react-scripts is installed
+            if ! command -v react-scripts &> /dev/null && ! [ -f node_modules/.bin/react-scripts ]; then
+              echo "❌ react-scripts not found after install - critical error!"
+              exit 1
+            fi
+            echo "✅ Dependencies installed successfully"
+
+            # Check for vulnerabilities (informational only, don't fix)
             echo "🔒 Checking npm security..."
-            npm audit fix --force || {
-              echo "ℹ️  Some npm vulnerabilities could not be auto-fixed"
+            npm audit || {
+              echo "ℹ️  Some npm vulnerabilities detected (informational only)"
             }
 
             # Build with improved error handling and source map suppression
@@ -108,6 +122,9 @@ jobs:
             export GENERATE_SOURCEMAP=false  # Suppress source map warnings
             npm run build || {
               echo "❌ Build failed - this is critical!"
+              echo "📋 Checking if react-scripts is available..."
+              which react-scripts || echo "react-scripts not in PATH"
+              ls -la node_modules/.bin/react-scripts || echo "react-scripts not in node_modules"
               exit 1  # This is a critical failure
             }
 

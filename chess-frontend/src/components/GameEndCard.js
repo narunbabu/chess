@@ -544,7 +544,7 @@ const GameEndCard = React.forwardRef(({
         isThisPlayerWinner = result.winner_user_id === thisPlayerId;
       } else {
         // Fallback: check if this card is for the user and the user won
-        isThisPlayerWinner = (isUserWhite === isThisPlayerWhite && isPlayerWin);
+        isThisPlayerWinner = (isCurrentUser && isPlayerWin);
       }
 
       displayScore = calculateGameScore(isThisPlayerWinner, isDraw);
