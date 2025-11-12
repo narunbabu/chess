@@ -249,8 +249,7 @@ const GameEndCard = React.forwardRef(({
     // Handle cases where white_player and black_player might not exist
     // For computer games: use !isMultiplayer as primary check, with result.game_mode as fallback
     const isComputerGame = !isMultiplayer || result.game_mode === 'computer' || result.game_mode === 'local_ai';
-    // Fix: Use playerColor prop (which can be 'white'/'black' or 'w'/'b') instead of result.player_color
-    const playerIsWhite = playerColor === 'w' || playerColor === 'white' || playerColor?.toLowerCase() === 'white';
+    const playerIsWhite = result.player_color === 'w' || playerColor === 'white' || playerColor?.toLowerCase() === 'white';
 
     // Use the provided computerLevel if available, otherwise fall back to result.computer_level
     const effectiveComputerLevel = computerLevel !== undefined ? computerLevel : result.computer_level;
@@ -891,25 +890,72 @@ const handleShare = async () => {
 
         {/* Players section */}
         <div className="space-y-2 mb-4">
-          <PlayerCard
-            player={playersInfo.white_player}
-            isCurrentUser={playersInfo.hasUser && playersInfo.isUserWhite}
-            color="white"
-            score={playersInfo.isUserWhite ? (score !== undefined ? score : (result.final_score || result.finalScore || 0)) : (opponentScore !== undefined ? opponentScore : (result.opponent_score || 0))}
-          />
+          {(() => {
+            // FIX: Determine who is "You" based on victory/defeat, not just color assignment
+            // Determine who the winner is (white or black)
+            let whiteIsWinner = false;
+            if (result.winner_player === 'white') {
+              whiteIsWinner = true;
+            } else if (result.winner_player === 'black') {
+              whiteIsWinner = false;
+            } else if (result.player_color === 'w' && (result.winner === 'player' || result.result?.winner === 'player')) {
+              // Player is white and won
+              whiteIsWinner = true;
+            } else if (result.player_color === 'b' && (result.winner === 'player' || result.result?.winner === 'player')) {
+              // Player is black and won
+              whiteIsWinner = false;
+            } else {
+              // Fallback: use isPlayerWin and playerColor
+              // If isPlayerWin, then current user (userPlayer) is the winner
+              // userPlayer is white if isUserWhite, so whiteIsWinner = isPlayerWin && isUserWhite
+              whiteIsWinner = isPlayerWin ? playersInfo.isUserWhite : playersInfo.isUserBlack;
+            }
 
-          <div className="text-center">
-            <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-sky-100 text-sky-600 font-bold text-lg shadow-md">
-              VS
-            </div>
-          </div>
+            // Determine who is "You" based on victory/defeat
+            // If Victory (isPlayerWin), current user is the winner
+            // If Defeat (!isPlayerWin), current user is the loser
+            let whiteIsCurrentUser, blackIsCurrentUser;
+            if (isDraw) {
+              // In a draw, both players could be "You" if it's a local game
+              // But typically, use the original color-based logic
+              whiteIsCurrentUser = playersInfo.hasUser && playersInfo.isUserWhite;
+              blackIsCurrentUser = playersInfo.hasUser && playersInfo.isUserBlack;
+            } else {
+              if (isPlayerWin) {
+                // Victory: current user is the winner
+                whiteIsCurrentUser = playersInfo.hasUser && whiteIsWinner;
+                blackIsCurrentUser = playersInfo.hasUser && !whiteIsWinner;
+              } else {
+                // Defeat: current user is the loser
+                whiteIsCurrentUser = playersInfo.hasUser && !whiteIsWinner;
+                blackIsCurrentUser = playersInfo.hasUser && whiteIsWinner;
+              }
+            }
 
-          <PlayerCard
-            player={playersInfo.black_player}
-            isCurrentUser={playersInfo.hasUser && playersInfo.isUserBlack}
-            color="black"
-            score={playersInfo.isUserBlack ? (score !== undefined ? score : (result.final_score || result.finalScore || 0)) : (opponentScore !== undefined ? opponentScore : (result.opponent_score || 0))}
-          />
+            return (
+              <>
+                <PlayerCard
+                  player={playersInfo.white_player}
+                  isCurrentUser={whiteIsCurrentUser}
+                  color="white"
+                  score={playersInfo.isUserWhite ? (score !== undefined ? score : (result.final_score || result.finalScore || 0)) : (opponentScore !== undefined ? opponentScore : (result.opponent_score || 0))}
+                />
+
+                <div className="text-center">
+                  <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-sky-100 text-sky-600 font-bold text-lg shadow-md">
+                    VS
+                  </div>
+                </div>
+
+                <PlayerCard
+                  player={playersInfo.black_player}
+                  isCurrentUser={blackIsCurrentUser}
+                  color="black"
+                  score={playersInfo.isUserBlack ? (score !== undefined ? score : (result.final_score || result.finalScore || 0)) : (opponentScore !== undefined ? opponentScore : (result.opponent_score || 0))}
+                />
+              </>
+            );
+          })()}
         </div>
 
 
