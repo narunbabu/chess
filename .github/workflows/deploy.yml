@@ -102,14 +102,35 @@ jobs:
               [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
               nvm use 20 || nvm install 20
 
-              # Check if pnpm is available, otherwise use npm
+              # Enable pnpm if available (check after NVM is loaded)
               if command -v pnpm &> /dev/null; then
                 echo "📦 Using pnpm for package management..."
                 PKG_MANAGER="pnpm"
+              elif command -v npm &> /dev/null; then
+                # Try to enable pnpm via corepack (Node 16.10+)
+                echo "🔍 Checking for pnpm via corepack..."
+                if corepack enable 2>/dev/null && command -v pnpm &> /dev/null; then
+                  echo "📦 pnpm enabled via corepack"
+                  PKG_MANAGER="pnpm"
+                else
+                  # Check if pnpm exists in npm global directory
+                  NPM_GLOBAL_BIN=$(npm config get prefix 2>/dev/null)/bin
+                  if [ -f "$NPM_GLOBAL_BIN/pnpm" ]; then
+                    export PATH="$NPM_GLOBAL_BIN:$PATH"
+                    echo "📦 pnpm found in npm global directory"
+                    PKG_MANAGER="pnpm"
+                  else
+                    echo "📦 Using npm for package management..."
+                    PKG_MANAGER="npm"
+                  fi
+                fi
               else
-                echo "📦 Using npm for package management..."
-                PKG_MANAGER="npm"
+                echo "❌ No package manager found!"
+                exit 1
               fi
+
+              # Verify package manager is working
+              echo "ℹ️  Package manager: $PKG_MANAGER ($(which $PKG_MANAGER))"
 
               # Install dependencies
               echo "📦 Installing dependencies with $PKG_MANAGER..."
