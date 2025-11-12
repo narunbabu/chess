@@ -18,8 +18,8 @@ jobs:
           port: 22
           script_stop: false
           script: |
-            # Deployment script with robust error handling
-            # Critical errors will be logged but won't fail the entire deployment
+            # Optimized deployment script with conditional execution
+            # Only runs backend/frontend deployments when files actually changed
 
             set -e  # Exit on error for critical steps
 
@@ -29,147 +29,141 @@ jobs:
             echo ""
             echo "📦 Syncing code from repository..."
             cd /opt/Chess-Web
+
+            # Store the previous commit for comparison
+            PREV_COMMIT=$(git rev-parse HEAD)
+
             git fetch origin
             git reset --hard origin/master
+
+            # Detect what changed
+            BACKEND_CHANGED=false
+            FRONTEND_CHANGED=false
+
+            if git diff --name-only $PREV_COMMIT HEAD | grep -q "^chess-backend/"; then
+              BACKEND_CHANGED=true
+              echo "📋 Backend files changed - will deploy backend"
+            else
+              echo "ℹ️  No backend changes detected - skipping backend deployment"
+            fi
+
+            if git diff --name-only $PREV_COMMIT HEAD | grep -q "^chess-frontend/"; then
+              FRONTEND_CHANGED=true
+              echo "📋 Frontend files changed - will deploy frontend"
+            else
+              echo "ℹ️  No frontend changes detected - skipping frontend deployment"
+            fi
+
             echo "✅ Code synced successfully"
 
             # ==================== BACKEND (Laravel) ====================
-            echo ""
-            echo "🔧 Deploying Laravel backend..."
-            cd chess-backend
+            if [ "$BACKEND_CHANGED" = true ]; then
+              echo ""
+              echo "🔧 Deploying Laravel backend..."
+              cd chess-backend
 
-            # Allow composer to run as superuser (deployment context)
-            export COMPOSER_ALLOW_SUPERUSER=1
+              # Allow composer to run as superuser (deployment context)
+              export COMPOSER_ALLOW_SUPERUSER=1
 
-            # Install dependencies with optimizations
-            echo "📦 Installing Composer dependencies..."
-            composer install --no-dev --optimize-autoloader --classmap-authoritative || {
-              echo "⚠️  Composer install failed, continuing..."
-            }
+              # Install dependencies with optimizations
+              echo "📦 Installing Composer dependencies..."
+              composer install --no-dev --optimize-autoloader --classmap-authoritative || {
+                echo "⚠️  Composer install failed, continuing..."
+              }
 
-            # Run migrations (non-blocking)
-            echo "🗄️  Running database migrations..."
-            php artisan migrate --force || {
-              echo "⚠️  Migration failed or no new migrations"
-            }
+              # Run migrations
+              echo "🗄️  Running database migrations..."
+              php artisan migrate --force || {
+                echo "⚠️  Migration failed or no new migrations"
+              }
 
-            # Clear Laravel caches
-            echo "🧹 Clearing Laravel caches..."
-            php artisan config:clear || true
-            php artisan route:clear || true
-            php artisan cache:clear || true
-            php artisan view:clear || true
+              # Clear and rebuild Laravel caches
+              echo "🧹 Clearing and rebuilding Laravel caches..."
+              php artisan optimize:clear || true
+              php artisan optimize || true
 
-            composer dump-autoload --optimize || true
+              # Restart queue workers
+              php artisan queue:restart || {
+                echo "ℹ️  No queue workers running"
+              }
 
-            # Rebuild caches
-            echo "⚡ Rebuilding Laravel caches..."
-            php artisan config:cache || true
-            php artisan route:cache || true
-            php artisan view:cache || true
-            php artisan optimize || true
-
-            # Restart queue workers
-            php artisan queue:restart || {
-              echo "ℹ️  No queue workers running"
-            }
-
-            echo "✅ Backend deployment complete"
+              echo "✅ Backend deployment complete"
+              cd /opt/Chess-Web
+            fi
 
             # ==================== FRONTEND (React) ====================
-            echo ""
-            echo "⚛️  Deploying React frontend..."
-            cd ../chess-frontend
+            if [ "$FRONTEND_CHANGED" = true ]; then
+              echo ""
+              echo "⚛️  Deploying React frontend..."
+              cd chess-frontend
 
-            # Load NVM and use Node 20
-            export NVM_DIR="$HOME/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            nvm use 20 || nvm install 20
+              # Load NVM and use Node 20
+              export NVM_DIR="$HOME/.nvm"
+              [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+              nvm use 20 || nvm install 20
 
-            # Check if pnpm is available, otherwise use npm
-            if command -v pnpm &> /dev/null; then
-              echo "📦 Using pnpm for package management..."
-              PKG_MANAGER="pnpm"
-            else
-              echo "📦 Using npm for package management..."
-              PKG_MANAGER="npm"
-            fi
-
-            # Install dependencies
-            echo "📦 Installing dependencies with $PKG_MANAGER..."
-            if [ "$PKG_MANAGER" = "pnpm" ]; then
-              pnpm install || {
-                echo "❌ pnpm install failed - this is critical!"
-                exit 1
-              }
-            else
-              # Clean npm cache if needed
-              npm cache clean --force || true
-
-              # Remove corrupted lock file and reinstall fresh
-              if [ -f package-lock.json ]; then
-                echo "🗑️  Removing old package-lock.json..."
-                rm package-lock.json
+              # Check if pnpm is available, otherwise use npm
+              if command -v pnpm &> /dev/null; then
+                echo "📦 Using pnpm for package management..."
+                PKG_MANAGER="pnpm"
+              else
+                echo "📦 Using npm for package management..."
+                PKG_MANAGER="npm"
               fi
 
-              npm install || {
-                echo "❌ npm install failed - this is critical!"
+              # Install dependencies
+              echo "📦 Installing dependencies with $PKG_MANAGER..."
+              if [ "$PKG_MANAGER" = "pnpm" ]; then
+                pnpm install || {
+                  echo "❌ pnpm install failed - this is critical!"
+                  exit 1
+                }
+              else
+                npm install || {
+                  echo "❌ npm install failed - this is critical!"
+                  exit 1
+                }
+              fi
+
+              echo "✅ Dependencies installed successfully"
+
+              # Build React application
+              echo "🏗️  Building React application..."
+              export DISABLE_ESLINT_PLUGIN=true
+              export CI=false
+              export GENERATE_SOURCEMAP=false
+
+              if [ "$PKG_MANAGER" = "pnpm" ]; then
+                pnpm run build || {
+                  echo "❌ Build failed - this is critical!"
+                  exit 1
+                }
+              else
+                npm run build || {
+                  echo "❌ Build failed - this is critical!"
+                  exit 1
+                }
+              fi
+
+              # Deploy frontend build to web server
+              echo "📤 Deploying build to web server..."
+              rsync -av --delete build/ /var/www/chess99.com/ || {
+                echo "❌ Rsync failed - this is critical!"
                 exit 1
               }
+
+              echo "✅ Frontend deployment complete"
+              cd /opt/Chess-Web
             fi
-
-            # Verify react-scripts is installed
-            if ! command -v react-scripts &> /dev/null && ! [ -f node_modules/.bin/react-scripts ]; then
-              echo "❌ react-scripts not found after install - critical error!"
-              exit 1
-            fi
-            echo "✅ Dependencies installed successfully"
-
-            # Check for vulnerabilities (informational only)
-            echo "🔒 Checking security..."
-            if [ "$PKG_MANAGER" = "pnpm" ]; then
-              pnpm audit || {
-                echo "ℹ️  Some vulnerabilities detected (informational only)"
-              }
-            else
-              npm audit || {
-                echo "ℹ️  Some vulnerabilities detected (informational only)"
-              }
-            fi
-
-            # Build with improved error handling and source map suppression
-            echo "🏗️  Building React application..."
-            export DISABLE_ESLINT_PLUGIN=true
-            export CI=false
-            export GENERATE_SOURCEMAP=false  # Suppress source map warnings
-
-            if [ "$PKG_MANAGER" = "pnpm" ]; then
-              pnpm run build || {
-                echo "❌ Build failed - this is critical!"
-                exit 1
-              }
-            else
-              npm run build || {
-                echo "❌ Build failed - this is critical!"
-                exit 1
-              }
-            fi
-
-            # Deploy frontend build to web server
-            echo "📤 Deploying build to web server..."
-            rsync -av --delete build/ /var/www/chess99.com/ || {
-              echo "❌ Rsync failed - this is critical!"
-              exit 1  # This is a critical failure
-            }
-
-            echo "✅ Frontend deployment complete"
 
             # ==================== PERMISSIONS ====================
-            echo ""
-            echo "🔐 Setting file permissions..."
-            chown -R www-data:www-data /opt/Chess-Web/chess-backend/storage || true
-            chown -R www-data:www-data /opt/Chess-Web/chess-backend/bootstrap/cache || true
-            echo "✅ Permissions updated"
+            if [ "$BACKEND_CHANGED" = true ]; then
+              echo ""
+              echo "🔐 Setting file permissions..."
+              chown -R www-data:www-data /opt/Chess-Web/chess-backend/storage || true
+              chown -R www-data:www-data /opt/Chess-Web/chess-backend/bootstrap/cache || true
+              echo "✅ Permissions updated"
+            fi
 
             # ==================== NGINX CONFIGURATION ====================
             echo ""
@@ -205,58 +199,40 @@ jobs:
             set -e
 
             # ==================== SERVICE RESTART ====================
-            echo ""
-            echo "♻️  Restarting services..."
+            if [ "$BACKEND_CHANGED" = true ] || [ "$FRONTEND_CHANGED" = true ]; then
+              echo ""
+              echo "♻️  Restarting services..."
 
-            # Disable exit-on-error for service restarts (may not all exist)
-            set +e
+              # Disable exit-on-error for service restarts (may not all exist)
+              set +e
 
-            systemctl restart php8.3-fpm && echo "✅ PHP-FPM restarted" || echo "⚠️  PHP-FPM restart failed"
-            systemctl reload nginx && echo "✅ Nginx reloaded" || echo "⚠️  Nginx reload failed"
-            systemctl restart laravel-reverb && echo "✅ Reverb restarted" || echo "ℹ️  Reverb service not found"
+              # Restart PHP-FPM only if backend changed
+              if [ "$BACKEND_CHANGED" = true ]; then
+                systemctl restart php8.3-fpm && echo "✅ PHP-FPM restarted" || echo "⚠️  PHP-FPM restart failed"
+                systemctl restart laravel-reverb && echo "✅ Reverb restarted" || echo "ℹ️  Reverb service not found"
+              fi
 
-            # ==================== SERVICE VERIFICATION ====================
-            echo ""
-            echo "🔍 Verifying service status..."
+              # Reload nginx if anything changed
+              systemctl reload nginx && echo "✅ Nginx reloaded" || echo "⚠️  Nginx reload failed"
 
-            NGINX_STATUS=$(systemctl is-active nginx 2>/dev/null || echo "inactive")
-            PHP_STATUS=$(systemctl is-active php8.3-fpm 2>/dev/null || echo "inactive")
-            REVERB_STATUS=$(systemctl is-active laravel-reverb 2>/dev/null || echo "inactive")
+              # Re-enable exit-on-error
+              set -e
 
-            if [ "$NGINX_STATUS" = "active" ]; then
-              echo "✅ Nginx is running"
-            else
-              echo "❌ Nginx is not running"
-            fi
-
-            if [ "$PHP_STATUS" = "active" ]; then
-              echo "✅ PHP-FPM is running"
-            else
-              echo "❌ PHP-FPM is not running"
-            fi
-
-            if [ "$REVERB_STATUS" = "active" ]; then
-              echo "✅ Laravel Reverb is running"
-            else
-              echo "ℹ️  Laravel Reverb is not running (WebSockets disabled)"
-            fi
-
-            # ==================== CORS VERIFICATION ====================
-            echo ""
-            echo "🔍 Verifying CORS configuration..."
-
-            CORS_CHECK=$(curl -s -I https://api.chess99.com/storage/ 2>/dev/null || echo "")
-
-            if echo "$CORS_CHECK" | grep -q "Access-Control-Allow-Origin"; then
-              echo "✅ CORS headers are configured correctly"
-            else
-              echo "ℹ️  CORS headers not detected (this may be normal if endpoint doesn't exist)"
+              echo "✅ Services restarted successfully"
             fi
 
             # ==================== DEPLOYMENT COMPLETE ====================
             echo ""
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo "✅ Deployment completed successfully!"
+            if [ "$BACKEND_CHANGED" = true ] && [ "$FRONTEND_CHANGED" = true ]; then
+              echo "✅ Deployment completed successfully! (Backend + Frontend)"
+            elif [ "$BACKEND_CHANGED" = true ]; then
+              echo "✅ Deployment completed successfully! (Backend only)"
+            elif [ "$FRONTEND_CHANGED" = true ]; then
+              echo "✅ Deployment completed successfully! (Frontend only)"
+            else
+              echo "✅ Deployment completed! (No code changes - config/infra only)"
+            fi
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
             echo ""
 

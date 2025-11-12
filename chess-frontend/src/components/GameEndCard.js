@@ -249,7 +249,8 @@ const GameEndCard = React.forwardRef(({
     // Handle cases where white_player and black_player might not exist
     // For computer games: use !isMultiplayer as primary check, with result.game_mode as fallback
     const isComputerGame = !isMultiplayer || result.game_mode === 'computer' || result.game_mode === 'local_ai';
-    const playerIsWhite = result.player_color === 'w';
+    // Fix: Use playerColor prop (which can be 'white'/'black' or 'w'/'b') instead of result.player_color
+    const playerIsWhite = playerColor === 'w' || playerColor === 'white' || playerColor?.toLowerCase() === 'white';
 
     // Use the provided computerLevel if available, otherwise fall back to result.computer_level
     const effectiveComputerLevel = computerLevel !== undefined ? computerLevel : result.computer_level;
