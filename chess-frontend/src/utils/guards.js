@@ -1,5 +1,5 @@
 import React from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useFeatureFlags } from '../contexts/FeatureFlagsContext';
 import AuthGateModal from '../components/layout/AuthGateModal';
@@ -32,6 +32,7 @@ function AuthGuard({ element, reason }) {
   const { isAuthenticated, loading } = useAuth();
   const { isEnabled } = useFeatureFlags();
   const location = useLocation();
+  const navigate = useNavigate();
 
   // Check if auth gates are enabled
   const authGatesEnabled = isEnabled('AUTH_GATES');
@@ -56,7 +57,7 @@ function AuthGuard({ element, reason }) {
   // If not authenticated, show auth gate modal
   if (!isAuthenticated) {
     const returnTo = location.pathname + location.search;
-    return <AuthGateModal reason={reason} returnTo={returnTo} />;
+    return <AuthGateModal reason={reason} returnTo={returnTo} onClose={() => navigate('/')} />;
   }
 
   // User is authenticated, render the protected element

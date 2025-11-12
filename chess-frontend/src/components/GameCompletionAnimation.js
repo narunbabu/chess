@@ -652,8 +652,17 @@ const GameCompletionAnimation = ({
       if (response.success && response.share_url) {
         const shareUrl = response.share_url;
 
-        // Generate share message
-        const shareMessage = `🏆 Check out my chess game result!\n\n${shareUrl}`;
+        // Generate personalized share message based on game result
+        let shareMessage;
+        const opponentName = isMultiplayer ? (playerColor === 'w' ? result?.black_player?.name : result?.white_player?.name) : 'Computer';
+
+        if (isDraw) {
+          shareMessage = `♟️ I just played an exciting chess game against ${opponentName} at Chess99.com!\n\nGame ended in a draw. Can you do better?\n\n${shareUrl}`;
+        } else if (isPlayerWin) {
+          shareMessage = `🏆 Victory! I just defeated ${opponentName} in an epic chess battle at Chess99.com!\n\nThink you can beat me? Challenge me now!\n\n${shareUrl}`;
+        } else {
+          shareMessage = `♟️ Just played an intense chess match against ${opponentName} at Chess99.com!\n\nCan you avenge my defeat? Play now!\n\n${shareUrl}`;
+        }
 
         // Copy share URL to clipboard
         try {
@@ -879,38 +888,39 @@ const GameCompletionAnimation = ({
             </svg>
             Share Game Result
           </button> */}
-          {/* Test Share button - shares URL with preview */}
+          {/* Share with Friends button - prominent and attractive */}
           <button
             onClick={handleTestShare}
             disabled={isTestSharing}
             style={{
-              backgroundColor: isTestSharing ? '#6B7280' : '#3B82F6',
+              backgroundColor: isTestSharing ? '#6B7280' : '#EC4899',
               color: 'white',
-              padding: window.innerWidth <= 480 ? '9px 16px' : '12px 24px',
-              borderRadius: '10px',
+              padding: window.innerWidth <= 480 ? '12px 20px' : '16px 32px',
+              borderRadius: '12px',
               border: 'none',
-              fontSize: window.innerWidth <= 480 ? '0.85rem' : '1rem',
-              fontWeight: '700',
+              fontSize: window.innerWidth <= 480 ? '1rem' : '1.15rem',
+              fontWeight: '800',
               cursor: isTestSharing ? 'not-allowed' : 'pointer',
               transition: 'all 0.2s ease',
               display: 'flex',
               alignItems: 'center',
-              gap: window.innerWidth <= 480 ? '6px' : '8px',
-              boxShadow: '0 4px 12px rgba(59, 130, 246, 0.4)',
-              opacity: isTestSharing ? 0.6 : 1
+              gap: window.innerWidth <= 480 ? '8px' : '10px',
+              boxShadow: '0 6px 20px rgba(236, 72, 153, 0.5)',
+              opacity: isTestSharing ? 0.6 : 1,
+              transform: 'scale(1.08)'
             }}
             onMouseEnter={(e) => {
               if (!isTestSharing) {
-                e.currentTarget.style.backgroundColor = '#2563EB';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 6px 16px rgba(59, 130, 246, 0.5)';
+                e.currentTarget.style.backgroundColor = '#DB2777';
+                e.currentTarget.style.transform = 'scale(1.12) translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 8px 24px rgba(236, 72, 153, 0.6)';
               }
             }}
             onMouseLeave={(e) => {
               if (!isTestSharing) {
-                e.currentTarget.style.backgroundColor = '#3B82F6';
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.4)';
+                e.currentTarget.style.backgroundColor = '#EC4899';
+                e.currentTarget.style.transform = 'scale(1.08) translateY(0)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(236, 72, 153, 0.5)';
               }
             }}
           >
@@ -918,7 +928,7 @@ const GameCompletionAnimation = ({
               <>
                 <svg
                   className="animate-spin"
-                  style={{ width: window.innerWidth <= 480 ? '16px' : '20px', height: window.innerWidth <= 480 ? '16px' : '20px' }}
+                  style={{ width: window.innerWidth <= 480 ? '18px' : '22px', height: window.innerWidth <= 480 ? '18px' : '22px' }}
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
                   viewBox="0 0 24 24"
@@ -931,7 +941,7 @@ const GameCompletionAnimation = ({
             ) : (
               <>
                 <svg
-                  style={{ width: window.innerWidth <= 480 ? '16px' : '20px', height: window.innerWidth <= 480 ? '16px' : '20px' }}
+                  style={{ width: window.innerWidth <= 480 ? '18px' : '22px', height: window.innerWidth <= 480 ? '18px' : '22px' }}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -941,10 +951,10 @@ const GameCompletionAnimation = ({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2.5}
-                    d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                    d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
                   />
                 </svg>
-                Test Share
+                🎉 Share with Friends
               </>
             )}
           </button>
@@ -952,33 +962,32 @@ const GameCompletionAnimation = ({
             <button
               onClick={() => onNewGame('random')}
               style={{
-                backgroundColor: '#4F46E5',
+                backgroundColor: '#6B7280',
                 color: 'white',
-                padding: window.innerWidth <= 480 ? '8px 12px' : '10px 18px',
-                borderRadius: '8px',
+                padding: window.innerWidth <= 480 ? '6px 10px' : '8px 14px',
+                borderRadius: '6px',
                 border: 'none',
-                fontSize: window.innerWidth <= 480 ? '0.8rem' : '0.95rem',
-                fontWeight: '600',
+                fontSize: window.innerWidth <= 480 ? '0.7rem' : '0.8rem',
+                fontWeight: '500',
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '4px',
-                boxShadow: '0 2px 8px rgba(79, 70, 229, 0.3)'
+                boxShadow: '0 1px 4px rgba(107, 114, 128, 0.2)',
+                opacity: 0.9
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#4338CA';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(79, 70, 229, 0.4)';
+                e.currentTarget.style.backgroundColor = '#4B5563';
+                e.currentTarget.style.opacity = '1';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#4F46E5';
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 2px 8px rgba(79, 70, 229, 0.3)';
+                e.currentTarget.style.backgroundColor = '#6B7280';
+                e.currentTarget.style.opacity = '0.9';
               }}
             >
-              <span style={{ fontSize: '1.1rem' }}>🎮</span>
-              New Game Challenge
+              <span style={{ fontSize: '0.9rem' }}>🎮</span>
+              New Game
             </button>
           )}
           {onPreview && (
@@ -987,65 +996,63 @@ const GameCompletionAnimation = ({
               style={{
                 backgroundColor: '#6B7280',
                 color: 'white',
-                padding: window.innerWidth <= 480 ? '8px 12px' : '10px 18px',
-                borderRadius: '8px',
+                padding: window.innerWidth <= 480 ? '6px 10px' : '8px 14px',
+                borderRadius: '6px',
                 border: 'none',
-                fontSize: window.innerWidth <= 480 ? '0.8rem' : '0.95rem',
-                fontWeight: '600',
+                fontSize: window.innerWidth <= 480 ? '0.7rem' : '0.8rem',
+                fontWeight: '500',
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '4px',
-                boxShadow: '0 2px 8px rgba(107, 114, 128, 0.3)'
+                boxShadow: '0 1px 4px rgba(107, 114, 128, 0.2)',
+                opacity: 0.9
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.backgroundColor = '#4B5563';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(107, 114, 128, 0.4)';
+                e.currentTarget.style.opacity = '1';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.backgroundColor = '#6B7280';
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 2px 8px rgba(107, 114, 128, 0.3)';
+                e.currentTarget.style.opacity = '0.9';
               }}
             >
-              <span style={{ fontSize: '1.1rem' }}>👁️</span>
-              Preview Game
+              <span style={{ fontSize: '0.9rem' }}>👁️</span>
+              Preview
             </button>
           )}
-          
+
           {onBackToLobby && (
             <button
               onClick={onBackToLobby}
               style={{
                 backgroundColor: '#6B7280',
                 color: 'white',
-                padding: window.innerWidth <= 480 ? '8px 12px' : '10px 18px',
-                borderRadius: '8px',
+                padding: window.innerWidth <= 480 ? '6px 10px' : '8px 14px',
+                borderRadius: '6px',
                 border: 'none',
-                fontSize: window.innerWidth <= 480 ? '0.8rem' : '0.95rem',
-                fontWeight: '600',
+                fontSize: window.innerWidth <= 480 ? '0.7rem' : '0.8rem',
+                fontWeight: '500',
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '4px',
-                boxShadow: '0 2px 8px rgba(107, 114, 128, 0.3)'
+                boxShadow: '0 1px 4px rgba(107, 114, 128, 0.2)',
+                opacity: 0.9
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.backgroundColor = '#4B5563';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(107, 114, 128, 0.4)';
+                e.currentTarget.style.opacity = '1';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.backgroundColor = '#6B7280';
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 2px 8px rgba(107, 114, 128, 0.3)';
+                e.currentTarget.style.opacity = '0.9';
               }}
             >
-              <span style={{ fontSize: '1.1rem' }}>🏠</span>
-              Back to Lobby
+              <span style={{ fontSize: '0.9rem' }}>🏠</span>
+              Lobby
             </button>
           )}
         </div>

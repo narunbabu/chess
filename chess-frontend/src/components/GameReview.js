@@ -676,8 +676,19 @@ const GameReview = () => {
       if (response.success && response.share_url) {
         const shareUrl = response.share_url;
 
-        // Generate share message
-        const shareMessage = `🏆 Check out my chess game result!\n\n${shareUrl}`;
+        // Generate personalized share message based on game result
+        let shareMessage;
+        const opponentName = gameHistory.opponent_name || (gameHistory.game_mode === 'computer' ? 'Computer' : 'Opponent');
+        const playerWon = isWin(gameHistory.result);
+        const isDrawResult = isDraw(gameHistory.result);
+
+        if (isDrawResult) {
+          shareMessage = `♟️ I just played an exciting chess game against ${opponentName} at Chess99.com!\n\nGame ended in a draw. Can you do better?\n\n${shareUrl}`;
+        } else if (playerWon) {
+          shareMessage = `🏆 Victory! I just defeated ${opponentName} in an epic chess battle at Chess99.com!\n\nThink you can beat me? Challenge me now!\n\n${shareUrl}`;
+        } else {
+          shareMessage = `♟️ Just played an intense chess match against ${opponentName} at Chess99.com!\n\nCan you avenge my defeat? Play now!\n\n${shareUrl}`;
+        }
 
         // Copy share URL to clipboard
         try {
@@ -928,42 +939,43 @@ const GameReview = () => {
 
               {/* Share buttons container */}
               <div className="flex flex-col gap-3">
-                {/* Test Share button - shares URL with preview */}
+                {/* Share with Friends button - prominent and attractive */}
                 <button
                   onClick={handleTestShare}
                   disabled={isTestSharing}
                   style={{
-                    backgroundColor: isTestSharing ? '#6B7280' : '#3B82F6',
+                    backgroundColor: isTestSharing ? '#6B7280' : '#EC4899',
                     color: 'white',
-                    padding: window.innerWidth <= 480 ? '12px 20px' : '14px 28px',
-                    borderRadius: '10px',
+                    padding: window.innerWidth <= 480 ? '14px 24px' : '18px 36px',
+                    borderRadius: '12px',
                     border: 'none',
-                    fontSize: window.innerWidth <= 480 ? '0.95rem' : '1.1rem',
-                    fontWeight: '700',
+                    fontSize: window.innerWidth <= 480 ? '1.05rem' : '1.2rem',
+                    fontWeight: '800',
                     cursor: isTestSharing ? 'not-allowed' : 'pointer',
                     transition: 'all 0.2s ease',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: window.innerWidth <= 480 ? '8px' : '10px',
-                    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.4)',
+                    boxShadow: '0 6px 20px rgba(236, 72, 153, 0.5)',
                     width: '100%',
                     maxWidth: '400px',
                     margin: '0 auto',
-                    opacity: isTestSharing ? 0.6 : 1
+                    opacity: isTestSharing ? 0.6 : 1,
+                    transform: 'scale(1.05)'
                   }}
                   onMouseEnter={(e) => {
                     if (!isTestSharing) {
-                      e.currentTarget.style.backgroundColor = '#2563EB';
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                      e.currentTarget.style.boxShadow = '0 6px 16px rgba(59, 130, 246, 0.5)';
+                      e.currentTarget.style.backgroundColor = '#DB2777';
+                      e.currentTarget.style.transform = 'scale(1.08) translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 8px 24px rgba(236, 72, 153, 0.6)';
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (!isTestSharing) {
-                      e.currentTarget.style.backgroundColor = '#3B82F6';
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.4)';
+                      e.currentTarget.style.backgroundColor = '#EC4899';
+                      e.currentTarget.style.transform = 'scale(1.05) translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 6px 20px rgba(236, 72, 153, 0.5)';
                     }
                   }}
                 >
@@ -971,7 +983,7 @@ const GameReview = () => {
                     <>
                       <svg
                         className="animate-spin"
-                        style={{ width: window.innerWidth <= 480 ? '18px' : '22px', height: window.innerWidth <= 480 ? '18px' : '22px' }}
+                        style={{ width: window.innerWidth <= 480 ? '20px' : '24px', height: window.innerWidth <= 480 ? '20px' : '24px' }}
                         xmlns="http://www.w3.org/2000/svg"
                         fill="none"
                         viewBox="0 0 24 24"
@@ -984,7 +996,7 @@ const GameReview = () => {
                   ) : (
                     <>
                       <svg
-                        style={{ width: window.innerWidth <= 480 ? '18px' : '22px', height: window.innerWidth <= 480 ? '18px' : '22px' }}
+                        style={{ width: window.innerWidth <= 480 ? '20px' : '24px', height: window.innerWidth <= 480 ? '20px' : '24px' }}
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -994,49 +1006,48 @@ const GameReview = () => {
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           strokeWidth={2.5}
-                          d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                          d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
                         />
                       </svg>
-                      Test Share
+                      🎉 Share with Friends
                     </>
                   )}
                 </button>
 
-                {/* Original Share button */}
+                {/* Alternative share option - less prominent */}
               <button
                 onClick={handleShareWithImage}
                 style={{
-                  backgroundColor: '#10B981',
+                  backgroundColor: '#6B7280',
                   color: 'white',
-                  padding: window.innerWidth <= 480 ? '12px 20px' : '14px 28px',
-                  borderRadius: '10px',
+                  padding: window.innerWidth <= 480 ? '8px 14px' : '10px 18px',
+                  borderRadius: '8px',
                   border: 'none',
-                  fontSize: window.innerWidth <= 480 ? '0.95rem' : '1.1rem',
-                  fontWeight: '700',
+                  fontSize: window.innerWidth <= 480 ? '0.75rem' : '0.85rem',
+                  fontWeight: '500',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: window.innerWidth <= 480 ? '8px' : '10px',
-                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.4)',
+                  gap: window.innerWidth <= 480 ? '6px' : '8px',
+                  boxShadow: '0 2px 6px rgba(107, 114, 128, 0.3)',
                   width: '100%',
-                  maxWidth: '400px',
-                  margin: '0 auto'
+                  maxWidth: '300px',
+                  margin: '0 auto',
+                  opacity: 0.85
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#059669';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.5)';
+                  e.currentTarget.style.backgroundColor = '#4B5563';
+                  e.currentTarget.style.opacity = '1';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#10B981';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.4)';
+                  e.currentTarget.style.backgroundColor = '#6B7280';
+                  e.currentTarget.style.opacity = '0.85';
                 }}
               >
                 <svg
-                  style={{ width: window.innerWidth <= 480 ? '18px' : '22px', height: window.innerWidth <= 480 ? '18px' : '22px' }}
+                  style={{ width: window.innerWidth <= 480 ? '14px' : '16px', height: window.innerWidth <= 480 ? '14px' : '16px' }}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -1045,11 +1056,11 @@ const GameReview = () => {
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    strokeWidth={2.5}
-                    d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+                    strokeWidth={2}
+                    d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                   />
                 </svg>
-                Share Game Result
+                Download Image
               </button>
               </div>
             </div>

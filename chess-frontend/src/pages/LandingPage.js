@@ -55,7 +55,7 @@ const LandingPage = () => {
 
           {/* Desktop Navigation - Hidden on small screens */}
           <nav className="hidden md:flex items-center space-x-3 lg:space-x-6">
-            <button onClick={() => navigate('/play')} className="hover:text-yellow-300 transition-colors text-sm lg:text-base font-medium">Play</button>
+            {/* <button onClick={() => navigate('/play')} className="hover:text-yellow-300 transition-colors text-sm lg:text-base font-medium">Play</button> */}
             <Link to="/puzzles" className="hover:text-yellow-300 transition-colors text-sm lg:text-base font-medium">Puzzles</Link>
             <Link to="/learn" className="hover:text-yellow-300 transition-colors text-sm lg:text-base font-medium">Learn</Link>
             <button className="hover:text-yellow-300 transition-colors text-sm lg:text-base font-medium">Events</button>
@@ -130,12 +130,12 @@ const LandingPage = () => {
         {showMobileMenu && (
           <div className="absolute top-16 left-0 right-0 bg-sky-600/98 backdrop-blur-sm shadow-lg sm:hidden">
             <nav className="flex flex-col p-4 space-y-2">
-              <button
+              {/* <button
                 onClick={() => { navigate('/play'); setShowMobileMenu(false); }}
                 className="text-left px-4 py-3 hover:bg-sky-700/50 rounded-lg transition-colors text-sm font-medium"
               >
                 Play
-              </button>
+              </button> */}
               <Link
                 to="/puzzles"
                 onClick={() => setShowMobileMenu(false)}
@@ -201,7 +201,7 @@ const LandingPage = () => {
             </div>
 
             {/* Quick Login Options - Mobile Optimized */}
-            {!isAuthenticated && (
+            {/* {!isAuthenticated && (
               <div className="text-center mb-6 sm:mb-8">
                 <div className="inline-flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-6 bg-white/90 backdrop-blur-sm rounded-xl px-6 sm:px-8 py-4 shadow-xl border border-white/20 max-w-sm mx-auto">
                   <label className="flex items-center cursor-pointer w-full sm:w-auto justify-center">
@@ -230,7 +230,7 @@ const LandingPage = () => {
                   </label>
                 </div>
               </div>
-            )}
+            )} */}
 
             {/* Action Buttons - Mobile Optimized */}
             <div className="flex flex-col items-center justify-center w-full px-3 sm:px-4 max-w-lg mx-auto">
