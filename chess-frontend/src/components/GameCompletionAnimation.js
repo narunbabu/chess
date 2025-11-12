@@ -834,7 +834,7 @@ const GameCompletionAnimation = ({
           maxWidth: '95%'
         }}>
           {/* Prominent Share button with bright green color */}
-          <button
+          {/* <button
             onClick={handleShareWithImage}
             style={{
               backgroundColor: '#10B981',
@@ -878,7 +878,7 @@ const GameCompletionAnimation = ({
               />
             </svg>
             Share Game Result
-          </button>
+          </button> */}
           {/* Test Share button - shares URL with preview */}
           <button
             onClick={handleTestShare}
