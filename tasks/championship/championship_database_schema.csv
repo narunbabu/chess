@@ -1,0 +1,47 @@
+Table,Field,Type,Description
+championships,id,BIGINT UNSIGNED,Primary key
+championships,title,VARCHAR(255),Championship name
+championships,description,TEXT,Championship details
+championships,entry_fee,"DECIMAL(10,2)",Entry fee amount in INR
+championships,max_participants,INT UNSIGNED,"NULL = unlimited, otherwise capped"
+championships,registration_deadline,DATETIME,Last date to register
+championships,start_date,DATETIME,Championship start date
+championships,match_time_window_hours,INT,"Hours to complete match (24, 48, 72)"
+championships,format,ENUM,"'swiss_elimination', 'swiss_only', 'elimination_only'"
+championships,swiss_rounds,INT,Number of Swiss rounds
+championships,top_qualifiers,INT,"Number advancing to elimination (e.g., 8)"
+championships,status,ENUM,"'upcoming', 'registration_open', 'in_progress', 'completed'"
+championship_participants,id,BIGINT UNSIGNED,Primary key
+championship_participants,championship_id,BIGINT UNSIGNED,Foreign key to championships
+championship_participants,user_id,BIGINT UNSIGNED,Foreign key to users
+championship_participants,razorpay_order_id,VARCHAR(255),Razorpay order ID
+championship_participants,razorpay_payment_id,VARCHAR(255),Razorpay payment ID
+championship_participants,payment_status,ENUM,"'pending', 'completed', 'failed', 'refunded'"
+championship_participants,amount_paid,"DECIMAL(10,2)",Amount paid
+championship_participants,registered_at,DATETIME,Registration timestamp
+championship_participants,seed_number,INT,Seeding for elimination bracket
+championship_matches,id,BIGINT UNSIGNED,Primary key
+championship_matches,championship_id,BIGINT UNSIGNED,Foreign key to championships
+championship_matches,round_number,INT,"Round number (1, 2, 3...)"
+championship_matches,round_type,ENUM,"'swiss', 'quarter', 'semi', 'final', 'third_place'"
+championship_matches,player1_id,BIGINT UNSIGNED,Foreign key to users
+championship_matches,player2_id,BIGINT UNSIGNED,Foreign key to users
+championship_matches,game_id,BIGINT UNSIGNED,Foreign key to games (NULL if not started)
+championship_matches,scheduled_at,DATETIME,When match was created
+championship_matches,deadline,DATETIME,Match completion deadline
+championship_matches,winner_id,BIGINT UNSIGNED,Foreign key to users (NULL if not finished)
+championship_matches,result_type,ENUM,"'completed', 'forfeit', 'double_forfeit', 'draw'"
+championship_matches,status,ENUM,"'pending', 'in_progress', 'completed', 'cancelled'"
+championship_standings,id,BIGINT UNSIGNED,Primary key
+championship_standings,championship_id,BIGINT UNSIGNED,Foreign key to championships
+championship_standings,user_id,BIGINT UNSIGNED,Foreign key to users
+championship_standings,matches_played,INT,Total matches played
+championship_standings,wins,INT,Number of wins
+championship_standings,draws,INT,Number of draws
+championship_standings,losses,INT,Number of losses
+championship_standings,points,"DECIMAL(4,1)","Total points (W=1, D=0.5, L=0)"
+championship_standings,buchholz_score,"DECIMAL(6,1)",Tiebreaker: sum of opponents' scores
+championship_standings,rank,INT,Current rank in standings
+championship_standings,final_position,INT,"Final position (1st, 2nd, 3rd, etc.)"
+championship_standings,prize_amount,"DECIMAL(10,2)",Prize money won
+championship_standings,credits_earned,INT,Credits awarded

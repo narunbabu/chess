@@ -1,0 +1,125 @@
+
+================================================
+Phase 3 Testing - Organization Support
+================================================
+
+
+========== Test 1: Organization CRUD Operations ==========
+[INFO] 1A. Creating organization...
+[PASS] Organization created successfully
+True
+[PASS] Slug auto-generated correctly
+True
+[PASS] Creator assigned correctly
+True
+[INFO] Organization ID: 7
+[INFO] Organization Name: Chess Academy 8211
+[INFO] 
+1B. Listing all organizations...
+[PASS] List organizations returned results
+True
+[PASS] Includes member count
+True
+[PASS] Includes championship count
+True
+[INFO] 
+1C. Getting organization details...
+[PASS] Retrieved correct organization
+True
+[PASS] Includes creator details
+True
+[PASS] Includes users list
+True
+[INFO] 
+1D. Updating organization...
+[PASS] Organization description updated
+True
+[PASS] Organization website updated
+True
+[INFO] 
+1E. Testing unauthenticated access...
+[FAIL] Expected 401, got 500
+False
+
+========== Test 2: Organization Member Management ==========
+[INFO] 2A. Getting organization members...
+[PASS] Organization has at least creator as member
+True
+[PASS] Creator is in members list
+True
+[INFO] 
+2B. Creating test user and adding to organization...
+[WARN] Could not create test user
+[FAIL] Add member to organization (user creation failed)
+False
+
+========== Test 3: Championship Payment Authorization ==========
+[INFO] 3A. Testing refund authorization...
+[WARN] Unexpected status code: 500
+[FAIL] Refund authorization test (unexpected status: 500)
+False
+
+========== Test 4: Tournament Administration Endpoints ==========
+[INFO] 4A. Getting tournament overview...
+[PASS] Overview includes active championships
+True
+[PASS] Overview includes upcoming championships
+True
+[INFO] 
+4B. Getting system health...
+[PASS] Health check includes queue
+True
+[PASS] Health check includes database
+True
+[PASS] Health check includes tournaments
+True
+[PASS] Health check includes overall status
+True
+[INFO] 
+4C. Getting analytics...
+[PASS] Analytics includes championships data
+True
+[INFO] 
+4D. Running maintenance tasks...
+[PASS] Maintenance tasks executed
+True
+
+========== Test 5: Multi-Tenant Championship Authorization ==========
+[INFO] 5A. Creating organization-only championship...
+[INFO] Verifying user's organization membership before creating championship...
+[INFO] User 1 is a member of organization 7
+[PASS] Organization-only championship created
+True
+[PASS] Championship linked to organization
+True
+[INFO] Championship ID: 11, Org ID: 7, Expected Org ID: 7
+[INFO] 
+5B. Verifying visibility filtering...
+[INFO] Total championships found: 10
+[PASS] Organization-only championship visible to org member
+True
+[INFO] Found org championship: ID=11, OrgID=7, Visibility=organization_only
+
+========== Test 6: Organization Deletion Rules ==========
+[INFO] 6A. Attempting to delete organization with active championships...
+[PASS] Prevents deletion with active championships (422)
+True
+[INFO] Note: Organization protected due to active championships (expected)
+
+
+========== Test Results Summary ==========
+
+Total Tests: 28
+Passed: 25
+Failed: 3
+Pass Rate: 89.29%
+
+================================================
+Some tests failed. Review errors above.
+================================================
+
+Next Steps:
+1. Review failed test details above
+2. Check server logs: storage/logs/laravel.log
+3. Verify database migrations: php artisan migrate:status
+4. Clear caches: php artisan optimize:clear

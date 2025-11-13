@@ -26,11 +26,17 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { AppDataProvider } from "./contexts/AppDataContext";
 import { FeatureFlagsProvider } from "./contexts/FeatureFlagsContext";
 import { GlobalInvitationProvider } from "./contexts/GlobalInvitationContext";
+import { ChampionshipProvider } from "./contexts/ChampionshipContext";
 import GlobalInvitationDialog from "./components/invitations/GlobalInvitationDialog";
 import Layout from "./components/layout/Layout";
 import Footer from "./components/layout/Footer";
 import RouteGuard from "./components/routing/RouteGuard";
 import { requireAuth } from "./utils/guards";
+
+// Championship Components
+import ChampionshipList from "./components/championship/ChampionshipList";
+import ChampionshipDetails from "./components/championship/ChampionshipDetails";
+import TournamentAdminDashboard from "./components/championship/TournamentAdminDashboard";
 
 const App = () => {
   useEffect(()=> {
@@ -47,15 +53,17 @@ const App = () => {
     <AuthProvider>
       <AppDataProvider>
         <FeatureFlagsProvider>
-          <Router future={{ v7_relativeSplatPath: true }}>
-            <Layout>
-              <GlobalInvitationProvider>
-                <AppContent />
-                {/* Global Invitation Dialog - appears across all pages */}
-                <GlobalInvitationDialog />
-              </GlobalInvitationProvider>
-            </Layout>
-          </Router>
+          <ChampionshipProvider>
+            <Router future={{ v7_relativeSplatPath: true }}>
+              <Layout>
+                <GlobalInvitationProvider>
+                  <AppContent />
+                  {/* Global Invitation Dialog - appears across all pages */}
+                  <GlobalInvitationDialog />
+                </GlobalInvitationProvider>
+              </Layout>
+            </Router>
+          </ChampionshipProvider>
         </FeatureFlagsProvider>
       </AppDataProvider>
     </AuthProvider>
@@ -151,6 +159,31 @@ const AppContent = () => {
               element={
                 <RouteGuard>
                   <GameReview />
+                </RouteGuard>
+              }
+            />
+            {/* Championship Routes - Auth required */}
+            <Route
+              path="/championships"
+              element={
+                <RouteGuard>
+                  <ChampionshipList />
+                </RouteGuard>
+              }
+            />
+            <Route
+              path="/championships/:id"
+              element={
+                <RouteGuard>
+                  <ChampionshipDetails />
+                </RouteGuard>
+              }
+            />
+            <Route
+              path="/championships/:id/admin"
+              element={
+                <RouteGuard>
+                  <TournamentAdminDashboard />
                 </RouteGuard>
               }
             />

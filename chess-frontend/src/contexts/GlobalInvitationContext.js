@@ -1,5 +1,5 @@
 // src/contexts/GlobalInvitationContext.js
-import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { getEcho } from '../services/echoSingleton';
@@ -16,6 +16,13 @@ export const GlobalInvitationProvider = ({ children }) => {
   const [pendingInvitation, setPendingInvitation] = useState(null);
   const [resumeRequest, setResumeRequest] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Use refs to track current values without causing re-renders
+  const pendingInvitationRef = useRef(null);
+  pendingInvitationRef.current = pendingInvitation;
+
+  const isProcessingRef = useRef(false);
+  isProcessingRef.current = isProcessing;
 
   // Check if user is currently in an active game (should NOT show dialogs)
   const isInActiveGame = useCallback(() => {
@@ -82,8 +89,8 @@ export const GlobalInvitationProvider = ({ children }) => {
     userChannel.listen('.invitation.cancelled', (data) => {
       console.log('[GlobalInvitation] Invitation cancelled:', data);
 
-      // Clear pending invitation if it matches
-      if (data.invitation && pendingInvitation?.id === data.invitation.id) {
+      // Use ref to check current pending invitation
+      if (data.invitation && pendingInvitationRef.current?.id === data.invitation.id) {
         setPendingInvitation(null);
       }
     });
@@ -94,11 +101,13 @@ export const GlobalInvitationProvider = ({ children }) => {
       userChannel.stopListening('.resume.request.sent');
       userChannel.stopListening('.invitation.cancelled');
     };
-  }, [user, location.pathname, isInActiveGame, pendingInvitation?.id]); // Re-run when route changes
+    // Only re-run when user changes, not on every route change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   // Accept game invitation
-  const acceptInvitation = async (invitationId, colorChoice) => {
-    if (isProcessing) return;
+  const acceptInvitation = useCallback(async (invitationId, colorChoice) => {
+    if (isProcessingRef.current) return;
 
     setIsProcessing(true);
     try {
@@ -129,11 +138,11 @@ export const GlobalInvitationProvider = ({ children }) => {
     } finally {
       setIsProcessing(false);
     }
-  };
+  }, [navigate]);
 
   // Decline game invitation
-  const declineInvitation = async (invitationId) => {
-    if (isProcessing) return;
+  const declineInvitation = useCallback(async (invitationId) => {
+    if (isProcessingRef.current) return;
 
     setIsProcessing(true);
     try {
@@ -149,11 +158,11 @@ export const GlobalInvitationProvider = ({ children }) => {
     } finally {
       setIsProcessing(false);
     }
-  };
+  }, []);
 
   // Accept resume request
-  const acceptResumeRequest = async (gameId) => {
-    if (isProcessing) return;
+  const acceptResumeRequest = useCallback(async (gameId) => {
+    if (isProcessingRef.current) return;
 
     setIsProcessing(true);
     try {
@@ -193,11 +202,11 @@ export const GlobalInvitationProvider = ({ children }) => {
     } finally {
       setIsProcessing(false);
     }
-  };
+  }, [navigate]);
 
   // Decline resume request
-  const declineResumeRequest = async (gameId) => {
-    if (isProcessing) return;
+  const declineResumeRequest = useCallback(async (gameId) => {
+    if (isProcessingRef.current) return;
 
     setIsProcessing(true);
     try {
@@ -225,9 +234,9 @@ export const GlobalInvitationProvider = ({ children }) => {
     } finally {
       setIsProcessing(false);
     }
-  };
+  }, []);
 
-  const value = {
+  const value = useMemo(() => ({
     pendingInvitation,
     resumeRequest,
     isProcessing,
@@ -235,7 +244,15 @@ export const GlobalInvitationProvider = ({ children }) => {
     declineInvitation,
     acceptResumeRequest,
     declineResumeRequest,
-  };
+  }), [
+    pendingInvitation,
+    resumeRequest,
+    isProcessing,
+    acceptInvitation,
+    declineInvitation,
+    acceptResumeRequest,
+    declineResumeRequest,
+  ]);
 
   return (
     <GlobalInvitationContext.Provider value={value}>

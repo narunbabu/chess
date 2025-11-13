@@ -1,5 +1,5 @@
 // src/contexts/AuthContext.js
-import React, { createContext, useState, useContext, useEffect } from "react";
+import React, { createContext, useState, useContext, useEffect, useMemo, useCallback } from "react";
 import api from '../services/api';
 import { initEcho, disconnectEcho } from '../services/echoSingleton';
 import presenceService from '../services/presenceService';
@@ -14,7 +14,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   // Fetch current user data
-  const fetchUser = async () => {
+  const fetchUser = useCallback(async () => {
     try {
       const token = localStorage.getItem("auth_token");
       if (!token) {
@@ -74,23 +74,23 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   // Check for token presence when the provider mounts
   useEffect(() => {
     fetchUser();
-  }, []);
+  }, [fetchUser]);
 
   // Login handled via social auth callbacks
-  const login = async (token) => {
+  const login = useCallback(async (token) => {
     localStorage.setItem("auth_token", token);
     api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     setIsAuthenticated(true);
     await fetchUser();
-  };
+  }, [fetchUser]);
 
   // Logout function
-  const logout = async () => {
+  const logout = useCallback(async () => {
     // Disconnect presence service before logout
     presenceService.disconnect();
     console.log('[Auth] Presence service disconnected on logout');
@@ -103,10 +103,19 @@ export const AuthProvider = ({ children }) => {
     delete api.defaults.headers.common['Authorization'];
     setIsAuthenticated(false);
     setUser(null);
-  };
+  }, []);
+
+  const value = useMemo(() => ({
+    isAuthenticated,
+    user,
+    login,
+    logout,
+    loading,
+    fetchUser
+  }), [isAuthenticated, user, login, logout, loading, fetchUser]);
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, login, logout, loading, fetchUser }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

@@ -132,7 +132,73 @@ Route::middleware('auth:sanctum')->group(function () {
     // Laravel Broadcasting Authentication Route (standard Laravel pattern)
     // This must be outside the websocket prefix to match Laravel Echo's default endpoint
     Route::post('/broadcasting/auth', [WebSocketController::class, 'authenticate']);
+
+    // Championship routes (authenticated only)
+    Route::prefix('championships')->group(function () {
+        Route::post('/', [\App\Http\Controllers\ChampionshipController::class, 'store']);
+        Route::put('/{id}', [\App\Http\Controllers\ChampionshipController::class, 'update']);
+        Route::delete('/{id}', [\App\Http\Controllers\ChampionshipController::class, 'destroy']);
+        Route::get('/{id}/participants', [\App\Http\Controllers\ChampionshipController::class, 'participants']);
+        Route::get('/{id}/matches', [\App\Http\Controllers\ChampionshipController::class, 'matches']);
+        Route::get('/{id}/standings', [\App\Http\Controllers\ChampionshipController::class, 'standings']);
+        Route::get('/{id}/my-matches', [\App\Http\Controllers\ChampionshipController::class, 'myMatches']);
+
+        // Championship match management
+        Route::prefix('/{championship}/matches')->group(function () {
+            Route::get('/', [\App\Http\Controllers\ChampionshipMatchController::class, 'index']);
+            Route::post('/preview', [\App\Http\Controllers\ChampionshipMatchController::class, 'getPairingsPreview'])->middleware('can:manage,championship');
+            Route::post('/schedule-next', [\App\Http\Controllers\ChampionshipMatchController::class, 'scheduleNextRound'])->middleware('can:manage,championship');
+            Route::get('/bracket', [\App\Http\Controllers\ChampionshipMatchController::class, 'getBracket']);
+            Route::get('/stats', [\App\Http\Controllers\ChampionshipMatchController::class, 'getStats']);
+            Route::get('/{match}', [\App\Http\Controllers\ChampionshipMatchController::class, 'show']);
+            Route::post('/{match}/game', [\App\Http\Controllers\ChampionshipMatchController::class, 'createGame']);
+            Route::post('/{match}/result', [\App\Http\Controllers\ChampionshipMatchController::class, 'reportResult']);
+            Route::put('/{match}/reschedule', [\App\Http\Controllers\ChampionshipMatchController::class, 'reschedule'])->middleware('can:manage,championship');
+        });
+
+        // User's championship matches
+        Route::get('/my-matches', [\App\Http\Controllers\ChampionshipMatchController::class, 'myMatches']);
+
+        // Payment routes
+        Route::post('/{id}/payment/initiate', [\App\Http\Controllers\ChampionshipPaymentController::class, 'initiatePayment']);
+        Route::post('/payment/callback', [\App\Http\Controllers\ChampionshipPaymentController::class, 'handleCallback']);
+        Route::post('/payment/refund/{participantId}', [\App\Http\Controllers\ChampionshipPaymentController::class, 'issueRefund']);
+    });
+
+    // Tournament administration routes
+    Route::prefix('admin/tournaments')->middleware(['role:platform_admin,platform_manager,tournament_organizer'])->group(function () {
+        Route::get('/overview', [\App\Http\Controllers\TournamentAdminController::class, 'overview']);
+        Route::post('/{championship}/start', [\App\Http\Controllers\TournamentAdminController::class, 'startChampionship']);
+        Route::post('/{championship}/pause', [\App\Http\Controllers\TournamentAdminController::class, 'pauseChampionship']);
+        Route::post('/{championship}/resume', [\App\Http\Controllers\TournamentAdminController::class, 'resumeChampionship']);
+        Route::post('/{championship}/complete', [\App\Http\Controllers\TournamentAdminController::class, 'completeChampionship']);
+        Route::post('/{championship}/validate', [\App\Http\Controllers\TournamentAdminController::class, 'validateTournament']);
+        Route::post('/maintenance', [\App\Http\Controllers\TournamentAdminController::class, 'runMaintenance']);
+        Route::get('/analytics', [\App\Http\Controllers\TournamentAdminController::class, 'getAnalytics']);
+        Route::get('/health', [\App\Http\Controllers\TournamentAdminController::class, 'getSystemHealth']);
+    });
+
+    // Organization routes (authenticated only)
+    Route::prefix('organizations')->group(function () {
+        Route::get('/', [\App\Http\Controllers\OrganizationController::class, 'index']);
+        Route::post('/', [\App\Http\Controllers\OrganizationController::class, 'store']);
+        Route::get('/{id}', [\App\Http\Controllers\OrganizationController::class, 'show']);
+        Route::put('/{id}', [\App\Http\Controllers\OrganizationController::class, 'update']);
+        Route::delete('/{id}', [\App\Http\Controllers\OrganizationController::class, 'destroy']);
+        Route::get('/{id}/members', [\App\Http\Controllers\OrganizationController::class, 'members']);
+        Route::post('/{id}/members', [\App\Http\Controllers\OrganizationController::class, 'addMember']);
+        Route::delete('/{organizationId}/members/{userId}', [\App\Http\Controllers\OrganizationController::class, 'removeMember']);
+    });
 });
+
+// Public championship routes (no authentication required)
+Route::prefix('championships')->group(function () {
+    Route::get('/', [\App\Http\Controllers\ChampionshipController::class, 'index']); // Public listing
+    Route::get('/{id}', [\App\Http\Controllers\ChampionshipController::class, 'show']); // Public view
+});
+
+// Championship webhook route (public - no auth required)
+Route::post('/championships/payment/webhook', [\App\Http\Controllers\ChampionshipPaymentController::class, 'handleWebhook']);
 
 // routes/api.php
 

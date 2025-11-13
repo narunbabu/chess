@@ -205,7 +205,7 @@ const Dashboard = () => {
         {/* Quick Actions Section */}
         <section className="unified-section">
           <h2 className="unified-section-header">⚡ Quick Actions</h2>
-          <div className="unified-card-grid cols-3">
+          <div className="unified-card-grid cols-4">
             <button
               onClick={() => navigate("/play")}
               className="unified-card gradient-accent centered"
@@ -231,6 +231,15 @@ const Dashboard = () => {
               <div className="unified-card-content">
                 <h3 className="unified-card-title">🎓 Training Hub</h3>
                 <p className="unified-card-subtitle">Practice exercises</p>
+              </div>
+            </button>
+            <button
+              onClick={() => navigate("/championships")}
+              className="unified-card gradient-info centered"
+            >
+              <div className="unified-card-content">
+                <h3 className="unified-card-title">🏆 Championships</h3>
+                <p className="unified-card-subtitle">Join tournaments</p>
               </div>
             </button>
           </div>

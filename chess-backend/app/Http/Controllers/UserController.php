@@ -24,7 +24,9 @@ class UserController extends Controller
 
     public function me(Request $request)
     {
-        return response()->json($request->user());
+        // Load user with roles for permission checks on frontend
+        $user = $request->user()->load('roles:id,name');
+        return response()->json($user);
     }
 
     /**

@@ -276,6 +276,13 @@ const Header = () => {
             >
               Lobby
             </Link>
+            <Link
+              to="/championships"
+              className="nav-link"
+              onClick={() => trackNavigation('championships', 'header')}
+            >
+              Championships
+            </Link>
             {!loading && activeGame && (
               <button
                 onClick={handleResumeGame}
@@ -382,6 +389,12 @@ const Header = () => {
                   onClick={() => handleNavItemClick(() => navigate('/lobby'))}
                 >
                   🎮 Lobby
+                </button>
+                <button
+                  className="nav-item"
+                  onClick={() => handleNavItemClick(() => navigate('/championships'))}
+                >
+                  🏆 Championships
                 </button>
                 {location.pathname.includes('/lobby') && (
                   <>

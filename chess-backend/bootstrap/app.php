@@ -23,8 +23,34 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         // CORS is handled by \Fruitcake\Cors\HandleCors in Kernel.php (global middleware)
         // using the configuration in config/cors.php
+
+        // Register custom authorization middleware
+        $middleware->alias([
+            'role' => \App\Http\Middleware\CheckRole::class,
+            'permission' => \App\Http\Middleware\CheckPermission::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
+        // Handle authentication exceptions for API routes
+        $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, Illuminate\Http\Request $request) {
+            if ($request->is('api/*')) {
+                return response()->json([
+                    'error' => 'Unauthenticated',
+                    'message' => 'Authentication required to access this resource'
+                ], 401);
+            }
+        });
+
+        // Handle authorization exceptions for API routes
+        $exceptions->render(function (\Illuminate\Auth\Access\AuthorizationException $e, Illuminate\Http\Request $request) {
+            if ($request->is('api/*')) {
+                return response()->json([
+                    'error' => 'Forbidden',
+                    'message' => 'You do not have permission to perform this action'
+                ], 403);
+            }
+        });
+
         $exceptions->render(function (Throwable $e, Illuminate\Http\Request $request) {
             \Illuminate\Support\Facades\Log::error('=== GLOBAL EXCEPTION HANDLER ===');
             \Illuminate\Support\Facades\Log::error('Exception: ' . $e->getMessage());
