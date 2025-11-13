@@ -274,7 +274,8 @@ const ChampionshipMatches = ({ championshipId, userOnly = false }) => {
   };
 
   // Group matches by round
-  const matchesByRound = matches.reduce((acc, match) => {
+  const matchesArray = Array.isArray(matches) ? matches : [];
+  const matchesByRound = matchesArray.reduce((acc, match) => {
     if (!acc[match.round]) {
       acc[match.round] = [];
     }
@@ -339,7 +340,7 @@ const ChampionshipMatches = ({ championshipId, userOnly = false }) => {
         )}
       </div>
 
-      {matches.length === 0 ? (
+      {matchesArray.length === 0 ? (
         <div className="empty-state">
           <h3>{userOnly ? 'No matches found' : 'No matches scheduled yet'}</h3>
           <p>

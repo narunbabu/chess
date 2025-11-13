@@ -29,7 +29,14 @@ class ChampionshipPolicy
             return true;
         }
 
-        // Use the championship's visibility logic for non-public championships
+        // Allow viewing if public registration is enabled
+        // This enables users to view details, register, participate, and view stats
+        // Regardless of current status (upcoming, registration_open, etc.)
+        if ($championship->allow_public_registration) {
+            return true;
+        }
+
+        // Use the championship's visibility logic for private championships
         return $championship->isVisibleTo($user);
     }
 
