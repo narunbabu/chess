@@ -90,7 +90,26 @@ export const ChampionshipProvider = ({ children }) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await api.put(`/championships/${id}`, data);
+      // Map frontend field names to backend field names (same as createChampionship)
+      const backendData = {
+        title: data.name,
+        description: data.description,
+        entry_fee: data.entry_fee || 0,
+        max_participants: data.max_participants,
+        registration_deadline: data.registration_end_at,
+        start_date: data.starts_at,
+        match_time_window_hours: data.settings?.round_duration_days
+          ? data.settings.round_duration_days * 24
+          : 72, // Default 3 days in hours
+        format: data.format,
+        swiss_rounds: data.total_rounds, // Used for swiss_only and hybrid formats
+        top_qualifiers: data.top_qualifiers, // Used for hybrid format
+        organization_id: data.organization_id || null,
+        visibility: data.visibility || 'public',
+        allow_public_registration: data.allow_public_registration !== false,
+      };
+
+      const response = await api.put(`/championships/${id}`, backendData);
       const updated = response.data;
 
       setChampionships(prev => prev.map(champ => champ.id === id ? updated : champ));
@@ -190,7 +209,9 @@ export const ChampionshipProvider = ({ children }) => {
     setError(null);
     try {
       const response = await api.get(`/championships/${id}/participants`);
-      setParticipants(response.data.data || response.data);
+      const participantsData = response.data.data || response.data;
+      // Ensure participants is always an array
+      setParticipants(Array.isArray(participantsData) ? participantsData : []);
       return response.data;
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to fetch participants');

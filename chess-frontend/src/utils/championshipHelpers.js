@@ -36,7 +36,7 @@ export const getStatusColorClass = (status) => {
  */
 export const formatChampionshipType = (format) => {
   const typeMap = {
-    'swiss_only': '🏆 Swiss System',
+    'swiss_only': 'Swiss System',
     'elimination_only': '⚔️ Single Elimination',
     'swiss_elimination': '🎯 Hybrid (Swiss + Elimination)',
     'round_robin': '🔄 Round Robin'
@@ -106,15 +106,39 @@ export const isUserOrganizer = (championship, user) => {
  * Format prize pool
  */
 export const formatPrizePool = (prizes) => {
-  if (!prizes || !Array.isArray(prizes) || prizes.length === 0) {
+  try {
+    if (!prizes || !Array.isArray(prizes) || prizes.length === 0) {
+      return 'No prizes';
+    }
+
+    const totalPrize = prizes.reduce((sum, prize) => sum + parseFloat(prize.amount || 0), 0);
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR'
+    }).format(totalPrize);
+  } catch (error) {
+    console.warn('Error formatting prize pool:', error);
     return 'No prizes';
   }
+};
 
-  const totalPrize = prizes.reduce((sum, prize) => sum + parseFloat(prize.amount || 0), 0);
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD'
-  }).format(totalPrize);
+/**
+ * Format currency amount in INR
+ */
+export const formatCurrency = (amount) => {
+  try {
+    if (!amount || isNaN(parseFloat(amount))) {
+      return '₹0';
+    }
+
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR'
+    }).format(parseFloat(amount));
+  } catch (error) {
+    console.warn('Error formatting currency:', error);
+    return '₹0';
+  }
 };
 
 /**
@@ -223,9 +247,12 @@ export const sortStandings = (standings) => {
 
 /**
  * Validate championship data
+ * @param {Object} data - Championship data to validate
+ * @param {Object} originalData - Original championship data (for edit mode)
  */
-export const validateChampionshipData = (data) => {
+export const validateChampionshipData = (data, originalData = null) => {
   const errors = {};
+  const isEditing = !!originalData;
 
   if (!data.name || data.name.trim().length < 3) {
     errors.name = 'Championship name must be at least 3 characters';
@@ -256,12 +283,28 @@ export const validateChampionshipData = (data) => {
 
   // Date validations - these fields are required
   const now = new Date();
+
+  // Registration start date validation
   if (!data.registration_start_at) {
     errors.registration_start_at = 'Registration start date is required';
-  } else if (new Date(data.registration_start_at) < now) {
-    errors.registration_start_at = 'Registration start date cannot be in the past';
+  } else {
+    const newRegStartDate = new Date(data.registration_start_at);
+
+    if (isEditing) {
+      // When editing, only check if moving to an earlier date than originally set
+      const originalRegStartDate = new Date(originalData.registration_start_at);
+      if (newRegStartDate < originalRegStartDate) {
+        errors.registration_start_at = 'Cannot set registration start date earlier than originally set';
+      }
+    } else {
+      // When creating, ensure date is not in the past
+      if (newRegStartDate < now) {
+        errors.registration_start_at = 'Registration start date cannot be in the past';
+      }
+    }
   }
 
+  // Registration end date validation
   if (!data.registration_end_at) {
     errors.registration_end_at = 'Registration end date is required';
   } else if (data.registration_start_at && data.registration_end_at) {
@@ -272,6 +315,7 @@ export const validateChampionshipData = (data) => {
     }
   }
 
+  // Championship start date validation
   if (!data.starts_at) {
     errors.starts_at = 'Championship start date is required';
   } else if (data.starts_at && data.registration_end_at) {

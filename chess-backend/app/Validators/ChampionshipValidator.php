@@ -32,7 +32,7 @@ class ChampionshipValidator
         ], [
             'title.required' => 'Championship title is required',
             'title.min' => 'Championship title must be at least 3 characters',
-            'entry_fee.max' => 'Entry fee cannot exceed $10,000',
+            'entry_fee.max' => 'Entry fee cannot exceed ₹10,000',
             'max_participants.power_of_two' => 'Max participants must be a power of 2 for elimination tournaments',
             'registration_deadline.before' => 'Registration deadline must be before start date',
             'swiss_rounds.required_if' => 'Swiss rounds are required for Swiss and Hybrid formats',

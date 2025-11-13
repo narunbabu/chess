@@ -1,9 +1,9 @@
 // ChampionshipDetails.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useChampionship } from '../../contexts/ChampionshipContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { formatChampionshipStatus, formatChampionshipType, formatPrizePool, formatParticipantCount, calculateProgress, formatDateTime, canUserRegister, isUserOrganizer, calculateDaysRemaining, getStatusColorClass } from '../../utils/championshipHelpers';
+import { formatChampionshipStatus, formatChampionshipType, formatPrizePool, formatParticipantCount, calculateProgress, formatDateTime, canUserRegister, isUserOrganizer, calculateDaysRemaining, getStatusColorClass, formatCurrency } from '../../utils/championshipHelpers';
 import ChampionshipStandings from './ChampionshipStandings';
 import ChampionshipMatches from './ChampionshipMatches';
 import ChampionshipParticipants from './ChampionshipParticipants';
@@ -34,6 +34,7 @@ const ChampionshipDetails = () => {
   const [registering, setRegistering] = useState(false);
   const [starting, setStarting] = useState(false);
   const [confirmationModal, setConfirmationModal] = useState({ isOpen: false, type: null });
+  const [isActionPanelExpanded, setIsActionPanelExpanded] = useState(false);
 
   // Check if user is platform admin
   const isPlatformAdmin = user?.roles?.some(role => role === 'platform_admin') || false;
@@ -41,10 +42,25 @@ const ChampionshipDetails = () => {
   useEffect(() => {
     if (id) {
       console.log('ChampionshipDetails: Fetching data for championship', id);
-      fetchChampionship(id);
+      fetchChampionship(id).catch(err => {
+        console.error('Failed to fetch championship:', err);
+        // Error is already handled by the context state, no need for additional handling
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  // Close panel on click outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (isActionPanelExpanded && !event.target.closest('.championship-actions-container')) {
+        setIsActionPanelExpanded(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isActionPanelExpanded]);
 
   const handleRegister = async () => {
     if (!user) {
@@ -143,6 +159,10 @@ const ChampionshipDetails = () => {
     }
   };
 
+  const toggleActionPanel = () => {
+    setIsActionPanelExpanded(prev => !prev);
+  };
+
   if (loading && !activeChampionship) {
     return (
       <div className="loading-state">
@@ -156,9 +176,15 @@ const ChampionshipDetails = () => {
     return (
       <div className="error-state">
         <p>❌ {error}</p>
-        <button onClick={() => fetchChampionship(id)} className="btn btn-primary">
-          Retry
-        </button>
+        <p>Unable to load championship details.</p>
+        <div className="error-actions">
+          <button onClick={() => fetchChampionship(id)} className="btn btn-primary">
+            Retry
+          </button>
+          <button onClick={() => navigate('/championships')} className="btn btn-secondary">
+            Back to Championships
+          </button>
+        </div>
       </div>
     );
   }
@@ -166,10 +192,16 @@ const ChampionshipDetails = () => {
   if (!activeChampionship) {
     return (
       <div className="error-state">
-        <p>Championship not found</p>
-        <button onClick={() => navigate('/championships')} className="btn btn-primary">
-          Back to Championships
-        </button>
+        <p>❌ Championship not found</p>
+        <p>This championship may have been deleted or doesn't exist.</p>
+        <div className="error-actions">
+          <button onClick={() => navigate('/championships')} className="btn btn-primary">
+            Back to Championships
+          </button>
+          <button onClick={() => window.location.reload()} className="btn btn-secondary">
+            Refresh Page
+          </button>
+        </div>
       </div>
     );
   }
@@ -223,7 +255,7 @@ const ChampionshipDetails = () => {
               {activeChampionship.prizes.map((prize, index) => (
                 <div key={index} className="prize-item">
                   <span className="prize-position">{prize.position}st</span>
-                  <span className="prize-amount">${parseFloat(prize.amount || 0).toFixed(2)}</span>
+                  <span className="prize-amount">{formatCurrency(prize.amount)}</span>
                   {prize.description && <span className="prize-desc">{prize.description}</span>}
                 </div>
               ))}
@@ -299,7 +331,17 @@ const ChampionshipDetails = () => {
           </div>
         </div>
 
-        <div className="championship-actions">
+        <div className="championship-actions-container">
+          <button
+            className={`actions-toggle ${isActionPanelExpanded ? 'active' : ''}`}
+            onClick={toggleActionPanel}
+            aria-label="Toggle actions"
+          >
+            <span className="toggle-icon">⚙️</span>
+          </button>
+
+          <div className={`actions-panel ${isActionPanelExpanded ? 'expanded' : ''}`}>
+            <div className="championship-actions">
           {/* Register button - only show if user can register */}
           {canRegister && !isRegistered && (
             <button
@@ -307,7 +349,8 @@ const ChampionshipDetails = () => {
               disabled={registering}
               className="btn btn-success"
             >
-              {registering ? 'Registering...' : 'Register'}
+              <span className="btn-icon">📝</span>
+              <span className="btn-text">{registering ? 'Registering...' : 'Register'}</span>
             </button>
           )}
 
@@ -318,7 +361,8 @@ const ChampionshipDetails = () => {
               className="btn btn-success"
               title={isPaid ? "You are registered and paid for this championship" : "You are registered for this championship"}
             >
-              ✓ Already Registered
+              <span className="btn-icon">✓</span>
+              <span className="btn-text">Already Registered</span>
             </button>
           )}
 
@@ -328,7 +372,8 @@ const ChampionshipDetails = () => {
               onClick={() => setActiveTab('my-matches')}
               className="btn btn-primary"
             >
-              My Matches
+              <span className="btn-icon">⚔️</span>
+              <span className="btn-text">My Matches</span>
             </button>
           )}
 
@@ -339,7 +384,8 @@ const ChampionshipDetails = () => {
               disabled={starting || (activeChampionship.registered_count || activeChampionship.participants_count) < 2}
               className="btn btn-admin"
             >
-              {starting ? 'Starting...' : 'Start Championship'}
+              <span className="btn-icon">▶️</span>
+              <span className="btn-text">{starting ? 'Starting...' : 'Start Championship'}</span>
             </button>
           )}
 
@@ -349,7 +395,8 @@ const ChampionshipDetails = () => {
                 onClick={() => navigate(`/championships/${id}/admin`)}
                 className="btn btn-admin"
               >
-                Manage Tournament
+                <span className="btn-icon">⚙️</span>
+                <span className="btn-text">Manage Tournament</span>
               </button>
               {activeChampionship.status !== 'in_progress' && !activeChampionship.deleted_at && (
                 <button
@@ -357,7 +404,8 @@ const ChampionshipDetails = () => {
                   className="btn btn-warning"
                   title="Archive this championship"
                 >
-                  📦 Archive
+                  <span className="btn-icon">📦</span>
+                  <span className="btn-text">Archive</span>
                 </button>
               )}
               {activeChampionship.deleted_at && (
@@ -366,7 +414,8 @@ const ChampionshipDetails = () => {
                   className="btn btn-success"
                   title="Restore this archived championship"
                 >
-                  ↺ Restore
+                  <span className="btn-icon">↺</span>
+                  <span className="btn-text">Restore</span>
                 </button>
               )}
               {isPlatformAdmin && activeChampionship.deleted_at && activeChampionship.participants_count === 0 && (
@@ -375,11 +424,14 @@ const ChampionshipDetails = () => {
                   className="btn btn-danger"
                   title="Permanently delete this championship"
                 >
-                  🗑️ Delete
+                  <span className="btn-icon">🗑️</span>
+                  <span className="btn-text">Delete</span>
                 </button>
               )}
             </>
           )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -396,34 +448,34 @@ const ChampionshipDetails = () => {
           onClick={() => setActiveTab('overview')}
           className={`tab ${activeTab === 'overview' ? 'active' : ''}`}
         >
-          Overview
+          <span>📊</span> Overview
         </button>
         <button
           onClick={() => setActiveTab('participants')}
           className={`tab ${activeTab === 'participants' ? 'active' : ''}`}
         >
-          Participants ({activeChampionship.registered_count || activeChampionship.participants_count})
+          <span>👥</span> Participants ({activeChampionship.registered_count || activeChampionship.participants_count})
         </button>
         <button
           onClick={() => setActiveTab('standings')}
           className={`tab ${activeTab === 'standings' ? 'active' : ''}`}
           disabled={activeChampionship.status === 'registration_open'}
         >
-          Standings
+          <span>🏆</span> Standings
         </button>
         <button
           onClick={() => setActiveTab('matches')}
           className={`tab ${activeTab === 'matches' ? 'active' : ''}`}
           disabled={activeChampionship.status === 'registration_open'}
         >
-          Matches
+          <span>⚔️</span> Matches
         </button>
         {activeChampionship.user_participation && (
           <button
             onClick={() => setActiveTab('my-matches')}
             className={`tab ${activeTab === 'my-matches' ? 'active' : ''}`}
           >
-            My Matches
+            <span>🎯</span> My Matches
           </button>
         )}
       </div>

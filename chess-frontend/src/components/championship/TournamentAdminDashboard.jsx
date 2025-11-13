@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useChampionship } from '../../contexts/ChampionshipContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { formatChampionshipStatus, formatDateTime, calculateProgress } from '../../utils/championshipHelpers';
+import { formatChampionshipStatus, formatDateTime, calculateProgress, formatCurrency } from '../../utils/championshipHelpers';
 import PairingManager from './PairingManager';
 import TournamentSettings from './TournamentSettings';
 import ConfirmationModal from './ConfirmationModal';
@@ -215,7 +215,8 @@ const TournamentAdminDashboard = () => {
   }
 
   const progress = calculateProgress(activeChampionship);
-  const canStart = activeChampionship.status === 'registration_open' && participants.length >= 2;
+  const participantsCount = Array.isArray(participants) ? participants.length : 0;
+  const canStart = activeChampionship.status === 'registration_open' && participantsCount >= 2;
   const canGenerateNext = activeChampionship.status === 'in_progress' &&
                          activeChampionship.current_round < activeChampionship.total_rounds;
 
@@ -244,7 +245,7 @@ const TournamentAdminDashboard = () => {
         <div className="admin-stat-card">
           <div className="stat-icon">👥</div>
           <div className="stat-content">
-            <div className="stat-value">{participants.length}</div>
+            <div className="stat-value">{participantsCount}</div>
             <div className="stat-label">Participants</div>
           </div>
         </div>
@@ -269,7 +270,7 @@ const TournamentAdminDashboard = () => {
           <div className="stat-icon">💰</div>
           <div className="stat-content">
             <div className="stat-value">
-              ${participants.filter(p => p.payment_status === 'paid').length * (parseFloat(activeChampionship.entry_fee) || 0)}
+              {formatCurrency((Array.isArray(participants) ? participants.filter(p => p.payment_status === 'paid').length : 0) * (parseFloat(activeChampionship.entry_fee) || 0))}
             </div>
             <div className="stat-label">Collected Fees</div>
           </div>

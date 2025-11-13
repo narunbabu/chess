@@ -1,5 +1,5 @@
 // CreateChampionshipModal.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useChampionship } from '../../contexts/ChampionshipContext';
 import { validateChampionshipData } from '../../utils/championshipHelpers';
 import './Championship.css';
@@ -17,13 +17,33 @@ function getDefaultDateTime(daysOffset = 0) {
   return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
 
-const CreateChampionshipModal = ({ isOpen, onClose, onSuccess }) => {
-  const { createChampionship } = useChampionship();
+// Helper function to format date for datetime-local input
+function formatDateTimeForInput(dateString) {
+  if (!dateString) return getDefaultDateTime();
+
+  try {
+    const date = new Date(dateString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  } catch (error) {
+    console.warn('Invalid date format:', dateString);
+    return getDefaultDateTime();
+  }
+}
+
+const CreateChampionshipModal = ({ isOpen, onClose, onSuccess, championship: editingChampionship }) => {
+  const { createChampionship, updateChampionship } = useChampionship();
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [currentStep, setCurrentStep] = useState(1);
   const [stepInteracted, setStepInteracted] = useState({});
   const totalSteps = 3;
+  const isEditing = !!editingChampionship;
 
   const [formData, setFormData] = useState({
     name: '',
@@ -48,6 +68,35 @@ const CreateChampionshipModal = ({ isOpen, onClose, onSuccess }) => {
       round_duration_days: 3
     }
   });
+
+  // Populate form data when editing
+  useEffect(() => {
+    if (isEditing && editingChampionship) {
+      setFormData({
+        name: editingChampionship.title || editingChampionship.name || '',
+        description: editingChampionship.description || '',
+        format: editingChampionship.format || 'swiss_only',
+        time_control: editingChampionship.time_control || {
+          minutes: 10,
+          increment: 0
+        },
+        max_participants: editingChampionship.max_participants || 50,
+        total_rounds: editingChampionship.total_rounds || editingChampionship.swiss_rounds || 5,
+        entry_fee: editingChampionship.entry_fee || '',
+        registration_start_at: formatDateTimeForInput(editingChampionship.registration_start_at),
+        registration_end_at: formatDateTimeForInput(editingChampionship.registration_deadline || editingChampionship.registration_end_at),
+        starts_at: formatDateTimeForInput(editingChampionship.start_date || editingChampionship.starts_at),
+        prizes: editingChampionship.prizes || [],
+        settings: {
+          allow_byes: editingChampionship.settings?.allow_byes ?? true,
+          color_preference: editingChampionship.settings?.color_preference ?? true,
+          tiebreak_rules: editingChampionship.settings?.tiebreak_rules || ['buchholz', 'sonnenborn_berger'],
+          auto_pairing: editingChampionship.settings?.auto_pairing ?? true,
+          round_duration_days: editingChampionship.settings?.round_duration_days || editingChampionship.match_time_window_hours / 24 || 3
+        }
+      });
+    }
+  }, [isEditing, editingChampionship]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -176,8 +225,8 @@ const CreateChampionshipModal = ({ isOpen, onClose, onSuccess }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validate all steps
-    const validation = validateChampionshipData(formData);
+    // Validate all steps - pass original data when editing
+    const validation = validateChampionshipData(formData, isEditing ? editingChampionship : null);
     if (!validation.isValid) {
       setErrors(validation.errors);
       return;
@@ -185,7 +234,12 @@ const CreateChampionshipModal = ({ isOpen, onClose, onSuccess }) => {
 
     setLoading(true);
     try {
-      const championship = await createChampionship(formData);
+      let championship;
+      if (isEditing) {
+        championship = await updateChampionship(editingChampionship.id, formData);
+      } else {
+        championship = await createChampionship(formData);
+      }
       onSuccess?.(championship);
       onClose();
       // Reset form
@@ -212,8 +266,8 @@ const CreateChampionshipModal = ({ isOpen, onClose, onSuccess }) => {
       setCurrentStep(1);
       setStepInteracted({});
     } catch (error) {
-      console.error('Failed to create championship:', error);
-      setErrors({ submit: error.response?.data?.message || 'Failed to create championship' });
+      console.error(`Failed to ${isEditing ? 'update' : 'create'} championship:`, error);
+      setErrors({ submit: error.response?.data?.message || `Failed to ${isEditing ? 'update' : 'create'} championship` });
     } finally {
       setLoading(false);
     }
@@ -272,7 +326,7 @@ const CreateChampionshipModal = ({ isOpen, onClose, onSuccess }) => {
             </div>
 
             <div className="form-group">
-              <label htmlFor="entry_fee">Entry Fee ($)</label>
+              <label htmlFor="entry_fee">Entry Fee (₹)</label>
               <input
                 type="number"
                 id="entry_fee"
@@ -512,7 +566,7 @@ const CreateChampionshipModal = ({ isOpen, onClose, onSuccess }) => {
     <div className="modal-overlay">
       <div className="modal create-championship-modal">
         <div className="modal-header">
-          <h2>Create Championship</h2>
+          <h2>{isEditing ? 'Edit Championship' : 'Create Championship'}</h2>
           <button
             onClick={onClose}
             className="modal-close"
@@ -578,7 +632,7 @@ const CreateChampionshipModal = ({ isOpen, onClose, onSuccess }) => {
                   className="btn btn-primary"
                   disabled={loading}
                 >
-                  {loading ? 'Creating...' : 'Create Championship'}
+                  {loading ? (isEditing ? 'Updating...' : 'Creating...') : (isEditing ? 'Update Championship' : 'Create Championship')}
                 </button>
               )}
             </div>

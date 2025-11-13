@@ -98,6 +98,7 @@
 .championship-card {
   background: white;
   border-radius: 12px;
+  position: relative;
   padding: 24px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -150,7 +151,7 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .championship-title-section {
@@ -158,135 +159,231 @@
 }
 
 .championship-name {
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   font-weight: 700;
   color: #1a202c;
-  margin: 0 0 8px 0;
+  margin: 0 0 6px 0;
   line-height: 1.3;
+}
+
+.championship-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .championship-status {
   display: inline-block;
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 0.75rem;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 0.7rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
 }
 
 .championship-prize {
   background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
   color: white;
-  padding: 6px 12px;
-  border-radius: 6px;
+  padding: 3px 8px;
+  border-radius: 12px;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.7rem;
   white-space: nowrap;
 }
 
-.championship-info {
-  margin-bottom: 20px;
+/* Compact summary layout */
+.championship-summary {
+  margin-bottom: 12px;
 }
 
-.championship-details {
-  margin-bottom: 16px;
-}
-
-.detail-item {
+.summary-row {
   display: flex;
-  justify-content: space-between;
+  gap: 12px;
   align-items: center;
-  padding: 6px 0;
-  border-bottom: 1px solid #f7fafc;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
 }
 
-.detail-item:last-child {
-  border-bottom: none;
+.summary-row:last-child {
+  margin-bottom: 0;
 }
 
-.detail-label {
-  font-size: 0.875rem;
-  color: #718096;
-  font-weight: 500;
-}
-
-.detail-value {
-  font-size: 0.875rem;
-  color: #2d3748;
-  font-weight: 600;
-}
-
-.championship-dates {
+.summary-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   background: #f8fafc;
-  padding: 12px;
-  border-radius: 8px;
-  border-left: 4px solid #667eea;
-}
-
-.date-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 4px 0;
-}
-
-.date-item.urgency {
-  color: #e53e3e;
-  font-weight: 600;
-}
-
-.date-label {
+  padding: 4px 8px;
+  border-radius: 6px;
   font-size: 0.75rem;
-  color: #718096;
+  white-space: nowrap;
+  border: 1px solid #e2e8f0;
+}
+
+.summary-icon {
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+.summary-text {
   font-weight: 500;
+  color: #374151;
 }
 
-.date-value {
-  font-size: 0.75rem;
-  color: #2d3748;
+.championship-deadline {
+  background: #f0f9ff;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border-left: 3px solid #3b82f6;
+  margin-bottom: 12px;
+}
+
+.deadline-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.urgency {
+  color: #dc2626;
   font-weight: 600;
+}
+
+/* Collapsible Actions Panel Container */
+.championship-actions-container {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 10;
+}
+
+/* Backdrop overlay for mobile */
+.actions-backdrop {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 9;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.actions-backdrop.visible {
+  display: block;
+  opacity: 1;
+}
+
+/* Toggle Button */
+.actions-toggle {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  z-index: 12;
+}
+
+.actions-toggle:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.6);
+}
+
+.toggle-icon {
+  font-size: 1.2rem;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-block;
+}
+
+.actions-toggle.active .toggle-icon {
+  transform: rotate(90deg);
+}
+
+/* Actions Panel */
+.actions-panel {
+  position: absolute;
+  top: 48px;
+  right: 0;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  padding: 12px;
+  width: max-content;
+  max-width: min(300px, calc(100vw - 80px));
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 11;
+}
+
+.actions-panel.expanded {
+  max-height: 500px;
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .championship-actions {
   display: flex;
+  flex-direction: column;
   gap: 8px;
-  flex-wrap: nowrap;
-  align-items: center;
 }
 
 /* Buttons */
 .btn {
-  padding: 6px 12px;
+  padding: 10px 16px;
   border: none;
-  border-radius: 6px;
-  font-size: 0.8rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  min-height: 32px;
+  justify-content: flex-start;
+  min-height: 40px;
   white-space: nowrap;
   position: relative;
-  flex-shrink: 0;
+  width: auto;
+  min-width: fit-content;
 }
 
-/* Button with icon support for mobile collapse */
-.btn-icon {
-  padding: 8px 12px;
-  min-width: 36px;
+/* Button with icon support */
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
 }
 
 .btn .btn-text {
   transition: opacity 0.2s ease;
+  flex: none;
+  line-height: 1;
+  color: inherit;
 }
 
 .btn .btn-icon {
-  font-size: 1rem;
-  margin-right: 6px;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
 }
 
 .btn:disabled {
@@ -306,7 +403,7 @@
 
 .btn-secondary {
   background: #e2e8f0;
-  color: #4a5568;
+  color: #1a1a1a;
 }
 
 .btn-secondary:hover:not(:disabled) {
@@ -331,6 +428,16 @@
 .btn-admin:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(237, 137, 54, 0.3);
+}
+
+.btn-warning {
+  background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+  color: #1a1a1a;
+}
+
+.btn-warning:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(255, 193, 7, 0.3);
 }
 
 /* Loading and Error States */
@@ -366,6 +473,18 @@
 .error-state p {
   margin-bottom: 20px;
   font-size: 1.1rem;
+}
+
+.error-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.error-actions .btn {
+  min-width: 140px;
 }
 
 .empty-state h3 {
@@ -533,8 +652,8 @@
 .form-group label {
   display: block;
   margin-bottom: 4px;
-  font-weight: 500;
-  color: #374151;
+  font-weight: 600;
+  color: #1f2937;
   font-size: 0.875rem;
 }
 
@@ -545,12 +664,126 @@
   border-radius: 6px;
   font-size: 0.875rem;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  background-color: #ffffff;
+  color: #1f2937;
+  font-weight: 500;
 }
 
 .form-input:focus {
   outline: none;
   border-color: #667eea;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  background-color: #ffffff;
+  color: #1f2937;
+}
+
+/* Improve contrast for datetime-local and other input types */
+.form-input[type="datetime-local"],
+.form-input[type="date"],
+.form-input[type="time"],
+.form-input[type="number"],
+.form-input[type="text"],
+.form-input[type="email"],
+.form-input[type="password"],
+.form-input[type="tel"],
+.form-input[type="url"],
+.form-input[type="search"],
+textarea.form-input,
+select.form-input {
+  background-color: #ffffff !important;
+  color: #1f2937 !important;
+  font-weight: 500 !important;
+}
+
+/* Select dropdown styling */
+select.form-input {
+  cursor: pointer;
+}
+
+select.form-input option {
+  background-color: #ffffff;
+  color: #1f2937;
+  font-weight: 500;
+  padding: 8px 12px;
+}
+
+/* Textarea styling */
+textarea.form-input {
+  resize: vertical;
+  min-height: 100px;
+  line-height: 1.5;
+}
+
+/* Webkit browsers (Chrome, Safari, Edge) - datetime-local styling */
+.form-input[type="datetime-local"]::-webkit-datetime-edit-text-field,
+.form-input[type="datetime-local"]::-webkit-datetime-edit-month-field,
+.form-input[type="datetime-local"]::-webkit-datetime-edit-day-field,
+.form-input[type="datetime-local"]::-webkit-datetime-edit-year-field,
+.form-input[type="datetime-local"]::-webkit-datetime-edit-hour-field,
+.form-input[type="datetime-local"]::-webkit-datetime-edit-minute-field {
+  background-color: #ffffff !important;
+  color: #1f2937 !important;
+  font-weight: 500 !important;
+}
+
+.form-input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  background-color: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  padding: 2px;
+  cursor: pointer;
+}
+
+.form-input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+  background-color: #e5e7eb;
+}
+
+/* Firefox datetime-local styling */
+.form-input[type="datetime-local"]::-moz-datetime-edit-text-field,
+.form-input[type="datetime-local"]::-moz-datetime-edit-month-field,
+.form-input[type="datetime-local"]::-moz-datetime-edit-day-field,
+.form-input[type="datetime-local"]::-moz-datetime-edit-year-field,
+.form-input[type="datetime-local"]::-moz-datetime-edit-hour-field,
+.form-input[type="datetime-local"]::-moz-datetime-edit-minute-field {
+  background-color: #ffffff !important;
+  color: #1f2937 !important;
+  font-weight: 500 !important;
+}
+
+/* Number input styling */
+.form-input[type="number"]::-webkit-outer-spin-button,
+.form-input[type="number"]::-webkit-inner-spin-button {
+  opacity: 1;
+  height: 40px;
+}
+
+.form-input[type="number"]::-moz-number-spin-up,
+.form-input[type="number"]::-moz-number-spin-down {
+  background-color: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+}
+
+/* Ensure placeholder text has good contrast */
+.form-input::placeholder {
+  color: #6b7280 !important;
+  font-weight: 400 !important;
+  opacity: 1 !important;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .form-input {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    border-color: #000000 !important;
+    font-weight: 600 !important;
+  }
+
+  .form-input:focus {
+    border-color: #0066cc !important;
+    box-shadow: 0 0 0 2px #0066cc !important;
+  }
 }
 
 .form-input.error {
@@ -568,26 +801,29 @@
 }
 
 .error-message {
-  color: #ef4444;
+  color: #dc2626;
   font-size: 0.75rem;
   margin-top: 2px;
   display: block;
+  font-weight: 600;
 }
 
 .error-message.global {
   background: #fef2f2;
-  border: 1px solid #fecaca;
+  border: 2px solid #fecaca;
   color: #dc2626;
   padding: 12px;
   border-radius: 6px;
   margin-bottom: 20px;
+  font-weight: 600;
 }
 
 .form-group small {
-  color: #6b7280;
+  color: #4b5563;
   font-size: 0.75rem;
   margin-top: 4px;
   display: block;
+  font-weight: 500;
 }
 
 .prizes-list {
@@ -619,9 +855,10 @@
   display: flex !important;
   align-items: center;
   gap: 8px;
-  font-weight: normal !important;
+  font-weight: 500 !important;
   cursor: pointer;
   margin-bottom: 0 !important;
+  color: #1f2937 !important;
 }
 
 .checkbox-label input[type="checkbox"] {
@@ -673,11 +910,21 @@
   align-items: center;
   gap: 20px;
   flex-wrap: wrap;
+  position: relative;
 }
 
 .back-btn {
   padding: 8px 16px;
   font-size: 0.875rem;
+  min-width: fit-content !important;
+  white-space: nowrap !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+}
+
+.back-btn::after {
+  content: none !important;
 }
 
 .championship-title-section {
@@ -747,17 +994,52 @@
   transition: all 0.2s ease;
   border-bottom: 3px solid transparent;
   min-width: 120px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  z-index: 1;
+}
+
+.tab span {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.tab::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  border-radius: 12px 12px 0 0;
 }
 
 .tab:hover:not(:disabled) {
   background: #f9fafb;
   color: #374151;
+  transform: translateY(-1px);
+}
+
+.tab:hover:not(:disabled)::before {
+  opacity: 0.05;
 }
 
 .tab.active {
-  color: #667eea;
-  background: #f0f4ff;
+  color: white;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-bottom-color: #667eea;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  transform: translateY(-1px);
+}
+
+.tab.active::before {
+  opacity: 1;
 }
 
 .tab:disabled {
@@ -1631,35 +1913,53 @@
 
 .admin-stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
 }
 
 .admin-stat-card {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  padding: 24px;
-  border-radius: 12px;
+  padding: 16px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
-  gap: 16px;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  gap: 12px;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  transition: transform 0.2s ease;
+}
+
+.admin-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
 .admin-stat-card .stat-icon {
-  font-size: 2.5rem;
-  opacity: 0.8;
+  font-size: 1.75rem;
+  opacity: 0.9;
+  flex-shrink: 0;
+}
+
+.admin-stat-card .stat-content {
+  flex: 1;
+  min-width: 0;
 }
 
 .admin-stat-card .stat-value {
-  font-size: 2rem;
+  font-size: 1.25rem;
   font-weight: 700;
   color: white;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .admin-stat-card .stat-label {
   color: rgba(255, 255, 255, 0.9);
-  margin-top: 4px;
+  margin-top: 2px;
+  font-size: 0.75rem;
+  line-height: 1.3;
 }
 
 .admin-actions-grid {
@@ -2111,12 +2411,47 @@
   }
 
   .championship-card {
-    padding: 20px;
+    padding: 16px;
   }
 
   .championship-header {
     flex-direction: column;
-    gap: 12px;
+    gap: 8px;
+  }
+
+  .championship-name {
+    font-size: 1rem;
+  }
+
+  .championship-meta {
+    gap: 6px;
+  }
+
+  .championship-status,
+  .championship-prize {
+    font-size: 0.65rem;
+    padding: 2px 6px;
+  }
+
+  .summary-row {
+    gap: 6px;
+  }
+
+  .summary-item {
+    padding: 3px 6px;
+    font-size: 0.7rem;
+  }
+
+  .summary-icon {
+    font-size: 0.75rem;
+  }
+
+  .championship-deadline {
+    padding: 6px 8px;
+  }
+
+  .deadline-label {
+    font-size: 0.75rem;
   }
 
   .championship-actions {
@@ -2141,21 +2476,130 @@
     border-radius: 2px;
   }
 
-  /* Buttons become icon-only on mobile */
-  .btn {
-    padding: 8px 12px;
-    min-width: 44px;
-    font-size: 0.8rem;
+  /* Collapsible panel adjustments for mobile */
+  .championship-actions-container {
+    top: 8px;
+    right: 8px;
+  }
+
+  .actions-toggle {
+    width: 36px;
+    height: 36px;
+  }
+
+  .toggle-icon {
+    font-size: 1rem;
+  }
+
+  .actions-panel {
+    width: max-content;
+    max-width: min(280px, calc(100vw - 60px));
+    top: 44px;
+  }
+
+  /* Show backdrop on mobile */
+  .actions-backdrop.visible {
+    display: block;
+  }
+
+  /* Buttons in collapsible panel - ensure full text visibility */
+  .actions-panel .btn {
+    padding: 14px 16px;
+    width: auto;
+    min-width: fit-content;
+    font-size: 0.9rem;
     flex-shrink: 0;
+    justify-content: flex-start !important;
+    line-height: 1.3;
+    align-items: center !important;
+    gap: 8px !important;
+    display: flex !important;
+    text-align: left !important;
+    flex-direction: row !important;
+  }
+
+  /* Ensure consistent icon sizing in collapsible panel */
+  .actions-panel .btn .btn-icon {
+    width: 20px;
+    min-width: 20px;
+    height: 20px;
+    font-size: 1.1rem;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+    margin: 0 !important;
+    order: 1 !important;
+  }
+
+  /* Ensure consistent text alignment in collapsible panel */
+  .actions-panel .btn .btn-text {
+    line-height: 1.2;
+    white-space: nowrap;
+    display: inline-block !important;
+    text-align: left !important;
+    flex: 1 !important;
+    color: #1a1a1a !important;
+    order: 2 !important;
   }
 
   .btn .btn-text {
     display: none;
   }
 
+  /* Exception: Championship buttons always show text */
+  .create-btn .btn-text,
+  .championship-actions .btn .btn-text,
+  .actions-panel .btn .btn-text {
+    display: block;
+  }
+
+  .create-btn {
+    min-width: auto;
+    padding: 10px 16px;
+  }
+
+  .championship-actions .btn {
+    min-width: auto;
+    padding: 8px 12px;
+    font-size: 0.75rem;
+  }
+
   .btn .btn-icon {
-    margin-right: 0;
     font-size: 1.1rem;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+    width: 20px !important;
+    min-width: 20px !important;
+    height: 20px !important;
+    margin: 0 !important;
+    order: 1 !important;
+  }
+
+  /* Ensure buttons maintain left alignment on mobile */
+  .btn {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 8px !important;
+  }
+
+  .btn .btn-text {
+    white-space: nowrap;
+    display: inline-block !important;
+    text-align: left !important;
+    flex: 1 !important;
+    color: inherit !important;
+    order: 2 !important;
+  }
+
+  /* Keep back button visible and readable on mobile */
+  .back-btn {
+    font-size: 0.8rem !important;
+    padding: 8px 14px !important;
+    min-width: fit-content !important;
   }
 
   /* Show tooltips on mobile for icon-only buttons */
@@ -2196,6 +2640,12 @@
     justify-content: center;
   }
 
+  /* Ensure individual button content remains left-aligned on mobile */
+  .championship-actions .btn {
+    justify-content: flex-start !important;
+    text-align: left !important;
+  }
+
   .championship-tabs {
     flex-wrap: wrap;
   }
@@ -2212,8 +2662,25 @@
   }
 
   .admin-stats-grid {
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .admin-stat-card {
+    padding: 12px;
+    gap: 8px;
+  }
+
+  .admin-stat-card .stat-icon {
+    font-size: 1.5rem;
+  }
+
+  .admin-stat-card .stat-value {
+    font-size: 1.1rem;
+  }
+
+  .admin-stat-card .stat-label {
+    font-size: 0.7rem;
   }
 
   .admin-actions-grid {
@@ -2351,14 +2818,85 @@
     gap: 6px;
   }
 
+  /* Ensure buttons maintain left alignment in this mobile breakpoint too */
+  .championship-actions .btn {
+    justify-content: flex-start !important;
+    text-align: left !important;
+  }
+
   .btn {
-    min-width: 40px;
-    padding: 6px 10px;
-    font-size: 0.75rem;
+    min-width: fit-content;
+    padding: 8px 12px;
+    font-size: 0.8rem;
+    white-space: nowrap;
   }
 
   .btn .btn-icon {
-    font-size: 1rem;
+    font-size: 0.95rem;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+    width: 18px !important;
+    min-width: 18px !important;
+    height: 18px !important;
+    margin: 0 !important;
+    order: 1 !important;
+  }
+
+  /* Keep back button visible and readable on smaller mobile */
+  .back-btn {
+    font-size: 0.75rem !important;
+    padding: 7px 12px !important;
+    min-width: fit-content !important;
+  }
+
+  /* Exception: Championship buttons always show text */
+  .create-btn .btn-text,
+  .championship-actions .btn .btn-text {
+    display: block;
+  }
+
+  /* Show icons in championship buttons on mobile */
+  .championship-actions .btn .btn-icon {
+    display: flex;
+  }
+
+  /* Ensure championship buttons maintain proper flex layout on mobile */
+  .create-btn,
+  .championship-actions .btn,
+  .actions-panel .btn {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 8px !important;
+    min-width: auto;
+  }
+
+  /* Force icon and text order and styling */
+  .create-btn .btn-icon,
+  .championship-actions .btn .btn-icon,
+  .actions-panel .btn .btn-icon {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+    min-width: 20px !important;
+    width: 20px !important;
+    height: 20px !important;
+    margin: 0 !important;
+    order: 1 !important;
+  }
+
+  .create-btn .btn-text,
+  .championship-actions .btn .btn-text,
+  .actions-panel .btn .btn-text {
+    display: inline-block !important;
+    text-align: left !important;
+    flex: 1 !important;
+    color: #1a1a1a !important;
+    order: 2 !important;
   }
 
   .championship-details-container {
@@ -2396,30 +2934,30 @@
     border-radius: 2px;
   }
 
+  /* Keep buttons readable with both icon and text visible */
   .btn {
     width: auto;
     flex-shrink: 0;
-    font-size: 0 !important;
-    color: transparent !important;
+    font-size: 0.7rem;
+    min-width: fit-content;
+    min-height: 40px;
+    padding: 8px 12px;
+    position: relative;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 6px !important;
+    white-space: nowrap;
   }
 
-  /* Icon mapping for mobile - hide text and show icons */
-  .btn-primary::before { content: "👁️"; }
-  .btn-success::before { content: "✏️"; }
-  .btn-admin::before { content: "⚙️"; }
-  .btn-warning::before { content: "📦"; }
-  .btn-danger::before { content: "🗑️"; }
-  .btn-info::before { content: "✓"; }
-  .btn-secondary::before { content: "⚔️"; }
-
-  /* Style the pseudo-element */
-  .btn::before {
-    font-size: 1.1rem !important;
-    color: inherit !important;
-    display: block;
-    text-align: center;
-    line-height: 1;
+  /* Ensure back button stays visible */
+  .back-btn {
+    font-size: 0.75rem !important;
+    padding: 7px 12px !important;
+    min-width: fit-content !important;
   }
+
+  /* Removed ::after pseudo-elements - using proper .btn-icon elements instead */
 
   .tab {
     min-width: 80px;
@@ -2436,16 +2974,28 @@
   }
 
   .admin-stats-grid {
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
   }
 
   .admin-stat-card {
-    padding: 16px;
+    padding: 10px;
+    gap: 6px;
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .admin-stat-card .stat-icon {
+    font-size: 1.5rem;
   }
 
   .admin-stat-card .stat-value {
-    font-size: 1.5rem;
+    font-size: 1rem;
+  }
+
+  .admin-stat-card .stat-label {
+    font-size: 0.65rem;
+    margin-top: 2px;
   }
 
   .admin-tab {
@@ -2816,13 +3366,42 @@
   }
 
   .btn {
-    min-width: 36px;
-    padding: 6px 8px;
-    font-size: 0.7rem;
+    min-width: fit-content;
+    padding: 7px 10px;
+    font-size: 0.75rem;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    text-align: left !important;
+    white-space: nowrap;
   }
 
   .btn .btn-icon {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+    width: 16px !important;
+    min-width: 16px !important;
+    height: 16px !important;
+    margin: 0 !important;
+    order: 1 !important;
+  }
+
+  .btn .btn-text {
+    display: inline-block !important;
+    text-align: left !important;
+    flex: 1 !important;
+    color: inherit !important;
+    order: 2 !important;
+  }
+
+  /* Keep back button visible on smallest screens */
+  .back-btn {
+    font-size: 0.7rem !important;
+    padding: 6px 10px !important;
+    min-width: fit-content !important;
   }
 
   .championship-actions {
@@ -2844,8 +3423,27 @@
   }
 
   .admin-stats-grid {
-    grid-template-columns: 1fr;
-    gap: 8px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+  }
+
+  .admin-stat-card {
+    padding: 8px;
+    gap: 4px;
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .admin-stat-card .stat-icon {
+    font-size: 1.25rem;
+  }
+
+  .admin-stat-card .stat-value {
+    font-size: 0.9rem;
+  }
+
+  .admin-stat-card .stat-label {
+    font-size: 0.6rem;
   }
 
   .admin-tab {
@@ -2967,4 +3565,172 @@
     padding: 6px 8px;
     font-size: 0.625rem;
   }
+}
+
+/* FINAL MOBILE BUTTON ALIGNMENT OVERRIDE - Ensure icons are always left-aligned */
+@media (max-width: 768px) {
+  .btn,
+  .actions-panel .btn,
+  .championship-actions .btn,
+  .create-btn {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    text-align: left !important;
+    gap: 8px !important;
+  }
+
+  .btn .btn-icon,
+  .actions-panel .btn .btn-icon,
+  .championship-actions .btn .btn-icon,
+  .create-btn .btn-icon {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+    min-width: 20px !important;
+    width: 20px !important;
+    height: 20px !important;
+    margin: 0 !important;
+    order: 1 !important;
+  }
+
+  .btn .btn-text,
+  .actions-panel .btn .btn-text,
+  .championship-actions .btn .btn-text,
+  .create-btn .btn-text {
+    display: inline-block !important;
+    text-align: left !important;
+    flex: 1 !important;
+    white-space: nowrap !important;
+    color: #1a1a1a !important;
+    order: 2 !important;
+  }
+}
+/* Payment Modal Styles */
+.payment-championship-info {
+  background: #f7fafc;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.payment-championship-info h3 {
+  margin: 0 0 15px 0;
+  color: #2d3748;
+  font-size: 1.25rem;
+}
+
+.payment-details {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.payment-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.payment-row:last-child {
+  border-bottom: none;
+}
+
+.payment-label {
+  font-weight: 600;
+  color: #4a5568;
+}
+
+.payment-value {
+  font-weight: 700;
+  color: #2d3748;
+  font-size: 1.1rem;
+}
+
+.payment-value.mock-text {
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  background: #edf2f7;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+/* Payment Steps */
+.payment-steps {
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 30px;
+  background: #f7fafc;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.payment-step {
+  text-align: center;
+  width: 100%;
+}
+
+.payment-step p {
+  margin: 10px 0;
+  color: #4a5568;
+}
+
+.payment-note {
+  font-size: 0.9rem;
+  color: #718096;
+  font-style: italic;
+}
+
+.payment-success {
+  color: #22543d;
+}
+
+.payment-error {
+  color: #742a2a;
+}
+
+.success-icon,
+.error-icon {
+  font-size: 4rem;
+  margin-bottom: 15px;
+}
+
+.payment-success h3 {
+  color: #22543d;
+  margin: 15px 0;
+}
+
+.payment-error h3 {
+  color: #742a2a;
+  margin: 15px 0;
+}
+
+.payment-error p {
+  color: #742a2a;
+  margin: 10px 0 20px 0;
+}
+
+/* Mock Payment Info */
+.mock-payment-info {
+  background: #fef5e7;
+  border-left: 4px solid #f39c12;
+  padding: 15px;
+  border-radius: 4px;
+  margin-top: 20px;
+}
+
+.mock-payment-info p {
+  margin: 5px 0;
+  font-size: 0.9rem;
+  color: #856404;
+}
+
+.mock-payment-info strong {
+  font-weight: 700;
 }

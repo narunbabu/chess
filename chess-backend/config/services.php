@@ -50,6 +50,7 @@ return [
         'key_id' => env('RAZORPAY_KEY_ID'),
         'key_secret' => env('RAZORPAY_KEY_SECRET'),
         'webhook_secret' => env('RAZORPAY_WEBHOOK_SECRET'),
+        'mock_mode' => env('RAZORPAY_MOCK_MODE', true), // Enable mock mode for testing by default
     ],
 
 ];

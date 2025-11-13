@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useChampionship } from '../../contexts/ChampionshipContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { formatDateTime } from '../../utils/championshipHelpers';
+import { formatDateTime, formatCurrency } from '../../utils/championshipHelpers';
 import './Championship.css';
 
 const ChampionshipParticipants = ({ championshipId, participants: propsParticipants }) => {
@@ -234,7 +234,7 @@ const ChampionshipParticipants = ({ championshipId, participants: propsParticipa
                   {participant.entry_fee && parseFloat(participant.entry_fee) > 0 && (
                     <div className="payment-info">
                       <span className="entry-fee">
-                        ${parseFloat(participant.entry_fee).toFixed(2)}
+                        {formatCurrency(participant.entry_fee)}
                       </span>
                       {getPaymentStatusBadge(participant.payment_status)}
                     </div>

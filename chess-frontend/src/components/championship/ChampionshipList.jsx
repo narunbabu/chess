@@ -1,12 +1,13 @@
 // ChampionshipList.jsx
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useChampionship } from '../../contexts/ChampionshipContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { formatChampionshipStatus, formatChampionshipType, formatPrizePool, formatParticipantCount, calculateDaysRemaining, formatDateTime, getStatusColorClass, canUserRegister } from '../../utils/championshipHelpers';
+import { formatChampionshipStatus, formatChampionshipType, formatPrizePool, formatParticipantCount, calculateDaysRemaining, formatDateTime, getStatusColorClass, canUserRegister, formatCurrency } from '../../utils/championshipHelpers';
 import { canCreateChampionship } from '../../utils/permissionHelpers';
 import CreateChampionshipModal from './CreateChampionshipModal';
 import ConfirmationModal from './ConfirmationModal';
+import MockRazorpayPayment from './MockRazorpayPayment';
 import './Championship.css';
 
 const ChampionshipList = () => {
@@ -27,9 +28,13 @@ const ChampionshipList = () => {
   const filtersMemo = useMemo(() => filters, [filters.status, filters.format, filters.search, filters.upcoming_only, filters.user_registered, filters.archived]);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingChampionship, setEditingChampionship] = useState(null);
   const [registeringId, setRegisteringId] = useState(null);
   const [restoringId, setRestoringId] = useState(null);
   const [confirmationModal, setConfirmationModal] = useState({ isOpen: false, type: null, championship: null });
+  const [expandedActionPanel, setExpandedActionPanel] = useState(null);
+  const [paymentModal, setPaymentModal] = useState({ isOpen: false, championship: null });
 
   // Check if user is admin (can view archived)
   const isAdmin = user?.roles?.some(role =>
@@ -43,19 +48,40 @@ const ChampionshipList = () => {
     fetchChampionships(filtersMemo);
   }, [fetchChampionships, filtersMemo]);
 
+  // Close panel on click outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (expandedActionPanel && !event.target.closest('.championship-actions-container')) {
+        setExpandedActionPanel(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [expandedActionPanel]);
+
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));
   };
 
-  const handleRegister = async (championshipId) => {
+  const handleRegister = async (championship) => {
     if (!user) {
       navigate('/login');
       return;
     }
 
-    setRegisteringId(championshipId);
+    // Check if championship requires payment
+    const entryFee = parseFloat(championship.entry_fee || 0);
+    if (entryFee > 0) {
+      // Show payment modal for paid championships
+      setPaymentModal({ isOpen: true, championship });
+      return;
+    }
+
+    // Free registration
+    setRegisteringId(championship.id);
     try {
-      await registerForChampionship(championshipId);
+      await registerForChampionship(championship.id);
       // Refresh championships list
       await fetchChampionships(filtersMemo);
     } catch (error) {
@@ -74,6 +100,18 @@ const ChampionshipList = () => {
     } finally {
       setRegisteringId(null);
     }
+  };
+
+  const handlePaymentSuccess = async (paymentData) => {
+    console.log('Payment successful:', paymentData);
+    // Close payment modal
+    setPaymentModal({ isOpen: false, championship: null });
+    // Refresh championships list
+    await fetchChampionships(filtersMemo);
+  };
+
+  const closePaymentModal = () => {
+    setPaymentModal({ isOpen: false, championship: null });
   };
 
   const handleRestore = async (championshipId) => {
@@ -150,174 +188,219 @@ const ChampionshipList = () => {
     return true;
   });
 
+  const toggleActionPanel = (championshipId) => {
+    setExpandedActionPanel(prev => prev === championshipId ? null : championshipId);
+  };
+
   const ChampionshipCard = ({ championship, isArchived = false }) => {
     const canRegister = canUserRegister(championship, user);
     const isOrganizer = user && (championship.created_by === user.id || championship.organizer_id === user.id);
     const daysRemaining = calculateDaysRemaining(championship.registration_end_at);
+    const isPanelExpanded = expandedActionPanel === championship.id;
 
     return (
       <div className={`championship-card ${isArchived ? 'archived' : ''}`}>
-        <div className="championship-header">
-          <div className="championship-title-section">
-            <h3 className="championship-name">{championship.name}</h3>
-            <span className={`championship-status ${isArchived ? 'archived' : getStatusColorClass(championship.status)}`}>
-              {isArchived ? '📦 Archived' : formatChampionshipStatus(championship.status)}
-            </span>
-          </div>
+      <div className="championship-header">
+        <div className="championship-title-section">
+        <h3 className="championship-name">{championship.name}</h3>
+        <div className="championship-meta">
+          <span className={`championship-status ${isArchived ? 'archived' : getStatusColorClass(championship.status)}`}>
+          {isArchived ? '📦 Archived' : formatChampionshipStatus(championship.status)}
+          </span>
           {championship.prizes && championship.prizes.length > 0 && (
-            <div className="championship-prize">
-              🏆 {formatPrizePool(championship.prizes)}
-            </div>
+          <span className="championship-prize">
+            🏆 {formatPrizePool(championship.prizes)}
+          </span>
           )}
         </div>
+        </div>
+      </div>
 
-        <div className="championship-info">
-          <div className="championship-details">
-            <div className="detail-item">
-              <span className="detail-label">Format:</span>
-              <span className="detail-value">{formatChampionshipType(championship.format)}</span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-label">Time Control:</span>
-              <span className="detail-value">{championship.time_control?.minutes || 'N/A'} min</span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-label">Participants:</span>
-              <span className="detail-value">
-                {formatParticipantCount(championship.participants_count, championship.max_participants)}
-              </span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-label">Rounds:</span>
-              <span className="detail-value">{championship.total_rounds || 'N/A'}</span>
-            </div>
-            {championship.entry_fee && parseFloat(championship.entry_fee) > 0 && (
-              <div className="detail-item">
-                <span className="detail-label">Entry Fee:</span>
-                <span className="detail-value">${championship.entry_fee}</span>
-              </div>
-            )}
+      <div className="championship-summary">
+        <div className="summary-row">
+        <div className="summary-item">
+          <span className="summary-icon">🏆</span>
+          <span className="summary-text">{formatChampionshipType(championship.format)}</span>
+        </div>
+        <div className="summary-item">
+          <span className="summary-icon">⏱️</span>
+          <span className="summary-text">{championship.time_control?.minutes || 'N/A'}m</span>
+        </div>
+        <div className="summary-item">
+          <span className="summary-icon">👥</span>
+          <span className="summary-text">
+          {formatParticipantCount(championship.participants_count, championship.max_participants)}
+          </span>
+        </div>
+        {championship.entry_fee && parseFloat(championship.entry_fee) > 0 && (
+          <div className="summary-item">
+          <span className="summary-icon">💰</span>
+          <span className="summary-text">{formatCurrency(championship.entry_fee)}</span>
           </div>
-
-          <div className="championship-dates">
-            <div className="date-item">
-              <span className="date-label">Registration:</span>
-              <span className="date-value">
-                {formatDateTime(championship.registration_start_at)} - {formatDateTime(championship.registration_end_at)}
-              </span>
-            </div>
-            <div className="date-item">
-              <span className="date-label">Start Date:</span>
-              <span className="date-value">{formatDateTime(championship.starts_at)}</span>
-            </div>
-            {daysRemaining && championship.status === 'registration_open' && (
-              <div className="date-item urgency">
-                <span className="date-value">{daysRemaining}</span>
-              </div>
-            )}
-          </div>
+        )}
         </div>
 
-        <div className="championship-actions">
-          {isArchived ? (
-            <>
-              <button
-                onClick={() => navigate(`/championships/${championship.id}`)}
-                className="btn btn-secondary"
-                data-tooltip="View Details"
-              >
-                <span className="btn-icon">👁️</span>
-                <span className="btn-text">View Details</span>
-              </button>
-              {isAdmin && (
-                <>
-                  <button
-                    onClick={() => openConfirmationModal('restore', championship)}
-                    disabled={restoringId === championship.id}
-                    className="btn btn-success"
-                    data-tooltip="Restore Championship"
-                  >
-                    <span className="btn-icon">↺</span>
-                    <span className="btn-text">{restoringId === championship.id ? 'Restoring...' : 'Restore'}</span>
-                  </button>
-                  {isPlatformAdmin && championship.participants_count === 0 && (
-                    <button
-                      onClick={() => openConfirmationModal('delete', championship)}
-                      className="btn btn-danger"
-                      data-tooltip="Delete Championship"
-                    >
-                      <span className="btn-icon">🗑️</span>
-                      <span className="btn-text">Delete</span>
-                    </button>
-                  )}
-                </>
-              )}
-            </>
+        <div className="summary-row">
+        <div className="summary-item">
+          <span className="summary-icon">🔢</span>
+          <span className="summary-text">{championship.total_rounds || 'N/A'} rounds</span>
+        </div>
+        <div className="summary-item">
+          <span className="summary-icon">🏢</span>
+          <span className="summary-text">
+          {championship.organization_id ? 'Organization' : 'Public'}
+          </span>
+        </div>
+        <div className="summary-item">
+          <span className="summary-icon">👁️</span>
+          <span className="summary-text">
+          {championship.visibility === 'private' ? 'Private' : championship.visibility === 'organization' ? 'Org Only' : 'Public'}
+          </span>
+        </div>
+        </div>
+      </div>
+
+      <div className="championship-deadline">
+        <span className="deadline-label">
+        {!isArchived && daysRemaining && championship.status === 'registration_open' ? (
+          daysRemaining <= 3 ? (
+          <span className="urgency">⚠️ {daysRemaining === 0 ? 'Ends today' : `${daysRemaining} days left`}</span>
           ) : (
-            <>
-              <button
-                onClick={() => navigate(`/championships/${championship.id}`)}
-                className="btn btn-primary"
-                data-tooltip="View Details"
-              >
-                Details
-              </button>
+          <span>📅 {formatDateTime(championship.starts_at)}</span>
+          )
+        ) : (
+          <span>📅 {formatDateTime(championship.starts_at)}</span>
+        )}
+        </span>
+      </div>
 
-              {championship.user_participation && (
-                <>
-                  <button
-                    onClick={() => navigate(`/championships/${championship.id}/my-matches`)}
-                    className="btn btn-secondary"
-                    data-tooltip="My Matches"
-                  >
-                    <span className="btn-icon">⚔️</span>
-                    <span className="btn-text">My Matches</span>
-                  </button>
-                  <button
-                    disabled
-                    className="btn btn-info"
-                    data-tooltip="Already Registered"
-                  >
-                    <span className="btn-icon">✓</span>
-                    <span className="btn-text">Already Registered</span>
-                  </button>
-                </>
-              )}
+      <div className="championship-actions-container">
+        <button
+        className={`actions-toggle ${isPanelExpanded ? 'active' : ''}`}
+        onClick={() => toggleActionPanel(championship.id)}
+        aria-label="Toggle actions"
+        >
+        <span className="toggle-icon">⚙️</span>
+        </button>
 
-              {!championship.user_participation && canRegister && (
-                <button
-                  onClick={() => handleRegister(championship.id)}
-                  disabled={registeringId === championship.id}
-                  className="btn btn-success"
-                  data-tooltip="Register for Championship"
-                >
-                  {registeringId === championship.id ? 'Registering...' : 'Register'}
-                </button>
-              )}
-
-              {isOrganizer && (
-                <>
-                  <button
-                    onClick={() => navigate(`/championships/${championship.id}/admin`)}
-                    className="btn btn-admin"
-                    data-tooltip="Manage Championship"
-                  >
-                    Manage
-                  </button>
-                  {championship.status !== 'in_progress' && (
-                    <button
-                      onClick={() => openConfirmationModal('archive', championship)}
-                      className="btn btn-warning"
-                      data-tooltip="Archive Championship"
-                    >
-                      Archive
-                    </button>
-                  )}
-                </>
-              )}
-            </>
+        <div className={`actions-panel ${isPanelExpanded ? 'expanded' : ''}`}>
+        <div className="championship-actions">
+        {isArchived ? (
+        <>
+          <button
+          onClick={() => navigate(`/championships/${championship.id}`)}
+          className="btn btn-secondary"
+          data-tooltip="View Details"
+          >
+          <span className="btn-icon">👁️</span>
+          <span className="btn-text">View Details</span>
+          </button>
+          {isAdmin && (
+          <>
+            <button
+            onClick={() => openConfirmationModal('restore', championship)}
+            disabled={restoringId === championship.id}
+            className="btn btn-success"
+            data-tooltip="Restore Championship"
+            >
+            <span className="btn-icon">↺</span>
+            <span className="btn-text">{restoringId === championship.id ? 'Restoring...' : 'Restore'}</span>
+            </button>
+            {isPlatformAdmin && championship.participants_count === 0 && (
+            <button
+              onClick={() => openConfirmationModal('delete', championship)}
+              className="btn btn-danger"
+              data-tooltip="Delete Championship"
+            >
+              <span className="btn-icon">🗑️</span>
+              <span className="btn-text">Delete</span>
+            </button>
+            )}
+          </>
           )}
+        </>
+        ) : (
+        <>
+          <button
+          onClick={() => navigate(`/championships/${championship.id}`)}
+          className="btn btn-primary"
+          data-tooltip="View Details"
+          >
+          <span className="btn-icon">👁️</span>
+          <span className="btn-text">Details</span>
+          </button>
+
+          {championship.user_participation && (
+          <>
+            <button
+            onClick={() => navigate(`/championships/${championship.id}/my-matches`)}
+            className="btn btn-secondary"
+            data-tooltip="My Matches"
+            >
+            <span className="btn-icon">⚔️</span>
+            <span className="btn-text">Matches</span>
+            </button>
+            <button
+            disabled
+            className="btn btn-info"
+            data-tooltip="Already Registered"
+            >
+            <span className="btn-icon">✓</span>
+            <span className="btn-text">Registered</span>
+            </button>
+          </>
+          )}
+
+          {!championship.user_participation && canRegister && (
+          <button
+            onClick={() => handleRegister(championship)}
+            disabled={registeringId === championship.id}
+            className="btn btn-success"
+            data-tooltip="Register for Championship"
+          >
+            <span className="btn-icon">📋</span>
+            <span className="btn-text">{registeringId === championship.id ? 'Registering...' : 'Register'}</span>
+          </button>
+          )}
+
+          {isOrganizer && (
+          <>
+            <button
+            onClick={() => {
+              setEditingChampionship(championship);
+              setShowEditModal(true);
+            }}
+            className="btn btn-secondary"
+            data-tooltip="Edit Championship"
+            >
+            <span className="btn-icon">📝</span>
+            <span className="btn-text">Edit</span>
+            </button>
+            <button
+            onClick={() => navigate(`/championships/${championship.id}/admin`)}
+            className="btn btn-admin"
+            data-tooltip="Manage Championship"
+            >
+            <span className="btn-icon">⚙️</span>
+            <span className="btn-text">Manage</span>
+            </button>
+            {championship.status !== 'in_progress' && (
+            <button
+              onClick={() => openConfirmationModal('archive', championship)}
+              className="btn btn-warning"
+              data-tooltip="Archive Championship"
+            >
+              <span className="btn-icon">📦</span>
+              <span className="btn-text">Archive</span>
+            </button>
+            )}
+          </>
+          )}
+        </>
+        )}
         </div>
+        </div>
+      </div>
       </div>
     );
   };
@@ -471,6 +554,22 @@ const ChampionshipList = () => {
         }}
       />
 
+      {/* Edit Championship Modal */}
+      <CreateChampionshipModal
+        isOpen={showEditModal}
+        championship={editingChampionship}
+        onClose={() => {
+          setShowEditModal(false);
+          setEditingChampionship(null);
+        }}
+        onSuccess={(championship) => {
+          // Refresh the championships list
+          fetchChampionships(filtersMemo);
+          setShowEditModal(false);
+          setEditingChampionship(null);
+        }}
+      />
+
       {/* Confirmation Modal */}
       <ConfirmationModal
         isOpen={confirmationModal.isOpen}
@@ -479,6 +578,15 @@ const ChampionshipList = () => {
         type={confirmationModal.type}
         championship={confirmationModal.championship}
       />
+
+      {/* Payment Modal */}
+      {paymentModal.isOpen && paymentModal.championship && (
+        <MockRazorpayPayment
+          championship={paymentModal.championship}
+          onSuccess={handlePaymentSuccess}
+          onClose={closePaymentModal}
+        />
+      )}
     </div>
   );
 };
