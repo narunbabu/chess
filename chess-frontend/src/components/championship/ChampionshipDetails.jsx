@@ -7,6 +7,7 @@ import { formatChampionshipStatus, formatChampionshipType, formatPrizePool, form
 import ChampionshipStandings from './ChampionshipStandings';
 import ChampionshipMatches from './ChampionshipMatches';
 import ChampionshipParticipants from './ChampionshipParticipants';
+import ConfirmationModal from './ConfirmationModal';
 import './Championship.css';
 
 const ChampionshipDetails = () => {
@@ -23,12 +24,19 @@ const ChampionshipDetails = () => {
     fetchParticipants,
     fetchStandings,
     registerForChampionship,
-    startChampionship
+    startChampionship,
+    deleteChampionship,
+    restoreChampionship,
+    forceDeleteChampionship
   } = useChampionship();
 
   const [activeTab, setActiveTab] = useState('overview');
   const [registering, setRegistering] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [confirmationModal, setConfirmationModal] = useState({ isOpen: false, type: null });
+
+  // Check if user is platform admin
+  const isPlatformAdmin = user?.roles?.some(role => role === 'platform_admin') || false;
 
   useEffect(() => {
     if (id) {
@@ -51,6 +59,13 @@ const ChampionshipDetails = () => {
       await fetchParticipants(id);
     } catch (error) {
       console.error('Registration failed:', error);
+
+      // Check if user is already registered
+      if (error.response?.status === 409 && error.response?.data?.error?.code === 'ALREADY_REGISTERED') {
+        // Refresh the championship data to show correct registration status
+        await fetchChampionship(id);
+        await fetchParticipants(id);
+      }
     } finally {
       setRegistering(false);
     }
@@ -70,6 +85,61 @@ const ChampionshipDetails = () => {
       console.error('Failed to start championship:', error);
     } finally {
       setStarting(false);
+    }
+  };
+
+  const handleArchive = async () => {
+    try {
+      await deleteChampionship(id);
+      navigate('/championships');
+    } catch (error) {
+      console.error('Archive failed:', error);
+      alert(error.response?.data?.message || 'Failed to archive championship');
+    }
+  };
+
+  const handleRestore = async () => {
+    try {
+      await restoreChampionship(id);
+      await fetchChampionship(id);
+      closeConfirmationModal();
+    } catch (error) {
+      console.error('Restore failed:', error);
+      alert(error.response?.data?.message || 'Failed to restore championship');
+    }
+  };
+
+  const handleForceDelete = async () => {
+    try {
+      await forceDeleteChampionship(id);
+      navigate('/championships');
+    } catch (error) {
+      console.error('Delete failed:', error);
+      alert(error.response?.data?.message || 'Failed to permanently delete championship');
+    }
+  };
+
+  const openConfirmationModal = (type) => {
+    setConfirmationModal({ isOpen: true, type });
+  };
+
+  const closeConfirmationModal = () => {
+    setConfirmationModal({ isOpen: false, type: null });
+  };
+
+  const handleConfirmAction = async () => {
+    switch (confirmationModal.type) {
+      case 'archive':
+        await handleArchive();
+        break;
+      case 'restore':
+        await handleRestore();
+        break;
+      case 'delete':
+        await handleForceDelete();
+        break;
+      default:
+        break;
     }
   };
 
@@ -106,6 +176,8 @@ const ChampionshipDetails = () => {
 
   const canRegister = canUserRegister(activeChampionship, user);
   const isOrganizer = isUserOrganizer(activeChampionship, user);
+  const isRegistered = activeChampionship.user_participation;
+  const isPaid = activeChampionship.user_status === 'paid';
   const progress = calculateProgress(activeChampionship);
   const daysRemaining = calculateDaysRemaining(activeChampionship.registration_end_at || activeChampionship.registration_deadline);
 
@@ -228,7 +300,8 @@ const ChampionshipDetails = () => {
         </div>
 
         <div className="championship-actions">
-          {canRegister && (
+          {/* Register button - only show if user can register */}
+          {canRegister && !isRegistered && (
             <button
               onClick={handleRegister}
               disabled={registering}
@@ -238,6 +311,28 @@ const ChampionshipDetails = () => {
             </button>
           )}
 
+          {/* Already registered button - show if user is registered */}
+          {isRegistered && (
+            <button
+              disabled={true}
+              className="btn btn-success"
+              title={isPaid ? "You are registered and paid for this championship" : "You are registered for this championship"}
+            >
+              ✓ Already Registered
+            </button>
+          )}
+
+          {/* My Matches button - show if user is registered */}
+          {isRegistered && (
+            <button
+              onClick={() => setActiveTab('my-matches')}
+              className="btn btn-primary"
+            >
+              My Matches
+            </button>
+          )}
+
+          {/* Organizer actions */}
           {isOrganizer && activeChampionship.status === 'registration_open' && (
             <button
               onClick={handleStartChampionship}
@@ -249,21 +344,41 @@ const ChampionshipDetails = () => {
           )}
 
           {isOrganizer && (
-            <button
-              onClick={() => navigate(`/championships/${id}/admin`)}
-              className="btn btn-admin"
-            >
-              Manage Tournament
-            </button>
-          )}
-
-          {activeChampionship.user_participation && (
-            <button
-              onClick={() => setActiveTab('my-matches')}
-              className="btn btn-primary"
-            >
-              My Matches
-            </button>
+            <>
+              <button
+                onClick={() => navigate(`/championships/${id}/admin`)}
+                className="btn btn-admin"
+              >
+                Manage Tournament
+              </button>
+              {activeChampionship.status !== 'in_progress' && !activeChampionship.deleted_at && (
+                <button
+                  onClick={() => openConfirmationModal('archive')}
+                  className="btn btn-warning"
+                  title="Archive this championship"
+                >
+                  📦 Archive
+                </button>
+              )}
+              {activeChampionship.deleted_at && (
+                <button
+                  onClick={() => openConfirmationModal('restore')}
+                  className="btn btn-success"
+                  title="Restore this archived championship"
+                >
+                  ↺ Restore
+                </button>
+              )}
+              {isPlatformAdmin && activeChampionship.deleted_at && activeChampionship.participants_count === 0 && (
+                <button
+                  onClick={() => openConfirmationModal('delete')}
+                  className="btn btn-danger"
+                  title="Permanently delete this championship"
+                >
+                  🗑️ Delete
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -316,13 +431,22 @@ const ChampionshipDetails = () => {
       {/* Tab Content */}
       <div className="tab-content">
         {activeTab === 'overview' && renderOverviewTab()}
-        {activeTab === 'participants' && <ChampionshipParticipants championshipId={id} />}
+        {activeTab === 'participants' && <ChampionshipParticipants championshipId={id} participants={activeChampionship.participants || []} />}
         {activeTab === 'standings' && <ChampionshipStandings championshipId={id} />}
         {activeTab === 'matches' && <ChampionshipMatches championshipId={id} />}
         {activeTab === 'my-matches' && (
           <ChampionshipMatches championshipId={id} userOnly={true} />
         )}
       </div>
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={confirmationModal.isOpen}
+        onClose={closeConfirmationModal}
+        onConfirm={handleConfirmAction}
+        type={confirmationModal.type}
+        championship={activeChampionship}
+      />
     </div>
   );
 };

@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use App\Enums\PaymentStatus;
 
 class ChampionshipController extends Controller
 {
@@ -53,11 +54,24 @@ class ChampionshipController extends Controller
                 'user_email' => $user?->email,
                 'has_user' => !is_null($user),
                 'total_championships' => Championship::count(),
+                'show_archived' => $request->boolean('archived'),
             ]);
 
             // Temporarily bypass visibility scope for debugging
             $query = Championship::query();
             // $query = Championship::visibleTo($user);
+
+            // Show archived championships only for admins/organizers
+            if ($request->boolean('archived')) {
+                // Check authorization - only admins and organizers can view archived
+                if (!$user || !$user->hasAnyRole(['platform_admin', 'organization_admin'])) {
+                    return response()->json([
+                        'error' => 'Unauthorized',
+                        'message' => 'Only administrators can view archived championships',
+                    ], 403);
+                }
+                $query->onlyTrashed();
+            }
 
             // Filter by status
             if ($request->filled('status')) {
@@ -89,6 +103,32 @@ class ChampionshipController extends Controller
 
             // Paginate results
             $championships = $query->paginate($request->input('per_page', 15));
+
+            // Auto-update status for all championships in the result
+            $championships->getCollection()->each(function ($championship) use ($user) {
+                $championship->autoUpdateStatus();
+
+                // Add user participation status for authenticated users
+                if ($user) {
+                    $userId = $user->id;
+                    $isRegistered = $championship->isUserRegistered($userId);
+                    $hasPaid = $championship->hasUserPaid($userId);
+
+                    $championship->user_status = [
+                        'is_registered' => $isRegistered,
+                        'has_paid' => $hasPaid,
+                        'can_register' => $championship->canRegister($userId),
+                    ];
+
+                    // For backward compatibility with frontend
+                    $championship->user_participation = $isRegistered ? [
+                        'id' => $championship->participants()->where('user_id', $userId)->value('id'),
+                        'registered_at' => $championship->participants()->where('user_id', $userId)->value('registered_at'),
+                        'payment_status' => $championship->participants()->where('user_id', $userId)->value('payment_status'),
+                        'amount_paid' => $championship->participants()->where('user_id', $userId)->value('amount_paid'),
+                    ] : null;
+                }
+            });
 
             return response()->json($championships);
         } catch (\Exception $e) {
@@ -224,6 +264,21 @@ class ChampionshipController extends Controller
                 ], 403);
             }
 
+            // Auto-update status if registration period has started
+            $now = now();
+            if ($championship->status === 'upcoming' &&
+                $now->gte($championship->registration_start_at) &&
+                $now->lte($championship->registration_end_at)) {
+                $championship->update(['status' => 'registration_open']);
+                $championship->refresh();
+                Log::info('Championship status auto-updated to registration_open', [
+                    'championship_id' => $championship->id,
+                    'now' => $now,
+                    'registration_start_at' => $championship->registration_start_at,
+                    'registration_end_at' => $championship->registration_end_at,
+                ]);
+            }
+
             $userId = $user?->id;
             $isRegistered = false;
             $hasPaid = false;
@@ -235,6 +290,10 @@ class ChampionshipController extends Controller
 
             // Get additional tournament information
             $summary = $this->scheduler->getSchedulingSummary($championship);
+
+            // Add user participation info to championship object for frontend compatibility
+            $championship->user_participation = $isRegistered;
+            $championship->user_status = $hasPaid ? 'paid' : ($isRegistered ? 'pending' : null);
 
             return response()->json([
                 'championship' => $championship,
@@ -359,7 +418,7 @@ class ChampionshipController extends Controller
     }
 
     /**
-     * Delete championship
+     * Archive championship (soft delete)
      *
      * @param int $id
      * @return JsonResponse
@@ -372,40 +431,27 @@ class ChampionshipController extends Controller
             // Authorization check
             Gate::authorize('delete', $championship);
 
-            // Check if championship can be deleted
+            // Check if championship can be archived
             if ($championship->getStatusEnum()->isActive()) {
                 return response()->json([
-                    'error' => 'Cannot delete active championship',
+                    'error' => 'Cannot archive active championship',
                     'message' => 'Please complete or pause the championship first',
                 ], 400);
             }
 
-            if ($championship->participants()->where('payment_status_id', \App\Enums\PaymentStatus::COMPLETED->getId())->exists()) {
-                return response()->json([
-                    'error' => 'Cannot delete championship with paid participants',
-                    'message' => 'Please refund all participants before deletion',
-                ], 400);
-            }
+            // Soft delete the championship
+            $championship->deleted_by = Auth::id();
+            $championship->save();
+            $championship->delete(); // Soft delete
 
-            DB::transaction(function () use ($championship) {
-                $title = $championship->title;
-                $championshipId = $championship->id;
-
-                // Delete related records
-                $championship->matches()->delete();
-                $championship->standings()->delete();
-                $championship->participants()->delete();
-                $championship->delete();
-
-                Log::info("Championship deleted", [
-                    'championship_id' => $championshipId,
-                    'title' => $title,
-                    'deleted_by' => Auth::id(),
-                ]);
-            });
+            Log::info("Championship archived", [
+                'championship_id' => $championship->id,
+                'title' => $championship->title,
+                'archived_by' => Auth::id(),
+            ]);
 
             return response()->json([
-                'message' => 'Championship deleted successfully',
+                'message' => 'Championship archived successfully',
             ]);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json([
@@ -414,16 +460,141 @@ class ChampionshipController extends Controller
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             return response()->json([
                 'error' => 'Unauthorized',
-                'message' => 'You do not have permission to delete this championship',
+                'message' => 'You do not have permission to archive this championship',
             ], 403);
         } catch (\Exception $e) {
-            Log::error('Championship deletion failed', [
+            Log::error('Championship archive failed', [
                 'error' => $e->getMessage(),
                 'championship_id' => $id,
             ]);
 
             return response()->json([
-                'error' => 'Failed to delete championship',
+                'error' => 'Failed to archive championship',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Restore archived championship
+     *
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function restore(int $id): JsonResponse
+    {
+        try {
+            $championship = Championship::onlyTrashed()->findOrFail($id);
+
+            // Authorization check
+            Gate::authorize('restore', $championship);
+
+            // Restore the championship
+            $championship->deleted_by = null;
+            $championship->save();
+            $championship->restore();
+
+            Log::info("Championship restored", [
+                'championship_id' => $championship->id,
+                'title' => $championship->title,
+                'restored_by' => Auth::id(),
+            ]);
+
+            return response()->json([
+                'message' => 'Championship restored successfully',
+                'championship' => $championship,
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'error' => 'Archived championship not found',
+            ], 404);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            return response()->json([
+                'error' => 'Unauthorized',
+                'message' => 'You do not have permission to restore this championship',
+            ], 403);
+        } catch (\Exception $e) {
+            Log::error('Championship restore failed', [
+                'error' => $e->getMessage(),
+                'championship_id' => $id,
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to restore championship',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Permanently delete championship
+     *
+     * STRICT: Only allow if championship has zero participants
+     *
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function forceDelete(int $id): JsonResponse
+    {
+        try {
+            // Find championship including trashed
+            $championship = Championship::withTrashed()->findOrFail($id);
+
+            // Authorization check - platform admins only
+            Gate::authorize('forceDelete', $championship);
+
+            // STRICT business rule validation
+            if (!$championship->canBeDeleted()) {
+                return response()->json([
+                    'error' => 'Cannot permanently delete championship',
+                    'message' => 'Championship has participants, matches, or payments. Only empty championships can be permanently deleted.',
+                    'details' => [
+                        'participant_count' => $championship->participants()->count(),
+                        'match_count' => $championship->matches()->count(),
+                        'status' => $championship->status,
+                    ]
+                ], 400);
+            }
+
+            DB::transaction(function () use ($championship) {
+                $title = $championship->title;
+                $championshipId = $championship->id;
+
+                // Permanently delete related records
+                $championship->matches()->forceDelete();
+                $championship->standings()->forceDelete();
+                $championship->participants()->forceDelete();
+
+                // Permanently delete championship
+                $championship->forceDelete();
+
+                Log::warning("Championship permanently deleted", [
+                    'championship_id' => $championshipId,
+                    'title' => $title,
+                    'deleted_by' => Auth::id(),
+                ]);
+            });
+
+            return response()->json([
+                'message' => 'Championship permanently deleted',
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'error' => 'Championship not found',
+            ], 404);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            return response()->json([
+                'error' => 'Unauthorized',
+                'message' => 'You do not have permission to permanently delete this championship',
+            ], 403);
+        } catch (\Exception $e) {
+            Log::error('Championship permanent deletion failed', [
+                'error' => $e->getMessage(),
+                'championship_id' => $id,
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to permanently delete championship',
                 'message' => $e->getMessage(),
             ], 500);
         }
@@ -620,6 +791,275 @@ class ChampionshipController extends Controller
 
             return response()->json([
                 'error' => 'Failed to fetch your matches',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Register user for championship (without payment)
+     *
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function register(int $id): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+
+            if (!$user) {
+                return response()->json([
+                    'error' => 'Unauthorized',
+                    'message' => 'You must be logged in to register for a championship'
+                ], 401);
+            }
+
+            $championship = Championship::findOrFail($id);
+
+            // Validate registration eligibility
+            if (!$championship->canRegister($user->id)) {
+                $reasons = [];
+
+                if (!$championship->getStatusEnum()->isRegistrationOpen()) {
+                    $reasons[] = 'Registration is not open for this championship';
+                }
+
+                if ($championship->isFull()) {
+                    $reasons[] = 'Championship is full';
+                }
+
+                if ($championship->isUserRegistered($user->id)) {
+                    $reasons[] = 'You are already registered for this championship';
+                }
+
+                if (!$championship->allow_public_registration && $championship->visibility !== 'public') {
+                    $reasons[] = 'This championship does not allow public registration';
+                }
+
+                return response()->json([
+                    'error' => 'Registration not allowed',
+                    'message' => implode('. ', $reasons),
+                ], 422);
+            }
+
+            // Only allow free registration through this endpoint
+            if ($championship->entry_fee > 0) {
+                return response()->json([
+                    'error' => 'Payment required',
+                    'message' => 'This championship requires an entry fee. Please use the payment registration endpoint.',
+                    'entry_fee' => $championship->entry_fee,
+                ], 422);
+            }
+
+            $participant = DB::transaction(function () use ($championship, $user) {
+                // Double-check within transaction
+                $existing = ChampionshipParticipant::where('championship_id', $championship->id)
+                    ->where('user_id', $user->id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($existing) {
+                    throw new \Exception('You are already registered for this championship');
+                }
+
+                return ChampionshipParticipant::create([
+                    'championship_id' => $championship->id,
+                    'user_id' => $user->id,
+                    'amount_paid' => 0,
+                    'payment_status' => PaymentStatus::COMPLETED->value,
+                    'registered_at' => now(),
+                ]);
+            });
+
+            Log::info('User registered for championship', [
+                'championship_id' => $championship->id,
+                'championship_title' => $championship->title,
+                'user_id' => $user->id,
+                'user_email' => $user->email,
+                'participant_id' => $participant->id,
+                'registration_type' => 'free',
+            ]);
+
+            return response()->json([
+                'message' => 'Registration successful',
+                'participant_id' => $participant->id,
+                'championship' => [
+                    'id' => $championship->id,
+                    'title' => $championship->title,
+                    'entry_fee' => $championship->entry_fee,
+                ],
+                'participation' => [
+                    'id' => $participant->id,
+                    'registered_at' => $participant->registered_at,
+                    'payment_status' => $participant->payment_status,
+                    'amount_paid' => $participant->amount_paid,
+                ],
+            ], 201);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'error' => 'Championship not found',
+            ], 404);
+              } catch (\Exception $e) {
+            Log::error('Championship registration failed', [
+                'error' => $e->getMessage(),
+                'championship_id' => $id,
+                'user_id' => Auth::id(),
+            ]);
+
+            // Check if it's a duplicate registration error
+            if (str_contains($e->getMessage(), 'already registered')) {
+                return response()->json([
+                    'error' => 'Already Registered',
+                    'message' => 'You are already registered for this championship. Check your "My Matches" for details.',
+                    'code' => 'ALREADY_REGISTERED'
+                ], 409); // 409 Conflict
+            }
+
+            return response()->json([
+                'error' => 'Registration failed',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Register user for championship with payment
+     * This is an alias to the payment initiation endpoint
+     *
+     * @param Request $request
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function registerWithPayment(Request $request, int $id): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+
+            if (!$user) {
+                return response()->json([
+                    'error' => 'Unauthorized',
+                    'message' => 'You must be logged in to register for a championship'
+                ], 401);
+            }
+
+            $championship = Championship::findOrFail($id);
+
+            // Validate registration eligibility
+            if (!$championship->canRegister($user->id)) {
+                $reasons = [];
+
+                if (!$championship->getStatusEnum()->isRegistrationOpen()) {
+                    $reasons[] = 'Registration is not open for this championship';
+                }
+
+                if ($championship->isFull()) {
+                    $reasons[] = 'Championship is full';
+                }
+
+                if ($championship->isUserRegistered($user->id)) {
+                    $reasons[] = 'You are already registered for this championship';
+                }
+
+                if (!$championship->allow_public_registration && $championship->visibility !== 'public') {
+                    $reasons[] = 'This championship does not allow public registration';
+                }
+
+                return response()->json([
+                    'error' => 'Registration not allowed',
+                    'message' => implode('. ', $reasons),
+                ], 422);
+            }
+
+            // For free championships, redirect to simple registration
+            if ($championship->entry_fee == 0) {
+                return $this->register($id);
+            }
+
+            // Create participant record with pending payment
+            $participant = DB::transaction(function () use ($championship, $user) {
+                // Double-check within transaction
+                $existing = ChampionshipParticipant::where('championship_id', $championship->id)
+                    ->where('user_id', $user->id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($existing) {
+                    throw new \Exception('You are already registered for this championship');
+                }
+
+                return ChampionshipParticipant::create([
+                    'championship_id' => $championship->id,
+                    'user_id' => $user->id,
+                    'amount_paid' => $championship->entry_fee,
+                    'payment_status' => PaymentStatus::PENDING->value,
+                    'registered_at' => now(),
+                ]);
+            });
+
+            // Use RazorpayService to create payment order
+            $razorpayService = app(\App\Services\RazorpayService::class);
+            $orderDetails = $razorpayService->createOrder(
+                $championship->entry_fee,
+                $championship->id,
+                $user->id
+            );
+
+            // Update participant with order ID
+            $participant->update([
+                'razorpay_order_id' => $orderDetails['order_id'],
+            ]);
+
+            Log::info('User initiated payment for championship registration', [
+                'championship_id' => $championship->id,
+                'championship_title' => $championship->title,
+                'user_id' => $user->id,
+                'user_email' => $user->email,
+                'participant_id' => $participant->id,
+                'order_id' => $orderDetails['order_id'],
+                'amount' => $championship->entry_fee,
+            ]);
+
+            return response()->json([
+                'message' => 'Payment order created successfully',
+                'participant_id' => $participant->id,
+                'payment_required' => true,
+                'order_details' => $orderDetails,
+                'championship' => [
+                    'id' => $championship->id,
+                    'title' => $championship->title,
+                    'entry_fee' => $championship->entry_fee,
+                ],
+                'participation' => [
+                    'id' => $participant->id,
+                    'registered_at' => $participant->registered_at,
+                    'payment_status' => $participant->payment_status,
+                    'amount_paid' => $participant->amount_paid,
+                ],
+            ], 201);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'error' => 'Championship not found',
+            ], 404);
+              } catch (\Exception $e) {
+            Log::error('Championship payment registration failed', [
+                'error' => $e->getMessage(),
+                'championship_id' => $id,
+                'user_id' => Auth::id(),
+            ]);
+
+            // Check if it's a duplicate registration error
+            if (str_contains($e->getMessage(), 'already registered')) {
+                return response()->json([
+                    'error' => 'Already Registered',
+                    'message' => 'You are already registered for this championship. Check your "My Matches" for details.',
+                    'code' => 'ALREADY_REGISTERED'
+                ], 409); // 409 Conflict
+            }
+
+            return response()->json([
+                'error' => 'Registration failed',
                 'message' => $e->getMessage(),
             ], 500);
         }

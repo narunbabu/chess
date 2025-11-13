@@ -4,12 +4,14 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Log;
 use App\Enums\ChampionshipStatus as ChampionshipStatusEnum;
 use App\Enums\ChampionshipFormat as ChampionshipFormatEnum;
 
 class Championship extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'title',
@@ -51,7 +53,13 @@ class Championship extends Model
         'status_id' => 'integer',
         'format_id' => 'integer',
         'allow_public_registration' => 'boolean',
+        'deleted_at' => 'datetime',
     ];
+
+    /**
+     * The attributes that should be mutated to dates.
+     */
+    protected $dates = ['deleted_at'];
 
     /**
      * Append accessor attributes to JSON serialization
@@ -60,6 +68,7 @@ class Championship extends Model
         'status',
         'format',
         'registered_count',
+        'participants_count',     // Alias for registered_count (frontend compatibility)
         'is_registration_open',
         'name',  // Alias for title (for frontend compatibility)
         'registration_start_at',  // Alias for created_at
@@ -124,6 +133,14 @@ class Championship extends Model
     public function organization()
     {
         return $this->belongsTo(Organization::class);
+    }
+
+    /**
+     * User who archived this championship
+     */
+    public function deletedBy()
+    {
+        return $this->belongsTo(User::class, 'deleted_by');
     }
 
     // Mutators & Accessors
@@ -246,6 +263,14 @@ class Championship extends Model
     public function getRegisteredCountAttribute(): int
     {
         return $this->participants()->count();
+    }
+
+    /**
+     * Accessor: Alias for registered_count (frontend compatibility)
+     */
+    public function getParticipantsCountAttribute(): int
+    {
+        return $this->getRegisteredCountAttribute();
     }
 
     /**
@@ -413,6 +438,43 @@ class Championship extends Model
     }
 
     /**
+     * Auto-update status based on current date and registration periods
+     */
+    public function autoUpdateStatus(): void
+    {
+        $now = now();
+
+        // Update from upcoming to registration_open if registration period has started
+        if ($this->status === 'upcoming' &&
+            $this->registration_start_at &&
+            $this->registration_end_at &&
+            $now->gte($this->registration_start_at) &&
+            $now->lte($this->registration_end_at)) {
+            $this->update(['status' => 'registration_open']);
+            Log::info('Championship status auto-updated to registration_open', [
+                'championship_id' => $this->id,
+                'now' => $now,
+                'registration_start_at' => $this->registration_start_at,
+                'registration_end_at' => $this->registration_end_at,
+            ]);
+        }
+
+        // Update from registration_open to upcoming if registration period hasn't started yet
+        elseif ($this->status === 'registration_open' &&
+            $this->registration_start_at &&
+            $this->registration_end_at &&
+            ($now->lt($this->registration_start_at) || $now->gt($this->registration_end_at))) {
+            $this->update(['status' => 'upcoming']);
+            Log::info('Championship status auto-updated to upcoming', [
+                'championship_id' => $this->id,
+                'now' => $now,
+                'registration_start_at' => $this->registration_start_at,
+                'registration_end_at' => $this->registration_end_at,
+            ]);
+        }
+    }
+
+    /**
      * Check if championship is public
      */
     public function isPublic(): bool
@@ -453,6 +515,64 @@ class Championship extends Model
         }
 
         return false;
+    }
+
+    /**
+     * Business rule: Check if championship can be permanently deleted
+     *
+     * Only allow permanent deletion if:
+     * - No participants registered
+     * - No matches created
+     * - Status is 'upcoming' or 'registration_open' (not started)
+     * - No payments made
+     *
+     * @return bool
+     */
+    public function canBeDeleted(): bool
+    {
+        // Check participant count
+        if ($this->participants()->count() > 0) {
+            Log::info('Cannot delete championship: has participants', [
+                'championship_id' => $this->id,
+                'participant_count' => $this->participants()->count()
+            ]);
+            return false;
+        }
+
+        // Check match count
+        if ($this->matches()->count() > 0) {
+            Log::info('Cannot delete championship: has matches', [
+                'championship_id' => $this->id,
+                'match_count' => $this->matches()->count()
+            ]);
+            return false;
+        }
+
+        // Check status - only allow deletion for upcoming or registration_open
+        $allowedStatuses = ['upcoming', 'registration_open'];
+        if (!in_array($this->status, $allowedStatuses)) {
+            Log::info('Cannot delete championship: invalid status', [
+                'championship_id' => $this->id,
+                'current_status' => $this->status,
+                'allowed_statuses' => $allowedStatuses
+            ]);
+            return false;
+        }
+
+        // Check for paid participants (extra safety check)
+        $paidParticipants = $this->participants()
+            ->where('payment_status_id', \App\Enums\PaymentStatus::COMPLETED->getId())
+            ->count();
+
+        if ($paidParticipants > 0) {
+            Log::info('Cannot delete championship: has paid participants', [
+                'championship_id' => $this->id,
+                'paid_participants' => $paidParticipants
+            ]);
+            return false;
+        }
+
+        return true;
     }
 
     /**

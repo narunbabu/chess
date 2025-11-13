@@ -69,4 +69,12 @@ enum ChampionshipStatus: string
     {
         return $this === self::UPCOMING;
     }
+
+    /**
+     * Check if registration is currently open
+     */
+    public function isRegistrationOpen(): bool
+    {
+        return $this === self::REGISTRATION_OPEN;
+    }
 }

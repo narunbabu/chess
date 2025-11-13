@@ -107,7 +107,7 @@ export const ChampionshipProvider = ({ children }) => {
     }
   }, []); // no activeChampionship dependency
 
-  // Delete championship
+  // Delete championship (archive - soft delete)
   const deleteChampionship = useCallback(async (id) => {
     setLoading(true);
     setError(null);
@@ -116,7 +116,43 @@ export const ChampionshipProvider = ({ children }) => {
       setChampionships(prev => prev.filter(champ => champ.id !== id));
       setActiveChampionship(prev => (prev && prev.id === id ? null : prev));
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to delete championship');
+      setError(err.response?.data?.message || 'Failed to archive championship');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Restore archived championship
+  const restoreChampionship = useCallback(async (id) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await api.post(`/championships/${id}/restore`);
+      const restored = response.data.championship || response.data;
+
+      // Add back to championships list
+      setChampionships(prev => [...prev, restored]);
+
+      return restored;
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to restore championship');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Permanently delete championship (force delete)
+  const forceDeleteChampionship = useCallback(async (id) => {
+    setLoading(true);
+    setError(null);
+    try {
+      await api.delete(`/championships/${id}/force`);
+      setChampionships(prev => prev.filter(champ => champ.id !== id));
+      setActiveChampionship(prev => (prev && prev.id === id ? null : prev));
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to permanently delete championship');
       throw err;
     } finally {
       setLoading(false);
@@ -295,6 +331,8 @@ export const ChampionshipProvider = ({ children }) => {
       createChampionship,
       updateChampionship,
       deleteChampionship,
+      restoreChampionship,
+      forceDeleteChampionship,
       registerForChampionship,
       fetchParticipants,
       fetchStandings,

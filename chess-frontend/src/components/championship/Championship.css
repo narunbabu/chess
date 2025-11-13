@@ -109,6 +109,43 @@
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
 }
 
+/* Archived Championship Styles */
+.championship-card.archived {
+  background: #f7fafc;
+  opacity: 0.85;
+  border: 1px dashed #cbd5e0;
+}
+
+.championship-card.archived:hover {
+  transform: translateY(-2px);
+  opacity: 1;
+}
+
+.championship-card.archived .championship-name {
+  color: #718096;
+}
+
+.championship-card.archived .championship-status.archived {
+  background: #e2e8f0;
+  color: #4a5568;
+}
+
+.championship-card.archived .detail-label,
+.championship-card.archived .detail-value {
+  color: #718096;
+}
+
+.archived-toggle {
+  background: #fff3cd;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid #ffc107;
+}
+
+.archived-toggle input[type="checkbox"]:checked {
+  accent-color: #ffc107;
+}
+
 .championship-header {
   display: flex;
   justify-content: space-between;
@@ -213,16 +250,17 @@
 
 .championship-actions {
   display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
+  gap: 8px;
+  flex-wrap: nowrap;
+  align-items: center;
 }
 
 /* Buttons */
 .btn {
-  padding: 8px 16px;
+  padding: 6px 12px;
   border: none;
   border-radius: 6px;
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -230,7 +268,25 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 36px;
+  min-height: 32px;
+  white-space: nowrap;
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* Button with icon support for mobile collapse */
+.btn-icon {
+  padding: 8px 12px;
+  min-width: 36px;
+}
+
+.btn .btn-text {
+  transition: opacity 0.2s ease;
+}
+
+.btn .btn-icon {
+  font-size: 1rem;
+  margin-right: 6px;
 }
 
 .btn:disabled {
@@ -2064,12 +2120,169 @@
   }
 
   .championship-actions {
-    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
   }
 
+  .championship-actions::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  .championship-actions::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 2px;
+  }
+
+  .championship-actions::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 2px;
+  }
+
+  /* Buttons become icon-only on mobile */
   .btn {
-    width: 100%;
+    padding: 8px 12px;
+    min-width: 44px;
+    font-size: 0.8rem;
+    flex-shrink: 0;
+  }
+
+  .btn .btn-text {
+    display: none;
+  }
+
+  .btn .btn-icon {
+    margin-right: 0;
+    font-size: 1.1rem;
+  }
+
+  /* Show tooltips on mobile for icon-only buttons */
+  .btn[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    z-index: 1000;
+    margin-bottom: 4px;
+  }
+
+  .championship-details-container {
+    padding: 15px;
+  }
+
+  .championship-header {
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .championship-title {
+    font-size: 1.5rem;
+  }
+
+  .championship-meta {
     justify-content: center;
+  }
+
+  .championship-actions {
+    justify-content: center;
+  }
+
+  .championship-tabs {
+    flex-wrap: wrap;
+  }
+
+  .tab {
+    min-width: 100px;
+    font-size: 0.8rem;
+    padding: 12px 16px;
+  }
+
+  .overview-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .admin-stats-grid {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+  }
+
+  .admin-actions-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .admin-tab {
+    min-width: 120px;
+    font-size: 0.8rem;
+    padding: 12px 16px;
+  }
+
+  .matches-header {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .matches-filters {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .match-card {
+    padding: 16px;
+  }
+
+  .match-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .match-players {
+    width: 100%;
+    justify-content: space-around;
+  }
+
+  .player-info {
+    min-width: 100px;
+  }
+
+  .standings-header {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .standings-controls {
+    width: 100%;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .participants-header {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .participants-filters {
+    width: 100%;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .participants-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pairings-grid {
+    grid-template-columns: 1fr;
   }
 
   .create-championship-modal {
@@ -2079,6 +2292,7 @@
 
   .progress-steps {
     padding: 16px;
+    gap: 8px;
   }
 
   .step-label {
@@ -2097,11 +2311,32 @@
   .step-navigation {
     flex-direction: column;
   }
+
+  .modal {
+    max-width: 95%;
+    margin: 10px;
+  }
+
+  .modal-header {
+    padding: 16px 20px;
+  }
+
+  .modal-content {
+    padding: 20px;
+  }
+
+  .modal-footer {
+    padding: 16px 20px;
+  }
 }
 
 @media (max-width: 480px) {
   .championship-list-container {
     padding: 10px;
+  }
+
+  .championship-list-header h1 {
+    font-size: 1.75rem;
   }
 
   .championship-card {
@@ -2112,20 +2347,402 @@
     font-size: 1.1rem;
   }
 
+  .championship-actions {
+    gap: 6px;
+  }
+
+  .btn {
+    min-width: 40px;
+    padding: 6px 10px;
+    font-size: 0.75rem;
+  }
+
+  .btn .btn-icon {
+    font-size: 1rem;
+  }
+
+  .championship-details-container {
+    padding: 10px;
+  }
+
+  .championship-title {
+    font-size: 1.25rem;
+  }
+
+  .championship-meta {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .championship-actions {
+    flex-wrap: nowrap;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .championship-actions::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  .championship-actions::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 2px;
+  }
+
+  .championship-actions::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 2px;
+  }
+
+  .btn {
+    width: auto;
+    flex-shrink: 0;
+    font-size: 0 !important;
+    color: transparent !important;
+  }
+
+  /* Icon mapping for mobile - hide text and show icons */
+  .btn-primary::before { content: "👁️"; }
+  .btn-success::before { content: "✏️"; }
+  .btn-admin::before { content: "⚙️"; }
+  .btn-warning::before { content: "📦"; }
+  .btn-danger::before { content: "🗑️"; }
+  .btn-info::before { content: "✓"; }
+  .btn-secondary::before { content: "⚔️"; }
+
+  /* Style the pseudo-element */
+  .btn::before {
+    font-size: 1.1rem !important;
+    color: inherit !important;
+    display: block;
+    text-align: center;
+    line-height: 1;
+  }
+
+  .tab {
+    min-width: 80px;
+    font-size: 0.75rem;
+    padding: 10px 12px;
+  }
+
+  .overview-section {
+    padding: 16px;
+  }
+
+  .overview-section h3 {
+    font-size: 1rem;
+  }
+
+  .admin-stats-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .admin-stat-card {
+    padding: 16px;
+  }
+
+  .admin-stat-card .stat-value {
+    font-size: 1.5rem;
+  }
+
+  .admin-tab {
+    min-width: 100px;
+    font-size: 0.75rem;
+    padding: 10px 12px;
+  }
+
+  .matches-grid {
+    gap: 12px;
+  }
+
+  .match-card {
+    padding: 12px;
+  }
+
+  .match-players {
+    gap: 12px;
+  }
+
+  .player-info {
+    min-width: 80px;
+  }
+
+  .player-name {
+    font-size: 0.875rem;
+  }
+
+  .player-rating {
+    font-size: 0.75rem;
+  }
+
+  .standings-table-container {
+    margin-bottom: 20px;
+  }
+
+  .participants-stats {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .stat-card {
+    padding: 16px;
+  }
+
+  .participant-card {
+    padding: 12px;
+  }
+
+  .participant-avatar {
+    width: 50px;
+    height: 50px;
+  }
+
   .modal {
     width: 95%;
-    margin: 10px;
+    margin: 5px;
+    max-height: 95vh;
+  }
+
+  .modal-header {
+    padding: 12px 16px;
+  }
+
+  .modal-header h2 {
+    font-size: 1.25rem;
+  }
+
+  .modal-content {
+    padding: 16px;
+  }
+
+  .modal-footer {
+    padding: 12px 16px;
   }
 
   .step-content {
-    padding: 16px;
+    padding: 12px;
   }
 
   .progress-steps {
     padding: 12px;
+    gap: 6px;
+  }
+
+  .step {
+    gap: 6px;
+  }
+
+  .step-number {
+    width: 24px;
+    height: 24px;
+    font-size: 0.625rem;
+  }
+
+  .step-label {
+    font-size: 0.625rem;
+    display: none;
+  }
+
+  .form-group {
+    margin-bottom: 10px;
+  }
+
+  .form-group label {
+    font-size: 0.8rem;
+  }
+
+  .form-input {
+    padding: 8px 10px;
+    font-size: 0.8rem;
+  }
+
+  .step-navigation {
     gap: 8px;
   }
 
+  .pairings-grid {
+    gap: 12px;
+  }
+
+  .pairing-card {
+    padding: 16px;
+  }
+
+  .pairing-players {
+    gap: 12px;
+  }
+
+  .player-slot {
+    padding: 8px;
+  }
+
+  .player-avatar {
+    width: 40px;
+    height: 40px;
+  }
+
+  .player-name {
+    font-size: 0.75rem;
+  }
+
+  .player-rating {
+    font-size: 0.625rem;
+  }
+
+  .settings-nav {
+    flex-wrap: wrap;
+    gap: 2px;
+  }
+
+  .settings-nav-btn {
+    min-width: 80px;
+    padding: 8px 12px;
+    font-size: 0.75rem;
+  }
+}
+
+/* Additional mobile improvements for better touch targets */
+@media (max-width: 768px) {
+  /* Fix scrolling issues on mobile */
+  html, body {
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    height: 100%;
+  }
+
+  .championship-list-container {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Improve touch targets for mobile */
+  .btn, .tab, .create-btn {
+    min-height: 44px; /* iOS touch target size */
+  }
+
+  /* Improve spacing for touch */
+  .championship-card {
+    margin-bottom: 16px;
+  }
+
+  .detail-item {
+    padding: 8px 0;
+  }
+
+  /* Better scrolling for long content */
+  .championships-grid {
+    padding-bottom: 20px;
+  }
+
+  /* Improve modal experience on mobile */
+  .modal-overlay {
+    padding: 10px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .modal {
+    max-height: 95vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Better form experience */
+  .form-input {
+    min-height: 44px;
+    font-size: 16px; /* Prevent zoom on iOS */
+  }
+
+  /* Better checkbox/radio buttons */
+  .checkbox-label, .radio-label {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  /* Fix overflow issues */
+  .championship-details-container,
+  .championship-overview,
+  .championship-matches,
+  .championship-standings,
+  .championship-participants,
+  .tournament-admin-dashboard {
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Improve table responsiveness */
+  .standings-table {
+    font-size: 0.75rem;
+  }
+
+  .standings-header-row,
+  .standings-row {
+    grid-template-columns: 60px 1fr 60px 40px 60px 40px repeat(3, 60px);
+    gap: 0;
+  }
+
+  .rank-cell, .player-cell, .score-cell, .games-cell, .performance-cell, .streak-cell, .tiebreak-cell {
+    padding: 8px 4px;
+    font-size: 0.7rem;
+  }
+
+  /* Better participant cards */
+  .participant-card {
+    padding: 12px;
+  }
+
+  .participant-avatar {
+    width: 50px;
+    height: 50px;
+  }
+
+  /* Better match cards */
+  .match-card {
+    padding: 12px;
+  }
+
+  .player-info {
+    min-width: 80px;
+  }
+
+  /* Better pairing cards */
+  .pairing-card {
+    padding: 12px;
+  }
+
+  .player-slot {
+    padding: 8px;
+  }
+
+  .player-avatar {
+    width: 40px;
+    height: 40px;
+  }
+
+  /* Better admin cards */
+  .admin-action-card {
+    padding: 16px;
+  }
+
+  .admin-stat-card {
+    padding: 16px;
+  }
+
+  /* Better settings modal */
+  .settings-nav {
+    flex-wrap: wrap;
+  }
+
+  .settings-nav-btn {
+    min-width: 100px;
+    font-size: 0.75rem;
+  }
+
+  /* Better progress steps */
   .step-number {
     width: 28px;
     height: 28px;
@@ -2134,5 +2751,220 @@
 
   .step-label {
     font-size: 0.7rem;
+  }
+
+  /* Better filter experience */
+  .filter-group {
+    min-width: 150px;
+  }
+
+  .filter-input, .filter-select {
+    min-height: 44px;
+    font-size: 16px; /* Prevent zoom on iOS */
+  }
+
+  /* Better search experience */
+  .search-box {
+    min-width: 150px;
+  }
+
+  /* Better button groups */
+  .admin-actions, .participants-actions, .match-actions {
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  /* Better status badges */
+  .championship-status, .status-badge, .match-status, .payment-badge {
+    font-size: 0.625rem;
+    padding: 2px 6px;
+  }
+
+  /* Better prize display */
+  .championship-prize {
+    font-size: 0.8rem;
+    padding: 4px 8px;
+  }
+
+  /* Better date display */
+  .date-value, .schedule-time, .result-value {
+    font-size: 0.75rem;
+  }
+
+  /* Better meta information */
+  .participant-count, .round-info {
+    font-size: 0.625rem;
+  }
+}
+
+/* Extra small mobile devices */
+@media (max-width: 360px) {
+  .championship-list-container {
+    padding: 8px;
+  }
+
+  .championship-list-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .championship-card {
+    padding: 12px;
+  }
+
+  .championship-name {
+    font-size: 1rem;
+  }
+
+  .btn {
+    min-width: 36px;
+    padding: 6px 8px;
+    font-size: 0.7rem;
+  }
+
+  .btn .btn-icon {
+    font-size: 0.9rem;
+  }
+
+  .championship-actions {
+    gap: 4px;
+  }
+
+  .detail-label, .detail-value {
+    font-size: 0.75rem;
+  }
+
+  .championship-title {
+    font-size: 1.125rem;
+  }
+
+  .tab {
+    min-width: 70px;
+    font-size: 0.7rem;
+    padding: 8px 10px;
+  }
+
+  .admin-stats-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .admin-tab {
+    min-width: 80px;
+    font-size: 0.7rem;
+    padding: 8px 10px;
+  }
+
+  .match-card {
+    padding: 8px;
+  }
+
+  .player-info {
+    min-width: 60px;
+  }
+
+  .player-name {
+    font-size: 0.75rem;
+  }
+
+  .player-rating {
+    font-size: 0.625rem;
+  }
+
+  .participant-card {
+    padding: 8px;
+  }
+
+  .participant-avatar {
+    width: 40px;
+    height: 40px;
+  }
+
+  .participant-name {
+    font-size: 0.875rem;
+  }
+
+  .participant-rating {
+    font-size: 0.75rem;
+  }
+
+  .modal {
+    width: 98%;
+    margin: 2px;
+  }
+
+  .modal-header {
+    padding: 8px 12px;
+  }
+
+  .modal-content {
+    padding: 12px;
+  }
+
+  .modal-footer {
+    padding: 8px 12px;
+  }
+
+  .step-content {
+    padding: 8px;
+  }
+
+  .progress-steps {
+    padding: 8px;
+    gap: 4px;
+  }
+
+  .step-number {
+    width: 24px;
+    height: 24px;
+    font-size: 0.625rem;
+  }
+
+  .step-label {
+    font-size: 0.6rem;
+  }
+
+  .form-group {
+    margin-bottom: 8px;
+  }
+
+  .form-group label {
+    font-size: 0.75rem;
+  }
+
+  .form-input {
+    padding: 6px 8px;
+    font-size: 0.75rem;
+    min-height: 36px;
+  }
+
+  .step-navigation {
+    gap: 6px;
+  }
+
+  .pairing-card {
+    padding: 8px;
+  }
+
+  .player-slot {
+    padding: 6px;
+  }
+
+  .player-avatar {
+    width: 32px;
+    height: 32px;
+  }
+
+  .player-name {
+    font-size: 0.625rem;
+  }
+
+  .player-rating {
+    font-size: 0.5rem;
+  }
+
+  .settings-nav-btn {
+    min-width: 70px;
+    padding: 6px 8px;
+    font-size: 0.625rem;
   }
 }

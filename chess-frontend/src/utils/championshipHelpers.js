@@ -99,7 +99,7 @@ export const canUserRegister = (championship, user) => {
  * Check if user is tournament organizer
  */
 export const isUserOrganizer = (championship, user) => {
-  return user && championship && championship.organizer_id === user.id;
+  return user && championship && (championship.created_by === user.id || championship.organizer_id === user.id);
 };
 
 /**

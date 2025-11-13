@@ -137,11 +137,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('championships')->group(function () {
         Route::post('/', [\App\Http\Controllers\ChampionshipController::class, 'store']);
         Route::put('/{id}', [\App\Http\Controllers\ChampionshipController::class, 'update']);
-        Route::delete('/{id}', [\App\Http\Controllers\ChampionshipController::class, 'destroy']);
+        Route::delete('/{id}', [\App\Http\Controllers\ChampionshipController::class, 'destroy']); // Archive (soft delete)
+        Route::post('/{id}/restore', [\App\Http\Controllers\ChampionshipController::class, 'restore']); // Restore archived
+        Route::delete('/{id}/force', [\App\Http\Controllers\ChampionshipController::class, 'forceDelete']); // Permanent delete
         Route::get('/{id}/participants', [\App\Http\Controllers\ChampionshipController::class, 'participants']);
         Route::get('/{id}/matches', [\App\Http\Controllers\ChampionshipController::class, 'matches']);
         Route::get('/{id}/standings', [\App\Http\Controllers\ChampionshipController::class, 'standings']);
         Route::get('/{id}/my-matches', [\App\Http\Controllers\ChampionshipController::class, 'myMatches']);
+
+        // Championship registration routes
+        Route::post('/{id}/register', [\App\Http\Controllers\ChampionshipController::class, 'register']);
+        Route::post('/{id}/register-with-payment', [\App\Http\Controllers\ChampionshipController::class, 'registerWithPayment']);
 
         // Championship match management
         Route::prefix('/{championship}/matches')->group(function () {

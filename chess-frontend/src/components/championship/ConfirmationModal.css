@@ -1,0 +1,260 @@
+/* ConfirmationModal.css */
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.confirmation-modal {
+  background: white;
+  border-radius: 16px;
+  padding: 0;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease;
+  overflow: hidden;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Modal Header */
+.modal-header {
+  padding: 24px;
+  text-align: center;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.modal-icon {
+  font-size: 3rem;
+  margin-bottom: 12px;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1a202c;
+}
+
+/* Color Variants */
+.confirmation-modal.warning .modal-header {
+  background: #fff3cd;
+  border-bottom-color: #ffc107;
+}
+
+.confirmation-modal.success .modal-header {
+  background: #d4edda;
+  border-bottom-color: #28a745;
+}
+
+.confirmation-modal.danger .modal-header {
+  background: #f8d7da;
+  border-bottom-color: #dc3545;
+}
+
+/* Modal Body */
+.modal-body {
+  padding: 24px;
+}
+
+.modal-message {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #2d3748;
+  margin: 0 0 12px 0;
+}
+
+.modal-description {
+  font-size: 0.95rem;
+  color: #718096;
+  margin: 0 0 20px 0;
+}
+
+/* Details Section */
+.modal-details {
+  margin-top: 20px;
+}
+
+.confirmation-details {
+  padding: 16px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.confirmation-details.warning {
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  color: #856404;
+}
+
+.confirmation-details.danger {
+  background: #f8d7da;
+  border: 1px solid #dc3545;
+  color: #721c24;
+}
+
+.confirmation-details p {
+  margin: 8px 0;
+}
+
+.confirmation-details ul {
+  margin: 12px 0;
+  padding-left: 20px;
+}
+
+.confirmation-details li {
+  margin: 6px 0;
+}
+
+.delete-warning {
+  font-weight: 600;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #dc3545;
+}
+
+/* Confirmation Input */
+.confirmation-input {
+  margin-top: 20px;
+}
+
+.confirmation-input label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+  color: #4a5568;
+}
+
+.confirmation-input input {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: center;
+  transition: border-color 0.2s ease;
+}
+
+.confirmation-input input:focus {
+  outline: none;
+  border-color: #dc3545;
+}
+
+.confirmation-input input::placeholder {
+  color: #cbd5e0;
+  font-weight: normal;
+}
+
+/* Modal Actions */
+.modal-actions {
+  padding: 20px 24px;
+  background: #f7fafc;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.modal-actions .btn {
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.modal-actions .btn-secondary {
+  background: #e2e8f0;
+  color: #4a5568;
+}
+
+.modal-actions .btn-secondary:hover:not(:disabled) {
+  background: #cbd5e0;
+}
+
+.modal-actions .btn-warning {
+  background: #ffc107;
+  color: #856404;
+}
+
+.modal-actions .btn-warning:hover:not(:disabled) {
+  background: #e0a800;
+}
+
+.modal-actions .btn-success {
+  background: #28a745;
+  color: white;
+}
+
+.modal-actions .btn-success:hover:not(:disabled) {
+  background: #218838;
+}
+
+.modal-actions .btn-danger {
+  background: #dc3545;
+  color: white;
+}
+
+.modal-actions .btn-danger:hover:not(:disabled) {
+  background: #c82333;
+}
+
+.modal-actions .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .confirmation-modal {
+    width: 95%;
+    max-width: none;
+  }
+
+  .modal-header {
+    padding: 20px;
+  }
+
+  .modal-body {
+    padding: 20px;
+  }
+
+  .modal-actions {
+    flex-direction: column;
+  }
+
+  .modal-actions .btn {
+    width: 100%;
+  }
+}

@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { formatChampionshipStatus, formatDateTime, calculateProgress } from '../../utils/championshipHelpers';
 import PairingManager from './PairingManager';
 import TournamentSettings from './TournamentSettings';
+import ConfirmationModal from './ConfirmationModal';
 import './Championship.css';
 
 const TournamentAdminDashboard = () => {
@@ -23,13 +24,20 @@ const TournamentAdminDashboard = () => {
     fetchStandings,
     startChampionship,
     generateNextRound,
-    updateChampionship
+    updateChampionship,
+    deleteChampionship,
+    restoreChampionship,
+    forceDeleteChampionship
   } = useChampionship();
 
   const [activeTab, setActiveTab] = useState('overview');
   const [actionLoading, setActionLoading] = useState({});
   const [showPairingModal, setShowPairingModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [confirmationModal, setConfirmationModal] = useState({ isOpen: false, type: null });
+
+  // Check if user is admin (can force delete)
+  const isPlatformAdmin = user?.roles?.some(role => role === 'platform_admin') || false;
 
   useEffect(() => {
     if (id) {
@@ -118,6 +126,60 @@ const TournamentAdminDashboard = () => {
       console.error('Failed to complete championship:', error);
     } finally {
       setActionLoading(prev => ({ ...prev, complete: false }));
+    }
+  };
+
+  const handleArchiveChampionship = async () => {
+    try {
+      await deleteChampionship(id);
+      navigate('/championships');
+    } catch (error) {
+      console.error('Failed to archive championship:', error);
+      alert(error.response?.data?.message || 'Failed to archive championship');
+    }
+  };
+
+  const handleRestoreChampionship = async () => {
+    try {
+      await restoreChampionship(id);
+      await fetchChampionship(id);
+    } catch (error) {
+      console.error('Failed to restore championship:', error);
+      alert(error.response?.data?.message || 'Failed to restore championship');
+    }
+  };
+
+  const handleForceDeleteChampionship = async () => {
+    try {
+      await forceDeleteChampionship(id);
+      navigate('/championships');
+    } catch (error) {
+      console.error('Failed to permanently delete championship:', error);
+      alert(error.response?.data?.message || 'Failed to permanently delete championship');
+    }
+  };
+
+  const openConfirmationModal = (type) => {
+    setConfirmationModal({ isOpen: true, type });
+  };
+
+  const closeConfirmationModal = () => {
+    setConfirmationModal({ isOpen: false, type: null });
+  };
+
+  const handleConfirmAction = async () => {
+    switch (confirmationModal.type) {
+      case 'archive':
+        await handleArchiveChampionship();
+        break;
+      case 'restore':
+        await handleRestoreChampionship();
+        break;
+      case 'delete':
+        await handleForceDeleteChampionship();
+        break;
+      default:
+        break;
     }
   };
 
@@ -304,6 +366,26 @@ const TournamentAdminDashboard = () => {
             ]}
           />
         )}
+
+        {/* Archive/Delete Section */}
+        {activeChampionship.status !== 'in_progress' && (
+          <AdminActionCard
+            title="🗄️ Archive & Delete"
+            description="Archive or permanently delete this championship."
+            actions={[
+              {
+                label: '📦 Archive Championship',
+                type: 'warning',
+                handler: () => openConfirmationModal('archive')
+              },
+              ...(isPlatformAdmin && activeChampionship.participants_count === 0 ? [{
+                label: '🗑️ Permanently Delete',
+                type: 'danger',
+                handler: () => openConfirmationModal('delete')
+              }] : [])
+            ]}
+          />
+        )}
       </div>
 
       {/* Tournament Progress */}
@@ -458,6 +540,15 @@ const TournamentAdminDashboard = () => {
           }}
         />
       )}
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={confirmationModal.isOpen}
+        onClose={closeConfirmationModal}
+        onConfirm={handleConfirmAction}
+        type={confirmationModal.type}
+        championship={activeChampionship}
+      />
     </div>
   );
 };

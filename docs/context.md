@@ -1,9 +1,9 @@
 # Chess Web - Project Context Documentation
 
 **Project:** Real-time Multiplayer Chess Platform
-**Current Status:** Phase 3+ Complete ✅ (Production-Ready Multiplayer Platform)
+**Current Status:** Phase 4 Complete ✅ (Production Platform with Tournament System)
 **Technology Stack:** Laravel 12 + React 18 + Laravel Reverb WebSockets
-**Phase:** Fully operational production platform with multiplayer, social sharing, and game review features
+**Phase:** Fully operational production platform with multiplayer, social sharing, game review, and tournament system
 
 ---
 
@@ -11,11 +11,13 @@
 
 A web-based chess application designed to provide real-time multiplayer chess experiences with a complete game ecosystem including:
 
-- **Real-time Multiplayer Chess** - Players can connect and play chess games in real-time
-- **AI Opponents** - Play against various AI engines (Stockfish, LLM bots)
-- **Credit Economy** - In-game currency system for premium features
-- **Social Features** - Game sharing, tournaments, spectator mode
-- **Tournament System** - Community tournaments and competitive play
+- **Real-time Multiplayer Chess** - Players can connect and play chess games in real-time with WebSocket support
+- **Tournament System** - Full-featured championship management with Swiss/Elimination/Hybrid formats
+- **Social Features** - Game sharing with WhatsApp/social media, professional branded cards
+- **User Profiles** - Rating system, statistics tracking, avatar uploads
+- **Game Review** - Complete game replay with move-by-move navigation
+- **AI Opponents** - Play against various AI engines (Stockfish, LLM bots) [Planned]
+- **Credit Economy** - In-game currency system for premium features [Planned]
 
 ### Vision Statement
 *"A visitor can play a quick game instantly, share the highlight as a GIF/video, then realize they can rack-up credits, battle stronger AIs & live opponents, and win bigger prizes by joining tournaments."*
@@ -281,29 +283,329 @@ pnpm dev
    - Stalemate and draw detection
    - Move history persistence
 
+7. **Championship Tournament System**
+   - Tournament creation with Swiss/Elimination/Hybrid formats
+   - User registration and payment integration
+   - Automatic pairing generation (Swiss system algorithm)
+   - Match scheduling and management
+   - Game creation from tournament matches
+   - Automatic result recording
+   - Live standings with tiebreak calculations
+   - Organizer admin dashboard
+   - Participant "My Matches" view
+   - Authorization and access control
+
 ### Planned Features 🚧
 1. **Enhanced Gameplay Features**
-   - Chess clocks and time controls
-   - Draw offers and resignation
-   - Spectator mode
-   - Live game feed/lobby
+   - Chess clocks and time controls (partially implemented in tournaments)
+   - Draw offers and resignation buttons
+   - Spectator mode for live games
+   - Live game feed/lobby improvements
 
 2. **AI Opponents**
    - Integration with Stockfish engine
    - Multiple difficulty levels
-   - Computer game history
+   - Computer game history and analysis
 
-3. **Tournament System**
-   - Tournament creation and management
-   - Bracket generation
-   - Leaderboards
-   - Tournament results
+3. **Tournament Enhancements**
+   - Payment processing integration (Razorpay)
+   - Email notifications for matches
+   - Live WebSocket updates for tournaments
+   - Prize distribution automation
+   - Tournament chat and announcements
 
 4. **Economy System**
    - Credit-based gameplay
    - Premium features
    - In-game rewards
-   - Tournament prizes
+   - Automated prize distribution
+
+---
+
+## 🏆 Championship Tournament System
+
+### Overview
+A comprehensive tournament management system supporting Swiss, Elimination, and Hybrid formats. Players can register for tournaments, compete in scheduled matches, and track their progress through standings.
+
+### Championship Formats
+- **Swiss Only:** Round-robin style where players face opponents with similar scores
+- **Elimination Only:** Single/double elimination brackets
+- **Hybrid:** Swiss rounds followed by elimination playoffs for top qualifiers
+
+### User Journey for Tournament Participation
+
+#### 1. **Discovery & Registration** 📝
+**Location:** `/championships` → `/championships/{id}`
+
+**Flow:**
+1. Browse available championships on the tournaments page
+2. Click on a championship to view full details
+3. Review tournament information:
+   - Format and rules
+   - Time controls
+   - Prize pool
+   - Registration deadline
+   - Schedule and start date
+4. Click **"Register"** button to join (requires authentication)
+5. System records registration and adds user to participants list
+
+**Implementation:**
+- Component: `ChampionshipDetails.jsx:231-238`
+- Controller: `ChampionshipController@store`
+- Authorization: `ChampionshipPolicy@register`
+
+#### 2. **View Schedule & Matches** 📅
+**Location:** Championship Details → "My Matches" Tab
+
+**Features:**
+- **My Matches Tab:** Personal match schedule with all upcoming and past games
+- **Quick Access Button:** Direct navigation to match schedule
+- **Match Information Display:**
+  - Opponent details (name, rating, avatar)
+  - Round number and board assignment
+  - Scheduled date and time
+  - Match status (scheduled, active, completed)
+  - Game link (if game has been created)
+
+**Implementation:**
+- Component: `ChampionshipMatches.jsx`
+- Context: `ChampionshipContext.js`
+- Helpers: `championshipHelpers.js`
+
+#### 3. **Play Tournament Games** 🎮
+**Location:** My Matches → Game Board
+
+**Game Flow:**
+```
+Match Scheduled → Click "Start Game" → Create Multiplayer Game → Navigate to Board
+                                    ↓
+                            Real-time Chess Gameplay
+                                    ↓
+                            Game Completion → Auto-record Result
+```
+
+**Player Actions:**
+- **Before Game Starts:**
+  - View match details and opponent information
+  - Click **"Start Game"** button to create game from match
+  - System navigates to multiplayer game board (`/play/multiplayer/{gameId}`)
+
+- **During Active Game:**
+  - Play real-time multiplayer chess with full WebSocket support
+  - Make moves, see opponent moves in real-time
+  - Click **"Continue Game"** to resume if navigated away
+
+- **After Game Completes:**
+  - Result automatically recorded in tournament standings
+  - Manual **"Report Result"** option if needed
+  - Click **"Review Game"** to analyze completed match
+
+**Implementation:**
+- Match Management: `ChampionshipMatches.jsx:240-248`
+- Game Creation: `ChampionshipMatchController@createGame`
+- Game Interface: `PlayMultiplayer.js`
+- Result Recording: `ChampionshipMatchController@recordResult`
+
+#### 4. **Track Progress & Standings** 📊
+**Location:** Championship Details → Tabs
+
+**Available Views:**
+
+**Standings Tab:**
+- Tournament leaderboard with live updates
+- Player rankings based on points and tiebreaks
+- Win/Loss/Draw statistics
+- Performance metrics
+- Swiss system: Buchholz, Sonneborn-Berger scores
+
+**Participants Tab:**
+- Complete list of registered players
+- Player profiles with ratings
+- Registration status
+
+**Matches Tab:**
+- All tournament matches across all rounds
+- Filter by round number or match status
+- View results and game details
+- Access game replays
+
+**Implementation:**
+- Standings: `ChampionshipStandings.jsx`
+- Participants: `ChampionshipParticipants.jsx`
+- Calculator: `StandingsCalculatorService.php`
+
+### Tournament Administration
+
+**Organizer Features:**
+- **Create Championships:** Full tournament setup with format, rules, and prizes
+- **Manage Participants:** View registrations and participant details
+- **Start Tournament:** Generate first round pairings when registration closes
+- **Generate Rounds:** Automatic pairing generation for next rounds
+- **Match Management:** Reschedule, modify, or cancel matches
+- **Results Verification:** Verify reported results and resolve disputes
+- **Standings Management:** View and adjust standings if needed
+
+**Admin Dashboard:** `/championships/{id}/admin`
+
+**Implementation:**
+- Dashboard: `TournamentAdminDashboard.jsx`
+- Pairing: `PairingManager.jsx`
+- Services: `SwissPairingService.php`, `EliminationBracketService.php`
+
+### Technical Architecture
+
+#### Database Schema
+```
+championships
+├── id, name, description
+├── format (swiss_only, elimination_only, hybrid)
+├── status (upcoming, registration_open, in_progress, completed)
+├── registration_start_at, registration_end_at
+├── starts_at, ends_at
+├── max_participants, current_round, total_rounds
+├── time_control (minutes, increment)
+├── prizes (JSON), settings (JSON)
+├── visibility, allow_public_registration
+└── created_by, organization_id
+
+championship_participants
+├── championship_id, user_id
+├── registered_at, seed, initial_rating
+└── payment_status_id, payment_amount
+
+championship_matches
+├── championship_id, round_number, board_number
+├── white_player_id, black_player_id
+├── game_id, winner_id
+├── scheduled_at, started_at, completed_at
+├── status, result, round_type
+└── time_window_hours
+
+championship_standings
+├── championship_id, user_id
+├── rank, points, wins, losses, draws
+├── games_played
+├── buchholz_score, sonneborn_berger_score
+└── performance_rating
+```
+
+#### Key Services
+
+**SwissPairingService**
+- Implements Swiss system pairing algorithm
+- Considers player scores, colors, previous opponents
+- Handles byes for odd number of players
+- Optimizes pairings for fair competition
+
+**EliminationBracketService**
+- Generates single/double elimination brackets
+- Manages bracket progression
+- Handles walkovers and byes
+- Advances winners to next rounds
+
+**MatchSchedulerService**
+- Schedules matches with time windows
+- Manages match deadlines
+- Sends reminders and notifications
+- Handles match expiration
+
+**StandingsCalculatorService**
+- Calculates tournament standings
+- Computes tiebreak scores (Buchholz, Sonneborn-Berger)
+- Updates rankings after each match
+- Generates performance ratings
+
+#### Authorization System
+
+**Policies:** `ChampionshipPolicy.php`
+- **view:** Public championships or organization members
+- **register:** Registration open, user eligible, not full
+- **update/delete:** Organizer or admin only
+- **start:** Organizer with minimum participants
+- **viewStandings:** Participants or public based on settings
+
+**Roles:**
+- **Tournament Organizer:** Can create and manage tournaments
+- **Participant:** Can register, play matches, view standings
+- **Admin:** Full access to all tournament features
+
+### Example User Flow
+
+**Sarah's Tournament Journey:**
+
+1. **Monday:** Browses `/championships` → Sees "Weekend Blitz Tournament"
+2. **Monday:** Views details → Checks format (Swiss), prizes ($500 pool), schedule
+3. **Monday:** Clicks "Register" → Successfully registered for tournament
+4. **Saturday (Registration Closes):** Organizer starts tournament → First round pairings generated
+5. **Saturday:** Sarah checks "My Matches" → Sees "Round 1 vs John, today 2 PM, Board 5"
+6. **Saturday 2 PM:** Sarah clicks "Start Game" → Creates game → Navigates to chess board
+7. **Saturday 2:15 PM:** Sarah plays against John → Wins the game
+8. **Saturday 2:30 PM:** Result automatically recorded → Standing updated (1.0 points)
+9. **Saturday Evening:** Round 2 generated → Sarah checks "My Matches" again
+10. **Sunday:** Sarah sees "Round 2 vs Emma, Sunday 10 AM"
+11. **Sunday:** Plays Round 2 → Continues through all rounds
+12. **Sunday Evening:** Tournament completes → Final standings published
+13. **Monday:** Checks "Standings" tab → Sarah finished 3rd place → Wins prize!
+
+### Component Reference
+
+| Component | Purpose | File Location |
+|-----------|---------|---------------|
+| **ChampionshipList** | Browse all tournaments | `ChampionshipList.jsx` |
+| **ChampionshipDetails** | Tournament info & registration | `ChampionshipDetails.jsx:231-238` |
+| **ChampionshipMatches** | View and play scheduled matches | `ChampionshipMatches.jsx:240-248` |
+| **ChampionshipStandings** | Tournament leaderboard | `ChampionshipStandings.jsx` |
+| **ChampionshipParticipants** | Participant list | `ChampionshipParticipants.jsx` |
+| **TournamentAdminDashboard** | Organizer management panel | `TournamentAdminDashboard.jsx` |
+| **PairingManager** | Generate round pairings | `PairingManager.jsx` |
+| **CreateChampionshipModal** | Tournament creation form | `CreateChampionshipModal.jsx` |
+
+### API Endpoints
+
+```
+GET    /api/championships              # List all tournaments
+POST   /api/championships              # Create tournament (organizer)
+GET    /api/championships/{id}         # Get tournament details
+PATCH  /api/championships/{id}         # Update tournament (organizer)
+DELETE /api/championships/{id}         # Delete tournament (organizer)
+
+GET    /api/championships/{id}/participants   # List participants
+POST   /api/championships/{id}/register       # Register for tournament
+DELETE /api/championships/{id}/unregister     # Unregister from tournament
+
+GET    /api/championships/{id}/matches        # List all matches
+GET    /api/championships/{id}/my-matches     # User's matches only
+POST   /api/matches/{id}/create-game          # Create game from match
+POST   /api/matches/{id}/report-result        # Report match result
+
+GET    /api/championships/{id}/standings      # Get tournament standings
+
+POST   /api/championships/{id}/start          # Start tournament (organizer)
+POST   /api/championships/{id}/generate-round # Generate next round (organizer)
+```
+
+### Current Implementation Status
+- ✅ Championship CRUD operations
+- ✅ User registration system
+- ✅ Swiss pairing algorithm
+- ✅ Elimination bracket generation
+- ✅ Match scheduling and management
+- ✅ Game creation from matches
+- ✅ Automatic result recording
+- ✅ Standings calculation with tiebreaks
+- ✅ Authorization and policies
+- ✅ Admin dashboard
+- ✅ Participant view with "My Matches"
+- ✅ Full tournament lifecycle management
+
+### Planned Enhancements
+- 🚧 Payment integration (Razorpay) for entry fees
+- 🚧 Email notifications for matches and results
+- 🚧 Live tournament updates via WebSocket
+- 🚧 Tournament chat and announcements
+- 🚧 Prize distribution automation
+- 🚧 Tournament statistics and analytics
+- 🚧 Spectator mode for tournament games
 
 ---
 
@@ -471,6 +773,16 @@ REDIS_PORT=6379
 
 ### November 2025 Updates
 
+**Championship Tournament System** (Nov 13, 2025)
+- ✅ Complete tournament management system with Swiss/Elimination/Hybrid formats
+- ✅ User registration and participant management
+- ✅ Match scheduling and game creation from matches
+- ✅ Automatic result recording and standings calculation
+- ✅ "My Matches" view for participants to track their games
+- ✅ Tournament organizer admin dashboard
+- ✅ Authorization policies for access control
+- ✅ Full tournament lifecycle support (registration → matches → completion)
+
 **Social Sharing System** (Nov 11, 2025)
 - ✅ WhatsApp share with Open Graph meta tags for rich previews
 - ✅ Server-side rendering for social media crawlers
@@ -590,7 +902,7 @@ REDIS_PORT=6379
 
 ---
 
-**Last Updated:** November 12, 2025
-**Document Version:** 2.0
+**Last Updated:** November 13, 2025
+**Document Version:** 2.1
 **Production Status:** ✅ LIVE at chess99.com
-**Overall Progress:** 70-75% complete (Core multiplayer and social features operational)
+**Overall Progress:** 75-80% complete (Core multiplayer, social features, and tournament system operational)

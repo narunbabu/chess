@@ -241,17 +241,39 @@ class ChampionshipPolicy
 
     /**
      * Determine if the user can restore the championship
+     *
+     * Platform admins and original creators can restore
      */
     public function restore(User $user, Championship $championship): bool
     {
-        return $user->hasRole('platform_admin');
+        // Platform admins can restore any championship
+        if ($user->hasRole('platform_admin')) {
+            return true;
+        }
+
+        // Original creator can restore their own championship
+        if ($championship->created_by === $user->id) {
+            return true;
+        }
+
+        // Organization admins can restore org championships
+        if ($user->hasRole('organization_admin') &&
+            $championship->organization_id === $user->organization_id) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
      * Determine if the user can permanently delete the championship
+     *
+     * STRICT: Only platform admins can force delete
+     * This is the most restrictive permission as it's irreversible
      */
     public function forceDelete(User $user, Championship $championship): bool
     {
+        // Only platform admins can permanently delete
         return $user->hasRole('platform_admin');
     }
 }

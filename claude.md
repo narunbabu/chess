@@ -17,3 +17,4 @@
 * Use `pnpm` for Node workflows (`pnpm i`, `pnpm build`, `pnpm test`, `pnpm lint`, `pnpm typecheck`); keep the lockfile committed and avoid mixing package managers.
 * Use clear conventional commits (`type(scope): summary`); reference issues, mention flags/migrations in the body, and make changesets easy to trace and revert.
 * Tests should be compatible to run in windows powershell
+* Use windows powershell and compatible commands for tests to run like powershell.exe "cd 'C:\\ArunApps\\Chess-Web\\chess-backend';

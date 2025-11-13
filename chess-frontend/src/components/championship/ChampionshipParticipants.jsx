@@ -5,9 +5,12 @@ import { useAuth } from '../../contexts/AuthContext';
 import { formatDateTime } from '../../utils/championshipHelpers';
 import './Championship.css';
 
-const ChampionshipParticipants = ({ championshipId }) => {
+const ChampionshipParticipants = ({ championshipId, participants: propsParticipants }) => {
   const { user } = useAuth();
-  const { participants, fetchParticipants, loading, error } = useChampionship();
+  const { fetchParticipants, loading, error } = useChampionship();
+
+  // Use participants from props if available, otherwise fall back to context
+  const participants = propsParticipants;
 
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('name'); // name, rating, registered_at
@@ -29,10 +32,11 @@ const ChampionshipParticipants = ({ championshipId }) => {
       }
 
       // Payment filter
-      if (filterBy === 'paid' && participant.payment_status !== 'paid') {
+      const isPaid = participant.payment_status === 'completed' || participant.payment_status === 'paid';
+      if (filterBy === 'paid' && !isPaid) {
         return false;
       }
-      if (filterBy === 'unpaid' && participant.payment_status === 'paid') {
+      if (filterBy === 'unpaid' && isPaid) {
         return false;
       }
 
@@ -52,6 +56,7 @@ const ChampionshipParticipants = ({ championshipId }) => {
 
   const getPaymentStatusBadge = (status) => {
     const statusConfig = {
+      completed: { color: 'success', text: '✅ Paid', icon: '💳' },
       paid: { color: 'success', text: '✅ Paid', icon: '💳' },
       pending: { color: 'warning', text: '⏳ Pending', icon: '⏰' },
       failed: { color: 'error', text: '❌ Failed', icon: '❌' },
@@ -70,7 +75,8 @@ const ChampionshipParticipants = ({ championshipId }) => {
     return user && participant.user_id === user.id;
   };
 
-  if (loading) {
+  // Only show loading state if we don't have participants data and are fetching
+  if (loading && (!participants || participants.length === 0)) {
     return (
       <div className="loading-state">
         <div className="spinner"></div>
@@ -79,7 +85,8 @@ const ChampionshipParticipants = ({ championshipId }) => {
     );
   }
 
-  if (error) {
+  // Only show error state if we don't have participants data and there's an error
+  if (error && (!participants || participants.length === 0)) {
     return (
       <div className="error-state">
         <p>❌ {error}</p>
@@ -94,7 +101,7 @@ const ChampionshipParticipants = ({ championshipId }) => {
     return (
       <div className="empty-state">
         <h3>No participants yet</h3>
-        <p>Participants will appear here once registration opens.</p>
+        <p>Be the first to register for this championship!</p>
       </div>
     );
   }
@@ -102,7 +109,7 @@ const ChampionshipParticipants = ({ championshipId }) => {
   const participantsArray = Array.isArray(participants) ? participants : [];
   const stats = {
     total: participantsArray.length,
-    paid: participantsArray.filter(p => p.payment_status === 'paid').length,
+    paid: participantsArray.filter(p => p.payment_status === 'completed' || p.payment_status === 'paid').length,
     pending: participantsArray.filter(p => p.payment_status === 'pending').length,
     averageRating: participantsArray.length > 0
       ? Math.round(participantsArray.reduce((sum, p) => sum + (p.user?.rating || 0), 0) / participantsArray.length)
