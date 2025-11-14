@@ -18,9 +18,9 @@ return new class extends Migration
             $table->string('connection_id')->unique();
             $table->string('socket_id')->nullable();
             $table->enum('status', ['connected', 'disconnected', 'stale'])->default('connected');
-            $table->timestamp('connected_at');
+            $table->timestamp('connected_at')->useCurrent();
             $table->timestamp('disconnected_at')->nullable();
-            $table->timestamp('last_activity');
+            $table->timestamp('last_activity')->useCurrent();
             $table->json('metadata')->nullable();
             $table->timestamps();
 

@@ -289,7 +289,7 @@ class EliminationBracketService
         $previousRoundMatches = $championship->matches()
             ->where('round_number', $roundNumber - 1)
             ->where('round_type', ChampionshipRoundType::ELIMINATION)
-            ->where('status', ChampionshipMatchStatus::COMPLETED)
+            ->completed() // Use model scope instead of direct status query
             ->get();
 
         if ($previousRoundMatches->count() < 2) {
@@ -452,7 +452,7 @@ class EliminationBracketService
         $finalMatch = $championship->matches()
             ->where('round_type', ChampionshipRoundType::ELIMINATION)
             ->orderBy('round_number', 'desc')
-            ->where('status', ChampionshipMatchStatus::COMPLETED)
+            ->completed() // Use model scope instead of direct status query
             ->first();
 
         return $finalMatch?->winner_id;
@@ -546,7 +546,7 @@ class EliminationBracketService
                       ->orWhere('player2_id', $userId);
             })
             ->where('winner_id', '!=', $userId)
-            ->where('status', ChampionshipMatchStatus::COMPLETED)
+            ->completed() // Use model scope instead of direct status query
             ->orderBy('round_number', 'desc')
             ->first();
 

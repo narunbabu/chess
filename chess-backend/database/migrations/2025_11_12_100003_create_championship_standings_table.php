@@ -50,8 +50,8 @@ return new class extends Migration
             // Indexes
             $table->index('championship_id');
             $table->index('user_id');
-            $table->index(['championship_id', 'points', 'buchholz_score']);
-            $table->index(['championship_id', 'rank']);
+            $table->index(['championship_id', 'points', 'buchholz_score'], 'champ_standings_leaderboard_idx');
+            $table->index(['championship_id', 'rank'], 'champ_standings_rank_idx');
         });
     }
 

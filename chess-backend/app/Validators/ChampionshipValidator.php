@@ -157,7 +157,7 @@ class ChampionshipValidator
         if ($currentRound > 0) {
             $previousRoundComplete = $championship->matches()
                 ->where('round_number', $currentRound)
-                ->where('status', '!=', 'completed')
+                ->whereNotCompleted() // Use model scope instead of direct status query
                 ->count() === 0;
 
             if (!$previousRoundComplete) {
@@ -357,7 +357,7 @@ class ChampionshipValidator
                       ->where('player2_id', $player1Id);
                 });
             })
-            ->where('status', '!=', 'completed')
+            ->whereNotCompleted() // Use model scope instead of direct status query
             ->first();
 
         if ($existingMatch) {

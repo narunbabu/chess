@@ -129,6 +129,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Get move history for timer calculation
         Route::get('/games/{gameId}/moves', [WebSocketController::class, 'getMoves']);
+
+        // Get championship context for a game
+        Route::get('/games/{gameId}/championship-context', [WebSocketController::class, 'getChampionshipContext']);
     });
 
     // Laravel Broadcasting Authentication Route (standard Laravel pattern)
@@ -153,19 +156,37 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Championship match management
         Route::prefix('/{championship}/matches')->group(function () {
+            // Specific routes must come before parameterized routes
             Route::get('/', [\App\Http\Controllers\ChampionshipMatchController::class, 'index']);
-            Route::post('/preview', [\App\Http\Controllers\ChampionshipMatchController::class, 'getPairingsPreview'])->middleware('can:manage,championship');
+            Route::get('/pairings-preview', [\App\Http\Controllers\ChampionshipMatchController::class, 'getPairingsPreview'])->middleware('can:manage,championship');
             Route::post('/schedule-next', [\App\Http\Controllers\ChampionshipMatchController::class, 'scheduleNextRound'])->middleware('can:manage,championship');
             Route::get('/bracket', [\App\Http\Controllers\ChampionshipMatchController::class, 'getBracket']);
             Route::get('/stats', [\App\Http\Controllers\ChampionshipMatchController::class, 'getStats']);
+
+            // Parameterized routes that must come after specific routes
             Route::get('/{match}', [\App\Http\Controllers\ChampionshipMatchController::class, 'show']);
             Route::post('/{match}/game', [\App\Http\Controllers\ChampionshipMatchController::class, 'createGame']);
             Route::post('/{match}/result', [\App\Http\Controllers\ChampionshipMatchController::class, 'reportResult']);
+            Route::post('/{match}/send-invitation', [\App\Http\Controllers\ChampionshipMatchController::class, 'sendInvitation'])->middleware('can:manage,championship');
             Route::put('/{match}/reschedule', [\App\Http\Controllers\ChampionshipMatchController::class, 'reschedule'])->middleware('can:manage,championship');
+
+            // Match scheduling routes
+            Route::post('/{match}/schedule/propose', [\App\Http\Controllers\ChampionshipMatchSchedulingController::class, 'proposeSchedule']);
+            Route::post('/{match}/schedule/{schedule}/accept', [\App\Http\Controllers\ChampionshipMatchSchedulingController::class, 'acceptSchedule']);
+            Route::post('/{match}/schedule/{schedule}/propose-alternative', [\App\Http\Controllers\ChampionshipMatchSchedulingController::class, 'proposeAlternative']);
+            Route::post('/{match}/schedule/confirm', [\App\Http\Controllers\ChampionshipMatchSchedulingController::class, 'confirmSchedule']);
+            Route::post('/{match}/schedule/play-immediate', [\App\Http\Controllers\ChampionshipMatchSchedulingController::class, 'playImmediate']);
+            Route::get('/{match}/schedule/proposals', [\App\Http\Controllers\ChampionshipMatchSchedulingController::class, 'getScheduleProposals']);
         });
 
         // User's championship matches
         Route::get('/my-matches', [\App\Http\Controllers\ChampionshipMatchController::class, 'myMatches']);
+
+        // User's championship scheduling information
+        Route::get('/{id}/my-schedule', [\App\Http\Controllers\ChampionshipMatchSchedulingController::class, 'getUserSchedule']);
+
+        // Championship instructions
+        Route::get('/{id}/instructions', [\App\Http\Controllers\ChampionshipController::class, 'getInstructions']);
 
         // Payment routes
         Route::post('/{id}/payment/initiate', [\App\Http\Controllers\ChampionshipPaymentController::class, 'initiatePayment']);

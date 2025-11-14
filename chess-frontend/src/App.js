@@ -27,6 +27,7 @@ import { AppDataProvider } from "./contexts/AppDataContext";
 import { FeatureFlagsProvider } from "./contexts/FeatureFlagsContext";
 import { GlobalInvitationProvider } from "./contexts/GlobalInvitationContext";
 import { ChampionshipProvider } from "./contexts/ChampionshipContext";
+import { ChampionshipInvitationProvider } from "./contexts/ChampionshipInvitationContext";
 import GlobalInvitationDialog from "./components/invitations/GlobalInvitationDialog";
 import Layout from "./components/layout/Layout";
 import Footer from "./components/layout/Footer";
@@ -37,6 +38,7 @@ import { requireAuth } from "./utils/guards";
 import ChampionshipList from "./components/championship/ChampionshipList";
 import ChampionshipDetails from "./components/championship/ChampionshipDetails";
 import TournamentAdminDashboard from "./components/championship/TournamentAdminDashboard";
+import ChampionshipInvitations from "./pages/ChampionshipInvitations";
 
 const App = () => {
   useEffect(()=> {
@@ -54,15 +56,17 @@ const App = () => {
       <AppDataProvider>
         <FeatureFlagsProvider>
           <ChampionshipProvider>
-            <Router future={{ v7_relativeSplatPath: true }}>
-              <Layout>
-                <GlobalInvitationProvider>
+            <ChampionshipInvitationProvider>
+              <Router future={{ v7_relativeSplatPath: true }}>
+                <Layout>
+                  <GlobalInvitationProvider>
                   <AppContent />
                   {/* Global Invitation Dialog - appears across all pages */}
                   <GlobalInvitationDialog />
                 </GlobalInvitationProvider>
-              </Layout>
-            </Router>
+                </Layout>
+              </Router>
+            </ChampionshipInvitationProvider>
           </ChampionshipProvider>
         </FeatureFlagsProvider>
       </AppDataProvider>
@@ -184,6 +188,14 @@ const AppContent = () => {
               element={
                 <RouteGuard>
                   <TournamentAdminDashboard />
+                </RouteGuard>
+              }
+            />
+            <Route
+              path="/championship-invitations"
+              element={
+                <RouteGuard>
+                  <ChampionshipInvitations />
                 </RouteGuard>
               }
             />

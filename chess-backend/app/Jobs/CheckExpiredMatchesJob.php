@@ -90,7 +90,7 @@ class CheckExpiredMatchesJob implements ShouldQueue
     private function getExpiredMatches(): \Illuminate\Database\Eloquent\Collection
     {
         return ChampionshipMatch::where('deadline', '<', now())
-            ->where('status', '!=', ChampionshipMatchStatus::COMPLETED->value)
+            ->whereNotCompleted() // Use model scope instead of direct status query
             ->with(['championship', 'player1', 'player2'])
             ->get();
     }
@@ -242,11 +242,11 @@ class CheckExpiredMatchesJob implements ShouldQueue
 
         switch ($result) {
             case 'win':
-                $standing->increment('score');
+                $standing->increment('points');
                 $standing->increment('wins');
                 break;
             case 'draw':
-                $standing->increment('score', 0.5);
+                $standing->increment('points', 0.5);
                 $standing->increment('draws');
                 break;
             case 'loss':
@@ -254,7 +254,7 @@ class CheckExpiredMatchesJob implements ShouldQueue
                 break;
         }
 
-        $standing->increment('games_played');
+        $standing->increment('matches_played');
         $standing->save();
     }
 
@@ -339,7 +339,7 @@ class CheckExpiredMatchesJob implements ShouldQueue
     private function getPlayerForfeitCount(Championship $championship, int $playerId): int
     {
         return $championship->matches()
-            ->where('status', ChampionshipMatchStatus::COMPLETED)
+            ->completed() // Use model scope instead of direct status query
             ->where(function ($query) use ($playerId) {
                 $query->where('player1_id', $playerId)
                       ->orWhere('player2_id', $playerId);
@@ -375,7 +375,7 @@ class CheckExpiredMatchesJob implements ShouldQueue
 
             // Forfeit remaining matches
             $remainingMatches = $championship->matches()
-                ->where('status', '!=', ChampionshipMatchStatus::COMPLETED)
+                ->whereNotCompleted() // Use model scope instead of direct status query
                 ->where(function ($query) use ($playerId) {
                     $query->where('player1_id', $playerId)
                           ->orWhere('player2_id', $playerId);

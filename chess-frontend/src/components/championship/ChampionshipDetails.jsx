@@ -1,6 +1,6 @@
 // ChampionshipDetails.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useChampionship } from '../../contexts/ChampionshipContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatChampionshipStatus, formatChampionshipType, formatPrizePool, formatParticipantCount, calculateProgress, formatDateTime, canUserRegister, isUserOrganizer, calculateDaysRemaining, getStatusColorClass, formatCurrency } from '../../utils/championshipHelpers';
@@ -13,6 +13,7 @@ import './Championship.css';
 const ChampionshipDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const {
     activeChampionship,
@@ -32,7 +33,9 @@ const ChampionshipDetails = () => {
     forceDeleteChampionship
   } = useChampionship();
 
-  const [activeTab, setActiveTab] = useState('overview');
+  // Get initial tab from query params or default to 'overview'
+  const initialTab = searchParams.get('tab') || 'overview';
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [registering, setRegistering] = useState(false);
   const [starting, setStarting] = useState(false);
   const [pausing, setPausing] = useState(false);
@@ -42,6 +45,14 @@ const ChampionshipDetails = () => {
 
   // Check if user is platform admin
   const isPlatformAdmin = user?.roles?.some(role => role === 'platform_admin') || false;
+
+  // Update activeTab when query param changes
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (id) {

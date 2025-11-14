@@ -218,7 +218,12 @@ class InvitationController extends Controller
             return response()->json(['error' => 'Invitation already ' . $invitation->status], 409);
         }
 
-        // ✅ Make sure this whole block ends with "});"
+        // Check if this is a championship match invitation
+        if ($invitation->championship_match_id) {
+            return $this->respondToChampionshipInvitation($request, $invitation, $validated);
+        }
+
+        // Handle regular game invitation
         return DB::transaction(function () use ($invitation, $validated) {
 
             if ($validated['action'] === 'decline') {
@@ -296,5 +301,47 @@ class InvitationController extends Controller
                 'player_color' => Auth::id() === (int) $whiteId ? 'white' : 'black',
             ]);
         }); // 👈 DO NOT delete this closing "});"
+    }
+
+    /**
+     * Handle championship match invitation responses
+     */
+    private function respondToChampionshipInvitation(Request $request, Invitation $invitation, array $validated)
+    {
+        try {
+            // Use the championship match invitation service
+            $service = new \App\Services\ChampionshipMatchInvitationService();
+
+            $result = $service->handleInvitationResponse(
+                $invitation,
+                Auth::user(),
+                $validated['action'],
+                $validated['desired_color'] ?? null
+            );
+
+            if ($result['success']) {
+                return response()->json([
+                    'message' => $validated['action'] === 'accept' ? 'Invitation accepted' : 'Invitation declined',
+                    'game' => $result['game'] ?? null,
+                    'player_color' => $result['player_color'] ?? null,
+                    'championship_context' => $result['championship_context'] ?? null
+                ]);
+            } else {
+                return response()->json([
+                    'error' => $result['error'] ?? 'Failed to process invitation response'
+                ], 400);
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to handle championship invitation response', [
+                'invitation_id' => $invitation->id,
+                'user_id' => Auth::id(),
+                'action' => $validated['action'],
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to process championship invitation: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

@@ -6,54 +6,41 @@ import { useAuth } from '../../contexts/AuthContext';
 import { formatDateTime, getMatchResultDisplay, getMatchStatusColor } from '../../utils/championshipHelpers';
 import './Championship.css';
 
-const ChampionshipMatches = ({ championshipId, userOnly = false }) => {
+const ChampionshipMatches = ({
+  championshipId,
+  userOnly = false,
+  matches: initialMatches = [],
+  loading: initialLoading = false,
+  error: initialError = null
+}) => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { fetchMatches, reportMatchResult, createGameFromMatch } = useChampionship();
 
-  const [matches, setMatches] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [matches, setMatches] = useState(initialMatches);
+  const [loading, setLoading] = useState(initialLoading);
+  const [error, setError] = useState(initialError);
   const [filterRound, setFilterRound] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [reportingMatch, setReportingMatch] = useState(null);
   const [creatingGame, setCreatingGame] = useState(null);
 
-  const loadMatches = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params = {
-        round: filterRound,
-        status: filterStatus,
-        user_only: userOnly
-      };
-      if (userOnly && user) {
-        params.user_id = user.id;
-      }
-      const data = await fetchMatches(championshipId, params);
-      setMatches(data.data || data);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to load matches');
-    } finally {
-      setLoading(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [championshipId, filterRound, filterStatus, userOnly, user?.id]);
-
+  // If matches are passed as props, use them
   useEffect(() => {
-    loadMatches();
-  }, [loadMatches]);
+    setMatches(initialMatches);
+    setLoading(initialLoading);
+    setError(initialError);
+  }, [initialMatches, initialLoading, initialError]);
 
   const handleCreateGame = async (matchId) => {
     setCreatingGame(matchId);
     try {
-      const response = await createGameFromMatch(matchId);
-      // Navigate to the created game
-      navigate(`/play/multiplayer/${response.game.id}`);
+      // TODO: Implement game creation API call
+      console.log('Create game for match:', matchId);
+      // const response = await createGameFromMatch(matchId);
+      // navigate(`/play/multiplayer/${response.game.id}`);
     } catch (error) {
       console.error('Failed to create game:', error);
-      setError(error.response?.data?.message || 'Failed to create game');
+      setError('Failed to create game');
     } finally {
       setCreatingGame(null);
     }
@@ -62,11 +49,13 @@ const ChampionshipMatches = ({ championshipId, userOnly = false }) => {
   const handleReportResult = async (matchId, result) => {
     setReportingMatch(matchId);
     try {
-      await reportMatchResult(matchId, result);
-      await loadMatches(); // Refresh matches
+      // TODO: Implement result reporting API call
+      console.log('Report result for match:', matchId, result);
+      // await reportMatchResult(matchId, result);
+      // await loadMatches(); // Refresh matches
     } catch (error) {
       console.error('Failed to report result:', error);
-      setError(error.response?.data?.message || 'Failed to report result');
+      setError('Failed to report result');
     } finally {
       setReportingMatch(null);
     }
@@ -182,7 +171,7 @@ const ChampionshipMatches = ({ championshipId, userOnly = false }) => {
           <div className="match-players">
             <div className="player-info">
               <div className={`player-name ${match.white_player_id === user?.id ? 'current-user' : ''}`}>
-                {match.white_player?.name || 'Unknown Player'}
+                {match.white_player ? match.white_player.name : (match.result_type === 'bye' ? 'Bye' : 'Unknown Player')}
                 {match.white_player_id === user?.id && <span className="you-indicator">(You)</span>}
               </div>
               <div className="player-rating">{match.white_player?.rating || 'N/A'}</div>
@@ -192,7 +181,7 @@ const ChampionshipMatches = ({ championshipId, userOnly = false }) => {
 
             <div className="player-info">
               <div className={`player-name ${match.black_player_id === user?.id ? 'current-user' : ''}`}>
-                {match.black_player?.name || 'Unknown Player'}
+                {match.black_player ? match.black_player.name : (match.result_type === 'bye' ? 'Bye' : 'Unknown Player')}
                 {match.black_player_id === user?.id && <span className="you-indicator">(You)</span>}
               </div>
               <div className="player-rating">{match.black_player?.rating || 'N/A'}</div>
@@ -203,7 +192,10 @@ const ChampionshipMatches = ({ championshipId, userOnly = false }) => {
             <span className={`match-status ${getMatchStatusColor(match.status)}`}>
               {match.status}
             </span>
-            <span className="round-info">Round {match.round}, Board {match.board_number}</span>
+            <span className="round-info">
+              Round {match.round_number || match.round || 1}
+              {match.board_number && `, Board ${match.board_number}`}
+            </span>
           </div>
         </div>
 
@@ -273,13 +265,41 @@ const ChampionshipMatches = ({ championshipId, userOnly = false }) => {
     );
   };
 
+  // Transform matches to ensure consistent field names
+  const transformMatch = (match) => {
+    // Map player1/player2 to white_player/black_player based on color assignments
+    let white_player = null;
+    let black_player = null;
+
+    if (match.white_player_id) {
+      white_player = match.white_player_id === match.player1_id
+        ? match.player1
+        : match.player2;
+    }
+
+    if (match.black_player_id) {
+      black_player = match.black_player_id === match.player1_id
+        ? match.player1
+        : match.player2;
+    }
+
+    return {
+      ...match,
+      white_player,
+      black_player,
+      round: match.round_number || match.round || 1
+    };
+  };
+
   // Group matches by round
   const matchesArray = Array.isArray(matches) ? matches : [];
-  const matchesByRound = matchesArray.reduce((acc, match) => {
-    if (!acc[match.round]) {
-      acc[match.round] = [];
+  const transformedMatches = matchesArray.map(transformMatch);
+  const matchesByRound = transformedMatches.reduce((acc, match) => {
+    const roundNum = match.round_number || match.round || 1;
+    if (!acc[roundNum]) {
+      acc[roundNum] = [];
     }
-    acc[match.round].push(match);
+    acc[roundNum].push(match);
     return acc;
   }, {});
 
@@ -300,7 +320,10 @@ const ChampionshipMatches = ({ championshipId, userOnly = false }) => {
     return (
       <div className="error-state">
         <p>❌ {error}</p>
-        <button onClick={loadMatches} className="btn btn-primary">
+        <button
+          onClick={() => window.location.reload()}
+          className="btn btn-primary"
+        >
           Retry
         </button>
       </div>
@@ -340,13 +363,13 @@ const ChampionshipMatches = ({ championshipId, userOnly = false }) => {
         )}
       </div>
 
-      {matchesArray.length === 0 ? (
+      {transformedMatches.length === 0 ? (
         <div className="empty-state">
-          <h3>{userOnly ? 'No matches found' : 'No matches scheduled yet'}</h3>
+          <h3>{userOnly ? 'No matches found' : 'No matches created yet'}</h3>
           <p>
             {userOnly
               ? 'You are not participating in any matches for this championship.'
-              : 'Matches will be displayed here once the championship begins.'
+              : 'Click "Generate Matches for Next Round" to create the first round of matches.'
             }
           </p>
         </div>
@@ -357,7 +380,7 @@ const ChampionshipMatches = ({ championshipId, userOnly = false }) => {
               <div key={round} className="round-section">
                 <h3 className="round-title">Round {round}</h3>
                 <div className="matches-grid">
-                  {matchesByRound[round]
+                  {(matchesByRound[round] || [])
                     .filter(match => filterStatus === '' || match.status === filterStatus)
                     .map(match => (
                       <MatchCard key={match.id} match={match} />

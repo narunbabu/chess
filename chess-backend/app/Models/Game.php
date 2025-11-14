@@ -93,6 +93,35 @@ class Game extends Model
         return $this->belongsTo(User::class, 'paused_by_user_id');
     }
 
+    /**
+     * Get the championship match associated with this game (if any)
+     */
+    public function championshipMatch()
+    {
+        return $this->hasOne(ChampionshipMatch::class, 'game_id');
+    }
+
+    /**
+     * Get championship context for this game
+     */
+    public function getChampionshipContext()
+    {
+        $championshipMatch = $this->championshipMatch()->with('championship')->first();
+
+        if (!$championshipMatch) {
+            return null;
+        }
+
+        return [
+            'is_championship' => true,
+            'championship_id' => $championshipMatch->championship_id,
+            'championship' => $championshipMatch->championship,
+            'match_id' => $championshipMatch->id,
+            'round_number' => $championshipMatch->round_number,
+            'board_number' => $championshipMatch->board_number,
+        ];
+    }
+
     public function getOpponent($userId)
     {
         if ($this->white_player_id == $userId) {

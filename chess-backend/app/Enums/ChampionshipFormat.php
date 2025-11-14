@@ -55,4 +55,12 @@ enum ChampionshipFormat: string
     {
         return in_array($this, [self::SWISS_ELIMINATION, self::ELIMINATION_ONLY]);
     }
+
+    /**
+     * Check if format is hybrid (Swiss + Elimination)
+     */
+    public function isHybrid(): bool
+    {
+        return $this === self::SWISS_ELIMINATION;
+    }
 }

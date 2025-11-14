@@ -175,7 +175,7 @@ class GenerateNextRoundJob implements ShouldQueue
 
         $completedMatches = $this->championship->matches()
             ->where('round_number', $currentRound)
-            ->where('status', \App\Enums\ChampionshipMatchStatus::COMPLETED->value)
+            ->completed() // Use model scope instead of direct status query
             ->count();
 
         return $completedMatches === $totalMatches;

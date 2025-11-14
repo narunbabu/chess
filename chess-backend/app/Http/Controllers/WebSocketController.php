@@ -1203,4 +1203,42 @@ class WebSocketController extends Controller
             ], 400);
         }
     }
+
+    /**
+     * Get championship context for a game
+     */
+    public function getChampionshipContext(Request $request, int $gameId): JsonResponse
+    {
+        try {
+            $game = Game::findOrFail($gameId);
+            $user = Auth::user();
+
+            // Verify user is part of the game
+            if ($game->white_player_id !== $user->id && $game->black_player_id !== $user->id) {
+                return response()->json([
+                    'error' => 'Unauthorized',
+                    'message' => 'You are not part of this game'
+                ], 403);
+            }
+
+            $championshipContext = $game->getChampionshipContext();
+
+            return response()->json([
+                'success' => true,
+                'data' => $championshipContext
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to get championship context', [
+                'user_id' => Auth::id(),
+                'game_id' => $gameId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to get championship context',
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
 }

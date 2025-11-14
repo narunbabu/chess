@@ -81,10 +81,14 @@ const PlayMultiplayer = () => {
   const [drawOfferPending, setDrawOfferPending] = useState(false);
   const [drawOfferedByMe, setDrawOfferedByMe] = useState(false);
 
+  // Championship context state
+  const [championshipContext, setChampionshipContext] = useState(null);
+
   // Initial timer state (calculated from move history)
   const [initialTimerState, setInitialTimerState] = useState({
     whiteMs: 10 * 60 * 1000,
-    blackMs: 10 * 60 * 1000
+    blackMs: 10 * 60 * 1000,
+    incrementMs: 0
   });
 
   // Refs for stable inactivity detection and timers
@@ -190,14 +194,15 @@ const PlayMultiplayer = () => {
     }
   }, [wsService, gameData, user, myColor, game]);
 
-  // New simplified timer hook with calculated initial values
+  // New simplified timer hook with calculated initial values and increment support
   const { myMs, oppMs, setMyMs, setOppMs } = useMultiplayerTimer({
     myColor,
     serverTurn,
     gameStatus: gameInfo.status,
     onFlag: handleTimerFlag,
     initialMyMs: myColor === 'w' ? initialTimerState.whiteMs : initialTimerState.blackMs,
-    initialOppMs: myColor === 'w' ? initialTimerState.blackMs : initialTimerState.whiteMs
+    initialOppMs: myColor === 'w' ? initialTimerState.blackMs : initialTimerState.whiteMs,
+    incrementMs: initialTimerState.incrementMs
   });
 
   // Play sound helper
@@ -260,6 +265,39 @@ const PlayMultiplayer = () => {
 
     return false;
   }, [findKingSquare, playSound]);
+
+  // Fetch championship context (non-intrusive - only activates for championship games)
+  const fetchChampionshipContext = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${BACKEND_URL}/websocket/games/${gameId}/championship-context`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.data?.is_championship) {
+          console.log('[Championship] Championship context loaded:', result.data);
+          setChampionshipContext(result.data);
+        } else {
+          // Regular multiplayer game - no championship context
+          console.log('[Championship] Regular multiplayer game detected');
+          setChampionshipContext(null);
+        }
+      } else {
+        // Failed to fetch - assume it's a regular game
+        console.log('[Championship] Could not fetch championship context, assuming regular game');
+        setChampionshipContext(null);
+      }
+    } catch (error) {
+      // Error fetching - assume it's a regular game (non-blocking)
+      console.log('[Championship] Error fetching championship context, assuming regular game:', error);
+      setChampionshipContext(null);
+    }
+  }, [gameId]);
 
   // Initialize WebSocket connection and load game data
   const initializeGame = useCallback(async () => {
@@ -518,25 +556,30 @@ const PlayMultiplayer = () => {
           }
         });
 
-        let calculatedWhiteMs = (data.time_control_minutes || 10) * 60 * 1000;
-        let calculatedBlackMs = (data.time_control_minutes || 10) * 60 * 1000;
+        const timeControlMinutes = data.time_control_minutes || 10;
+        const timeControlIncrement = data.time_control_increment || 0; // Backend provides in seconds
+        let calculatedWhiteMs = timeControlMinutes * 60 * 1000;
+        let calculatedBlackMs = timeControlMinutes * 60 * 1000;
+        const incrementMs = timeControlIncrement * 1000; // Convert to milliseconds
 
         if (movesResponse.ok) {
           const movesData = await movesResponse.json();
           const initialTimeMs = (movesData.time_control_minutes || 10) * 60 * 1000;
 
-          // Calculate remaining time from move history
+          // Calculate remaining time from move history with increment support
           const { whiteMs, blackMs } = calculateRemainingTime(
             movesData.moves || [],
-            initialTimeMs
+            initialTimeMs,
+            incrementMs
           );
 
           calculatedWhiteMs = whiteMs;
           calculatedBlackMs = blackMs;
 
-          console.log('[Timer] Calculated from move history:', {
+          console.log('[Timer] Calculated from move history with increment:', {
             whiteMs: Math.floor(whiteMs / 1000) + 's',
             blackMs: Math.floor(blackMs / 1000) + 's',
+            increment: incrementMs / 1000 + 's',
             totalMoves: movesData.moves?.length || 0
           });
         } else {
@@ -546,7 +589,8 @@ const PlayMultiplayer = () => {
         // Store these values to pass to timer hook
         setInitialTimerState({
           whiteMs: calculatedWhiteMs,
-          blackMs: calculatedBlackMs
+          blackMs: calculatedBlackMs,
+          incrementMs
         });
       } catch (error) {
         console.error('[Timer] Error fetching move history:', error);
@@ -573,6 +617,9 @@ const PlayMultiplayer = () => {
         serverTurn: data.turn,
         status: data.status
       });
+
+      // Fetch championship context (non-intrusive - only for championship games)
+      fetchChampionshipContext();
 
       // Initialize WebSocket connection
       wsService.current = new WebSocketGameService();
@@ -711,11 +758,13 @@ const PlayMultiplayer = () => {
       if (movesResponse.ok) {
         const movesData = await movesResponse.json();
         const initialTimeMs = (movesData.time_control_minutes || 10) * 60 * 1000;
+        const incrementMs = (movesData.time_control_increment || 0) * 1000; // Convert to ms
 
-        // Calculate base remaining time from move history
+        // Calculate base remaining time from move history with increment support
         const { whiteMs, blackMs } = calculateRemainingTime(
           movesData.moves || [],
-          initialTimeMs
+          initialTimeMs,
+          incrementMs
         );
 
         // Apply grace time from backend (40 seconds bonus)
@@ -1022,6 +1071,45 @@ const PlayMultiplayer = () => {
     }
   }, [user?.id]);
 
+  // Report result to championship system (non-intrusive - only for championship games)
+  const reportChampionshipResult = useCallback(async (endEvent) => {
+    if (!championshipContext?.match_id) {
+      console.log('[Championship] No championship match ID, skipping result reporting');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const resultData = {
+        result: endEvent.result || (endEvent.winner_user_id ? '1-0' : '1/2-1/2'),
+        winner_user_id: endEvent.winner_user_id || null,
+        end_reason: endEvent.end_reason || 'unknown',
+        ended_at: endEvent.ended_at || new Date().toISOString()
+      };
+
+      console.log('[Championship] Reporting result to championship system:', resultData);
+
+      const response = await fetch(`${BACKEND_URL}/championships/${championshipContext.championship_id}/matches/${championshipContext.match_id}/result`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(resultData)
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('[Championship] Result reported successfully:', result);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.warn('[Championship] Failed to report result:', errorData.error || 'Unknown error');
+      }
+    } catch (error) {
+      console.error('[Championship] Error reporting championship result:', error);
+    }
+  }, [championshipContext]);
+
   // Handle game completion
   const handleGameEnd = useCallback(async (event) => {
     console.log('🏁 Processing game end event:', event);
@@ -1030,6 +1118,16 @@ const PlayMultiplayer = () => {
     // Update game completion state
     setGameComplete(true);
     setLoading(false); // Ensure loading is false when game ends
+
+    // Auto-report result to championship system (non-intrusive - only for championship games)
+    if (championshipContext && championshipContext.match_id) {
+      try {
+        await reportChampionshipResult(event);
+      } catch (error) {
+        console.error('[Championship] Failed to report result to championship system:', error);
+        // Don't show error to user - this is background functionality
+      }
+    }
 
     // Prepare result data for modal
     const resultData = {
@@ -2284,6 +2382,27 @@ const PlayMultiplayer = () => {
   const headerSection = (
     <div className="game-header">
       <h2>Multiplayer Chess</h2>
+
+      {/* Championship Context Banner - Only shown for championship games */}
+      {championshipContext && (
+        <div className="championship-banner">
+          <div className="championship-badge">🏆</div>
+          <div className="championship-info">
+            <div className="championship-name">{championshipContext.championship?.title}</div>
+            <div className="championship-details">
+              Round {championshipContext.round_number} • Board {championshipContext.board_number}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {gameData && (
+        <div className="time-control-display">
+          Time Control: {gameData.time_control_minutes || 10}min
+          {gameData.time_control_increment > 0 && ` +${gameData.time_control_increment}s`}
+          {championshipContext && ' • Tournament'}
+        </div>
+      )}
       <div className="game-status">
         <div className="connection-status">
           <span className={`status-indicator ${connectionStatus}`} title={connectionStatus === 'connected' ? 'Connected' : 'Disconnected'}>

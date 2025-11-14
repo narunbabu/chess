@@ -1,18 +1,25 @@
-# Auto normalize text files
-* text=auto eol=lf
+# Auto detect text files and perform LF normalization
+* text=auto
 
-# Ensure Windows scripts retain CRLF
+# Explicitly declare text files
+*.md text
+*.php text
+*.js text
+*.jsx text
+*.json text
+*.css text
+*.yml text
+*.yaml text
+*.sql text
+*.xml text
+
+# Declare files that will always have CRLF line endings on checkout
 *.bat text eol=crlf
 *.ps1 text eol=crlf
 
-# Prevent binary files from being modified
+# Denote binary files
 *.png binary
 *.jpg binary
-*.jpeg binary
 *.gif binary
 *.ico binary
-*.mp3 binary
-*.mp4 binary
-*.webp binary
-*.woff binary
-*.woff2 binary
+*.pdf binary

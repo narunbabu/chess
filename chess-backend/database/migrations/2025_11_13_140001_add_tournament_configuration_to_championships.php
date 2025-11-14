@@ -32,7 +32,7 @@ return new class extends Migration
 
                 // Indexes for performance
                 $table->index(['status_id', 'auto_progression']);
-                $table->index(['auto_progression', 'starts_at']);
+                $table->index(['auto_progression', 'start_date']);
             });
 
             // Set default values for existing championships
@@ -64,7 +64,7 @@ return new class extends Migration
         if (Schema::hasTable('championships') && Schema::hasColumn('championships', 'color_assignment_method')) {
             Schema::table('championships', function (Blueprint $table) {
                 $table->dropIndex(['status_id', 'auto_progression']);
-                $table->dropIndex(['auto_progression', 'starts_at']);
+                $table->dropIndex(['auto_progression', 'start_date']);
 
                 $table->dropColumn([
                     'color_assignment_method',

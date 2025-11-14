@@ -34,6 +34,12 @@ class ChampionshipMatch extends Model
         'result_type_id',   // FK to championship_result_types table
         'status',           // Virtual attribute (mutator converts to status_id)
         'status_id',        // FK to championship_match_statuses table
+        // Scheduling fields
+        'scheduled_time',
+        'game_timeout',
+        'scheduling_status',
+        'can_schedule_early',
+        'scheduling_notes',
     ];
 
     protected $casts = [
@@ -55,6 +61,10 @@ class ChampionshipMatch extends Model
         'winner_id' => 'integer',
         'result_type_id' => 'integer',
         'status_id' => 'integer',
+        // Scheduling field casts
+        'scheduled_time' => 'datetime',
+        'game_timeout' => 'datetime',
+        'can_schedule_early' => 'boolean',
     ];
 
     /**
@@ -146,6 +156,25 @@ class ChampionshipMatch extends Model
     public function resultTypeRelation()
     {
         return $this->belongsTo(ChampionshipResultType::class, 'result_type_id');
+    }
+
+    /**
+     * Get the scheduling proposals for this match
+     */
+    public function schedules()
+    {
+        return $this->hasMany(ChampionshipMatchSchedule::class, 'championship_match_id');
+    }
+
+    /**
+     * Get the current active schedule proposal
+     */
+    public function currentSchedule()
+    {
+        return $this->schedules()
+            ->whereIn('status', ['proposed', 'accepted', 'alternative_proposed'])
+            ->latest()
+            ->first();
     }
 
     // Mutators & Accessors
@@ -262,6 +291,14 @@ class ChampionshipMatch extends Model
     public function scopeCompleted($query)
     {
         return $query->where('status_id', ChampionshipMatchStatusEnum::COMPLETED->getId());
+    }
+
+    /**
+     * Scope: Not completed matches (pending, in_progress, scheduled, etc.)
+     */
+    public function scopeWhereNotCompleted($query)
+    {
+        return $query->where('status_id', '!=', ChampionshipMatchStatusEnum::COMPLETED->getId());
     }
 
     /**

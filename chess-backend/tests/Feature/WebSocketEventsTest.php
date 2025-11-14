@@ -261,7 +261,7 @@ class WebSocketEventsTest extends TestCase
     }
 
     /** @test */
-    public void event_broadcasting_channels_are_correctly_configured()
+    public function event_broadcasting_channels_are_correctly_configured()
     {
         // Test that events implement ShouldBroadcast
         $this->assertTrue(

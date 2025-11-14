@@ -110,6 +110,36 @@ class ChampionshipPolicy
     }
 
     /**
+     * Determine if the user can manage the championship (matches, scheduling, etc.)
+     */
+    public function manage(User $user, Championship $championship): bool
+    {
+        // Platform admins can manage any championship
+        if ($user->hasRole('platform_admin')) {
+            return true;
+        }
+
+        // Creator can manage their own championship
+        if ($championship->created_by === $user->id) {
+            return true;
+        }
+
+        // Organization admins can manage org championships
+        if ($user->hasRole('organization_admin') &&
+            $championship->organization_id === $user->organization_id) {
+            return true;
+        }
+
+        // Users with tournament organizer role can manage championships they created
+        if ($user->hasRole('tournament_organizer') &&
+            $championship->created_by === $user->id) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
      * Determine if the user can manage participants
      */
     public function manageParticipants(User $user, Championship $championship): bool

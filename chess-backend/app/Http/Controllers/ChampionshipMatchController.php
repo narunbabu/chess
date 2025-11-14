@@ -41,7 +41,9 @@ class ChampionshipMatchController extends Controller
                 $query->where('round_number', $round);
             })
             ->when($request->status, function ($query, $status) {
-                $query->where('status', $status);
+                // Convert status string to status_id for querying
+                $statusId = \App\Models\ChampionshipMatchStatus::getIdByCode($status);
+                $query->where('status_id', $statusId);
             })
             ->when($request->player_id, function ($query, $playerId) {
                 $query->where(function ($q) use ($playerId) {
@@ -88,7 +90,9 @@ class ChampionshipMatchController extends Controller
             })
             ->with(['championship', 'player1', 'player2', 'winner', 'game'])
             ->when($request->status, function ($query, $status) {
-                $query->where('status', $status);
+                // Convert status string to status_id for querying
+                $statusId = \App\Models\ChampionshipMatchStatus::getIdByCode($status);
+                $query->where('status_id', $statusId);
             })
             ->when($request->championship_id, function ($query, $championshipId) {
                 $query->where('championship_id', $championshipId);
@@ -333,8 +337,12 @@ class ChampionshipMatchController extends Controller
                     break;
             }
 
-            // Load user data for pairings
-            $pairingsWithUsers = collect($pairings)->map(function ($pairing) {
+            // Filter out bye pairings and load user data for regular matches only
+            $regularPairings = collect($pairings)->filter(function ($pairing) {
+                return !($pairing['is_bye'] ?? false);
+            });
+
+            $pairingsWithUsers = $regularPairings->map(function ($pairing) {
                 $player1 = \App\Models\User::find($pairing['player1_id']);
                 $player2 = \App\Models\User::find($pairing['player2_id']);
 
@@ -347,7 +355,7 @@ class ChampionshipMatchController extends Controller
             return response()->json([
                 'round_number' => $roundNumber,
                 'pairings' => $pairingsWithUsers,
-                'summary' => $this->swissService->getPairingsSummary($championship, $pairings),
+                'summary' => $this->swissService->getPairingsSummary($championship, $pairingsWithUsers->toArray()),
             ]);
         } catch (\Exception $e) {
             Log::error("Failed to generate pairings preview", [
@@ -434,15 +442,15 @@ class ChampionshipMatchController extends Controller
 
         $totalMatches = $championship->matches()->count();
         $completedMatches = $championship->matches()
-            ->where('status', ChampionshipMatchStatus::COMPLETED->value)
+            ->completed() // Use model scope instead of direct status query
             ->count();
 
         $pendingMatches = $championship->matches()
-            ->where('status', ChampionshipMatchStatus::PENDING->value)
+            ->pending() // Use model scope instead of direct status query
             ->count();
 
         $activeMatches = $championship->matches()
-            ->where('status', ChampionshipMatchStatus::IN_PROGRESS->value)
+            ->inProgress() // Use model scope instead of direct status query
             ->count();
 
         $expiredMatches = $championship->matches()
@@ -450,7 +458,7 @@ class ChampionshipMatchController extends Controller
             ->count();
 
         $avgCompletionTime = $championship->matches()
-            ->where('status', ChampionshipMatchStatus::COMPLETED->value)
+            ->completed() // Use model scope instead of direct status query
             ->whereNotNull('scheduled_at')
             ->whereNotNull('completed_at')
             ->selectRaw('AVG(TIMESTAMPDIFF(MINUTE, scheduled_at, completed_at)) as avg_minutes')
@@ -465,5 +473,73 @@ class ChampionshipMatchController extends Controller
             'completion_rate' => $totalMatches > 0 ? round(($completedMatches / $totalMatches) * 100, 1) : 0,
             'average_completion_time_minutes' => $avgCompletionTime ? round($avgCompletionTime, 1) : null,
         ]);
+    }
+
+    /**
+     * Send invitations for a championship match
+     */
+    public function sendInvitation(Request $request, Championship $championship, ChampionshipMatch $match): JsonResponse
+    {
+        $this->authorize('manage', $championship);
+
+        try {
+            // Validate match belongs to championship
+            if ($match->championship_id !== $championship->id) {
+                return response()->json([
+                    'error' => 'Match does not belong to this championship'
+                ], 400);
+            }
+
+            // Check match status
+            if ($match->status !== ChampionshipMatchStatus::SCHEDULED->value) {
+                return response()->json([
+                    'error' => 'Only scheduled matches can have invitations sent'
+                ], 400);
+            }
+
+            // Check if invitations already exist
+            $existingInvitations = \App\Models\Invitation::where('championship_match_id', $match->id)
+                ->where('status', 'pending')
+                ->count();
+
+            if ($existingInvitations > 0) {
+                return response()->json([
+                    'error' => 'Invitations already exist for this match'
+                ], 400);
+            }
+
+            // Use the championship match invitation service
+            $service = new \App\Services\ChampionshipMatchInvitationService();
+
+            $result = $service->sendMatchInvitations($match, [
+                'priority' => 'normal',
+                'auto_generated' => false
+            ]);
+
+            if ($result['success']) {
+                return response()->json([
+                    'message' => 'Invitations sent successfully',
+                    'invitations_sent' => $result['invitations_sent'] ?? 0,
+                    'match_id' => $match->id,
+                    'players_notified' => $result['players_notified'] ?? []
+                ]);
+            } else {
+                return response()->json([
+                    'error' => $result['error'] ?? 'Failed to send invitations'
+                ], 400);
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Failed to send championship match invitations', [
+                'championship_id' => $championship->id,
+                'match_id' => $match->id,
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to send invitations: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

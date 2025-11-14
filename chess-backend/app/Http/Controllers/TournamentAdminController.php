@@ -223,7 +223,7 @@ class TournamentAdminController extends Controller
                 // Complete all pending matches as draws if forced
                 if ($request->force) {
                     $pendingMatches = $championship->matches()
-                        ->where('status', 'pending')
+                        ->pending() // Use model scope instead of direct status query
                         ->get();
 
                     foreach ($pendingMatches as $match) {
@@ -360,7 +360,7 @@ class TournamentAdminController extends Controller
 
         $completedMatches = ChampionshipMatch::whereHas('championship', function ($query) use ($startDate, $endDate) {
             $query->whereBetween('created_at', [$startDate, $endDate]);
-        })->where('status', 'completed')->count();
+        })->completed()->count(); // Use model scope instead of direct status query
 
         // Format distribution
         $formatDistribution = $championships->groupBy('format')->map->count();

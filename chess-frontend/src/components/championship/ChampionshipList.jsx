@@ -333,7 +333,7 @@ const ChampionshipList = () => {
           {championship.user_participation && (
           <>
             <button
-            onClick={() => navigate(`/championships/${championship.id}/my-matches`)}
+            onClick={() => navigate(`/championships/${championship.id}?tab=my-matches`)}
             className="btn btn-secondary"
             data-tooltip="My Matches"
             >

@@ -33,7 +33,7 @@ return new class extends Migration
                 // Add indexes for performance
                 $table->index(['white_player_id']);
                 $table->index(['black_player_id']);
-                $table->index(['championship_id', 'round_number', 'invitation_status']);
+                $table->index(['championship_id', 'round_number', 'invitation_status'], 'champ_match_invitation_idx');
             });
 
             // Migrate existing data: set player1 as white, player2 as black
@@ -58,7 +58,7 @@ return new class extends Migration
                 $table->dropForeign(['black_player_id']);
                 $table->dropIndex(['white_player_id']);
                 $table->dropIndex(['black_player_id']);
-                $table->dropIndex(['championship_id', 'round_number', 'invitation_status']);
+                $table->dropIndex('champ_match_invitation_idx');
 
                 $table->dropColumn([
                     'white_player_id',

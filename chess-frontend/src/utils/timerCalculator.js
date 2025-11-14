@@ -5,9 +5,10 @@
  * Calculate remaining time for each player from move history
  * @param {Array} moves - Array of move objects with time_taken_ms
  * @param {number} initialTimeMs - Starting time in milliseconds (e.g., 10 * 60 * 1000)
+ * @param {number} incrementMs - Increment in milliseconds (e.g., 5 * 1000 for 5 seconds)
  * @returns {Object} { whiteMs, blackMs } - Remaining time for each player
  */
-export function calculateRemainingTime(moves, initialTimeMs) {
+export function calculateRemainingTime(moves, initialTimeMs, incrementMs = 0) {
   let whiteTimeUsed = 0;
   let blackTimeUsed = 0;
 
@@ -32,13 +33,26 @@ export function calculateRemainingTime(moves, initialTimeMs) {
     }
   });
 
-  const whiteMs = Math.max(0, initialTimeMs - whiteTimeUsed);
-  const blackMs = Math.max(0, initialTimeMs - blackTimeUsed);
+  // Calculate total increments earned (each player gets increment after their moves)
+  const whiteMoveCount = Math.ceil(moves.length / 2); // White moves on even indices
+  const blackMoveCount = Math.floor(moves.length / 2); // Black moves on odd indices
+  const whiteIncrementEarned = whiteMoveCount * incrementMs;
+  const blackIncrementEarned = blackMoveCount * incrementMs;
 
-  console.log('[TimerCalc] Calculated remaining time:', {
+  // Calculate remaining time with increments
+  const whiteMs = Math.max(0, initialTimeMs - whiteTimeUsed + whiteIncrementEarned);
+  const blackMs = Math.max(0, initialTimeMs - blackTimeUsed + blackIncrementEarned);
+
+  console.log('[TimerCalc] Calculated remaining time with increments:', {
     initialTimeMs,
     initialTimeSecs: Math.floor(initialTimeMs / 1000),
+    incrementMs,
+    incrementSecs: Math.floor(incrementMs / 1000),
     movesCount: moves.length,
+    whiteMoveCount,
+    blackMoveCount,
+    whiteIncrementEarnedMs: whiteIncrementEarned,
+    blackIncrementEarnedMs: blackIncrementEarned,
     whiteTimeUsedMs: whiteTimeUsed,
     whiteTimeUsedSecs: Math.floor(whiteTimeUsed / 1000),
     blackTimeUsedMs: blackTimeUsed,

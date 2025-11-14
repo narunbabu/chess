@@ -26,11 +26,23 @@ class MatchSchedulerService
 
         $nextRoundNumber = $this->getNextRoundNumber($championship);
 
-        if ($this->isRoundComplete($championship, $nextRoundNumber - 1)) {
-            return $this->scheduleRound($championship, $nextRoundNumber);
+        // Clean up incomplete matches before checking round completion
+        $this->cleanUpIncompleteMatches($championship, $nextRoundNumber - 1);
+
+        // Check if previous round is complete (round 0 is always complete)
+        if (!$this->isRoundComplete($championship, $nextRoundNumber - 1)) {
+            $previousRound = $nextRoundNumber - 1;
+            $incompleteMatches = $championship->matches()
+                ->where('round_number', $previousRound)
+                ->whereNotCompleted()
+                ->count();
+
+            throw new \InvalidArgumentException(
+                "Previous round ({$previousRound}) is not complete. {$incompleteMatches} match(es) still pending or in progress."
+            );
         }
 
-        throw new \InvalidArgumentException('Previous round is not complete');
+        return $this->scheduleRound($championship, $nextRoundNumber);
     }
 
     /**
@@ -158,7 +170,7 @@ class MatchSchedulerService
 
         $completedMatches = $championship->matches()
             ->where('round_number', $roundNumber)
-            ->where('status', ChampionshipMatchStatus::COMPLETED->value)
+            ->completed() // Use model scope instead of direct status query
             ->count();
 
         return $totalMatches === 0 || $completedMatches === $totalMatches;
@@ -170,7 +182,7 @@ class MatchSchedulerService
     public function getCurrentRoundNumber(Championship $championship): int
     {
         $pendingMatches = $championship->matches()
-            ->where('status', '!=', ChampionshipMatchStatus::COMPLETED->value)
+            ->whereNotCompleted() // Use model scope instead of direct status query
             ->exists();
 
         if (!$pendingMatches) {
@@ -178,7 +190,7 @@ class MatchSchedulerService
         }
 
         $currentRound = $championship->matches()
-            ->where('status', '!=', ChampionshipMatchStatus::COMPLETED->value)
+            ->whereNotCompleted() // Use model scope instead of direct status query
             ->min('round_number');
 
         return $currentRound ?: 0;
@@ -267,7 +279,7 @@ class MatchSchedulerService
     public function reschedulePendingMatches(Championship $championship, Carbon $newStartTime): int
     {
         $pendingMatches = $championship->matches()
-            ->where('status', ChampionshipMatchStatus::PENDING->value)
+            ->pending() // Use model scope instead of direct status query
             ->get();
 
         $rescheduledCount = 0;
@@ -522,6 +534,46 @@ class MatchSchedulerService
 
             default:
                 throw new \InvalidArgumentException("Unknown championship format: {$format->value}");
+        }
+    }
+
+    /**
+     * Clean up incomplete matches that could block tournament progression
+     */
+    private function cleanUpIncompleteMatches(Championship $championship, int $roundNumber): void
+    {
+        if ($roundNumber <= 0) {
+            return; // Don't clean up round 0
+        }
+
+        $incompleteMatches = $championship->matches()
+            ->where('round_number', $roundNumber)
+            ->where(function ($query) {
+                $query->whereNull('player1_id')
+                      ->orWhereNull('player2_id')
+                      ->orWhere('player1_id', '=', 'player2_id'); // Same player vs themselves
+            })
+            ->get();
+
+        foreach ($incompleteMatches as $match) {
+            Log::warning("Cleaning up incomplete match", [
+                'championship_id' => $championship->id,
+                'match_id' => $match->id,
+                'round' => $roundNumber,
+                'player1_id' => $match->player1_id,
+                'player2_id' => $match->player2_id,
+                'reason' => 'Incomplete player assignment'
+            ]);
+
+            $match->delete();
+        }
+
+        if ($incompleteMatches->count() > 0) {
+            Log::info("Cleaned up incomplete matches", [
+                'championship_id' => $championship->id,
+                'round' => $roundNumber,
+                'cleaned_matches' => $incompleteMatches->count(),
+            ]);
         }
     }
 }

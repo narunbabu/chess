@@ -37,6 +37,22 @@ class Championship extends Model
         'organization_id',        // FK to organizations table
         'visibility',
         'allow_public_registration',
+        // Scheduling instructions
+        'scheduling_instructions',
+        'play_instructions',
+        'default_grace_period_minutes',
+        'allow_early_play',
+        'require_confirmation',
+        // Tournament configuration
+        'color_assignment_method',
+        'max_concurrent_matches',
+        'auto_progression',
+        'pairing_optimization',
+        'auto_invitations',
+        'round_interval_minutes',
+        'invitation_timeout_minutes',
+        'match_start_buffer_minutes',
+        'tournament_settings',
     ];
 
     protected $casts = [
@@ -54,6 +70,19 @@ class Championship extends Model
         'format_id' => 'integer',
         'allow_public_registration' => 'boolean',
         'deleted_at' => 'datetime',
+        // Scheduling field casts
+        'default_grace_period_minutes' => 'integer',
+        'allow_early_play' => 'boolean',
+        'require_confirmation' => 'boolean',
+        // Tournament configuration casts
+        'max_concurrent_matches' => 'integer',
+        'auto_progression' => 'boolean',
+        'pairing_optimization' => 'boolean',
+        'auto_invitations' => 'boolean',
+        'round_interval_minutes' => 'integer',
+        'invitation_timeout_minutes' => 'integer',
+        'match_start_buffer_minutes' => 'integer',
+        'tournament_settings' => 'array',
     ];
 
     /**
@@ -617,5 +646,39 @@ class Championship extends Model
                      });
                 });
         });
+    }
+
+    /**
+     * Get bye points value from tournament settings
+     */
+    public function getByePoints(): float
+    {
+        $settings = $this->tournament_settings ?? [];
+        return $settings['bye_points'] ?? 1.0;
+    }
+
+    /**
+     * Get color assignment method
+     */
+    public function getColorAssignmentMethod(): string
+    {
+        return $this->color_assignment_method ?? 'balanced';
+    }
+
+    /**
+     * Get invitation timeout in minutes
+     */
+    public function getInvitationTimeoutMinutes(): int
+    {
+        return $this->invitation_timeout_minutes ?? 60;
+    }
+
+    /**
+     * Get a specific setting from tournament settings JSON
+     */
+    public function getSetting(string $key, $default = null)
+    {
+        $settings = $this->tournament_settings ?? [];
+        return $settings[$key] ?? $default;
     }
 }

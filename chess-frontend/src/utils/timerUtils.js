@@ -9,17 +9,38 @@ export const useMultiplayerTimer = ({
   gameStatus,
   onFlag,
   initialMyMs = 600000,
-  initialOppMs = 600000
+  initialOppMs = 600000,
+  incrementMs = 0
 }) => {
   const [myMs, setMyMs] = useState(initialMyMs);
   const [oppMs, setOppMs] = useState(initialOppMs);
   const timerRef = useRef(null);
+  const lastServerTurnRef = useRef(serverTurn);
 
   // Auto-update when initial values change
   useEffect(() => {
     setMyMs(initialMyMs);
     setOppMs(initialOppMs);
   }, [initialMyMs, initialOppMs]);
+
+  // Apply increment when turn changes
+  useEffect(() => {
+    // If turn just changed from opponent to player, apply increment to player who just moved
+    if (lastServerTurnRef.current && lastServerTurnRef.current !== serverTurn && incrementMs > 0) {
+      const playerWhoMoved = lastServerTurnRef.current;
+      const isPlayerWhoMoved = (myColor === 'w' && playerWhoMoved === 'w') ||
+                               (myColor === 'b' && playerWhoMoved === 'b');
+
+      if (isPlayerWhoMoved) {
+        setMyMs(prev => prev + incrementMs);
+        console.log('[Timer] Applied increment to player:', incrementMs, 'ms');
+      } else {
+        setOppMs(prev => prev + incrementMs);
+        console.log('[Timer] Applied increment to opponent:', incrementMs, 'ms');
+      }
+    }
+    lastServerTurnRef.current = serverTurn;
+  }, [serverTurn, myColor, incrementMs]);
 
   // Timer logic for multiplayer
   useEffect(() => {

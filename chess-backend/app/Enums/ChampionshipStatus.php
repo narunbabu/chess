@@ -63,6 +63,14 @@ enum ChampionshipStatus: string
     }
 
     /**
+     * Check if championship is finished (alias for isTerminal)
+     */
+    public function isFinished(): bool
+    {
+        return $this->isTerminal();
+    }
+
+    /**
      * Check if championship is upcoming
      */
     public function isUpcoming(): bool

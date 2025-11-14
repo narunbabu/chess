@@ -34,7 +34,7 @@ class AutoGenerateRoundsCommand extends Command
             $readyChampionships = Championship::where('status', 'in_progress')
                 ->whereHas('matches', function ($query) {
                     // Must have at least one round completed
-                    $query->where('status', 'completed');
+                    $query->completed(); // Use model scope instead of direct status query
                 })
                 ->where(function ($query) {
                     $query->where(function ($subQuery) {
@@ -133,7 +133,7 @@ class AutoGenerateRoundsCommand extends Command
 
         $completedMatches = $championship->matches()
             ->where('round_number', $currentRound)
-            ->where('status', \App\Enums\ChampionshipMatchStatus::COMPLETED->value)
+            ->completed() // Use model scope instead of direct status query
             ->count();
 
         return $completedMatches === $totalMatches;

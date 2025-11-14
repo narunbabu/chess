@@ -109,7 +109,7 @@ class StandingsCalculatorService
     private function getCompletedMatches(Championship $championship): Collection
     {
         return $championship->matches()
-            ->where('status', ChampionshipMatchStatus::COMPLETED->value)
+            ->completed() // Use model scope instead of direct status query
             ->with(['player1', 'player2'])
             ->get();
     }
@@ -371,7 +371,7 @@ class StandingsCalculatorService
         if ($currentRound > 0) {
             $winnerIds = $championship->matches()
                 ->where('round_number', $currentRound)
-                ->where('status', ChampionshipMatchStatus::COMPLETED->value)
+                ->completed() // Use model scope instead of direct status query
                 ->whereNotNull('winner_id')
                 ->pluck('winner_id');
 

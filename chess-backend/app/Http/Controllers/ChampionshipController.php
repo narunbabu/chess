@@ -121,12 +121,17 @@ class ChampionshipController extends Controller
                     ];
 
                     // For backward compatibility with frontend
-                    $championship->user_participation = $isRegistered ? [
-                        'id' => $championship->participants()->where('user_id', $userId)->value('id'),
-                        'registered_at' => $championship->participants()->where('user_id', $userId)->value('registered_at'),
-                        'payment_status' => $championship->participants()->where('user_id', $userId)->value('payment_status'),
-                        'amount_paid' => $championship->participants()->where('user_id', $userId)->value('amount_paid'),
-                    ] : null;
+                    if ($isRegistered) {
+                        $participant = $championship->participants()->where('user_id', $userId)->first();
+                        $championship->user_participation = [
+                            'id' => $participant->id,
+                            'registered_at' => $participant->registered_at,
+                            'payment_status' => $participant->payment_status, // Use accessor
+                            'amount_paid' => $participant->amount_paid,
+                        ];
+                    } else {
+                        $championship->user_participation = null;
+                    }
                 }
             });
 
@@ -1061,6 +1066,67 @@ class ChampionshipController extends Controller
             return response()->json([
                 'error' => 'Registration failed',
                 'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Get championship instructions for participants
+     *
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function getInstructions(int $id): JsonResponse
+    {
+        try {
+            $championship = Championship::findOrFail($id);
+
+            // Default instructions if none provided
+            $defaultSchedulingInstructions = "
+                <h3>Match Scheduling Rules</h3>
+                <ul>
+                    <li><strong>Communication is Key:</strong> Always coordinate with your opponent through the scheduling system.</li>
+                    <li><strong>Be Responsive:</strong> Respond to schedule proposals within 24 hours.</li>
+                    <li><strong>No Declining:</strong> You cannot decline a schedule proposal - you must either accept or propose an alternative time.</li>
+                    <li><strong>Play When Available:</strong> If your opponent is online, you can start the game immediately.</li>
+                    <li><strong>Grace Period:</strong> A 10-minute grace period is granted for scheduled matches. Be present or risk forfeit.</li>
+                    <li><strong>Deadlines Matter:</strong> All matches must be completed before the round deadline.</li>
+                </ul>
+            ";
+
+            $defaultPlayInstructions = "
+                <h3>Game Play Rules</h3>
+                <ul>
+                    <li><strong>Standard Chess Rules:</strong> All games follow FIDE chess rules.</li>
+                    <li><strong>Draw Conditions:</strong> Draws are automatically detected for: stalemate, insufficient material, 50-move rule, threefold repetition, and 16 consecutive queen moves.</li>
+                    <li><strong>No Abandoning:</strong> Leaving a game without proper resignation may result in forfeit.</li>
+                    <li><strong>Sportsmanship:</strong> Be respectful to your opponent at all times.</li>
+                    <li><strong>Technical Issues:</strong> If you experience connection problems, try to reconnect. The system has built-in protections for brief disconnections.</li>
+                </ul>
+            ";
+
+            return response()->json([
+                'success' => true,
+                'championship' => [
+                    'id' => $championship->id,
+                    'title' => $championship->title,
+                    'scheduling_instructions' => $championship->scheduling_instructions ?: $defaultSchedulingInstructions,
+                    'play_instructions' => $championship->play_instructions ?: $defaultPlayInstructions,
+                    'allow_early_play' => $championship->allow_early_play ?? true,
+                    'default_grace_period_minutes' => $championship->default_grace_period_minutes ?? 10,
+                    'require_confirmation' => $championship->require_confirmation ?? true,
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to get championship instructions', [
+                'championship_id' => $id,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve championship instructions'
             ], 500);
         }
     }

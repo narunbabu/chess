@@ -1,4 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { BACKEND_URL } from '../../config';
+import PairingPreview from './PairingPreview';
+import ChampionshipMatches from './ChampionshipMatches';
 import { formatDateTime } from '../../utils/championshipHelpers';
 import '../../styles/UnifiedCards.css';
 
@@ -7,134 +11,306 @@ import '../../styles/UnifiedCards.css';
  * Provides comprehensive tournament oversight and control
  */
 const TournamentManagementDashboard = ({ championship, onClose, onRefresh }) => {
+  // State management
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  // Round management state
+  const [currentRound, setCurrentRound] = useState(1);
+  const [totalRounds, setTotalRounds] = useState(0);
+  const [showPairingsPreview, setShowPairingsPreview] = useState(false);
+  const [pairingsData, setPairingsData] = useState(null);
+  const [pairingsLoading, setPairingsLoading] = useState(false);
+  const [pairingsError, setPairingsError] = useState(null);
+
+  // Match management state
   const [matches, setMatches] = useState([]);
+  const [matchesLoading, setMatchesLoading] = useState(false);
+
+  // Tournament statistics state
+  const [stats, setStats] = useState(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+
+  // Participants state
   const [participants, setParticipants] = useState([]);
-  const [invitations, setInvitations] = useState([]);
+  const [participantsLoading, setParticipantsLoading] = useState(false);
+
+  // Additional state for dashboard functionality
   const [selectedRound, setSelectedRound] = useState(1);
   const [generatingRound, setGeneratingRound] = useState(false);
-  const [pairingsPreview, setPairingsPreview] = useState([]);
 
   useEffect(() => {
-    loadTournamentData();
-  }, [championship?.id]);
+    if (championship?.id) {
+      fetchTournamentOverview();
+      if (activeTab === 'matches') {
+        fetchMatches();
+      } else if (activeTab === 'statistics') {
+        fetchStats();
+      } else if (activeTab === 'participants') {
+        fetchParticipants();
+      }
+    }
+  }, [championship?.id, activeTab]);
 
-  const loadTournamentData = async () => {
-    if (!championship?.id) return;
-
-    setLoading(true);
+  const fetchTournamentOverview = async () => {
     try {
-      // In a real implementation, these would be API calls
-      // await loadMatches();
-      // await loadParticipants();
-      // await loadInvitations();
-
-      // Mock data for demonstration
-      setMatches([
-        {
-          id: 1,
-          round_number: 1,
-          board_number: 1,
-          white_player: { id: 1, name: 'Alice Johnson', rating: 1850 },
-          black_player: { id: 2, name: 'Bob Smith', rating: 1780 },
-          status: 'scheduled',
-          scheduled_at: new Date().toISOString()
-        },
-        {
-          id: 2,
-          round_number: 1,
-          board_number: 2,
-          white_player: { id: 3, name: 'Carol Davis', rating: 1920 },
-          black_player: { id: 4, name: 'David Wilson', rating: 1790 },
-          status: 'pending_invitation',
-          scheduled_at: new Date().toISOString()
-        }
-      ]);
-
-      setParticipants([
-        { id: 1, user_id: 1, user: { name: 'Alice Johnson', rating: 1850 }, payment_status: 'completed' },
-        { id: 2, user_id: 2, user: { name: 'Bob Smith', rating: 1780 }, payment_status: 'completed' },
-        { id: 3, user_id: 3, user: { name: 'Carol Davis', rating: 1920 }, payment_status: 'completed' },
-        { id: 4, user_id: 4, user: { name: 'David Wilson', rating: 1790 }, payment_status: 'completed' },
-      ]);
-
-      setInvitations([
-        {
-          id: 1,
-          championship_match_id: 2,
-          status: 'pending',
-          priority: 'normal',
-          created_at: new Date().toISOString(),
-          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-        }
-      ]);
-    } catch (error) {
-      console.error('Failed to load tournament data:', error);
+      setLoading(true);
+      const response = await axios.get(`${BACKEND_URL}/championships/${championship.id}/stats`);
+      if (response.data.success) {
+        setStats(response.data.data);
+        setCurrentRound(response.data.data.current_round || 1);
+        setTotalRounds(response.data.data.total_rounds || championship.total_rounds);
+      }
+    } catch (err) {
+      console.error('Failed to fetch tournament overview:', err);
+      setError('Failed to load tournament data');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGenerateNextRound = async () => {
-    setGeneratingRound(true);
+  const fetchMatches = async () => {
     try {
-      // API call to generate next round
-      // await generateNextRound(championship.id, selectedRound);
-
-      // Mock response
-      const newMatches = [
-        {
-          id: 3,
-          round_number: 2,
-          board_number: 1,
-          white_player: { id: 1, name: 'Alice Johnson', rating: 1850 },
-          black_player: { id: 3, name: 'Carol Davis', rating: 1920 },
-          status: 'pending',
-          scheduled_at: new Date().toISOString()
-        }
-      ];
-
-      setMatches(prev => [...prev, ...newMatches]);
-      setGeneratingRound(false);
-      onRefresh?.();
-    } catch (error) {
-      console.error('Failed to generate next round:', error);
-      setGeneratingRound(false);
+      setMatchesLoading(true);
+      const response = await axios.get(`${BACKEND_URL}/championships/${championship.id}/matches`);
+      if (response.data.success) {
+        setMatches(response.data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch matches:', err);
+      setError('Failed to load matches');
+    } finally {
+      setMatchesLoading(false);
     }
   };
 
-  const handleSendInvitations = async (matchIds) => {
+  const fetchStats = async () => {
     try {
-      // API call to send invitations
-      // await sendChampionshipInvitations(championship.id, matchIds);
-      console.log('Sending invitations for matches:', matchIds);
-    } catch (error) {
-      console.error('Failed to send invitations:', error);
+      setStatsLoading(true);
+      const response = await axios.get(`${BACKEND_URL}/championships/${championship.id}/stats`);
+      if (response.data.success) {
+        setStats(response.data.data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch stats:', err);
+      setError('Failed to load statistics');
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
+  const fetchParticipants = async () => {
+    try {
+      setParticipantsLoading(true);
+      const response = await axios.get(`${BACKEND_URL}/championships/${championship.id}/participants`);
+      if (response.data.success) {
+        setParticipants(response.data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch participants:', err);
+      setError('Failed to load participants');
+    } finally {
+      setParticipantsLoading(false);
+    }
+  };
+
+  // Preview pairings for next round
+  const handlePreviewPairings = async (roundNumber = null) => {
+    try {
+      setPairingsLoading(true);
+      setPairingsError(null);
+
+      const token = localStorage.getItem('auth_token');
+      const payload = roundNumber ? { round: roundNumber } : {};
+      const response = await axios.post(
+        `${BACKEND_URL}/championships/${championship.id}/matches/preview`,
+        payload,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data.round_number) {
+        setPairingsData({
+          roundNumber: response.data.round_number,
+          pairings: response.data.pairings || [],
+          summary: response.data.summary
+        });
+        setShowPairingsPreview(true);
+      }
+    } catch (err) {
+      setPairingsError(err.response?.data?.error || 'Failed to preview pairings');
+    } finally {
+      setPairingsLoading(false);
+    }
+  };
+
+  // Generate next round
+  const handleGenerateRound = async (force = false) => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('auth_token');
+      const response = await axios.post(
+        `${BACKEND_URL}/championships/${championship.id}/matches/schedule-next`,
+        { force },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data.success || response.data.message) {
+        alert(`✅ ${response.data.message}`);
+        setShowPairingsPreview(false);
+        setPairingsData(null);
+
+        // Refresh data
+        await fetchTournamentOverview();
+        await fetchMatches();
+        onRefresh?.();
+      }
+    } catch (err) {
+      const errorMessage = err.response?.data?.error || 'Failed to generate round';
+      alert(`❌ ${errorMessage}`);
+    } finally {
+      setLoading(false);
     }
   };
 
   const getTournamentStats = () => {
-    const totalParticipants = participants.length;
-    const paidParticipants = participants.filter(p => p.payment_status === 'completed').length;
-    const totalMatches = matches.length;
-    const completedMatches = matches.filter(m => m.status === 'completed').length;
-    const pendingInvitations = invitations.filter(inv => inv.status === 'pending').length;
+    if (!stats) {
+      return {
+        totalParticipants: 0,
+        paidParticipants: 0,
+        totalMatches: 0,
+        completedMatches: 0,
+        pendingInvitations: 0,
+        currentRound: 0,
+        totalRounds: championship?.total_rounds || 0,
+        activeMatches: 0
+      };
+    }
 
     return {
-      totalParticipants,
-      paidParticipants,
-      totalMatches,
-      completedMatches,
-      pendingInvitations,
-      currentRound: Math.max(...matches.map(m => m.round_number), 0),
-      totalRounds: championship?.total_rounds || 5
+      totalParticipants: stats.participant_count || 0,
+      paidParticipants: participants.filter(p => p.payment_status === 'completed').length,
+      totalMatches: stats.total_matches_count || 0,
+      completedMatches: stats.completed_matches_count || 0,
+      pendingInvitations: stats.pending_invitations_count || 0,
+      currentRound: stats.current_round || 1,
+      totalRounds: stats.total_rounds || championship?.total_rounds || 0,
+      activeMatches: stats.active_matches_count || 0
     };
   };
 
   const stats = getTournamentStats();
 
   const renderOverview = () => (
+    <div className="tournament-overview">
+      <div className="stats-grid">
+        <div className="stat-card">
+          <div className="stat-icon">👥</div>
+          <div className="stat-info">
+            <div className="stat-value">{stats.totalParticipants}</div>
+            <div className="stat-label">Total Participants</div>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon">🎮</div>
+          <div className="stat-info">
+            <div className="stat-value">{stats.totalMatches}</div>
+            <div className="stat-label">Total Matches</div>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon">✅</div>
+          <div className="stat-info">
+            <div className="stat-value">{stats.completedMatches}</div>
+            <div className="stat-label">Completed Matches</div>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon">⏳</div>
+          <div className="stat-info">
+            <div className="stat-value">{stats.activeMatches}</div>
+            <div className="stat-label">Active Matches</div>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon">🏆</div>
+          <div className="stat-info">
+            <div className="stat-value">Round {stats.currentRound}/{stats.totalRounds}</div>
+            <div className="stat-label">Current Round</div>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon">⚡</div>
+          <div className="stat-info">
+            <div className="stat-value">{championship?.time_control_minutes || 10}+{championship?.time_control_increment || 0}</div>
+            <div className="stat-label">Time Control</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="quick-actions">
+        <h3>Quick Actions</h3>
+        <div className="action-buttons">
+          <button
+            className="btn btn-primary"
+            onClick={() => handlePreviewPairings()}
+            disabled={pairingsLoading || loading || stats.currentRound >= stats.totalRounds}
+          >
+            {pairingsLoading ? '🔄 Loading...' : '👁️ Preview Next Round'}
+          </button>
+
+          <button
+            className="btn btn-success"
+            onClick={() => handleGenerateRound(false)}
+            disabled={loading || stats.currentRound >= stats.totalRounds}
+          >
+            {loading ? '⏳ Generating...' : '⚡ Generate Round'}
+          </button>
+
+          <button
+            className="btn btn-warning"
+            onClick={() => {
+              if (confirm('Are you sure you want to force generate the next round? This bypasses all safety checks.')) {
+                handleGenerateRound(true);
+              }
+            }}
+            disabled={loading}
+          >
+            ⚠️ Force Generate
+          </button>
+
+          <button
+            className="btn btn-info"
+            onClick={() => setActiveTab('matches')}
+          >
+            ♟️ View Matches
+          </button>
+
+          <button
+            className="btn btn-secondary"
+            onClick={() => setActiveTab('participants')}
+          >
+            👥 Participants
+          </button>
+        </div>
+      </div>
+    </div>
+  );
     <div className="tournament-overview">
       <div className="stats-grid">
         <div className="stat-card">
@@ -206,6 +382,53 @@ const TournamentManagementDashboard = ({ championship, onClose, onRefresh }) => 
       </div>
     </div>
   );
+
+  // Send invitations to players for specific matches
+  const handleSendInvitations = async (matchIds) => {
+    if (!championship?.id) {
+      alert('❌ Championship not loaded');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('auth_token');
+
+      for (const matchId of matchIds) {
+        const response = await axios.post(
+          `${BACKEND_URL}/championships/${championship.id}/matches/${matchId}/send-invitation`,
+          {},
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+
+        if (response.data.success || response.data.message) {
+          console.log('✅ Invitations sent for match:', matchId, response.data.message);
+        }
+      }
+
+      alert('✅ Invitations sent successfully!');
+
+      // Refresh matches to update status
+      await fetchMatches();
+    } catch (error) {
+      console.error('❌ Failed to send invitations:', error);
+      const errorMessage = error.response?.data?.error || 'Failed to send invitations';
+      alert(`❌ ${errorMessage}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Generate next round (legacy method - redirects to new implementation)
+  const handleGenerateNextRound = async () => {
+    // Use the existing round generation flow
+    await handlePreviewPairings();
+  };
 
   const renderMatches = () => {
     const roundMatches = matches.filter(m => m.round_number === selectedRound);
@@ -492,10 +715,55 @@ const TournamentManagementDashboard = ({ championship, onClose, onRefresh }) => 
           <button onClick={onClose} className="btn btn-secondary">
             Close Dashboard
           </button>
-          <button onClick={loadTournamentData} className="btn btn-primary">
+          <button onClick={() => {
+            fetchTournamentOverview();
+            if (activeTab === 'matches') fetchMatches();
+            if (activeTab === 'participants') fetchParticipants();
+          }} className="btn btn-primary">
             🔄 Refresh Data
           </button>
         </div>
+
+        {/* Pairings Preview Modal */}
+        {showPairingsPreview && (
+          <div className="modal-overlay">
+            <div className="modal pairing-preview-modal">
+              <div className="modal-header">
+                <h3>🎯 Round Pairings Preview</h3>
+                <button onClick={() => {
+                  setShowPairingsPreview(false);
+                  setPairingsData(null);
+                }} className="modal-close">
+                  ×
+                </button>
+              </div>
+              <div className="modal-content">
+                <PairingPreview
+                  championshipId={championship.id}
+                  pairings={pairingsData?.pairings}
+                  roundNumber={pairingsData?.roundNumber}
+                  summary={pairingsData?.summary}
+                  loading={pairingsLoading}
+                  error={pairingsError}
+                  onGenerateRound={() => handleGenerateRound(false)}
+                  onCancel={() => {
+                    setShowPairingsPreview(false);
+                    setPairingsData(null);
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Error Banner */}
+        {error && (
+          <div className="error-banner">
+            <span className="error-icon">⚠️</span>
+            <span className="error-message">{error}</span>
+            <button onClick={() => setError(null)} className="dismiss-error">×</button>
+          </div>
+        )}
       </div>
     </div>
   );

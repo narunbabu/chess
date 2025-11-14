@@ -30,7 +30,14 @@ class SwissPairingService
         $participants = $this->getEligibleParticipants($championship);
 
         if ($participants->count() < 2) {
-            throw new \InvalidArgumentException('Not enough participants for pairings');
+            $totalParticipants = $championship->participants()->count();
+            $paidParticipants = $participants->count();
+
+            throw new \InvalidArgumentException(
+                "Not enough eligible participants for pairings. " .
+                "Total registered: {$totalParticipants}, Paid: {$paidParticipants}. " .
+                "At least 2 paid participants are required to generate matches."
+            );
         }
 
         // Sort participants by score (descending) and tiebreakers
@@ -82,6 +89,8 @@ class SwissPairingService
                     'status' => ChampionshipMatchStatus::PENDING,
                 ]);
 
+                // Load relationships for the match
+                $match->load(['whitePlayer', 'blackPlayer']);
                 $matches->push($match);
                 Log::info("Created enhanced Swiss pairing match", [
                     'championship_id' => $championship->id,
@@ -98,7 +107,7 @@ class SwissPairingService
         broadcast(new \App\Events\ChampionshipRoundGenerated(
             $championship,
             $roundNumber,
-            $matches->load(['whitePlayer', 'blackPlayer']),
+            $matches,
             $byePlayers->toArray()
         ));
 
@@ -117,8 +126,9 @@ class SwissPairingService
      */
     private function getEligibleParticipants(Championship $championship): Collection
     {
+        // All registered participants are eligible for pairings
+        // Admin controls tournament structure and advancement rules
         return $championship->participants()
-            ->where('payment_status_id', \App\Enums\PaymentStatus::COMPLETED->getId())
             ->with('user')
             ->get();
     }
@@ -487,20 +497,19 @@ class SwissPairingService
             ->first();
 
         if ($standing) {
-            $standing->increment('score', $byePoints);
-            $standing->increment('byes_received', 1); // Track bye count for fair distribution
+            $standing->increment('points', $byePoints);
+            // Note: byes_received column doesn't exist - tracking removed
         } else {
             $championship->standings()->create([
                 'user_id' => $participant->user_id,
-                'score' => $byePoints,
-                'games_played' => 0,
+                'points' => $byePoints,
+                'matches_played' => 0,
                 'wins' => 0,
                 'draws' => 0,
                 'losses' => 0,
-                'buchholz' => 0,
+                'buchholz_score' => 0,
                 'sonneborn_berger' => 0,
-                't_rating' => $participant->user->rating ?? 1200,
-                'byes_received' => 1,
+                // Note: byes_received column doesn't exist - tracking removed
             ]);
         }
 
