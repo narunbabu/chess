@@ -288,6 +288,54 @@ export const ChampionshipProvider = ({ children }) => {
     }
   }, []);
 
+  // Pause championship
+  const pauseChampionship = useCallback(async (id) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await api.post(`/admin/tournaments/${id}/pause`);
+      const paused = response.data;
+
+      // Use functional update
+      setActiveChampionship(prev => (prev && prev.id === id ? paused : prev));
+
+      // Also update the championships list
+      setChampionships(prev => prev.map(champ => champ.id === id ? paused : champ));
+
+      return paused;
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to pause championship');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Complete championship
+  const completeChampionship = useCallback(async (id, finalStandings = null) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await api.post(`/admin/tournaments/${id}/complete`, {
+        final_standings: finalStandings
+      });
+      const completed = response.data;
+
+      // Use functional update
+      setActiveChampionship(prev => (prev && prev.id === id ? completed : prev));
+
+      // Also update the championships list
+      setChampionships(prev => prev.map(champ => champ.id === id ? completed : champ));
+
+      return completed;
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to complete championship');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   // Generate next round
   const generateNextRound = useCallback(async (id) => {
     setLoading(true);
@@ -359,6 +407,8 @@ export const ChampionshipProvider = ({ children }) => {
       fetchStandings,
       fetchMatches,
       startChampionship,
+      pauseChampionship,
+      completeChampionship,
       generateNextRound,
       reportMatchResult,
       createGameFromMatch,

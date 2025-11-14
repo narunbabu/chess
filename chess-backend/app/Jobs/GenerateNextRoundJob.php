@@ -139,7 +139,6 @@ class GenerateNextRoundJob implements ShouldQueue
     {
         $eligibleCount = $this->championship->participants()
             ->where('payment_status_id', \App\Enums\PaymentStatus::COMPLETED->getId())
-            ->where('dropped', false)
             ->count();
 
         return $eligibleCount >= 2;
@@ -237,7 +236,6 @@ class GenerateNextRoundJob implements ShouldQueue
     private function hasEliminationWinner(): bool
     {
         $activeParticipants = $this->championship->participants()
-            ->where('dropped', false)
             ->where('payment_status_id', \App\Enums\PaymentStatus::COMPLETED->getId())
             ->count();
 
@@ -429,7 +427,6 @@ class GenerateNextRoundJob implements ShouldQueue
     {
         $participants = $this->championship->participants()
             ->where('payment_status_id', \App\Enums\PaymentStatus::COMPLETED->getId())
-            ->where('dropped', false)
             ->with('user')
             ->get();
 

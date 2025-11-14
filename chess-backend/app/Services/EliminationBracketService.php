@@ -66,7 +66,6 @@ class EliminationBracketService
             // For pure elimination, get all paid participants
             return $championship->participants()
                 ->where('payment_status_id', \App\Enums\PaymentStatus::COMPLETED->getId())
-                ->where('dropped', false)
                 ->with('user')
                 ->get();
         }

@@ -19,6 +19,39 @@ return Application::configure(basePath: dirname(__DIR__))
             ->everyMinute()
             ->withoutOverlapping()
             ->runInBackground();
+
+        // Auto-start tournaments every 5 minutes
+        $schedule->command('tournaments:auto-start')
+            ->everyFiveMinutes()
+            ->withoutOverlapping()
+            ->runInBackground()
+            ->description('Automatically start tournaments when registration deadline passes');
+
+        // Auto-generate next rounds every 5 minutes
+        $schedule->command('tournaments:auto-generate-rounds')
+            ->everyFiveMinutes()
+            ->withoutOverlapping()
+            ->runInBackground()
+            ->description('Automatically generate next rounds when current round completes');
+
+        // Clean expired invitations every 10 minutes
+        $schedule->command('invitations:clean-expired')
+            ->everyTenMinutes()
+            ->withoutOverlapping()
+            ->runInBackground()
+            ->description('Clean up expired championship match invitations');
+
+        // Check expired matches every 15 minutes
+        $schedule->job(new \App\Jobs\CheckExpiredMatchesJob)
+            ->everyFifteenMinutes()
+            ->withoutOverlapping()
+            ->description('Check and expire inactive matches');
+
+        // Send match reminders every hour
+        $schedule->job(new \App\Jobs\SendMatchReminderJob)
+            ->hourly()
+            ->withoutOverlapping()
+            ->description('Send reminders for upcoming matches');
     })
     ->withMiddleware(function (Middleware $middleware) {
         // CORS is handled by \Fruitcake\Cors\HandleCors in Kernel.php (global middleware)

@@ -1,0 +1,80 @@
+{
+    "timestamp": "2025-11-13 16:15:58",
+    "total": 18,
+    "passed": 16,
+    "failed": 2,
+    "results": [
+        {
+            "status": "PASS",
+            "message": "SwissPairingService can be instantiated"
+        },
+        {
+            "status": "PASS",
+            "message": "SwissPairingService core logic exists"
+        },
+        {
+            "status": "PASS",
+            "message": "EliminationBracketService can be instantiated"
+        },
+        {
+            "status": "PASS",
+            "message": "MatchSchedulerService can be instantiated"
+        },
+        {
+            "status": "PASS",
+            "message": "MatchSchedulerService has scheduleRound method"
+        },
+        {
+            "status": "PASS",
+            "message": "ChampionshipMatchInvitationService can be instantiated"
+        },
+        {
+            "status": "FAIL",
+            "message": "ChampionshipMatchInvitationService missing createInvitation method"
+        },
+        {
+            "status": "FAIL",
+            "message": "ChampionshipMatchInvitationService missing acceptInvitation method"
+        },
+        {
+            "status": "PASS",
+            "message": "StandingsCalculatorService can be instantiated"
+        },
+        {
+            "status": "PASS",
+            "message": "Event class ChampionshipMatchInvitationSent exists"
+        },
+        {
+            "status": "PASS",
+            "message": "Event class ChampionshipMatchInvitationAccepted exists"
+        },
+        {
+            "status": "PASS",
+            "message": "Event class ChampionshipMatchInvitationDeclined exists"
+        },
+        {
+            "status": "PASS",
+            "message": "Event class ChampionshipMatchInvitationExpired exists"
+        },
+        {
+            "status": "PASS",
+            "message": "Event class ChampionshipMatchStatusChanged exists"
+        },
+        {
+            "status": "PASS",
+            "message": "Event class ChampionshipRoundGenerated exists"
+        },
+        {
+            "status": "PASS",
+            "message": "Command class AutoGenerateRoundsCommand exists"
+        },
+        {
+            "status": "PASS",
+            "message": "Command class AutoStartTournamentsCommand exists"
+        },
+        {
+            "status": "PASS",
+            "message": "Command class CleanExpiredInvitationsCommand exists"
+        }
+    ]
+}

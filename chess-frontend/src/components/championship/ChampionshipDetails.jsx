@@ -25,6 +25,8 @@ const ChampionshipDetails = () => {
     fetchStandings,
     registerForChampionship,
     startChampionship,
+    pauseChampionship,
+    completeChampionship,
     deleteChampionship,
     restoreChampionship,
     forceDeleteChampionship
@@ -33,6 +35,8 @@ const ChampionshipDetails = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [registering, setRegistering] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [pausing, setPausing] = useState(false);
+  const [completing, setCompleting] = useState(false);
   const [confirmationModal, setConfirmationModal] = useState({ isOpen: false, type: null });
   const [isActionPanelExpanded, setIsActionPanelExpanded] = useState(false);
 
@@ -101,6 +105,41 @@ const ChampionshipDetails = () => {
       console.error('Failed to start championship:', error);
     } finally {
       setStarting(false);
+    }
+  };
+
+  const handlePauseChampionship = async () => {
+    if (!window.confirm('Are you sure you want to pause this championship? This will temporarily halt the tournament.')) {
+      return;
+    }
+
+    setPausing(true);
+    try {
+      await pauseChampionship(id);
+      await fetchChampionship(id);
+    } catch (error) {
+      console.error('Failed to pause championship:', error);
+      alert(error.response?.data?.message || 'Failed to pause championship');
+    } finally {
+      setPausing(false);
+    }
+  };
+
+  const handleCompleteChampionship = async () => {
+    if (!window.confirm('Are you sure you want to complete this championship? This will finalize the tournament and standings.')) {
+      return;
+    }
+
+    setCompleting(true);
+    try {
+      await completeChampionship(id);
+      await fetchChampionship(id);
+      setActiveTab('standings');
+    } catch (error) {
+      console.error('Failed to complete championship:', error);
+      alert(error.response?.data?.message || 'Failed to complete championship');
+    } finally {
+      setCompleting(false);
     }
   };
 
@@ -389,6 +428,27 @@ const ChampionshipDetails = () => {
             </button>
           )}
 
+          {isOrganizer && activeChampionship.status === 'in_progress' && (
+            <>
+              <button
+                onClick={handlePauseChampionship}
+                disabled={pausing}
+                className="btn btn-warning"
+              >
+                <span className="btn-icon">⏸️</span>
+                <span className="btn-text">{pausing ? 'Pausing...' : 'Pause Championship'}</span>
+              </button>
+              <button
+                onClick={handleCompleteChampionship}
+                disabled={completing}
+                className="btn btn-success"
+              >
+                <span className="btn-icon">🏁</span>
+                <span className="btn-text">{completing ? 'Completing...' : 'Complete Championship'}</span>
+              </button>
+            </>
+          )}
+
           {isOrganizer && (
             <>
               <button
@@ -398,14 +458,16 @@ const ChampionshipDetails = () => {
                 <span className="btn-icon">⚙️</span>
                 <span className="btn-text">Manage Tournament</span>
               </button>
-              {activeChampionship.status !== 'in_progress' && !activeChampionship.deleted_at && (
+              {(activeChampionship.status !== 'in_progress' || (activeChampionship.status === 'in_progress' && activeChampionship.participants_count === 0)) && !activeChampionship.deleted_at && (
                 <button
                   onClick={() => openConfirmationModal('archive')}
                   className="btn btn-warning"
-                  title="Archive this championship"
+                  title={activeChampionship.status === 'in_progress' && activeChampionship.participants_count === 0 ? "Archive Empty Championship" : "Archive this championship"}
                 >
                   <span className="btn-icon">📦</span>
-                  <span className="btn-text">Archive</span>
+                  <span className="btn-text">
+                    {activeChampionship.status === 'in_progress' && activeChampionship.participants_count === 0 ? 'Archive Empty' : 'Archive'}
+                  </span>
                 </button>
               )}
               {activeChampionship.deleted_at && (

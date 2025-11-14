@@ -384,14 +384,16 @@ const ChampionshipList = () => {
             <span className="btn-icon">⚙️</span>
             <span className="btn-text">Manage</span>
             </button>
-            {championship.status !== 'in_progress' && (
+            {championship.status !== 'in_progress' || (championship.status === 'in_progress' && championship.participants_count === 0) && (
             <button
               onClick={() => openConfirmationModal('archive', championship)}
               className="btn btn-warning"
-              data-tooltip="Archive Championship"
+              data-tooltip={championship.status === 'in_progress' && championship.participants_count === 0 ? "Archive Empty Championship" : "Archive Championship"}
             >
               <span className="btn-icon">📦</span>
-              <span className="btn-text">Archive</span>
+              <span className="btn-text">
+                {championship.status === 'in_progress' && championship.participants_count === 0 ? 'Archive Empty' : 'Archive'}
+              </span>
             </button>
             )}
           </>

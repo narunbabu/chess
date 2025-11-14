@@ -276,4 +276,20 @@ class ChampionshipPolicy
         // Only platform admins can permanently delete
         return $user->hasRole('platform_admin');
     }
+
+    /**
+     * Determine if the user can archive the championship
+     *
+     * Allows archiving of empty in_progress championships for cleanup
+     */
+    public function archive(User $user, Championship $championship): bool
+    {
+        // Must be able to delete the championship (same permissions)
+        if (!$this->delete($user, $championship)) {
+            return false;
+        }
+
+        // Championship must be archivable
+        return $championship->canBeArchived();
+    }
 }

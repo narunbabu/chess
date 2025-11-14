@@ -99,7 +99,6 @@ class StandingsCalculatorService
     {
         return $championship->participants()
             ->where('payment_status_id', \App\Enums\PaymentStatus::COMPLETED->getId())
-            ->where('dropped', false)
             ->with('user')
             ->get();
     }
@@ -378,7 +377,6 @@ class StandingsCalculatorService
 
             return $championship->participants()
                 ->whereIn('user_id', $winnerIds)
-                ->where('dropped', false)
                 ->with('user')
                 ->get();
         }

@@ -195,7 +195,6 @@ class MatchSchedulerService
     ): int {
         $participants = $championship->participants()
             ->where('payment_status_id', \App\Enums\PaymentStatus::COMPLETED->getId())
-            ->where('dropped', false)
             ->get();
 
         if ($participants->count() < 2) {
@@ -378,7 +377,6 @@ class MatchSchedulerService
     {
         // Check if there's only one participant left who hasn't been eliminated
         $activeParticipants = $championship->participants()
-            ->where('dropped', false)
             ->where('payment_status_id', \App\Enums\PaymentStatus::COMPLETED->getId())
             ->count();
 
@@ -443,15 +441,15 @@ class MatchSchedulerService
         $isComplete = $this->isChampionshipComplete($championship);
 
         $pendingMatches = $championship->matches()
-            ->where('status', ChampionshipMatchStatus::PENDING->value)
+            ->where('status_id', ChampionshipMatchStatus::PENDING->getId())
             ->count();
 
         $activeMatches = $championship->matches()
-            ->where('status', ChampionshipMatchStatus::IN_PROGRESS->value)
+            ->where('status_id', ChampionshipMatchStatus::IN_PROGRESS->getId())
             ->count();
 
         $completedMatches = $championship->matches()
-            ->where('status', ChampionshipMatchStatus::COMPLETED->value)
+            ->where('status_id', ChampionshipMatchStatus::COMPLETED->getId())
             ->count();
 
         return [
