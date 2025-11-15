@@ -146,9 +146,9 @@ export const formatCurrency = (amount) => {
  */
 export const formatParticipantCount = (current, max = null) => {
   if (max) {
-    return `${current} / ${max} participants`;
+    return `${current} / ${max}`;
   }
-  return `${current} participants`;
+  return `${current} Players`;
 };
 
 /**
@@ -195,6 +195,91 @@ export const formatDateTime = (dateString, includeTime = true) => {
   const formatStr = includeTime ? 'MMM d, yyyy HH:mm' : 'MMM d, yyyy';
 
   return format(date, formatStr);
+};
+
+/**
+ * Format deadline with urgency indicator and danger level
+ */
+export const formatDeadlineWithUrgency = (scheduledDate) => {
+  if (!scheduledDate) return 'Not set';
+
+  const now = new Date();
+  const deadline = new Date(scheduledDate);
+  const diffTime = deadline - now;
+  const diffHours = Math.ceil(diffTime / (1000 * 60 * 60));
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  // If deadline has passed
+  if (diffTime < 0) {
+    return {
+      text: 'Overdue',
+      urgency: 'danger',
+      color: 'text-red-600 bg-red-100 border-red-300'
+    };
+  }
+
+  // If less than 2 hours - critical danger
+  if (diffHours <= 2) {
+    return {
+      text: `Complete by ${format(deadline, 'MMM d, HH:mm')} (${diffHours}h left)`,
+      urgency: 'critical',
+      color: 'text-red-700 bg-red-100 border-red-400 font-bold'
+    };
+  }
+
+  // If less than 6 hours - high danger
+  if (diffHours <= 6) {
+    return {
+      text: `Complete by ${format(deadline, 'MMM d, HH:mm')} (${diffHours}h left)`,
+      urgency: 'high',
+      color: 'text-orange-600 bg-orange-100 border-orange-300 font-semibold'
+    };
+  }
+
+  // If less than 24 hours - moderate danger
+  if (diffHours <= 24) {
+    return {
+      text: `Complete by ${format(deadline, 'MMM d, HH:mm')} (${diffHours}h left)`,
+      urgency: 'moderate',
+      color: 'text-yellow-600 bg-yellow-100 border-yellow-300'
+    };
+  }
+
+  // If less than 3 days - low urgency
+  if (diffDays <= 3) {
+    return {
+      text: `Complete by ${format(deadline, 'MMM d, HH:mm')} (${diffDays}d left)`,
+      urgency: 'low',
+      color: 'text-blue-600 bg-blue-100 border-blue-300'
+    };
+  }
+
+  // Plenty of time - normal
+  return {
+    text: `Complete by ${format(deadline, 'MMM d, HH:mm')} (${diffDays}d left)`,
+    urgency: 'normal',
+    color: 'text-gray-600 bg-gray-100 border-gray-300'
+  };
+};
+
+/**
+ * Get match card urgency styling
+ */
+export const getMatchCardUrgencyClass = (scheduledDate) => {
+  const urgency = formatDeadlineWithUrgency(scheduledDate);
+
+  switch (urgency.urgency) {
+    case 'critical':
+      return 'border-l-4 border-red-500 bg-red-50';
+    case 'high':
+      return 'border-l-4 border-orange-500 bg-orange-50';
+    case 'moderate':
+      return 'border-l-4 border-yellow-500 bg-yellow-50';
+    case 'low':
+      return 'border-l-4 border-blue-500 bg-blue-50';
+    default:
+      return 'border-l-4 border-gray-300';
+  }
 };
 
 /**

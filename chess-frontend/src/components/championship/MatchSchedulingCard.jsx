@@ -103,7 +103,14 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
   };
 
   const isUserPlayer = () => {
-    return user && (match.player1_id === user.id || match.player2_id === user.id);
+    const result = user && (match.player1_id === user.id || match.player2_id === user.id);
+    console.log('isUserPlayer check:', {
+      userId: user?.id,
+      player1Id: match.player1_id,
+      player2Id: match.player2_id,
+      isPlayer: result
+    });
+    return result;
   };
 
   const getOpponent = () => {
@@ -228,27 +235,68 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
     <div className="bg-white rounded-lg shadow-md p-6 mb-4">
       {/* Match Header */}
       <div className="flex justify-between items-start mb-4">
-        <div>
+        <div className="flex-1">
           <h3 className="text-lg font-semibold text-gray-900">
             {match.player1?.name} vs {match.player2?.name}
           </h3>
           <p className="text-sm text-gray-600">
             Round {match.round_number} • {match.round_type}
           </p>
-          <p className="text-xs text-gray-500 mt-1">
-            Deadline: {formatDateTime(match.deadline)}
-          </p>
+
+          {/* Enhanced Time Display */}
+          <div className="mt-2 p-3 bg-gray-50 rounded-lg border">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Deadline</p>
+                <p className="text-sm font-semibold text-gray-900">{formatDateTime(match.deadline)}</p>
+              </div>
+
+              {match.scheduled_time && (
+                <div className="text-center">
+                  <p className="text-xs font-medium text-blue-500 uppercase tracking-wide">Scheduled Time</p>
+                  <p className="text-sm font-semibold text-blue-900">{formatDateTime(match.scheduled_time)}</p>
+                </div>
+              )}
+
+              <div className="text-center">
+                <p className="text-xs font-medium text-green-500 uppercase tracking-wide">Status</p>
+                <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getMatchStatusColor(match.scheduling_status)}`}>
+                  {match.scheduling_status}
+                </span>
+              </div>
+            </div>
+
+            {/* Time remaining indicator */}
+            {match.deadline && (
+              <div className="mt-2">
+                <p className="text-xs text-gray-500">
+                  {(() => {
+                    const now = new Date();
+                    const deadline = new Date(match.deadline);
+                    const diffMs = deadline - now;
+                    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                    const diffDays = Math.floor(diffHours / 24);
+
+                    if (diffMs < 0) {
+                      return <span className="text-red-600 font-medium">⚠️ Overdue</span>;
+                    } else if (diffHours < 24) {
+                      return <span className="text-orange-600 font-medium">⏰ {diffHours} hours remaining</span>;
+                    } else {
+                      return <span className="text-green-600">📅 {diffDays} day{diffDays > 1 ? 's' : ''} remaining</span>;
+                    }
+                  })()}
+                </p>
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="flex items-center space-x-2">
-          <span className={`px-2 py-1 text-xs rounded-full ${getMatchStatusColor(match.scheduling_status)}`}>
-            {match.scheduling_status}
-          </span>
+        <div className="ml-4">
           <button
             onClick={() => setShowInstructions(!showInstructions)}
             className="text-blue-600 hover:text-blue-800 text-sm font-medium"
           >
-            Instructions
+            ℹ️ Instructions
           </button>
         </div>
       </div>
@@ -380,105 +428,230 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
         </div>
       )}
 
+      {/* Debug Info */}
+      {console.log('Rendering action buttons section, isUserPlayer:', isUserPlayer())}
+
       {/* Action Buttons */}
       {isUserPlayer() && (
-        <div className="space-y-3">
-          {/* Play Immediately Button */}
-          {canPlayImmediate() && isOpponentOnline(getOpponent()) && (
+        <div className="space-y-4 border-2 border-blue-300 p-4 rounded-lg bg-blue-50">
+          <div className="mb-2 text-xs text-blue-600 font-medium">
+            ✓ You are a player in this match - Actions available
+          </div>
+
+          {/* Primary Actions - Most Important First */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {/* Play Now Button - Always show if game can be created */}
+            {(!match.game_id && match.scheduling_status !== 'forfeit') && (
+              <button
+                onClick={async () => {
+                  setLoading(true);
+                  setError(null);
+                  try {
+                    // Use the correct API endpoint
+                    const response = await api.post(`/championships/${championship.id}/matches/${match.id}/game`, {
+                      time_control: 'blitz',
+                      color: 'random'
+                    });
+
+                    if (response.data.success && response.data.game_id) {
+                      // Navigate to the game
+                      navigate(`/play/${response.data.game_id}`);
+                    } else if (response.data.match?.game_id) {
+                      // Alternative response format
+                      navigate(`/play/${response.data.match.game_id}`);
+                    }
+                  } catch (err) {
+                    console.error('Failed to create game:', err);
+                    setError(err.response?.data?.message || 'Failed to create game. Please try scheduling a time with your opponent first.');
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                disabled={loading}
+                className="px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 font-medium flex items-center justify-center"
+              >
+                {loading ? (
+                  <span>⏳ Starting...</span>
+                ) : (
+                  <>
+                    🎮 <span className="ml-2">Play Now</span>
+                  </>
+                )}
+              </button>
+            )}
+
+            {/* Send Request/Message Button */}
             <button
-              onClick={handlePlayImmediate}
+              onClick={() => {
+                const opponent = getOpponent();
+                if (opponent) {
+                  // Show the schedule form instead
+                  setShowScheduleForm(true);
+                }
+              }}
               disabled={loading}
-              className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 font-medium"
+              className="px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 font-medium flex items-center justify-center"
             >
-              🎮 Play Now - Opponent is Online!
+              💬 <span className="ml-2">Send Schedule Request</span>
             </button>
-          )}
+          </div>
 
-          {/* Propose Time Button */}
-          {canProposeTime() && (
-            <div>
-              {!showScheduleForm ? (
-                <button
-                  onClick={() => setShowScheduleForm(true)}
-                  disabled={loading}
-                  className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
-                >
-                  📅 Propose a Time
-                </button>
-              ) : (
-                <form onSubmit={handleProposeTime} className="space-y-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Proposed Time
-                    </label>
-                    <input
-                      type="datetime-local"
-                      value={scheduleData.proposed_time}
-                      onChange={(e) => setScheduleData({...scheduleData, proposed_time: e.target.value})}
-                      min={new Date().toISOString().slice(0, 16)}
-                      max={match.deadline}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
+          {/* Scheduling Actions */}
+          <div className="border-t pt-4">
+            <h4 className="text-sm font-medium text-gray-700 mb-3">📅 Schedule Options</h4>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Message (Optional)
-                    </label>
-                    <textarea
-                      value={scheduleData.message}
-                      onChange={(e) => setScheduleData({...scheduleData, message: e.target.value})}
-                      placeholder="Add a message for your opponent..."
-                      rows="2"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
+            {/* Propose Time Button */}
+            {canProposeTime() && (
+              <div>
+                {!showScheduleForm ? (
+                  <button
+                    onClick={() => setShowScheduleForm(true)}
+                    disabled={loading}
+                    className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
+                  >
+                    📅 Propose a Time
+                  </button>
+                ) : (
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <h4 className="font-medium text-blue-900 mb-3">Propose Match Time</h4>
+                    <form onSubmit={handleProposeTime} className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Proposed Time
+                        </label>
+                        <input
+                          type="datetime-local"
+                          value={scheduleData.proposed_time}
+                          onChange={(e) => setScheduleData({...scheduleData, proposed_time: e.target.value})}
+                          min={new Date().toISOString().slice(0, 16)}
+                          max={match.deadline}
+                          required
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Must be before deadline: {formatDateTimeShort(match.deadline)}
+                        </p>
+                      </div>
 
-                  <div className="flex space-x-2">
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-                    >
-                      Send Proposal
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowScheduleForm(false)}
-                      className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
-                    >
-                      Cancel
-                    </button>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Message (Optional)
+                        </label>
+                        <textarea
+                          value={scheduleData.message}
+                          onChange={(e) => setScheduleData({...scheduleData, message: e.target.value})}
+                          placeholder="Add a message for your opponent..."
+                          rows="2"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
+
+                      <div className="flex space-x-2">
+                        <button
+                          type="submit"
+                          disabled={loading}
+                          className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                        >
+                          {loading ? '⏳ Sending...' : '📤 Send Proposal'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowScheduleForm(false);
+                            setScheduleData({ proposed_time: '', message: '' });
+                          }}
+                          className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
                   </div>
-                </form>
-              )}
-            </div>
-          )}
+                )}
+              </div>
+            )}
+
+            {/* Alternative: Quick Time Slots */}
+            {!showScheduleForm && canProposeTime() && (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-3">
+                {[
+                  { label: 'Tonight 7PM', time: () => {
+                    const tonight = new Date();
+                    tonight.setHours(19, 0, 0, 0);
+                    return tonight.toISOString().slice(0, 16);
+                  }},
+                  { label: 'Tomorrow 7PM', time: () => {
+                    const tomorrow = new Date();
+                    tomorrow.setDate(tomorrow.getDate() + 1);
+                    tomorrow.setHours(19, 0, 0, 0);
+                    return tomorrow.toISOString().slice(0, 16);
+                  }},
+                  { label: 'Weekend 2PM', time: () => {
+                    const saturday = new Date();
+                    saturday.setDate(saturday.getDate() + (6 - saturday.getDay() + 7) % 7);
+                    saturday.setHours(14, 0, 0, 0);
+                    return saturday.toISOString().slice(0, 16);
+                  }}
+                ].map((slot, index) => (
+                  <button
+                    key={index}
+                    onClick={async () => {
+                      try {
+                        const response = await api.post(
+                          `/championships/${championship.id}/matches/${match.id}/schedule/propose`,
+                          {
+                            proposed_time: slot.time(),
+                            message: `Quick proposal: ${slot.label}`
+                          }
+                        );
+                        if (response.data.success) {
+                          await loadScheduleProposals();
+                          if (onMatchUpdate) onMatchUpdate();
+                        }
+                      } catch (err) {
+                        setError('Failed to send quick proposal');
+                      }
+                    }}
+                    disabled={loading}
+                    className="px-3 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 disabled:opacity-50 text-sm"
+                  >
+                    ⚡ {slot.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Game Link */}
           {match.game_id && (
             <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-              <p className="text-sm text-green-800">
-                🎮 Game is ready!
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-green-800">
+                    🎮 Game is ready!
+                  </p>
+                  <p className="text-xs text-green-600">
+                    Game ID: {match.game_id}
+                  </p>
+                </div>
                 <a
                   href={`/play/${match.game_id}`}
-                  className="ml-2 font-medium underline hover:text-green-900"
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium"
                 >
-                  Go to Game
+                  Play Now →
                 </a>
-              </p>
+              </div>
             </div>
           )}
 
-          {/* No Actions Available */}
-          {!canProposeTime() && !canPlayImmediate() && !match.game_id && (
+          {/* Status Messages */}
+          {!canProposeTime() && !match.game_id && (
             <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
               <p className="text-sm text-gray-600">
-                {match.scheduling_status === 'accepted' && 'Schedule accepted. Waiting for confirmation.'}
-                {match.scheduling_status === 'confirmed' && `Match scheduled for ${formatDateTime(match.scheduled_time)}`}
-                {match.scheduling_status === 'forfeit' && 'Match has been forfeited.'}
-                {!['accepted', 'confirmed', 'forfeit'].includes(match.scheduling_status) && 'No actions available at this time.'}
+                {match.scheduling_status === 'accepted' && '✅ Schedule accepted. Waiting for confirmation.'}
+                {match.scheduling_status === 'confirmed' && `📅 Match scheduled for ${formatDateTime(match.scheduled_time)}`}
+                {match.scheduling_status === 'forfeit' && '❌ Match has been forfeited.'}
+                {match.scheduling_status === 'pending' && '⏳ Waiting for scheduling actions.'}
               </p>
             </div>
           )}
@@ -488,6 +661,14 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
       {/* Non-Player View */}
       {!isUserPlayer() && (
         <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+          <p className="text-sm text-red-600 font-medium mb-2">
+            ⓘ Debug: You are not a player in this match
+          </p>
+          <p className="text-xs text-gray-500 mb-2">
+            User ID: {user?.id || 'Not logged in'} |
+            Player 1 ID: {match.player1_id} |
+            Player 2 ID: {match.player2_id}
+          </p>
           <p className="text-sm text-gray-600">
             This match is between {match.player1?.name} and {match.player2?.name}.
             {match.scheduling_status === 'pending' && ' Waiting for players to schedule their match.'}

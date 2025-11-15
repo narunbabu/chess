@@ -80,8 +80,8 @@ class EliminationBracketService
 
         return $championship->standings()
             ->with('user')
-            ->orderBy('score', 'desc')
-            ->orderBy('buchholz', 'desc')
+            ->orderBy('points', 'desc')
+            ->orderBy('buchholz_score', 'desc')
             ->orderBy('sonneborn_berger', 'desc')
             ->limit($topQualifiers)
             ->get()
@@ -112,8 +112,8 @@ class EliminationBracketService
                     ->first();
 
                 return [
-                    -($standing->score ?? 0),           // Negative for descending
-                    -($standing->buchholz ?? 0),
+                    -($standing->points ?? 0),           // Negative for descending
+                    -($standing->buchholz_score ?? 0),
                     -($standing->sonneborn_berger ?? 0),
                 ];
             })->values();

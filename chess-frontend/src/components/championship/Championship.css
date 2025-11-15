@@ -1203,6 +1203,18 @@ textarea.form-input {
   color: #1a202c;
 }
 
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.header-right {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
 .matches-filters {
   display: flex;
   gap: 12px;

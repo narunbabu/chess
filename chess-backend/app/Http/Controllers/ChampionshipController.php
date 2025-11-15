@@ -756,7 +756,15 @@ class ChampionshipController extends Controller
         try {
             $user = Auth::user();
 
+            \Log::info('🔍 myMatches API called', [
+                'championship_id' => $id,
+                'user_id' => $user?->id,
+                'user_authenticated' => !is_null($user),
+                'user_email' => $user?->email
+            ]);
+
             if (!$user) {
+                \Log::warning('❌ myMatches: No authenticated user');
                 return response()->json([
                     'error' => 'Unauthorized',
                 ], 401);
@@ -779,6 +787,13 @@ class ChampionshipController extends Controller
                 ->orderBy('scheduled_at')
                 ->get();
 
+            \Log::info('📊 myMatches results', [
+                'championship_id' => $id,
+                'user_id' => $user->id,
+                'matches_found' => $matches->count(),
+                'match_ids' => $matches->pluck('id')->toArray()
+            ]);
+
             return response()->json([
                 'championship_id' => $id,
                 'matches' => $matches,
@@ -796,6 +811,107 @@ class ChampionshipController extends Controller
 
             return response()->json([
                 'error' => 'Failed to fetch your matches',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Get championship statistics and summary
+     *
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function stats(int $id): JsonResponse
+    {
+        try {
+            $user = Auth::guard('sanctum')->user();
+
+            \Log::info('🔍 Championship stats API called', [
+                'championship_id' => $id,
+                'user_id' => $user?->id,
+                'user_authenticated' => !is_null($user),
+                'user_email' => $user?->email
+            ]);
+
+            $championship = Championship::with([
+                'participants.user',
+                'matches'
+            ])->findOrFail($id);
+
+            // Get match statistics
+            $matches = $championship->matches;
+            $matchStats = [
+                'pending' => $matches->where('status', 'pending')->count(),
+                'active' => $matches->where('status', 'active')->count(),
+                'completed' => $matches->where('status', 'completed')->count(),
+                'cancelled' => $matches->where('status', 'cancelled')->count(),
+                'total' => $matches->count()
+            ];
+
+            // Get round statistics
+            $roundStats = $matches->groupBy('round_number')->map(function ($roundMatches, $roundNumber) {
+                return [
+                    'round' => (int)$roundNumber,
+                    'matches' => [
+                        'pending' => $roundMatches->where('status', 'pending')->count(),
+                        'active' => $roundMatches->where('status', 'active')->count(),
+                        'completed' => $roundMatches->where('status', 'completed')->count(),
+                        'cancelled' => $roundMatches->where('status', 'cancelled')->count(),
+                        'total' => $roundMatches->count()
+                    ]
+                ];
+            })->sortBy('round')->values();
+
+            // Calculate current round and completion status
+            $currentRound = $matches->where('status', '!=', 'completed')->min('round_number') ?? 0;
+            $totalRounds = $championship->total_rounds;
+            $isComplete = $currentRound > $totalRounds || ($matchStats['pending'] === 0 && $matchStats['active'] === 0);
+
+            // Get user-specific information if authenticated
+            $userStatus = null;
+            if ($user) {
+                $participant = $championship->participants()->where('user_id', $user->id)->first();
+                $userStatus = [
+                    'is_registered' => !is_null($participant),
+                    'has_paid' => $participant?->payment_status_id === PaymentStatus::Completed,
+                    'can_register' => $championship->canRegister($user->id)
+                ];
+            }
+
+            \Log::info('📊 Championship stats results', [
+                'championship_id' => $id,
+                'matches_total' => $matchStats['total'],
+                'current_round' => $currentRound,
+                'is_complete' => $isComplete
+            ]);
+
+            return response()->json([
+                'championship' => $championship->load('status_relation', 'format_relation'),
+                'summary' => [
+                    'current_round' => $currentRound,
+                    'total_rounds' => $totalRounds,
+                    'is_complete' => $isComplete,
+                    'matches' => $matchStats,
+                    'can_schedule_next' => !$isComplete && $currentRound <= $totalRounds && $matchStats['completed'] > 0,
+                    'next_round_number' => $currentRound + 1
+                ],
+                'rounds' => $roundStats,
+                'user_status' => $userStatus
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'error' => 'Championship not found',
+            ], 404);
+        } catch (\Exception $e) {
+            Log::error('Championship stats fetch failed', [
+                'error' => $e->getMessage(),
+                'championship_id' => $id,
+                'user_id' => Auth::guard('sanctum')->id(),
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to fetch championship statistics',
                 'message' => $e->getMessage(),
             ], 500);
         }

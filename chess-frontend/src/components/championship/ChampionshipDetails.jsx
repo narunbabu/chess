@@ -7,6 +7,7 @@ import { formatChampionshipStatus, formatChampionshipType, formatPrizePool, form
 import ChampionshipStandings from './ChampionshipStandings';
 import ChampionshipMatches from './ChampionshipMatches';
 import ChampionshipParticipants from './ChampionshipParticipants';
+import TournamentAdminDashboard from './TournamentAdminDashboard';
 import ConfirmationModal from './ConfirmationModal';
 import './Championship.css';
 
@@ -59,11 +60,21 @@ const ChampionshipDetails = () => {
       console.log('ChampionshipDetails: Fetching data for championship', id);
       fetchChampionship(id).catch(err => {
         console.error('Failed to fetch championship:', err);
+        console.error('Error details:', err.response?.data || err.message);
         // Error is already handled by the context state, no need for additional handling
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  // Debug: Log activeChampionship changes
+  useEffect(() => {
+    console.log('ChampionshipDetails: activeChampionship updated:', {
+      id: activeChampionship?.id,
+      title: activeChampionship?.title,
+      exists: !!activeChampionship
+    });
+  }, [activeChampionship]);
 
   // Close panel on click outside
   useEffect(() => {
@@ -258,10 +269,17 @@ const ChampionshipDetails = () => {
 
   const canRegister = canUserRegister(activeChampionship, user);
   const isOrganizer = isUserOrganizer(activeChampionship, user);
-  const isRegistered = activeChampionship.user_participation;
+  const isRegistered = activeChampionship.user_participation || activeChampionship.user_status === 'registered' || activeChampionship.user_status === 'paid';
   const isPaid = activeChampionship.user_status === 'paid';
   const progress = calculateProgress(activeChampionship);
   const daysRemaining = calculateDaysRemaining(activeChampionship.registration_end_at || activeChampionship.registration_deadline);
+
+  // Show My Matches tab if user is logged in and championship is in progress or they're registered
+  const shouldShowMyMatches = user && (
+    isRegistered ||
+    activeChampionship.user_participation ||
+    activeChampionship.status === 'in_progress'
+  );
 
   const renderOverviewTab = () => (
     <div className="championship-overview">
@@ -416,8 +434,8 @@ const ChampionshipDetails = () => {
             </button>
           )}
 
-          {/* My Matches button - show if user is registered */}
-          {isRegistered && (
+          {/* My Matches button - show if user should see My Matches */}
+          {shouldShowMyMatches && (
             <button
               onClick={() => setActiveTab('my-matches')}
               className="btn btn-primary"
@@ -543,12 +561,20 @@ const ChampionshipDetails = () => {
         >
           <span>⚔️</span> Matches
         </button>
-        {activeChampionship.user_participation && (
+        {shouldShowMyMatches && (
           <button
             onClick={() => setActiveTab('my-matches')}
             className={`tab ${activeTab === 'my-matches' ? 'active' : ''}`}
           >
             <span>🎯</span> My Matches
+          </button>
+        )}
+        {(isOrganizer || isPlatformAdmin) && (
+          <button
+            onClick={() => setActiveTab('tournament-management')}
+            className={`tab ${activeTab === 'tournament-management' ? 'active' : ''}`}
+          >
+            <span>🏆</span> Manage
           </button>
         )}
       </div>
@@ -558,9 +584,12 @@ const ChampionshipDetails = () => {
         {activeTab === 'overview' && renderOverviewTab()}
         {activeTab === 'participants' && <ChampionshipParticipants championshipId={id} participants={activeChampionship.participants || []} />}
         {activeTab === 'standings' && <ChampionshipStandings championshipId={id} />}
-        {activeTab === 'matches' && <ChampionshipMatches championshipId={id} />}
+        {activeTab === 'matches' && <ChampionshipMatches championshipId={id} championship={activeChampionship} />}
         {activeTab === 'my-matches' && (
-          <ChampionshipMatches championshipId={id} userOnly={true} />
+          <ChampionshipMatches championshipId={id} championship={activeChampionship} userOnly={true} />
+        )}
+        {activeTab === 'tournament-management' && (
+          <TournamentAdminDashboard championshipId={id} />
         )}
       </div>
 

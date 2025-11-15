@@ -143,10 +143,10 @@ class SwissPairingService
                 ->where('user_id', $participant->user_id)
                 ->first();
 
-            $score = $standing?->score ?? 0;
-            $buchholz = $standing?->buchholz ?? 0;
+            $score = $standing?->points ?? 0; // Database uses 'points'
+            $buchholz = $standing?->buchholz_score ?? 0; // Database uses 'buchholz_score'
             $sonnebornBerger = $standing?->sonneborn_berger ?? 0;
-            $tRating = $standing?->t_rating ?? 0;
+            $tRating = $participant->user->rating ?? 1200; // Use user's rating directly
 
             // Sort by: 1) Score, 2) Buchholz, 3) Sonneborn-Berger, 4) Tournament rating
             return [
@@ -216,7 +216,7 @@ class SwissPairingService
                 ->where('user_id', $participant->user_id)
                 ->first();
 
-            $score = $standing?->score ?? 0;
+            $score = $standing?->points ?? 0; // Database uses 'points'
             $groups[$score][] = $participant;
         }
 
@@ -420,6 +420,14 @@ class SwissPairingService
     }
 
     /**
+     * Public color assignment method for external services
+     */
+    public function assignColorsPub(Championship $championship, int $userId1, int $userId2): array
+    {
+        return $this->assignColorsBalanced($championship, $userId1, $userId2);
+    }
+
+    /**
      * Check if two participants have already played each other
      */
     private function haveAlreadyPlayed(Championship $championship, int $player1Id, int $player2Id): bool
@@ -563,7 +571,7 @@ class SwissPairingService
         // Sort by: 1) Lowest score, 2) Fewest byes received, 3) Lowest rating
         return $participants->sortBy(function ($participant) use ($standings, $championship) {
             $standing = $standings->get($participant->user_id);
-            $score = $standing?->score ?? 0;
+            $score = $standing?->points ?? 0; // Database uses 'points'
             $byes = $standing?->byes_received ?? 0;
             $rating = $participant->user->rating ?? 1200;
 

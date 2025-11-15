@@ -39,6 +39,7 @@ import ChampionshipList from "./components/championship/ChampionshipList";
 import ChampionshipDetails from "./components/championship/ChampionshipDetails";
 import TournamentAdminDashboard from "./components/championship/TournamentAdminDashboard";
 import ChampionshipInvitations from "./pages/ChampionshipInvitations";
+import ChampionshipMatchesEdit from "./components/championship/ChampionshipMatchesEdit";
 
 const App = () => {
   useEffect(()=> {
@@ -188,6 +189,14 @@ const AppContent = () => {
               element={
                 <RouteGuard>
                   <TournamentAdminDashboard />
+                </RouteGuard>
+              }
+            />
+            <Route
+              path="/championships/:id/matches/edit"
+              element={
+                <RouteGuard>
+                  <ChampionshipMatchesEdit />
                 </RouteGuard>
               }
             />

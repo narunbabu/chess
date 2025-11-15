@@ -45,6 +45,19 @@ return [
             'synchronous' => env('DB_SQLITE_SYNCHRONOUS', 'normal'),
         ],
 
+        // Separate SQLite connection for testing (WSL-compatible)
+        'sqlite_testing' => [
+            'driver' => 'sqlite',
+            'url' => env('DB_URL'),
+            'database' => env('DB_DATABASE', '/tmp/chess_test.sqlite'),
+            'prefix' => '',
+            'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
+            // Use DELETE journal mode for WSL compatibility (no WAL files)
+            'busy_timeout' => env('DB_SQLITE_BUSY_TIMEOUT', 5000),
+            'journal_mode' => env('DB_SQLITE_JOURNAL_MODE', 'DELETE'),
+            'synchronous' => env('DB_SQLITE_SYNCHRONOUS', 'OFF'),
+        ],
+
 
         'mysql' => [
             'driver' => 'mysql',

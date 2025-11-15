@@ -17,6 +17,13 @@ use Carbon\Carbon;
 
 class ChampionshipRoundProgressionService
 {
+    private PlaceholderMatchAssignmentService $placeholderService;
+
+    public function __construct(PlaceholderMatchAssignmentService $placeholderService)
+    {
+        $this->placeholderService = $placeholderService;
+    }
+
     /**
      * Check all active championships for round completion and progress if ready
      */
@@ -111,6 +118,11 @@ class ChampionshipRoundProgressionService
             // Update standings for completed round
             $this->updateStandingsForRound($championship, $completedRound);
 
+            // Assign players to any placeholder matches in the next round
+            // This needs to happen after standings are updated but before round progression
+            $nextRound = $completedRound + 1;
+            $placeholderAssignments = $this->assignPlaceholderMatchesForRound($championship, $nextRound);
+
             // Check if this is the final round
             $format = $championship->getFormatEnum();
             $isFinalRound = $this->isFinalRound($championship, $completedRound, $format);
@@ -123,11 +135,11 @@ class ChampionshipRoundProgressionService
                     'championship_id' => $championship->id,
                     'action' => 'championship_completed',
                     'completed_round' => $completedRound,
-                    'final_standings' => $this->getFinalStandings($championship)
+                    'final_standings' => $this->getFinalStandings($championship),
+                    'placeholder_assignments' => $placeholderAssignments,
                 ];
             } else {
-                // Generate next round matches
-                $nextRound = $completedRound + 1;
+                // Generate next round matches (if not already generated during tournament generation)
                 $newMatches = $this->generateNextRoundMatches($championship, $nextRound);
 
                 // Update championship status
@@ -142,10 +154,28 @@ class ChampionshipRoundProgressionService
                     'completed_round' => $completedRound,
                     'next_round' => $nextRound,
                     'new_matches_count' => count($newMatches),
+                    'placeholder_assignments' => $placeholderAssignments,
                     'updated_standings' => $this->getCurrentStandings($championship)
                 ];
             }
         });
+    }
+
+    /**
+     * Assign players to placeholder matches for the next round based on current standings
+     */
+    private function assignPlaceholderMatchesForRound(Championship $championship, int $roundNumber): array
+    {
+        // Check if there are unassigned placeholder matches for this round
+        if (!$this->placeholderService->hasUnassignedPlaceholders($championship, $roundNumber)) {
+            return [
+                'assigned_count' => 0,
+                'matches' => [],
+            ];
+        }
+
+        // Assign players based on current standings
+        return $this->placeholderService->assignPlayersToPlaceholderMatches($championship, $roundNumber);
     }
 
     /**
@@ -321,7 +351,7 @@ class ChampionshipRoundProgressionService
     private function updateFinalPositions(Championship $championship): void
     {
         $standings = ChampionshipStanding::where('championship_id', $championship->id)
-            ->orderBy('score', 'desc')
+            ->orderBy('points', 'desc')
             ->orderBy('tie_break_points', 'desc')
             ->get();
 
@@ -336,7 +366,7 @@ class ChampionshipRoundProgressionService
     private function getChampionshipWinner(Championship $championship): ?User
     {
         $topStanding = ChampionshipStanding::where('championship_id', $championship->id)
-            ->orderBy('score', 'desc')
+            ->orderBy('points', 'desc')
             ->orderBy('tie_break_points', 'desc')
             ->first();
 
@@ -392,7 +422,7 @@ class ChampionshipRoundProgressionService
     {
         return ChampionshipStanding::where('championship_id', $championship->id)
             ->with('user')
-            ->orderBy('score', 'desc')
+            ->orderBy('points', 'desc')
             ->orderBy('tie_break_points', 'desc')
             ->get()
             ->map(function ($standing) {
@@ -463,5 +493,166 @@ class ChampionshipRoundProgressionService
             'completed_matches' => $completedMatches,
             'remaining_matches' => $totalMatches - $completedMatches
         ];
+    }
+
+    /**
+     * Validate top-3 pairwise coverage for a championship
+     *
+     * Called during round progression to ensure top players have played each other
+     */
+    public function validateTop3Coverage(Championship $championship): array
+    {
+        $coverage = [
+            'valid' => true,
+            'warnings' => [],
+            'top3_pairs_found' => [],
+            'missing_pairs' => [],
+            'coverage_percentage' => 0,
+        ];
+
+        try {
+            // Get current standings
+            $standings = $championship->standings()
+                ->with('user')
+                ->orderByDesc('points')
+                ->orderByDesc('buchholz_score')
+                ->limit(3)
+                ->get();
+
+            if ($standings->count() < 3) {
+                $coverage['warnings'][] = 'Fewer than 3 players with standings found for coverage validation';
+                return $coverage;
+            }
+
+            // Get all completed matches up to current round (excluding final rounds)
+            $currentRound = $this->getCurrentRound($championship) ?: 0;
+
+            $matches = $championship->matches()
+                ->where('round_number', '<=', $currentRound)
+                ->where('is_placeholder', false)
+                ->whereNotIn('status_id', [MatchStatusEnum::PENDING->getId(), MatchStatusEnum::CANCELLED->getId()])
+                ->with(['player1', 'player2'])
+                ->get();
+
+            // Extract top 3 player IDs
+            $top3PlayerIds = $standings->pluck('user_id')->toArray();
+
+            // Generate all required pairs for top 3 (1v2, 1v3, 2v3)
+            $requiredPairs = [
+                [$top3PlayerIds[0], $top3PlayerIds[1]], // 1v2
+                [$top3PlayerIds[0], $top3PlayerIds[2]], // 1v3
+                [$top3PlayerIds[1], $top3PlayerIds[2]], // 2v3
+            ];
+
+            // Check which pairs exist in completed matches
+            foreach ($requiredPairs as $pair) {
+                $pairExists = $matches->contains(function ($match) use ($pair) {
+                    return (
+                        ($match->player1_id === $pair[0] && $match->player2_id === $pair[1]) ||
+                        ($match->player1_id === $pair[1] && $match->player2_id === $pair[0])
+                    );
+                });
+
+                if ($pairExists) {
+                    $coverage['top3_pairs_found'][] = $pair;
+                } else {
+                    $coverage['missing_pairs'][] = $pair;
+                    $coverage['valid'] = false;
+                }
+            }
+
+            // Calculate coverage percentage
+            $totalRequiredPairs = count($requiredPairs);
+            $foundPairs = count($coverage['top3_pairs_found']);
+            $coverage['coverage_percentage'] = round(($foundPairs / $totalRequiredPairs) * 100, 1);
+
+            // Add warnings for missing coverage
+            if (!$coverage['valid']) {
+                $coverage['warnings'][] = 'Missing top-3 pairwise coverage. Some top players have not played each other.';
+
+                // Add specific missing pair information
+                foreach ($coverage['missing_pairs'] as $missingPair) {
+                    $player1 = $standings->where('user_id', $missingPair[0])->first();
+                    $player2 = $standings->where('user_id', $missingPair[1])->first();
+
+                    if ($player1 && $player2) {
+                        $coverage['warnings'][] = sprintf(
+                            'Missing match: %s (Rank 1) vs %s (Rank 2)',
+                            $player1->user->username ?? 'Player ' . $player1->user_id,
+                            $player2->user->username ?? 'Player ' . $player2->user_id
+                        );
+                    }
+                }
+            }
+
+            // Log coverage validation results
+            Log::info('Top-3 coverage validation completed', [
+                'championship_id' => $championship->id,
+                'current_round' => $currentRound,
+                'coverage_valid' => $coverage['valid'],
+                'coverage_percentage' => $coverage['coverage_percentage'],
+                'pairs_found' => count($coverage['top3_pairs_found']),
+                'pairs_missing' => count($coverage['missing_pairs']),
+            ]);
+
+            // If coverage is incomplete, check if there are placeholder matches that could be assigned
+            if (!$coverage['valid'] && $currentRound < ($championship->total_rounds ?? 10)) {
+                $nextRounds = range($currentRound + 1, min($currentRound + 2, $championship->total_rounds ?? 10));
+                $hasPlaceholderPotential = false;
+
+                foreach ($nextRounds as $round) {
+                    if ($this->placeholderService->hasUnassignedPlaceholders($championship, $round)) {
+                        $hasPlaceholderPotential = true;
+                        $coverage['warnings'][] = "Round {$round} has unassigned placeholder matches that could provide missing coverage.";
+                        break;
+                    }
+                }
+
+                if (!$hasPlaceholderPotential) {
+                    $coverage['warnings'][] = 'No remaining placeholder matches available to provide missing top-3 coverage.';
+                }
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Error validating top-3 coverage', [
+                'championship_id' => $championship->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            $coverage['valid'] = false;
+            $coverage['warnings'][] = 'Error occurred during coverage validation: ' . $e->getMessage();
+        }
+
+        return $coverage;
+    }
+
+    /**
+     * Enhanced round progression with top-3 coverage validation
+     *
+     * Extends the existing progressToNextRound method with coverage checks
+     */
+    public function progressToNextRoundWithCoverageValidation(Championship $championship, int $completedRound): array
+    {
+        // First, perform standard round progression
+        $result = $this->progressToNextRound($championship, $completedRound);
+
+        // Then validate top-3 coverage for tournaments that are not completed
+        if ($result['action'] !== 'championship_completed') {
+            $coverageValidation = $this->validateTop3Coverage($championship);
+            $result['coverage_validation'] = $coverageValidation;
+
+            // If coverage validation failed and this is getting close to finals, add a warning
+            if (!$coverageValidation['valid'] && $completedRound >= ($championship->total_rounds - 3)) {
+                $result['coverage_warning'] = 'Tournament is approaching finals with incomplete top-3 coverage.';
+                Log::warning('Incomplete top-3 coverage near tournament end', [
+                    'championship_id' => $championship->id,
+                    'completed_round' => $completedRound,
+                    'total_rounds' => $championship->total_rounds,
+                    'coverage_percentage' => $coverageValidation['coverage_percentage'],
+                ]);
+            }
+        }
+
+        return $result;
     }
 }

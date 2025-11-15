@@ -413,8 +413,8 @@ class GenerateNextRoundJob implements ShouldQueue
             // For Swiss, get top of standings
             return $this->championship->standings()
                 ->with('user')
-                ->orderBy('score', 'desc')
-                ->orderBy('buchholz', 'desc')
+                ->orderBy('points', 'desc')
+                ->orderBy('buchholz_score', 'desc')
                 ->orderBy('sonneborn_berger', 'desc')
                 ->first()?->user;
         }

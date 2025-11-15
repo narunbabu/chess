@@ -53,6 +53,10 @@ class Championship extends Model
         'invitation_timeout_minutes',
         'match_start_buffer_minutes',
         'tournament_settings',
+        // Full tournament generation
+        'tournament_config',
+        'tournament_generated',
+        'tournament_generated_at',
     ];
 
     protected $casts = [
@@ -83,6 +87,10 @@ class Championship extends Model
         'invitation_timeout_minutes' => 'integer',
         'match_start_buffer_minutes' => 'integer',
         'tournament_settings' => 'array',
+        // Full tournament generation casts
+        'tournament_config' => 'array',
+        'tournament_generated' => 'boolean',
+        'tournament_generated_at' => 'datetime',
     ];
 
     /**
@@ -680,5 +688,82 @@ class Championship extends Model
     {
         $settings = $this->tournament_settings ?? [];
         return $settings[$key] ?? $default;
+    }
+
+    /**
+     * Get tournament configuration as TournamentConfig object
+     */
+    public function getTournamentConfig(): ?\App\ValueObjects\TournamentConfig
+    {
+        if (!$this->tournament_config) {
+            return null;
+        }
+
+        return \App\ValueObjects\TournamentConfig::fromArray($this->tournament_config);
+    }
+
+    /**
+     * Set tournament configuration from TournamentConfig object
+     */
+    public function setTournamentConfig(\App\ValueObjects\TournamentConfig $config): void
+    {
+        $this->tournament_config = $config->toArray();
+    }
+
+    /**
+     * Check if tournament has been fully generated
+     */
+    public function isTournamentGenerated(): bool
+    {
+        return $this->tournament_generated ?? false;
+    }
+
+    /**
+     * Mark tournament as generated
+     */
+    public function markTournamentAsGenerated(): void
+    {
+        $this->update([
+            'tournament_generated' => true,
+            'tournament_generated_at' => now(),
+        ]);
+    }
+
+    /**
+     * Get or create default tournament configuration
+     */
+    public function getOrCreateTournamentConfig(): \App\ValueObjects\TournamentConfig
+    {
+        if ($this->tournament_config) {
+            return $this->getTournamentConfig();
+        }
+
+        // Determine preset based on participant count
+        $participantCount = $this->participants()->count();
+        $preset = $this->determinePreset($participantCount);
+
+        // Create default config using actual participant count for proper pairing
+        // This ensures 3-player tournaments use the Option A structure
+        $config = \App\ValueObjects\TournamentConfig::fromPreset(
+            $preset,
+            $this->total_rounds ?? 5,
+            $participantCount
+        );
+
+        return $config;
+    }
+
+    /**
+     * Determine appropriate preset based on participant count
+     */
+    private function determinePreset(int $participantCount): string
+    {
+        if ($participantCount <= 10) {
+            return \App\ValueObjects\TournamentConfig::PRESET_SMALL;
+        } elseif ($participantCount <= 30) {
+            return \App\ValueObjects\TournamentConfig::PRESET_MEDIUM;
+        } else {
+            return \App\ValueObjects\TournamentConfig::PRESET_LARGE;
+        }
     }
 }

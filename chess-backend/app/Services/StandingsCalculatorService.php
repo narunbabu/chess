@@ -81,14 +81,13 @@ class StandingsCalculatorService
         return [
             'championship_id' => $championship->id,
             'user_id' => $participant->user_id,
-            'score' => $score,
-            'games_played' => $gamesPlayed,
+            'points' => $score, // Database uses 'points' column
+            'matches_played' => $gamesPlayed, // Database uses 'matches_played' column
             'wins' => $wins,
             'draws' => $draws,
             'losses' => $losses,
-            'buchholz' => 0, // Will be calculated later
+            'buchholz_score' => 0, // Database uses 'buchholz_score' column
             'sonneborn_berger' => 0, // Will be calculated later
-            't_rating' => $participant->user->rating ?? 1200,
         ];
     }
 
@@ -147,14 +146,13 @@ class StandingsCalculatorService
                 'user_id' => $standingData['user_id'],
             ],
             [
-                'score' => $standingData['score'],
-                'games_played' => $standingData['games_played'],
+                'points' => $standingData['points'], // Database uses 'points' column
+                'matches_played' => $standingData['matches_played'], // Database uses 'matches_played' column
                 'wins' => $standingData['wins'],
                 'draws' => $standingData['draws'],
                 'losses' => $standingData['losses'],
-                'buchholz' => $standingData['buchholz'],
+                'buchholz_score' => $standingData['buchholz_score'], // Database uses 'buchholz_score' column
                 'sonneborn_berger' => $standingData['sonneborn_berger'],
-                't_rating' => $standingData['t_rating'],
             ]
         );
     }
@@ -172,7 +170,7 @@ class StandingsCalculatorService
             $sonnebornBerger = $this->calculateSonnebornBerger($standing, $standings, $matches);
 
             $standing->update([
-                'buchholz' => $buchholz,
+                'buchholz_score' => $buchholz, // Database uses 'buchholz_score' column
                 'sonneborn_berger' => $sonnebornBerger,
             ]);
         }
@@ -196,7 +194,7 @@ class StandingsCalculatorService
             $opponentStanding = $allStandings->where('user_id', $opponentId)->first();
 
             if ($opponentStanding) {
-                $opponentScores += $opponentStanding->score;
+                $opponentScores += $opponentStanding->points; // Database uses 'points'
             }
         }
 
@@ -224,10 +222,10 @@ class StandingsCalculatorService
             if ($opponentStanding) {
                 switch ($result) {
                     case 'win':
-                        $sbScore += $opponentStanding->score;
+                        $sbScore += $opponentStanding->points; // Database uses 'points'
                         break;
                     case 'draw':
-                        $sbScore += $opponentStanding->score * 0.5;
+                        $sbScore += $opponentStanding->points * 0.5; // Database uses 'points'
                         break;
                     case 'loss':
                         // No points added for losses
@@ -245,10 +243,9 @@ class StandingsCalculatorService
     private function updateRanks(Championship $championship): void
     {
         $standings = $championship->standings()
-            ->orderBy('score', 'desc')
-            ->orderBy('buchholz', 'desc')
+            ->orderBy('points', 'desc')
+            ->orderBy('buchholz_score', 'desc')
             ->orderBy('sonneborn_berger', 'desc')
-            ->orderBy('t_rating', 'desc')
             ->get();
 
         $currentRank = 1;
@@ -258,8 +255,8 @@ class StandingsCalculatorService
 
         foreach ($standings as $index => $standing) {
             // Check if this player ties with previous
-            $isTie = ($previousScore !== null && $standing->score === $previousScore &&
-                     $standing->buchholz === $previousBuchholz &&
+            $isTie = ($previousScore !== null && $standing->points === $previousScore && // Database uses 'points'
+                     $standing->buchholz_score === $previousBuchholz && // Database uses 'buchholz_score'
                      $standing->sonneborn_berger === $previousSonnebornBerger);
 
             if (!$isTie) {
@@ -268,8 +265,8 @@ class StandingsCalculatorService
 
             $standing->update(['rank' => $currentRank]);
 
-            $previousScore = $standing->score;
-            $previousBuchholz = $standing->buchholz;
+            $previousScore = $standing->points; // Database uses 'points'
+            $previousBuchholz = $standing->buchholz_score; // Database uses 'buchholz_score'
             $previousSonnebornBerger = $standing->sonneborn_berger;
         }
     }
@@ -294,17 +291,16 @@ class StandingsCalculatorService
                 return [
                     'rank' => $standing->rank,
                     'user' => $standing->user,
-                    'score' => $standing->score,
-                    'games_played' => $standing->games_played,
+                    'score' => $standing->points, // Database uses 'points'
+                    'games_played' => $standing->matches_played, // Database uses 'matches_played'
                     'wins' => $standing->wins,
                     'draws' => $standing->draws,
                     'losses' => $standing->losses,
-                    'win_rate' => $standing->games_played > 0
-                        ? round(($standing->wins / $standing->games_played) * 100, 1)
+                    'win_rate' => $standing->matches_played > 0
+                        ? round(($standing->wins / $standing->matches_played) * 100, 1)
                         : 0,
-                    'buchholz' => $standing->buchholz,
+                    'buchholz' => $standing->buchholz_score, // Database uses 'buchholz_score'
                     'sonneborn_berger' => $standing->sonneborn_berger,
-                    't_rating' => $standing->t_rating,
                 ];
             }),
         ];
@@ -416,8 +412,8 @@ class StandingsCalculatorService
         // Check score calculations
         foreach ($standings as $standing) {
             $calculatedScore = $this->calculateScoreFromMatches($standing->user_id, $matches);
-            if (abs($standing->score - $calculatedScore) > 0.001) {
-                $errors[] = "Score mismatch for user {$standing->user_id}: stored {$standing->score}, calculated {$calculatedScore}";
+            if (abs($standing->points - $calculatedScore) > 0.001) { // Database uses 'points'
+                $errors[] = "Score mismatch for user {$standing->user_id}: stored {$standing->points}, calculated {$calculatedScore}";
             }
         }
 

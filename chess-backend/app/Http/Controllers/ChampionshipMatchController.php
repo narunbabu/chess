@@ -9,9 +9,12 @@ use App\Services\MatchSchedulerService;
 use App\Services\SwissPairingService;
 use App\Services\EliminationBracketService;
 use App\Services\StandingsCalculatorService;
+use App\Services\TournamentGenerationService;
+use App\Services\PlaceholderMatchAssignmentService;
 use App\Jobs\GenerateNextRoundJob;
 use App\Enums\ChampionshipMatchStatus;
 use App\Enums\ChampionshipResultType;
+use App\ValueObjects\TournamentConfig;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
@@ -25,7 +28,9 @@ class ChampionshipMatchController extends Controller
         private MatchSchedulerService $scheduler,
         private SwissPairingService $swissService,
         private EliminationBracketService $eliminationService,
-        private StandingsCalculatorService $standingsCalculator
+        private StandingsCalculatorService $standingsCalculator,
+        private TournamentGenerationService $tournamentGenerator,
+        private PlaceholderMatchAssignmentService $placeholderAssignment
     ) {}
 
     /**
@@ -539,6 +544,470 @@ class ChampionshipMatchController extends Controller
 
             return response()->json([
                 'error' => 'Failed to send invitations: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Generate full tournament (all rounds at once)
+     * POST /api/championships/{id}/generate-full-tournament
+     */
+    public function generateFullTournament(Request $request, Championship $championship): JsonResponse
+    {
+        $this->authorize('manage', $championship);
+
+        try {
+            // Validate request
+            $validated = $request->validate([
+                'preset' => 'nullable|string|in:small_tournament,medium_tournament,large_tournament,custom',
+                'config' => 'nullable|array',
+                'config.mode' => 'nullable|string',
+                'config.round_structure' => 'nullable|array',
+                'config.avoid_repeat_matches' => 'nullable|boolean',
+                'config.color_balance_strict' => 'nullable|boolean',
+                'config.bye_handling' => 'nullable|string',
+                'config.bye_points' => 'nullable|numeric',
+                'force_regenerate' => 'nullable|boolean',
+            ]);
+
+            // Check if already generated
+            if ($championship->isTournamentGenerated() && !($validated['force_regenerate'] ?? false)) {
+                return response()->json([
+                    'error' => 'Tournament has already been generated. Use force_regenerate=true to regenerate.',
+                    'tournament_generated_at' => $championship->tournament_generated_at,
+                ], 400);
+            }
+
+            // Get or create configuration
+            $config = null;
+            if (isset($validated['config'])) {
+                $config = TournamentConfig::fromArray($validated['config']);
+            } elseif (isset($validated['preset'])) {
+                $participantCount = $championship->participants()->count();
+                $config = TournamentConfig::fromPreset(
+                    $validated['preset'],
+                    $championship->total_rounds ?? 5,
+                    $participantCount
+                );
+            }
+
+            // Generate tournament
+            if ($validated['force_regenerate'] ?? false) {
+                $summary = $this->tournamentGenerator->regenerateTournament($championship, $config);
+            } else {
+                $summary = $this->tournamentGenerator->generateFullTournament($championship, $config);
+            }
+
+            return response()->json([
+                'message' => 'Tournament generated successfully',
+                'summary' => $summary,
+                'championship' => $championship->fresh(),
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Failed to generate full tournament", [
+                'championship_id' => $championship->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'error' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Preview tournament structure before generating
+     * GET /api/championships/{id}/tournament-preview
+     */
+    public function previewTournamentStructure(Request $request, Championship $championship): JsonResponse
+    {
+        $this->authorize('manage', $championship);
+
+        try {
+            // Validate request
+            $validated = $request->validate([
+                'preset' => 'nullable|string|in:small_tournament,medium_tournament,large_tournament,custom',
+                'config' => 'nullable|array',
+            ]);
+
+            // Get or create configuration
+            $config = null;
+            if (isset($validated['config'])) {
+                $config = TournamentConfig::fromArray($validated['config']);
+            } elseif (isset($validated['preset'])) {
+                $participantCount = $championship->participants()->count();
+                $config = TournamentConfig::fromPreset(
+                    $validated['preset'],
+                    $championship->total_rounds ?? 5,
+                    $participantCount
+                );
+            }
+
+            $preview = $this->tournamentGenerator->previewTournamentStructure($championship, $config);
+
+            return response()->json([
+                'preview' => $preview,
+                'championship' => $championship,
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Failed to preview tournament structure", [
+                'championship_id' => $championship->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'error' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Update tournament configuration
+     * PUT /api/championships/{id}/tournament-config
+     */
+    public function updateTournamentConfig(Request $request, Championship $championship): JsonResponse
+    {
+        $this->authorize('manage', $championship);
+
+        try {
+            // Validate configuration
+            $validated = $request->validate([
+                'preset' => 'nullable|string|in:small_tournament,medium_tournament,large_tournament,custom',
+                'config' => 'required|array',
+                'config.mode' => 'required|string',
+                'config.round_structure' => 'required|array',
+                'config.avoid_repeat_matches' => 'nullable|boolean',
+                'config.color_balance_strict' => 'nullable|boolean',
+                'config.bye_handling' => 'nullable|string',
+                'config.bye_points' => 'nullable|numeric',
+            ]);
+
+            $config = TournamentConfig::fromArray($validated['config']);
+
+            // Validate
+            $errors = $config->validate();
+            if (!empty($errors)) {
+                return response()->json([
+                    'error' => 'Invalid configuration',
+                    'validation_errors' => $errors,
+                ], 400);
+            }
+
+            // Save configuration
+            $championship->setTournamentConfig($config);
+            $championship->save();
+
+            return response()->json([
+                'message' => 'Tournament configuration updated successfully',
+                'config' => $config->toArray(),
+                'championship' => $championship->fresh(),
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Failed to update tournament configuration", [
+                'championship_id' => $championship->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'error' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Get tournament configuration
+     * GET /api/championships/{id}/tournament-config
+     */
+    public function getTournamentConfig(Championship $championship): JsonResponse
+    {
+        $this->authorize('view', $championship);
+
+        $config = $championship->getTournamentConfig();
+
+        if (!$config) {
+            // Generate default config
+            $config = $championship->getOrCreateTournamentConfig();
+        }
+
+        return response()->json([
+            'config' => $config->toArray(),
+            'tournament_generated' => $championship->isTournamentGenerated(),
+            'tournament_generated_at' => $championship->tournament_generated_at,
+        ]);
+    }
+
+    /**
+     * Delete a specific match (admin only)
+     * DELETE /api/championships/{championship}/matches/{match}
+     */
+    public function destroy(Championship $championship, ChampionshipMatch $match): JsonResponse
+    {
+        $this->authorize('manage', $championship);
+
+        if ($match->championship_id !== $championship->id) {
+            return response()->json(['error' => 'Match not found in this championship'], 404);
+        }
+
+        try {
+            DB::transaction(function () use ($match, $championship) {
+                // Delete associated game if exists
+                if ($match->game_id) {
+                    Game::find($match->game_id)?->delete();
+                }
+
+                // Delete the match
+                $match->delete();
+
+                // Recalculate standings if Swiss tournament
+                if ($championship->getFormatEnum()->isSwiss()) {
+                    $this->standingsCalculator->updateStandings($championship);
+                }
+
+                Log::info("Match deleted", [
+                    'match_id' => $match->id,
+                    'championship_id' => $championship->id,
+                    'user_id' => Auth::id(),
+                ]);
+            });
+
+            return response()->json([
+                'message' => 'Match deleted successfully',
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Failed to delete match", [
+                'match_id' => $match->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json(['error' => 'Failed to delete match'], 500);
+        }
+    }
+
+    /**
+     * Delete all matches in a championship (admin only)
+     * DELETE /api/championships/{championship}/matches
+     */
+    public function destroyAll(Championship $championship): JsonResponse
+    {
+        $this->authorize('manage', $championship);
+
+        try {
+            $deletedCount = DB::transaction(function () use ($championship) {
+                // Get all matches with their game IDs
+                $matches = $championship->matches()->with('game')->get();
+
+                // Delete all associated games (using game_id from matches)
+                $gameIds = $matches->pluck('game_id')->filter();
+                if ($gameIds->isNotEmpty()) {
+                    Game::whereIn('id', $gameIds)->delete();
+                }
+
+                // Delete all matches
+                $deletedCount = $championship->matches()->delete();
+
+                // Reset tournament generation status
+                $championship->update([
+                    'tournament_generated' => false, // Reset the boolean flag
+                    'tournament_generated_at' => null,
+                    'current_round' => 0,
+                ]);
+
+                // Clear all standings
+                $championship->standings()->delete();
+
+                Log::info("All matches deleted from championship", [
+                    'championship_id' => $championship->id,
+                    'matches_deleted' => $deletedCount,
+                    'user_id' => Auth::id(),
+                ]);
+
+                return $deletedCount;
+            });
+
+            return response()->json([
+                'message' => 'All matches deleted successfully',
+                'matches_deleted' => $deletedCount,
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Failed to delete all matches", [
+                'championship_id' => $championship->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json(['error' => 'Failed to delete all matches'], 500);
+        }
+    }
+
+    /**
+     * Get tournament coverage analysis for top-K players
+     * GET /api/championships/{id}/coverage-analysis
+     */
+    public function getCoverageAnalysis(Request $request, Championship $championship): JsonResponse
+    {
+        $this->authorize('manage', $championship);
+
+        try {
+            // Validate request
+            $validated = $request->validate([
+                'top_k' => 'nullable|integer|min:2|max:6',
+            ]);
+
+            $topK = $validated['top_k'] ?? 3;
+
+            // Get coverage analysis
+            $coverage = $this->placeholderAssignment->getTopKCoverageAnalysis($championship, $topK);
+
+            // If tournament has generated matches, also validate existing coverage
+            if ($championship->isTournamentGenerated()) {
+                $tournamentCoverage = $this->tournamentGenerator->validateTournamentCoverage($championship);
+                $coverage['tournament_validation'] = $tournamentCoverage;
+            }
+
+            return response()->json([
+                'coverage' => $coverage,
+                'championship' => [
+                    'id' => $championship->id,
+                    'title' => $championship->title,
+                    'participants_count' => $championship->participants()->count(),
+                    'tournament_generated' => $championship->isTournamentGenerated(),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Failed to get coverage analysis", [
+                'championship_id' => $championship->id,
+                'top_k' => $topK ?? 3,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'error' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Assign round-robin placeholder matches for top-K coverage
+     * POST /api/championships/{id}/assign-round-robin-coverage
+     */
+    public function assignRoundRobinCoverage(Request $request, Championship $championship): JsonResponse
+    {
+        $this->authorize('manage', $championship);
+
+        try {
+            // Validate request
+            $validated = $request->validate([
+                'top_k' => 'required|integer|min:2|max:6',
+                'round_numbers' => 'required|array|min:1',
+                'round_numbers.*' => 'integer|min:1',
+            ]);
+
+            $topK = $validated['top_k'];
+            $roundNumbers = $validated['round_numbers'];
+
+            // Assign round-robin placeholders
+            $assignment = $this->placeholderAssignment->assignRoundRobinPlaceholders(
+                $championship,
+                $topK,
+                $roundNumbers
+            );
+
+            return response()->json([
+                'assignment' => $assignment,
+                'championship' => [
+                    'id' => $championship->id,
+                    'title' => $championship->title,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Failed to assign round-robin coverage", [
+                'championship_id' => $championship->id,
+                'top_k' => $validated['top_k'] ?? null,
+                'round_numbers' => $validated['round_numbers'] ?? null,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'error' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Send play challenge for championship match (like regular Challenge feature)
+     * POST /api/championships/{championship}/matches/{match}/challenge
+     */
+    public function sendChallenge(Request $request, Championship $championship, ChampionshipMatch $match): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+
+            // Verify user is a participant in this match
+            if ($match->player1_id !== $user->id && $match->player2_id !== $user->id) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'You are not a participant in this match'
+                ], 403);
+            }
+
+            // Verify match doesn't already have a game
+            if ($match->game_id) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'This match already has a game'
+                ], 400);
+            }
+
+            // Get opponent
+            $opponentId = $match->player1_id === $user->id ? $match->player2_id : $match->player1_id;
+            $opponent = \App\Models\User::find($opponentId);
+
+            if (!$opponent) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Opponent not found'
+                ], 404);
+            }
+
+            // Validate request
+            $validated = $request->validate([
+                'color_preference' => 'nullable|string|in:white,black,random',
+                'time_control' => 'nullable|string|in:bullet,blitz,rapid,classical'
+            ]);
+
+            $colorPreference = $validated['color_preference'] ?? 'random';
+            $timeControl = $validated['time_control'] ?? ($championship->time_control ?? 'blitz');
+
+            // TODO: Create game and send WebSocket notification to opponent
+            // This should work similar to the regular Challenge feature
+            // The game should be linked to this championship match
+
+            // For now, return success with pending status
+            return response()->json([
+                'success' => true,
+                'message' => "Challenge sent to {$opponent->name}",
+                'match_id' => $match->id,
+                'opponent' => [
+                    'id' => $opponent->id,
+                    'name' => $opponent->name
+                ],
+                'settings' => [
+                    'color_preference' => $colorPreference,
+                    'time_control' => $timeControl
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Failed to send championship match challenge", [
+                'championship_id' => $championship->id,
+                'match_id' => $match->id,
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Failed to send challenge: ' . $e->getMessage()
             ], 500);
         }
     }

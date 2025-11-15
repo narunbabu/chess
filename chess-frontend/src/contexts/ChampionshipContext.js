@@ -259,10 +259,32 @@ export const ChampionshipProvider = ({ children }) => {
     setLoading(true);
     setError(null);
     try {
+      // If user_only is true, use the dedicated my-matches endpoint
+      if (filters.user_only && filters.user_id) {
+        const response = await api.get(`/championships/${id}/my-matches`);
+        return response.data.data || response.data;
+      }
+
+      // Otherwise, use the regular matches endpoint
       const response = await api.get(`/championships/${id}/matches`, { params: filters });
       return response.data.data || response.data;
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to fetch matches');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Fetch all user's championship matches (across all championships)
+  const fetchMyMatches = useCallback(async (filters = {}) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await api.get('/championship-matches/my-matches', { params: filters });
+      return response.data.data || response.data;
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to fetch my matches');
       throw err;
     } finally {
       setLoading(false);
@@ -406,6 +428,7 @@ export const ChampionshipProvider = ({ children }) => {
       fetchParticipants,
       fetchStandings,
       fetchMatches,
+      fetchMyMatches,
       startChampionship,
       pauseChampionship,
       completeChampionship,

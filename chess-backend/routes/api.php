@@ -149,6 +149,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/{id}/matches', [\App\Http\Controllers\ChampionshipController::class, 'matches']);
         Route::get('/{id}/standings', [\App\Http\Controllers\ChampionshipController::class, 'standings']);
         Route::get('/{id}/my-matches', [\App\Http\Controllers\ChampionshipController::class, 'myMatches']);
+        Route::get('/{id}/stats', [\App\Http\Controllers\ChampionshipController::class, 'stats']);
 
         // Championship registration routes
         Route::post('/{id}/register', [\App\Http\Controllers\ChampionshipController::class, 'register']);
@@ -162,13 +163,30 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/schedule-next', [\App\Http\Controllers\ChampionshipMatchController::class, 'scheduleNextRound'])->middleware('can:manage,championship');
             Route::get('/bracket', [\App\Http\Controllers\ChampionshipMatchController::class, 'getBracket']);
             Route::get('/stats', [\App\Http\Controllers\ChampionshipMatchController::class, 'getStats']);
+            Route::delete('/', [\App\Http\Controllers\ChampionshipMatchController::class, 'destroyAll'])->middleware('can:manage,championship');
+        });
+
+        // Tournament generation routes (admin only)
+        Route::prefix('/{championship}')->middleware('can:manage,championship')->group(function () {
+            Route::post('/generate-full-tournament', [\App\Http\Controllers\ChampionshipMatchController::class, 'generateFullTournament']);
+            Route::get('/tournament-preview', [\App\Http\Controllers\ChampionshipMatchController::class, 'previewTournamentStructure']);
+            Route::get('/tournament-config', [\App\Http\Controllers\ChampionshipMatchController::class, 'getTournamentConfig']);
+            Route::put('/tournament-config', [\App\Http\Controllers\ChampionshipMatchController::class, 'updateTournamentConfig']);
+            Route::get('/coverage-analysis', [\App\Http\Controllers\ChampionshipMatchController::class, 'getCoverageAnalysis']);
+            Route::post('/assign-round-robin-coverage', [\App\Http\Controllers\ChampionshipMatchController::class, 'assignRoundRobinCoverage']);
+        });
+
+        // Championship match routes continued
+        Route::prefix('/{championship}/matches')->group(function () {
 
             // Parameterized routes that must come after specific routes
             Route::get('/{match}', [\App\Http\Controllers\ChampionshipMatchController::class, 'show']);
             Route::post('/{match}/game', [\App\Http\Controllers\ChampionshipMatchController::class, 'createGame']);
+            Route::post('/{match}/challenge', [\App\Http\Controllers\ChampionshipMatchController::class, 'sendChallenge']);
             Route::post('/{match}/result', [\App\Http\Controllers\ChampionshipMatchController::class, 'reportResult']);
             Route::post('/{match}/send-invitation', [\App\Http\Controllers\ChampionshipMatchController::class, 'sendInvitation'])->middleware('can:manage,championship');
             Route::put('/{match}/reschedule', [\App\Http\Controllers\ChampionshipMatchController::class, 'reschedule'])->middleware('can:manage,championship');
+            Route::delete('/{match}', [\App\Http\Controllers\ChampionshipMatchController::class, 'destroy'])->middleware('can:manage,championship');
 
             // Match scheduling routes
             Route::post('/{match}/schedule/propose', [\App\Http\Controllers\ChampionshipMatchSchedulingController::class, 'proposeSchedule']);

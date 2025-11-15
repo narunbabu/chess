@@ -3,18 +3,25 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useChampionship } from '../../contexts/ChampionshipContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { formatDateTime, getMatchResultDisplay, getMatchStatusColor } from '../../utils/championshipHelpers';
+import { formatDateTime, getMatchResultDisplay, getMatchStatusColor, formatDeadlineWithUrgency, getMatchCardUrgencyClass } from '../../utils/championshipHelpers';
+import { hasRole } from '../../utils/permissionHelpers';
+import axios from 'axios';
+import { BACKEND_URL } from '../../config';
 import './Championship.css';
 
 const ChampionshipMatches = ({
   championshipId,
+  championship = null,
   userOnly = false,
   matches: initialMatches = [],
   loading: initialLoading = false,
-  error: initialError = null
+  error: initialError = null,
+  onMatchDeleted = null,
+  showDeleteButtons = false // Default to false now
 }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [localChampionship, setLocalChampionship] = useState(championship);
 
   const [matches, setMatches] = useState(initialMatches);
   const [loading, setLoading] = useState(initialLoading);
@@ -23,24 +30,146 @@ const ChampionshipMatches = ({
   const [filterStatus, setFilterStatus] = useState('');
   const [reportingMatch, setReportingMatch] = useState(null);
   const [creatingGame, setCreatingGame] = useState(null);
+  const [deletingMatch, setDeletingMatch] = useState(null);
+  const [schedulingMatch, setSchedulingMatch] = useState(null);
+  const [proposingTime, setProposingTime] = useState(null);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
 
-  // If matches are passed as props, use them
+  // Load championship data to check admin/organizer status
+  const loadChampionship = useCallback(async () => {
+    if (!championshipId || userOnly || championship) return; // Only needed for admin view, skip if championship is already provided
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await axios.get(`${BACKEND_URL}/championships/${championshipId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      setLocalChampionship(response.data);
+    } catch (error) {
+      console.error('Failed to load championship:', error);
+    }
+  }, [championshipId, userOnly, championship]);
+
+  const loadMatches = useCallback(async () => {
+    if (!championshipId) {
+      setError('Championship ID is required');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const endpoint = userOnly
+        ? `${BACKEND_URL}/championships/${championshipId}/my-matches`
+        : `${BACKEND_URL}/championships/${championshipId}/matches`;
+
+      console.log('🔍 loadMatches Debug:', {
+        championshipId,
+        userOnly,
+        endpoint,
+        hasToken: !!token,
+        userId: user?.id
+      });
+
+      const response = await axios.get(endpoint, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log('📊 API Response:', {
+        endpoint,
+        status: response.status,
+        dataKeys: Object.keys(response.data),
+        matchesCount: response.data.matches ? (response.data.matches.data?.length || response.data.matches.length) : response.data?.length,
+        matches: response.data.matches ? (response.data.matches.data || response.data.matches) : response.data
+      });
+
+      // Handle different response formats
+      if (response.data.matches) {
+        // Paginated response format
+        setMatches(response.data.matches.data || response.data.matches);
+      } else {
+        // Direct array response
+        setMatches(response.data);
+      }
+    } catch (error) {
+      console.error('❌ Failed to load matches:', {
+        endpoint,
+        status: error.response?.status,
+        error: error.response?.data,
+        message: error.message
+      });
+      const errorMsg = error.response?.data?.error || error.response?.data?.message || 'Failed to load matches';
+      setError(errorMsg);
+      setMatches([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [championshipId, userOnly, user?.id]); // userOnly affects which endpoint we call
+
+  // Load championship data when needed
   useEffect(() => {
-    setMatches(initialMatches);
-    setLoading(initialLoading);
-    setError(initialError);
-  }, [initialMatches, initialLoading, initialError]);
+    loadChampionship();
+  }, [loadChampionship]);
+
+  // Only fetch data when we need to (not when props are provided)
+  useEffect(() => {
+    if (championshipId && !initialLoading && initialMatches.length === 0) {
+      loadMatches();
+    }
+  }, [championshipId, userOnly, loadMatches]); // Fetch when championship or user mode changes
+
+  // Update state when props change (but don't trigger new fetches)
+  useEffect(() => {
+    if (initialMatches.length > 0 || initialLoading) {
+      setMatches(initialMatches);
+      setLoading(initialLoading);
+      setError(initialError);
+    }
+  }, [initialMatches, initialLoading, initialError]); // Only sync with prop changes
 
   const handleCreateGame = async (matchId) => {
     setCreatingGame(matchId);
+    setError(null);
     try {
-      // TODO: Implement game creation API call
-      console.log('Create game for match:', matchId);
-      // const response = await createGameFromMatch(matchId);
-      // navigate(`/play/multiplayer/${response.game.id}`);
+      console.log('Creating game for match:', matchId);
+      const token = localStorage.getItem('auth_token');
+      const response = await axios.post(
+        `${BACKEND_URL}/championships/${championshipId}/matches/${matchId}/game`,
+        {
+          time_control: 'blitz',
+          color: 'random'
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          }
+        }
+      );
+
+      console.log('Game creation response:', response.data);
+
+      if (response.data.success && response.data.game_id) {
+        // Navigate to the game
+        navigate(`/play/${response.data.game_id}`);
+      } else if (response.data.match?.game_id) {
+        // Alternative response format
+        navigate(`/play/${response.data.match.game_id}`);
+      } else {
+        setError('Game created but no game ID returned');
+      }
     } catch (error) {
       console.error('Failed to create game:', error);
-      setError('Failed to create game');
+      setError(error.response?.data?.message || 'Failed to create game. Please try again.');
     } finally {
       setCreatingGame(null);
     }
@@ -61,18 +190,177 @@ const ChampionshipMatches = ({
     }
   };
 
+  const handleScheduleMatch = async (matchId, scheduledTime) => {
+    setSchedulingMatch(matchId);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await axios.put(
+        `${BACKEND_URL}/championships/${championshipId}/matches/${matchId}/schedule`,
+        { scheduled_at: scheduledTime },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data?.message) {
+        await loadMatches(); // Refresh matches
+        setShowScheduleModal(false);
+      }
+    } catch (error) {
+      console.error('Failed to schedule match:', error);
+      const errorMsg = error.response?.data?.error || 'Failed to schedule match';
+      setError(errorMsg);
+    } finally {
+      setSchedulingMatch(null);
+    }
+  };
+
+  const handleSendPlayRequest = async (matchId) => {
+    const match = transformedMatches.find(m => m.id === matchId);
+    if (!match) {
+      setError('Match not found');
+      return;
+    }
+
+    const opponent = getOpponent(match);
+    if (!opponent) {
+      setError('Opponent not found');
+      return;
+    }
+
+    if (!isOpponentOnline(match)) {
+      setError(`${opponent.name} is offline. They need to be online to accept your play request.`);
+      return;
+    }
+
+    setProposingTime(matchId);
+    setError(null);
+
+    try {
+      const token = localStorage.getItem('auth_token');
+
+      // Send championship match challenge (similar to regular challenge)
+      // This will create a game and send WebSocket notification to opponent
+      const response = await axios.post(
+        `${BACKEND_URL}/championships/${championshipId}/matches/${matchId}/challenge`,
+        {
+          color_preference: 'random', // Can be made configurable
+          time_control: championship.time_control || 'blitz'
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          }
+        }
+      );
+
+      if (response.data.success) {
+        // Show success message
+        alert(`🎮 Play challenge sent to ${opponent.name}! Waiting for them to accept...`);
+
+        // Optionally navigate to a waiting screen or refresh matches
+        await loadMatches();
+      }
+    } catch (error) {
+      console.error('Failed to send play request:', error);
+      const errorMessage = error.response?.data?.message ||
+                          error.response?.data?.error ||
+                          'Failed to send play request. Please try again.';
+      setError(errorMessage);
+    } finally {
+      setProposingTime(null);
+    }
+  };
+
+  const handleDeleteMatch = async (matchId) => {
+    if (!championshipId) {
+      alert('Championship ID is missing');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `⚠️ Delete Match\n\n` +
+      `Are you sure you want to delete this match?\n` +
+      `This action cannot be undone.`
+    );
+
+    if (!confirmed) return;
+
+    setDeletingMatch(matchId);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await axios.delete(
+        `${BACKEND_URL}/championships/${championshipId}/matches/${matchId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data?.message) {
+        // Refresh matches list from server
+        await loadMatches();
+
+        // Call callback if provided
+        if (onMatchDeleted) {
+          onMatchDeleted();
+        }
+      }
+    } catch (error) {
+      console.error('Failed to delete match:', error);
+      const errorMsg = error.response?.data?.error || 'Failed to delete match';
+      alert(`❌ Error: ${errorMsg}`);
+      setError(errorMsg);
+    } finally {
+      setDeletingMatch(null);
+    }
+  };
+
   const isUserParticipantInMatch = (match) => {
     return user && (match.white_player_id === user.id || match.black_player_id === user.id);
   };
 
   const canUserCreateGame = (match) => {
-    return isUserParticipantInMatch(match) && match.status === 'scheduled' && !match.game_id;
+    // Can create game if user is participant, match is pending/scheduled, and no game exists yet
+    const canCreate = isUserParticipantInMatch(match) &&
+           (match.status === 'scheduled' || match.status === 'pending') &&
+           !match.game_id;
+    console.log('canUserCreateGame:', { matchId: match.id, canCreate, status: match.status, hasGame: !!match.game_id });
+    return canCreate;
   };
 
   const canUserReportResult = (match) => {
-    return isUserParticipantInMatch(match) &&
-           (match.status === 'active' || match.status === 'scheduled') &&
+    const canReport = isUserParticipantInMatch(match) &&
+           (match.status === 'active' || match.status === 'scheduled' || match.status === 'pending') &&
            !match.result;
+    console.log('canUserReportResult:', { matchId: match.id, canReport, status: match.status, hasResult: !!match.result });
+    return canReport;
+  };
+
+  const canUserScheduleMatch = (match) => {
+    // Can schedule if user is participant and match is pending or scheduled
+    const canSchedule = isUserParticipantInMatch(match) &&
+           (match.status === 'scheduled' || match.status === 'pending') &&
+           !match.game_id;
+    console.log('canUserScheduleMatch:', { matchId: match.id, canSchedule, status: match.status });
+    return canSchedule;
+  };
+
+  const canUserRequestPlay = (match) => {
+    // Can request play if user is participant, match is pending/scheduled, no game exists, and opponent is online
+    const canRequest = isUserParticipantInMatch(match) &&
+           (match.status === 'scheduled' || match.status === 'pending') &&
+           !match.game_id &&
+           !match.result;
+    console.log('canUserRequestPlay:', { matchId: match.id, canRequest, status: match.status });
+    return canRequest;
   };
 
   const getOpponent = (match) => {
@@ -80,10 +368,42 @@ const ChampionshipMatches = ({
     return match.white_player_id === user.id ? match.black_player : match.white_player;
   };
 
+  const isOpponentOnline = (match) => {
+    const opponent = getOpponent(match);
+    if (!opponent) return false;
+
+    // Check if opponent was active in the last 5 minutes
+    if (opponent.last_activity_at) {
+      const lastActivity = new Date(opponent.last_activity_at);
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+      return lastActivity > fiveMinutesAgo;
+    }
+
+    return false;
+  };
+
   const getUserColor = (match) => {
     if (!user) return null;
     return match.white_player_id === user.id ? 'white' : 'black';
   };
+
+  // Check if user is admin or organizer using the proper permission helpers
+  const isAdmin = hasRole(user, ['platform_admin', 'organization_admin', 'tournament_organizer']);
+  const currentChampionship = championship || localChampionship;
+  const isOrganizer = currentChampionship?.organizer_id === user?.id;
+  const canEditMatches = (isAdmin || isOrganizer) && !userOnly;
+
+  // Debug logging
+  console.log('ChampionshipMatches Debug:', {
+    user: user?.id,
+    userRoles: user?.roles,
+    isAdmin,
+    championship: currentChampionship?.id,
+    organizerId: currentChampionship?.organizer_id,
+    isOrganizer,
+    canEditMatches,
+    userOnly
+  });
 
   const ResultReportModal = ({ match, isOpen, onClose, onSubmit }) => {
     const [result, setResult] = useState('');
@@ -160,64 +480,259 @@ const ChampionshipMatches = ({
     );
   };
 
+  const ScheduleMatchModal = ({ match, isOpen, onClose, onSubmit }) => {
+    const [scheduledTime, setScheduledTime] = useState('');
+    const [validationError, setValidationError] = useState('');
+
+    if (!isOpen) return null;
+
+    const handleSubmit = (e) => {
+      e.preventDefault();
+      if (!scheduledTime) return;
+
+      // Validate time is within allowed window
+      const selectedTime = new Date(scheduledTime);
+      const now = new Date();
+      const deadline = match.deadline ? new Date(match.deadline) : null;
+
+      if (selectedTime < now) {
+        setValidationError('Time must be in the future');
+        return;
+      }
+
+      if (deadline && selectedTime > deadline) {
+        setValidationError(`Time must be before the deadline: ${formatDateTime(deadline)}`);
+        return;
+      }
+
+      setValidationError('');
+      onSubmit(match.id, scheduledTime);
+      onClose();
+    };
+
+    // Set minimum time to current time
+    const now = new Date();
+    const minDateTime = now.toISOString().slice(0, 16);
+
+    // Set maximum time to match deadline
+    const deadline = match.deadline ? new Date(match.deadline) : null;
+    const maxDateTime = deadline ? deadline.toISOString().slice(0, 16) : null;
+
+    return (
+      <div className="modal-overlay">
+        <div className="modal">
+          <div className="modal-header">
+            <h3>Schedule Match</h3>
+            <button onClick={onClose} className="modal-close">×</button>
+          </div>
+          <form onSubmit={handleSubmit}>
+            <div className="modal-content">
+              {/* Allowed Window Info */}
+              <div style={{
+                padding: '12px',
+                backgroundColor: '#eff6ff',
+                border: '1px solid #3b82f6',
+                borderRadius: '6px',
+                marginBottom: '16px'
+              }}>
+                <h4 style={{ fontSize: '14px', fontWeight: 'bold', color: '#1e40af', marginBottom: '8px' }}>
+                  📅 Allowed Scheduling Window
+                </h4>
+                <div style={{ fontSize: '13px', color: '#1e3a8a' }}>
+                  <p style={{ margin: '4px 0' }}>
+                    <strong>From:</strong> Now ({formatDateTime(now)})
+                  </p>
+                  <p style={{ margin: '4px 0' }}>
+                    <strong>To:</strong> {deadline ? formatDateTime(deadline) : 'No deadline set'}
+                  </p>
+                  {deadline && (
+                    <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: '#3b82f6' }}>
+                      ⏰ You have{' '}
+                      {(() => {
+                        const diffMs = deadline - now;
+                        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                        const diffDays = Math.floor(diffHours / 24);
+                        if (diffDays > 0) return `${diffDays} day(s)`;
+                        if (diffHours > 0) return `${diffHours} hour(s)`;
+                        return 'less than 1 hour';
+                      })()}{' '}
+                      to complete this match
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="scheduledTime">Propose Match Time *</label>
+                <input
+                  type="datetime-local"
+                  id="scheduledTime"
+                  value={scheduledTime}
+                  onChange={(e) => {
+                    setScheduledTime(e.target.value);
+                    setValidationError('');
+                  }}
+                  min={minDateTime}
+                  max={maxDateTime}
+                  className="form-input"
+                  required
+                />
+                <small className="form-help">
+                  Your opponent can accept or propose an alternative time
+                </small>
+                {validationError && (
+                  <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
+                    ⚠️ {validationError}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button type="button" onClick={onClose} className="btn btn-secondary">
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={schedulingMatch === match.id}
+              >
+                {schedulingMatch === match.id ? 'Sending Proposal...' : '📤 Send Proposal'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  };
+
   const MatchCard = ({ match }) => {
     const opponent = getOpponent(match);
     const userColor = getUserColor(match);
     const isUserTurn = false; // This would need to be determined from game state
+    // Use deadline for deadline info
+    const deadlineInfo = formatDeadlineWithUrgency(match.deadline);
 
     return (
-      <div className="match-card">
+      <div className={`match-card ${getMatchCardUrgencyClass(match.deadline)}`}>
         <div className="match-header">
-          <div className="match-players">
-            <div className="player-info">
-              <div className={`player-name ${match.white_player_id === user?.id ? 'current-user' : ''}`}>
+          <div className="match-players" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            {/* White Player */}
+            <div className="player-info" style={{ flex: '1', minWidth: '0' }}>
+              <div className={`player-name ${match.white_player_id === user?.id ? 'current-user' : ''}`} style={{
+                fontSize: '14px',
+                fontWeight: '600',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+              }}>
                 {match.white_player ? match.white_player.name : (match.result_type === 'bye' ? 'Bye' : 'Unknown Player')}
-                {match.white_player_id === user?.id && <span className="you-indicator">(You)</span>}
+                {match.white_player_id === user?.id && <span className="you-indicator" style={{ fontSize: '12px', marginLeft: '4px' }}>(You)</span>}
               </div>
-              <div className="player-rating">{match.white_player?.rating || 'N/A'}</div>
+              {match.white_player?.email && (
+                <div style={{ fontSize: '11px', color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {match.white_player.email}
+                </div>
+              )}
+              <div className="player-rating" style={{ fontSize: '12px', color: '#374151', marginTop: '2px' }}>
+                Rating: {match.white_player?.rating || 'N/A'}
+              </div>
             </div>
 
-            <div className="vs-separator">VS</div>
+            {/* VS Separator */}
+            <div className="vs-separator" style={{ fontSize: '12px', fontWeight: '700', color: '#9ca3af' }}>VS</div>
 
-            <div className="player-info">
-              <div className={`player-name ${match.black_player_id === user?.id ? 'current-user' : ''}`}>
+            {/* Black Player */}
+            <div className="player-info" style={{ flex: '1', minWidth: '0' }}>
+              <div className={`player-name ${match.black_player_id === user?.id ? 'current-user' : ''}`} style={{
+                fontSize: '14px',
+                fontWeight: '600',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+              }}>
                 {match.black_player ? match.black_player.name : (match.result_type === 'bye' ? 'Bye' : 'Unknown Player')}
-                {match.black_player_id === user?.id && <span className="you-indicator">(You)</span>}
+                {match.black_player_id === user?.id && <span className="you-indicator" style={{ fontSize: '12px', marginLeft: '4px' }}>(You)</span>}
               </div>
-              <div className="player-rating">{match.black_player?.rating || 'N/A'}</div>
+              {match.black_player?.email && (
+                <div style={{ fontSize: '11px', color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {match.black_player.email}
+                </div>
+              )}
+              <div className="player-rating" style={{ fontSize: '12px', color: '#374151', marginTop: '2px' }}>
+                Rating: {match.black_player?.rating || 'N/A'}
+              </div>
             </div>
           </div>
 
-          <div className="match-meta">
-            <span className={`match-status ${getMatchStatusColor(match.status)}`}>
+          <div className="match-meta" style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '12px', fontSize: '12px' }}>
+            <span className={`match-status ${getMatchStatusColor(match.status)}`} style={{ padding: '4px 8px', borderRadius: '4px' }}>
               {match.status}
             </span>
-            <span className="round-info">
+            <span className="round-info" style={{ color: '#6b7280' }}>
               Round {match.round_number || match.round || 1}
               {match.board_number && `, Board ${match.board_number}`}
             </span>
           </div>
         </div>
 
-        <div className="match-details">
-          <div className="match-schedule">
-            <span className="schedule-label">Scheduled:</span>
-            <span className="schedule-time">
-              {formatDateTime(match.scheduled_at)}
-            </span>
+        <div className="match-details" style={{ marginTop: '12px' }}>
+          {/* Compact deadline and time window in one row */}
+          <div style={{
+            display: 'flex',
+            gap: '12px',
+            alignItems: 'flex-start',
+            padding: '8px 12px',
+            backgroundColor: '#f9fafb',
+            border: '1px solid #e5e7eb',
+            borderRadius: '6px',
+            fontSize: '12px'
+          }}>
+            <div style={{ flex: '1', minWidth: '0' }}>
+              <div style={{ fontWeight: '600', color: '#374151', marginBottom: '4px' }}>
+                Complete by:
+              </div>
+              <div className={`schedule-time ${deadlineInfo.color}`} style={{ fontSize: '11px', padding: '2px 6px', borderRadius: '3px', display: 'inline-block' }}>
+                {deadlineInfo.text}
+              </div>
+            </div>
+
+            {match.deadline && (
+              <div style={{ flex: '1', minWidth: '0', borderLeft: '1px solid #e5e7eb', paddingLeft: '12px' }}>
+                <div style={{ fontWeight: '600', color: '#374151', marginBottom: '4px' }}>
+                  📅 Time Window
+                </div>
+                <div style={{ color: '#6b7280', fontSize: '11px' }}>
+                  Now → {formatDateTime(new Date(match.deadline))}
+                </div>
+                <div style={{ color: '#3b82f6', fontSize: '11px', marginTop: '2px' }}>
+                  ⏰ {(() => {
+                    const now = new Date();
+                    const deadline = new Date(match.deadline);
+                    const diffMs = deadline - now;
+                    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                    const diffDays = Math.floor(diffHours / 24);
+                    if (diffDays > 0) return `${diffDays} day(s) remaining`;
+                    if (diffHours > 0) return `${diffHours} hour(s) remaining`;
+                    if (diffMs > 0) return 'less than 1 hour remaining';
+                    return 'Overdue';
+                  })()}
+                </div>
+              </div>
+            )}
           </div>
 
           {match.result && (
-            <div className="match-result">
-              <span className="result-label">Result:</span>
-              <span className="result-value">
+            <div className="match-result" style={{ marginTop: '8px', fontSize: '12px' }}>
+              <span className="result-label" style={{ fontWeight: '600' }}>Result:</span>
+              <span className="result-value" style={{ marginLeft: '8px' }}>
                 {getMatchResultDisplay(match)}
               </span>
             </div>
           )}
 
           {match.game_id && (
-            <div className="game-link">
+            <div className="game-link" style={{ marginTop: '8px' }}>
               <button
                 onClick={() => navigate(`/play/multiplayer/${match.game_id}`)}
                 className="btn btn-primary btn-small"
@@ -228,14 +743,61 @@ const ChampionshipMatches = ({
           )}
         </div>
 
-        <div className="match-actions">
-          {canUserCreateGame(match) && (
+        <div className="match-actions" style={{
+          borderTop: '2px solid #e5e7eb',
+          paddingTop: '12px',
+          marginTop: '12px',
+          display: 'flex',
+          gap: '8px',
+          flexWrap: 'wrap'
+        }}>
+          {/* Debug info */}
+          {console.log('Match Actions Debug:', {
+            matchId: match.id,
+            userOnly,
+            canSchedule: canUserScheduleMatch(match),
+            canCreateGame: canUserCreateGame(match),
+            canReportResult: canUserReportResult(match),
+            status: match.status,
+            hasGame: !!match.game_id
+          })}
+
+          {userOnly && canUserScheduleMatch(match) && (
             <button
-              onClick={() => handleCreateGame(match.id)}
-              disabled={creatingGame === match.id}
-              className="btn btn-success"
+              onClick={() => {
+                setSchedulingMatch(match.id);
+                setShowScheduleModal(true);
+              }}
+              disabled={schedulingMatch === match.id}
+              className="btn btn-warning btn-small"
+              title="Schedule this match for a specific time"
+              style={{ fontWeight: 'bold', fontSize: '14px' }}
             >
-              {creatingGame === match.id ? 'Creating...' : 'Start Game'}
+              {schedulingMatch === match.id ? 'Scheduling...' : '📅 Schedule'}
+            </button>
+          )}
+
+          {userOnly && canUserRequestPlay(match) && (
+            <button
+              onClick={() => handleSendPlayRequest(match.id)}
+              disabled={proposingTime === match.id || !isOpponentOnline(match)}
+              className="btn btn-success btn-small"
+              title={isOpponentOnline(match) ? "Send play challenge to opponent (like Challenge feature)" : "Opponent is offline"}
+              style={{
+                fontWeight: 'bold',
+                fontSize: '14px',
+                opacity: isOpponentOnline(match) ? 1 : 0.5
+              }}
+            >
+              {isOpponentOnline(match) && <span className="online-indicator" style={{
+                display: 'inline-block',
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                backgroundColor: '#10b981',
+                marginRight: '6px'
+              }}></span>}
+              {proposingTime === match.id ? 'Sending...' : '🎮 Request Play'}
             </button>
           )}
 
@@ -248,9 +810,9 @@ const ChampionshipMatches = ({
             >
               <button
                 onClick={() => setReportingMatch(match.id)}
-                className="btn btn-primary"
+                className="btn btn-primary btn-small"
               >
-                Report Result
+                📋 Report Result
               </button>
             </ResultReportModal>
           )}
@@ -261,12 +823,34 @@ const ChampionshipMatches = ({
             </div>
           )}
         </div>
+
+        {/* Schedule Modal */}
+        <ScheduleMatchModal
+          match={match}
+          isOpen={showScheduleModal && schedulingMatch === match.id}
+          onClose={() => {
+            setShowScheduleModal(false);
+            setSchedulingMatch(null);
+          }}
+          onSubmit={handleScheduleMatch}
+        />
       </div>
     );
   };
 
   // Transform matches to ensure consistent field names
   const transformMatch = (match) => {
+    console.log('🔄 transformMatch input:', {
+      matchId: match.id,
+      player1_id: match.player1_id,
+      player2_id: match.player2_id,
+      player1_name: match.player1?.name,
+      player2_name: match.player2?.name,
+      white_player_id: match.white_player_id,
+      black_player_id: match.black_player_id,
+      currentUserId: user?.id
+    });
+
     // Map player1/player2 to white_player/black_player based on color assignments
     let white_player = null;
     let black_player = null;
@@ -283,17 +867,40 @@ const ChampionshipMatches = ({
         : match.player2;
     }
 
-    return {
+    const transformed = {
       ...match,
       white_player,
       black_player,
       round: match.round_number || match.round || 1
     };
+
+    console.log('✅ transformMatch output:', {
+      matchId: transformed.id,
+      white_player_name: transformed.white_player?.name,
+      black_player_name: transformed.black_player?.name,
+      isUserPlayer1: match.player1_id === user?.id,
+      isUserPlayer2: match.player2_id === user?.id,
+      isUserWhitePlayer: match.white_player_id === user?.id,
+      isUserBlackPlayer: match.black_player_id === user?.id
+    });
+
+    return transformed;
   };
 
   // Group matches by round
   const matchesArray = Array.isArray(matches) ? matches : [];
   const transformedMatches = matchesArray.map(transformMatch);
+
+  console.log('🎯 Final match counts:', {
+    userOnly,
+    totalRawMatches: matchesArray.length,
+    totalTransformedMatches: transformedMatches.length,
+    userMatches: transformedMatches.filter(m =>
+      m.player1_id === user?.id || m.player2_id === user?.id
+    ).length,
+    currentUserId: user?.id
+  });
+
   const matchesByRound = transformedMatches.reduce((acc, match) => {
     const roundNum = match.round_number || match.round || 1;
     if (!acc[roundNum]) {
@@ -305,7 +912,7 @@ const ChampionshipMatches = ({
 
   const rounds = Object.keys(matchesByRound)
     .map(Number)
-    .sort((a, b) => b - a); // Show latest rounds first
+    .sort((a, b) => a - b); // Show Round 1 first, then higher rounds
 
   if (loading) {
     return (
@@ -333,45 +940,74 @@ const ChampionshipMatches = ({
   return (
     <div className="championship-matches">
       <div className="matches-header">
-        <h2>{userOnly ? 'My Matches' : 'All Matches'}</h2>
+        <div className="header-left">
+          <h2>{userOnly ? 'My Matches' : 'All Matches'}</h2>
+        </div>
 
-        {!userOnly && (
-          <div className="matches-filters">
-            <select
-              value={filterRound}
-              onChange={(e) => setFilterRound(e.target.value)}
-              className="filter-select"
+        <div className="header-right">
+          {canEditMatches && (
+            <button
+              onClick={() => navigate(`/championships/${championshipId}/matches/edit`)}
+              className="btn btn-admin"
+              title="Edit and manage matches"
             >
-              <option value="">All Rounds</option>
-              {rounds.map(round => (
-                <option key={round} value={round}>Round {round}</option>
-              ))}
-            </select>
-
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="filter-select"
-            >
-              <option value="">All Statuses</option>
-              <option value="scheduled">Scheduled</option>
-              <option value="active">Active</option>
-              <option value="completed">Completed</option>
-              <option value="expired">Expired</option>
-            </select>
-          </div>
-        )}
+              <span className="btn-icon">✏️</span>
+              <span className="btn-text">Edit Matches</span>
+            </button>
+          )}
+        </div>
       </div>
+
+      {!userOnly && (
+        <div className="matches-filters">
+          <select
+            value={filterRound}
+            onChange={(e) => setFilterRound(e.target.value)}
+            className="filter-select"
+          >
+            <option value="">All Rounds</option>
+            {rounds.map(round => (
+              <option key={round} value={round}>Round {round}</option>
+            ))}
+          </select>
+
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="filter-select"
+          >
+            <option value="">All Statuses</option>
+            <option value="scheduled">Scheduled</option>
+            <option value="active">Active</option>
+            <option value="completed">Completed</option>
+            <option value="expired">Expired</option>
+          </select>
+        </div>
+      )}
 
       {transformedMatches.length === 0 ? (
         <div className="empty-state">
           <h3>{userOnly ? 'No matches found' : 'No matches created yet'}</h3>
           <p>
             {userOnly
-              ? 'You are not participating in any matches for this championship.'
+              ? (championshipId && user && currentChampionship?.status === 'in_progress'
+                  ? 'You don\'t have any matches yet. Matches may not have been generated, or you might not be paired for the current round. Check back later!'
+                  : currentChampionship?.status === 'registration_open'
+                  ? 'The tournament hasn\'t started yet. Once registration closes and matches are generated, your matches will appear here.'
+                  : 'You need to be registered for this championship to see your matches.')
               : 'Click "Generate Matches for Next Round" to create the first round of matches.'
             }
           </p>
+          {userOnly && championshipId && user && (
+            <div className="empty-state-actions">
+              <button
+                onClick={() => navigate(`/championships/${championshipId}`)}
+                className="btn btn-primary"
+              >
+                Back to Championship Overview
+              </button>
+            </div>
+          )}
         </div>
       ) : (
         <div className="matches-content">
