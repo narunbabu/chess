@@ -85,6 +85,58 @@ export const GlobalInvitationProvider = ({ children }) => {
       }
     });
 
+    // Listen for invitation accepted (for inviters - navigate to game)
+    userChannel.listen('.invitation.accepted', (data) => {
+      console.log('[GlobalInvitation] 🎉 Invitation accepted event received:', data);
+
+      // Remove any pending invitation (cleanup)
+      if (data.invitation && data.invitation.id) {
+        console.log('[GlobalInvitation] Removing accepted invitation from pending:', data.invitation.id);
+        if (pendingInvitationRef.current?.id === data.invitation.id) {
+          setPendingInvitation(null);
+        }
+      }
+
+      // Navigate to the game if game data is provided
+      if (data.game && data.game.id) {
+        console.log('[GlobalInvitation] 🎮 Navigating to game ID:', data.game.id);
+
+        // Set session markers for proper game access (challenger perspective)
+        sessionStorage.setItem('lastInvitationAction', 'invitation_accepted_by_other');
+        sessionStorage.setItem('lastInvitationTime', Date.now().toString());
+        sessionStorage.setItem('lastGameId', data.game.id.toString());
+
+        navigate(`/play/multiplayer/${data.game.id}`);
+      } else {
+        console.warn('[GlobalInvitation] ⚠️ Invitation accepted but no game data in event:', data);
+      }
+    });
+
+    // Listen for championship invitation accepted (for inviters - navigate to game)
+    userChannel.listen('.championship.invitation.accepted', (data) => {
+      console.log('[GlobalInvitation] 🏆 Championship invitation accepted event received:', data);
+
+      // Remove any pending invitation (cleanup)
+      if (data.match) {
+        console.log('[GlobalInvitation] Removing championship match from pending');
+        setPendingInvitation(null);
+      }
+
+      // Navigate to the game if game data is provided
+      if (data.game && data.game.id) {
+        console.log('[GlobalInvitation] 🎮 Navigating to championship game ID:', data.game.id);
+
+        // Set session markers for proper game access (challenger perspective)
+        sessionStorage.setItem('lastInvitationAction', 'championship_invitation_accepted_by_other');
+        sessionStorage.setItem('lastInvitationTime', Date.now().toString());
+        sessionStorage.setItem('lastGameId', data.game.id.toString());
+
+        navigate(`/play/multiplayer/${data.game.id}`);
+      } else {
+        console.warn('[GlobalInvitation] ⚠️ Championship invitation accepted but no game data in event:', data);
+      }
+    });
+
     // Listen for invitation cancelled (for cleanup)
     userChannel.listen('.invitation.cancelled', (data) => {
       console.log('[GlobalInvitation] Invitation cancelled:', data);

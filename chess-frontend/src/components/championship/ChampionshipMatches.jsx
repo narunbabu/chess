@@ -5,6 +5,7 @@ import { useChampionship } from '../../contexts/ChampionshipContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatDateTime, getMatchResultDisplay, getMatchStatusColor, formatDeadlineWithUrgency, getMatchCardUrgencyClass } from '../../utils/championshipHelpers';
 import { hasRole } from '../../utils/permissionHelpers';
+import useContextualPresence from '../../hooks/useContextualPresence';
 import axios from 'axios';
 import { BACKEND_URL } from '../../config';
 import './Championship.css';
@@ -34,6 +35,9 @@ const ChampionshipMatches = ({
   const [schedulingMatch, setSchedulingMatch] = useState(null);
   const [proposingTime, setProposingTime] = useState(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+
+  // Use contextual presence for smart, efficient status tracking
+  const { opponents, loadOpponents, refreshOpponents, isUserOnline } = useContextualPresence();
 
   // Load championship data to check admin/organizer status
   const loadChampionship = useCallback(async () => {
@@ -135,6 +139,24 @@ const ChampionshipMatches = ({
     }
   }, [initialMatches, initialLoading, initialError]); // Only sync with prop changes
 
+  // Load opponents when championship ID changes
+  useEffect(() => {
+    if (championshipId && userOnly) {
+      loadOpponents();
+    }
+  }, [championshipId, userOnly, loadOpponents]);
+
+  // Auto-refresh opponents every 30 seconds
+  useEffect(() => {
+    if (!championshipId || !userOnly) return;
+
+    const interval = setInterval(() => {
+      refreshOpponents();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [championshipId, userOnly, refreshOpponents]);
+
   const handleCreateGame = async (matchId) => {
     setCreatingGame(matchId);
     setError(null);
@@ -191,12 +213,22 @@ const ChampionshipMatches = ({
   };
 
   const handleScheduleMatch = async (matchId, scheduledTime) => {
+    console.log('🚀 Scheduling match:', { matchId, scheduledTime, championshipId });
     setSchedulingMatch(matchId);
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await axios.put(
-        `${BACKEND_URL}/championships/${championshipId}/matches/${matchId}/schedule`,
-        { scheduled_at: scheduledTime },
+      if (!token) {
+        throw new Error('No auth token found');
+      }
+
+      // Convert datetime-local to ISO format for backend
+      const scheduledTimeISO = new Date(scheduledTime).toISOString();
+      console.log('📡 Sending schedule request to:', `${BACKEND_URL}/api/championships/${championshipId}/matches/${matchId}/schedule/propose`);
+      console.log('⏰ Proposed time (ISO):', scheduledTimeISO);
+
+      const response = await axios.post(
+        `${BACKEND_URL}/api/championships/${championshipId}/matches/${matchId}/schedule/propose`,
+        { proposed_time: scheduledTimeISO },
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -205,14 +237,22 @@ const ChampionshipMatches = ({
         }
       );
 
-      if (response.data?.message) {
+      console.log('✅ Schedule response:', response.data);
+      if (response.data?.message || response.data?.success) {
         await loadMatches(); // Refresh matches
         setShowScheduleModal(false);
+        // Show success message
+        setError('Schedule proposal sent successfully!');
+        // Clear error after 3 seconds
+        setTimeout(() => setError(null), 3000);
       }
     } catch (error) {
-      console.error('Failed to schedule match:', error);
-      const errorMsg = error.response?.data?.error || 'Failed to schedule match';
+      console.error('❌ Failed to schedule match:', error);
+      console.error('Error response:', error.response?.data);
+      const errorMsg = error.response?.data?.message || error.response?.data?.error || 'Failed to schedule match';
       setError(errorMsg);
+      // Also close the modal on error so user can try again
+      setShowScheduleModal(false);
     } finally {
       setSchedulingMatch(null);
     }
@@ -244,11 +284,17 @@ const ChampionshipMatches = ({
 
       // Send championship match challenge (similar to regular challenge)
       // This will create a game and send WebSocket notification to opponent
+
+      // Extract time control string from championship config
+      const timeControl = typeof currentChampionship?.time_control === 'object'
+        ? 'blitz' // Default if it's an object
+        : (currentChampionship?.time_control || 'blitz');
+
       const response = await axios.post(
         `${BACKEND_URL}/championships/${championshipId}/matches/${matchId}/challenge`,
         {
           color_preference: 'random', // Can be made configurable
-          time_control: championship.time_control || 'blitz'
+          time_control: timeControl
         },
         {
           headers: {
@@ -370,16 +416,27 @@ const ChampionshipMatches = ({
 
   const isOpponentOnline = (match) => {
     const opponent = getOpponent(match);
-    if (!opponent) return false;
-
-    // Check if opponent was active in the last 5 minutes
-    if (opponent.last_activity_at) {
-      const lastActivity = new Date(opponent.last_activity_at);
-      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-      return lastActivity > fiveMinutesAgo;
+    if (!opponent) {
+      console.log('❌ No opponent found for match');
+      return false;
     }
 
-    return false;
+    // Debug: Check opponents state
+    console.log('🔍 Checking opponent online status:', {
+      opponentId: opponent.id,
+      opponentName: opponent.name,
+      opponentsInState: opponents.length,
+      opponentsData: opponents.map(o => ({ id: o.user_id, name: o.name, online: o.is_online }))
+    });
+
+    // Use contextual presence (only checks current round opponents)
+    const online = isUserOnline(opponent.id);
+    if (online) {
+      console.log(`✅ ${opponent.name} is online`);
+    } else {
+      console.log(`❌ ${opponent.name} is offline`);
+    }
+    return online;
   };
 
   const getUserColor = (match) => {
@@ -613,28 +670,84 @@ const ChampionshipMatches = ({
     // Use deadline for deadline info
     const deadlineInfo = formatDeadlineWithUrgency(match.deadline);
 
+    // Check online status for both players using contextual presence
+    // Current user is ALWAYS online (they're viewing this page!)
+    const whitePlayerOnline = match.white_player
+      ? (match.white_player.id === user?.id ? true : isUserOnline(match.white_player.id))
+      : false;
+    const blackPlayerOnline = match.black_player
+      ? (match.black_player.id === user?.id ? true : isUserOnline(match.black_player.id))
+      : false;
+
+    console.log('🎯 Player online status check:', {
+      matchId: match.id,
+      currentUserId: user?.id,
+      whitePlayerId: match.white_player?.id,
+      blackPlayerId: match.black_player?.id,
+      whitePlayerOnline,
+      blackPlayerOnline,
+      isCurrentUserWhite: match.white_player?.id === user?.id,
+      isCurrentUserBlack: match.black_player?.id === user?.id
+    });
+
+    // Get urgency-based background color
+    const getCardBackgroundColor = () => {
+      switch(deadlineInfo.urgency) {
+        case 'danger':
+        case 'critical':
+          return '#fee2e2'; // Light red
+        case 'high':
+          return '#fed7aa'; // Light orange
+        case 'moderate':
+          return '#fef3c7'; // Light yellow
+        case 'low':
+          return '#dbeafe'; // Light blue
+        default:
+          return '#ffffff'; // White
+      }
+    };
+
     return (
-      <div className={`match-card ${getMatchCardUrgencyClass(match.deadline)}`}>
+      <div className={`match-card ${getMatchCardUrgencyClass(match.deadline)}`} style={{
+        backgroundColor: getCardBackgroundColor(),
+        transition: 'all 0.3s ease'
+      }}>
         <div className="match-header">
           <div className="match-players" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             {/* White Player */}
             <div className="player-info" style={{ flex: '1', minWidth: '0' }}>
-              <div className={`player-name ${match.white_player_id === user?.id ? 'current-user' : ''}`} style={{
-                fontSize: '14px',
-                fontWeight: '600',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap'
-              }}>
-                {match.white_player ? match.white_player.name : (match.result_type === 'bye' ? 'Bye' : 'Unknown Player')}
-                {match.white_player_id === user?.id && <span className="you-indicator" style={{ fontSize: '12px', marginLeft: '4px' }}>(You)</span>}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {/* Online/Offline Indicator */}
+                {match.white_player && (
+                  <span
+                    title={whitePlayerOnline ? 'Online' : 'Offline'}
+                    style={{
+                      display: 'inline-block',
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: whitePlayerOnline ? '#10b981' : '#ef4444',
+                      flexShrink: 0
+                    }}
+                  />
+                )}
+                <div className={`player-name ${match.white_player_id === user?.id ? 'current-user' : ''}`} style={{
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap'
+                }}>
+                  {match.white_player ? match.white_player.name : (match.result_type === 'bye' ? 'Bye' : 'Unknown Player')}
+                  {match.white_player_id === user?.id && <span className="you-indicator" style={{ fontSize: '12px', marginLeft: '4px' }}>(You)</span>}
+                </div>
               </div>
               {match.white_player?.email && (
-                <div style={{ fontSize: '11px', color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: '11px', color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginLeft: '14px' }}>
                   {match.white_player.email}
                 </div>
               )}
-              <div className="player-rating" style={{ fontSize: '12px', color: '#374151', marginTop: '2px' }}>
+              <div className="player-rating" style={{ fontSize: '12px', color: '#374151', marginTop: '2px', marginLeft: '14px' }}>
                 Rating: {match.white_player?.rating || 'N/A'}
               </div>
             </div>
@@ -644,22 +757,38 @@ const ChampionshipMatches = ({
 
             {/* Black Player */}
             <div className="player-info" style={{ flex: '1', minWidth: '0' }}>
-              <div className={`player-name ${match.black_player_id === user?.id ? 'current-user' : ''}`} style={{
-                fontSize: '14px',
-                fontWeight: '600',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap'
-              }}>
-                {match.black_player ? match.black_player.name : (match.result_type === 'bye' ? 'Bye' : 'Unknown Player')}
-                {match.black_player_id === user?.id && <span className="you-indicator" style={{ fontSize: '12px', marginLeft: '4px' }}>(You)</span>}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {/* Online/Offline Indicator */}
+                {match.black_player && (
+                  <span
+                    title={blackPlayerOnline ? 'Online' : 'Offline'}
+                    style={{
+                      display: 'inline-block',
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: blackPlayerOnline ? '#10b981' : '#ef4444',
+                      flexShrink: 0
+                    }}
+                  />
+                )}
+                <div className={`player-name ${match.black_player_id === user?.id ? 'current-user' : ''}`} style={{
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap'
+                }}>
+                  {match.black_player ? match.black_player.name : (match.result_type === 'bye' ? 'Bye' : 'Unknown Player')}
+                  {match.black_player_id === user?.id && <span className="you-indicator" style={{ fontSize: '12px', marginLeft: '4px' }}>(You)</span>}
+                </div>
               </div>
               {match.black_player?.email && (
-                <div style={{ fontSize: '11px', color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: '11px', color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginLeft: '14px' }}>
                   {match.black_player.email}
                 </div>
               )}
-              <div className="player-rating" style={{ fontSize: '12px', color: '#374151', marginTop: '2px' }}>
+              <div className="player-rating" style={{ fontSize: '12px', color: '#374151', marginTop: '2px', marginLeft: '14px' }}>
                 Rating: {match.black_player?.rating || 'N/A'}
               </div>
             </div>

@@ -188,8 +188,22 @@ const ChampionshipList = () => {
     return true;
   });
 
-  const toggleActionPanel = (championshipId) => {
+  const toggleActionPanel = (championshipId, event) => {
+    // Prevent scroll jump when toggling action panel
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    // Preserve scroll position
+    const scrollY = window.scrollY;
+
     setExpandedActionPanel(prev => prev === championshipId ? null : championshipId);
+
+    // Restore scroll position after state update
+    requestAnimationFrame(() => {
+      window.scrollTo(0, scrollY);
+    });
   };
 
   const ChampionshipCard = ({ championship, isArchived = false }) => {
@@ -276,8 +290,9 @@ const ChampionshipList = () => {
 
       <div className="championship-actions-container">
         <button
+        type="button"
         className={`actions-toggle ${isPanelExpanded ? 'active' : ''}`}
-        onClick={() => toggleActionPanel(championship.id)}
+        onClick={(e) => toggleActionPanel(championship.id, e)}
         aria-label="Toggle actions"
         >
         <span className="toggle-icon">⚙️</span>

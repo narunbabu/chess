@@ -169,6 +169,22 @@ class ChampionshipMatch extends Model
     }
 
     /**
+     * The white player for this match
+     */
+    public function white_player()
+    {
+        return $this->belongsTo(User::class, 'white_player_id');
+    }
+
+    /**
+     * The black player for this match
+     */
+    public function black_player()
+    {
+        return $this->belongsTo(User::class, 'black_player_id');
+    }
+
+    /**
      * Get the scheduling proposals for this match
      */
     public function schedules()

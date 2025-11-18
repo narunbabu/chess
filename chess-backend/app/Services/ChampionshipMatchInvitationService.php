@@ -313,24 +313,42 @@ class ChampionshipMatchInvitationService
                 // Use pre-assigned colors from Swiss pairing, respect preferences if possible
                 $colors = $this->assignFinalColors($match, $invitation, $desiredColor);
 
-                // Update match with final player assignments and invitation status
+                // Create actual game like lobby system does
+                $game = \App\Models\Game::create([
+                    'white_player_id' => $colors['white'],
+                    'black_player_id' => $colors['black'],
+                    'status' => 'waiting',
+                    'result' => 'ongoing',
+                    'championship_match_id' => $match->id,
+                ]);
+
+                Log::info('🎮 Championship game created:', [
+                    'game_id' => $game->id,
+                    'championship_match_id' => $match->id,
+                    'white_player_id' => $game->white_player_id,
+                    'black_player_id' => $game->black_player_id
+                ]);
+
+                // Update match with final player assignments and game link
                 $match->update([
                     'player1_id' => $colors['white'], // Legacy support
                     'player2_id' => $colors['black'], // Legacy support
                     'white_player_id' => $colors['white'], // Enhanced color assignment
                     'black_player_id' => $colors['black'], // Enhanced color assignment
-                    'status' => ChampionshipMatchStatus::SCHEDULED,
+                    'status' => ChampionshipMatchStatus::IN_PROGRESS,
+                    'game_id' => $game->id,
                     'scheduled_at' => now(),
                     'deadline' => now()->addHours($match->championship->match_time_window_hours),
                     'invitation_status' => 'accepted',
                     'invitation_accepted_at' => now(),
                 ]);
 
-                // Update invitation with enhanced metadata
+                // Update invitation with game reference and metadata
                 $invitation->update([
                     'status' => 'accepted',
                     'responded_by' => auth()->id(),
                     'responded_at' => now(),
+                    'game_id' => $game->id,
                     'desired_color' => $desiredColor,
                     'metadata' => array_merge($invitation->metadata ?? [], [
                         'final_colors' => $colors,
@@ -342,15 +360,29 @@ class ChampionshipMatchInvitationService
 
                 DB::commit();
 
-                // Broadcast the acceptance
-                $user = auth()->user();
-                broadcast(new \App\Events\ChampionshipMatchInvitationAccepted($match, $user));
+                // Broadcast the same InvitationAccepted event as lobby system
+                $freshInvitation = $invitation->fresh(['inviter', 'invited']);
+                Log::info('🎉 Broadcasting Championship InvitationAccepted event (same as lobby)', [
+                    'invitation_id' => $freshInvitation->id,
+                    'game_id' => $game->id,
+                    'championship_match_id' => $match->id,
+                    'inviter_user_id' => $invitation->inviter_id,
+                    'channel' => "App.Models.User.{$invitation->inviter_id}",
+                    'event' => 'invitation.accepted'
+                ]);
+                broadcast(new \App\Events\InvitationAccepted($game, $freshInvitation));
 
                 return [
                     'message' => 'Match invitation accepted',
+                    'game' => $game->load(['statusRelation', 'endReasonRelation', 'whitePlayer', 'blackPlayer']),
                     'match' => $match->fresh()->load(['whitePlayer', 'blackPlayer']),
                     'player_color' => auth()->id() === $colors['white'] ? 'white' : 'black',
                     'colors' => $colors,
+                    'championship_context' => [
+                        'championship_id' => $match->championship_id,
+                        'round_number' => $match->round_number,
+                        'match_id' => $match->id,
+                    ]
                 ];
             }
 

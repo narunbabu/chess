@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Championship;
 use App\Models\ChampionshipMatch;
 use App\Models\Game;
+use App\Models\Invitation;
 use App\Services\MatchSchedulerService;
 use App\Services\SwissPairingService;
 use App\Services\EliminationBracketService;
@@ -978,11 +979,30 @@ class ChampionshipMatchController extends Controller
             $colorPreference = $validated['color_preference'] ?? 'random';
             $timeControl = $validated['time_control'] ?? ($championship->time_control ?? 'blitz');
 
-            // TODO: Create game and send WebSocket notification to opponent
-            // This should work similar to the regular Challenge feature
-            // The game should be linked to this championship match
+            // Create invitation similar to lobby system to send WebSocket notification
+            // This works like the regular Challenge feature but for championship matches
+            $colorPreference = $colorPreference === 'random' ? (random_int(0, 1) ? 'white' : 'black') : $colorPreference;
 
-            // For now, return success with pending status
+            $invitation = Invitation::create([
+                'inviter_id' => $user->id,
+                'invited_id' => $opponentId,
+                'status' => 'pending',
+                'inviter_preferred_color' => $colorPreference,
+                'type' => 'game_invitation',
+                'championship_match_id' => $match->id
+            ]);
+
+            // Broadcast invitation sent event to recipient in real-time (same as lobby)
+            $freshInvitation = $invitation->fresh(['inviter', 'invited']);
+            Log::info('📨 Broadcasting Championship InvitationSent event', [
+                'invitation_id' => $freshInvitation->id,
+                'championship_id' => $championship->id,
+                'match_id' => $match->id,
+                'invited_user_id' => $opponentId,
+                'channel' => "App.Models.User.{$opponentId}",
+                'event' => 'invitation.sent'
+            ]);
+            broadcast(new \App\Events\InvitationSent($freshInvitation));
             return response()->json([
                 'success' => true,
                 'message' => "Challenge sent to {$opponent->name}",
@@ -994,7 +1014,8 @@ class ChampionshipMatchController extends Controller
                 'settings' => [
                     'color_preference' => $colorPreference,
                     'time_control' => $timeControl
-                ]
+                ],
+                'invitation' => $freshInvitation
             ]);
         } catch (\Exception $e) {
             Log::error("Failed to send championship match challenge", [

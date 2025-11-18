@@ -242,8 +242,8 @@ class ChampionshipController extends Controller
     {
         try {
             $championship = Championship::with([
-                'participants.user:id,name,email,avatar_url,rating',
-                'standings.user:id,name,email,avatar_url,rating',
+                'participants.user:id,name,email,avatar_url,rating,last_activity_at',
+                'standings.user:id,name,email,avatar_url,rating,last_activity_at',
             ])->findOrFail($id);
 
             // Get user using same guard as index method for consistency
@@ -617,7 +617,7 @@ class ChampionshipController extends Controller
             $championship = Championship::findOrFail($id);
 
             $participants = ChampionshipParticipant::where('championship_id', $id)
-                ->with('user:id,name,email,avatar_url,rating')
+                ->with('user:id,name,email,avatar_url,rating,last_activity_at')
                 ->paid() // Only paid participants
                 ->orderBy('registered_at')
                 ->get();
@@ -659,8 +659,10 @@ class ChampionshipController extends Controller
 
             $query = ChampionshipMatch::where('championship_id', $id)
                 ->with([
-                    'player1:id,name,email,avatar_url,rating',
-                    'player2:id,name,email,avatar_url,rating',
+                    'player1:id,name,email,avatar_url,rating,last_activity_at',
+                    'player2:id,name,email,avatar_url,rating,last_activity_at',
+                    'white_player:id,name,email,avatar_url,rating,last_activity_at',
+                    'black_player:id,name,email,avatar_url,rating,last_activity_at',
                     'winner:id,name,email,avatar_url',
                     'game:id,status,result,pgn',
                 ]);
@@ -713,7 +715,7 @@ class ChampionshipController extends Controller
             $championship = Championship::findOrFail($id);
 
             $standings = ChampionshipStanding::where('championship_id', $id)
-                ->with('user:id,name,email,avatar_url,rating')
+                ->with('user:id,name,email,avatar_url,rating,last_activity_at')
                 ->ordered()
                 ->get();
 
@@ -778,8 +780,10 @@ class ChampionshipController extends Controller
                         ->orWhere('player2_id', $user->id);
                 })
                 ->with([
-                    'player1:id,name,email,avatar_url,rating',
-                    'player2:id,name,email,avatar_url,rating',
+                    'player1:id,name,email,avatar_url,rating,last_activity_at',
+                    'player2:id,name,email,avatar_url,rating,last_activity_at',
+                    'white_player:id,name,email,avatar_url,rating,last_activity_at',
+                    'black_player:id,name,email,avatar_url,rating,last_activity_at',
                     'winner:id,name,email,avatar_url',
                     'game:id,status,result,pgn',
                 ])

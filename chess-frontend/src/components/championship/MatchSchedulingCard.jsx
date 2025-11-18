@@ -3,13 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
 import { formatDateTime, formatDateTimeShort, getMatchStatusColor } from '../../utils/championshipHelpers';
+import useUserStatus from '../../hooks/useUserStatus';
 import './Championship.css';
 
 const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isUserOnline, isInitialized } = useUserStatus();
 
-  const [loading, setLoading] = useState(false);
+  // Separate loading states for different actions
+  const [proposingSchedule, setProposingSchedule] = useState(false);
+  const [acceptingSchedule, setAcceptingSchedule] = useState(false);
+  const [creatingGame, setCreatingGame] = useState(false);
   const [error, setError] = useState(null);
   const [showScheduleForm, setShowScheduleForm] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
@@ -129,19 +134,79 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
     return championship.allow_early_play && !match.game_id && match.scheduling_status !== 'forfeit';
   };
 
-  const isOpponentOnline = (opponent) => {
-    // This would need to be implemented based on your presence system
-    // For now, we'll use a placeholder
-    return opponent?.last_activity_at &&
-           new Date(opponent.last_activity_at) > new Date(Date.now() - 5 * 60 * 1000);
+  // Track players' online status
+  const [playerOnlineStatus, setPlayerOnlineStatus] = useState({});
+
+  // Check online status of both players
+  useEffect(() => {
+    const checkPlayersStatus = async () => {
+      if (!isInitialized || !user?.id) return;
+
+      try {
+        const playerIds = [match.player1_id, match.player2_id].filter(id => id);
+
+        if (playerIds.length === 0) return;
+
+        // Check status for all players
+        const statusMap = await batchCheckStatus(playerIds);
+
+        const statusObj = {};
+        playerIds.forEach(id => {
+          // Current user is ALWAYS online (they're viewing this page!)
+          if (id === user.id) {
+            statusObj[id] = true;
+          } else {
+            statusObj[id] = statusMap.get(id) || false;
+          }
+        });
+
+        console.log('🔄 Player status update:', {
+          currentUserId: user.id,
+          player1Id: match.player1_id,
+          player2Id: match.player2_id,
+          statusObj
+        });
+
+        setPlayerOnlineStatus(statusObj);
+      } catch (error) {
+        console.error('Failed to check players status:', error);
+      }
+    };
+
+    checkPlayersStatus();
+
+    // Poll every 30 seconds to update status
+    const interval = setInterval(checkPlayersStatus, 30000);
+
+    return () => clearInterval(interval);
+  }, [match.player1_id, match.player2_id, user?.id, isInitialized, batchCheckStatus]);
+
+  const isPlayerOnline = (playerId) => {
+    // Current user is always online
+    if (user?.id === playerId) return true;
+    return !!playerOnlineStatus[playerId];
   };
 
   const handleProposeTime = async (e) => {
     e.preventDefault();
-    setLoading(true);
+
+    // Validate the form data
+    if (!scheduleData.proposed_time) {
+      setError('Please select a time for the match');
+      return;
+    }
+
+    setProposingSchedule(true);
     setError(null);
 
     try {
+      console.log('Sending schedule proposal:', {
+        proposed_time: scheduleData.proposed_time,
+        message: scheduleData.message,
+        championshipId: championship.id,
+        matchId: match.id
+      });
+
       const response = await api.post(
         `/championships/${championship.id}/matches/${match.id}/schedule/propose`,
         {
@@ -150,21 +215,41 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
         }
       );
 
-      if (response.data.success) {
+      console.log('Schedule proposal response:', response.data);
+
+      // Check for success response
+      if (response.data.success || response.data.proposal) {
+        // Success! Close form and refresh
         setShowScheduleForm(false);
         setScheduleData({ proposed_time: '', message: '' });
+        setError('✅ Schedule proposal sent successfully!');
+
+        // Refresh data
         await loadScheduleProposals();
         if (onMatchUpdate) onMatchUpdate();
+
+        // Clear success message after 3 seconds
+        setTimeout(() => setError(null), 3000);
+      } else {
+        // Unexpected response format
+        setError('Unexpected response from server. Please try again.');
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to propose schedule');
+      console.error('Failed to propose schedule:', err);
+      const errorMessage = err.response?.data?.message ||
+                          err.response?.data?.error ||
+                          'Failed to propose schedule. Please try again.';
+      setError(errorMessage);
     } finally {
-      setLoading(false);
+      // ALWAYS reset loading state
+      setProposingSchedule(false);
+      console.log('Schedule proposal loading state reset to false');
     }
   };
 
   const handleAcceptSchedule = async (scheduleId) => {
-    setLoading(true);
+    setAcceptingSchedule(true);
+    setError(null);
     try {
       const response = await api.post(
         `/championships/${championship.id}/matches/${match.id}/schedule/${scheduleId}/accept`,
@@ -172,13 +257,15 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
       );
 
       if (response.data.success) {
+        setError('✅ Schedule accepted successfully!');
         await loadScheduleProposals();
         if (onMatchUpdate) onMatchUpdate();
+        setTimeout(() => setError(null), 3000);
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to accept schedule');
     } finally {
-      setLoading(false);
+      setAcceptingSchedule(false);
     }
   };
 
@@ -186,7 +273,8 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
     const alternativeTime = prompt('Propose an alternative time (YYYY-MM-DD HH:MM):');
     if (!alternativeTime) return;
 
-    setLoading(true);
+    setProposingSchedule(true);
+    setError(null);
     try {
       const response = await api.post(
         `/championships/${championship.id}/matches/${match.id}/schedule/${scheduleId}/propose-alternative`,
@@ -197,13 +285,15 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
       );
 
       if (response.data.success) {
+        setError('✅ Alternative time proposed successfully!');
         await loadScheduleProposals();
         if (onMatchUpdate) onMatchUpdate();
+        setTimeout(() => setError(null), 3000);
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to propose alternative time');
     } finally {
-      setLoading(false);
+      setProposingSchedule(false);
     }
   };
 
@@ -212,7 +302,8 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
       return;
     }
 
-    setLoading(true);
+    setCreatingGame(true);
+    setError(null);
     try {
       const response = await api.post(
         `/championships/${championship.id}/matches/${match.id}/schedule/play-immediate`
@@ -225,20 +316,74 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to start immediate game');
     } finally {
-      setLoading(false);
+      setCreatingGame(false);
     }
   };
 
   const currentSchedule = scheduleProposals.find(s => s.status === 'proposed' || s.status === 'accepted' || s.status === 'alternative_proposed');
+
+  // Online Status Indicator Component
+  const OnlineStatusIndicator = ({ userId, userName }) => {
+    const isCurrentUser = user?.id === userId;
+    const isOnline = isPlayerOnline(userId);
+
+    console.log('🔍 Status check:', {
+      userId,
+      userName,
+      currentUserId: user?.id,
+      isCurrentUser,
+      isOnline,
+      statusMap: playerOnlineStatus
+    });
+
+    return (
+      <div className="flex items-center space-x-1">
+        <div
+          className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-gray-400'}`}
+          title={`${userName} is ${isOnline ? 'Online' : 'Offline'}`}
+        ></div>
+        <span
+          className={`text-xs ${isOnline ? 'text-green-600' : 'text-gray-500'} ${isCurrentUser ? 'font-medium' : ''}`}
+        >
+          {isOnline ? 'Online' : 'Offline'}
+          {isCurrentUser && ' (You)'}
+        </span>
+      </div>
+    );
+  };
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6 mb-4">
       {/* Match Header */}
       <div className="flex justify-between items-start mb-4">
         <div className="flex-1">
-          <h3 className="text-lg font-semibold text-gray-900">
-            {match.player1?.name} vs {match.player2?.name}
-          </h3>
+          <div className="flex items-center space-x-4 mb-2">
+            {/* Player 1 */}
+            <div className="flex items-center space-x-2">
+              <span className="text-lg font-semibold text-gray-900">
+                {match.player1?.name || 'Player 1'}
+              </span>
+              <OnlineStatusIndicator
+                userId={match.player1_id}
+                userName={match.player1?.name || 'Player 1'}
+              />
+            </div>
+
+            {/* VS */}
+            <span className="text-gray-400 text-sm">vs</span>
+
+            {/* Player 2 */}
+            <div className="flex items-center space-x-2">
+              <span className="text-lg font-semibold text-gray-900">
+                {match.player2?.name || 'Player 2'}
+              </span>
+              <OnlineStatusIndicator
+                userId={match.player2_id}
+                userName={match.player2?.name || 'Player 2'}
+              />
+            </div>
+          </div>
+
           <p className="text-sm text-gray-600">
             Round {match.round_number} • {match.round_type}
           </p>
@@ -389,17 +534,17 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
             <div className="mt-4 flex space-x-2">
               <button
                 onClick={() => handleAcceptSchedule(currentSchedule.id)}
-                disabled={loading}
+                disabled={acceptingSchedule}
                 className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
               >
-                Accept
+                {acceptingSchedule ? '⏳ Accepting...' : 'Accept'}
               </button>
               <button
                 onClick={() => handleProposeAlternative(currentSchedule.id)}
-                disabled={loading}
+                disabled={proposingSchedule}
                 className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 disabled:opacity-50"
               >
-                Propose Alternative
+                {proposingSchedule ? '⏳ Proposing...' : 'Propose Alternative'}
               </button>
             </div>
           )}
@@ -410,17 +555,17 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
               <div className="flex space-x-2">
                 <button
                   onClick={() => handleAcceptSchedule(currentSchedule.id)}
-                  disabled={loading}
+                  disabled={acceptingSchedule}
                   className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
                 >
-                  Accept Alternative
+                  {acceptingSchedule ? '⏳ Accepting...' : 'Accept Alternative'}
                 </button>
                 <button
                   onClick={() => handleProposeAlternative(currentSchedule.id)}
-                  disabled={loading}
+                  disabled={proposingSchedule}
                   className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 disabled:opacity-50"
                 >
-                  Propose Another
+                  {proposingSchedule ? '⏳ Proposing...' : 'Propose Another'}
                 </button>
               </div>
             </div>
@@ -428,72 +573,107 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
         </div>
       )}
 
-      {/* Debug Info */}
-      {console.log('Rendering action buttons section, isUserPlayer:', isUserPlayer())}
-
       {/* Action Buttons */}
-      {isUserPlayer() && (
-        <div className="space-y-4 border-2 border-blue-300 p-4 rounded-lg bg-blue-50">
-          <div className="mb-2 text-xs text-blue-600 font-medium">
-            ✓ You are a player in this match - Actions available
-          </div>
+      {isUserPlayer() && (() => {
+        const opponent = getOpponent();
+        const player1Online = isPlayerOnline(match.player1_id);
+        const player2Online = isPlayerOnline(match.player2_id);
+        const bothPlayersOnline = player1Online && player2Online;
 
-          {/* Primary Actions - Most Important First */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {/* Play Now Button - Always show if game can be created */}
-            {(!match.game_id && match.scheduling_status !== 'forfeit') && (
-              <button
-                onClick={async () => {
-                  setLoading(true);
-                  setError(null);
-                  try {
-                    // Use the correct API endpoint
-                    const response = await api.post(`/championships/${championship.id}/matches/${match.id}/game`, {
-                      time_control: 'blitz',
-                      color: 'random'
-                    });
-
-                    if (response.data.success && response.data.game_id) {
-                      // Navigate to the game
-                      navigate(`/play/${response.data.game_id}`);
-                    } else if (response.data.match?.game_id) {
-                      // Alternative response format
-                      navigate(`/play/${response.data.match.game_id}`);
-                    }
-                  } catch (err) {
-                    console.error('Failed to create game:', err);
-                    setError(err.response?.data?.message || 'Failed to create game. Please try scheduling a time with your opponent first.');
-                  } finally {
-                    setLoading(false);
-                  }
-                }}
-                disabled={loading}
-                className="px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 font-medium flex items-center justify-center"
-              >
-                {loading ? (
-                  <span>⏳ Starting...</span>
-                ) : (
-                  <>
-                    🎮 <span className="ml-2">Play Now</span>
-                  </>
-                )}
-              </button>
+        return (
+          <div className="space-y-4 border-2 border-blue-300 p-4 rounded-lg bg-blue-50">
+            {/* Online Status Summary */}
+            {bothPlayersOnline && (
+              <div className="mb-3 p-2 bg-green-100 border border-green-300 rounded-lg">
+                <p className="text-sm text-green-700 font-medium text-center">
+                  🎉 Both players are online! Perfect time to play!
+                </p>
+              </div>
             )}
 
-            {/* Send Request/Message Button */}
-            <button
-              onClick={() => {
+            <div className="mb-2 text-xs text-blue-600 font-medium">
+              ✓ You are a player in this match - Actions available
+            </div>
+
+            {/* Primary Actions - Most Important First */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {/* Play Now Button - Always show if game can be created */}
+              {(!match.game_id && match.scheduling_status !== 'forfeit') && (() => {
                 const opponent = getOpponent();
-                if (opponent) {
-                  // Show the schedule form instead
-                  setShowScheduleForm(true);
-                }
-              }}
-              disabled={loading}
-              className="px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 font-medium flex items-center justify-center"
-            >
-              💬 <span className="ml-2">Send Schedule Request</span>
-            </button>
+                const opponentIsOnline = opponent ? isPlayerOnline(opponent.id) : false;
+
+                return (
+                  <button
+                    onClick={async () => {
+                      setCreatingGame(true);
+                      setError(null);
+                      try {
+                        // Use the correct API endpoint
+                        const response = await api.post(`/championships/${championship.id}/matches/${match.id}/game`, {
+                          time_control: 'blitz',
+                          color: 'random'
+                        });
+
+                        if (response.data.success && response.data.game_id) {
+                          // Navigate to the game
+                          navigate(`/play/${response.data.game_id}`);
+                        } else if (response.data.match?.game_id) {
+                          // Alternative response format
+                          navigate(`/play/${response.data.match.game_id}`);
+                        }
+                      } catch (err) {
+                        console.error('Failed to create game:', err);
+                        setError(err.response?.data?.message || 'Failed to create game. Please try scheduling a time with your opponent first.');
+                      } finally {
+                        setCreatingGame(false);
+                      }
+                    }}
+                    disabled={creatingGame}
+                    className={`px-4 py-3 rounded-lg disabled:opacity-50 font-medium flex items-center justify-center ${
+                      opponentIsOnline
+                        ? 'bg-green-600 hover:bg-green-700 text-white'
+                        : 'bg-gray-500 hover:bg-gray-600 text-white'
+                    }`}
+                  >
+                    {creatingGame ? (
+                      <span>⏳ Starting...</span>
+                    ) : (
+                      <>
+                        {opponentIsOnline ? '🟢' : '⚫'} <span className="ml-2">
+                          {opponentIsOnline ? 'Play Now (Online)' : 'Request Play (Offline)'}
+                        </span>
+                      </>
+                    )}
+                  </button>
+                );
+              })()}
+
+              {/* Send Request/Message Button */}
+              {(() => {
+                const opponent = getOpponent();
+                const opponentIsOnline = opponent ? isPlayerOnline(opponent.id) : false;
+
+                return (
+                  <button
+                    onClick={() => {
+                      if (opponent) {
+                        // Show the schedule form instead
+                        setShowScheduleForm(true);
+                      }
+                    }}
+                    disabled={proposingSchedule}
+                    className={`px-4 py-3 rounded-lg disabled:opacity-50 font-medium flex items-center justify-center ${
+                      opponentIsOnline
+                        ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                        : 'bg-orange-500 hover:bg-orange-600 text-white'
+                    }`}
+                  >
+                    {opponentIsOnline ? '💬' : '📅'} <span className="ml-2">
+                      {opponentIsOnline ? 'Chat & Schedule' : 'Send Schedule Request'}
+                    </span>
+                  </button>
+                );
+              })()}
           </div>
 
           {/* Scheduling Actions */}
@@ -506,7 +686,7 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
                 {!showScheduleForm ? (
                   <button
                     onClick={() => setShowScheduleForm(true)}
-                    disabled={loading}
+                    disabled={proposingSchedule}
                     className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
                   >
                     📅 Propose a Time
@@ -549,10 +729,10 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
                       <div className="flex space-x-2">
                         <button
                           type="submit"
-                          disabled={loading}
+                          disabled={proposingSchedule}
                           className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
                         >
-                          {loading ? '⏳ Sending...' : '📤 Send Proposal'}
+                          {proposingSchedule ? '⏳ Sending...' : '📤 Send Proposal'}
                         </button>
                         <button
                           type="button"
@@ -596,6 +776,8 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
                   <button
                     key={index}
                     onClick={async () => {
+                      setProposingSchedule(true);
+                      setError(null);
                       try {
                         const response = await api.post(
                           `/championships/${championship.id}/matches/${match.id}/schedule/propose`,
@@ -604,15 +786,19 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
                             message: `Quick proposal: ${slot.label}`
                           }
                         );
-                        if (response.data.success) {
+                        if (response.data.success || response.data.proposal) {
+                          setError(`✅ Quick proposal sent: ${slot.label}`);
                           await loadScheduleProposals();
                           if (onMatchUpdate) onMatchUpdate();
+                          setTimeout(() => setError(null), 3000);
                         }
                       } catch (err) {
-                        setError('Failed to send quick proposal');
+                        setError(err.response?.data?.message || 'Failed to send quick proposal');
+                      } finally {
+                        setProposingSchedule(false);
                       }
                     }}
-                    disabled={loading}
+                    disabled={proposingSchedule}
                     className="px-3 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 disabled:opacity-50 text-sm"
                   >
                     ⚡ {slot.label}
@@ -656,7 +842,8 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
             </div>
           )}
         </div>
-      )}
+        );
+      })}
 
       {/* Non-Player View */}
       {!isUserPlayer() && (

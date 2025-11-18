@@ -11,6 +11,8 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\GameController;
 use App\Http\Controllers\UserPresenceController;
+use App\Http\Controllers\UserStatusController;
+use App\Http\Controllers\ContextualPresenceController;
 use App\Http\Controllers\WebSocketController;
 use App\Http\Controllers\RatingController;
 use App\Http\Controllers\SharedResultController;
@@ -61,13 +63,25 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/games/{id}/resign', [GameController::class, 'resign']);
     Route::get('/games', [GameController::class, 'userGames']);
 
-    // User Presence routes
+    // Contextual Presence routes (Smart, context-aware tracking) - MUST come before parameterized routes
+    Route::get('/presence/friends', [ContextualPresenceController::class, 'getFriendsStatus']);
+    Route::get('/presence/opponents', [ContextualPresenceController::class, 'getCurrentRoundOpponents']);
+    Route::get('/presence/lobby', [ContextualPresenceController::class, 'getLobbyUsers']);
+    Route::get('/presence/contextual', [ContextualPresenceController::class, 'getContextualPresence']);
+
+    // User Presence routes (WebSocket-based)
     Route::post('/presence/update', [UserPresenceController::class, 'updatePresence']);
     Route::get('/presence/stats', [UserPresenceController::class, 'getPresenceStats']);
     Route::get('/presence/online/users', [UserPresenceController::class, 'getOnlineUsers']);
     Route::post('/presence/heartbeat', [UserPresenceController::class, 'heartbeat']);
     Route::post('/presence/disconnect', [UserPresenceController::class, 'handleDisconnection']);
-    Route::get('/presence/{user}', [UserPresenceController::class, 'getPresence']);
+    Route::get('/presence/{user}', [UserPresenceController::class, 'getPresence']); // MUST be last - catches everything else
+
+    // User Status routes (Database-backed, reliable)
+    Route::post('/status/heartbeat', [UserStatusController::class, 'heartbeat']);
+    Route::get('/status/check/{userId}', [UserStatusController::class, 'checkStatus']);
+    Route::post('/status/batch-check', [UserStatusController::class, 'batchCheckStatus']);
+    Route::get('/status/online-users', [UserStatusController::class, 'getOnlineUsers']);
 
     // List summary (exclude moves) for dashboard or game list
     Route::get('/game-history', [GameHistoryController::class, 'index']);

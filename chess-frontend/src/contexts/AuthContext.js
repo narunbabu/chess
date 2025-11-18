@@ -3,6 +3,7 @@ import React, { createContext, useState, useContext, useEffect, useMemo, useCall
 import api from '../services/api';
 import { initEcho, disconnectEcho } from '../services/echoSingleton';
 import presenceService from '../services/presenceService';
+import userStatusService from '../services/userStatusService';
 
 // Create the AuthContext
 const AuthContext = createContext(null);
@@ -31,6 +32,10 @@ export const AuthProvider = ({ children }) => {
       // Fetch current user from backend
       const response = await api.get('/user');
       console.log('[Auth] User fetched successfully:', response.data);
+
+      // Save user to localStorage for userStatusService initialization
+      localStorage.setItem('user', JSON.stringify(response.data));
+
       setUser(response.data);
       setIsAuthenticated(true);
 
@@ -58,6 +63,20 @@ export const AuthProvider = ({ children }) => {
           }
         } catch (presenceError) {
           console.error('[Auth] ❌ Presence service initialization failed:', presenceError);
+        }
+
+        // Initialize database-backed user status service
+        console.log('[Auth] Initializing user status service...');
+        try {
+          window.userStatusService = userStatusService; // Expose for debugging
+          const statusInitialized = await userStatusService.initialize();
+          if (statusInitialized) {
+            console.log('[Auth] ✅ User status service initialized successfully');
+          } else {
+            console.error('[Auth] ❌ User status service initialization failed');
+          }
+        } catch (statusError) {
+          console.error('[Auth] ❌ User status service initialization error:', statusError);
         }
       } else {
         console.error('[Auth] ❌ Echo singleton initialization failed!');
@@ -95,11 +114,16 @@ export const AuthProvider = ({ children }) => {
     presenceService.disconnect();
     console.log('[Auth] Presence service disconnected on logout');
 
+    // Disconnect user status service
+    userStatusService.destroy();
+    console.log('[Auth] User status service destroyed on logout');
+
     // Disconnect Echo WebSocket before logout
     disconnectEcho();
     console.log('[Auth] Echo disconnected on logout');
 
     localStorage.removeItem("auth_token");
+    localStorage.removeItem("user"); // Also remove user data
     delete api.defaults.headers.common['Authorization'];
     setIsAuthenticated(false);
     setUser(null);

@@ -27,6 +27,7 @@ class User extends Authenticatable
         'organization_id',
         'is_active',
         'last_login_at',
+        'last_activity_at',
     ];
 
     protected $hidden = [
@@ -42,6 +43,7 @@ class User extends Authenticatable
         'rating_last_updated' => 'datetime',
         'is_active' => 'boolean',
         'last_login_at' => 'datetime',
+        'last_activity_at' => 'datetime',
     ];
 
     /**

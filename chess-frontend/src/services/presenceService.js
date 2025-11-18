@@ -51,6 +51,22 @@ class PresenceService {
    */
   async connect() {
     try {
+      // Wait for Echo to be available (with timeout)
+      let attempts = 0;
+      const maxAttempts = 10;
+      while (!this.echo && attempts < maxAttempts) {
+        console.log(`[Presence] Waiting for Echo... (${attempts + 1}/${maxAttempts})`);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        this.echo = getEcho();
+        attempts++;
+      }
+
+      if (!this.echo) {
+        throw new Error('Echo not available after waiting');
+      }
+
+      console.log('[Presence] Echo available, connecting to presence channels');
+
       // Join the general presence channel using singleton (idempotent)
       // Note: Backend defines this as 'presence.online' in channels.php
       this.presenceChannel = joinChannel('presence.online', 'presence');

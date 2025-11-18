@@ -57,6 +57,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // CORS is handled by \Fruitcake\Cors\HandleCors in Kernel.php (global middleware)
         // using the configuration in config/cors.php
 
+        // Track user activity for online/offline status detection
+        $middleware->append(\App\Http\Middleware\TrackUserActivity::class);
+
         // Register custom authorization middleware
         $middleware->alias([
             'role' => \App\Http\Middleware\CheckRole::class,
