@@ -2,9 +2,12 @@ import React, { useMemo, useRef, useState } from 'react';
 import html2canvas from 'html2canvas';
 import chessPlayingKids from '../assets/images/chess-playing-kids-crop.png';
 import logo from '../assets/images/logo.png';
-import { uploadGameResultImage } from '../services/sharedResultService';
+import { shareGameWithFriends, shareGameNative } from '../utils/shareUtils';
+import { waitForImagesToLoad, convertImagesToDataURLs } from '../utils/imageUtils';
 import { isWin as isWinUtil, isDraw as isDrawUtil } from '../utils/resultStandardization';
 import './GameEndCard.css';
+
+// Note: Image and share utility functions have been moved to utils/imageUtils.js and utils/shareUtils.js
 
 // Social share URLs - Note: These platforms don't support direct image URLs in share parameters
 // Images are only supported via Web Share API (navigator.share with files) on mobile devices
@@ -13,155 +16,6 @@ const SHARE_URLS = {
   facebook: (text) => `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent('https://chess99.com')}`,
   twitter: (text) => `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent('https://chess99.com')}`,
   linkedin: (text) => `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent('https://chess99.com')}`
-};
-
-// Helper function to wait for all images to fully load
-const waitForImagesToLoad = async (element) => {
-  console.log('⏳ Waiting for all images to load in GameEndCard...');
-
-  const images = Array.from(element.querySelectorAll('img'));
-  console.log(`📸 Found ${images.length} images to check`);
-
-  const imageLoadPromises = images.map((img, index) => {
-    return new Promise((resolve) => {
-      // Check if image is already loaded
-      if (img.complete && img.naturalHeight > 0) {
-        console.log(`✅ Image ${index + 1} already loaded`);
-        resolve();
-      } else {
-        console.log(`⏳ Waiting for image ${index + 1} to load...`);
-
-        // Wait for image to load
-        img.onload = () => {
-          console.log(`✅ Image ${index + 1} loaded successfully`);
-          resolve();
-        };
-
-        // Handle errors - resolve anyway to not block the process
-        img.onerror = () => {
-          console.warn(`⚠️ Image ${index + 1} failed to load, continuing anyway`);
-          resolve();
-        };
-
-        // Timeout after 5 seconds to prevent indefinite waiting
-        setTimeout(() => {
-          console.warn(`⏱️ Timeout waiting for image ${index + 1}, continuing anyway`);
-          resolve();
-        }, 5000);
-      }
-    });
-  });
-
-  await Promise.all(imageLoadPromises);
-  console.log('✅ All images loaded (or timed out) in GameEndCard');
-};
-
-const loadImageToDataURL = (src) => {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous'; // Use CORS for cross-origin images
-    img.onload = () => {
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth || img.width;
-        canvas.height = img.naturalHeight || img.height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0);
-          const dataURL = canvas.toDataURL('image/jpeg', 0.8);
-          resolve(dataURL);
-        } else {
-          reject(new Error('Failed to get canvas context'));
-        }
-      } catch (error) {
-        reject(error);
-      }
-    };
-    img.onerror = () => {
-      reject(new Error(`Failed to load image: ${src}`));
-    };
-    img.src = src;
-  });
-};
-
-// Helper function to convert all images within an element to data URLs
-// This robustly handles image loading for html2canvas capture using canvas extraction.
-const convertImagesToDataURLs = async (element) => {
-  console.log('🔄 Converting images to data URLs...');
-
-  // Handle <img> tags
-  const images = Array.from(element.querySelectorAll('img'));
-  console.log(`📸 Found ${images.length} <img> tags to convert`);
-
-  await Promise.all(
-    images.map(async (img, index) => {
-      // Don't re-convert if it's already a data URL
-      if (img.src.startsWith('data:')) {
-        console.log(`✅ Image ${index + 1} already a data URL`);
-        return;
-      }
-
-      try {
-        console.log(`🔄 Converting image ${index + 1}: ${img.src.substring(0, 50)}...`);
-        const dataUrl = await loadImageToDataURL(img.src);
-        img.src = dataUrl;
-        console.log(`✅ Image ${index + 1} converted successfully`);
-      } catch (error) {
-        console.error(`❌ Could not convert image ${index + 1} (${img.src}) to data URL:`, error);
-        // We continue even if one image fails, so the capture process doesn't halt.
-      }
-    })
-  );
-
-  // Handle CSS background-image properties (for logo, etc.)
-  const allElements = Array.from(element.querySelectorAll('*'));
-  allElements.push(element); // Include the root element itself
-
-  let bgImageCount = 0;
-  await Promise.all(
-    allElements.map(async (el, elIndex) => {
-      const bgImage = window.getComputedStyle(el).backgroundImage;
-
-      // Check if there's a background-image and it's a URL (not 'none' or gradient)
-      if (bgImage && bgImage !== 'none' && bgImage.includes('url(')) {
-        bgImageCount++;
-        // Extract URL from background-image (handles multiple backgrounds)
-        const urlMatches = bgImage.match(/url\(["']?([^"')]+)["']?\)/g);
-
-        if (urlMatches) {
-          for (const urlMatch of urlMatches) {
-            const url = urlMatch.match(/url\(["']?([^"')]+)["']?\)/)[1];
-
-            // Skip if already a data URL
-            if (url.startsWith('data:')) {
-              console.log(`✅ Background image already a data URL on element ${elIndex}`);
-              continue;
-            }
-
-            try {
-              console.log(`🔄 Converting background image: ${url.substring(0, 50)}...`);
-              const dataUrl = await loadImageToDataURL(url);
-
-              // Replace the URL in the background-image with the data URL
-              const newBgImage = bgImage.replace(new RegExp(escapeRegExp(url), 'g'), dataUrl);
-              el.style.backgroundImage = newBgImage;
-              console.log(`✅ Background image converted successfully on element ${elIndex}`);
-            } catch (error) {
-              console.error(`❌ Could not convert background image ${url} to data URL on element ${elIndex}:`, error);
-              // We continue even if one image fails
-            }
-          }
-        }
-      }
-    })
-  );
-
-  console.log(`✅ Image conversion complete. Found ${bgImageCount} background images.`);
-};
-
-// Helper function to escape special regex characters
-const escapeRegExp = (string) => {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 };
 
 // SVG Chess Piece Components (similar to Background.js)
@@ -187,7 +41,9 @@ const GameEndCard = React.forwardRef(({
   playerColor,
   isMultiplayer,
   computerLevel,
-  isAuthenticated
+  isAuthenticated,
+  championshipData = null, // Championship info: { tournamentName, round, matchId, standing, points }
+  onClose = null // Close handler for the card
 }, forwardedRef) => {
   const internalRef = useRef(null);
   const cardRef = forwardedRef || internalRef;
@@ -244,7 +100,7 @@ const GameEndCard = React.forwardRef(({
       isPlayerWin = false;
     }
 
-    const isDraw = result.result === '1/2-1/2' || result.end_reason === 'draw' || result.result?.status === 'draw';
+    const isDraw = result.result === '1/2-1/2' || result.result === 'Draw' || result.end_reason === 'draw' || result.result?.status === 'draw';
 
     // Handle cases where white_player and black_player might not exist
     // For computer games: use !isMultiplayer as primary check, with result.game_mode as fallback
@@ -843,29 +699,53 @@ const handleShare = async () => {
         <ChessQueen className="w-6 h-6" />
       </div>
 
+      {/* Close button */}
+      {onClose && (
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 z-20 bg-white/95 hover:bg-white text-gray-700 hover:text-gray-900 rounded-full w-10 h-10 flex items-center justify-center shadow-lg transition-all duration-200 hover:scale-110 border border-gray-200"
+          aria-label="Close game end card"
+          style={{
+            backdropFilter: 'blur(4px)'
+          }}
+        >
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2.5"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      )}
+
       {/* Main content */}
       <div className="relative z-10 p-4">
-        {/* Header with logo - blue background bar for visibility */}
+        {/* Header with logo and championship info - blue background bar for visibility */}
         <div className="text-center mb-3">
           <div className="inline-block bg-sky-600/90 px-6 py-2 rounded-full mb-2">
-            {/* Use inline backgroundImage style for html2canvas compatibility - same approach as chess background */}
-            {/* <div
-              style={{
-                backgroundImage: `url(${logo})`,
-                backgroundSize: 'contain',
-                backgroundPosition: 'center',
-                backgroundRepeat: 'no-repeat',
-                width: '120px',
-                height: '32px'
-              }}
-              role="img"
-              aria-label="Chess99 Logo"
-            /> */}
             <div className="inline-block bg-sky-600 text-white px-4 py-1 rounded-full font-semibold text-xs">Chess99.com</div>
           </div>
-          <div className="inline-block bg-sky-600 text-white px-4 py-1 rounded-full font-semibold text-xs">
-            {isMultiplayer ? 'Multiplayer Match' : `Computer Level ${computerLevel || 8}`}
-          </div>
+
+          {/* Championship Badge - show if championship data available */}
+          {championshipData ? (
+            <div className="space-y-1">
+              <div className="inline-block bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-6 py-2 rounded-full font-bold text-sm shadow-lg">
+                🏆 {championshipData.tournamentName}
+              </div>
+              <div className="text-gray-700 font-semibold text-xs">
+                Round {championshipData.round} {championshipData.matchId ? `• Match #${championshipData.matchId}` : ''}
+              </div>
+            </div>
+          ) : (
+            <div className="inline-block bg-sky-600 text-white px-4 py-1 rounded-full font-semibold text-xs">
+              {isMultiplayer ? 'Multiplayer Match' : `Computer Level ${computerLevel || 8}`}
+            </div>
+          )}
         </div>
 
         {/* Result display */}
@@ -973,22 +853,49 @@ const handleShare = async () => {
           </div>
         )}
 
-        {/* Call to action */}
+        {/* Championship Standing/Points - show if championship data available */}
+        {championshipData && (championshipData.standing || championshipData.points !== undefined) && (
+          <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-3 rounded-xl border-2 border-purple-300 text-center mb-4">
+            <div className="text-sm font-semibold text-gray-700 mb-2">Championship Progress</div>
+            <div className="flex items-center justify-center gap-4">
+              {championshipData.standing && (
+                <div className="text-center">
+                  <div className="text-xs text-gray-600">Standing</div>
+                  <div className="text-xl font-bold text-purple-600">{championshipData.standing}</div>
+                </div>
+              )}
+              {championshipData.points !== undefined && (
+                <div className="text-center">
+                  <div className="text-xs text-gray-600">Points</div>
+                  <div className="text-xl font-bold text-purple-600">{championshipData.points}</div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Call to action - different messages for championship vs regular games */}
         <div className="text-center mb-3">
           <div className="bg-gradient-to-r from-sky-500 to-blue-600 text-white p-3 rounded-xl shadow-lg">
-            <div className="text-lg font-bold mb-1">
-              ♟️ Want to Play With Me?
-            </div>
-            <div className="text-sm mb-2">
-              Think you can beat me? Join and challenge me!
-              
-            </div>
-            {/* <div className="flex flex-col items-center gap-1.5">
-              <div className="text-xs font-medium">Register and play at</div>
-              <a href="https://www.chess99.com" target="_blank" rel="noopener noreferrer" className="bg-white text-sky-600 px-3 py-1.5 rounded-lg font-bold hover:bg-sky-50 transition-colors text-base">
-                Chess99.com
-              </a>
-            </div> */}
+            {championshipData ? (
+              <>
+                <div className="text-lg font-bold mb-1">
+                  🏆 Join the Championship!
+                </div>
+                <div className="text-sm mb-2">
+                  Compete in {championshipData.tournamentName} and prove your skills!
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="text-lg font-bold mb-1">
+                  ♟️ Want to Play With Me?
+                </div>
+                <div className="text-sm mb-2">
+                  Think you can beat me? Join and challenge me!
+                </div>
+              </>
+            )}
           </div>
         </div>
 

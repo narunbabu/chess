@@ -30,12 +30,14 @@ Route::group(['middleware' => 'api', 'prefix' => 'auth'], function () {
     Route::get('{provider}/callback', [SocialAuthController::class, 'callback']);
 });
 
+// Public routes
+Route::get('/users', [UserController::class, 'index']);
+
 // Protected routes for authenticated users (use a middleware like auth:sanctum or auth:api)
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', function (Illuminate\Http\Request $request) {
         return $request->user()->load('roles');
     });
-    Route::get('/users', [UserController::class, 'index']);
 
     // Profile routes
     Route::post('/profile', [UserController::class, 'updateProfile']);

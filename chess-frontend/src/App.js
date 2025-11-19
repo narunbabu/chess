@@ -40,7 +40,7 @@ import ChampionshipDetails from "./components/championship/ChampionshipDetails";
 import TournamentAdminDashboard from "./components/championship/TournamentAdminDashboard";
 import ChampionshipInvitations from "./pages/ChampionshipInvitations";
 import ChampionshipMatchesEdit from "./components/championship/ChampionshipMatchesEdit";
-
+import ChampionshipVictoryTest from './tests/ChampionshipVictoryTest';
 const App = () => {
   useEffect(()=> {
     const mq = window.matchMedia("(orientation:landscape)");
@@ -51,10 +51,12 @@ const App = () => {
     mq.addEventListener("change", toggle);
     return ()=>mq.removeEventListener("change", toggle);
   },[]);
+  
 
   return (
     <AuthProvider>
       <AppDataProvider>
+         
         <FeatureFlagsProvider>
           <ChampionshipProvider>
             <ChampionshipInvitationProvider>
@@ -62,13 +64,14 @@ const App = () => {
                 <Layout>
                   <GlobalInvitationProvider>
                   <AppContent />
-                  {/* Global Invitation Dialog - appears across all pages */}
+
                   <GlobalInvitationDialog />
                 </GlobalInvitationProvider>
                 </Layout>
               </Router>
             </ChampionshipInvitationProvider>
           </ChampionshipProvider>
+           
         </FeatureFlagsProvider>
       </AppDataProvider>
     </AuthProvider>
@@ -95,6 +98,7 @@ const AppContent = () => {
 
             {/* Play computer - No auth required */}
             <Route path="/play" element={<PlayComputer />} />
+            <Route path="/test/championship" element={<ChampionshipVictoryTest />} />
 
             {/* Multiplayer game routes - Auth required */}
             <Route

@@ -19,7 +19,10 @@ class UserController extends Controller
             $users->where('name', 'like', '%' . $query . '%');
         }
 
-        return $users->get(['id', 'name', 'avatar_url', 'rating']);
+        // Return top 10 users ordered by rating (descending)
+        return $users->orderBy('rating', 'desc')
+                    ->limit(10)
+                    ->get(['id', 'name', 'email', 'avatar_url', 'rating']);
     }
 
     public function me(Request $request)
