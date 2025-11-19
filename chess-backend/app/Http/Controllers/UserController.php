@@ -132,9 +132,9 @@ class UserController extends Controller
                     ]);
                 }
 
-                // Use /storage/ path instead of /api/avatars/ for direct nginx serving
-                // This avoids nginx routing issues and serves files faster
-                $fullUrl = url('/storage/avatars/' . $filename);
+                // Use /api/avatars/ path which works with Laravel's routing on localhost
+                // In production, nginx can serve /storage/ directly for better performance
+                $fullUrl = url('/api/avatars/' . $filename);
 
                 \Log::info('New avatar stored:', [
                     'relative_path' => $avatarPath,
