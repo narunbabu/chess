@@ -91,7 +91,7 @@ class CleanExpiredInvitationsCommand extends Command
 
                     // Update invitation status
                     $invitation->update([
-                        'status' => 'expired',
+                        'status' => 'declined',
                         'responded_at' => now(),
                         'metadata' => array_merge($invitation->metadata ?? [], [
                             'auto_expired_at' => now()->toISOString(),

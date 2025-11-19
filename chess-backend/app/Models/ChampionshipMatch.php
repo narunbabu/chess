@@ -682,4 +682,143 @@ class ChampionshipMatch extends Model
 
         return "{$pos1Display} vs {$pos2Display}";
     }
+
+    /**
+     * Check if a player can play in this match based on round progression
+     * Players can only play in round N if they've completed their match in round N-1
+     *
+     * @param int $userId
+     * @return array ['canPlay' => bool, 'reason' => string|null]
+     */
+    public function canPlayerPlay(int $userId): array
+    {
+        // Players can always play round 1
+        if ($this->round_number === 1) {
+            return ['canPlay' => true, 'reason' => null];
+        }
+
+        // Check if this player is actually in this match
+        if ($this->player1_id !== $userId && $this->player2_id !== $userId) {
+            return ['canPlay' => false, 'reason' => 'You are not a participant in this match'];
+        }
+
+        // Check if player has completed their previous round match
+        $previousRoundMatch = self::where('championship_id', $this->championship_id)
+            ->where('round_number', $this->round_number - 1)
+            ->where(function ($query) use ($userId) {
+                $query->where('player1_id', $userId)
+                    ->orWhere('player2_id', $userId);
+            })
+            ->first();
+
+        if (!$previousRoundMatch) {
+            return ['canPlay' => false, 'reason' => 'Previous round match not found'];
+        }
+
+        // Use status_id for reliable comparison
+        if ($previousRoundMatch->status_id !== ChampionshipMatchStatusEnum::COMPLETED->getId()) {
+            return ['canPlay' => false, 'reason' => 'You must complete your Round ' . ($this->round_number - 1) . ' match first'];
+        }
+
+        // Check if player qualified (didn't get eliminated)
+        // If the player lost and it's an elimination tournament, they can't play
+        if ($previousRoundMatch->winner_id && $previousRoundMatch->winner_id !== $userId) {
+            $championship = $this->championship;
+            // For knockout tournaments, losing means elimination
+            if ($championship && $championship->format === 'single_elimination') {
+                return ['canPlay' => false, 'reason' => 'You were eliminated in Round ' . ($this->round_number - 1)];
+            }
+        }
+
+        return ['canPlay' => true, 'reason' => null];
+    }
+
+    /**
+     * Get round statistics for leaderboard
+     *
+     * @param int $championshipId
+     * @param int $roundNumber
+     * @return array
+     */
+    public static function getRoundLeaderboard(int $championshipId, int $roundNumber): array
+    {
+        $matches = self::where('championship_id', $championshipId)
+            ->where('round_number', '<=', $roundNumber)
+            ->completed()  // Use scope instead of direct status comparison
+            ->with(['player1', 'player2', 'winner'])
+            ->get();
+
+        $playerStats = [];
+
+        foreach ($matches as $match) {
+            // Initialize player1 stats
+            if (!isset($playerStats[$match->player1_id])) {
+                $playerStats[$match->player1_id] = [
+                    'user' => $match->player1,
+                    'played' => 0,
+                    'won' => 0,
+                    'lost' => 0,
+                    'draw' => 0,
+                    'points' => 0,
+                ];
+            }
+
+            // Initialize player2 stats
+            if ($match->player2_id && !isset($playerStats[$match->player2_id])) {
+                $playerStats[$match->player2_id] = [
+                    'user' => $match->player2,
+                    'played' => 0,
+                    'won' => 0,
+                    'lost' => 0,
+                    'draw' => 0,
+                    'points' => 0,
+                ];
+            }
+
+            // Update stats
+            $playerStats[$match->player1_id]['played']++;
+            if ($match->player2_id) {
+                $playerStats[$match->player2_id]['played']++;
+            }
+
+            if ($match->winner_id) {
+                // Someone won
+                if ($match->winner_id === $match->player1_id) {
+                    $playerStats[$match->player1_id]['won']++;
+                    $playerStats[$match->player1_id]['points'] += 1.0;
+                    if ($match->player2_id) {
+                        $playerStats[$match->player2_id]['lost']++;
+                    }
+                } elseif ($match->winner_id === $match->player2_id) {
+                    $playerStats[$match->player2_id]['won']++;
+                    $playerStats[$match->player2_id]['points'] += 1.0;
+                    $playerStats[$match->player1_id]['lost']++;
+                }
+            } else {
+                // Draw
+                $playerStats[$match->player1_id]['draw']++;
+                $playerStats[$match->player1_id]['points'] += 0.5;
+                if ($match->player2_id) {
+                    $playerStats[$match->player2_id]['draw']++;
+                    $playerStats[$match->player2_id]['points'] += 0.5;
+                }
+            }
+        }
+
+        // Sort by points (descending), then by wins (descending)
+        uasort($playerStats, function ($a, $b) {
+            if ($a['points'] === $b['points']) {
+                return $b['won'] <=> $a['won'];
+            }
+            return $b['points'] <=> $a['points'];
+        });
+
+        // Add rank
+        $rank = 1;
+        foreach ($playerStats as &$stats) {
+            $stats['rank'] = $rank++;
+        }
+
+        return array_values($playerStats);
+    }
 }

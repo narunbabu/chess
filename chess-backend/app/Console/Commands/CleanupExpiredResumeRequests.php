@@ -42,13 +42,13 @@ class CleanupExpiredResumeRequests extends Command
                     ? $game->black_player_id
                     : $game->white_player_id;
 
-                // Update the invitation record to expired
+                // Update the invitation record to declined
                 Invitation::where('type', 'resume_request')
                     ->where('game_id', $game->id)
                     ->where('inviter_id', $requesterId)
                     ->where('status', 'pending')
                     ->update([
-                        'status' => 'expired',
+                        'status' => 'declined',
                         'responded_by' => null, // System cleanup
                         'responded_at' => now()
                     ]);

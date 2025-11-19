@@ -219,7 +219,7 @@ class InvitationController extends Controller
         }
 
         // Check if this is a championship match invitation
-        if ($invitation->championship_match_id) {
+        if ($invitation->championship_match_id || $invitation->type === 'championship_match') {
             return $this->respondToChampionshipInvitation($request, $invitation, $validated);
         }
 
@@ -314,7 +314,6 @@ class InvitationController extends Controller
 
             $result = $service->handleInvitationResponse(
                 $invitation,
-                Auth::user(),
                 $validated['action'],
                 $validated['desired_color'] ?? null
             );

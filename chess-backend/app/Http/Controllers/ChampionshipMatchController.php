@@ -988,7 +988,7 @@ class ChampionshipMatchController extends Controller
                 'invited_id' => $opponentId,
                 'status' => 'pending',
                 'inviter_preferred_color' => $colorPreference,
-                'type' => 'game_invitation',
+                'type' => 'championship_match',
                 'championship_match_id' => $match->id
             ]);
 
@@ -1029,6 +1029,66 @@ class ChampionshipMatchController extends Controller
             return response()->json([
                 'success' => false,
                 'error' => 'Failed to send challenge: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Check if a player can play a specific match (round progression check)
+     */
+    public function canPlay(Championship $championship, ChampionshipMatch $match): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+            if (!$user) {
+                return response()->json([
+                    'canPlay' => false,
+                    'reason' => 'Not authenticated'
+                ], 401);
+            }
+
+            $result = $match->canPlayerPlay($user->id);
+
+            return response()->json($result);
+        } catch (\Exception $e) {
+            Log::error("Failed to check if player can play match", [
+                'championship_id' => $championship->id,
+                'match_id' => $match->id,
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'canPlay' => false,
+                'reason' => 'Error checking eligibility: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get leaderboard for a specific round
+     */
+    public function getRoundLeaderboard(Championship $championship, int $round): JsonResponse
+    {
+        try {
+            $this->authorize('view', $championship);
+
+            $leaderboard = ChampionshipMatch::getRoundLeaderboard($championship->id, $round);
+
+            return response()->json([
+                'championship_id' => $championship->id,
+                'round' => $round,
+                'leaderboard' => $leaderboard
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Failed to get round leaderboard", [
+                'championship_id' => $championship->id,
+                'round' => $round,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to fetch leaderboard: ' . $e->getMessage()
             ], 500);
         }
     }

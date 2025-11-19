@@ -6,8 +6,10 @@ import { useAuth } from '../../contexts/AuthContext';
 import { formatDateTime, getMatchResultDisplay, getMatchStatusColor, formatDeadlineWithUrgency, getMatchCardUrgencyClass } from '../../utils/championshipHelpers';
 import { hasRole } from '../../utils/permissionHelpers';
 import useContextualPresence from '../../hooks/useContextualPresence';
+import useUserStatus from '../../hooks/useUserStatus';
 import axios from 'axios';
 import { BACKEND_URL } from '../../config';
+import RoundLeaderboardModal from './RoundLeaderboardModal';
 import './Championship.css';
 
 const ChampionshipMatches = ({
@@ -35,9 +37,52 @@ const ChampionshipMatches = ({
   const [schedulingMatch, setSchedulingMatch] = useState(null);
   const [proposingTime, setProposingTime] = useState(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [opponentOnlineStatus, setOpponentOnlineStatus] = useState({});
+  const [showLeaderboardModal, setShowLeaderboardModal] = useState(false);
+  const [leaderboardRound, setLeaderboardRound] = useState(null);
 
   // Use contextual presence for smart, efficient status tracking
-  const { opponents, loadOpponents, refreshOpponents, isUserOnline } = useContextualPresence();
+  const { opponents, loadOpponents, refreshOpponents } = useContextualPresence();
+
+  // Use user status service for reliable online checking of any user
+  const { isUserOnline: isUserOnlineStatus } = useUserStatus();
+
+  // Helper function to get opponent from match
+  const getOpponent = useCallback((match) => {
+    if (!user) return null;
+    return match.white_player_id === user.id ? match.black_player : match.white_player;
+  }, [user]);
+
+  // Check and cache opponent online status
+  const checkOpponentOnlineStatus = useCallback(async (opponentId) => {
+    if (opponentOnlineStatus[opponentId] !== undefined) {
+      return opponentOnlineStatus[opponentId];
+    }
+
+    try {
+      const online = await isUserOnlineStatus(opponentId);
+      setOpponentOnlineStatus(prev => ({ ...prev, [opponentId]: online }));
+      return online;
+    } catch (error) {
+      console.error(`Failed to check online status for user ${opponentId}:`, error);
+      setOpponentOnlineStatus(prev => ({ ...prev, [opponentId]: false }));
+      return false;
+    }
+  }, [isUserOnlineStatus, opponentOnlineStatus]);
+
+  // Check online status for all opponents when matches load
+  useEffect(() => {
+    if (matches.length > 0) {
+      const opponentIds = [...new Set(matches.map(match => {
+        const opponent = getOpponent(match);
+        return opponent?.id;
+      }).filter(Boolean))];
+
+      opponentIds.forEach(opponentId => {
+        checkOpponentOnlineStatus(opponentId);
+      });
+    }
+  }, [matches, checkOpponentOnlineStatus]);
 
   // Load championship data to check admin/organizer status
   const loadChampionship = useCallback(async () => {
@@ -66,12 +111,13 @@ const ChampionshipMatches = ({
     setLoading(true);
     setError(null);
 
-    try {
-      const token = localStorage.getItem('auth_token');
-      const endpoint = userOnly
-        ? `${BACKEND_URL}/championships/${championshipId}/my-matches`
-        : `${BACKEND_URL}/championships/${championshipId}/matches`;
+    // Define endpoint outside try-catch for access in error handling
+    const token = localStorage.getItem('auth_token');
+    const endpoint = userOnly
+      ? `${BACKEND_URL}/championships/${championshipId}/my-matches`
+      : `${BACKEND_URL}/championships/${championshipId}/matches`;
 
+    try {
       console.log('🔍 loadMatches Debug:', {
         championshipId,
         userOnly,
@@ -265,6 +311,29 @@ const ChampionshipMatches = ({
       return;
     }
 
+    // Check round progression - can the user play this match?
+    try {
+      const token = localStorage.getItem('auth_token');
+      const canPlayResponse = await axios.get(
+        `${BACKEND_URL}/championships/${championshipId}/matches/${matchId}/can-play`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (!canPlayResponse.data.canPlay) {
+        setError(canPlayResponse.data.reason || 'You cannot play this match yet');
+        return;
+      }
+    } catch (error) {
+      console.error('Failed to check play eligibility:', error);
+      setError('Failed to verify eligibility. Please try again.');
+      return;
+    }
+
     const opponent = getOpponent(match);
     if (!opponent) {
       setError('Opponent not found');
@@ -409,11 +478,6 @@ const ChampionshipMatches = ({
     return canRequest;
   };
 
-  const getOpponent = (match) => {
-    if (!user) return null;
-    return match.white_player_id === user.id ? match.black_player : match.white_player;
-  };
-
   const isOpponentOnline = (match) => {
     const opponent = getOpponent(match);
     if (!opponent) {
@@ -421,21 +485,16 @@ const ChampionshipMatches = ({
       return false;
     }
 
-    // Debug: Check opponents state
-    console.log('🔍 Checking opponent online status:', {
+    // Use cached online status from user status service
+    const online = opponentOnlineStatus[opponent.id] ?? false;
+
+    console.log('🔍 Opponent online status:', {
       opponentId: opponent.id,
       opponentName: opponent.name,
-      opponentsInState: opponents.length,
-      opponentsData: opponents.map(o => ({ id: o.user_id, name: o.name, online: o.is_online }))
+      onlineStatus: online,
+      statusFromCache: opponentOnlineStatus[opponent.id] !== undefined
     });
 
-    // Use contextual presence (only checks current round opponents)
-    const online = isUserOnline(opponent.id);
-    if (online) {
-      console.log(`✅ ${opponent.name} is online`);
-    } else {
-      console.log(`❌ ${opponent.name} is offline`);
-    }
     return online;
   };
 
@@ -670,13 +729,13 @@ const ChampionshipMatches = ({
     // Use deadline for deadline info
     const deadlineInfo = formatDeadlineWithUrgency(match.deadline);
 
-    // Check online status for both players using contextual presence
+    // Check online status for both players using cached user status
     // Current user is ALWAYS online (they're viewing this page!)
     const whitePlayerOnline = match.white_player
-      ? (match.white_player.id === user?.id ? true : isUserOnline(match.white_player.id))
+      ? (match.white_player.id === user?.id ? true : (opponentOnlineStatus[match.white_player.id] ?? false))
       : false;
     const blackPlayerOnline = match.black_player
-      ? (match.black_player.id === user?.id ? true : isUserOnline(match.black_player.id))
+      ? (match.black_player.id === user?.id ? true : (opponentOnlineStatus[match.black_player.id] ?? false))
       : false;
 
     console.log('🎯 Player online status check:', {
@@ -1143,7 +1202,19 @@ const ChampionshipMatches = ({
           {rounds.map(round => (
             (filterRound === '' || parseInt(filterRound) === round) && (
               <div key={round} className="round-section">
-                <h3 className="round-title">Round {round}</h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <h3 className="round-title" style={{ margin: 0 }}>Round {round}</h3>
+                  <button
+                    onClick={() => {
+                      setLeaderboardRound(round);
+                      setShowLeaderboardModal(true);
+                    }}
+                    className="btn btn-info btn-small"
+                    style={{ fontSize: '14px', padding: '6px 12px' }}
+                  >
+                    📊 View Leaderboard
+                  </button>
+                </div>
                 <div className="matches-grid">
                   {(matchesByRound[round] || [])
                     .filter(match => filterStatus === '' || match.status === filterStatus)
@@ -1156,6 +1227,13 @@ const ChampionshipMatches = ({
           ))}
         </div>
       )}
+
+      <RoundLeaderboardModal
+        isOpen={showLeaderboardModal}
+        onClose={() => setShowLeaderboardModal(false)}
+        championshipId={championshipId}
+        round={leaderboardRound}
+      />
     </div>
   );
 };

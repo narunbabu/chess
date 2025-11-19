@@ -1080,11 +1080,20 @@ const PlayMultiplayer = () => {
 
     try {
       const token = localStorage.getItem('auth_token');
+
+      // Determine result from user's perspective
+      let result;
+      if (!endEvent.winner_user_id) {
+        result = 'draw';
+      } else if (endEvent.winner_user_id === user?.id) {
+        result = 'win';
+      } else {
+        result = 'loss';
+      }
+
       const resultData = {
-        result: endEvent.result || (endEvent.winner_user_id ? '1-0' : '1/2-1/2'),
-        winner_user_id: endEvent.winner_user_id || null,
-        end_reason: endEvent.end_reason || 'unknown',
-        ended_at: endEvent.ended_at || new Date().toISOString()
+        result: result,
+        opponent_agreed: true // Auto-confirmed since game ended via chess engine
       };
 
       console.log('[Championship] Reporting result to championship system:', resultData);
@@ -1108,7 +1117,7 @@ const PlayMultiplayer = () => {
     } catch (error) {
       console.error('[Championship] Error reporting championship result:', error);
     }
-  }, [championshipContext]);
+  }, [championshipContext, user?.id]);
 
   // Handle game completion
   const handleGameEnd = useCallback(async (event) => {
@@ -2528,15 +2537,63 @@ const PlayMultiplayer = () => {
 
       {/* Draw Offer Notification */}
       {drawOfferPending && (
-        <div className="draw-offer-modal-overlay">
-          <div className="draw-offer-modal">
-            <h3>Draw Offer</h3>
-            <p>Your opponent offers a draw</p>
-            <div className="draw-offer-buttons">
-              <button onClick={handleAcceptDraw} className="accept-draw-button">
+        <div style={{
+          position: 'fixed',
+          top: '0',
+          left: '0',
+          right: '0',
+          bottom: '0',
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000
+        }}>
+          <div style={{
+            backgroundColor: '#2a2a2a',
+            color: 'white',
+            padding: '24px',
+            borderRadius: '12px',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+            textAlign: 'center',
+            minWidth: '300px',
+            maxWidth: '400px'
+          }}>
+            <h3 style={{ marginBottom: '16px', fontSize: '20px', fontWeight: '600' }}>
+              Draw Offer
+            </h3>
+            <p style={{ marginBottom: '24px', fontSize: '16px', color: '#ccc' }}>
+              Your opponent offers a draw
+            </p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <button
+                onClick={handleAcceptDraw}
+                style={{
+                  backgroundColor: '#4CAF50',
+                  color: 'white',
+                  border: 'none',
+                  padding: '12px 24px',
+                  borderRadius: '8px',
+                  fontSize: '16px',
+                  cursor: 'pointer',
+                  fontWeight: '500'
+                }}
+              >
                 Accept Draw
               </button>
-              <button onClick={handleDeclineDraw} className="decline-draw-button">
+              <button
+                onClick={handleDeclineDraw}
+                style={{
+                  backgroundColor: '#f44336',
+                  color: 'white',
+                  border: 'none',
+                  padding: '12px 24px',
+                  borderRadius: '8px',
+                  fontSize: '16px',
+                  cursor: 'pointer',
+                  fontWeight: '500'
+                }}
+              >
                 Decline
               </button>
             </div>
@@ -2571,6 +2628,12 @@ const PlayMultiplayer = () => {
               : gameResult.white_player?.id
           }
           gameId={gameId}
+          championshipData={championshipContext ? {
+            tournamentName: championshipContext.championship?.name || 'Championship',
+            round: championshipContext.round_number,
+            matchId: championshipContext.match_id,
+            championshipId: championshipContext.championship_id
+          } : null}
           onClose={() => {
             // X button should navigate to lobby
             sessionStorage.removeItem('lastInvitationAction');
@@ -2928,6 +2991,12 @@ const PlayMultiplayer = () => {
               : gameResult.white_player?.id
           }
           gameId={gameId}
+          championshipData={championshipContext ? {
+            tournamentName: championshipContext.championship?.name || 'Championship',
+            round: championshipContext.round_number,
+            matchId: championshipContext.match_id,
+            championshipId: championshipContext.championship_id
+          } : null}
           onClose={() => {
             // X button should navigate to lobby
             sessionStorage.removeItem('lastInvitationAction');

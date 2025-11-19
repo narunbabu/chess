@@ -66,11 +66,8 @@ export const GlobalInvitationProvider = ({ children }) => {
     userChannel.listen('.resume.request.sent', (data) => {
       console.log('[GlobalInvitation] Resume request received:', data);
 
-      // Don't show dialog if user is in active game
-      if (isInActiveGame()) {
-        console.log('[GlobalInvitation] User in active game, skipping resume dialog');
-        return;
-      }
+      // Note: Always show resume requests, even when on game page, since resume requests
+      // are specifically for reactivating paused games that the user is already viewing
 
       // Show resume request dialog
       if (data.game_id && data.requesting_user) {

@@ -638,6 +638,16 @@ class GameRoomService
             // Set ended_at for terminal statuses
             if (in_array($status, ['finished', 'aborted'])) {
                 $updateData['ended_at'] = now();
+                // Clean up resume request data when game ends
+                $updateData['resume_requested_by'] = null;
+                $updateData['resume_requested_at'] = null;
+                $updateData['resume_status'] = 'none';
+
+                // Clean up any pending resume request invitations for this game
+                \App\Models\Invitation::where('game_id', $gameId)
+                    ->where('type', 'resume_request')
+                    ->whereIn('status', ['pending'])
+                    ->update(['status' => 'declined']);
             }
 
             $game->update($updateData);
@@ -793,7 +803,41 @@ class GameRoomService
             'end_reason' => $attrs['end_reason'],
             'ended_at' => now(),
             'pgn' => $pgn,
+            // Clean up resume request data when game ends
+            'resume_requested_by' => null,
+            'resume_requested_at' => null,
+            'resume_status' => 'none',
         ]);
+
+        // Clean up any pending resume request invitations for this game
+        \App\Models\Invitation::where('game_id', $game->id)
+            ->where('type', 'resume_request')
+            ->whereIn('status', ['pending'])
+            ->update(['status' => 'declined']);
+
+        // Handle championship match result if this is a championship game
+        $championshipMatch = $game->championshipMatch()->first();
+        if ($championshipMatch) {
+            Log::info('Updating championship match result', [
+                'game_id' => $game->id,
+                'match_id' => $championshipMatch->id,
+                'result' => $attrs['result'],
+                'winner_user_id' => $attrs['winner_user_id'] ?? null,
+                'end_reason' => $attrs['end_reason'] ?? null
+            ]);
+
+            // Map game result to championship result type and score
+            $resultType = $this->mapGameResultToChampionshipResult(
+                $attrs['result'],
+                $attrs['end_reason'] ?? null,
+                $game->white_player_id,
+                $attrs['resigning_player_id'] ?? null
+            );
+            $winnerId = $attrs['winner_user_id'] ?? null;
+
+            // Update championship match
+            $championshipMatch->markAsCompleted($winnerId, $resultType);
+        }
 
         // Broadcast game ended event
         Log::info('Broadcasting GameEndedEvent', [
@@ -878,7 +922,8 @@ class GameRoomService
             'result' => $winner === 'white' ? '1-0' : '0-1',
             'winner_player' => $winner,
             'winner_user_id' => $winnerUserId,
-            'end_reason' => 'resignation'
+            'end_reason' => 'resignation',
+            'resigning_player_id' => $userId  // Pass the resigning player ID
         ]);
 
         return [
@@ -1368,13 +1413,13 @@ class GameRoomService
             $requesterId = $game->resume_requested_by;
             $responderId = $userId; // The user trying to respond
 
-            // Update the invitation record to expired
+            // Update the invitation record to declined
             \App\Models\Invitation::where('type', 'resume_request')
                 ->where('game_id', $gameId)
                 ->where('inviter_id', $requesterId)
                 ->where('status', 'pending')
                 ->update([
-                    'status' => 'expired',
+                    'status' => 'declined',
                     'responded_by' => $responderId,
                     'responded_at' => now()
                 ]);
@@ -1637,5 +1682,47 @@ class GameRoomService
 
             return $filteredMove;
         }, $moves);
+    }
+
+    /**
+     * Map game result to championship result type
+     *
+     * @param string $gameResult Game result (1-0, 0-1, 1/2-1/2)
+     * @param string|null $endReason End reason (resignation, checkmate, etc.)
+     * @param int|null $whitePlayerId White player ID for determining who forfeited
+     * @param int|null $resigningPlayerId Player who resigned
+     * @return string Championship result type
+     */
+    private function mapGameResultToChampionshipResult(string $gameResult, ?string $endReason = null, ?int $whitePlayerId = null, ?int $resigningPlayerId = null): string
+    {
+        // Handle draws
+        if ($gameResult === '1/2-1/2') {
+            return 'draw';
+        }
+
+        // Handle wins
+        if ($gameResult === '1-0' || $gameResult === '0-1') {
+            // Handle specific end reasons
+            if ($endReason === 'resignation' && $resigningPlayerId) {
+                // Determine which player resigned
+                if ($resigningPlayerId === $whitePlayerId) {
+                    return 'forfeit_player1'; // White (player1) resigned, so black wins
+                } else {
+                    return 'forfeit_player2'; // Black (player2) resigned, so white wins
+                }
+            }
+
+            if ($endReason === 'forfeit') {
+                // For forfeits, need to determine who forfeited based on winner
+                // This logic will be handled by the caller since we need context
+                return 'completed';
+            }
+
+            // Default case for checkmate, timeout, etc.
+            return 'completed';
+        }
+
+        // Default to generic result
+        return 'completed';
     }
 }

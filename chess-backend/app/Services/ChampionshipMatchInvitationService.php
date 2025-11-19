@@ -278,11 +278,25 @@ class ChampionshipMatchInvitationService
      */
     public function handleInvitationResponse(Invitation $invitation, string $action, ?string $desiredColor = null): array
     {
+        Log::info('🔍 handleInvitationResponse called', [
+            'invitation_id' => $invitation->id,
+            'invitation_type' => $invitation->type,
+            'championship_match_id' => $invitation->championship_match_id,
+            'action' => $action,
+            'desired_color' => $desiredColor
+        ]);
+
         if ($invitation->type !== 'championship_match') {
             throw new \InvalidArgumentException('Not a championship match invitation');
         }
 
-        $match = ChampionshipMatch::find($invitation->game_id);
+        $match = ChampionshipMatch::find($invitation->championship_match_id);
+        Log::info('🔍 Match lookup result', [
+            'championship_match_id' => $invitation->championship_match_id,
+            'match_found' => $match !== null,
+            'match_id' => $match?->id ?? null
+        ]);
+
         if (!$match) {
             throw new \InvalidArgumentException('Match not found');
         }
@@ -306,7 +320,11 @@ class ChampionshipMatchInvitationService
                 $user = auth()->user();
                 broadcast(new \App\Events\ChampionshipMatchInvitationDeclined($match, $user));
 
-                return ['message' => 'Match invitation declined', 'match' => $match];
+                return [
+                    'success' => true,
+                    'message' => 'Match invitation declined',
+                    'match' => $match
+                ];
             }
 
             if ($action === 'accept') {
@@ -373,6 +391,7 @@ class ChampionshipMatchInvitationService
                 broadcast(new \App\Events\InvitationAccepted($game, $freshInvitation));
 
                 return [
+                    'success' => true,
                     'message' => 'Match invitation accepted',
                     'game' => $game->load(['statusRelation', 'endReasonRelation', 'whitePlayer', 'blackPlayer']),
                     'match' => $match->fresh()->load(['whitePlayer', 'blackPlayer']),
@@ -495,7 +514,7 @@ class ChampionshipMatchInvitationService
                 if ($match) {
                     // Update invitation status
                     $invitation->update([
-                        'status' => 'expired',
+                        'status' => 'declined',
                         'responded_at' => now()
                     ]);
 

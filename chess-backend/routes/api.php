@@ -179,6 +179,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/schedule-next', [\App\Http\Controllers\ChampionshipMatchController::class, 'scheduleNextRound'])->middleware('can:manage,championship');
             Route::get('/bracket', [\App\Http\Controllers\ChampionshipMatchController::class, 'getBracket']);
             Route::get('/stats', [\App\Http\Controllers\ChampionshipMatchController::class, 'getStats']);
+            Route::get('/round/{round}/leaderboard', [\App\Http\Controllers\ChampionshipMatchController::class, 'getRoundLeaderboard']);
             Route::delete('/', [\App\Http\Controllers\ChampionshipMatchController::class, 'destroyAll'])->middleware('can:manage,championship');
         });
 
@@ -197,6 +198,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
             // Parameterized routes that must come after specific routes
             Route::get('/{match}', [\App\Http\Controllers\ChampionshipMatchController::class, 'show']);
+            Route::get('/{match}/can-play', [\App\Http\Controllers\ChampionshipMatchController::class, 'canPlay']);
             Route::post('/{match}/game', [\App\Http\Controllers\ChampionshipMatchController::class, 'createGame']);
             Route::post('/{match}/challenge', [\App\Http\Controllers\ChampionshipMatchController::class, 'sendChallenge']);
             Route::post('/{match}/result', [\App\Http\Controllers\ChampionshipMatchController::class, 'reportResult']);

@@ -14,11 +14,16 @@ class Invitation extends Model
         'invited_id',
         'status',
         'game_id',
+        'championship_match_id',
         'inviter_preferred_color',
+        'desired_color',
         'responded_by',
         'responded_at',
         'type',
-        'expires_at'
+        'priority',
+        'expires_at',
+        'auto_generated',
+        'metadata'
     ];
 
     protected $casts = [
@@ -26,6 +31,8 @@ class Invitation extends Model
         'updated_at' => 'datetime',
         'responded_at' => 'datetime',
         'expires_at' => 'datetime',
+        'auto_generated' => 'boolean',
+        'metadata' => 'array',
     ];
 
     public function inviter()
@@ -41,6 +48,11 @@ class Invitation extends Model
     public function game()
     {
         return $this->belongsTo(Game::class, 'game_id');
+    }
+
+    public function championshipMatch()
+    {
+        return $this->belongsTo(ChampionshipMatch::class, 'championship_match_id');
     }
 
     /**
