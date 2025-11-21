@@ -234,11 +234,40 @@ const CreateChampionshipModal = ({ isOpen, onClose, onSuccess, championship: edi
 
     setLoading(true);
     try {
+      // Debug: Log original form data
+      console.log('Original form data:', formData);
+      console.log('Registration end at:', formData.registration_end_at);
+      console.log('Starts at:', formData.starts_at);
+
+      // Prepare data for context (which will transform to backend format)
+      const dataForContext = {
+        name: formData.name || 'Untitled Championship',
+        description: formData.description || '',
+        entry_fee: formData.entry_fee || 0,
+        max_participants: formData.max_participants || 50,
+        registration_end_at: formData.registration_end_at || getDefaultDateTime(7),
+        starts_at: formData.starts_at || getDefaultDateTime(14),
+        settings: {
+          round_duration_days: formData.settings?.round_duration_days || 3
+        },
+        time_control: {
+          minutes: formData.time_control?.minutes || 10,
+          increment: formData.time_control?.increment || 0
+        },
+        total_rounds: formData.total_rounds || 5,
+        format: formData.format || 'swiss_only',
+        top_qualifiers: formData.format === 'hybrid' ? 8 : null,
+        organization_id: null,
+        visibility: 'public',
+        allow_public_registration: true
+      };
+
+      console.log('Submitting data to context:', dataForContext);
       let championship;
       if (isEditing) {
-        championship = await updateChampionship(editingChampionship.id, formData);
+        championship = await updateChampionship(editingChampionship.id, dataForContext);
       } else {
-        championship = await createChampionship(formData);
+        championship = await createChampionship(dataForContext);
       }
       onSuccess?.(championship);
       onClose();
@@ -319,9 +348,8 @@ const CreateChampionshipModal = ({ isOpen, onClose, onSuccess, championship: edi
                 <option value="">Select Format</option>
                 <option value="swiss_only">Swiss System</option>
                 <option value="elimination_only">Single Elimination</option>
-                <option value="swiss_elimination">Hybrid (Swiss + Elimination)</option>
-                <option value="round_robin">Round Robin</option>
-              </select>
+                <option value="hybrid">Hybrid (Swiss + Elimination)</option>
+                  </select>
               {stepInteracted[currentStep] && errors.format && <span className="error-message">{errors.format}</span>}
             </div>
 

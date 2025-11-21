@@ -28,6 +28,12 @@ class User extends Authenticatable
         'is_active',
         'last_login_at',
         'last_activity_at',
+        'tutorial_xp',
+        'tutorial_level',
+        'current_skill_tier',
+        'current_streak_days',
+        'longest_streak_days',
+        'last_activity_date',
     ];
 
     protected $hidden = [
@@ -44,6 +50,7 @@ class User extends Authenticatable
         'is_active' => 'boolean',
         'last_login_at' => 'datetime',
         'last_activity_at' => 'datetime',
+        'last_activity_date' => 'date',
     ];
 
     /**
@@ -395,5 +402,371 @@ class User extends Authenticatable
         return $this->roles()
                     ->orderByDesc('hierarchy_level')
                     ->first();
+    }
+
+    // -------------------------------------------------------------------------
+    // TUTORIAL SYSTEM RELATIONSHIPS AND METHODS
+    // -------------------------------------------------------------------------
+
+    /**
+     * Get user's tutorial progress
+     */
+    public function tutorialProgress()
+    {
+        return $this->hasMany(UserTutorialProgress::class, 'user_id');
+    }
+
+    /**
+     * Get user's skill assessments
+     */
+    public function skillAssessments()
+    {
+        return $this->hasMany(UserSkillAssessment::class, 'user_id');
+    }
+
+    /**
+     * Get user's achievements
+     */
+    public function userAchievements()
+    {
+        return $this->hasMany(UserAchievement::class, 'user_id');
+    }
+
+    /**
+     * Get user's earned achievements
+     */
+    public function achievements()
+    {
+        return $this->belongsToMany(TutorialAchievement::class, 'user_achievements')
+                    ->withPivot('earned_at')
+                    ->withTimestamps();
+    }
+
+    /**
+     * Get user's practice games
+     */
+    public function tutorialPracticeGames()
+    {
+        return $this->hasMany(TutorialPracticeGame::class, 'user_id');
+    }
+
+    /**
+     * Get user's daily challenge completions
+     */
+    public function dailyChallengeCompletions()
+    {
+        return $this->hasMany(UserDailyChallengeCompletion::class, 'user_id');
+    }
+
+    /**
+     * Award tutorial XP to user
+     */
+    public function awardTutorialXp($xpAmount, $reason = null): void
+    {
+        $this->increment('tutorial_xp', $xpAmount);
+        $this->updateLevelIfNeeded();
+
+        // Log XP award for debugging/analytics
+        if ($reason) {
+            \Log::info("User {$this->id} earned {$xpAmount} XP: {$reason}");
+        }
+    }
+
+    /**
+     * Update tutorial level based on XP
+     */
+    public function updateLevelIfNeeded(): void
+    {
+        $currentLevel = $this->tutorial_level;
+        $newLevel = $this->calculateLevelFromXp($this->tutorial_xp);
+
+        if ($newLevel > $currentLevel) {
+            $this->update([
+                'tutorial_level' => $newLevel,
+            ]);
+
+            // Check for level-based achievements
+            $this->checkLevelAchievements($newLevel);
+        }
+    }
+
+    /**
+     * Check and award level-based achievements
+     */
+    public function checkLevelAchievements(int $level): void
+    {
+        // Define level-based achievements
+        $levelAchievements = [
+            5 => 'level_5_reached',
+            10 => 'level_10_reached',
+            15 => 'level_15_reached',
+            20 => 'level_20_reached',
+            25 => 'level_25_reached',
+            30 => 'level_30_reached',
+        ];
+
+        // Check if this level has an achievement
+        if (isset($levelAchievements[$level])) {
+            $achievementCode = $levelAchievements[$level];
+            $achievement = TutorialAchievement::where('code', $achievementCode)->first();
+
+            if ($achievement) {
+                // Award the achievement if not already earned
+                $existing = $this->userAchievements()
+                    ->where('achievement_id', $achievement->id)
+                    ->exists();
+
+                if (!$existing) {
+                    $this->userAchievements()->create([
+                        'achievement_id' => $achievement->id,
+                        'earned_at' => now(),
+                    ]);
+
+                    \Log::info("User {$this->id} earned achievement: {$achievement->title}");
+                }
+            }
+        }
+    }
+
+    /**
+     * Calculate tutorial level from XP
+     */
+    public function calculateLevelFromXp($xp): int
+    {
+        // Formula: XP for level n = 100 * (1.5)^(n-1)
+        $level = 1;
+        $xpForLevel = 100;
+
+        while ($xp >= $xpForLevel) {
+            $level++;
+            $xpForLevel = floor(100 * pow(1.5, $level - 1));
+        }
+
+        return $level;
+    }
+
+    /**
+     * Get XP needed for next level
+     */
+    public function getXpForNextLevelAttribute(): int
+    {
+        $nextLevel = $this->tutorial_level + 1;
+        return floor(100 * pow(1.5, $nextLevel - 1));
+    }
+
+    /**
+     * Get XP progress towards next level
+     */
+    public function getXpProgressAttribute(): array
+    {
+        $currentLevel = $this->tutorial_level;
+        $currentXp = $this->tutorial_xp;
+
+        $xpForCurrentLevel = $currentLevel === 1 ? 0 : floor(100 * pow(1.5, $currentLevel - 2));
+        $xpForNextLevel = floor(100 * pow(1.5, $currentLevel - 1));
+
+        $xpNeeded = $xpForNextLevel - $xpForCurrentLevel;
+        $xpEarned = $currentXp - $xpForCurrentLevel;
+        $percentage = min(100, ($xpEarned / $xpNeeded) * 100);
+
+        return [
+            'current_xp' => $currentXp,
+            'xp_needed' => $xpNeeded,
+            'xp_earned' => $xpEarned,
+            'percentage' => round($percentage, 2),
+        ];
+    }
+
+    /**
+     * Award achievement to user
+     */
+    public function awardAchievement($achievementId): bool
+    {
+        if ($this->userAchievements()->where('achievement_id', $achievementId)->exists()) {
+            return false; // Already earned
+        }
+
+        $achievement = TutorialAchievement::find($achievementId);
+        if (!$achievement) {
+            return false;
+        }
+
+        $this->userAchievements()->create([
+            'achievement_id' => $achievementId,
+            'earned_at' => now(),
+        ]);
+
+        // Award achievement XP
+        $this->awardTutorialXp($achievement->xp_reward, "Achievement: {$achievement->name}");
+
+        return true;
+    }
+
+
+    /**
+     * Update user's skill tier based on assessments
+     */
+    public function updateSkillTier(): void
+    {
+        $latestAssessment = $this->skillAssessments()
+            ->where('score', '>=', 70)
+            ->orderByDesc('completed_at')
+            ->first();
+
+        if ($latestAssessment && $latestAssessment->canUnlockNextTier()) {
+            $this->update(['current_skill_tier' => $latestAssessment->next_tier]);
+        }
+    }
+
+    /**
+     * Update daily streak
+     */
+    public function updateDailyStreak(): void
+    {
+        $today = now()->format('Y-m-d');
+        $lastActivity = $this->last_activity_date;
+
+        if ($lastActivity) {
+            $lastActivityDate = $lastActivity->format('Y-m-d');
+            $yesterday = now()->subDay()->format('Y-m-d');
+
+            if ($lastActivityDate === $today) {
+                return; // Already updated today
+            } elseif ($lastActivityDate === $yesterday) {
+                // Continue streak
+                $newStreak = $this->current_streak_days + 1;
+                $longestStreak = max($this->longest_streak_days, $newStreak);
+            } else {
+                // Streak broken
+                $newStreak = 1;
+                $longestStreak = $this->longest_streak_days;
+            }
+        } else {
+            // First activity
+            $newStreak = 1;
+            $longestStreak = 1;
+        }
+
+        $this->update([
+            'current_streak_days' => $newStreak,
+            'longest_streak_days' => $longestStreak,
+            'last_activity_date' => $today,
+        ]);
+    }
+
+    /**
+     * Get current daily streak from challenge completions
+     */
+    public function getCurrentDailyStreak(): int
+    {
+        $streak = 0;
+        $currentDate = now();
+
+        for ($i = 0; $i < 365; $i++) { // Check up to a year
+            $dateStr = $currentDate->format('Y-m-d');
+
+            $hasCompletedChallenge = $this->dailyChallengeCompletions()
+                ->whereHas('challenge', function ($query) use ($dateStr) {
+                    $query->where('date', $dateStr);
+                })
+                ->where('completed', true)
+                ->exists();
+
+            if ($hasCompletedChallenge) {
+                $streak++;
+                $currentDate->subDay();
+            } else {
+                break;
+            }
+        }
+
+        return $streak;
+    }
+
+    /**
+     * Get tutorial progress statistics
+     */
+    public function getTutorialStatsAttribute(): array
+    {
+        $totalLessons = TutorialLesson::active()->count();
+        $completedLessons = $this->tutorialProgress()->completed()->count();
+        $masteredLessons = $this->tutorialProgress()->mastered()->count();
+
+        $totalModules = TutorialModule::active()->count();
+        $completedModules = TutorialModule::active()
+            ->whereHas('activeLessons.userProgress', function ($query) {
+                $query->where('user_id', $this->id)
+                      ->where('status', 'completed');
+            })
+            ->count();
+
+        $averageScore = $this->tutorialProgress()
+            ->where('best_score', '>', 0)
+            ->avg('best_score') ?? 0;
+
+        $totalTimeSpent = $this->tutorialProgress()->sum('time_spent_seconds');
+        $achievementsCount = $this->userAchievements()->count();
+
+        return [
+            'total_lessons' => $totalLessons,
+            'completed_lessons' => $completedLessons,
+            'mastered_lessons' => $masteredLessons,
+            'completion_percentage' => $totalLessons > 0 ? round(($completedLessons / $totalLessons) * 100, 2) : 0,
+            'total_modules' => $totalModules,
+            'completed_modules' => $completedModules,
+            'average_score' => round($averageScore, 2),
+            'total_time_spent' => $totalTimeSpent,
+            'formatted_time_spent' => $this->formatTimeSpent($totalTimeSpent),
+            'achievements_count' => $achievementsCount,
+            'current_streak' => $this->current_streak_days,
+            'xp' => $this->tutorial_xp,
+            'level' => $this->tutorial_level,
+            'skill_tier' => $this->current_skill_tier,
+        ];
+    }
+
+    /**
+     * Format time spent in human readable format
+     */
+    private function formatTimeSpent($seconds): string
+    {
+        $hours = floor($seconds / 3600);
+        $minutes = floor(($seconds % 3600) / 60);
+
+        if ($hours > 0) {
+            return $minutes > 0 ? "{$hours}h {$minutes}m" : "{$hours}h";
+        }
+
+        return "{$minutes}m";
+    }
+
+    /**
+     * Check if user has access to specific skill tier content
+     */
+    public function hasAccessToTier($tier): bool
+    {
+        $tierLevels = [
+            'beginner' => 0,
+            'intermediate' => 1,
+            'advanced' => 2,
+        ];
+
+        $userTierLevel = $tierLevels[$this->current_skill_tier] ?? 0;
+        $requestedTierLevel = $tierLevels[$tier] ?? 0;
+
+        return $userTierLevel >= $requestedTierLevel;
+    }
+
+    /**
+     * Get suggested AI difficulty based on skill tier
+     */
+    public function getSuggestedAiDifficulty(): string
+    {
+        return match($this->current_skill_tier) {
+            'beginner' => 'easy',
+            'intermediate' => 'medium',
+            'advanced' => 'hard',
+            default => 'easy',
+        };
     }
 }

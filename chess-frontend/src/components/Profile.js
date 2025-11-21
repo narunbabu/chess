@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { getPlayerAvatar } from '../utils/playerDisplayUtils';
 import ReactCrop from 'react-image-crop';
@@ -7,9 +8,11 @@ import 'react-image-crop/dist/ReactCrop.css';
 import SocialShare from './SocialShare';
 import { getFriendInvitationMessage } from '../utils/socialShareUtils';
 import './Profile.css';
+import './tutorial/ProfileTutorial.css';
 
 const Profile = () => {
   const { user, fetchUser } = useAuth();
+  const navigate = useNavigate();
   const [friends, setFriends] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -18,6 +21,8 @@ const Profile = () => {
   const [avatarFile, setAvatarFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [tutorialStats, setTutorialStats] = useState(null);
+  const [xpProgress, setXpProgress] = useState(null);
 
   // Image cropping states
   const [selectedImage, setSelectedImage] = useState(null);
@@ -32,8 +37,20 @@ const Profile = () => {
       setName(user.name || '');
       loadFriends();
       loadPendingRequests();
+      loadTutorialProgress();
     }
   }, [user]);
+
+  const loadTutorialProgress = async () => {
+    try {
+      const response = await api.get('/tutorial/progress');
+      setTutorialStats(response.data.data.stats);
+      setXpProgress(response.data.data.xp_progress);
+    } catch (err) {
+      console.error('Error loading tutorial progress:', err);
+      // Don't set empty arrays, just leave as null if failed
+    }
+  };
 
   const loadFriends = async () => {
     try {
@@ -383,6 +400,114 @@ const Profile = () => {
           )}
         </div>
       </section>
+
+      {/* Tutorial Progress */}
+      {tutorialStats && (
+        <section className="profile-section">
+          <h2>📚 Tutorial Progress</h2>
+          <div className="tutorial-stats-grid">
+            {/* XP and Level */}
+            {xpProgress && (
+              <div className="stat-card">
+                <div className="stat-title">Level & XP</div>
+                <div className="xp-progress">
+                  <div className="level-info">
+                    <span className="level">Level {Math.floor(xpProgress.current_xp > 0 ? Math.log2(xpProgress.current_xp / 100) + 2 : 1)}</span>
+                    <span className="xp">{tutorialStats.xp} XP</span>
+                  </div>
+                  <div className="xp-bar">
+                    <div
+                      className="xp-fill"
+                      style={{ width: `${xpProgress.percentage}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Overall Progress */}
+            <div className="stat-card">
+              <div className="stat-title">Overall Progress</div>
+              <div className="progress-circle">
+                <svg width="60" height="60">
+                  <circle
+                    cx="30"
+                    cy="30"
+                    r="25"
+                    stroke="#e0e0e0"
+                    strokeWidth="5"
+                    fill="none"
+                  />
+                  <circle
+                    cx="30"
+                    cy="30"
+                    r="25"
+                    stroke="#4CAF50"
+                    strokeWidth="5"
+                    fill="none"
+                    strokeDasharray={`${(tutorialStats.completion_percentage / 100) * 157} 157`}
+                    transform="rotate(-90 30 30)"
+                  />
+                </svg>
+                <div className="progress-text">{tutorialStats.completion_percentage}%</div>
+              </div>
+            </div>
+
+            {/* Lessons Completed */}
+            <div className="stat-card">
+              <div className="stat-title">Lessons Completed</div>
+              <div className="stat-value">{tutorialStats.completed_lessons}</div>
+              <div className="stat-subtitle">of {tutorialStats.total_lessons}</div>
+            </div>
+
+            {/* Achievements */}
+            <div className="stat-card">
+              <div className="stat-title">Achievements</div>
+              <div className="stat-value">🏆 {tutorialStats.achievements_count}</div>
+              <div className="stat-subtitle">earned</div>
+            </div>
+
+            {/* Current Streak */}
+            <div className="stat-card">
+              <div className="stat-title">Daily Streak</div>
+              <div className="stat-value">🔥 {tutorialStats.current_streak}</div>
+              <div className="stat-subtitle">days</div>
+            </div>
+
+            {/* Skill Tier */}
+            <div className="stat-card">
+              <div className="stat-title">Skill Tier</div>
+              <div className="skill-tier-badge">
+                {tutorialStats.skill_tier === 'beginner' && '🌱 Beginner'}
+                {tutorialStats.skill_tier === 'intermediate' && '🎯 Intermediate'}
+                {tutorialStats.skill_tier === 'advanced' && '🏆 Advanced'}
+              </div>
+            </div>
+
+            {/* Time Spent */}
+            <div className="stat-card">
+              <div className="stat-title">Time Learning</div>
+              <div className="stat-value">⏱️ {tutorialStats.formatted_time_spent}</div>
+              <div className="stat-subtitle">total</div>
+            </div>
+          </div>
+
+          <div className="tutorial-actions">
+            <button
+              onClick={() => navigate('/tutorial')}
+              className="tutorial-btn primary"
+            >
+              🎓 Continue Learning
+            </button>
+            <button
+              onClick={() => navigate('/tutorial?tier=achievements')}
+              className="tutorial-btn secondary"
+            >
+              🏆 View Achievements
+            </button>
+          </div>
+        </section>
+      )}
 
       {/* Invite Friends via Social Media */}
       <section className="profile-section">

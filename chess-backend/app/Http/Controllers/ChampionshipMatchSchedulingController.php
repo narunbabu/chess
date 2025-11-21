@@ -321,10 +321,11 @@ class ChampionshipMatchSchedulingController extends Controller
      */
     private function broadcastImmediateGame(\App\Models\Game $game, ChampionshipMatch $match): void
     {
+        // Broadcast to BOTH players - remove ->toOthers() so both requester and accepter receive the event
         broadcast(new \App\Events\ChampionshipGameCreated(
             $game,
             $match,
             Auth::user()
-        ))->toOthers();
+        ));
     }
 }

@@ -6,6 +6,7 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Validator;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -37,8 +38,41 @@ class AppServiceProvider extends ServiceProvider
 
         Log::info('=== APPLICATION READY ===');
 
+        // Register custom validation rules
+        $this->registerCustomValidationRules();
+
         // Register authorization gates
         $this->registerAuthorizationGates();
+    }
+
+    /**
+     * Register custom validation rules
+     */
+    protected function registerCustomValidationRules(): void
+    {
+        // Validate that a value is an even number
+        Validator::extend('even', function ($attribute, $value, $parameters, $validator) {
+            return is_numeric($value) && $value % 2 === 0;
+        });
+
+        // Validate that a value is a power of two
+        Validator::extend('power_of_two', function ($attribute, $value, $parameters, $validator) {
+            if (!is_numeric($value) || $value <= 0) {
+                return false;
+            }
+            // A number is a power of 2 if it has only one bit set
+            // Example: 2 (10), 4 (100), 8 (1000), 16 (10000)
+            return ($value & ($value - 1)) === 0;
+        });
+
+        // Custom error messages
+        Validator::replacer('even', function ($message, $attribute, $rule, $parameters) {
+            return str_replace(':attribute', $attribute, 'The :attribute must be an even number.');
+        });
+
+        Validator::replacer('power_of_two', function ($message, $attribute, $rule, $parameters) {
+            return str_replace(':attribute', $attribute, 'The :attribute must be a power of 2 (2, 4, 8, 16, 32, 64).');
+        });
     }
 
     /**

@@ -171,12 +171,55 @@ class ChampionshipController extends Controller
             'time_control_increment' => 'required|integer|min:0|max:60',
             'total_rounds' => 'nullable|integer|min:1|max:50',
             'format' => ['required', 'string', Rule::in(['swiss_only', 'elimination_only', 'hybrid'])],
-            'swiss_rounds' => 'required_if:format,swiss_only,hybrid|integer|min:1|max:20',
-            'top_qualifiers' => 'required_if:format,hybrid|integer|min:2|max:64|even',
+            'swiss_rounds' => 'nullable|integer|min:1|max:20',
+            'top_qualifiers' => 'nullable|integer',
             'organization_id' => 'nullable|exists:organizations,id',
             'visibility' => ['nullable', 'string', Rule::in(['public', 'private', 'organization_only'])],
             'allow_public_registration' => 'nullable|boolean',
         ]);
+
+        // Add format-specific validation
+        $validator->after(function ($validator) use ($request) {
+            $format = $request->input('format');
+
+            if ($format === 'hybrid') {
+                $swissRounds = $request->input('swiss_rounds', 0);
+                $topQualifiers = $request->input('top_qualifiers', 0);
+
+                // For hybrid format, top_qualifiers is required
+                if (!$request->has('top_qualifiers') || is_null($topQualifiers)) {
+                    $validator->errors()->add('top_qualifiers', 'Top qualifiers are required for Hybrid format');
+                } else {
+                    // Validate top_qualifiers rules for hybrid
+                    if ($topQualifiers < 2 || $topQualifiers > 64) {
+                        $validator->errors()->add('top_qualifiers', 'Top qualifiers must be between 2 and 64');
+                    }
+                    if ($topQualifiers % 2 !== 0) {
+                        $validator->errors()->add('top_qualifiers', 'Top qualifiers must be an even number');
+                    }
+                    // Check if it's a power of 2
+                    if (($topQualifiers & ($topQualifiers - 1)) !== 0) {
+                        $validator->errors()->add('top_qualifiers', 'Top qualifiers must be a power of 2');
+                    }
+                }
+
+                // For hybrid format, swiss_rounds is required
+                if (!$request->has('swiss_rounds') || is_null($swissRounds)) {
+                    $validator->errors()->add('swiss_rounds', 'Swiss rounds are required for Hybrid format');
+                }
+            } elseif ($format === 'swiss_only') {
+                // For swiss_only format, swiss_rounds is required
+                if (!$request->has('swiss_rounds') || is_null($request->input('swiss_rounds'))) {
+                    $validator->errors()->add('swiss_rounds', 'Swiss rounds are required for Swiss Only format');
+                }
+            } elseif ($format === 'elimination_only') {
+                // For elimination_only, ensure max participants is power of 2
+                $maxParticipants = $request->input('max_participants');
+                if ($maxParticipants && (($maxParticipants & ($maxParticipants - 1)) !== 0)) {
+                    $validator->errors()->add('max_participants', 'Max participants must be a power of 2 for elimination tournaments');
+                }
+            }
+        });
 
         if ($validator->fails()) {
             return response()->json([
@@ -365,12 +408,55 @@ class ChampionshipController extends Controller
             if ($championship->getStatusEnum()->isUpcoming()) {
                 $rules = array_merge($rules, [
                     'format' => ['sometimes', 'required', 'string', Rule::in(['swiss_only', 'elimination_only', 'hybrid'])],
-                    'swiss_rounds' => 'sometimes|required_if:format,swiss_only,hybrid|integer|min:1|max:20',
-                    'top_qualifiers' => 'sometimes|required_if:format,hybrid|integer|min:2|max:64|even',
+                    'swiss_rounds' => 'sometimes|nullable|integer|min:1|max:20',
+                    'top_qualifiers' => 'sometimes|nullable|integer',
                 ]);
             }
 
             $validator = Validator::make($request->all(), $rules);
+
+            // Add format-specific validation for upcoming championships
+            if ($championship->getStatusEnum()->isUpcoming()) {
+                $validator->after(function ($validator) use ($request) {
+                    $format = $request->input('format') ?? $championship->format;
+
+                    if ($format === 'hybrid') {
+                        $topQualifiers = $request->input('top_qualifiers');
+                        $swissRounds = $request->input('swiss_rounds');
+
+                        // For hybrid format, top_qualifiers is required
+                        if ($request->has('top_qualifiers') && !is_null($topQualifiers)) {
+                            // Validate top_qualifiers rules for hybrid
+                            if ($topQualifiers < 2 || $topQualifiers > 64) {
+                                $validator->errors()->add('top_qualifiers', 'Top qualifiers must be between 2 and 64');
+                            }
+                            if ($topQualifiers % 2 !== 0) {
+                                $validator->errors()->add('top_qualifiers', 'Top qualifiers must be an even number');
+                            }
+                            // Check if it's a power of 2
+                            if (($topQualifiers & ($topQualifiers - 1)) !== 0) {
+                                $validator->errors()->add('top_qualifiers', 'Top qualifiers must be a power of 2');
+                            }
+                        }
+
+                        // For hybrid format, swiss_rounds is required if being updated
+                        if ($request->has('swiss_rounds') && is_null($swissRounds)) {
+                            $validator->errors()->add('swiss_rounds', 'Swiss rounds are required for Hybrid format');
+                        }
+                    }
+
+                    // Ensure max participants is power of 2 for elimination format
+                    if (($format === 'elimination_only' ||
+                        ($request->has('format') && $request->input('format') === 'elimination_only')) &&
+                        $request->has('max_participants')) {
+
+                        $maxParticipants = $request->input('max_participants');
+                        if ($maxParticipants && (($maxParticipants & ($maxParticipants - 1)) !== 0)) {
+                            $validator->errors()->add('max_participants', 'Max participants must be a power of 2 for elimination tournaments');
+                        }
+                    }
+                });
+            }
 
             if ($validator->fails()) {
                 return response()->json([

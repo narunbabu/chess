@@ -16,6 +16,7 @@ use App\Http\Controllers\ContextualPresenceController;
 use App\Http\Controllers\WebSocketController;
 use App\Http\Controllers\RatingController;
 use App\Http\Controllers\SharedResultController;
+use App\Http\Controllers\TutorialController;
 // use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 
@@ -98,6 +99,35 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/rating/update', [RatingController::class, 'updateRating']);
     Route::get('/rating/leaderboard', [RatingController::class, 'getLeaderboard']);
     Route::get('/rating/history', [RatingController::class, 'getRatingHistory']);
+
+    // Tutorial System routes
+    Route::prefix('tutorial')->group(function () {
+        // Module and Lesson routes
+        Route::get('/modules', [TutorialController::class, 'getModules']);
+        Route::get('/modules/{slug}', [TutorialController::class, 'getModule']);
+        Route::get('/lessons/{id}', [TutorialController::class, 'getLesson']);
+        Route::post('/lessons/{id}/start', [TutorialController::class, 'startLesson']);
+        Route::post('/lessons/{id}/complete', [TutorialController::class, 'completeLesson']);
+
+        // Progress and Stats routes
+        Route::get('/progress', [TutorialController::class, 'getProgress']);
+        Route::get('/progress/stats', [TutorialController::class, 'getStats']);
+
+        // Achievement routes
+        Route::get('/achievements', [TutorialController::class, 'getAchievements']);
+        Route::get('/achievements/user', [TutorialController::class, 'getUserAchievements']);
+
+        // Daily Challenge routes
+        Route::get('/daily-challenge', [TutorialController::class, 'getDailyChallenge']);
+        Route::post('/daily-challenge/submit', [TutorialController::class, 'submitDailyChallenge']);
+
+        // Practice Game routes
+        Route::post('/practice-game/create', [TutorialController::class, 'createPracticeGame']);
+        Route::post('/practice-game/{id}/complete', [TutorialController::class, 'completePracticeGame']);
+
+        // Skill Assessment routes
+        Route::post('/skill-assessment', [TutorialController::class, 'createSkillAssessment']);
+    });
 
     // WebSocket API routes for real-time game connections
     Route::prefix('websocket')->group(function () {

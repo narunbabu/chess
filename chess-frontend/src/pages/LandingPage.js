@@ -58,6 +58,7 @@ const LandingPage = () => {
             {/* <button onClick={() => navigate('/play')} className="hover:text-yellow-300 transition-colors text-sm lg:text-base font-medium">Play</button> */}
             <Link to="/puzzles" className="hover:text-yellow-300 transition-colors text-sm lg:text-base font-medium">Puzzles</Link>
             <Link to="/learn" className="hover:text-yellow-300 transition-colors text-sm lg:text-base font-medium">Learn</Link>
+            <Link to="/tutorial" className="hover:text-yellow-300 transition-colors text-sm lg:text-base font-medium">Tutorial</Link>
             <button className="hover:text-yellow-300 transition-colors text-sm lg:text-base font-medium">Events</button>
             <button className="hover:text-yellow-300 transition-colors text-sm lg:text-base font-medium">Resources</button>
           </nav>

@@ -15,8 +15,8 @@ class DatabaseSeeder extends Seeder
     {
         $this->command->info('🚀 Starting database seeding...');
 
-        // Disable foreign key checks temporarily
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        // Disable foreign key checks temporarily (database-specific)
+        $this->disableForeignKeyChecks();
 
         try {
             // Clear existing data to ensure clean slate
@@ -51,6 +51,9 @@ class DatabaseSeeder extends Seeder
             $this->command->info('📊 Running role permission assignments...');
             $this->call(RolePermissionSeeder::class);
 
+            $this->command->info('🎓 Seeding tutorial content...');
+            $this->call(TutorialContentSeeder::class);
+
             $this->command->info('✅ Database seeding completed successfully!');
 
             // Display summary
@@ -61,7 +64,39 @@ class DatabaseSeeder extends Seeder
             throw $e;
         } finally {
             // Re-enable foreign key checks
+            $this->enableForeignKeyChecks();
+        }
+    }
+
+    /**
+     * Disable foreign key checks in a database-agnostic way
+     */
+    private function disableForeignKeyChecks(): void
+    {
+        $driver = DB::getDriverName();
+
+        if ($driver === 'sqlite') {
+            DB::statement('PRAGMA foreign_keys = OFF;');
+        } elseif ($driver === 'mysql') {
+            DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        } elseif ($driver === 'pgsql') {
+            DB::statement('SET CONSTRAINTS ALL DEFERRED;');
+        }
+    }
+
+    /**
+     * Enable foreign key checks in a database-agnostic way
+     */
+    private function enableForeignKeyChecks(): void
+    {
+        $driver = DB::getDriverName();
+
+        if ($driver === 'sqlite') {
+            DB::statement('PRAGMA foreign_keys = ON;');
+        } elseif ($driver === 'mysql') {
             DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        } elseif ($driver === 'pgsql') {
+            DB::statement('SET CONSTRAINTS ALL IMMEDIATE;');
         }
     }
 

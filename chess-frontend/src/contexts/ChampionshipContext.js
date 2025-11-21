@@ -55,6 +55,10 @@ export const ChampionshipProvider = ({ children }) => {
     setError(null);
     try {
       // Map frontend field names to backend field names
+      console.log('Context - Received championshipData:', championshipData);
+      console.log('Context - registration_end_at:', championshipData.registration_end_at);
+      console.log('Context - starts_at:', championshipData.starts_at);
+
       const backendData = {
         title: championshipData.name,
         description: championshipData.description,
@@ -65,6 +69,9 @@ export const ChampionshipProvider = ({ children }) => {
         match_time_window_hours: championshipData.settings?.round_duration_days
           ? championshipData.settings.round_duration_days * 24
           : 72, // Default 3 days in hours
+        time_control_minutes: championshipData.time_control?.minutes || 10,
+        time_control_increment: championshipData.time_control?.increment || 0,
+        total_rounds: championshipData.total_rounds || 5,
         format: championshipData.format,
         swiss_rounds: championshipData.total_rounds, // Used for swiss_only and hybrid formats
         top_qualifiers: championshipData.top_qualifiers, // Used for hybrid format
@@ -72,6 +79,10 @@ export const ChampionshipProvider = ({ children }) => {
         visibility: championshipData.visibility || 'public',
         allow_public_registration: championshipData.allow_public_registration !== false,
       };
+
+      console.log('Context - Sending backendData to API:', backendData);
+      console.log('Context - backendData.registration_deadline:', backendData.registration_deadline);
+      console.log('Context - backendData.start_date:', backendData.start_date);
 
       const response = await api.post('/championships', backendData);
       const championship = response.data.championship || response.data; // Handle both response formats
@@ -101,6 +112,9 @@ export const ChampionshipProvider = ({ children }) => {
         match_time_window_hours: data.settings?.round_duration_days
           ? data.settings.round_duration_days * 24
           : 72, // Default 3 days in hours
+        time_control_minutes: data.time_control?.minutes || 10,
+        time_control_increment: data.time_control?.increment || 0,
+        total_rounds: data.total_rounds || 5,
         format: data.format,
         swiss_rounds: data.total_rounds, // Used for swiss_only and hybrid formats
         top_qualifiers: data.top_qualifiers, // Used for hybrid format

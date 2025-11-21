@@ -22,13 +22,19 @@ class ChampionshipValidator
             'title' => 'required|string|max:255|min:3',
             'description' => 'nullable|string|max:5000',
             'entry_fee' => 'required|numeric|min:0|max:10000',
-            'max_participants' => 'nullable|integer|min:2|max:1024|power_of_two',
+            'max_participants' => 'nullable|integer|min:2|max:1024',
             'registration_deadline' => 'required|date|after:now|before:start_date',
             'start_date' => 'required|date|after:registration_deadline',
             'match_time_window_hours' => 'required|integer|min:1|max:168',
+            'time_control_minutes' => 'nullable|integer|min:1|max:180',
+            'time_control_increment' => 'nullable|integer|min:0|max:60',
+            'total_rounds' => 'nullable|integer|min:1|max:20',
             'format' => 'required|string|in:swiss_only,elimination_only,hybrid',
-            'swiss_rounds' => 'required_if:format,swiss_only,hybrid|integer|min:1|max:20',
-            'top_qualifiers' => 'required_if:format,hybrid|integer|min:2|max:64|even|power_of_two',
+            'swiss_rounds' => 'nullable|integer|min:1|max:20',
+            'top_qualifiers' => 'nullable|integer',
+            'organization_id' => 'nullable|integer|exists:organizations,id',
+            'visibility' => 'nullable|string|in:public,private,organization',
+            'allow_public_registration' => 'nullable|boolean',
         ], [
             'title.required' => 'Championship title is required',
             'title.min' => 'Championship title must be at least 3 characters',
@@ -65,14 +71,19 @@ class ChampionshipValidator
             'registration_deadline' => 'sometimes|required|date|after:now|before:start_date',
             'start_date' => 'sometimes|required|date|after:registration_deadline',
             'match_time_window_hours' => 'sometimes|required|integer|min:1|max:168',
+            'time_control_minutes' => 'sometimes|nullable|integer|min:1|max:180',
+            'time_control_increment' => 'sometimes|nullable|integer|min:0|max:60',
+            'total_rounds' => 'sometimes|nullable|integer|min:1|max:20',
+            'visibility' => 'sometimes|nullable|string|in:public,private,organization',
+            'allow_public_registration' => 'sometimes|nullable|boolean',
         ];
 
         // Allow format changes only if championship hasn't started
         if ($championship->getStatusEnum()->isUpcoming()) {
             $rules = array_merge($rules, [
                 'format' => 'sometimes|required|string|in:swiss_only,elimination_only,hybrid',
-                'swiss_rounds' => 'sometimes|required_if:format,swiss_only,hybrid|integer|min:1|max:20',
-                'top_qualifiers' => 'sometimes|required_if:format,hybrid|integer|min:2|max:64|even',
+                'swiss_rounds' => 'sometimes|required_if:format,swiss_only,hybrid|nullable|integer|min:1|max:20',
+                'top_qualifiers' => 'sometimes|required_if:format,hybrid|nullable|integer|min:2|max:64|even|power_of_two',
             ]);
         }
 

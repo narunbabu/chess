@@ -11,6 +11,9 @@ import PlayComputer from "./components/play/PlayComputer";
 import PlayMultiplayer from "./components/play/PlayMultiplayer";
 import TrainingHub from "./components/TrainingHub";
 import TrainingExercise from "./components/TrainingExercise";
+import TutorialHub from "./components/tutorial/TutorialHub";
+import ModuleDetail from "./components/tutorial/ModuleDetail";
+import LessonPlayer from "./components/tutorial/LessonPlayer";
 import GameHistory from "./components/GameHistory";
 import GameReview from "./components/GameReview";
 import Login from "./pages/Login";
@@ -109,6 +112,20 @@ const AppContent = () => {
               path="/play/multiplayer/:gameId"
               element={requireAuth(<PlayMultiplayer />, 'multiplayer')}
             />
+            {/* Tutorial System - Auth required */}
+            <Route
+              path="/tutorial"
+              element={requireAuth(<TutorialHub />, 'tutorial')}
+            />
+            <Route
+              path="/tutorial/module/:slug"
+              element={requireAuth(<ModuleDetail />, 'tutorial')}
+            />
+            <Route
+              path="/tutorial/lesson/:lessonId"
+              element={requireAuth(<LessonPlayer />, 'tutorial')}
+            />
+
             {/* Lobby - Auth required */}
             <Route
               path="/lobby"

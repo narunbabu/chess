@@ -225,12 +225,12 @@ const Dashboard = () => {
               </div>
             </button>
             <button
-              onClick={() => navigate("/training")}
+              onClick={() => navigate("/tutorial")}
               className="unified-card gradient-success centered"
             >
               <div className="unified-card-content">
-                <h3 className="unified-card-title">🎓 Training Hub</h3>
-                <p className="unified-card-subtitle">Practice exercises</p>
+                <h3 className="unified-card-title">🎓 Learn Chess</h3>
+                <p className="unified-card-subtitle">Interactive lessons & practice</p>
               </div>
             </button>
             <button

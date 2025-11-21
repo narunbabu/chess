@@ -65,6 +65,14 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => \App\Http\Middleware\CheckRole::class,
             'permission' => \App\Http\Middleware\CheckPermission::class,
         ]);
+
+        // Configure authentication to NOT redirect for API routes
+        // This prevents the "Route [login] not defined" error
+        $middleware->redirectGuestsTo(function ($request) {
+            // For API routes, return null to trigger JSON response instead of redirect
+            // This works together with the AuthenticationException handler below
+            return null;
+        });
     })
     ->withExceptions(function (Exceptions $exceptions) {
         // Handle authentication exceptions for API routes

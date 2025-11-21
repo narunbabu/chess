@@ -277,6 +277,13 @@ const Header = () => {
               Lobby
             </Link>
             <Link
+              to="/tutorial"
+              className="nav-link"
+              onClick={() => trackNavigation('tutorial', 'header')}
+            >
+              Learn
+            </Link>
+            <Link
               to="/championships"
               className="nav-link"
               onClick={() => trackNavigation('championships', 'header')}
@@ -389,6 +396,12 @@ const Header = () => {
                   onClick={() => handleNavItemClick(() => navigate('/lobby'))}
                 >
                   🎮 Lobby
+                </button>
+                <button
+                  className="nav-item"
+                  onClick={() => handleNavItemClick(() => navigate('/tutorial'))}
+                >
+                  🎓 Learn
                 </button>
                 <button
                   className="nav-item"

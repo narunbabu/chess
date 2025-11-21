@@ -9,7 +9,8 @@
       "Bash(./vendor/bin/sail artisan make:migration:*)",
       "Bash(powershell.exe:*)",
       "Bash(cat:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(/usr/bin/php artisan tinker:*)"
     ],
     "deny": [],
     "ask": []
