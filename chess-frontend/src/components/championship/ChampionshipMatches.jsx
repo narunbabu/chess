@@ -40,6 +40,7 @@ const ChampionshipMatches = ({
   const [opponentOnlineStatus, setOpponentOnlineStatus] = useState({});
   const [showLeaderboardModal, setShowLeaderboardModal] = useState(false);
   const [leaderboardRound, setLeaderboardRound] = useState(null);
+  const [notification, setNotification] = useState(null);
 
   // Use contextual presence for smart, efficient status tracking
   const { opponents, loadOpponents, refreshOpponents } = useContextualPresence();
@@ -375,8 +376,14 @@ const ChampionshipMatches = ({
       );
 
       if (response.data.success) {
-        // Show success message
-        alert(`🎮 Play challenge sent to ${opponent.name}! Waiting for them to accept...`);
+        // Show success notification
+        setNotification({
+          type: 'success',
+          message: `🎮 Play challenge sent to ${opponent.name}! Waiting for them to accept...`
+        });
+
+        // Auto-hide notification after 5 seconds
+        setTimeout(() => setNotification(null), 5000);
 
         // Optionally navigate to a waiting screen or refresh matches
         await loadMatches();
@@ -919,13 +926,13 @@ const ChampionshipMatches = ({
             </div>
           )}
 
-          {match.game_id && (
+          {match.game_id && match.status === 'completed' && (
             <div className="game-link" style={{ marginTop: '8px' }}>
               <button
                 onClick={() => navigate(`/play/multiplayer/${match.game_id}`)}
                 className="btn btn-primary btn-small"
               >
-                {match.status === 'active' ? 'Continue Game' : 'Review Game'}
+                Review Game
               </button>
             </div>
           )}
@@ -1234,6 +1241,31 @@ const ChampionshipMatches = ({
         championshipId={championshipId}
         round={leaderboardRound}
       />
+
+      {/* Notification */}
+      {notification && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '80px',
+            right: '20px',
+            backgroundColor: notification.type === 'success' ? '#10b981' : '#ef4444',
+            color: 'white',
+            padding: '16px 24px',
+            borderRadius: '8px',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+            zIndex: 9999,
+            maxWidth: '400px',
+            fontSize: '14px',
+            fontWeight: '500',
+            animation: 'slideInRight 0.3s ease-out',
+            cursor: 'pointer'
+          }}
+          onClick={() => setNotification(null)}
+        >
+          {notification.message}
+        </div>
+      )}
     </div>
   );
 };

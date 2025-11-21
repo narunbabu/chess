@@ -152,7 +152,8 @@ class ChampionshipMatchController extends Controller
 
                 $match->update([
                     'game_id' => $game->id,
-                    'status' => ChampionshipMatchStatus::IN_PROGRESS,
+                    // Keep status as PENDING/SCHEDULED until game actually starts (becomes active)
+                    // Status will be updated to IN_PROGRESS when both players connect
                 ]);
 
                 Log::info("Created game for championship match", [

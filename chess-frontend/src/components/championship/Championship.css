@@ -3766,3 +3766,15 @@ textarea.form-input {
 .mock-payment-info strong {
   font-weight: 700;
 }
+
+/* Notification Animation */
+@keyframes slideInRight {
+  from {
+    transform: translateX(400px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}

@@ -282,20 +282,25 @@ const PlayMultiplayer = () => {
         if (result.success && result.data?.is_championship) {
           console.log('[Championship] Championship context loaded:', result.data);
           setChampionshipContext(result.data);
+          // Persist championship context to sessionStorage for recovery on refresh/navigation
+          sessionStorage.setItem(`championship_context_${gameId}`, JSON.stringify(result.data));
         } else {
           // Regular multiplayer game - no championship context
           console.log('[Championship] Regular multiplayer game detected');
           setChampionshipContext(null);
+          sessionStorage.removeItem(`championship_context_${gameId}`);
         }
       } else {
         // Failed to fetch - assume it's a regular game
         console.log('[Championship] Could not fetch championship context, assuming regular game');
         setChampionshipContext(null);
+        sessionStorage.removeItem(`championship_context_${gameId}`);
       }
     } catch (error) {
       // Error fetching - assume it's a regular game (non-blocking)
       console.log('[Championship] Error fetching championship context, assuming regular game:', error);
       setChampionshipContext(null);
+      sessionStorage.removeItem(`championship_context_${gameId}`);
     }
   }, [gameId]);
 
@@ -1581,6 +1586,22 @@ const PlayMultiplayer = () => {
     evaluatedMovesRef.current.clear();
   }, [gameId]);
 
+  // Restore championship context from sessionStorage on mount (before initialization)
+  useEffect(() => {
+    if (!gameId) return;
+
+    try {
+      const savedContext = sessionStorage.getItem(`championship_context_${gameId}`);
+      if (savedContext) {
+        const parsedContext = JSON.parse(savedContext);
+        console.log('[Championship] Restored championship context from sessionStorage:', parsedContext);
+        setChampionshipContext(parsedContext);
+      }
+    } catch (error) {
+      console.error('[Championship] Error restoring championship context from sessionStorage:', error);
+    }
+  }, [gameId]);
+
   useEffect(() => {
     if (!gameId || !user) return;
 
@@ -1599,6 +1620,9 @@ const PlayMultiplayer = () => {
       if (wsService.current) {
         wsService.current.disconnect();
       }
+      // Note: We don't clear championship context here to allow it to persist
+      // across navigations (e.g., when viewing game preview and coming back)
+      // It will only be cleared when explicitly removed or when starting a new game
     };
   }, [gameId, user?.id, initializeGame]); // eslint-disable-line react-hooks/exhaustive-deps
 

@@ -395,6 +395,21 @@ class HandshakeProtocol
                 'black_player_id' => $game->black_player_id
             ]);
 
+            // Update championship match status if this is a championship game
+            if ($game->championship_match_id) {
+                $championshipMatch = \App\Models\ChampionshipMatch::find($game->championship_match_id);
+                if ($championshipMatch && $championshipMatch->status !== 'completed') {
+                    $championshipMatch->update([
+                        'status_id' => \App\Enums\ChampionshipMatchStatus::IN_PROGRESS->getId()
+                    ]);
+
+                    Log::info('Championship match status updated to IN_PROGRESS', [
+                        'match_id' => $championshipMatch->id,
+                        'game_id' => $game->id
+                    ]);
+                }
+            }
+
             broadcast(new GameActivatedEvent($game));
         }
     }

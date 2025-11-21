@@ -625,6 +625,39 @@ const GameCompletionAnimation = ({
               Lobby
             </button>
           )}
+
+          {championshipData && championshipData.championshipId && (
+            <button
+              onClick={() => navigate(`/championships/${championshipData.championshipId}`)}
+              style={{
+                backgroundColor: '#8B5CF6',
+                color: 'white',
+                padding: window.innerWidth <= 480 ? '6px 10px' : '8px 14px',
+                borderRadius: '6px',
+                border: 'none',
+                fontSize: window.innerWidth <= 480 ? '0.7rem' : '0.8rem',
+                fontWeight: '500',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                boxShadow: '0 1px 4px rgba(139, 92, 246, 0.2)',
+                opacity: 0.9
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#7C3AED';
+                e.currentTarget.style.opacity = '1';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#8B5CF6';
+                e.currentTarget.style.opacity = '0.9';
+              }}
+            >
+              <span style={{ fontSize: '0.9rem' }}>🏆</span>
+              Championship
+            </button>
+          )}
         </div>
       )}
     </div>

@@ -71,7 +71,10 @@ const GameEndCard = React.forwardRef(({
       whitePlayer: result.white_player,
       blackPlayer: result.black_player,
       whitePlayerAvatar: result.white_player?.avatar,
-      blackPlayerAvatar: result.black_player?.avatar
+      blackPlayerAvatar: result.black_player?.avatar,
+      whitePlayerEmail: result.white_player?.email,
+      blackPlayerEmail: result.black_player?.email,
+      userEmail: user?.email
     });
 
     const userId = user?.id;
@@ -119,25 +122,34 @@ const GameEndCard = React.forwardRef(({
       opponentName: result.opponent_name
     });
 
-    const white_player = result.white_player || {
+    // If result already has player objects from backend, use them with merged data
+    const white_player = result.white_player ? {
+      ...result.white_player, // Preserve all backend data including email
+      isComputer: playerIsWhite ? false : isComputerGame
+    } : {
       id: playerIsWhite ? result.user_id : null,
       name: playerIsWhite ? (user?.name || 'Player') : (isComputerGame ? `Computer Level ${effectiveComputerLevel || 8}` : (result.opponent_name || 'Opponent')),
+      email: playerIsWhite ? (user?.email || null) : null,
       rating: playerIsWhite ? (user?.rating || 1200) : (isComputerGame ? (effectiveComputerLevel ? 1000 + (effectiveComputerLevel * 100) : 1800) : 1200),
       is_provisional: playerIsWhite ? (user?.is_provisional || false) : false,
       // Check multiple avatar field names from backend
-      avatar_url: playerIsWhite ? (user?.avatar_url || user?.avatar) : (isComputerGame ? '🤖' : (result.white_player?.avatar || result.white_player?.avatar_url || null)),
-      avatar: playerIsWhite ? (user?.avatar || user?.avatar_url) : (isComputerGame ? '🤖' : (result.white_player?.avatar || result.white_player?.avatar_url || null)),
+      avatar_url: playerIsWhite ? (user?.avatar_url || user?.avatar) : (isComputerGame ? '🤖' : null),
+      avatar: playerIsWhite ? (user?.avatar || user?.avatar_url) : (isComputerGame ? '🤖' : null),
       isComputer: playerIsWhite ? false : isComputerGame
     };
 
-    const black_player = result.black_player || {
+    const black_player = result.black_player ? {
+      ...result.black_player, // Preserve all backend data including email
+      isComputer: !playerIsWhite ? false : isComputerGame
+    } : {
       id: !playerIsWhite ? result.user_id : null,
       name: !playerIsWhite ? (user?.name || 'Player') : (isComputerGame ? `Computer Level ${effectiveComputerLevel || 8}` : (result.opponent_name || 'Opponent')),
+      email: !playerIsWhite ? (user?.email || null) : null,
       rating: !playerIsWhite ? (user?.rating || 1200) : (isComputerGame ? (effectiveComputerLevel ? 1000 + (effectiveComputerLevel * 100) : 1800) : 1200),
       is_provisional: !playerIsWhite ? (user?.is_provisional || false) : false,
       // Check multiple avatar field names from backend
-      avatar_url: !playerIsWhite ? (user?.avatar_url || user?.avatar) : (isComputerGame ? '🤖' : (result.black_player?.avatar || result.black_player?.avatar_url || null)),
-      avatar: !playerIsWhite ? (user?.avatar || user?.avatar_url) : (isComputerGame ? '🤖' : (result.black_player?.avatar || result.black_player?.avatar_url || null)),
+      avatar_url: !playerIsWhite ? (user?.avatar_url || user?.avatar) : (isComputerGame ? '🤖' : null),
+      avatar: !playerIsWhite ? (user?.avatar || user?.avatar_url) : (isComputerGame ? '🤖' : null),
       isComputer: !playerIsWhite ? false : isComputerGame
     };
 
@@ -145,6 +157,13 @@ const GameEndCard = React.forwardRef(({
     const isUserBlack = !playerIsWhite;
     const userPlayer = isUserWhite ? white_player : black_player;
     const opponentPlayer = isUserWhite ? black_player : white_player;
+
+    console.log('GameEndCard player objects created:', {
+      white_player_email: white_player.email,
+      black_player_email: black_player.email,
+      userPlayer_email: userPlayer.email,
+      opponentPlayer_email: opponentPlayer.email
+    });
 
     const playersInfo = { white_player, black_player, userPlayer, opponentPlayer, isUserWhite, isUserBlack, hasUser };
 
@@ -440,6 +459,11 @@ const GameEndCard = React.forwardRef(({
           {player.name}
           {isCurrentUser && <span className="text-xs font-medium text-sky-600 ml-1">(You)</span>}
         </div>
+        {player.email && (
+          <div className="text-xs text-gray-500 font-normal mb-0.5">
+            {player.email}
+          </div>
+        )}
         <div className="text-sm text-gray-600 font-medium">
           Rating: {player.rating}
           {player.is_provisional && <span className="text-yellow-500 font-bold ml-1">?</span>}

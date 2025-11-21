@@ -94,6 +94,7 @@ class GameController extends Controller
             'white_player' => [
                 'id' => $game->whitePlayer->id,
                 'name' => $game->whitePlayer->name,
+                'email' => $game->whitePlayer->email,
                 'avatar' => $game->whitePlayer->avatar_url,
                 'rating' => $game->whitePlayer->rating,
                 'is_provisional' => $game->whitePlayer->is_provisional
@@ -101,6 +102,7 @@ class GameController extends Controller
             'black_player' => [
                 'id' => $game->blackPlayer->id,
                 'name' => $game->blackPlayer->name,
+                'email' => $game->blackPlayer->email,
                 'avatar' => $game->blackPlayer->avatar_url,
                 'rating' => $game->blackPlayer->rating,
                 'is_provisional' => $game->blackPlayer->is_provisional
@@ -108,6 +110,8 @@ class GameController extends Controller
         ];
 
         \Log::info('🎮 Final response player_color:', ['player_color' => $response['player_color']]);
+        \Log::info('🎮 Final response white_player:', ['white_player' => $response['white_player']]);
+        \Log::info('🎮 Final response black_player:', ['black_player' => $response['black_player']]);
 
         return response()->json($response);
     }
@@ -279,12 +283,14 @@ class GameController extends Controller
             'white_player' => [
                 'id' => $game->whitePlayer->id,
                 'name' => $game->whitePlayer->name,
+                'email' => $game->whitePlayer->email,
                 'avatar' => $game->whitePlayer->avatar_url,
                 'rating' => $game->whitePlayer->rating
             ],
             'black_player' => [
                 'id' => $game->blackPlayer->id,
                 'name' => $game->blackPlayer->name,
+                'email' => $game->blackPlayer->email,
                 'avatar' => $game->blackPlayer->avatar_url,
                 'rating' => $game->blackPlayer->rating
             ]
