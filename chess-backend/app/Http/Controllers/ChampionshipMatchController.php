@@ -1035,6 +1035,217 @@ class ChampionshipMatchController extends Controller
     }
 
     /**
+     * Send request to opponent to start/resume the game
+     * POST /api/championships/{championship}/matches/{match}/notify-start
+     */
+    public function notifyGameStart(Championship $championship, ChampionshipMatch $match): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+
+            // Verify user is a participant in this match
+            if ($match->player1_id !== $user->id && $match->player2_id !== $user->id) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'You are not a participant in this match'
+                ], 403);
+            }
+
+            // Verify match has a game
+            if (!$match->game_id) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No game found for this match'
+                ], 404);
+            }
+
+            // Get opponent
+            $opponentId = $match->player1_id === $user->id ? $match->player2_id : $match->player1_id;
+            $opponent = \App\Models\User::find($opponentId);
+
+            if (!$opponent) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Opponent not found'
+                ], 404);
+            }
+
+            // Auto-delete ALL old pending requests for this match (expired or not)
+            // This allows new requests to replace old ones
+            $deletedCount = \App\Models\ChampionshipGameResumeRequest::where('championship_match_id', $match->id)
+                ->where('status', 'pending')
+                ->delete();
+
+            if ($deletedCount > 0) {
+                Log::info('🧹 Deleted old pending requests', [
+                    'championship_match_id' => $match->id,
+                    'deleted_count' => $deletedCount
+                ]);
+            }
+
+            // Create resume request (expires in 5 minutes)
+            $request = \App\Models\ChampionshipGameResumeRequest::create([
+                'championship_match_id' => $match->id,
+                'game_id' => $match->game_id,
+                'requester_id' => $user->id,
+                'recipient_id' => $opponentId,
+                'status' => 'pending',
+                'expires_at' => now()->addMinutes(5),
+            ]);
+
+            // Broadcast request to opponent via WebSocket
+            broadcast(new \App\Events\ChampionshipGameResumeRequestSent(
+                $request->load(['requester', 'recipient', 'championshipMatch', 'game'])
+            ));
+
+            Log::info('🎮 Championship game resume request sent', [
+                'championship_id' => $championship->id,
+                'match_id' => $match->id,
+                'game_id' => $match->game_id,
+                'request_id' => $request->id,
+                'requester_id' => $user->id,
+                'recipient_id' => $opponentId
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Request sent to {$opponent->name}. Waiting for response...",
+                'request' => $request->load(['requester', 'recipient'])
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Failed to send game resume request", [
+                'championship_id' => $championship->id,
+                'match_id' => $match->id,
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Failed to send request: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Accept a resume request
+     * POST /api/championships/{championship}/matches/{match}/resume-request/accept
+     */
+    public function acceptResumeRequest(Championship $championship, ChampionshipMatch $match): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+
+            // Find the pending request for this match where user is recipient
+            $request = \App\Models\ChampionshipGameResumeRequest::where('championship_match_id', $match->id)
+                ->where('recipient_id', $user->id)
+                ->where('status', 'pending')
+                ->where('expires_at', '>', now())
+                ->first();
+
+            if (!$request) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No pending request found'
+                ], 404);
+            }
+
+            // Accept the request
+            $request->accept();
+
+            // Broadcast to requester that request was accepted
+            broadcast(new \App\Events\ChampionshipGameResumeRequestAccepted(
+                $request->load(['requester', 'recipient', 'championshipMatch', 'game'])
+            ));
+
+            Log::info('✅ Championship game resume request accepted', [
+                'championship_id' => $championship->id,
+                'match_id' => $match->id,
+                'game_id' => $match->game_id,
+                'request_id' => $request->id,
+                'accepter_id' => $user->id
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Request accepted. Starting game...',
+                'game_id' => $match->game_id
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Failed to accept resume request", [
+                'championship_id' => $championship->id,
+                'match_id' => $match->id,
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Failed to accept request: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Decline a resume request
+     * POST /api/championships/{championship}/matches/{match}/resume-request/decline
+     */
+    public function declineResumeRequest(Championship $championship, ChampionshipMatch $match): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+
+            // Find the pending request for this match where user is recipient
+            $request = \App\Models\ChampionshipGameResumeRequest::where('championship_match_id', $match->id)
+                ->where('recipient_id', $user->id)
+                ->where('status', 'pending')
+                ->where('expires_at', '>', now())
+                ->first();
+
+            if (!$request) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No pending request found'
+                ], 404);
+            }
+
+            // Decline the request
+            $request->decline();
+
+            // Broadcast to requester that request was declined
+            broadcast(new \App\Events\ChampionshipGameResumeRequestDeclined(
+                $request->load(['requester', 'recipient', 'championshipMatch', 'game'])
+            ));
+
+            Log::info('❌ Championship game resume request declined', [
+                'championship_id' => $championship->id,
+                'match_id' => $match->id,
+                'game_id' => $match->game_id,
+                'request_id' => $request->id,
+                'decliner_id' => $user->id
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Request declined'
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Failed to decline resume request", [
+                'championship_id' => $championship->id,
+                'match_id' => $match->id,
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Failed to decline request: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Check if a player can play a specific match (round progression check)
      */
     public function canPlay(Championship $championship, ChampionshipMatch $match): JsonResponse

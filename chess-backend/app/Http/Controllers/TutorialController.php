@@ -11,6 +11,8 @@ use App\Models\DailyChallenge;
 use App\Models\UserDailyChallengeCompletion;
 use App\Models\UserSkillAssessment;
 use App\Models\TutorialPracticeGame;
+use App\Models\InteractiveLessonStage;
+use App\Models\UserStageProgress;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
@@ -648,5 +650,304 @@ class TutorialController extends Controller
         };
 
         return (int) ($baseXp * $multiplier);
+    }
+
+    /**
+     * Get interactive lesson with stages
+     */
+    public function getInteractiveLesson($id): JsonResponse
+    {
+        $user = Auth::user();
+
+        $lesson = TutorialLesson::active()
+            ->with(['module', 'interactiveStages' => function ($query) {
+                $query->active()->ordered();
+            }])
+            ->findOrFail($id);
+
+        // Check if lesson is unlocked for user
+        if (!$lesson->isUnlockedFor($user->id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This lesson is locked. Complete previous lessons to unlock it.',
+            ], 403);
+        }
+
+        // Verify this is an interactive lesson
+        if (!$lesson->isInteractive()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This is not an interactive lesson.',
+            ], 400);
+        }
+
+        // Get user's progress for each stage
+        $userStageProgress = UserStageProgress::where('user_id', $user->id)
+            ->whereIn('stage_id', $lesson->interactiveStages->pluck('id'))
+            ->get()
+            ->keyBy('stage_id');
+
+        // Add progress to each stage
+        $stagesWithProgress = $lesson->interactiveStages->map(function ($stage) use ($userStageProgress) {
+            $progress = $userStageProgress->get($stage->id);
+            return array_merge($stage->toArray(), [
+                'user_progress' => $progress,
+                'is_completed' => $progress && $progress->status === 'completed',
+            ]);
+        });
+
+        // Get current stage for user
+        $currentStage = $lesson->getCurrentStage($user->id);
+
+        return response()->json([
+            'success' => true,
+            'data' => array_merge($lesson->toArray(), [
+                'interactive_stages' => $stagesWithProgress->toArray(),
+                'current_stage' => $currentStage ? $currentStage->toArray() : null,
+                'stage_progress_percentage' => $lesson->getUserStageProgressPercentage($user->id),
+                'interactive_config' => $lesson->interactive_config,
+                'validation_rules' => $lesson->validation_rules,
+            ]),
+        ]);
+    }
+
+    /**
+     * Validate interactive move
+     */
+    public function validateInteractiveMove(Request $request, $id): JsonResponse
+    {
+        $request->validate([
+            'stage_id' => 'required|exists:interactive_lesson_stages,id',
+            'move' => 'required|string|max:10', // UCI notation like "e2e4"
+            'fen_after' => 'required|string|max:100',
+            'time_spent_ms' => 'nullable|integer|min:0',
+        ]);
+
+        $user = Auth::user();
+        $lesson = TutorialLesson::active()->findOrFail($id);
+
+        // Verify lesson belongs to user and is unlocked
+        if (!$lesson->isUnlockedFor($user->id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lesson is locked.',
+            ], 403);
+        }
+
+        // Get stage
+        $stage = InteractiveLessonStage::where('lesson_id', $lesson->id)
+            ->where('id', $request->stage_id)
+            ->active()
+            ->firstOrFail();
+
+        // Get or create user progress for this stage
+        $userProgress = UserStageProgress::firstOrCreate(
+            ['user_id' => $user->id, 'stage_id' => $stage->id],
+            [
+                'lesson_id' => $lesson->id,
+                'status' => 'not_started',
+            ]
+        );
+
+        // Mark as in progress if this is first attempt
+        if ($userProgress->status === 'not_started') {
+            $userProgress->markAsStarted();
+        }
+
+        // Validate the move against stage goals
+        $result = $stage->validateMove($request->move, $request->fen_after);
+
+        // Record the attempt
+        $userProgress->recordAttempt($request->move, $result);
+
+        // If successful and auto-reset is enabled, prepare next stage
+        $nextStage = null;
+        if ($result['success'] && $stage->auto_reset_on_success) {
+            $nextStage = $lesson->getNextStage($stage->stage_order);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'validation_result' => $result,
+                'stage_completed' => $result['success'] && !$nextStage,
+                'lesson_completed' => false, // Will be calculated below
+                'next_stage' => $nextStage ? $nextStage->toArray() : null,
+                'user_progress' => $userProgress->fresh()->toArray(),
+            ],
+        ]);
+    }
+
+    /**
+     * Get hint for interactive stage
+     */
+    public function getInteractiveHint(Request $request, $id): JsonResponse
+    {
+        $request->validate([
+            'stage_id' => 'required|exists:interactive_lesson_stages,id',
+            'hint_index' => 'nullable|integer|min:0',
+        ]);
+
+        $user = Auth::user();
+        $lesson = TutorialLesson::active()->findOrFail($id);
+
+        if (!$lesson->isUnlockedFor($user->id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lesson is locked.',
+            ], 403);
+        }
+
+        $stage = InteractiveLessonStage::where('lesson_id', $lesson->id)
+            ->where('id', $request->stage_id)
+            ->active()
+            ->firstOrFail();
+
+        $userProgress = UserStageProgress::firstOrCreate(
+            ['user_id' => $user->id, 'stage_id' => $stage->id],
+            [
+                'lesson_id' => $lesson->id,
+                'status' => 'not_started',
+            ]
+        );
+
+        // Check if hints are enabled and user hasn't exceeded limit
+        if (!$lesson->interactive_config['enable_hints']) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Hints are disabled for this lesson.',
+            ], 400);
+        }
+
+        $hintIndex = $request->hint_index ?? 0;
+        $hints = $stage->hints ?? [];
+
+        if ($hintIndex >= count($hints)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No more hints available for this stage.',
+            ], 400);
+        }
+
+        $hintText = $hints[$hintIndex];
+
+        // Record hint usage
+        $userProgress->recordHintUsage($hintIndex, $hintText);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'hint' => $hintText,
+                'hint_index' => $hintIndex,
+                'total_hints' => count($hints),
+                'hints_used' => count($userProgress->hint_usage ?? []),
+            ],
+        ]);
+    }
+
+    /**
+     * Reset interactive stage
+     */
+    public function resetInteractiveStage(Request $request, $id): JsonResponse
+    {
+        $request->validate([
+            'stage_id' => 'required|exists:interactive_lesson_stages,id',
+        ]);
+
+        $user = Auth::user();
+        $lesson = TutorialLesson::active()->findOrFail($id);
+
+        if (!$lesson->isUnlockedFor($user->id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lesson is locked.',
+            ], 403);
+        }
+
+        $stage = InteractiveLessonStage::where('lesson_id', $lesson->id)
+            ->where('id', $request->stage_id)
+            ->active()
+            ->firstOrFail();
+
+        // Reset user progress for this stage
+        UserStageProgress::updateOrCreate(
+            ['user_id' => $user->id, 'stage_id' => $stage->id],
+            [
+                'lesson_id' => $lesson->id,
+                'status' => 'not_started',
+                'attempts' => 0,
+                'best_score' => 0,
+                'total_time_seconds' => 0,
+                'mistake_log' => null,
+                'hint_usage' => null,
+                'completed_at' => null,
+                'last_attempt_at' => null,
+            ]
+        );
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'message' => 'Stage reset successfully.',
+                'stage' => $stage->fresh()->toArray(),
+            ],
+        ]);
+    }
+
+    /**
+     * Get user's detailed interactive lesson progress
+     */
+    public function getInteractiveProgress($id): JsonResponse
+    {
+        $user = Auth::user();
+        $lesson = TutorialLesson::active()->findOrFail($id);
+
+        if (!$lesson->isUnlockedFor($user->id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lesson is locked.',
+            ], 403);
+        }
+
+        // Get all stages with user progress
+        $stages = $lesson->interactiveStages()
+            ->active()
+            ->with(['userProgress' => function ($query) use ($user) {
+                $query->where('user_id', $user->id);
+            }])
+            ->get();
+
+        $stagesWithProgress = $stages->map(function ($stage) {
+            $progress = $stage->userProgress->first();
+            return array_merge($stage->toArray(), [
+                'user_progress' => $progress,
+                'is_completed' => $progress && $progress->status === 'completed',
+                'attempts' => $progress ? $progress->attempts : 0,
+                'best_score' => $progress ? $progress->best_score : 0,
+                'accuracy' => $progress ? $progress->accuracy : 0,
+            ]);
+        });
+
+        // Calculate overall statistics
+        $totalStages = $stages->count();
+        $completedStages = $stagesWithProgress->where('is_completed', true)->count();
+        $totalAttempts = $stagesWithProgress->sum('attempts');
+        $averageScore = $stagesWithProgress->avg('best_score') ?: 0;
+        $averageAccuracy = $stagesWithProgress->avg('accuracy') ?: 0;
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'lesson' => $lesson->toArray(),
+                'stages' => $stagesWithProgress->toArray(),
+                'progress_percentage' => ($completedStages / $totalStages) * 100,
+                'completed_stages' => $completedStages,
+                'total_stages' => $totalStages,
+                'total_attempts' => $totalAttempts,
+                'average_score' => round($averageScore, 2),
+                'average_accuracy' => round($averageAccuracy, 2),
+                'is_lesson_completed' => $lesson->hasUserCompletedAllStages($user->id),
+            ],
+        ]);
     }
 }

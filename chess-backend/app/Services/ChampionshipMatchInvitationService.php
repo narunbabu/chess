@@ -348,12 +348,14 @@ class ChampionshipMatchInvitationService
                 ]);
 
                 // Update match with final player assignments and game link
+                // Note: Status remains 'pending' until both players actually connect to the game
+                // HandshakeProtocol will update to 'in_progress' when the game actually starts
                 $match->update([
                     'player1_id' => $colors['white'], // Legacy support
                     'player2_id' => $colors['black'], // Legacy support
                     'white_player_id' => $colors['white'], // Enhanced color assignment
                     'black_player_id' => $colors['black'], // Enhanced color assignment
-                    'status' => ChampionshipMatchStatus::IN_PROGRESS,
+                    'status' => ChampionshipMatchStatus::PENDING, // Game created but not started yet
                     'game_id' => $game->id,
                     'scheduled_at' => now(),
                     'deadline' => now()->addHours($match->championship->match_time_window_hours),

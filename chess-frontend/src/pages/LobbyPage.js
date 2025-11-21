@@ -121,7 +121,8 @@ const LobbyPage = () => {
 
       console.log('[Lobby] User channel object type:', typeof userChannel, 'Has listen:', typeof userChannel.listen);
 
-      // Listen for invitation accepted (for inviters)
+      // Listen for invitation accepted (for inviters) - only for UI cleanup
+      // Navigation is handled by GlobalInvitationContext to avoid race conditions
       userChannel.listen('.invitation.accepted', (data) => {
         console.log('[Lobby] 🎉 Invitation accepted event received:', data);
 
@@ -138,18 +139,9 @@ const LobbyPage = () => {
           }
         }
 
-        if (data.game && data.game.id) {
-          console.log('[Lobby] 🎮 Navigating to game ID:', data.game.id);
-
-          // Set session markers for proper game access (challenger perspective)
-          sessionStorage.setItem('lastInvitationAction', 'invitation_accepted_by_other');
-          sessionStorage.setItem('lastInvitationTime', Date.now().toString());
-          sessionStorage.setItem('lastGameId', data.game.id.toString());
-
-          navigate(`/play/multiplayer/${data.game.id}`);
-        } else {
-          console.warn('[Lobby] ⚠️ Invitation accepted but no game data in event:', data);
-        }
+        // Note: Navigation is now handled globally by GlobalInvitationContext
+        // This prevents duplicate navigation attempts and race conditions
+        console.log('[Lobby] ✅ Invitation cleanup complete, navigation handled by GlobalInvitationContext');
       });
 
       // Listen for new invitations (for recipients)
@@ -581,14 +573,15 @@ const LobbyPage = () => {
   const handleInvitationResponse = async (invitationId, action, colorChoice = null) => {
     // Prevent double-click: Check if already processing this invitation
     if (processingInvitations.has(invitationId)) {
-      console.log('Already processing invitation', invitationId);
+      console.log('[LobbyPage] Already processing invitation', invitationId);
       return;
     }
 
     // Find the invitation to determine its type
     const invitation = pendingInvitations.find(inv => inv.id === invitationId);
     if (!invitation) {
-      console.error('Invitation not found:', invitationId);
+      console.warn('[LobbyPage] Invitation not found in local state:', invitationId);
+      console.log('[LobbyPage] This invitation may have been handled by GlobalInvitationContext');
       return;
     }
 

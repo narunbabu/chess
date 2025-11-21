@@ -750,7 +750,7 @@ class ChampionshipController extends Controller
                     'white_player:id,name,email,avatar_url,rating,last_activity_at',
                     'black_player:id,name,email,avatar_url,rating,last_activity_at',
                     'winner:id,name,email,avatar_url',
-                    'game:id,status_id,end_reason_id,result,pgn',
+                    'game:id,status_id,end_reason_id,result,pgn,paused_at',
                 ]);
 
             // Filter by round number
@@ -871,7 +871,7 @@ class ChampionshipController extends Controller
                     'white_player:id,name,email,avatar_url,rating,last_activity_at',
                     'black_player:id,name,email,avatar_url,rating,last_activity_at',
                     'winner:id,name,email,avatar_url',
-                    'game:id,status_id,end_reason_id,result,pgn',
+                    'game:id,status_id,end_reason_id,result,pgn,paused_at',
                 ])
                 ->orderBy('round_number')
                 ->orderBy('scheduled_at')

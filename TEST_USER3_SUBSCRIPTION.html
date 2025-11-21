@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Test - User 3</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+        .log {
+            margin: 5px 0;
+            padding: 8px;
+            border-left: 3px solid #4a9eff;
+            background: #2d2d2d;
+        }
+        .success { border-left-color: #4caf50; }
+        .error { border-left-color: #f44336; }
+        .warning { border-left-color: #ff9800; }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        pre {
+            background: #2d2d2d;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 WebSocket Subscription Test - User 3</h1>
+
+    <div>
+        <h2>Instructions:</h2>
+        <ol>
+            <li>Log in as User 3 in the main application</li>
+            <li>Copy the auth token from localStorage</li>
+            <li>Paste it below and click "Connect"</li>
+            <li>Have User 1 click "Play Now"</li>
+            <li>Watch the logs below</li>
+        </ol>
+    </div>
+
+    <div>
+        <label>Auth Token:</label><br>
+        <input type="text" id="authToken" style="width: 500px; padding: 8px; margin: 10px 0;">
+        <button onclick="connect()">🔌 Connect to WebSocket</button>
+        <button onclick="clearLogs()">🗑️ Clear Logs</button>
+    </div>
+
+    <div id="logs"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/pusher-js@8.3.0/dist/web/pusher.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/laravel-echo@1.15.3/dist/echo.iife.js"></script>
+
+    <script>
+        let echo = null;
+        let channel = null;
+
+        function log(message, type = 'info') {
+            const logsDiv = document.getElementById('logs');
+            const logEntry = document.createElement('div');
+            logEntry.className = `log ${type}`;
+            logEntry.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong> ${message}`;
+            logsDiv.appendChild(logEntry);
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+            console.log(message);
+        }
+
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+        }
+
+        function connect() {
+            const token = document.getElementById('authToken').value;
+
+            if (!token) {
+                alert('Please enter auth token');
+                return;
+            }
+
+            log('🔌 Initializing Laravel Echo...', 'info');
+
+            try {
+                echo = new Echo({
+                    broadcaster: 'reverb',
+                    key: 'anrdh24nppf3obfupvqw',
+                    wsHost: 'localhost',
+                    wsPort: 8080,
+                    wssPort: 8080,
+                    forceTLS: false,
+                    enabledTransports: ['ws', 'wss'],
+                    authEndpoint: 'http://localhost:8000/broadcasting/auth',
+                    auth: {
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                        },
+                    },
+                });
+
+                log('✅ Echo initialized', 'success');
+                log('Echo config: ' + JSON.stringify({
+                    broadcaster: 'reverb',
+                    key: 'anrdh24nppf3obfupvqw',
+                    host: 'localhost:8080'
+                }, null, 2), 'info');
+
+                // Enable Pusher logging
+                Pusher.logToConsole = true;
+
+                // Connect to User 3's channel
+                const channelName = 'App.Models.User.3';
+                log(`📡 Subscribing to private-${channelName}...`, 'info');
+
+                channel = echo.private(channelName);
+
+                // Listen for subscription events
+                channel.subscription.bind('pusher:subscription_succeeded', () => {
+                    log(`✅ Successfully subscribed to: private-${channelName}`, 'success');
+                });
+
+                channel.subscription.bind('pusher:subscription_error', (error) => {
+                    log(`❌ Subscription error: ${JSON.stringify(error)}`, 'error');
+                });
+
+                // Listen for the resume request event
+                log('👂 Setting up event listener for: .championship.game.resume.request', 'info');
+
+                channel.listen('.championship.game.resume.request', (event) => {
+                    log('🎮 ========================================', 'success');
+                    log('🎮 INCOMING REQUEST RECEIVED!', 'success');
+                    log('🎮 ========================================', 'success');
+                    log('<pre>' + JSON.stringify(event, null, 2) + '</pre>', 'success');
+
+                    // Show alert
+                    alert('🎮 Resume request received!\n\n' +
+                          'From: ' + event.requester.name + '\n' +
+                          'Match ID: ' + event.match_id + '\n' +
+                          'Game ID: ' + event.game_id);
+                });
+
+                // Also try without dot prefix (shouldn't work, but let's test)
+                channel.listen('championship.game.resume.request', (event) => {
+                    log('🎮 Event received WITHOUT dot prefix!', 'warning');
+                    log('<pre>' + JSON.stringify(event, null, 2) + '</pre>', 'warning');
+                });
+
+                // Listen to all events
+                echo.connector.pusher.connection.bind('state_change', (states) => {
+                    log(`📶 Connection state: ${states.previous} → ${states.current}`, 'info');
+                });
+
+                echo.connector.pusher.connection.bind('connected', () => {
+                    log('✅ Pusher connected!', 'success');
+                });
+
+                echo.connector.pusher.connection.bind('error', (err) => {
+                    log(`❌ Pusher error: ${JSON.stringify(err)}`, 'error');
+                });
+
+                log('✅ All listeners configured. Waiting for events...', 'success');
+                log('💡 Now have User 1 click "Play Now" in the main app', 'info');
+
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+
+        // Helper to get token from localStorage (if on same domain)
+        function loadTokenFromLocalStorage() {
+            try {
+                const token = localStorage.getItem('auth_token');
+                if (token) {
+                    document.getElementById('authToken').value = token;
+                    log('✅ Loaded token from localStorage', 'success');
+                } else {
+                    log('⚠️ No token found in localStorage', 'warning');
+                }
+            } catch (e) {
+                log('⚠️ Could not access localStorage: ' + e.message, 'warning');
+            }
+        }
+
+        // Auto-load token on page load
+        window.addEventListener('load', () => {
+            loadTokenFromLocalStorage();
+        });
+    </script>
+</body>
+</html>

@@ -7,6 +7,8 @@ import { formatDateTime, getMatchResultDisplay, getMatchStatusColor, formatDeadl
 import { hasRole } from '../../utils/permissionHelpers';
 import useContextualPresence from '../../hooks/useContextualPresence';
 import useUserStatus from '../../hooks/useUserStatus';
+import { logger } from '../../utils/logger';
+import { throttle } from '../../utils/debounce';
 import axios from 'axios';
 import { BACKEND_URL } from '../../config';
 import RoundLeaderboardModal from './RoundLeaderboardModal';
@@ -42,6 +44,14 @@ const ChampionshipMatches = ({
   const [leaderboardRound, setLeaderboardRound] = useState(null);
   const [notification, setNotification] = useState(null);
 
+  // Track pending resume requests
+  const [pendingRequests, setPendingRequests] = useState({}); // { matchId: { type: 'outgoing'|'incoming', request: {...} } }
+  const [showResumeDialog, setShowResumeDialog] = useState(null); // { matchId, request }
+
+  // Track user activity for smart polling
+  const [lastActivityTime, setLastActivityTime] = useState(Date.now());
+  const [isPollingActive, setIsPollingActive] = useState(true);
+
   // Use contextual presence for smart, efficient status tracking
   const { opponents, loadOpponents, refreshOpponents } = useContextualPresence();
 
@@ -54,10 +64,12 @@ const ChampionshipMatches = ({
     return match.white_player_id === user.id ? match.black_player : match.white_player;
   }, [user]);
 
-  // Check and cache opponent online status
+  // Check and cache opponent online status with debouncing
   const checkOpponentOnlineStatus = useCallback(async (opponentId) => {
-    if (opponentOnlineStatus[opponentId] !== undefined) {
-      return opponentOnlineStatus[opponentId];
+    // Check if we already have the status cached
+    const currentStatus = opponentOnlineStatus[opponentId];
+    if (currentStatus !== undefined) {
+      return currentStatus;
     }
 
     try {
@@ -65,25 +77,40 @@ const ChampionshipMatches = ({
       setOpponentOnlineStatus(prev => ({ ...prev, [opponentId]: online }));
       return online;
     } catch (error) {
-      console.error(`Failed to check online status for user ${opponentId}:`, error);
+      logger.error('OpponentStatus', `Failed to check status for user ${opponentId}`, error);
       setOpponentOnlineStatus(prev => ({ ...prev, [opponentId]: false }));
       return false;
     }
-  }, [isUserOnlineStatus, opponentOnlineStatus]);
+  }, [isUserOnlineStatus]);
 
-  // Check online status for all opponents when matches load
+  // Throttled status checking to prevent storms
+  const throttledStatusCheck = throttle(async (opponentIds) => {
+    const uncachedIds = opponentIds.filter(id => opponentOnlineStatus[id] === undefined);
+
+    if (uncachedIds.length > 0) {
+      logger.debug('OpponentStatus', `Checking status for ${uncachedIds.length} opponents`);
+
+      // Process in batches to avoid overwhelming the API
+      for (const id of uncachedIds) {
+        await checkOpponentOnlineStatus(id);
+        // Small delay between requests to prevent API flooding
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+  }, 2000); // Only check every 2 seconds maximum
+
+  // Check online status for all opponents when matches load (with debouncing)
   useEffect(() => {
     if (matches.length > 0) {
+      // Get unique opponent IDs
       const opponentIds = [...new Set(matches.map(match => {
         const opponent = getOpponent(match);
         return opponent?.id;
       }).filter(Boolean))];
 
-      opponentIds.forEach(opponentId => {
-        checkOpponentOnlineStatus(opponentId);
-      });
+      throttledStatusCheck(opponentIds);
     }
-  }, [matches, checkOpponentOnlineStatus]);
+  }, [matches, getOpponent]);
 
   // Load championship data to check admin/organizer status
   const loadChampionship = useCallback(async () => {
@@ -119,14 +146,6 @@ const ChampionshipMatches = ({
       : `${BACKEND_URL}/championships/${championshipId}/matches`;
 
     try {
-      console.log('🔍 loadMatches Debug:', {
-        championshipId,
-        userOnly,
-        endpoint,
-        hasToken: !!token,
-        userId: user?.id
-      });
-
       const response = await axios.get(endpoint, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -134,12 +153,9 @@ const ChampionshipMatches = ({
         }
       });
 
-      console.log('📊 API Response:', {
-        endpoint,
+      logger.api(endpoint, 'GET', {
         status: response.status,
-        dataKeys: Object.keys(response.data),
-        matchesCount: response.data.matches ? (response.data.matches.data?.length || response.data.matches.length) : response.data?.length,
-        matches: response.data.matches ? (response.data.matches.data || response.data.matches) : response.data
+        matchesCount: response.data.matches ? (response.data.matches.data?.length || response.data.matches.length) : response.data?.length
       });
 
       // Handle different response formats
@@ -193,16 +209,251 @@ const ChampionshipMatches = ({
     }
   }, [championshipId, userOnly, loadOpponents]);
 
-  // Auto-refresh opponents every 30 seconds
+  // Track user activity (mouse, keyboard, touch)
+  useEffect(() => {
+    const INACTIVITY_THRESHOLD = 5 * 60 * 1000; // 5 minutes
+
+    const updateActivity = () => {
+      const now = Date.now();
+      setLastActivityTime(now);
+
+      // Resume polling if it was paused due to inactivity
+      if (!isPollingActive) {
+        setIsPollingActive(true);
+        logger.info('🔄 [Polling] Resumed - user activity detected');
+      }
+    };
+
+    // Activity event listeners
+    const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click'];
+    events.forEach(event => window.addEventListener(event, updateActivity, { passive: true }));
+
+    // Check for inactivity every minute
+    const inactivityCheck = setInterval(() => {
+      const timeSinceActivity = Date.now() - lastActivityTime;
+
+      if (timeSinceActivity >= INACTIVITY_THRESHOLD && isPollingActive) {
+        setIsPollingActive(false);
+        logger.info('⏸️ [Polling] Paused - 5 minutes of inactivity detected');
+      }
+    }, 60000); // Check every minute
+
+    return () => {
+      events.forEach(event => window.removeEventListener(event, updateActivity));
+      clearInterval(inactivityCheck);
+    };
+  }, [lastActivityTime, isPollingActive]);
+
+  // Auto-refresh opponents every 30 seconds (only when active)
   useEffect(() => {
     if (!championshipId || !userOnly) return;
 
     const interval = setInterval(() => {
-      refreshOpponents();
+      if (isPollingActive) {
+        refreshOpponents();
+        logger.debug('🔄 [Polling] Refreshing opponents (active)');
+      } else {
+        logger.debug('⏸️ [Polling] Skipped - user inactive');
+      }
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [championshipId, userOnly, refreshOpponents]);
+  }, [championshipId, userOnly, isPollingActive, refreshOpponents]);
+
+  // Clean up stale and expired pending requests when matches load
+  useEffect(() => {
+    if (matches.length > 0) {
+      logger.info('🧹 [Cleanup] Checking for stale and expired pending requests');
+
+      // Remove pending requests for matches that no longer exist or have changed status
+      setPendingRequests(prev => {
+        const updated = { ...prev };
+        let hasChanges = false;
+
+        Object.keys(updated).forEach(matchId => {
+          const match = matches.find(m => m.id === parseInt(matchId));
+          const pendingRequest = updated[matchId];
+
+          // Check if request is expired (more than 5 minutes old)
+          const isExpired = pendingRequest?.request?.expires_at &&
+                           new Date(pendingRequest.request.expires_at) < new Date();
+
+          // Remove if:
+          // 1. Match doesn't exist
+          // 2. Match status is active or completed
+          // 3. Request is expired
+          if (!match || match.status === 'active' || match.status === 'completed' || isExpired) {
+            const reason = !match ? 'match not found' :
+                          match.status === 'active' ? 'match active' :
+                          match.status === 'completed' ? 'match completed' :
+                          'request expired';
+            logger.info(`🗑️ [Cleanup] Removing stale pending request for match ${matchId}: ${reason}`);
+            delete updated[matchId];
+            hasChanges = true;
+          }
+        });
+
+        return hasChanges ? updated : prev;
+      });
+    }
+  }, [matches]);
+
+  // Auto-cleanup expired requests every minute
+  useEffect(() => {
+    const cleanupInterval = setInterval(() => {
+      setPendingRequests(prev => {
+        const updated = { ...prev };
+        let hasChanges = false;
+
+        Object.keys(updated).forEach(matchId => {
+          const pendingRequest = updated[matchId];
+
+          // Check if request is expired
+          const isExpired = pendingRequest?.request?.expires_at &&
+                           new Date(pendingRequest.request.expires_at) < new Date();
+
+          if (isExpired) {
+            logger.info(`⏰ [Cleanup] Auto-removing expired request for match ${matchId}`);
+            delete updated[matchId];
+            hasChanges = true;
+
+            // Show notification that request expired
+            setNotification({
+              type: 'warning',
+              message: `⏱️ Request expired for match #${matchId}`
+            });
+            setTimeout(() => setNotification(null), 3000);
+          }
+        });
+
+        return hasChanges ? updated : prev;
+      });
+    }, 60000); // Check every minute
+
+    return () => clearInterval(cleanupInterval);
+  }, []);
+
+  // WebSocket listeners for resume requests
+  useEffect(() => {
+    if (!championshipId || !user?.id || !window.Echo) {
+      return;
+    }
+
+    // Only subscribe if we're in userOnly mode (My Matches page)
+    if (!userOnly) {
+      return;
+    }
+
+    // Laravel broadcasts to App.Models.User.{id} channel by default
+    const channelName = `App.Models.User.${user.id}`;
+    logger.info('🔌 [Resume] Setting up WebSocket for user:', user.id);
+
+    const channel = window.Echo.private(channelName);
+
+    // Test subscription with bind
+    channel.subscription.bind('pusher:subscription_succeeded', () => {
+      logger.info('✅ [Resume] Successfully subscribed to channel:', channelName);
+    });
+
+    channel.subscription.bind('pusher:subscription_error', (error) => {
+      logger.error('❌ [Resume] Subscription error:', error);
+    });
+
+    // Listen for incoming resume requests
+    channel.listen('.championship.game.resume.request', (event) => {
+      logger.info('🎮 [Resume] ========================================');
+      logger.info('🎮 [Resume] INCOMING REQUEST RECEIVED!');
+      logger.info('🎮 [Resume] ========================================');
+      logger.info('🎮 [Resume] Event data:', event);
+      logger.info('🎮 [Resume] Request ID:', event.request_id);
+      logger.info('🎮 [Resume] Match ID:', event.match_id);
+      logger.info('🎮 [Resume] Game ID:', event.game_id);
+      logger.info('🎮 [Resume] Requester:', event.requester);
+      logger.info('🎮 [Resume] ========================================');
+
+      // Backend sends flat structure, reconstruct it
+      const request = {
+        id: event.request_id,
+        championship_match_id: event.match_id,
+        game_id: event.game_id,
+        requester: event.requester,
+        expires_at: event.expires_at
+      };
+
+      // Add to pending requests
+      setPendingRequests(prev => ({
+        ...prev,
+        [event.match_id]: {
+          type: 'incoming',
+          request: request
+        }
+      }));
+
+      // Show dialog
+      setShowResumeDialog({
+        matchId: event.match_id,
+        request: request
+      });
+
+      // Show notification
+      setNotification({
+        type: 'info',
+        message: `🎮 ${event.requester.name} wants to start the game!`
+      });
+
+      setTimeout(() => setNotification(null), 5000);
+    });
+
+    // Listen for accepted requests
+    channel.listen('.championship.game.resume.accepted', (event) => {
+      logger.info('✅ [Resume] Request accepted:', event);
+
+      // Remove from pending
+      setPendingRequests(prev => {
+        const updated = { ...prev };
+        delete updated[event.match_id];
+        return updated;
+      });
+
+      // Navigate to game
+      if (event.game_id) {
+        setNotification({
+          type: 'success',
+          message: `✅ Game starting! Navigating...`
+        });
+
+        setTimeout(() => {
+          navigate(`/play/${event.game_id}`);
+        }, 1000);
+      }
+    });
+
+    // Listen for declined requests
+    channel.listen('.championship.game.resume.declined', (event) => {
+      logger.info('❌ [Resume] Request declined:', event);
+
+      // Remove from pending
+      setPendingRequests(prev => {
+        const updated = { ...prev };
+        delete updated[event.match_id];
+        return updated;
+      });
+
+      setNotification({
+        type: 'error',
+        message: `❌ ${event.recipient.name} declined the request`
+      });
+
+      setTimeout(() => setNotification(null), 5000);
+    });
+
+    return () => {
+      logger.info('🧹 [Resume] Cleaning up WebSocket listeners');
+      channel.stopListening('.championship.game.resume.request');
+      channel.stopListening('.championship.game.resume.accepted');
+      channel.stopListening('.championship.game.resume.declined');
+    };
+  }, [championshipId, user?.id, userOnly]); // Removed 'navigate' to prevent premature cleanup
 
   const handleCreateGame = async (matchId) => {
     setCreatingGame(matchId);
@@ -302,6 +553,126 @@ const ChampionshipMatches = ({
       setShowScheduleModal(false);
     } finally {
       setSchedulingMatch(null);
+    }
+  };
+
+  const handlePlayNow = async (matchId, gameId) => {
+    logger.info('🎯 [Play Now] Button clicked:', { matchId, gameId, championshipId });
+
+    const match = transformedMatches.find(m => m.id === matchId);
+    if (!match) {
+      logger.error('❌ [Play Now] Match not found:', matchId);
+      setError('Match not found');
+      return;
+    }
+
+    logger.info('📋 [Play Now] Match found:', {
+      id: match.id,
+      status: match.status,
+      game_id: match.game_id,
+      white_player_id: match.white_player_id,
+      black_player_id: match.black_player_id
+    });
+
+    const opponent = getOpponent(match);
+    if (!opponent) {
+      logger.error('❌ [Play Now] Opponent not found');
+      setError('Opponent not found');
+      return;
+    }
+
+    logger.info('👥 [Play Now] Opponent found:', { id: opponent.id, name: opponent.name });
+
+    // Check if there's already a pending incoming request (must respond first)
+    const pendingRequest = pendingRequests[matchId];
+    logger.info('🔍 [Play Now] Pending requests check:', {
+      matchId,
+      hasPendingRequest: !!pendingRequest,
+      pendingRequest
+    });
+
+    if (pendingRequest && pendingRequest.type === 'incoming') {
+      logger.warn('📥 [Play Now] Incoming request pending - must respond first');
+      setNotification({
+        type: 'info',
+        message: `You have an incoming request from ${opponent.name}. Please respond first.`
+      });
+      setTimeout(() => setNotification(null), 3000);
+      return;
+    }
+
+    // Allow sending new requests even if outgoing request exists
+    // Backend will auto-replace old requests
+
+    try {
+      const token = localStorage.getItem('auth_token');
+
+      logger.info('📤 [Play Now] Sending request to backend:', {
+        url: `${BACKEND_URL}/championships/${championshipId}/matches/${matchId}/notify-start`,
+        currentUser: { id: user.id, name: user.name },
+        opponent: { id: opponent.id, name: opponent.name },
+        matchId,
+        gameId
+      });
+
+      // Send resume request to opponent
+      const response = await axios.post(
+        `${BACKEND_URL}/championships/${championshipId}/matches/${matchId}/notify-start`,
+        {},
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      logger.info('✅ [Play Now] Request sent successfully:', response.data);
+
+      if (response.data.success) {
+        // Add to pending outgoing requests
+        setPendingRequests(prev => ({
+          ...prev,
+          [matchId]: {
+            type: 'outgoing',
+            request: response.data.request
+          }
+        }));
+
+        logger.info('📝 [Play Now] Updated pending requests:', {
+          matchId,
+          type: 'outgoing',
+          request: response.data.request
+        });
+
+        // Show notification that request was sent
+        setNotification({
+          type: 'info',
+          message: `⏳ Request sent to ${opponent.name}. Waiting for response...`
+        });
+
+        // Auto-hide notification after 5 seconds
+        setTimeout(() => setNotification(null), 5000);
+      }
+    } catch (error) {
+      logger.error('❌ [Play Now] Failed to send request:', {
+        error: error.message,
+        response: error.response?.data
+      });
+
+      const errorMsg = error.response?.data?.error || 'Failed to send request';
+
+      // If error is about existing request, don't show as error
+      if (errorMsg.includes('already pending')) {
+        logger.warn('⏳ [Play Now] Backend says request already pending');
+        setNotification({
+          type: 'warning',
+          message: `⏳ A request is already pending for this match`
+        });
+        setTimeout(() => setNotification(null), 3000);
+      } else {
+        setError(errorMsg);
+      }
     }
   };
 
@@ -454,16 +825,14 @@ const ChampionshipMatches = ({
     const canCreate = isUserParticipantInMatch(match) &&
            (match.status === 'scheduled' || match.status === 'pending') &&
            !match.game_id;
-    console.log('canUserCreateGame:', { matchId: match.id, canCreate, status: match.status, hasGame: !!match.game_id });
-    return canCreate;
+        return canCreate;
   };
 
   const canUserReportResult = (match) => {
     const canReport = isUserParticipantInMatch(match) &&
            (match.status === 'active' || match.status === 'scheduled' || match.status === 'pending') &&
            !match.result;
-    console.log('canUserReportResult:', { matchId: match.id, canReport, status: match.status, hasResult: !!match.result });
-    return canReport;
+        return canReport;
   };
 
   const canUserScheduleMatch = (match) => {
@@ -471,8 +840,7 @@ const ChampionshipMatches = ({
     const canSchedule = isUserParticipantInMatch(match) &&
            (match.status === 'scheduled' || match.status === 'pending') &&
            !match.game_id;
-    console.log('canUserScheduleMatch:', { matchId: match.id, canSchedule, status: match.status });
-    return canSchedule;
+        return canSchedule;
   };
 
   const canUserRequestPlay = (match) => {
@@ -481,29 +849,19 @@ const ChampionshipMatches = ({
            (match.status === 'scheduled' || match.status === 'pending') &&
            !match.game_id &&
            !match.result;
-    console.log('canUserRequestPlay:', { matchId: match.id, canRequest, status: match.status });
-    return canRequest;
+        return canRequest;
   };
 
-  const isOpponentOnline = (match) => {
+  const isOpponentOnline = useCallback((match) => {
     const opponent = getOpponent(match);
     if (!opponent) {
-      console.log('❌ No opponent found for match');
       return false;
     }
 
     // Use cached online status from user status service
     const online = opponentOnlineStatus[opponent.id] ?? false;
-
-    console.log('🔍 Opponent online status:', {
-      opponentId: opponent.id,
-      opponentName: opponent.name,
-      onlineStatus: online,
-      statusFromCache: opponentOnlineStatus[opponent.id] !== undefined
-    });
-
     return online;
-  };
+  }, [getOpponent, opponentOnlineStatus]);
 
   const getUserColor = (match) => {
     if (!user) return null;
@@ -517,17 +875,7 @@ const ChampionshipMatches = ({
   const canEditMatches = (isAdmin || isOrganizer) && !userOnly;
 
   // Debug logging
-  console.log('ChampionshipMatches Debug:', {
-    user: user?.id,
-    userRoles: user?.roles,
-    isAdmin,
-    championship: currentChampionship?.id,
-    organizerId: currentChampionship?.organizer_id,
-    isOrganizer,
-    canEditMatches,
-    userOnly
-  });
-
+  
   const ResultReportModal = ({ match, isOpen, onClose, onSubmit }) => {
     const [result, setResult] = useState('');
     const [details, setDetails] = useState('');
@@ -745,17 +1093,7 @@ const ChampionshipMatches = ({
       ? (match.black_player.id === user?.id ? true : (opponentOnlineStatus[match.black_player.id] ?? false))
       : false;
 
-    console.log('🎯 Player online status check:', {
-      matchId: match.id,
-      currentUserId: user?.id,
-      whitePlayerId: match.white_player?.id,
-      blackPlayerId: match.black_player?.id,
-      whitePlayerOnline,
-      blackPlayerOnline,
-      isCurrentUserWhite: match.white_player?.id === user?.id,
-      isCurrentUserBlack: match.black_player?.id === user?.id
-    });
-
+    
     // Get urgency-based background color
     const getCardBackgroundColor = () => {
       switch(deadlineInfo.urgency) {
@@ -947,16 +1285,7 @@ const ChampionshipMatches = ({
           flexWrap: 'wrap'
         }}>
           {/* Debug info */}
-          {console.log('Match Actions Debug:', {
-            matchId: match.id,
-            userOnly,
-            canSchedule: canUserScheduleMatch(match),
-            canCreateGame: canUserCreateGame(match),
-            canReportResult: canUserReportResult(match),
-            status: match.status,
-            hasGame: !!match.game_id
-          })}
-
+          
           {userOnly && canUserScheduleMatch(match) && (
             <button
               onClick={() => {
@@ -993,6 +1322,117 @@ const ChampionshipMatches = ({
                 marginRight: '6px'
               }}></span>}
               {proposingTime === match.id ? 'Sending...' : '🎮 Request Play'}
+            </button>
+          )}
+
+          {/* Pending Resume Request Indicator */}
+          {pendingRequests[match.id] && (
+            <div style={{
+              padding: '8px 12px',
+              borderRadius: '6px',
+              backgroundColor: pendingRequests[match.id].type === 'outgoing' ? '#fef3c7' : '#dbeafe',
+              border: `1px solid ${pendingRequests[match.id].type === 'outgoing' ? '#f59e0b' : '#3b82f6'}`,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              fontSize: '13px',
+              marginBottom: '8px'
+            }}>
+              {pendingRequests[match.id].type === 'outgoing' ? (
+                <>
+                  <span>⏳</span>
+                  <span>Request sent - Waiting for opponent...</span>
+                  <button
+                    onClick={() => {
+                      setPendingRequests(prev => {
+                        const updated = { ...prev };
+                        delete updated[match.id];
+                        return updated;
+                      });
+                    }}
+                    style={{
+                      marginLeft: 'auto',
+                      padding: '2px 8px',
+                      fontSize: '11px',
+                      backgroundColor: 'transparent',
+                      border: '1px solid #f59e0b',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      color: '#f59e0b'
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <>
+                  <span>🔔</span>
+                  <span>Incoming request from {pendingRequests[match.id].request?.requester?.name || 'opponent'}</span>
+                  <button
+                    onClick={() => {
+                      setShowResumeDialog({
+                        matchId: match.id,
+                        request: pendingRequests[match.id].request
+                      });
+                    }}
+                    style={{
+                      marginLeft: 'auto',
+                      padding: '2px 8px',
+                      fontSize: '11px',
+                      backgroundColor: '#3b82f6',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      color: 'white'
+                    }}
+                  >
+                    View
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Play Now button for matches with game created but not started */}
+          {(() => {
+            const shouldShow = userOnly &&
+                               isUserParticipantInMatch(match) &&
+                               match.game_id &&
+                               match.status === 'pending' &&
+                               !match.game?.paused_at &&
+                               !pendingRequests[match.id];
+
+            return shouldShow && (
+              <button
+                onClick={() => {
+                  logger.info('🎯 [Play Now Button] Clicked for match:', match.id);
+                  handlePlayNow(match.id, match.game_id);
+                }}
+                className="btn btn-primary btn-small"
+                title="Game created - Click to play now! Opponent will be notified."
+                style={{
+                  fontWeight: 'bold',
+                  fontSize: '14px',
+                  animation: 'pulse 2s infinite'
+                }}
+              >
+                🎮 Play Now
+              </button>
+            );
+          })()}
+
+          {/* Resume Game button for paused games */}
+          {userOnly && isUserParticipantInMatch(match) && match.game_id && match.game?.paused_at && (
+            <button
+              onClick={() => handlePlayNow(match.id, match.game_id)}
+              className="btn btn-warning btn-small"
+              title="Game is paused - Click to resume! Opponent will be notified."
+              style={{
+                fontWeight: 'bold',
+                fontSize: '14px'
+              }}
+            >
+              ⏸️ Resume Game
             </button>
           )}
 
@@ -1035,17 +1475,7 @@ const ChampionshipMatches = ({
 
   // Transform matches to ensure consistent field names
   const transformMatch = (match) => {
-    console.log('🔄 transformMatch input:', {
-      matchId: match.id,
-      player1_id: match.player1_id,
-      player2_id: match.player2_id,
-      player1_name: match.player1?.name,
-      player2_name: match.player2?.name,
-      white_player_id: match.white_player_id,
-      black_player_id: match.black_player_id,
-      currentUserId: user?.id
-    });
-
+    
     // Map player1/player2 to white_player/black_player based on color assignments
     let white_player = null;
     let black_player = null;
@@ -1069,16 +1499,7 @@ const ChampionshipMatches = ({
       round: match.round_number || match.round || 1
     };
 
-    console.log('✅ transformMatch output:', {
-      matchId: transformed.id,
-      white_player_name: transformed.white_player?.name,
-      black_player_name: transformed.black_player?.name,
-      isUserPlayer1: match.player1_id === user?.id,
-      isUserPlayer2: match.player2_id === user?.id,
-      isUserWhitePlayer: match.white_player_id === user?.id,
-      isUserBlackPlayer: match.black_player_id === user?.id
-    });
-
+    
     return transformed;
   };
 
@@ -1086,16 +1507,7 @@ const ChampionshipMatches = ({
   const matchesArray = Array.isArray(matches) ? matches : [];
   const transformedMatches = matchesArray.map(transformMatch);
 
-  console.log('🎯 Final match counts:', {
-    userOnly,
-    totalRawMatches: matchesArray.length,
-    totalTransformedMatches: transformedMatches.length,
-    userMatches: transformedMatches.filter(m =>
-      m.player1_id === user?.id || m.player2_id === user?.id
-    ).length,
-    currentUserId: user?.id
-  });
-
+  
   const matchesByRound = transformedMatches.reduce((acc, match) => {
     const roundNum = match.round_number || match.round || 1;
     if (!acc[roundNum]) {
@@ -1242,6 +1654,167 @@ const ChampionshipMatches = ({
         round={leaderboardRound}
       />
 
+      {/* Resume Request Dialog */}
+      {showResumeDialog && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            animation: 'fadeIn 0.2s ease-out'
+          }}
+          onClick={() => setShowResumeDialog(null)}
+        >
+          <div
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              padding: '24px',
+              maxWidth: '500px',
+              width: '90%',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)',
+              animation: 'slideInUp 0.3s ease-out'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '20px', fontWeight: '700', color: '#1f2937' }}>
+              🎮 Game Start Request
+            </h3>
+
+            <p style={{ margin: '0 0 24px 0', fontSize: '15px', color: '#4b5563', lineHeight: '1.6' }}>
+              <strong>{showResumeDialog.request?.requester?.name || 'Your opponent'}</strong> wants to start the championship game now.
+            </p>
+
+            <div style={{
+              backgroundColor: '#f3f4f6',
+              padding: '12px',
+              borderRadius: '8px',
+              marginBottom: '24px',
+              fontSize: '13px',
+              color: '#6b7280'
+            }}>
+              <div>⚠️ This request expires in 5 minutes</div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={async () => {
+                  try {
+                    const token = localStorage.getItem('auth_token');
+                    await axios.post(
+                      `${BACKEND_URL}/championships/${championshipId}/matches/${showResumeDialog.matchId}/resume-request/decline`,
+                      {},
+                      {
+                        headers: {
+                          'Authorization': `Bearer ${token}`,
+                          'Content-Type': 'application/json'
+                        }
+                      }
+                    );
+
+                    // Remove from pending
+                    setPendingRequests(prev => {
+                      const updated = { ...prev };
+                      delete updated[showResumeDialog.matchId];
+                      return updated;
+                    });
+
+                    setShowResumeDialog(null);
+
+                    setNotification({
+                      type: 'info',
+                      message: '❌ Request declined'
+                    });
+                    setTimeout(() => setNotification(null), 3000);
+                  } catch (error) {
+                    console.error('Failed to decline request:', error);
+                    setError('Failed to decline request');
+                  }
+                }}
+                style={{
+                  padding: '10px 20px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  borderRadius: '8px',
+                  border: '1px solid #d1d5db',
+                  backgroundColor: 'white',
+                  color: '#374151',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseOver={(e) => e.target.style.backgroundColor = '#f9fafb'}
+                onMouseOut={(e) => e.target.style.backgroundColor = 'white'}
+              >
+                ❌ Decline
+              </button>
+
+              <button
+                onClick={async () => {
+                  try {
+                    const token = localStorage.getItem('auth_token');
+                    const response = await axios.post(
+                      `${BACKEND_URL}/championships/${championshipId}/matches/${showResumeDialog.matchId}/resume-request/accept`,
+                      {},
+                      {
+                        headers: {
+                          'Authorization': `Bearer ${token}`,
+                          'Content-Type': 'application/json'
+                        }
+                      }
+                    );
+
+                    // Remove from pending
+                    setPendingRequests(prev => {
+                      const updated = { ...prev };
+                      delete updated[showResumeDialog.matchId];
+                      return updated;
+                    });
+
+                    setShowResumeDialog(null);
+
+                    if (response.data.success && response.data.game_id) {
+                      setNotification({
+                        type: 'success',
+                        message: '✅ Starting game...'
+                      });
+
+                      setTimeout(() => {
+                        navigate(`/play/${response.data.game_id}`);
+                      }, 1000);
+                    }
+                  } catch (error) {
+                    console.error('Failed to accept request:', error);
+                    setError('Failed to accept request');
+                  }
+                }}
+                style={{
+                  padding: '10px 24px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  borderRadius: '8px',
+                  border: 'none',
+                  backgroundColor: '#10b981',
+                  color: 'white',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseOver={(e) => e.target.style.backgroundColor = '#059669'}
+                onMouseOut={(e) => e.target.style.backgroundColor = '#10b981'}
+              >
+                ✅ Accept & Play
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Notification */}
       {notification && (
         <div
@@ -1249,7 +1822,9 @@ const ChampionshipMatches = ({
             position: 'fixed',
             top: '80px',
             right: '20px',
-            backgroundColor: notification.type === 'success' ? '#10b981' : '#ef4444',
+            backgroundColor: notification.type === 'success' ? '#10b981' :
+                            notification.type === 'warning' ? '#f59e0b' :
+                            notification.type === 'info' ? '#3b82f6' : '#ef4444',
             color: 'white',
             padding: '16px 24px',
             borderRadius: '8px',

@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
 import { Chess } from 'chess.js';
 import ChessBoard from '../play/ChessBoard';
+import EnhancedInteractiveLesson from './EnhancedInteractiveLesson';
 
 const LessonPlayer = () => {
   const { lessonId } = useParams();
@@ -688,96 +689,28 @@ const LessonPlayer = () => {
   };
 
   const renderInteractive = () => {
-    // Get current slide based on currentStep
-    const slides = lesson.content_data?.slides || [];
-    const currentSlide = slides[currentStep] || slides[0]; // Fallback to first slide
-
-    if (!currentSlide) {
-      return (
-        <div className="bg-white rounded-lg p-6 shadow-sm">
-          <div className="text-center">
-            <h3 className="text-xl font-bold mb-2 text-gray-800">🎮 Interactive Exercise</h3>
-            <p className="text-gray-700 font-medium">No content available for this interactive exercise.</p>
-          </div>
-        </div>
-      );
-    }
-
+    // Use the enhanced interactive lesson component
     return (
-      <div className="bg-white rounded-lg p-6 shadow-sm">
-        <div className="mb-4">
-          <h3 className="text-xl font-bold mb-2 text-gray-800">🎮 {currentSlide.title || 'Interactive Exercise'}</h3>
-          <p className="text-gray-700 font-medium">
-            {currentSlide.content || currentSlide.description || 'Try moving the pieces on the board above!'}
-          </p>
-        </div>
-
-        <div className="mb-4">
-          {chessGame && (
-            <ChessBoard
-              game={chessGame}
-              boardOrientation={playerColor}
-              playerColor={playerColor}
-              isReplayMode={false}
-              allowAllMoves={true} // Allow all moves for interactive practice
-              onDrop={(sourceSquare, targetSquare) => {
-                // Handle interactive lesson moves
-                console.log('Interactive move attempted:', sourceSquare, targetSquare);
-
-                // Try to make the move
-                try {
-                  const move = chessGame.move({
-                    from: sourceSquare,
-                    to: targetSquare,
-                    promotion: 'q' // Default to queen promotion
-                  });
-
-                  if (move) {
-                    console.log('✅ Interactive move successful:', move);
-                    // Update the game state with the move
-                    setChessGame(new Chess(chessGame.fen()));
-
-                    // For king movement practice, reset after a short delay to allow continuous practice
-                    setTimeout(() => {
-                      try {
-                        const resetGame = new Chess(currentSlide.diagram);
-                        setChessGame(resetGame);
-                        console.log('🔄 Position reset for interactive practice');
-                      } catch (error) {
-                        console.error('Error resetting position:', error);
-                      }
-                    }, 1000); // Reset after 1 second
-                  } else {
-                    console.log('❌ Invalid move attempted');
-                    // Don't reset on invalid move
-                  }
-                } catch (error) {
-                  console.error('Error during move:', error);
-                  // Don't reset on error
-                }
-
-                // Allow the move attempt (ChessBoard will handle invalid moves)
-                return true;
-              }}
-              moveFrom=""
-              setMoveFrom={() => {}}
-              rightClickedSquares={{}}
-              setRightClickedSquares={() => {}}
-              moveSquares={{}}
-              setMoveSquares={() => {}}
-            />
-          )}
-        </div>
-
-        {/* Optional: Add instructions or feedback area */}
-        {currentSlide.hint && (
-          <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <p className="text-sm text-blue-800">
-              💡 <strong>Hint:</strong> {currentSlide.hint}
-            </p>
-          </div>
-        )}
-      </div>
+      <EnhancedInteractiveLesson
+        lesson={lesson}
+        user={user}
+        onLessonComplete={(completionData) => {
+          console.log('🎉 Interactive lesson completed:', completionData);
+          // You can handle completion here, e.g., navigate back with completion data
+          setTimeout(() => {
+            navigate('/tutorial', {
+              state: {
+                completed: true,
+                score: completionData.xp_awarded || score,
+                lessonTitle: lesson.title,
+                xpAwarded: completionData.xp_awarded,
+                moduleCompleted: completionData.module_completed,
+                verifiedProgress: completionData.user_stats
+              }
+            });
+          }, 2000);
+        }}
+      />
     );
   };
 

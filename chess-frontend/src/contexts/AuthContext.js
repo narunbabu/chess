@@ -4,6 +4,7 @@ import api from '../services/api';
 import { initEcho, disconnectEcho } from '../services/echoSingleton';
 import presenceService from '../services/presenceService';
 import userStatusService from '../services/userStatusService';
+import { logger } from '../utils/logger';
 
 // Create the AuthContext
 const AuthContext = createContext(null);
@@ -19,19 +20,19 @@ export const AuthProvider = ({ children }) => {
     try {
       const token = localStorage.getItem("auth_token");
       if (!token) {
-        console.log('[Auth] No auth token found');
+        logger.auth('Login', 'No auth token found');
         setLoading(false);
         return;
       }
 
-      console.log('[Auth] Fetching user with token:', token.substring(0, 10) + '...');
+      logger.auth('Login', 'Fetching user with token');
 
       // Set token in API headers
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
       // Fetch current user from backend
       const response = await api.get('/user');
-      console.log('[Auth] User fetched successfully:', response.data);
+      logger.auth('Login', 'User fetched successfully');
 
       // Save user to localStorage for userStatusService initialization
       localStorage.setItem('user', JSON.stringify(response.data));
@@ -47,13 +48,12 @@ export const AuthProvider = ({ children }) => {
         scheme: process.env.REACT_APP_REVERB_SCHEME || 'http',
       };
 
-      console.log('[Auth] Initializing Echo with config:', wsConfig);
+      logger.debug('Auth', 'Initializing WebSocket connection');
       const echoInstance = initEcho({ token, wsConfig });
       if (echoInstance) {
-        console.log('[Auth] ✅ Echo singleton initialized successfully');
+        logger.websocket('initialized', 'Echo singleton ready');
 
         // Initialize presence service after Echo is ready
-        console.log('[Auth] Initializing presence service...');
         try {
           const presenceInitialized = await presenceService.initialize(response.data, token);
           if (presenceInitialized) {

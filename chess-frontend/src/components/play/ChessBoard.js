@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Chessboard } from "react-chessboard";
 import { Chess } from 'chess.js'; // Import the Chess class
+import './ChessBoard.css'; // Import custom chess board styling
 
 const ChessBoard = ({
   game,
@@ -16,6 +17,9 @@ const ChessBoard = ({
   playerColor,
   isReplayMode,
   allowAllMoves = false, // Prop to allow all moves regardless of turn (for interactive practice)
+  // Interactive lesson props
+  lessonArrows = [], // Array of arrows: [{from: 'e2', to: 'e4', color: 'red'}]
+  lessonHighlights = [], // Array of highlighted squares: [{square: 'e2', type: 'move'|'target'}]
   // Keep other props even if unused locally for potential future use
   // activeTimer, setMoveCompleted, setTimerButtonColor, previousGameStateRef,
   // evaluateMove, updateGameStatus, currentTurn,
@@ -82,8 +86,23 @@ const ChessBoard = ({
         return false;
     }
 
+    const piece = game.get(square);
+    const currentTurn = game.turn();
+
+    console.log('🎯 [ChessBoard] Getting move options:', {
+        square,
+        piece,
+        currentTurn,
+        playerColor,
+        playerColorChess,
+        isPlayerTurn
+    });
+
     const moves = game.moves({ square, verbose: true });
+    console.log('♟️ [ChessBoard] Available moves for', square, ':', moves);
+
     if (moves.length === 0) {
+      console.log('❌ [ChessBoard] No moves available for', square);
       setMoveFrom("");
       return false;
     }
@@ -104,14 +123,63 @@ const ChessBoard = ({
     return newSquares;
   };
 
+  // Convert playerColor to chess.js format for comparison
+  const playerColorChess = playerColor === 'white' ? 'w' : 'b';
+
   // Ensure game object is valid before accessing methods like turn()
   // Add instance check
-  const isPlayerTurn = allowAllMoves || (isValidChessInstance(game) && game.turn() === playerColor);
+  const isPlayerTurn = allowAllMoves || (isValidChessInstance(game) && game.turn() === playerColorChess);
+
+  // Process lesson highlights
+  const getLessonHighlightStyles = () => {
+    const styles = {};
+    try {
+      if (lessonHighlights && Array.isArray(lessonHighlights)) {
+        lessonHighlights.forEach(highlight => {
+          if (highlight && highlight.square) {
+            const isTarget = highlight.type === 'target';
+            styles[highlight.square] = {
+              background: isTarget ? 'rgba(255, 165, 0, 0.3)' : 'rgba(0, 255, 0, 0.3)',
+              boxShadow: isTarget ? 'inset 0 0 10px rgba(255, 165, 0, 0.5)' : 'inset 0 0 10px rgba(0, 255, 0, 0.5)'
+            };
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error processing lesson highlights:', error);
+    }
+    return styles;
+  };
+
+  // Combine all custom square styles
+  const allCustomStyles = {
+    ...getLessonHighlightStyles(),
+    ...moveSquares,
+    ...rightClickedSquares,
+    ...checkSquares
+  };
+
+  console.log('🔄 [ChessBoard] Turn status:', {
+    isPlayerTurn,
+    allowAllMoves,
+    validGame: isValidChessInstance(game),
+    gameTurn: isValidChessInstance(game) ? game.turn() : 'invalid',
+    playerColor,
+    playerColorChess
+  });
 
   const onSquareClick = (square) => {
     // Add instance check
     if (!isValidChessInstance(game) || isReplayMode || !isPlayerTurn) {
         // Prevent interaction if not player's turn, in replay, or invalid game object
+        console.log('❌ [ChessBoard] Click rejected:', {
+            square,
+            validGame: isValidChessInstance(game),
+            isReplayMode,
+            isPlayerTurn,
+            currentTurn: game.turn(),
+            playerColor
+        });
         if (!isValidChessInstance(game)) console.warn("ChessBoard: Invalid game object received in onSquareClick.");
         setMoveFrom("");
         setMoveSquares({});
@@ -127,13 +195,29 @@ const ChessBoard = ({
 
     // If no piece is selected yet, or clicking the same piece again
     if (!moveFrom || moveFrom === square) {
+        console.log('👆 [ChessBoard] Piece selection attempt:', {
+            square,
+            pieceOnSquare,
+            moveFrom,
+            currentTurn: game.turn(),
+            playerColor,
+            playerColorChess
+        });
+
         // Add instance check before game.turn()
         if (pieceOnSquare && isValidChessInstance(game) && pieceOnSquare.color === game.turn()) {
+            console.log('✅ [ChessBoard] Selecting piece:', square, pieceOnSquare);
             // Select the piece if it's the player's color and their turn
             const options = getMoveOptions(square); // getMoveOptions already checks instance
             setMoveSquares(options || {}); // Update visual options
             return options !== false;
         } else {
+            console.log('❌ [ChessBoard] Cannot select piece:', {
+                square,
+                hasPiece: !!pieceOnSquare,
+                pieceColor: pieceOnSquare?.color,
+                turnMatch: pieceOnSquare?.color === game.turn()
+            });
             // Clicked on empty square or opponent's piece without a source selected
             setMoveFrom("");
             setMoveSquares({});
@@ -190,24 +274,106 @@ const ChessBoard = ({
       });
     });
   }
-  const customSquareStyles = { ...moveSquares, ...rightClickedSquares };
+
+  // Function to render arrows for interactive lessons
+  const renderArrows = () => {
+    if (!lessonArrows || lessonArrows.length === 0 || boardSize <= 0) return null;
+
+    try {
+      return lessonArrows.map((arrow, index) => {
+        // Validate arrow data
+        if (!arrow || !arrow.from || !arrow.to) {
+          console.warn('Invalid arrow data:', arrow);
+          return null;
+        }
+
+        const squareSize = boardSize / 8;
+
+        // Convert square notation to coordinates
+        const getSquareCenter = (square) => {
+          if (!square || square.length < 2) return { x: 0, y: 0 };
+
+          const file = square.charCodeAt(0) - 'a'.charCodeAt(0);
+          const rankNum = parseInt(square[1], 10);
+          const rank = 8 - (isNaN(rankNum) ? 0 : rankNum);
+          const x = file * squareSize + squareSize / 2;
+          const y = rank * squareSize + squareSize / 2;
+          return { x, y };
+        };
+
+        const from = getSquareCenter(arrow.from);
+        const to = getSquareCenter(arrow.to);
+
+        // Calculate arrow properties
+        const dx = to.x - from.x;
+        const dy = to.y - from.y;
+        const length = Math.sqrt(dx * dx + dy * dy);
+        const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+        // Adjust arrow end position to not overlap with target square
+        const adjustedLength = Math.max(0, length - squareSize * 0.15);
+
+        const arrowColor = arrow.color || 'rgba(255, 0, 0, 0.7)';
+
+        return (
+          <div key={`arrow-${index}`} className="arrow-overlay">
+            {/* Arrow line */}
+            <div
+              className="arrow-line"
+              style={{
+                backgroundColor: arrowColor,
+                left: `${from.x}px`,
+                top: `${from.y}px`,
+                width: `${adjustedLength}px`,
+                transform: `rotate(${angle}deg)`,
+                transformOrigin: 'left center'
+              }}
+            />
+            {/* Arrow head */}
+            <div
+              className="arrow-head"
+              style={{
+                borderColor: `transparent ${arrowColor} transparent transparent`,
+                left: `${from.x + adjustedLength - 8}px`,
+                top: `${from.y - 8}px`,
+                transform: `rotate(${angle}deg)`
+              }}
+            />
+          </div>
+        );
+      }).filter(Boolean); // Remove null entries
+    } catch (error) {
+      console.error('Error rendering arrows:', error);
+      return null;
+    }
+  };
 
   return(
     <div ref={boardBoxRef} className="w-full h-full">
-      <div className="w-full h-full flex items-center justify-center">
+      <div className="w-full h-full flex items-center justify-center relative">
         {/* Add instance check before rendering Chessboard */}
         {isValidChessInstance(game) && boardSize > 0 ? (
-          <Chessboard
-            position={game.fen()}
-            boardWidth={boardSize}
-            boardOrientation={boardOrientation}
-            onPieceDrop={onDrop}
-            onSquareClick={onSquareClick}
-            onSquareRightClick={onSquareRightClick}
-            customSquareStyles={customSquareStyles}
-            animationDuration={200}
-            arePiecesDraggable={!isReplayMode && isPlayerTurn}
-          />
+          <div className="relative">
+            <Chessboard
+              position={game.fen()}
+              boardWidth={boardSize}
+              boardOrientation={boardOrientation}
+              onPieceDrop={onDrop}
+              onSquareClick={onSquareClick}
+              onSquareRightClick={onSquareRightClick}
+              customSquareStyles={allCustomStyles}
+              animationDuration={200}
+              arePiecesDraggable={!isReplayMode && isPlayerTurn}
+              customBoardStyle={{
+                borderRadius: '8px',
+                overflow: 'hidden'
+              }}
+            />
+            {/* Render arrows on top of the board */}
+            <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
+              {renderArrows()}
+            </div>
+          </div>
         ) : (
           <div className="flex items-center justify-center text-red-500 p-4 border border-red-500 rounded">
             {!isValidChessInstance(game) ? 'Invalid game state' : 'Loading board...'}

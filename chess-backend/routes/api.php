@@ -127,6 +127,13 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Skill Assessment routes
         Route::post('/skill-assessment', [TutorialController::class, 'createSkillAssessment']);
+
+        // Interactive Lesson routes
+        Route::get('/lessons/{id}/interactive', [TutorialController::class, 'getInteractiveLesson']);
+        Route::post('/lessons/{id}/validate-move', [TutorialController::class, 'validateInteractiveMove']);
+        Route::post('/lessons/{id}/hint', [TutorialController::class, 'getInteractiveHint']);
+        Route::post('/lessons/{id}/reset-stage', [TutorialController::class, 'resetInteractiveStage']);
+        Route::get('/lessons/{id}/interactive-progress', [TutorialController::class, 'getInteractiveProgress']);
     });
 
     // WebSocket API routes for real-time game connections
@@ -231,6 +238,9 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/{match}/can-play', [\App\Http\Controllers\ChampionshipMatchController::class, 'canPlay']);
             Route::post('/{match}/game', [\App\Http\Controllers\ChampionshipMatchController::class, 'createGame']);
             Route::post('/{match}/challenge', [\App\Http\Controllers\ChampionshipMatchController::class, 'sendChallenge']);
+            Route::post('/{match}/notify-start', [\App\Http\Controllers\ChampionshipMatchController::class, 'notifyGameStart']);
+            Route::post('/{match}/resume-request/accept', [\App\Http\Controllers\ChampionshipMatchController::class, 'acceptResumeRequest']);
+            Route::post('/{match}/resume-request/decline', [\App\Http\Controllers\ChampionshipMatchController::class, 'declineResumeRequest']);
             Route::post('/{match}/result', [\App\Http\Controllers\ChampionshipMatchController::class, 'reportResult']);
             Route::post('/{match}/send-invitation', [\App\Http\Controllers\ChampionshipMatchController::class, 'sendInvitation'])->middleware('can:manage,championship');
             Route::put('/{match}/reschedule', [\App\Http\Controllers\ChampionshipMatchController::class, 'reschedule'])->middleware('can:manage,championship');

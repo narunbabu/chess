@@ -156,34 +156,50 @@ export const GlobalInvitationProvider = ({ children }) => {
 
   // Accept game invitation
   const acceptInvitation = useCallback(async (invitationId, colorChoice) => {
-    if (isProcessingRef.current) return;
+    if (isProcessingRef.current) {
+      console.log('[GlobalInvitation] Already processing, preventing duplicate request');
+      return;
+    }
 
     setIsProcessing(true);
     try {
-      console.log('[GlobalInvitation] Accepting invitation:', invitationId, 'with color:', colorChoice);
+      console.log('[GlobalInvitation] ✅ Accepting invitation:', invitationId, 'with color:', colorChoice);
 
       const requestData = {
         action: 'accept',
         desired_color: colorChoice,
       };
 
+      console.log('[GlobalInvitation] 📤 Sending POST request to /invitations/' + invitationId + '/respond');
       const response = await api.post(`/invitations/${invitationId}/respond`, requestData);
 
-      console.log('[GlobalInvitation] Invitation accepted:', response.data);
+      console.log('[GlobalInvitation] 🎉 Invitation accepted successfully:', response.data);
+      console.log('[GlobalInvitation] 🎮 Game created:', response.data.game);
 
       // Clear the dialog
       setPendingInvitation(null);
 
       // Navigate to the game
       if (response.data.game?.id) {
+        const gameId = response.data.game.id;
+        console.log('[GlobalInvitation] 🚀 Navigating to game:', gameId);
+
         sessionStorage.setItem('lastInvitationAction', 'accepted');
         sessionStorage.setItem('lastInvitationTime', Date.now().toString());
-        sessionStorage.setItem('lastGameId', response.data.game.id.toString());
-        navigate(`/play/multiplayer/${response.data.game.id}`);
+        sessionStorage.setItem('lastGameId', gameId.toString());
+
+        navigate(`/play/multiplayer/${gameId}`);
+      } else {
+        console.error('[GlobalInvitation] ❌ No game ID in response!', response.data);
+        alert('Game was created but we could not navigate to it. Please check your active games.');
       }
     } catch (error) {
-      console.error('[GlobalInvitation] Failed to accept invitation:', error);
-      alert('Failed to accept invitation. Please try again.');
+      console.error('[GlobalInvitation] ❌ Failed to accept invitation:', error);
+      console.error('[GlobalInvitation] Error response:', error.response?.data);
+      console.error('[GlobalInvitation] Error status:', error.response?.status);
+
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message;
+      alert(`Failed to accept invitation: ${errorMessage}`);
     } finally {
       setIsProcessing(false);
     }

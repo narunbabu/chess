@@ -670,12 +670,14 @@ class GameRoomService
                         'white_player' => [
                             'id' => $game->whitePlayer->id,
                             'name' => $game->whitePlayer->name,
+                            'email' => $game->whitePlayer->email,
                             'avatar' => $game->whitePlayer->avatar_url,
                             'rating' => $game->whitePlayer->rating ?? 1200
                         ],
                         'black_player' => [
                             'id' => $game->blackPlayer->id,
                             'name' => $game->blackPlayer->name,
+                            'email' => $game->blackPlayer->email,
                             'avatar' => $game->blackPlayer->avatar_url,
                             'rating' => $game->blackPlayer->rating ?? 1200
                         ],
@@ -1066,12 +1068,14 @@ class GameRoomService
                     'white_player' => [
                         'id' => $game->whitePlayer->id,
                         'name' => $game->whitePlayer->name,
+                        'email' => $game->whitePlayer->email,
                         'avatar' => $game->whitePlayer->avatar_url,
                         'rating' => $game->whitePlayer->rating ?? 1200
                     ],
                     'black_player' => [
                         'id' => $game->blackPlayer->id,
                         'name' => $game->blackPlayer->name,
+                        'email' => $game->blackPlayer->email,
                         'avatar' => $game->blackPlayer->avatar_url,
                         'rating' => $game->blackPlayer->rating ?? 1200
                     ],

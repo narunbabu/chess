@@ -555,11 +555,50 @@ const PlayComputer = () => {
 
   // --- Player Move Logic (onDrop on ChessBoard) ---
    const onDrop = useCallback((sourceSquare, targetSquare) => {
+        // Convert playerColor to chess.js format for comparison
+        const playerColorChess = playerColor === 'white' ? 'w' : 'b';
+
+        // Debug logging to identify pawn movement issues
+        console.log('🎯 [PlayComputer] Move attempt:', {
+            from: sourceSquare,
+            to: targetSquare,
+            currentTurn: game.turn(),
+            playerColor,
+            playerColorChess,
+            gameOver,
+            isReplayMode,
+            gameStarted,
+            activeTimer,
+            computerMoveInProgress,
+            fen: game.fen()
+        });
+
+        // Fix for timer not being initialized - ensure activeTimer is set if game started
+        if (gameStarted && !activeTimer && !gameOver && !isReplayMode) {
+            console.log('🔧 [PlayComputer] Fixing uninitialized timer - setting to', playerColor);
+            setActiveTimer(playerColorChess);
+            startTimerInterval();
+        }
+
         // Prevent move if game over, replay mode, not player's turn, or computer is thinking
+        // Allow moves if game is started but timer hasn't been set yet (fallback for timer issues)
+        const isTimerIssue = !activeTimer && gameStarted;
         if (
-            gameOver || isReplayMode || game.turn() !== playerColor ||
-            activeTimer !== playerColor || computerMoveInProgress
+            gameOver || isReplayMode || game.turn() !== playerColorChess ||
+            (!isTimerIssue && activeTimer !== playerColor) || computerMoveInProgress
         ) {
+            console.log('❌ [PlayComputer] Move rejected - Turn/State check failed:', {
+                gameOver,
+                isReplayMode,
+                turnMatch: game.turn() !== playerColorChess,
+                activeTimerMatch: !isTimerIssue && activeTimer !== playerColor,
+                computerMoveInProgress,
+                isTimerIssue,
+                gameStarted,
+                activeTimer,
+                playerColor,
+                playerColorChess
+            });
             return false; // Indicate move was not accepted
         }
 
@@ -573,14 +612,23 @@ const PlayComputer = () => {
 
         try {
             // Attempt the move
+            console.log('🔄 [PlayComputer] Attempting chess.js move:', {
+                from: sourceSquare,
+                to: targetSquare,
+                promotion: "q",
+                piece: game.get(sourceSquare)
+            });
+
             moveResult = gameCopy.move({
                 from: sourceSquare,
                 to: targetSquare,
                 promotion: "q", // Automatically promote to queen for simplicity
             });
+
+            console.log('✅ [PlayComputer] Chess.js move result:', moveResult);
         } catch (error) {
             // chess.js throws error for completely invalid format, but returns null for illegal moves
-            // console.log(`Invalid move format caught: ${sourceSquare}->${targetSquare}`, error);
+            console.error('❌ [PlayComputer] Chess.js move error:', error);
             setMoveFrom(""); // Clear selection state
             setMoveSquares({});
             return false; // Indicate move failed
@@ -588,7 +636,13 @@ const PlayComputer = () => {
 
         // Check if the move was legal (chess.js returns null for illegal moves)
         if (!moveResult) {
-            // console.log(`Illegal move: ${sourceSquare}->${targetSquare}`);
+            console.error('❌ [PlayComputer] Illegal move detected:', {
+                from: sourceSquare,
+                to: targetSquare,
+                legalMoves: gameCopy.moves({ verbose: true }),
+                piece: game.get(sourceSquare),
+                targetPiece: game.get(targetSquare)
+            });
             setMoveFrom(""); // Clear selection state
             setMoveSquares({});
             return false; // Indicate move failed

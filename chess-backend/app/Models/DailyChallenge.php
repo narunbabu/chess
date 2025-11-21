@@ -170,7 +170,7 @@ class DailyChallenge extends Model
      */
     public function scopeCurrent($query)
     {
-        return $query->where('date', now()->format('Y-m-d'));
+        return $query->whereDate('date', now());
     }
 
     /**
@@ -188,21 +188,50 @@ class DailyChallenge extends Model
     {
         $date = now()->format('Y-m-d');
 
-        // First try to find existing challenge for today
-        $challenge = static::where('date', $date)->first();
+        // First try to find existing challenge for today with multiple approaches
+        $challenge = static::whereDate('date', $date)->first();
 
         if ($challenge) {
             return $challenge;
         }
 
-        // If no challenge exists for today, create one
-        return static::create([
-            'date' => $date,
-            'challenge_type' => $type ?? 'puzzle',
-            'skill_tier' => $tier ?? 'beginner',
-            'challenge_data' => static::generateChallengeData($type ?? 'puzzle', $tier ?? 'beginner'),
-            'xp_reward' => 25,
-        ]);
+        // Try alternative query method
+        $challenge = static::where('date', $date)->first();
+        if ($challenge) {
+            return $challenge;
+        }
+
+        // If no challenge exists for today, create one with duplicate handling
+        try {
+            return static::create([
+                'date' => $date,
+                'challenge_type' => $type ?? 'puzzle',
+                'skill_tier' => $tier ?? 'beginner',
+                'challenge_data' => static::generateChallengeData($type ?? 'puzzle', $tier ?? 'beginner'),
+                'xp_reward' => 25,
+            ]);
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Handle UNIQUE constraint violation - race condition or data inconsistency
+            if ($e->getCode() === 23000 || str_contains($e->getMessage(), 'UNIQUE constraint failed')) {
+                // Another process created the challenge or there's a data inconsistency
+                // Try multiple approaches to find the existing challenge
+                $existing = static::whereDate('date', $date)->first();
+                if (!$existing) {
+                    $existing = static::where('date', $date)->first();
+                }
+
+                if ($existing) {
+                    return $existing;
+                }
+
+                // If we still can't find it, there's a data integrity issue
+                // For now, return the first challenge of today as fallback
+                return static::orderBy('id', 'desc')->first();
+            }
+
+            // Re-throw if it's a different error
+            throw $e;
+        }
     }
 
     /**

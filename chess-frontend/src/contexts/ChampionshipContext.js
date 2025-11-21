@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import api from '../services/api';
 import { useAuth } from './AuthContext';
+import { logger } from '../utils/logger';
 
 const ChampionshipContext = createContext(null);
 
@@ -259,7 +260,7 @@ export const ChampionshipProvider = ({ children }) => {
   useEffect(() => {
     const id = activeChampionship?.id;
     if (id && !fetchedDataRef.current.has(`participants_${id}`) && !fetchedDataRef.current.has(`standings_${id}`)) {
-      console.log('ChampionshipContext: Auto-fetching participants and standings for ID:', id);
+        logger.context('Championship', `Auto-fetching participants and standings for ID: ${id}`);
       fetchedDataRef.current.add(`participants_${id}`);
       fetchedDataRef.current.add(`standings_${id}`);
       fetchParticipants(id);
@@ -454,8 +455,8 @@ export const ChampionshipProvider = ({ children }) => {
       clearError,
     };
     
-    // Debug logging to track context re-renders
-    console.log('ChampionshipContext: Context value updated', {
+    // Only log context updates in debug mode
+    logger.context('Championship', {
       activeChampionshipId: activeChampionship?.id,
       championshipsCount: championships.length,
       loading,

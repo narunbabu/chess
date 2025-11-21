@@ -57,12 +57,16 @@ export function initEcho({ token, wsConfig }) {
       pongTimeout: 30000, // 30 seconds
     });
 
+    // Set global Echo instance for components that use window.Echo
+    window.Echo = echo;
+
     console.log('[Echo] Singleton initialized with config:', {
       wsHost: config.wsHost,
       wsPort: config.wsPort,
       scheme: config.scheme,
       authEndpoint: `${apiBaseUrl}/api/broadcasting/auth`,
     });
+    console.log('[Echo] window.Echo set:', !!window.Echo);
 
     // Bind connection events after Echo instance is created
     if (echo && echo.connector && echo.connector.pusher) {
@@ -208,6 +212,7 @@ export function disconnectEcho() {
   }
 
   echo = null;
+  window.Echo = null;
   console.log('[Echo] Singleton disconnected');
 }
 

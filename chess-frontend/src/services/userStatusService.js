@@ -1,5 +1,6 @@
 // userStatusService.js - Database-backed user online status tracking
 import api from './api';
+import { logger } from '../utils/logger';
 
 /**
  * UserStatusService
@@ -38,7 +39,7 @@ class UserStatusService {
    * Initialize the service and start heartbeat
    */
   async initialize() {
-    console.log('🚀 [UserStatus] Initializing database-backed status service');
+    logger.info('UserStatus', 'Initializing status service');
 
     if (this.isActive) {
       console.log('⚠️ [UserStatus] Service already active');
@@ -123,8 +124,7 @@ class UserStatusService {
           }
         }
 
-        console.log('💓 [UserStatus] Heartbeat sent successfully');
-        return true;
+                return true;
       }
 
     } catch (error) {
@@ -163,8 +163,7 @@ class UserStatusService {
     // Check cache first
     const cached = this.getCachedStatus(userId);
     if (cached !== null) {
-      console.log(`📦 [UserStatus] Cache hit for user ${userId}: ${cached ? 'online' : 'offline'}`);
-      return cached;
+            return cached;
     }
 
     try {
@@ -176,8 +175,7 @@ class UserStatusService {
         // Cache the result
         this.cacheStatus(userId, isOnline);
 
-        console.log(`🔍 [UserStatus] User ${userId} is ${isOnline ? 'online' : 'offline'}`);
-        return isOnline;
+                return isOnline;
       }
 
       return false;
@@ -246,7 +244,7 @@ class UserStatusService {
       const response = await api.get('/status/online-users');
 
       if (response.data.success) {
-        console.log(`👥 [UserStatus] ${response.data.data.count} users currently online`);
+        logger.debug('UserStatus', `${response.data.data.count} users online`);
         return response.data.data.users;
       }
 
