@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell.exe -Command \"php test-championship-request-play.php\")",
+      "Bash(powershell.exe -Command \"Get-Content storage/logs/laravel.log | Select-Object -Last 50\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

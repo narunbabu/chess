@@ -380,17 +380,21 @@ class ChampionshipMatchInvitationService
 
                 DB::commit();
 
-                // Broadcast the same InvitationAccepted event as lobby system
-                $freshInvitation = $invitation->fresh(['inviter', 'invited']);
-                Log::info('🎉 Broadcasting Championship InvitationAccepted event (same as lobby)', [
-                    'invitation_id' => $freshInvitation->id,
+                // Broadcast ChampionshipMatchInvitationAccepted event (includes game data for navigation)
+                $acceptedBy = auth()->user();
+                Log::info('🎉 Broadcasting ChampionshipMatchInvitationAccepted event', [
+                    'invitation_id' => $invitation->id,
                     'game_id' => $game->id,
                     'championship_match_id' => $match->id,
-                    'inviter_user_id' => $invitation->inviter_id,
-                    'channel' => "App.Models.User.{$invitation->inviter_id}",
-                    'event' => 'invitation.accepted'
+                    'white_player_id' => $match->white_player_id,
+                    'black_player_id' => $match->black_player_id,
+                    'channels' => [
+                        "App.Models.User.{$match->white_player_id}",
+                        "App.Models.User.{$match->black_player_id}"
+                    ],
+                    'event' => 'championship.invitation.accepted'
                 ]);
-                broadcast(new \App\Events\InvitationAccepted($game, $freshInvitation));
+                broadcast(new \App\Events\ChampionshipMatchInvitationAccepted($match, $acceptedBy, $game));
 
                 return [
                     'success' => true,

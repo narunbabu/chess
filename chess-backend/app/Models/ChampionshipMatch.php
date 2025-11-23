@@ -697,17 +697,24 @@ class ChampionshipMatch extends Model
             return ['canPlay' => true, 'reason' => null];
         }
 
-        // Check if this player is actually in this match
-        if ($this->player1_id !== $userId && $this->player2_id !== $userId) {
+        // Check if this player is actually in this match (support both player ID field formats)
+        $isPlayer1 = $this->player1_id === $userId;
+        $isPlayer2 = $this->player2_id === $userId;
+        $isWhitePlayer = $this->white_player_id === $userId;
+        $isBlackPlayer = $this->black_player_id === $userId;
+
+        if (!$isPlayer1 && !$isPlayer2 && !$isWhitePlayer && !$isBlackPlayer) {
             return ['canPlay' => false, 'reason' => 'You are not a participant in this match'];
         }
 
-        // Check if player has completed their previous round match
+        // Check if player has completed their previous round match (support both player ID field formats)
         $previousRoundMatch = self::where('championship_id', $this->championship_id)
             ->where('round_number', $this->round_number - 1)
             ->where(function ($query) use ($userId) {
                 $query->where('player1_id', $userId)
-                    ->orWhere('player2_id', $userId);
+                    ->orWhere('player2_id', $userId)
+                    ->orWhere('white_player_id', $userId)
+                    ->orWhere('black_player_id', $userId);
             })
             ->first();
 
@@ -745,16 +752,27 @@ class ChampionshipMatch extends Model
         $matches = self::where('championship_id', $championshipId)
             ->where('round_number', '<=', $roundNumber)
             ->completed()  // Use scope instead of direct status comparison
-            ->with(['player1', 'player2', 'winner'])
+            ->with(['player1', 'player2', 'white_player', 'black_player', 'winner'])
             ->get();
 
         $playerStats = [];
 
         foreach ($matches as $match) {
+            // Determine which player ID fields to use
+            $player1Id = $match->player1_id ?: $match->white_player_id;
+            $player2Id = $match->player2_id ?: $match->black_player_id;
+
+            // Determine which user relationships to use
+            $player1User = $match->player1 ?: $match->white_player;
+            $player2User = $match->player2 ?: $match->black_player;
+
+            // Skip if we don't have player IDs
+            if (!$player1Id) continue;
+
             // Initialize player1 stats
-            if (!isset($playerStats[$match->player1_id])) {
-                $playerStats[$match->player1_id] = [
-                    'user' => $match->player1,
+            if (!isset($playerStats[$player1Id])) {
+                $playerStats[$player1Id] = [
+                    'user' => $player1User,
                     'played' => 0,
                     'won' => 0,
                     'lost' => 0,
@@ -764,9 +782,9 @@ class ChampionshipMatch extends Model
             }
 
             // Initialize player2 stats
-            if ($match->player2_id && !isset($playerStats[$match->player2_id])) {
-                $playerStats[$match->player2_id] = [
-                    'user' => $match->player2,
+            if ($player2Id && !isset($playerStats[$player2Id])) {
+                $playerStats[$player2Id] = [
+                    'user' => $player2User,
                     'played' => 0,
                     'won' => 0,
                     'lost' => 0,
@@ -776,31 +794,31 @@ class ChampionshipMatch extends Model
             }
 
             // Update stats
-            $playerStats[$match->player1_id]['played']++;
-            if ($match->player2_id) {
-                $playerStats[$match->player2_id]['played']++;
+            $playerStats[$player1Id]['played']++;
+            if ($player2Id) {
+                $playerStats[$player2Id]['played']++;
             }
 
             if ($match->winner_id) {
                 // Someone won
-                if ($match->winner_id === $match->player1_id) {
-                    $playerStats[$match->player1_id]['won']++;
-                    $playerStats[$match->player1_id]['points'] += 1.0;
-                    if ($match->player2_id) {
-                        $playerStats[$match->player2_id]['lost']++;
+                if ($match->winner_id === $player1Id) {
+                    $playerStats[$player1Id]['won']++;
+                    $playerStats[$player1Id]['points'] += 1.0;
+                    if ($player2Id) {
+                        $playerStats[$player2Id]['lost']++;
                     }
-                } elseif ($match->winner_id === $match->player2_id) {
-                    $playerStats[$match->player2_id]['won']++;
-                    $playerStats[$match->player2_id]['points'] += 1.0;
-                    $playerStats[$match->player1_id]['lost']++;
+                } elseif ($match->winner_id === $player2Id) {
+                    $playerStats[$player2Id]['won']++;
+                    $playerStats[$player2Id]['points'] += 1.0;
+                    $playerStats[$player1Id]['lost']++;
                 }
             } else {
                 // Draw
-                $playerStats[$match->player1_id]['draw']++;
-                $playerStats[$match->player1_id]['points'] += 0.5;
-                if ($match->player2_id) {
-                    $playerStats[$match->player2_id]['draw']++;
-                    $playerStats[$match->player2_id]['points'] += 0.5;
+                $playerStats[$player1Id]['draw']++;
+                $playerStats[$player1Id]['points'] += 0.5;
+                if ($player2Id) {
+                    $playerStats[$player2Id]['draw']++;
+                    $playerStats[$player2Id]['points'] += 0.5;
                 }
             }
         }

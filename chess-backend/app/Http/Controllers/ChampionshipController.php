@@ -863,7 +863,9 @@ class ChampionshipController extends Controller
             $matches = ChampionshipMatch::where('championship_id', $id)
                 ->where(function ($query) use ($user) {
                     $query->where('player1_id', $user->id)
-                        ->orWhere('player2_id', $user->id);
+                        ->orWhere('player2_id', $user->id)
+                        ->orWhere('white_player_id', $user->id)
+                        ->orWhere('black_player_id', $user->id);
                 })
                 ->with([
                     'player1:id,name,email,avatar_url,rating,last_activity_at',

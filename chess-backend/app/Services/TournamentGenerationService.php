@@ -1024,6 +1024,26 @@ class TournamentGenerationService
         }
 
         $participants = $championship->participants()->count();
+
+        // Guard against zero participants
+        if ($participants === 0) {
+            return [
+                'config' => $config->toArray(),
+                'participants' => 0,
+                'total_rounds' => count($config->roundStructure),
+                'estimated_total_matches' => 0,
+                'rounds' => [],
+                'coverage_analysis' => [],
+                'participant_progression' => [],
+                'warnings' => ['No participants registered for this championship'],
+                'validation' => [
+                    'monotonic_reduction' => true,
+                    'top_k_coverage' => true,
+                    'errors' => ['Cannot generate tournament without participants'],
+                ],
+            ];
+        }
+
         $preview = [
             'config' => $config->toArray(),
             'participants' => $participants,
@@ -1068,7 +1088,7 @@ class TournamentGenerationService
                 'round' => $roundConfig['round'],
                 'participants' => $participantCount,
                 'reduction_from_previous' => $lastParticipantCount ? ($lastParticipantCount - $participantCount) : 0,
-                'percentage_of_original' => round(($participantCount / $participants) * 100, 1),
+                'percentage_of_original' => $participants > 0 ? round(($participantCount / $participants) * 100, 1) : 0,
             ];
 
             $lastParticipantCount = $participantCount;

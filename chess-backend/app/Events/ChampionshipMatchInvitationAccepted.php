@@ -16,11 +16,14 @@ class ChampionshipMatchInvitationAccepted implements ShouldBroadcastNow
 
     public $match;
     public $acceptedBy;
+    public $game;
 
-    public function __construct(ChampionshipMatch $match, $acceptedBy)
+    public function __construct(ChampionshipMatch $match, $acceptedBy, $game = null)
     {
-        $this->match = $match->load(['championship', 'whitePlayer', 'blackPlayer']);
+        // Load minimal data to avoid "Payload too large" Pusher error
+        $this->match = $match->load(['whitePlayer:id,name', 'blackPlayer:id,name']);
         $this->acceptedBy = $acceptedBy;
+        $this->game = $game ? $game->load(['whitePlayer:id,name', 'blackPlayer:id,name']) : null;
     }
 
     public function broadcastOn()
@@ -35,13 +38,32 @@ class ChampionshipMatchInvitationAccepted implements ShouldBroadcastNow
 
     public function broadcastWith()
     {
+        // Minimize payload to avoid "Payload too large" error
         return [
-            'match' => $this->match,
-            'accepted_by' => $this->acceptedBy,
-            'championship' => $this->match->championship,
-            'round' => $this->match->round,
-            'white_player' => $this->match->whitePlayer,
-            'black_player' => $this->match->blackPlayer,
+            'match' => [
+                'id' => $this->match->id,
+                'championship_id' => $this->match->championship_id,
+                'round_number' => $this->match->round_number,
+                'game_id' => $this->match->game_id,
+            ],
+            'game' => $this->game ? [
+                'id' => $this->game->id,
+                'white_player_id' => $this->game->white_player_id,
+                'black_player_id' => $this->game->black_player_id,
+                'status' => $this->game->status,
+            ] : null,
+            'accepted_by' => [
+                'id' => $this->acceptedBy->id,
+                'name' => $this->acceptedBy->name,
+            ],
+            'white_player' => $this->match->whitePlayer ? [
+                'id' => $this->match->whitePlayer->id,
+                'name' => $this->match->whitePlayer->name,
+            ] : null,
+            'black_player' => $this->match->blackPlayer ? [
+                'id' => $this->match->blackPlayer->id,
+                'name' => $this->match->blackPlayer->name,
+            ] : null,
             'message' => "Tournament invitation accepted by {$this->acceptedBy->name}"
         ];
     }

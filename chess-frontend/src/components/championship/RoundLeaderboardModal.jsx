@@ -79,14 +79,14 @@ const RoundLeaderboardModal = ({ isOpen, onClose, championshipId, round }) => {
                     </td>
                     <td style={{ padding: '12px 8px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {player.user.avatar_url && (
+                        {player.user?.avatar_url && (
                           <img
                             src={player.user.avatar_url}
-                            alt={player.user.name}
+                            alt={player.user.name || 'Player'}
                             style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }}
                           />
                         )}
-                        <span>{player.user.name}</span>
+                        <span>{player.user?.name || 'Unknown Player'}</span>
                       </div>
                     </td>
                     <td style={{ padding: '12px 8px', textAlign: 'center' }}>{player.played}</td>

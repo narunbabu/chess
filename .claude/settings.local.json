@@ -10,7 +10,8 @@
       "Bash(powershell.exe:*)",
       "Bash(cat:*)",
       "Bash(find:*)",
-      "Bash(/usr/bin/php artisan tinker:*)"
+      "Bash(/usr/bin/php artisan tinker:*)",
+      "Bash(git log:*)"
     ],
     "deny": [],
     "ask": []

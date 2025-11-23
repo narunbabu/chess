@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Championship Button Debug</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        button { margin: 10px 0; padding: 10px 20px; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <h1>Championship Button Debug Test</h1>
+
+    <p>Testing the schedule and request play buttons for Championship 15</p>
+
+    <div>
+        <h3>Test Data:</h3>
+        <p>Championship ID: 15</p>
+        <p>Match ID: 27 (User 1 vs User 2)</p>
+        <p>Expected: Both buttons should work if user is authenticated and is a participant</p>
+    </div>
+
+    <div>
+        <button onclick="testSchedulePropose()">📅 Test Schedule Propose</button>
+        <button onclick="testChallenge()">🎮 Test Challenge</button>
+        <button onclick="testNotifyStart()">🔔 Test Notify Start</button>
+        <button onclick="checkAuth()">🔐 Check Authentication</button>
+    </div>
+
+    <div id="results"></div>
+
+    <script>
+        const BACKEND_URL = 'http://localhost:8000';
+        const resultsDiv = document.getElementById('results');
+
+        function addResult(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong>: ${message}`;
+            resultsDiv.appendChild(div);
+        }
+
+        function getAuthToken() {
+            return localStorage.getItem('auth_token');
+        }
+
+        function checkAuth() {
+            const token = getAuthToken();
+            if (token) {
+                addResult(`✅ Auth token found: ${token.substring(0, 20)}...`, 'success');
+
+                // Test the token by making a simple API call
+                fetch(`${BACKEND_URL}/api/user`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => {
+                    if (response.ok) {
+                        return response.json();
+                    } else {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                })
+                .then(user => {
+                    addResult(`✅ Authenticated as: ${user.name} (ID: ${user.id})`, 'success');
+                })
+                .catch(error => {
+                    addResult(`❌ Authentication failed: ${error.message}`, 'error');
+                });
+            } else {
+                addResult('❌ No auth token found in localStorage', 'error');
+            }
+        }
+
+        function testSchedulePropose() {
+            const token = getAuthToken();
+            if (!token) {
+                addResult('❌ No auth token - please authenticate first', 'error');
+                return;
+            }
+
+            const futureTime = new Date();
+            futureTime.setHours(futureTime.getHours() + 1);
+            const scheduledTimeISO = futureTime.toISOString();
+
+            addResult(`📅 Testing schedule propose...`, 'info');
+
+            fetch(`${BACKEND_URL}/api/championships/15/matches/27/schedule/propose`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    proposed_time: scheduledTimeISO
+                })
+            })
+            .then(response => {
+                addResult(`📡 Schedule API response: ${response.status} ${response.statusText}`, 'info');
+                return response.json();
+            })
+            .then(data => {
+                addResult(`✅ Schedule propose successful: ${JSON.stringify(data, null, 2)}`, 'success');
+            })
+            .catch(error => {
+                addResult(`❌ Schedule propose failed: ${error.message}`, 'error');
+            });
+        }
+
+        function testChallenge() {
+            const token = getAuthToken();
+            if (!token) {
+                addResult('❌ No auth token - please authenticate first', 'error');
+                return;
+            }
+
+            addResult(`🎮 Testing challenge...`, 'info');
+
+            fetch(`${BACKEND_URL}/api/championships/15/matches/27/challenge`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    color_preference: 'random',
+                    time_control: 'blitz'
+                })
+            })
+            .then(response => {
+                addResult(`📡 Challenge API response: ${response.status} ${response.statusText}`, 'info');
+                return response.json();
+            })
+            .then(data => {
+                addResult(`✅ Challenge successful: ${JSON.stringify(data, null, 2)}`, 'success');
+            })
+            .catch(error => {
+                addResult(`❌ Challenge failed: ${error.message}`, 'error');
+            });
+        }
+
+        function testNotifyStart() {
+            const token = getAuthToken();
+            if (!token) {
+                addResult('❌ No auth token - please authenticate first', 'error');
+                return;
+            }
+
+            addResult(`🔔 Testing notify start...`, 'info');
+
+            fetch(`${BACKEND_URL}/api/championships/15/matches/27/notify-start`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({})
+            })
+            .then(response => {
+                addResult(`📡 Notify start API response: ${response.status} ${response.statusText}`, 'info');
+                return response.json();
+            })
+            .then(data => {
+                addResult(`✅ Notify start successful: ${JSON.stringify(data, null, 2)}`, 'success');
+            })
+            .catch(error => {
+                addResult(`❌ Notify start failed: ${error.message}`, 'error');
+            });
+        }
+
+        // Auto-check authentication on page load
+        window.onload = function() {
+            addResult('🔍 Debug page loaded. Checking authentication...', 'info');
+            checkAuth();
+        };
+    </script>
+</body>
+</html>

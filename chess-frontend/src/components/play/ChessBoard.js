@@ -130,35 +130,6 @@ const ChessBoard = ({
   // Add instance check
   const isPlayerTurn = allowAllMoves || (isValidChessInstance(game) && game.turn() === playerColorChess);
 
-  // Process lesson highlights
-  const getLessonHighlightStyles = () => {
-    const styles = {};
-    try {
-      if (lessonHighlights && Array.isArray(lessonHighlights)) {
-        lessonHighlights.forEach(highlight => {
-          if (highlight && highlight.square) {
-            const isTarget = highlight.type === 'target';
-            styles[highlight.square] = {
-              background: isTarget ? 'rgba(255, 165, 0, 0.3)' : 'rgba(0, 255, 0, 0.3)',
-              boxShadow: isTarget ? 'inset 0 0 10px rgba(255, 165, 0, 0.5)' : 'inset 0 0 10px rgba(0, 255, 0, 0.5)'
-            };
-          }
-        });
-      }
-    } catch (error) {
-      console.error('Error processing lesson highlights:', error);
-    }
-    return styles;
-  };
-
-  // Combine all custom square styles
-  const allCustomStyles = {
-    ...getLessonHighlightStyles(),
-    ...moveSquares,
-    ...rightClickedSquares,
-    ...checkSquares
-  };
-
   console.log('🔄 [ChessBoard] Turn status:', {
     isPlayerTurn,
     allowAllMoves,
@@ -346,6 +317,35 @@ const ChessBoard = ({
       console.error('Error rendering arrows:', error);
       return null;
     }
+  };
+
+  // Process lesson highlights
+  const getLessonHighlightStyles = () => {
+    const styles = {};
+    try {
+      if (lessonHighlights && Array.isArray(lessonHighlights)) {
+        lessonHighlights.forEach(highlight => {
+          if (highlight && highlight.square) {
+            const isTarget = highlight.type === 'target';
+            styles[highlight.square] = {
+              background: isTarget ? 'rgba(255, 165, 0, 0.3)' : 'rgba(0, 255, 0, 0.3)',
+              boxShadow: isTarget ? 'inset 0 0 10px rgba(255, 165, 0, 0.5)' : 'inset 0 0 10px rgba(0, 255, 0, 0.5)'
+            };
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error processing lesson highlights:', error);
+    }
+    return styles;
+  };
+
+  // Combine all custom square styles
+  const allCustomStyles = {
+    ...getLessonHighlightStyles(),
+    ...moveSquares,
+    ...rightClickedSquares,
+    ...checkSquares
   };
 
   return(

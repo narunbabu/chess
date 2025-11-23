@@ -1,5 +1,5 @@
 // ChampionshipMatches.jsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useChampionship } from '../../contexts/ChampionshipContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -49,8 +49,8 @@ const ChampionshipMatches = ({
   const [showResumeDialog, setShowResumeDialog] = useState(null); // { matchId, request }
 
   // Track user activity for smart polling
-  const [lastActivityTime, setLastActivityTime] = useState(Date.now());
   const [isPollingActive, setIsPollingActive] = useState(true);
+  const lastActivityTimeRef = useRef(Date.now());
 
   // Use contextual presence for smart, efficient status tracking
   const { opponents, loadOpponents, refreshOpponents } = useContextualPresence();
@@ -214,14 +214,16 @@ const ChampionshipMatches = ({
     const INACTIVITY_THRESHOLD = 5 * 60 * 1000; // 5 minutes
 
     const updateActivity = () => {
-      const now = Date.now();
-      setLastActivityTime(now);
+      lastActivityTimeRef.current = Date.now();
 
       // Resume polling if it was paused due to inactivity
-      if (!isPollingActive) {
-        setIsPollingActive(true);
-        logger.info('🔄 [Polling] Resumed - user activity detected');
-      }
+      setIsPollingActive(currentIsPolling => {
+        if (!currentIsPolling) {
+          logger.info('🔄 [Polling] Resumed - user activity detected');
+          return true;
+        }
+        return currentIsPolling;
+      });
     };
 
     // Activity event listeners
@@ -230,19 +232,22 @@ const ChampionshipMatches = ({
 
     // Check for inactivity every minute
     const inactivityCheck = setInterval(() => {
-      const timeSinceActivity = Date.now() - lastActivityTime;
+      const timeSinceActivity = Date.now() - lastActivityTimeRef.current;
 
-      if (timeSinceActivity >= INACTIVITY_THRESHOLD && isPollingActive) {
-        setIsPollingActive(false);
-        logger.info('⏸️ [Polling] Paused - 5 minutes of inactivity detected');
-      }
+      setIsPollingActive(currentIsPolling => {
+        if (currentIsPolling && timeSinceActivity >= INACTIVITY_THRESHOLD) {
+          logger.info('⏸️ [Polling] Paused - 5 minutes of inactivity detected');
+          return false;
+        }
+        return currentIsPolling;
+      });
     }, 60000); // Check every minute
 
     return () => {
       events.forEach(event => window.removeEventListener(event, updateActivity));
       clearInterval(inactivityCheck);
     };
-  }, [lastActivityTime, isPollingActive]);
+  }, []); // Empty dependency array to run only once
 
   // Auto-refresh opponents every 30 seconds (only when active)
   useEffect(() => {
@@ -677,8 +682,10 @@ const ChampionshipMatches = ({
   };
 
   const handleSendPlayRequest = async (matchId) => {
+    console.log('🎮 handleSendPlayRequest called with matchId:', matchId);
     const match = transformedMatches.find(m => m.id === matchId);
     if (!match) {
+      console.error('❌ Match not found for ID:', matchId);
       setError('Match not found');
       return;
     }
@@ -722,6 +729,7 @@ const ChampionshipMatches = ({
 
     try {
       const token = localStorage.getItem('auth_token');
+      console.log('🎮 Making challenge request with token:', token ? 'present' : 'missing');
 
       // Send championship match challenge (similar to regular challenge)
       // This will create a game and send WebSocket notification to opponent
@@ -731,8 +739,12 @@ const ChampionshipMatches = ({
         ? 'blitz' // Default if it's an object
         : (currentChampionship?.time_control || 'blitz');
 
+      const apiUrl = `${BACKEND_URL}/championships/${championshipId}/matches/${matchId}/challenge`;
+      console.log('🎮 Calling API:', apiUrl);
+      console.log('🎮 Request data:', { color_preference: 'random', time_control: timeControl });
+
       const response = await axios.post(
-        `${BACKEND_URL}/championships/${championshipId}/matches/${matchId}/challenge`,
+        apiUrl,
         {
           color_preference: 'random', // Can be made configurable
           time_control: timeControl
@@ -760,10 +772,13 @@ const ChampionshipMatches = ({
         await loadMatches();
       }
     } catch (error) {
-      console.error('Failed to send play request:', error);
+      console.error('❌ Failed to send play request:', error);
+      console.error('❌ Error response:', error.response?.data);
+      console.error('❌ Error status:', error.response?.status);
       const errorMessage = error.response?.data?.message ||
                           error.response?.data?.error ||
                           'Failed to send play request. Please try again.';
+      console.error('❌ Final error message:', errorMessage);
       setError(errorMessage);
     } finally {
       setProposingTime(null);
@@ -837,19 +852,23 @@ const ChampionshipMatches = ({
 
   const canUserScheduleMatch = (match) => {
     // Can schedule if user is participant and match is pending or scheduled
-    const canSchedule = isUserParticipantInMatch(match) &&
-           (match.status === 'scheduled' || match.status === 'pending') &&
-           !match.game_id;
-        return canSchedule;
+    const isParticipant = isUserParticipantInMatch(match);
+    const hasValidStatus = (match.status === 'scheduled' || match.status === 'pending');
+    const noGame = !match.game_id;
+    const canSchedule = isParticipant && hasValidStatus && noGame;
+
+    return canSchedule;
   };
 
   const canUserRequestPlay = (match) => {
     // Can request play if user is participant, match is pending/scheduled, no game exists, and opponent is online
-    const canRequest = isUserParticipantInMatch(match) &&
-           (match.status === 'scheduled' || match.status === 'pending') &&
-           !match.game_id &&
-           !match.result;
-        return canRequest;
+    const isParticipant = isUserParticipantInMatch(match);
+    const hasValidStatus = (match.status === 'scheduled' || match.status === 'pending');
+    const noGame = !match.game_id;
+    const noResult = !match.result;
+    const canRequest = isParticipant && hasValidStatus && noGame && noResult;
+
+    return canRequest;
   };
 
   const isOpponentOnline = useCallback((match) => {
@@ -1284,11 +1303,10 @@ const ChampionshipMatches = ({
           gap: '8px',
           flexWrap: 'wrap'
         }}>
-          {/* Debug info */}
-          
           {userOnly && canUserScheduleMatch(match) && (
             <button
               onClick={() => {
+                console.log('📅 Schedule button clicked for match:', match.id);
                 setSchedulingMatch(match.id);
                 setShowScheduleModal(true);
               }}
@@ -1303,14 +1321,35 @@ const ChampionshipMatches = ({
 
           {userOnly && canUserRequestPlay(match) && (
             <button
-              onClick={() => handleSendPlayRequest(match.id)}
-              disabled={proposingTime === match.id || !isOpponentOnline(match)}
+              onClick={(e) => {
+                try {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log('═══════════════════════════════════════════════════');
+                  console.log('🎮 REQUEST PLAY BUTTON CLICKED');
+                  console.log('Match ID:', match.id);
+                  console.log('Match Status:', match.status);
+                  console.log('Game ID:', match.game_id);
+                  console.log('Opponent:', getOpponent(match));
+                  console.log('Opponent Online:', isOpponentOnline(match));
+                  console.log('Championship ID:', championshipId);
+                  console.log('═══════════════════════════════════════════════════');
+
+                  const opponentOnline = isOpponentOnline(match);
+                  if (!opponentOnline) {
+                    console.warn('⚠️ Opponent appears offline, but sending request anyway (they may receive it when online)');
+                  }
+                  handleSendPlayRequest(match.id);
+                } catch (error) {
+                  console.error('❌ Error in Request Play button click:', error);
+                }
+              }}
+              disabled={proposingTime === match.id}
               className="btn btn-success btn-small"
-              title={isOpponentOnline(match) ? "Send play challenge to opponent (like Challenge feature)" : "Opponent is offline"}
+              title="Send play challenge to opponent (like Challenge feature)"
               style={{
                 fontWeight: 'bold',
-                fontSize: '14px',
-                opacity: isOpponentOnline(match) ? 1 : 0.5
+                fontSize: '14px'
               }}
             >
               {isOpponentOnline(match) && <span className="online-indicator" style={{
@@ -1475,18 +1514,19 @@ const ChampionshipMatches = ({
 
   // Transform matches to ensure consistent field names
   const transformMatch = (match) => {
-    
-    // Map player1/player2 to white_player/black_player based on color assignments
-    let white_player = null;
-    let black_player = null;
+    // Use the already loaded white_player and black_player relationships
+    // They should be loaded by the API, but fall back to player1/player2 mapping if needed
+    let white_player = match.white_player || null;
+    let black_player = match.black_player || null;
 
-    if (match.white_player_id) {
+    // Fallback logic for championships that use player1_id/player2_id fields
+    if (!white_player && match.white_player_id) {
       white_player = match.white_player_id === match.player1_id
         ? match.player1
         : match.player2;
     }
 
-    if (match.black_player_id) {
+    if (!black_player && match.black_player_id) {
       black_player = match.black_player_id === match.player1_id
         ? match.player1
         : match.player2;
@@ -1499,7 +1539,6 @@ const ChampionshipMatches = ({
       round: match.round_number || match.round || 1
     };
 
-    
     return transformed;
   };
 
