@@ -1207,6 +1207,9 @@ class GameRoomService
         $whiteTimeResumed = $game->white_time_paused_ms + $game->white_grace_time_ms;
         $blackTimeResumed = $game->black_time_paused_ms + $game->black_grace_time_ms;
 
+        // Determine turn to restore - if turn_at_pause is null, default to current turn or 'white'
+        $turnToRestore = $game->turn_at_pause ?? $game->turn ?? 'white';
+
         $updateData = [
             'status' => 'active',
             'paused_at' => null,
@@ -1215,7 +1218,7 @@ class GameRoomService
             'white_time_remaining_ms' => $whiteTimeResumed,
             'black_time_remaining_ms' => $blackTimeResumed,
             'last_move_time' => now(), // Reset the move timer to current time
-            'turn' => $game->turn_at_pause, // Restore the turn that was active when paused
+            'turn' => $turnToRestore, // Restore the turn that was active when paused
         ];
 
         // Store pause info for response, then clear the pause fields

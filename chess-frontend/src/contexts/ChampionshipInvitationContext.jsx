@@ -132,33 +132,38 @@ export const ChampionshipInvitationProvider = ({ children }) => {
       }
 
       // Listen for new championship match invitations
-      echo.private(`user.${userId}`).listen('ChampionshipMatchInvitationSent', (e) => {
-        console.log('[ChampionshipInvitation] New championship invitation received:', e);
+      // Note: Backend broadcasts as 'invitation.sent' to 'private-App.Models.User.{id}' channel
+      echo.private(`App.Models.User.${userId}`)
+        .listen('InvitationSent', (e) => {
+          console.log('[ChampionshipInvitation] New invitation received:', e);
 
-        if (e.invitation) {
-          setInvitations(prev => {
-            // Check if invitation already exists
-            const exists = prev.some(inv => inv.id === e.invitation.id);
-            if (!exists) {
-              return [...prev, e.invitation];
-            }
-            return prev;
-          });
+          // Only process championship match invitations
+          if (e.invitation && e.invitation.championship_match_id) {
+            setInvitations(prev => {
+              // Check if invitation already exists
+              const exists = prev.some(inv => inv.id === e.invitation.id);
+              if (!exists) {
+                console.log('[ChampionshipInvitation] Adding new championship invitation to list:', e.invitation);
+                return [...prev, e.invitation];
+              }
+              return prev;
+            });
 
-          // Show notification
-          if ('Notification' in window && 'permission' in Notification) {
-            if (Notification.permission === 'granted') {
-              new Notification('New Championship Match!', {
-                body: `You have a new match invitation from ${e.match?.opponent_name || 'an opponent'}`,
-                icon: '/favicon.ico'
-              });
+            // Show notification
+            if ('Notification' in window && 'permission' in Notification) {
+              if (Notification.permission === 'granted') {
+                const inviterName = e.invitation.inviter?.name || 'an opponent';
+                new Notification('New Championship Match!', {
+                  body: `You have a new match invitation from ${inviterName}`,
+                  icon: '/favicon.ico'
+                });
+              }
             }
           }
-        }
-      });
+        });
 
       // Listen for invitation status changes
-      echo.private(`user.${userId}`).listen('ChampionshipMatchInvitationExpired', (e) => {
+      echo.private(`App.Models.User.${userId}`).listen('ChampionshipMatchInvitationExpired', (e) => {
         console.log('[ChampionshipInvitation] Invitation expired:', e);
 
         if (e.invitation_id) {
@@ -166,7 +171,7 @@ export const ChampionshipInvitationProvider = ({ children }) => {
         }
       });
 
-      echo.private(`user.${userId}`).listen('ChampionshipMatchInvitationCancelled', (e) => {
+      echo.private(`App.Models.User.${userId}`).listen('ChampionshipMatchInvitationCancelled', (e) => {
         console.log('[ChampionshipInvitation] Invitation cancelled:', e);
 
         if (e.invitation_id) {
@@ -175,7 +180,7 @@ export const ChampionshipInvitationProvider = ({ children }) => {
       });
 
       // NEW: Championship scheduling WebSocket listeners
-      echo.private(`user.${userId}`).listen('championship.schedule.updated', (e) => {
+      echo.private(`App.Models.User.${userId}`).listen('championship.schedule.updated', (e) => {
         console.log('[ChampionshipScheduling] Schedule updated:', e);
 
         // Trigger a custom event that components can listen to
@@ -220,7 +225,7 @@ export const ChampionshipInvitationProvider = ({ children }) => {
         }
       });
 
-      echo.private(`user.${userId}`).listen('championship.match.scheduled', (e) => {
+      echo.private(`App.Models.User.${userId}`).listen('championship.match.scheduled', (e) => {
         console.log('[ChampionshipScheduling] Match scheduled confirmed:', e);
 
         // Trigger a custom event that components can listen to
@@ -245,7 +250,7 @@ export const ChampionshipInvitationProvider = ({ children }) => {
         }
       });
 
-      echo.private(`user.${userId}`).listen('championship.game.created', (e) => {
+      echo.private(`App.Models.User.${userId}`).listen('championship.game.created', (e) => {
         console.log('[ChampionshipScheduling] Game created:', e);
 
         // Trigger a custom event that components can listen to
@@ -272,7 +277,7 @@ export const ChampionshipInvitationProvider = ({ children }) => {
         }, 2000);
       });
 
-      echo.private(`user.${userId}`).listen('championship.timeout.warning', (e) => {
+      echo.private(`App.Models.User.${userId}`).listen('championship.timeout.warning', (e) => {
         console.log('[ChampionshipScheduling] Timeout warning:', e);
 
         // Trigger a custom event that components can listen to
@@ -314,7 +319,7 @@ export const ChampionshipInvitationProvider = ({ children }) => {
         }
       });
 
-      echo.private(`user.${userId}`).listen('championship.round.completed', (e) => {
+      echo.private(`App.Models.User.${userId}`).listen('championship.round.completed', (e) => {
         console.log('[ChampionshipScheduling] Round completed:', e);
 
         // Trigger a custom event that components can listen to
@@ -347,7 +352,7 @@ export const ChampionshipInvitationProvider = ({ children }) => {
       const userId = localStorage.getItem('user_id');
 
       if (echo && userId) {
-        echo.leave(`user.${userId}`);
+        echo.leave(`App.Models.User.${userId}`);
       }
     };
   }, []);

@@ -1156,16 +1156,34 @@ class ChampionshipMatchController extends Controller
             // Accept the request
             $request->accept();
 
-            // Resume the underlying game if it exists and is paused
+            // Handle the underlying game if it exists
             if ($match->game_id) {
                 $game = \App\Models\Game::find($match->game_id);
-                if ($game && $game->status === 'paused') {
-                    $this->gameRoomService->resumeGameFromInactivity($game->id, $user->id);
-                    Log::info('Game resumed from championship acceptance', [
-                        'game_id' => $game->id,
-                        'match_id' => $match->id,
-                        'user_id' => $user->id
-                    ]);
+                if ($game) {
+                    if ($game->status === 'paused') {
+                        // Resume paused game
+                        $this->gameRoomService->resumeGameFromInactivity($game->id, $user->id);
+                        Log::info('Game resumed from championship acceptance', [
+                            'game_id' => $game->id,
+                            'match_id' => $match->id,
+                            'user_id' => $user->id,
+                            'previous_status' => 'paused'
+                        ]);
+                    } elseif ($game->status === 'waiting') {
+                        // Activate waiting game - both players are now ready
+                        $game->update([
+                            'status' => 'active',
+                            'last_heartbeat_at' => now(),
+                            'turn' => 'white', // White always starts
+                            'last_move_time' => now()
+                        ]);
+                        Log::info('Game activated from championship acceptance', [
+                            'game_id' => $game->id,
+                            'match_id' => $match->id,
+                            'user_id' => $user->id,
+                            'previous_status' => 'waiting'
+                        ]);
+                    }
                 }
             }
 
