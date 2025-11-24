@@ -183,6 +183,7 @@ class GenerateNextRoundJob implements ShouldQueue
 
     /**
      * Get current round number
+     * Returns the highest round number that exists (completed or not)
      */
     private function getCurrentRoundNumber(): int
     {

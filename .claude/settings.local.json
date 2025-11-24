@@ -11,7 +11,9 @@
       "Bash(cat:*)",
       "Bash(find:*)",
       "Bash(/usr/bin/php artisan tinker:*)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(xargs:*)",
+      "Bash(wc:*)"
     ],
     "deny": [],
     "ask": []

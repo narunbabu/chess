@@ -22,10 +22,31 @@ const Header = () => {
   const { activeGame, loading } = useActiveGame();
   const [showNavPanel, setShowNavPanel] = useState(false);
   const [onlineStats, setOnlineStats] = useState({ onlineCount: 0, availablePlayers: 0 });
+  const [recentChampionship, setRecentChampionship] = useState(null);
   const userMenuRef = useRef(null);
   const hideTimeoutRef = useRef(null);
   const lastStatsRef = useRef(null); // Cache last stats to prevent redundant updates
   const pollIntervalRef = useRef(null);
+
+  // Load recent championship from localStorage
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('recentChampionship');
+      if (stored) {
+        const championship = JSON.parse(stored);
+        // Only show if accessed within last 24 hours
+        const hoursSinceAccess = (Date.now() - championship.timestamp) / (1000 * 60 * 60);
+        if (hoursSinceAccess < 24) {
+          setRecentChampionship(championship);
+        } else {
+          // Clear old championship
+          localStorage.removeItem('recentChampionship');
+        }
+      }
+    } catch (error) {
+      console.error('[Header] Failed to load recent championship:', error);
+    }
+  }, [location.pathname]); // Reload when route changes
 
   // Handle clicks outside nav panel to close it
   useEffect(() => {
@@ -254,6 +275,13 @@ const Header = () => {
     }
   };
 
+  const handleRecentChampionship = () => {
+    if (recentChampionship) {
+      trackNavigation('championship', 'recent_button', { championshipId: recentChampionship.id });
+      navigate(`/championships/${recentChampionship.id}?tab=my-matches`);
+    }
+  };
+
   const headerElement = (
     <header className="app-header glass-header">
       <div className="left-section">
@@ -297,6 +325,17 @@ const Header = () => {
                 title={`Resume game #${activeGame.id}`}
               >
                 ▶️ Resume
+              </button>
+            )}
+            {recentChampionship && (
+              <button
+                onClick={handleRecentChampionship}
+                className="nav-link championship-btn"
+                title={`Go to ${recentChampionship.name}`}
+              >
+                🏆 {recentChampionship.name.length > 15
+                  ? recentChampionship.name.substring(0, 15) + '...'
+                  : recentChampionship.name}
               </button>
             )}
           </>
@@ -409,6 +448,17 @@ const Header = () => {
                 >
                   🏆 Championships
                 </button>
+                {recentChampionship && (
+                  <button
+                    className="nav-item nav-item-championship"
+                    onClick={() => handleNavItemClick(handleRecentChampionship)}
+                    title={`Go to ${recentChampionship.name}`}
+                  >
+                    🏆 {recentChampionship.name.length > 25
+                      ? recentChampionship.name.substring(0, 25) + '...'
+                      : recentChampionship.name}
+                  </button>
+                )}
                 {location.pathname.includes('/lobby') && (
                   <>
                     <div className="nav-stats">

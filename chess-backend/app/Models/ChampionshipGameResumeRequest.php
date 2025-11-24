@@ -78,6 +78,16 @@ class ChampionshipGameResumeRequest extends Model
             'status' => 'accepted',
             'responded_at' => now(),
         ]);
+
+        // Resume the game by setting status to active (5)
+        if ($this->game) {
+            $this->game->update(['status_id' => 5]); // 5 = active
+            \Illuminate\Support\Facades\Log::info('🎮 Game resumed on accept', [
+                'game_id' => $this->game_id,
+                'request_id' => $this->id,
+                'status' => 'active'
+            ]);
+        }
     }
 
     public function decline(): void

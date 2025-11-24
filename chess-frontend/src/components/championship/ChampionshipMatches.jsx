@@ -1819,13 +1819,18 @@ const ChampionshipMatches = ({
                     setShowResumeDialog(null);
 
                     if (response.data.success && response.data.game_id) {
+                      // Set resume flag for navigation
+                      sessionStorage.setItem('lastInvitationAction', 'resume_game');
+                      sessionStorage.setItem('lastGameId', response.data.game_id);
+                      sessionStorage.setItem('lastInvitationTime', Date.now().toString());
+
                       setNotification({
                         type: 'success',
                         message: '✅ Starting game...'
                       });
 
                       setTimeout(() => {
-                        navigate(`/play/${response.data.game_id}`);
+                        navigate(`/play/multiplayer/${response.data.game_id}`);
                       }, 1000);
                     }
                   } catch (error) {

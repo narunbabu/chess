@@ -884,6 +884,108 @@ class WebSocketController extends Controller
     }
 
     /**
+     * Get resume status for a game
+     */
+    public function getResumeStatus(Request $request, int $gameId): JsonResponse
+    {
+        try {
+            $game = Game::with(['whitePlayer', 'blackPlayer'])->findOrFail($gameId);
+            $user = Auth::user();
+
+            // Verify user is part of the game
+            if ($game->white_player_id !== $user->id && $game->black_player_id !== $user->id) {
+                return response()->json([
+                    'error' => 'Unauthorized',
+                    'message' => 'You are not part of this game'
+                ], 403);
+            }
+
+            // Game must be paused
+            if ($game->status !== 'paused') {
+                return response()->json([
+                    'pending' => false,
+                    'type' => null,
+                    'message' => 'Game is not paused'
+                ]);
+            }
+
+            // Check for pending resume requests in cache (similar to draw offers)
+            // Assume cache keys: "resume_request:{$gameId}:{$senderId}"
+            $userId = $user->id;
+            $opponentId = $game->white_player_id === $userId ? $game->black_player_id : $game->white_player_id;
+
+            $myRequestKey = "resume_request:{$gameId}:{$userId}";
+            $opponentRequestKey = "resume_request:{$gameId}:{$opponentId}";
+
+            $status = [
+                'pending' => false,
+                'type' => null,
+                'requested_by_id' => null,
+                'requesting_user' => null,
+                'opponent_name' => null,
+                'expires_at' => null
+            ];
+
+            // Check if opponent has a pending request (received)
+            if (\Illuminate\Support\Facades\Cache::has($opponentRequestKey)) {
+                $opponent = $game->white_player_id === $userId ? $game->blackPlayer : $game->whitePlayer;
+                $expiresAt = \Illuminate\Support\Facades\Cache::get($opponentRequestKey . ':expires_at', now()->addMinutes(1));
+
+                $status = [
+                    'pending' => true,
+                    'type' => 'received',
+                    'requested_by_id' => $opponentId,
+                    'requesting_user' => [
+                        'id' => $opponent->id,
+                        'name' => $opponent->name
+                    ],
+                    'opponent_name' => $opponent->name,
+                    'expires_at' => $expiresAt->toISOString()
+                ];
+            } 
+            // Check if I have a pending request (sent)
+            elseif (\Illuminate\Support\Facades\Cache::has($myRequestKey)) {
+                $opponent = $game->white_player_id === $userId ? $game->blackPlayer : $game->whitePlayer;
+                $expiresAt = \Illuminate\Support\Facades\Cache::get($myRequestKey . ':expires_at', now()->addMinutes(1));
+
+                $status = [
+                    'pending' => true,
+                    'type' => 'sent',
+                    'requested_by_id' => $userId,
+                    'requesting_user' => [
+                        'id' => $user->id,
+                        'name' => $user->name
+                    ],
+                    'opponent_name' => $opponent->name,
+                    'expires_at' => $expiresAt->toISOString()
+                ];
+            }
+
+            Log::info('Resume status checked', [
+                'user_id' => $user->id,
+                'game_id' => $gameId,
+                'status' => $status
+            ]);
+
+            return response()->json($status);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to get resume status', [
+                'user_id' => Auth::id(),
+                'game_id' => $gameId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'pending' => false,
+                'type' => null,
+                'error' => 'Failed to get resume status',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Ping opponent to remind them it's their turn
      */
     public function pingOpponent(Request $request, int $gameId): JsonResponse

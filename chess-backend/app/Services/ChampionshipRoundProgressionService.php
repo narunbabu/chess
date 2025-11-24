@@ -73,21 +73,37 @@ class ChampionshipRoundProgressionService
 
     /**
      * Get the current active round number for a championship
+     * Current round = Highest completed round + 1, or 1 if no rounds exist
      */
     public function getCurrentRound(Championship $championship): ?int
     {
-        // Find the highest round number that has incomplete matches
-        $latestRound = ChampionshipMatch::where('championship_id', $championship->id)
-            ->whereNotIn('status_id', [MatchStatusEnum::COMPLETED->getId()])
+        // Get the highest round number that has all matches completed
+        $highestCompletedRound = ChampionshipMatch::where('championship_id', $championship->id)
+            ->where('status_id', MatchStatusEnum::COMPLETED->getId())
             ->max('round_number');
 
-        // If no incomplete rounds, get the highest round number overall
-        if (!$latestRound) {
-            $latestRound = ChampionshipMatch::where('championship_id', $championship->id)
-                ->max('round_number');
+        // If no completed rounds, current round is 1 (or null if no matches at all)
+        if (!$highestCompletedRound) {
+            $hasAnyMatches = ChampionshipMatch::where('championship_id', $championship->id)->exists();
+            return $hasAnyMatches ? 1 : null;
         }
 
-        return $latestRound ? (int) $latestRound : null;
+        // Check if the highest completed round is actually complete (all matches in that round are completed)
+        $highestRoundMatches = ChampionshipMatch::where('championship_id', $championship->id)
+            ->where('round_number', $highestCompletedRound)
+            ->get();
+
+        $isRoundComplete = $highestRoundMatches->every(function ($match) {
+            return $match->status_id === MatchStatusEnum::COMPLETED->getId();
+        });
+
+        if (!$isRoundComplete) {
+            // If the highest round with matches is not complete, that's the current round
+            return (int) $highestCompletedRound;
+        }
+
+        // Current round is the next one after the highest completed round
+        return (int) $highestCompletedRound + 1;
     }
 
     /**
@@ -100,13 +116,9 @@ class ChampionshipRoundProgressionService
             ->get();
 
         // Round is complete if all matches are completed
-        foreach ($roundMatches as $match) {
-            if ($match->getStatusEnum()->value !== 'completed') {
-                return false;
-            }
-        }
-
-        return true;
+        return $roundMatches->every(function ($match) {
+            return $match->status_id === MatchStatusEnum::COMPLETED->getId();
+        });
     }
 
     /**
@@ -216,47 +228,61 @@ class ChampionshipRoundProgressionService
         $whiteStanding = $this->getOrCreateStanding($championship, $whitePlayer);
         $blackStanding = $this->getOrCreateStanding($championship, $blackPlayer);
 
-        // Update scores based on match result
+        // Update scores based on match result and winner
         $resultType = $match->getResultTypeEnum();
 
         if ($resultType) {
-            switch ($resultType->value) {
-                case ResultTypeEnum::WIN_WHITE->value:
+            // For completed matches, determine winner based on winner_id
+            if ($resultType->value === ResultTypeEnum::COMPLETED->value) {
+                if ($match->winner_id === $whitePlayer->id) {
                     $whiteStanding->increment('points', 1);
                     $blackStanding->increment('points', 0);
-                    break;
-
-                case ResultTypeEnum::WIN_BLACK->value:
+                } elseif ($match->winner_id === $blackPlayer->id) {
                     $whiteStanding->increment('points', 0);
                     $blackStanding->increment('points', 1);
-                    break;
-
-                case ResultTypeEnum::DRAW->value:
-                    $whiteStanding->increment('points', 0.5);
-                    $blackStanding->increment('points', 0.5);
-                    break;
-
-                case ResultTypeEnum::FORFEIT_WHITE->value:
-                    $whiteStanding->increment('points', 0);
-                    $blackStanding->increment('points', 1);
-                    break;
-
-                case ResultTypeEnum::FORFEIT_BLACK->value:
-                    $whiteStanding->increment('points', 1);
-                    $blackStanding->increment('points', 0);
-                    break;
-
-                case ResultTypeEnum::DOUBLE_FORFEIT->value:
+                } else {
+                    // No winner recorded, give both players 0 points
                     $whiteStanding->increment('points', 0);
                     $blackStanding->increment('points', 0);
-                    break;
+                }
+            }
+            // Handle forfeits and other result types
+            else {
+                switch ($resultType->value) {
+                    case ResultTypeEnum::FORFEIT_PLAYER1->value:
+                        $whiteStanding->increment('points', 0);
+                        $blackStanding->increment('points', 1);
+                        break;
+
+                    case ResultTypeEnum::FORFEIT_PLAYER2->value:
+                        $whiteStanding->increment('points', 1);
+                        $blackStanding->increment('points', 0);
+                        break;
+
+                    case ResultTypeEnum::DOUBLE_FORFEIT->value:
+                        $whiteStanding->increment('points', 0);
+                        $blackStanding->increment('points', 0);
+                        break;
+
+                    case ResultTypeEnum::DRAW->value:
+                        $whiteStanding->increment('points', 0.5);
+                        $blackStanding->increment('points', 0.5);
+                        break;
+
+                    case ResultTypeEnum::BYE->value:
+                        // Byes only affect one player
+                        if ($match->winner_id === $whitePlayer->id) {
+                            $whiteStanding->increment('points', 1);
+                        } else {
+                            $blackStanding->increment('points', 1);
+                        }
+                        break;
+                }
             }
 
             // Update additional stats
             $whiteStanding->increment('matches_played');
             $blackStanding->increment('matches_played');
-
-            // Note: updateTieBreakPoints function removed as tie_break_points column doesn't exist
         }
     }
 

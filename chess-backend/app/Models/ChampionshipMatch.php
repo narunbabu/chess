@@ -161,11 +161,27 @@ class ChampionshipMatch extends Model
     }
 
     /**
+     * Alias for roundTypeRelation for consistency
+     */
+    public function roundType()
+    {
+        return $this->roundTypeRelation();
+    }
+
+    /**
      * Relationship to ChampionshipResultType lookup table
      */
     public function resultTypeRelation()
     {
         return $this->belongsTo(ChampionshipResultType::class, 'result_type_id');
+    }
+
+    /**
+     * Alias for resultTypeRelation for consistency
+     */
+    public function resultType()
+    {
+        return $this->resultTypeRelation();
     }
 
     /**

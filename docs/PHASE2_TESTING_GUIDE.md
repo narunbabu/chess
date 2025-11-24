@@ -417,6 +417,9 @@ Once all tests pass:
    ```php
    Gate::forUser($user)->allows('create-championship');  // Should match permission
    ```
+   $user = User::first();
+$token = $user->createToken('test-token')->plainTextToken;
+  echo $token; // Copy this token
 
 4. **Ready for Phase 3!**
    - Report test results
@@ -428,3 +431,10 @@ Once all tests pass:
 **Next:** Once Phase 2 tests pass, we can proceed with:
 - **Phase 3:** Organization Support & Remaining Controllers
 - **Phase 4:** Polish, Admin UI, and Integration Tests
+
+
+curl.exe -X POST "http://localhost:8000/api/championships" -H "Authorization: Bearer 15|8QenEKx0wAE5ZT3lipNxNSyxrXsN1IV8XDGesxqv0c4abb22" -H "Content-Type: application/json" -d "{\"title\": \"API Auth Test\", \"description\": \"Testing API auth\", \"entry_fee\": 50, \"registration_deadline\": \"2025-12-01T10:00:00Z\", \"start_date\": \"2025-12-15T10:00:00Z\", \"format\": \"swiss_only\", \"swiss_rounds\": 5}"
+
+curl.exe -X POST "http://localhost:8000/api/championships" -H "Authorization: Bearer 15|8QenEKx0wAE5ZT3lipNxNSyxrXsN1IV8XDGesxqv0c4abb22" -H "Content-Type: application/json" -d "{\"title\": \"API Auth Test\", \"description\":  \"Testing API auth\", \"entry_fee\": 50, \"registration_deadline\": \"2025-12-01T10:00:00Z\", \"start_date\": \"2025-12-15T10:00:00Z\", \"format\": \"swiss_only\", \"swiss_rounds\": 5}"
+
+ curl.exe -X POST "http://localhost:8000/api/championships" -H "Authorization: Bearer 16|m0BNns95JWmfVMADBwaBgUfwtvpSawvXIpfov917a52467b1" -H "Content-Type: application/json" -d "{\"title\":\"Auth Test Championship\",\"description\":\"Testing  complete auth flow\",\"entry_fee\":100,\"registration_deadline\":\"2025-12-01T10:00:00Z\",\"start_date\":\"2025-12-15T10:00:00Z\",\"format\":\"swiss_only\",\"swiss_rounds\":5,\"match_time_window_hours\":24}"

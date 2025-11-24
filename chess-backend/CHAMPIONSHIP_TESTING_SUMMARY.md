@@ -62,7 +62,7 @@ php test-championship-runner.php analyze 6
 
 # Simulate round completion
 php test-championship-runner.php simulate 6 1
-
+php test-championship-runner.php simulate 8 1
 # Reset championship
 php test-championship-runner.php reset 6
 

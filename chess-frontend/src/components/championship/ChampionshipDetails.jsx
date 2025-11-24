@@ -47,6 +47,23 @@ const ChampionshipDetails = () => {
   // Check if user is platform admin
   const isPlatformAdmin = user?.roles?.some(role => role === 'platform_admin') || false;
 
+  // Store recent championship in localStorage for quick access from header
+  useEffect(() => {
+    if (activeChampionship && id) {
+      try {
+        const recentChampionship = {
+          id: activeChampionship.id,
+          name: activeChampionship.name,
+          timestamp: Date.now()
+        };
+        localStorage.setItem('recentChampionship', JSON.stringify(recentChampionship));
+        console.log('[ChampionshipDetails] Stored recent championship:', recentChampionship);
+      } catch (error) {
+        console.error('[ChampionshipDetails] Failed to store recent championship:', error);
+      }
+    }
+  }, [activeChampionship, id]);
+
   // Update activeTab when query param changes
   useEffect(() => {
     const tabParam = searchParams.get('tab');

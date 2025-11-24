@@ -12,6 +12,7 @@ use App\Services\EliminationBracketService;
 use App\Services\StandingsCalculatorService;
 use App\Services\TournamentGenerationService;
 use App\Services\PlaceholderMatchAssignmentService;
+use App\Services\GameRoomService;
 use App\Jobs\GenerateNextRoundJob;
 use App\Enums\ChampionshipMatchStatus;
 use App\Enums\ChampionshipResultType;
@@ -31,7 +32,8 @@ class ChampionshipMatchController extends Controller
         private EliminationBracketService $eliminationService,
         private StandingsCalculatorService $standingsCalculator,
         private TournamentGenerationService $tournamentGenerator,
-        private PlaceholderMatchAssignmentService $placeholderAssignment
+        private PlaceholderMatchAssignmentService $placeholderAssignment,
+        private GameRoomService $gameRoomService
     ) {}
 
     /**
@@ -1153,6 +1155,19 @@ class ChampionshipMatchController extends Controller
 
             // Accept the request
             $request->accept();
+
+            // Resume the underlying game if it exists and is paused
+            if ($match->game_id) {
+                $game = \App\Models\Game::find($match->game_id);
+                if ($game && $game->status === 'paused') {
+                    $this->gameRoomService->resumeGameFromInactivity($game->id, $user->id);
+                    Log::info('Game resumed from championship acceptance', [
+                        'game_id' => $game->id,
+                        'match_id' => $match->id,
+                        'user_id' => $user->id
+                    ]);
+                }
+            }
 
             // Broadcast to requester that request was accepted
             broadcast(new \App\Events\ChampionshipGameResumeRequestAccepted(

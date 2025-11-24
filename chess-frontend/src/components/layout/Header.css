@@ -105,6 +105,22 @@
   color: #66BB6A;
 }
 
+.nav-link.championship-btn {
+  background: rgba(255, 215, 0, 0.15);
+  color: #FFD700;
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-link.championship-btn:hover {
+  background: rgba(255, 215, 0, 0.25);
+  color: #FFED4E;
+  border-color: rgba(255, 215, 0, 0.5);
+}
+
 /* Stats row - compact version for header */
 .stats-row.compact {
   display: flex;
@@ -550,6 +566,18 @@
   background: rgba(76, 175, 80, 0.3);
   color: #66BB6A;
   border-left-color: #4CAF50;
+}
+
+.nav-item-championship {
+  background: rgba(255, 215, 0, 0.15);
+  color: #FFD700;
+  border-left-color: rgba(255, 215, 0, 0.5);
+}
+
+.nav-item-championship:hover {
+  background: rgba(255, 215, 0, 0.25);
+  color: #FFED4E;
+  border-left-color: #FFD700;
 }
 
 .nav-item-logout {

@@ -172,6 +172,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/games/{gameId}/resume-request', [WebSocketController::class, 'requestResume']);
         Route::post('/games/{gameId}/resume-response', [WebSocketController::class, 'respondToResumeRequest']);
 
+        // Resume status check
+        Route::get('/games/{gameId}/resume-status', [WebSocketController::class, 'getResumeStatus']);
+
         // Ping opponent (remind them to move)
         Route::post('/games/{gameId}/ping-opponent', [WebSocketController::class, 'pingOpponent']);
 

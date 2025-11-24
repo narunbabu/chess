@@ -18,6 +18,7 @@ class WebSocketGameService {
     this._pollingBusy = false;
     this._pollTimer = null;
     this._lastETag = null;
+    this.pendingResumeRequest = null; // Track pending resume requests
     this.lastGameState = null;
     this.isPausing = false; // Prevent duplicate pause attempts
   }
@@ -566,6 +567,11 @@ class WebSocketGameService {
       throw new Error('WebSocket not connected');
     }
 
+    // Check if we already have a pending request
+    if (this.hasPendingResumeRequest()) {
+      throw new Error('Resume request already pending');
+    }
+
     try {
       const token = localStorage.getItem('auth_token');
       const response = await fetch(`${BACKEND_URL}/websocket/games/${this.gameId}/resume-request`, {
@@ -591,6 +597,13 @@ class WebSocketGameService {
 
       console.log('✅ requestResume() - Resume request sent successfully:', data);
 
+      // Track the pending resume request
+      this.pendingResumeRequest = {
+        requestId: data.request_id || 'unknown',
+        timestamp: Date.now(),
+        expiresAt: data.resume_request_expires_at ? new Date(data.resume_request_expires_at).getTime() : Date.now() + 60000 // Default 1 minute
+      };
+
       // Emit resume request sent event
       this.emit('resumeRequestSent', data);
       return data;
@@ -598,6 +611,34 @@ class WebSocketGameService {
       console.error('Failed to request resume:', error);
       throw error;
     }
+  }
+
+  /**
+   * Check if there's a pending resume request
+   */
+  hasPendingResumeRequest() {
+    if (!this.pendingResumeRequest) {
+      return false;
+    }
+
+    // Check if the request has expired (add 5 second buffer)
+    const now = Date.now();
+    const hasExpired = now > (this.pendingResumeRequest.expiresAt + 5000);
+
+    if (hasExpired) {
+      // Clear expired request
+      this.clearPendingResumeRequest();
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Clear the pending resume request
+   */
+  clearPendingResumeRequest() {
+    this.pendingResumeRequest = null;
   }
 
   /**

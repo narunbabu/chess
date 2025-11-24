@@ -12,37 +12,20 @@ artisan vendor:publish --provider="Laravel\Sanctum\SanctumServiceProvider"
 php artisan migrate:reset
 php artisan migrate
 
-<script>
-  window.fbAsyncInit = function() {
-    FB.init({
-      appId      : '{your-app-id}',
-      cookie     : true,
-      xfbml      : true,
-      version    : '{api-version}'
-    });
-      
-    FB.AppEvents.logPageView();   
-      
-  };
+nginx -t && systemctl reload nginx
+------------------------------------------------------------------------------------
 
-  (function(d, s, id){
-     var js, fjs = d.getElementsByTagName(s)[0];
-     if (d.getElementById(id)) {return;}
-     js = d.createElement(s); js.id = id;
-     js.src = "https://connect.facebook.net/en_US/sdk.js";
-     fjs.parentNode.insertBefore(js, fjs);
-   }(document, 'script', 'facebook-jssdk'));
-</script>
+$user = User::first();
+$token = $user->createToken('test-token')->plainTextToken;
+echo $token; // Copy this token
 
+24|JKthPpQOFAROIMw2jpFrLb02vf6B8FeNgBmfIFPR720ea2e5
 
-<fb:login-button 
-  scope="public_profile,email"
-  onlogin="checkLoginState();">
-</fb:login-button>
+curl.exe -X DELETE http://localhost:8000/api/championships/2 -H "Authorization: Bearer $token"
 
+curl.exe -X POST http://localhost:8000/api/championships/1/restore -H "Authorization: Bearer $token"
+$token="24|JKthPpQOFAROIMw2jpFrLb02vf6B8FeNgBmfIFPR720ea2e5"
+curl.exe -X DELETE http://localhost:8000/api/championships/1/force -H "Authorization: Bearer $token"
 
-function checkLoginState() {
-  FB.getLoginStatus(function(response) {
-    statusChangeCallback(response);
-  });
-}
+curl.exe http://localhost:8000/api/championships?archived=true -H "Authorization: Bearer $token"
+
