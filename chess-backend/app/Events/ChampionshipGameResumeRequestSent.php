@@ -47,6 +47,7 @@ class ChampionshipGameResumeRequestSent implements ShouldBroadcast
             'request_id' => $this->resumeRequest->id,
             'match_id' => $this->resumeRequest->championship_match_id,
             'game_id' => $this->resumeRequest->game_id,
+            'championship_id' => $this->resumeRequest->championshipMatch->championship_id,
             'requester' => [
                 'id' => $this->resumeRequest->requester->id,
                 'name' => $this->resumeRequest->requester->name,

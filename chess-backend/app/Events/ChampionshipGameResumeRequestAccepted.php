@@ -38,6 +38,7 @@ class ChampionshipGameResumeRequestAccepted implements ShouldBroadcast
             'request_id' => $this->resumeRequest->id,
             'match_id' => $this->resumeRequest->championship_match_id,
             'game_id' => $this->resumeRequest->game_id,
+            'championship_id' => $this->resumeRequest->championshipMatch->championship_id,
             'message' => 'Request accepted! Starting game...',
         ];
     }

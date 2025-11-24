@@ -15,11 +15,15 @@ export const GlobalInvitationProvider = ({ children }) => {
   // State for managing invitations and dialogs
   const [pendingInvitation, setPendingInvitation] = useState(null);
   const [resumeRequest, setResumeRequest] = useState(null);
+  const [championshipResumeRequest, setChampionshipResumeRequest] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Use refs to track current values without causing re-renders
   const pendingInvitationRef = useRef(null);
   pendingInvitationRef.current = pendingInvitation;
+
+  const championshipResumeRequestRef = useRef(null);
+  championshipResumeRequestRef.current = championshipResumeRequest;
 
   const isProcessingRef = useRef(false);
   isProcessingRef.current = isProcessing;
@@ -27,8 +31,9 @@ export const GlobalInvitationProvider = ({ children }) => {
   // Check if user is currently in an active game (should NOT show dialogs)
   const isInActiveGame = useCallback(() => {
     const path = location.pathname;
-    // Block dialogs when user is on a multiplayer game page
-    return path.startsWith('/play/multiplayer/') || path.startsWith('/play/');
+    // Only block dialogs when user is in an active multiplayer game
+    // Allow dialogs on single player pages, computer games, or when just viewing a board
+    return path.startsWith('/play/multiplayer/');
   }, [location.pathname]);
 
   // Listen to WebSocket events for invitations
@@ -42,9 +47,12 @@ export const GlobalInvitationProvider = ({ children }) => {
     }
 
     console.log('[GlobalInvitation] Setting up listeners for user:', user.id);
+    console.log('[GlobalInvitation] 🔌 Echo available:', !!echo);
+    console.log('[GlobalInvitation] 📍 Current location:', location.pathname);
 
     // Subscribe to user-specific channel
     const userChannel = echo.private(`App.Models.User.${user.id}`);
+    console.log('[GlobalInvitation] 📡 Subscribed to channel:', `App.Models.User.${user.id}`);
 
     // Listen for new game invitations
     userChannel.listen('.invitation.sent', (data) => {
@@ -134,6 +142,79 @@ export const GlobalInvitationProvider = ({ children }) => {
       }
     });
 
+    // Listen for championship game resume requests
+    userChannel.listen('.championship.game.resume.request', (data) => {
+      console.log('[GlobalInvitation] 🏆 Championship game resume request received:', data);
+
+      // Don't show dialog if user is in active multiplayer game
+      if (isInActiveGame()) {
+        console.log('[GlobalInvitation] User in active multiplayer game, skipping championship request dialog');
+        return;
+      }
+
+      // Show championship resume request dialog
+      if (data.request_id && data.match_id && data.requester) {
+        // Extract championship ID from the match or game data if available
+        let championshipId = null;
+
+        // Try to get championship ID from match data or game data
+        // The backend might not include this directly, so we'll handle it in the API calls
+
+        setChampionshipResumeRequest({
+          requestId: data.request_id,
+          matchId: data.match_id,
+          gameId: data.game_id,
+          championshipId: data.championship_id, // Include if available from backend
+          requester: {
+            id: data.requester.id,
+            name: data.requester.name,
+            avatar_url: data.requester.avatar_url,
+          },
+          expiresAt: data.expires_at,
+        });
+      }
+    });
+
+    // Listen for championship game resume request accepted (for requesters - navigate to game)
+    userChannel.listen('.championship.game.resume.accepted', (data) => {
+      console.log('[GlobalInvitation] 🏆 Championship resume request accepted event received:', data);
+      console.log('[GlobalInvitation] 👤 Current user ID:', user?.id);
+      console.log('[GlobalInvitation] 📍 Current location:', location.pathname);
+
+      // Remove any pending championship request (cleanup)
+      if (data.match_id) {
+        console.log('[GlobalInvitation] Removing championship match request from pending');
+        setChampionshipResumeRequest(null);
+      }
+
+      // Navigate to the game if game data is provided
+      if (data.game_id) {
+        console.log('[GlobalInvitation] 🎮 Navigating to championship game ID:', data.game_id);
+
+        // Set session markers for proper game access
+        sessionStorage.setItem('lastInvitationAction', 'championship_resume_accepted_by_other');
+        sessionStorage.setItem('lastInvitationTime', Date.now().toString());
+        sessionStorage.setItem('lastGameId', data.game_id.toString());
+
+        navigate(`/play/multiplayer/${data.game_id}`);
+      } else {
+        console.warn('[GlobalInvitation] ⚠️ Championship resume request accepted but no game data in event:', data);
+      }
+    });
+
+    // Listen for championship game resume request declined (for requesters - notification)
+    userChannel.listen('.championship.game.resume.declined', (data) => {
+      console.log('[GlobalInvitation] 🏆 Championship resume request declined event received:', data);
+
+      // Remove any pending championship request (cleanup)
+      if (data.match_id) {
+        console.log('[GlobalInvitation] Removing declined championship match request from pending');
+        setChampionshipResumeRequest(null);
+      }
+
+      // Note: Could show a notification here that the request was declined, but keeping it simple for now
+    });
+
     // Listen for invitation cancelled (for cleanup)
     userChannel.listen('.invitation.cancelled', (data) => {
       console.log('[GlobalInvitation] Invitation cancelled:', data);
@@ -149,6 +230,9 @@ export const GlobalInvitationProvider = ({ children }) => {
       userChannel.stopListening('.invitation.sent');
       userChannel.stopListening('.resume.request.sent');
       userChannel.stopListening('.invitation.cancelled');
+      userChannel.stopListening('.championship.game.resume.request');
+      userChannel.stopListening('.championship.game.resume.accepted');
+      userChannel.stopListening('.championship.game.resume.declined');
     };
     // Only re-run when user changes, not on every route change
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -301,22 +385,106 @@ export const GlobalInvitationProvider = ({ children }) => {
     }
   }, []);
 
+  // Accept championship resume request
+  const acceptChampionshipResumeRequest = useCallback(async (matchId, gameId) => {
+    if (isProcessingRef.current) return;
+
+    setIsProcessing(true);
+    try {
+      console.log('[GlobalInvitation] Accepting championship resume request for match:', matchId, 'game:', gameId);
+
+      // Find the championship ID from the request data or try to infer it
+      let championshipId = championshipResumeRequestRef.current?.championshipId;
+
+      // If championshipId not available, we need to find it. For now, let's try to extract from URL
+      // or we could make an API call to get the match details
+      if (!championshipId) {
+        console.warn('[GlobalInvitation] Championship ID not found in request, attempting to find match');
+        // We could make an API call here to find the championship, but for now let's use a different approach
+        throw new Error('Championship ID not found. Please accept the request from the championship matches page.');
+      }
+
+      const response = await api.post(
+        `/championships/${championshipId}/matches/${matchId}/resume-request/accept`,
+        {}
+      );
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Championship resume response failed');
+      }
+
+      console.log('[GlobalInvitation] Championship resume request accepted, navigating to game');
+
+      // Clear the dialog
+      setChampionshipResumeRequest(null);
+
+      // Navigate to the game
+      sessionStorage.setItem('lastInvitationAction', 'championship_resume_accepted');
+      sessionStorage.setItem('lastInvitationTime', Date.now().toString());
+      sessionStorage.setItem('lastGameId', gameId.toString());
+      navigate(`/play/multiplayer/${gameId}`);
+    } catch (error) {
+      console.error('[GlobalInvitation] Failed to accept championship resume request:', error);
+      alert('Failed to accept championship resume request. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [navigate]);
+
+  // Decline championship resume request
+  const declineChampionshipResumeRequest = useCallback(async (matchId) => {
+    if (isProcessingRef.current) return;
+
+    setIsProcessing(true);
+    try {
+      console.log('[GlobalInvitation] Declining championship resume request for match:', matchId);
+
+      // Find the championship ID from the request data or try to infer it
+      let championshipId = championshipResumeRequestRef.current?.championshipId;
+
+      // If championshipId not available, we need to find it
+      if (!championshipId) {
+        console.warn('[GlobalInvitation] Championship ID not found in request, attempting to find match');
+        throw new Error('Championship ID not found. Please decline the request from the championship matches page.');
+      }
+
+      await api.post(
+        `/championships/${championshipId}/matches/${matchId}/resume-request/decline`,
+        {}
+      );
+
+      // Clear the dialog
+      setChampionshipResumeRequest(null);
+    } catch (error) {
+      console.error('[GlobalInvitation] Failed to decline championship resume request:', error);
+      alert('Failed to decline championship resume request. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
+  }, []);
+
   const value = useMemo(() => ({
     pendingInvitation,
     resumeRequest,
+    championshipResumeRequest,
     isProcessing,
     acceptInvitation,
     declineInvitation,
     acceptResumeRequest,
     declineResumeRequest,
+    acceptChampionshipResumeRequest,
+    declineChampionshipResumeRequest,
   }), [
     pendingInvitation,
     resumeRequest,
+    championshipResumeRequest,
     isProcessing,
     acceptInvitation,
     declineInvitation,
     acceptResumeRequest,
     declineResumeRequest,
+    acceptChampionshipResumeRequest,
+    declineChampionshipResumeRequest,
   ]);
 
   return (

@@ -12,11 +12,14 @@ const GlobalInvitationDialog = () => {
   const {
     pendingInvitation,
     resumeRequest,
+    championshipResumeRequest,
     isProcessing,
     acceptInvitation,
     declineInvitation,
     acceptResumeRequest,
     declineResumeRequest,
+    acceptChampionshipResumeRequest,
+    declineChampionshipResumeRequest,
   } = useGlobalInvitation();
 
   const [showColorChoice, setShowColorChoice] = useState(false);
@@ -27,6 +30,8 @@ const GlobalInvitationDialog = () => {
       setShowColorChoice(true);
     } else if (resumeRequest) {
       acceptResumeRequest(resumeRequest.gameId);
+    } else if (championshipResumeRequest) {
+      acceptChampionshipResumeRequest(championshipResumeRequest.matchId, championshipResumeRequest.gameId);
     }
   };
 
@@ -52,6 +57,8 @@ const GlobalInvitationDialog = () => {
       declineInvitation(pendingInvitation.id);
     } else if (resumeRequest) {
       declineResumeRequest(resumeRequest.gameId);
+    } else if (championshipResumeRequest) {
+      declineChampionshipResumeRequest(championshipResumeRequest.matchId);
     }
     setShowColorChoice(false);
   };
@@ -62,7 +69,7 @@ const GlobalInvitationDialog = () => {
   };
 
   // Don't render if no invitation or resume request
-  if (!pendingInvitation && !resumeRequest) {
+  if (!pendingInvitation && !resumeRequest && !championshipResumeRequest) {
     return null;
   }
 
@@ -194,6 +201,57 @@ const GlobalInvitationDialog = () => {
                 disabled={isProcessing}
               >
                 {isProcessing ? '⏳ Resuming...' : '▶️ Resume'}
+              </button>
+              <button
+                className="btn-decline"
+                onClick={handleDeclineClick}
+                disabled={isProcessing}
+              >
+                ❌ Decline
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Championship Resume Request Flow */}
+        {championshipResumeRequest && (
+          <>
+            <div className="dialog-header">
+              <h2>🏆 Championship Game Request</h2>
+            </div>
+            <div className="dialog-body">
+              <div className="resume-info">
+                <div className="invitation-info">
+                  <img
+                    src={
+                      championshipResumeRequest.requester.avatar_url ||
+                      `https://i.pravatar.cc/150?u=championship${championshipResumeRequest.requester.id}`
+                    }
+                    alt={championshipResumeRequest.requester.name}
+                    className="inviter-avatar"
+                  />
+                  <div className="invitation-text">
+                    <p className="inviter-name">{championshipResumeRequest.requester.name}</p>
+                    <p className="invitation-message">wants to start your championship match!</p>
+                    <p className="invitation-meta">
+                      🏆 Championship Match #{championshipResumeRequest.matchId}
+                    </p>
+                    {championshipResumeRequest.expiresAt && (
+                      <p className="invitation-meta">
+                        ⏰ Expires: {new Date(championshipResumeRequest.expiresAt).toLocaleTimeString()}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="dialog-actions">
+              <button
+                className="btn-accept championship"
+                onClick={handleAcceptClick}
+                disabled={isProcessing}
+              >
+                {isProcessing ? '⏳ Starting...' : '🏆 Accept & Play'}
               </button>
               <button
                 className="btn-decline"

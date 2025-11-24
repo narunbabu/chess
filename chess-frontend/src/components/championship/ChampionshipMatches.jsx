@@ -338,127 +338,15 @@ const ChampionshipMatches = ({
     return () => clearInterval(cleanupInterval);
   }, []);
 
-  // WebSocket listeners for resume requests
+  // WebSocket listeners for resume requests - DISABLED
+  // NOTE: All championship WebSocket listeners moved to GlobalInvitationContext
+  // to ensure requests work on ALL pages (lobby, overview, etc.), not just My Matches
   useEffect(() => {
-    if (!championshipId || !user?.id || !window.Echo) {
-      return;
-    }
+    // No-op - championship WebSocket listeners are now handled globally
+    // This prevents duplicate subscriptions and conflicts between components
+    console.log('[ChampionshipMatches] Championship WebSocket listeners DISABLED - handled by GlobalInvitationContext');
+  }, [championshipId, user?.id, userOnly]);
 
-    // Only subscribe if we're in userOnly mode (My Matches page)
-    if (!userOnly) {
-      return;
-    }
-
-    // Laravel broadcasts to App.Models.User.{id} channel by default
-    const channelName = `App.Models.User.${user.id}`;
-    logger.info('🔌 [Resume] Setting up WebSocket for user:', user.id);
-
-    const channel = window.Echo.private(channelName);
-
-    // Test subscription with bind
-    channel.subscription.bind('pusher:subscription_succeeded', () => {
-      logger.info('✅ [Resume] Successfully subscribed to channel:', channelName);
-    });
-
-    channel.subscription.bind('pusher:subscription_error', (error) => {
-      logger.error('❌ [Resume] Subscription error:', error);
-    });
-
-    // Listen for incoming resume requests
-    channel.listen('.championship.game.resume.request', (event) => {
-      logger.info('🎮 [Resume] ========================================');
-      logger.info('🎮 [Resume] INCOMING REQUEST RECEIVED!');
-      logger.info('🎮 [Resume] ========================================');
-      logger.info('🎮 [Resume] Event data:', event);
-      logger.info('🎮 [Resume] Request ID:', event.request_id);
-      logger.info('🎮 [Resume] Match ID:', event.match_id);
-      logger.info('🎮 [Resume] Game ID:', event.game_id);
-      logger.info('🎮 [Resume] Requester:', event.requester);
-      logger.info('🎮 [Resume] ========================================');
-
-      // Backend sends flat structure, reconstruct it
-      const request = {
-        id: event.request_id,
-        championship_match_id: event.match_id,
-        game_id: event.game_id,
-        requester: event.requester,
-        expires_at: event.expires_at
-      };
-
-      // Add to pending requests
-      setPendingRequests(prev => ({
-        ...prev,
-        [event.match_id]: {
-          type: 'incoming',
-          request: request
-        }
-      }));
-
-      // Show dialog
-      setShowResumeDialog({
-        matchId: event.match_id,
-        request: request
-      });
-
-      // Show notification
-      setNotification({
-        type: 'info',
-        message: `🎮 ${event.requester.name} wants to start the game!`
-      });
-
-      setTimeout(() => setNotification(null), 5000);
-    });
-
-    // Listen for accepted requests
-    channel.listen('.championship.game.resume.accepted', (event) => {
-      logger.info('✅ [Resume] Request accepted:', event);
-
-      // Remove from pending
-      setPendingRequests(prev => {
-        const updated = { ...prev };
-        delete updated[event.match_id];
-        return updated;
-      });
-
-      // Navigate to game
-      if (event.game_id) {
-        setNotification({
-          type: 'success',
-          message: `✅ Game starting! Navigating...`
-        });
-
-        setTimeout(() => {
-          navigate(`/play/${event.game_id}`);
-        }, 1000);
-      }
-    });
-
-    // Listen for declined requests
-    channel.listen('.championship.game.resume.declined', (event) => {
-      logger.info('❌ [Resume] Request declined:', event);
-
-      // Remove from pending
-      setPendingRequests(prev => {
-        const updated = { ...prev };
-        delete updated[event.match_id];
-        return updated;
-      });
-
-      setNotification({
-        type: 'error',
-        message: `❌ ${event.recipient.name} declined the request`
-      });
-
-      setTimeout(() => setNotification(null), 5000);
-    });
-
-    return () => {
-      logger.info('🧹 [Resume] Cleaning up WebSocket listeners');
-      channel.stopListening('.championship.game.resume.request');
-      channel.stopListening('.championship.game.resume.accepted');
-      channel.stopListening('.championship.game.resume.declined');
-    };
-  }, [championshipId, user?.id, userOnly]); // Removed 'navigate' to prevent premature cleanup
 
   const handleCreateGame = async (matchId) => {
     setCreatingGame(matchId);
