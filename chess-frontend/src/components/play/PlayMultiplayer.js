@@ -10,6 +10,7 @@ import PlayShell from './PlayShell'; // Layout wrapper (Phase 4)
 import GameContainer from './GameContainer'; // Unified game container
 import { useAuth } from '../../contexts/AuthContext';
 import { useAppData } from '../../contexts/AppDataContext';
+import { useGameNavigation } from '../../contexts/GameNavigationContext';
 import { useParams, useNavigate } from 'react-router-dom';
 import { BACKEND_URL } from '../../config';
 import WebSocketGameService from '../../services/WebSocketGameService';
@@ -122,10 +123,12 @@ const PlayMultiplayer = () => {
 
   const { user } = useAuth();
   const { invalidateGameHistory } = useAppData();
+  const { registerActiveGame, unregisterActiveGame, updateGameState } = useGameNavigation();
   const { gameId } = useParams();
   const navigate = useNavigate();
   const wsService = useRef(null);
   const moveStartTimeRef = useRef(null); // Tracks when current turn started for move timing
+  const gameRegisteredRef = useRef(false); // Track if game is already registered to prevent duplicates
 
   // Derive player color from IDs (single source of truth)
   // Don't store in state - compute every render to stay in sync
@@ -365,6 +368,12 @@ const PlayMultiplayer = () => {
       console.log('🎨 WHITE PLAYER ID:', data.white_player_id);
       console.log('🎨 BLACK PLAYER ID:', data.black_player_id);
       setGameData(data);
+
+      // Reset registration flag for new game and register it
+      gameRegisteredRef.current = false;
+      registerActiveGame(data.id, data.status);
+      gameRegisteredRef.current = true;
+      console.log('[PlayMultiplayer] Game registered with navigation context:', data.id);
 
       // Prevent rejoining a finished game (only allow active and waiting statuses, paused is not finished)
       const isGameFinished = data.status === 'finished' || data.status === 'aborted' || data.status === 'resigned';
@@ -1638,11 +1647,50 @@ const PlayMultiplayer = () => {
         wsService.current.clearPendingResumeRequest();
         wsService.current.disconnect();
       }
+      // Unregister from game navigation context
+      if (gameRegisteredRef.current) {
+        unregisterActiveGame();
+        gameRegisteredRef.current = false;
+        console.log('[PlayMultiplayer] Unregistered from navigation guard');
+      }
       // Note: We don't clear championship context here to allow it to persist
       // across navigations (e.g., when viewing game preview and coming back)
       // It will only be cleared when explicitly removed or when starting a new game
     };
-  }, [gameId, user?.id, initializeGame]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [gameId, user?.id, initializeGame, unregisterActiveGame]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Listen for pause requests from navigation guard
+  useEffect(() => {
+    const handlePauseRequest = (event) => {
+      console.log('[PlayMultiplayer] Received pause request:', event.detail);
+
+      // Trigger pause functionality
+      if (wsService.current) {
+        // Call the existing pause functionality
+        wsService.current.pauseGame();
+      }
+
+      // After pausing, allow navigation
+      if (event.detail.targetPath) {
+        setTimeout(() => {
+          navigate(event.detail.targetPath);
+        }, 500); // Small delay to ensure pause is processed
+      }
+    };
+
+    window.addEventListener('requestGamePause', handlePauseRequest);
+
+    return () => {
+      window.removeEventListener('requestGamePause', handlePauseRequest);
+    };
+  }, [navigate]);
+
+  // Update game state when status changes
+  useEffect(() => {
+    if (gameData) {
+      updateGameState(gameData.status);
+    }
+  }, [gameData?.status]); // Remove updateGameState from dependencies
 
   // Sync timer values when initial timer state is set
   useEffect(() => {
@@ -3316,5 +3364,6 @@ const PlayMultiplayer = () => {
     </>
   );
 };
+
 
 export default PlayMultiplayer;

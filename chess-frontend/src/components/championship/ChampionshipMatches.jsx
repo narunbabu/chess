@@ -52,6 +52,12 @@ const ChampionshipMatches = ({
   const [isPollingActive, setIsPollingActive] = useState(true);
   const lastActivityTimeRef = useRef(Date.now());
 
+  const isPollingActiveRef = useRef(true);
+
+  useEffect(() => {
+    isPollingActiveRef.current = isPollingActive;
+  }, [isPollingActive]);
+
   // Use contextual presence for smart, efficient status tracking
   const { opponents, loadOpponents, refreshOpponents } = useContextualPresence();
 
@@ -62,7 +68,7 @@ const ChampionshipMatches = ({
   const getOpponent = useCallback((match) => {
     if (!user) return null;
     return match.white_player_id === user.id ? match.black_player : match.white_player;
-  }, [user]);
+  }, [user?.id]);
 
   // Check and cache opponent online status with debouncing
   const checkOpponentOnlineStatus = useCallback(async (opponentId) => {
@@ -254,7 +260,7 @@ const ChampionshipMatches = ({
     if (!championshipId || !userOnly) return;
 
     const interval = setInterval(() => {
-      if (isPollingActive) {
+      if (isPollingActiveRef.current) {
         refreshOpponents();
         logger.debug('🔄 [Polling] Refreshing opponents (active)');
       } else {
@@ -263,7 +269,7 @@ const ChampionshipMatches = ({
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [championshipId, userOnly, isPollingActive, refreshOpponents]);
+  }, [championshipId, userOnly, refreshOpponents]);
 
   // Clean up stale and expired pending requests when matches load
   useEffect(() => {

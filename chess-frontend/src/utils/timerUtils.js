@@ -16,6 +16,11 @@ export const useMultiplayerTimer = ({
   const [oppMs, setOppMs] = useState(initialOppMs);
   const timerRef = useRef(null);
   const lastServerTurnRef = useRef(serverTurn);
+  const onFlagRef = useRef(onFlag);
+
+  useEffect(() => {
+    onFlagRef.current = onFlag;
+  }, [onFlag]);
 
   // Auto-update when initial values change
   useEffect(() => {
@@ -66,16 +71,16 @@ export const useMultiplayerTimer = ({
         if (isMyTurn) {
           setMyMs(prev => {
             const newTime = Math.max(0, prev - 100);
-            if (newTime === 0 && onFlag) {
-              onFlag('player'); // Player's time ran out
+            if (newTime === 0 && onFlagRef.current) {
+              onFlagRef.current('player'); // Player's time ran out
             }
             return newTime;
           });
         } else {
           setOppMs(prev => {
             const newTime = Math.max(0, prev - 100);
-            if (newTime === 0 && onFlag) {
-              onFlag('opponent'); // Opponent's time ran out
+            if (newTime === 0 && onFlagRef.current) {
+              onFlagRef.current('opponent'); // Opponent's time ran out
             }
             return newTime;
           });
@@ -88,7 +93,7 @@ export const useMultiplayerTimer = ({
         clearInterval(timerRef.current);
       }
     };
-  }, [gameStatus, serverTurn, myColor, onFlag]);
+  }, [gameStatus, serverTurn, myColor]);
 
   return { myMs, oppMs, setMyMs, setOppMs };
 };

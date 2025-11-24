@@ -31,7 +31,9 @@ import { FeatureFlagsProvider } from "./contexts/FeatureFlagsContext";
 import { GlobalInvitationProvider } from "./contexts/GlobalInvitationContext";
 import { ChampionshipProvider } from "./contexts/ChampionshipContext";
 import { ChampionshipInvitationProvider } from "./contexts/ChampionshipInvitationContext";
+import { GameNavigationProvider } from "./contexts/GameNavigationContext";
 import GlobalInvitationDialog from "./components/invitations/GlobalInvitationDialog";
+import { GameNavigationWarningDialogWrapper } from "./components/game/GameNavigationWarningDialog";
 import Layout from "./components/layout/Layout";
 import Footer from "./components/layout/Footer";
 import RouteGuard from "./components/routing/RouteGuard";
@@ -64,13 +66,18 @@ const App = () => {
           <ChampionshipProvider>
             <ChampionshipInvitationProvider>
               <Router future={{ v7_relativeSplatPath: true }}>
-                <Layout>
-                  <GlobalInvitationProvider>
-                  <AppContent />
+                <GameNavigationProvider>
+                  <Layout>
+                    <GlobalInvitationProvider>
+                    <AppContent />
 
-                  <GlobalInvitationDialog />
-                </GlobalInvitationProvider>
-                </Layout>
+                    <GlobalInvitationDialog />
+                    </GlobalInvitationProvider>
+
+                    {/* Game Navigation Warning Dialog */}
+                    <GameNavigationWarningDialogWrapper />
+                  </Layout>
+                </GameNavigationProvider>
               </Router>
             </ChampionshipInvitationProvider>
           </ChampionshipProvider>

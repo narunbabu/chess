@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useActiveGame } from '../../hooks/useActiveGame';
+import { useGameNavigation } from '../../contexts/GameNavigationContext';
 import { trackAuth, trackNavigation } from '../../utils/analytics';
 import { BACKEND_URL } from '../../config';
 import presenceService from '../../services/presenceService';
@@ -20,6 +21,7 @@ const Header = () => {
   const navigate = useNavigate();
   const { isAuthenticated, logout, user } = useAuth();
   const { activeGame, loading } = useActiveGame();
+  const { navigateWithGuard } = useGameNavigation();
   const [showNavPanel, setShowNavPanel] = useState(false);
   const [onlineStats, setOnlineStats] = useState({ onlineCount: 0, availablePlayers: 0 });
   const [recentChampionship, setRecentChampionship] = useState(null);
@@ -259,9 +261,18 @@ const Header = () => {
     setShowNavPanel(!showNavPanel);
   };
 
-  const handleNavItemClick = (action) => {
+  const handleNavItemClick = (action, targetPath = null) => {
     setShowNavPanel(false);
-    action();
+
+    // If we have a target path and there's an active game, use navigation guard
+    if (targetPath && activeGame) {
+      const canNavigate = navigateWithGuard(targetPath);
+      if (canNavigate) {
+        action();
+      }
+    } else {
+      action();
+    }
   };
 
   const handleResumeGame = () => {
@@ -426,25 +437,25 @@ const Header = () => {
                 <h4>Navigation</h4>
                 <button
                   className="nav-item"
-                  onClick={() => handleNavItemClick(() => navigate('/dashboard'))}
+                  onClick={() => handleNavItemClick(() => navigate('/dashboard'), '/dashboard')}
                 >
                   📊 Dashboard
                 </button>
                 <button
                   className="nav-item"
-                  onClick={() => handleNavItemClick(() => navigate('/lobby'))}
+                  onClick={() => handleNavItemClick(() => navigate('/lobby'), '/lobby')}
                 >
                   🎮 Lobby
                 </button>
                 <button
                   className="nav-item"
-                  onClick={() => handleNavItemClick(() => navigate('/tutorial'))}
+                  onClick={() => handleNavItemClick(() => navigate('/tutorial'), '/tutorial')}
                 >
                   🎓 Learn
                 </button>
                 <button
                   className="nav-item"
-                  onClick={() => handleNavItemClick(() => navigate('/championships'))}
+                  onClick={() => handleNavItemClick(() => navigate('/championships'), '/championships')}
                 >
                   🏆 Championships
                 </button>
@@ -487,13 +498,13 @@ const Header = () => {
                 <h4>Account</h4>
                 <button
                   className="nav-item"
-                  onClick={() => handleNavItemClick(() => navigate('/profile'))}
+                  onClick={() => handleNavItemClick(() => navigate('/profile'), '/profile')}
                 >
                   👤 Profile
                 </button>
                 <button
                   className="nav-item"
-                  onClick={() => handleNavItemClick(() => navigate('/settings'))}
+                  onClick={() => handleNavItemClick(() => navigate('/settings'), '/settings')}
                 >
                   ⚙️ Settings
                 </button>
