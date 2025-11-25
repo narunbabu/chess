@@ -176,6 +176,11 @@ class ChampionshipController extends Controller
             'organization_id' => 'nullable|exists:organizations,id',
             'visibility' => ['nullable', 'string', Rule::in(['public', 'private', 'organization_only'])],
             'allow_public_registration' => 'nullable|boolean',
+            // Universal tournament structure options
+            'structure_type' => ['nullable', 'string', Rule::in(['preset', 'universal', 'custom'])],
+            'use_universal_structure' => 'nullable|boolean',
+            'k4_override' => 'nullable|integer|min:2|max:64',
+            'tiebreak_options' => 'nullable|array',
         ]);
 
         // Add format-specific validation
@@ -239,17 +244,74 @@ class ChampionshipController extends Controller
                 $data['visibility'] = $data['visibility'] ?? 'public';
                 $data['allow_public_registration'] = $data['allow_public_registration'] ?? true;
 
+                // Handle universal tournament structure configuration
+                $structureType = $data['structure_type'] ?? 'preset';
+                $useUniversalStructure = $data['use_universal_structure'] ?? false;
+
+                // Auto-determine if universal structure should be used
+                if ($structureType === 'universal' || ($structureType === 'preset' && $useUniversalStructure)) {
+                    $maxParticipants = $data['max_participants'] ?? 16;
+                    $shouldUseUniversal = $maxParticipants >= 3 && $maxParticipants <= 100;
+
+                    $data['structure_type'] = $shouldUseUniversal ? 'universal' : 'preset';
+                    $data['use_universal_structure'] = $shouldUseUniversal;
+                } else {
+                    $data['structure_type'] = $structureType;
+                    $data['use_universal_structure'] = false;
+                }
+
+                // Handle K4 override
+                if (isset($data['k4_override']) && $data['k4_override']) {
+                    $data['k4_override'] = $data['k4_override'];
+                }
+
+                // Handle tiebreak configuration
+                $tiebreakOptions = $data['tiebreak_options'] ?? [];
+                $defaultTiebreak = [
+                    'version' => '1.0',
+                    'order' => ['points', 'buchholz_score', 'sonneborn_berger', 'head_to_head', 'rating', 'random'],
+                    'expand_band_for_ties' => $data['use_universal_structure'] ?? false,
+                    'playoff_for_first_place' => false
+                ];
+
+                $data['tiebreak_config'] = json_encode(array_merge($defaultTiebreak, $tiebreakOptions));
+
                 Log::info("Championship creation - request data", [
                     'organization_id_from_request' => $data['organization_id'] ?? 'not set',
                     'user_organization_id' => Auth::user()->organization_id ?? 'not set',
+                    'structure_type' => $data['structure_type'],
+                    'use_universal_structure' => $data['use_universal_structure'] ?? false,
+                    'max_participants' => $data['max_participants'] ?? 'not set',
                 ]);
 
                 $championship = Championship::create($data);
+
+                // Generate tournament configuration if universal structure is enabled
+                if ($championship->use_universal_structure && $championship->shouldUseUniversalStructure()) {
+                    try {
+                        $config = $championship->generateAutomaticTournamentConfig();
+
+                        Log::info("Tournament configuration auto-generated", [
+                            'championship_id' => $championship->id,
+                            'structure_type' => $config->preset,
+                            'participant_count_estimate' => $data['max_participants'] ?? 'unknown',
+                            'rounds' => count($config->roundStructure),
+                        ]);
+                    } catch (\Exception $configError) {
+                        Log::warning("Failed to auto-generate tournament config", [
+                            'championship_id' => $championship->id,
+                            'error' => $configError->getMessage(),
+                        ]);
+                        // Continue without auto-generated config - will be generated when needed
+                    }
+                }
 
                 Log::info("Championship created", [
                     'championship_id' => $championship->id,
                     'title' => $championship->title,
                     'format' => $championship->format,
+                    'structure_type' => $championship->structure_type,
+                    'use_universal_structure' => $championship->use_universal_structure,
                     'created_by' => $championship->created_by,
                     'organization_id' => $championship->organization_id,
                     'visibility' => $championship->visibility,
@@ -258,10 +320,30 @@ class ChampionshipController extends Controller
                 return $championship;
             });
 
-            return response()->json([
+            // Include structure explanation in response
+            $response = [
                 'message' => 'Championship created successfully',
                 'championship' => $championship,
-            ], 201);
+            ];
+
+            // Add structure information for universal tournaments
+            if ($championship->use_universal_structure) {
+                try {
+                    $structureExplanation = $championship->getStructureExplanation();
+                    $response['structure_info'] = [
+                        'type' => 'universal',
+                        'explanation' => $structureExplanation,
+                        'auto_generated' => !empty($championship->tournament_config),
+                    ];
+                } catch (\Exception $e) {
+                    Log::warning("Failed to generate structure explanation", [
+                        'championship_id' => $championship->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            return response()->json($response, 201);
         } catch (\Exception $e) {
             Log::error('Championship creation failed', [
                 'error' => $e->getMessage(),

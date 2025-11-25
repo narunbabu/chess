@@ -174,30 +174,39 @@ const Header = () => {
     if (!isPlayPage) return;
 
     const checkLandscapeAndHide = () => {
-      const isLandscape = window.matchMedia('(orientation: landscape)').matches;
-      const isMobile = window.matchMedia('(max-width: 768px)').matches;
-      const headerElement = document.querySelector('.app-header');
+      try {
+        const isLandscape = window.matchMedia('(orientation: landscape)').matches;
+        const isMobile = window.matchMedia('(max-width: 768px)').matches;
+        const headerElement = document.querySelector('.app-header');
 
-      if (isLandscape && isMobile && headerElement) {
-        // Clear any existing timeout
-        if (hideTimeoutRef.current) {
-          clearTimeout(hideTimeoutRef.current);
-        }
-
-        // Show header initially
-        headerElement.classList.remove('header-hidden');
-
-        // Hide after 1 second
-        hideTimeoutRef.current = setTimeout(() => {
-          if (headerElement) {
-            headerElement.classList.add('header-hidden');
+        if (isLandscape && isMobile && headerElement) {
+          // Clear any existing timeout
+          if (hideTimeoutRef.current) {
+            clearTimeout(hideTimeoutRef.current);
           }
-        }, 1000);
-      } else {
-        // Not in landscape mobile mode, ensure header is visible
-        if (headerElement) {
+
+          // Show header initially
           headerElement.classList.remove('header-hidden');
+
+          // Hide after 1 second
+          hideTimeoutRef.current = setTimeout(() => {
+            try {
+              const currentHeaderElement = document.querySelector('.app-header');
+              if (currentHeaderElement) {
+                currentHeaderElement.classList.add('header-hidden');
+              }
+            } catch (error) {
+              console.warn('[Header] Error hiding header in timeout:', error);
+            }
+          }, 1000);
+        } else {
+          // Not in landscape mobile mode, ensure header is visible
+          if (headerElement) {
+            headerElement.classList.remove('header-hidden');
+          }
         }
+      } catch (error) {
+        console.warn('[Header] Error in checkLandscapeAndHide:', error);
       }
     };
 
@@ -212,19 +221,28 @@ const Header = () => {
 
     // Show header on user interaction
     const handleUserInteraction = () => {
-      const headerElement = document.querySelector('.app-header');
-      if (headerElement) {
-        headerElement.classList.remove('header-hidden');
+      try {
+        const headerElement = document.querySelector('.app-header');
+        if (headerElement) {
+          headerElement.classList.remove('header-hidden');
 
-        // Hide again after 1.5 seconds of inactivity
-        if (hideTimeoutRef.current) {
-          clearTimeout(hideTimeoutRef.current);
-        }
-        hideTimeoutRef.current = setTimeout(() => {
-          if (headerElement) {
-            headerElement.classList.add('header-hidden');
+          // Hide again after 1.5 seconds of inactivity
+          if (hideTimeoutRef.current) {
+            clearTimeout(hideTimeoutRef.current);
           }
-        }, 1500);
+          hideTimeoutRef.current = setTimeout(() => {
+            try {
+              const currentHeaderElement = document.querySelector('.app-header');
+              if (currentHeaderElement) {
+                currentHeaderElement.classList.add('header-hidden');
+              }
+            } catch (error) {
+              console.warn('[Header] Error hiding header in user interaction timeout:', error);
+            }
+          }, 1500);
+        }
+      } catch (error) {
+        console.warn('[Header] Error in handleUserInteraction:', error);
       }
     };
 
@@ -264,13 +282,16 @@ const Header = () => {
   const handleNavItemClick = (action, targetPath = null) => {
     setShowNavPanel(false);
 
-    // If we have a target path and there's an active game, use navigation guard
-    if (targetPath && activeGame) {
-      const canNavigate = navigateWithGuard(targetPath);
-      if (canNavigate) {
-        action();
-      }
-    } else {
+    // Track navigation
+    if (targetPath) {
+      const pageName = targetPath.split('/')[1] || 'unknown';
+      trackNavigation(pageName, 'header');
+    }
+
+    // If we have a target path, use navigation guard (it will check for active games internally)
+    if (targetPath) {
+      navigateWithGuard(targetPath);
+    } else if (action) {
       action();
     }
   };
@@ -304,28 +325,40 @@ const Header = () => {
             <Link
               to="/dashboard"
               className="nav-link"
-              onClick={() => trackNavigation('dashboard', 'header')}
+              onClick={(e) => {
+                e.preventDefault();
+                handleNavItemClick(() => navigate('/dashboard'), '/dashboard');
+              }}
             >
               Dashboard
             </Link>
             <Link
               to="/lobby"
               className="nav-link"
-              onClick={() => trackNavigation('lobby', 'header')}
+              onClick={(e) => {
+                e.preventDefault();
+                handleNavItemClick(() => navigate('/lobby'), '/lobby');
+              }}
             >
               Lobby
             </Link>
             <Link
               to="/tutorial"
               className="nav-link"
-              onClick={() => trackNavigation('tutorial', 'header')}
+              onClick={(e) => {
+                e.preventDefault();
+                handleNavItemClick(() => navigate('/tutorial'), '/tutorial');
+              }}
             >
               Learn
             </Link>
             <Link
               to="/championships"
               className="nav-link"
-              onClick={() => trackNavigation('championships', 'header')}
+              onClick={(e) => {
+                e.preventDefault();
+                handleNavItemClick(() => navigate('/championships'), '/championships');
+              }}
             >
               Championships
             </Link>
@@ -401,7 +434,7 @@ const Header = () => {
     </header>
   );
 
-  // Render navigation panel and overlay using portal to document.body
+  // Render navigation panel and overlay using portal to document.body || document.createElement('div')
   // This ensures they appear above all other content regardless of stacking context
   return (
     <>
@@ -523,7 +556,7 @@ const Header = () => {
             onClick={() => setShowNavPanel(false)}
           />
         </>,
-        document.body
+        document.body || document.createElement('div')
       )}
     </>
   );

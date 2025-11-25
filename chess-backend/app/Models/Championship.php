@@ -766,4 +766,151 @@ class Championship extends Model
             return \App\ValueObjects\TournamentConfig::PRESET_LARGE;
         }
     }
+
+    /**
+     * Get recommended tournament structure using universal approach
+     * Automatically selects optimal structure based on participant count
+     */
+    public function getRecommendedTournamentStructure(): array
+    {
+        $participantCount = $this->getEligibleParticipantCount();
+
+        return \App\ValueObjects\TournamentConfig::generateUniversalTournamentStructure(
+            $participantCount,
+            $this->total_rounds ?? 5
+        );
+    }
+
+    /**
+     * Get tournament structure with automatic tiebreak integration
+     */
+    public function getTournamentStructureWithTiebreaks(): array
+    {
+        $structure = $this->getRecommendedTournamentStructure();
+        $participantCount = $this->getEligibleParticipantCount();
+
+        // Add tiebreak configuration to each round
+        foreach ($structure as &$roundConfig) {
+            $roundConfig['tiebreak_policy'] = [
+                'order' => ['points', 'buchholz_score', 'sonneborn_berger', 'head_to_head', 'rating', 'random'],
+                'expand_band_for_ties' => $roundConfig['type'] === \App\ValueObjects\TournamentConfig::ROUND_TYPE_SELECTIVE,
+                'playoff_for_first_place' => $roundConfig['type'] === \App\ValueObjects\TournamentConfig::ROUND_TYPE_FINAL,
+            ];
+
+            // Add K4 calculation info for selective rounds
+            if ($roundConfig['type'] === \App\ValueObjects\TournamentConfig::ROUND_TYPE_SELECTIVE) {
+                $k4 = \App\ValueObjects\TournamentConfig::calculateK4($participantCount);
+                $roundConfig['k4_calculation'] = [
+                    'participant_count' => $participantCount,
+                    'k4_value' => $k4,
+                    'formula' => 'N≤4:3 | N≤12:4 | N≤24:6 | N≤48:8 | N>48:12'
+                ];
+            }
+        }
+
+        return $structure;
+    }
+
+    /**
+     * Get eligible participants count for structure calculation
+     */
+    public function getEligibleParticipantCount(): int
+    {
+        return $this->participants()
+            ->where('payment_status_id', \App\Enums\PaymentStatus::COMPLETED->getId())
+            ->count();
+    }
+
+    /**
+     * Get top K participants for a selective round using tiebreak policy
+     */
+    public function getTopKParticipants(int $K, array $options = []): \Illuminate\Support\Collection
+    {
+        if ($this->standings()->isEmpty()) {
+            // If no standings exist, use participants as fallback
+            return $this->participants()
+                ->where('payment_status_id', \App\Enums\PaymentStatus::COMPLETED->getId())
+                ->with('user')
+                ->take($K)
+                ->get();
+        }
+
+        $tiebreakService = new \App\Services\TiebreakPolicyService();
+        $standings = $this->standings()->with('user')->get();
+
+        return $tiebreakService->selectTopK($standings, $K, $options);
+    }
+
+    /**
+     * Check if tournament should use universal structure
+     */
+    public function shouldUseUniversalStructure(): bool
+    {
+        $participantCount = $this->getEligibleParticipantCount();
+
+        // Use universal structure for 3-100 participants
+        return $participantCount >= 3 && $participantCount <= 100;
+    }
+
+    /**
+     * Generate tournament configuration automatically
+     */
+    public function generateAutomaticTournamentConfig(): \App\ValueObjects\TournamentConfig
+    {
+        $participantCount = $this->getEligibleParticipantCount();
+
+        if ($this->shouldUseUniversalStructure()) {
+            // Use universal structure
+            $config = \App\ValueObjects\TournamentConfig::fromUniversal($participantCount, $this->total_rounds ?? 5);
+        } else {
+            // Use existing preset logic
+            $preset = $this->determinePreset($participantCount);
+            $config = \App\ValueObjects\TournamentConfig::fromPreset(
+                $preset,
+                $this->total_rounds ?? 5,
+                $participantCount
+            );
+        }
+
+        // Store the generated configuration
+        $this->setTournamentConfig($config);
+
+        return $config;
+    }
+
+    /**
+     * Get resolved standings with complete tiebreak calculation
+     */
+    public function getResolvedStandings(): \Illuminate\Support\Collection
+    {
+        if ($this->standings()->isEmpty()) {
+            return collect();
+        }
+
+        $tiebreakService = new \App\Services\TiebreakPolicyService();
+        return $tiebreakService->getResolvedStandings($this);
+    }
+
+    /**
+     * Get tournament structure explanation
+     */
+    public function getStructureExplanation(): array
+    {
+        $participantCount = $this->getEligibleParticipantCount();
+        $k4 = \App\ValueObjects\TournamentConfig::calculateK4($participantCount);
+
+        return [
+            'participant_count' => $participantCount,
+            'k4_value' => $k4,
+            'k4_formula' => $participantCount <= 4 ? 3 :
+                          ($participantCount <= 12 ? 4 :
+                          ($participantCount <= 24 ? 6 :
+                          ($participantCount <= 48 ? 8 : 12))),
+            'structure_type' => $this->shouldUseUniversalStructure() ? 'universal' : 'preset',
+            'rounds' => $this->total_rounds ?? 5,
+            'pattern' => 'Swiss + Cut + Finals',
+            'round_4_contenders' => $k4,
+            'final_participants' => 2,
+        ];
+    }
 }

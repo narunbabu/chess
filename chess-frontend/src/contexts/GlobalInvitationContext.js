@@ -52,11 +52,33 @@ export const GlobalInvitationProvider = ({ children }) => {
 
     // Subscribe to user-specific channel
     const userChannel = echo.private(`App.Models.User.${user.id}`);
-    console.log('[GlobalInvitation] 📡 Subscribed to channel:', `App.Models.User.${user.id}`);
+    console.log('[GlobalInvitation] 📡 Subscribing to channel:', `App.Models.User.${user.id}`);
+    console.log('[GlobalInvitation] 🔌 Echo available:', !!echo);
+    console.log('[GlobalInvitation] 📍 User location:', location.pathname);
+
+    // Add subscription success confirmation
+    if (userChannel) {
+      console.log('[GlobalInvitation] ✅ Channel object created successfully');
+
+      // Listen for subscription success
+      userChannel.subscribed(() => {
+        console.log('[GlobalInvitation] 🎉 Successfully subscribed to user channel:', `App.Models.User.${user.id}`);
+      });
+
+      // Listen for subscription errors
+      userChannel.error((error) => {
+        console.error('[GlobalInvitation] ❌ Channel subscription error:', error);
+      });
+    } else {
+      console.error('[GlobalInvitation] ❌ Failed to create user channel');
+    }
 
     // Listen for new game invitations
     userChannel.listen('.invitation.sent', (data) => {
-      console.log('[GlobalInvitation] New invitation received:', data);
+      console.log('[GlobalInvitation] 📨 New invitation received:', data);
+      console.log('[GlobalInvitation] 🎯 Invitation type:', data.invitation?.type);
+      console.log('[GlobalInvitation] 📍 Current location:', location.pathname);
+      console.log('[GlobalInvitation] 👤 User in active game?', isInActiveGame());
 
       // Don't show dialog if user is in active game
       if (isInActiveGame()) {
@@ -64,9 +86,12 @@ export const GlobalInvitationProvider = ({ children }) => {
         return;
       }
 
-      // Show invitation dialog
+      // Show invitation dialog for any invitation type (including championship matches)
       if (data.invitation) {
+        console.log('[GlobalInvitation] ✅ Setting pending invitation:', data.invitation.id, data.invitation.type);
         setPendingInvitation(data.invitation);
+      } else {
+        console.warn('[GlobalInvitation] ⚠️ Invitation data missing:', data);
       }
     });
 
@@ -128,15 +153,18 @@ export const GlobalInvitationProvider = ({ children }) => {
       }
 
       // Navigate to the game if game data is provided
-      if (data.game && data.game.id) {
-        console.log('[GlobalInvitation] 🎮 Navigating to championship game ID:', data.game.id);
+      // Check both possible structures: data.game.id or data.match.game_id
+      const gameId = data.game?.id || data.match?.game_id;
+
+      if (gameId) {
+        console.log('[GlobalInvitation] 🎮 Navigating to championship game ID:', gameId);
 
         // Set session markers for proper game access (challenger perspective)
         sessionStorage.setItem('lastInvitationAction', 'championship_invitation_accepted_by_other');
         sessionStorage.setItem('lastInvitationTime', Date.now().toString());
-        sessionStorage.setItem('lastGameId', data.game.id.toString());
+        sessionStorage.setItem('lastGameId', gameId.toString());
 
-        navigate(`/play/multiplayer/${data.game.id}`);
+        navigate(`/play/multiplayer/${gameId}`);
       } else {
         console.warn('[GlobalInvitation] ⚠️ Championship invitation accepted but no game data in event:', data);
       }

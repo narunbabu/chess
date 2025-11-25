@@ -1,5 +1,5 @@
 // src/contexts/GameNavigationContext.js
-import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 const GameNavigationContext = createContext(null);
@@ -17,6 +17,36 @@ export const GameNavigationProvider = ({ children }) => {
   const gameActiveRef = useRef(false);
   const gamePausedRef = useRef(false);
   const gameIdRef = useRef(null);
+  const lastValidLocationRef = useRef(location.pathname);
+
+  // Prevent accidental navigation away from active games
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (gameActiveRef.current && !gamePausedRef.current) {
+        e.preventDefault();
+        e.returnValue = 'You have an active chess game in progress. Are you sure you want to leave?';
+        return e.returnValue;
+      }
+    };
+
+    const handlePopState = (e) => {
+      if (gameActiveRef.current && !gamePausedRef.current) {
+        console.log('[GameNavigation] Detected browser back navigation during active game');
+        e.preventDefault();
+        window.history.pushState(null, '', location.pathname);
+        setShowWarningDialog(true);
+        setPendingNavigation(window.location.pathname);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [location.pathname]);
 
   // Register an active game
   const registerActiveGame = useCallback((gameId, gameState = 'active') => {
@@ -77,14 +107,22 @@ export const GameNavigationProvider = ({ children }) => {
       return true;
     }
 
-    // If trying to navigate to another game page, allow (same game or different game)
-    if (targetPath.startsWith('/play/multiplayer/') || targetPath.startsWith('/play/')) {
-      console.log('[GameNavigation] Navigating to game page, allowing');
+    // Allow navigation to essential game-related pages (resign, pause, etc.)
+    const allowedPaths = [
+      '/play/multiplayer/',
+      '/play/',
+      '/profile'
+    ];
+
+    const isAllowedPath = allowedPaths.some(path => targetPath.startsWith(path));
+
+    if (isAllowedPath) {
+      console.log('[GameNavigation] Navigation to allowed path:', targetPath);
       return true;
     }
 
-    // If game is active and trying to go to non-game page, show warning
-    console.log('[GameNavigation] Active game detected, showing navigation warning');
+    // If game is active and trying to go to non-allowed page, show warning
+    console.log('[GameNavigation] Active game detected, showing navigation warning for:', targetPath);
     setShowWarningDialog(true);
     setPendingNavigation(targetPath);
     return false;

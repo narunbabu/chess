@@ -247,6 +247,12 @@ class TournamentConfig implements Arrayable, Jsonable, \JsonSerializable
                 $config->roundStructure = self::generateLargeTournamentStructure($totalRounds, $participantCount);
                 break;
 
+            case 'universal':
+                $config->mode = self::MODE_PROGRESSIVE;
+                $config->roundStructure = self::generateUniversalTournamentStructure($participantCount, $totalRounds);
+                $config->preset = 'universal';
+                break;
+
             default:
                 $config->mode = self::MODE_SWISS;
                 $config->roundStructure = self::generateSwissStructure($totalRounds);
@@ -254,6 +260,14 @@ class TournamentConfig implements Arrayable, Jsonable, \JsonSerializable
         }
 
         return $config;
+    }
+
+    /**
+     * Create from universal preset (automatic selection based on participant count)
+     */
+    public static function fromUniversal(int $participantCount, int $totalRounds = 5): self
+    {
+        return self::fromPreset('universal', $totalRounds, $participantCount);
     }
 
     /**
@@ -1072,6 +1086,143 @@ class TournamentConfig implements Arrayable, Jsonable, \JsonSerializable
 
     // calculateRoundParticipants method is already defined as public above (line 764)
 // Removed duplicate private method to prevent fatal PHP error
+
+    /**
+     * Calculate K4 (Round 4 contenders) using universal formula
+     */
+    public static function calculateK4(int $N): int
+    {
+        if ($N <= 4) return 3;
+        if ($N <= 12) return 4;
+        if ($N <= 24) return 6;
+        if ($N <= 48) return 8;
+        return 12;
+    }
+
+    /**
+     * Generate universal tournament structure (3-100 players)
+     * Following Swiss + cut + finals pattern
+     */
+    public static function generateUniversalTournamentStructure(int $participantCount, int $totalRounds = 5): array
+    {
+        // Special case for 3 players - use existing optimized structure
+        if ($participantCount === 3) {
+            return self::generateThreePlayerUniversalStructure($totalRounds);
+        }
+
+        $structure = [];
+        $K4 = self::calculateK4($participantCount);
+
+        // Ensure we have enough rounds for the structure
+        $actualRounds = max($totalRounds, 5);
+
+        // Rounds 1-3: Qualification Swiss (full field)
+        for ($round = 1; $round <= 3; $round++) {
+            $structure[] = [
+                'round' => $round,
+                'type' => self::ROUND_TYPE_NORMAL,
+                'participant_selection' => 'all',
+                'matches_per_player' => 1,
+                'pairing_method' => $round === 1 ? self::PAIRING_RANDOM_SEEDED : self::PAIRING_STANDINGS_BASED,
+                'avoid_repeat_matches' => true,
+                'color_balance_strict' => true,
+            ];
+        }
+
+        // Round 4: Contender Swiss (top K4)
+        $structure[] = [
+            'round' => 4,
+            'type' => self::ROUND_TYPE_SELECTIVE,
+            'participant_selection' => ['top_k' => $K4],
+            'matches_per_player' => 1,
+            'pairing_method' => self::PAIRING_STANDINGS_BASED,
+            'avoid_repeat_matches' => true,
+        ];
+
+        // Round 5: Final (top 2)
+        $structure[] = [
+            'round' => 5,
+            'type' => self::ROUND_TYPE_FINAL,
+            'participant_selection' => ['top_k' => 2],
+            'matches_per_player' => 1,
+            'pairing_method' => self::PAIRING_DIRECT,
+        ];
+
+        // Handle additional rounds beyond 5 if specified
+        for ($round = 6; $round <= $actualRounds; $round++) {
+            $structure[] = [
+                'round' => $round,
+                'type' => self::ROUND_TYPE_NORMAL,
+                'participant_selection' => 'all',
+                'matches_per_player' => 1,
+                'pairing_method' => self::PAIRING_STANDINGS_BASED,
+                'avoid_repeat_matches' => true,
+            ];
+        }
+
+        return $structure;
+    }
+
+    /**
+     * Generate special 3-player structure following universal pattern
+     */
+    private static function generateThreePlayerUniversalStructure(int $totalRounds): array
+    {
+        if ($totalRounds < 5) {
+            // Fallback to standard structure for fewer rounds
+            return self::generateUniversalTournamentStructure(3, $totalRounds);
+        }
+
+        return [
+            // Round 1: Dense Swiss (all 3 players)
+            [
+                'round' => 1,
+                'type' => self::ROUND_TYPE_DENSE,
+                'participant_selection' => 'all',
+                'matches_per_player' => 2,
+                'pairing_method' => self::PAIRING_STANDINGS_BASED,
+                'force_complete_round_robin' => true,
+            ],
+            // Round 2: Swiss (all 3 players)
+            [
+                'round' => 2,
+                'type' => self::ROUND_TYPE_NORMAL,
+                'participant_selection' => 'all',
+                'matches_per_player' => 2,
+                'pairing_method' => self::PAIRING_STANDINGS_BASED,
+            ],
+            // Round 3: Top 3 with coverage pairs [[1,2],[2,3]]
+            [
+                'round' => 3,
+                'type' => self::ROUND_TYPE_SELECTIVE,
+                'participant_selection' => ['top_k' => 3],
+                'matches_per_player' => 2,
+                'pairing_method' => 'standings_based',
+                'coverage_pairs' => [[1, 2], [2, 3]],
+                'enforce_coverage' => true,
+                'determined_by_round' => 2,
+            ],
+            // Round 4: Top 3 with coverage pairs [[1,3],[2,3]]
+            [
+                'round' => 4,
+                'type' => self::ROUND_TYPE_SELECTIVE,
+                'participant_selection' => ['top_k' => 3],
+                'matches_per_player' => 2,
+                'pairing_method' => 'direct',
+                'coverage_pairs' => [[1, 3], [2, 3]],
+                'enforce_coverage' => true,
+                'determined_by_round' => 3,
+            ],
+            // Round 5: Final (top 2)
+            [
+                'round' => 5,
+                'type' => self::ROUND_TYPE_FINAL,
+                'participant_selection' => ['top_k' => 2],
+                'matches_per_player' => 1,
+                'pairing_method' => self::PAIRING_DIRECT,
+            ],
+        ];
+    }
 
     /**
      * Validate configuration

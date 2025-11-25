@@ -1661,20 +1661,28 @@ const PlayMultiplayer = () => {
 
   // Listen for pause requests from navigation guard
   useEffect(() => {
-    const handlePauseRequest = (event) => {
+    const handlePauseRequest = async (event) => {
       console.log('[PlayMultiplayer] Received pause request:', event.detail);
 
-      // Trigger pause functionality
-      if (wsService.current) {
-        // Call the existing pause functionality
-        wsService.current.pauseGame();
-      }
+      try {
+        // Trigger pause functionality and wait for it to complete
+        if (wsService.current) {
+          const pauseResult = await wsService.current.pauseGame();
+          console.log('[PlayMultiplayer] Game paused successfully for navigation:', pauseResult);
+        }
 
-      // After pausing, allow navigation
-      if (event.detail.targetPath) {
+        // Wait a brief moment for the game state to update
         setTimeout(() => {
+          if (event.detail.targetPath) {
+            navigate(event.detail.targetPath);
+          }
+        }, 200);
+      } catch (error) {
+        console.error('[PlayMultiplayer] Failed to pause game for navigation:', error);
+        // If pause fails, still allow navigation but log the error
+        if (event.detail.targetPath) {
           navigate(event.detail.targetPath);
-        }, 500); // Small delay to ensure pause is processed
+        }
       }
     };
 
