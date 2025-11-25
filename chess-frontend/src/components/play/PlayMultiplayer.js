@@ -2106,9 +2106,14 @@ const PlayMultiplayer = () => {
       // Mark as requested to prevent duplicates
       hasAutoRequestedResume.current = true;
 
-      // Increased delay to ensure listeners process events and states are set
-      const timer = setTimeout(async () => {
+      // Function to attempt resume request with retries
+      const attemptResumeRequest = async (retryCount = 0) => {
+        const maxRetries = 3;
+        const delay = Math.min(1000 + (retryCount * 1000), 3000); // 1s, 2s, 3s
+
         try {
+          console.log(`🎯 Resume request attempt ${retryCount + 1}/${maxRetries}`);
+
           // Pre-check server status to prevent duplicate sends
           const token = localStorage.getItem('auth_token');
           const statusResponse = await fetch(`${BACKEND_URL}/websocket/games/${gameId}/resume-status`, {
@@ -2134,34 +2139,54 @@ const PlayMultiplayer = () => {
               });
               setResumeRequestCountdown(Math.max(0, Math.ceil((new Date(status.expires_at) - Date.now()) / 1000)));
               console.log('🎯 Skipping auto-send: detected opponent request via status check');
-              return;
+              setShouldAutoSendResume(false);
+              return true;
             } else if (status.pending && status.type === 'sent') {
               // Our own pending - just wait
               console.log('🎯 Skipping auto-send: our own request already pending');
-              return;
+              setShouldAutoSendResume(false);
+              return true;
             }
           } else {
             console.warn('[Resume] Status check failed, proceeding with send');
           }
+
+          // Check if WebSocket service is ready and has no pending request
+          if (wsService.current && !wsService.current.hasPendingResumeRequest()) {
+            console.log('🎯 All checks passed, sending resume request');
+            await handleRequestResume();
+            setShouldAutoSendResume(false);
+            return true;
+          } else {
+            console.log('🎯 WebSocket service not ready or has pending request');
+          }
+
         } catch (error) {
-          console.warn('[Resume] Pre-send status check error, proceeding:', error);
+          console.error(`🎯 Resume request attempt ${retryCount + 1} failed:`, error);
         }
 
-        // Only send if we haven't received a resume request from opponent AND
-        // there's no pending resume request in the WebSocket service AND listeners are ready
-        if (!hasReceivedResumeRequest.current && !wsService.current?.hasPendingResumeRequest() && isReadyForAutoSend.current) {
-          handleRequestResume();
+        // Retry if we haven't exhausted attempts
+        if (retryCount < maxRetries - 1) {
+          console.log(`🎯 Retrying resume request in ${delay}ms`);
+          setTimeout(() => attemptResumeRequest(retryCount + 1), delay);
         } else {
-          if (hasReceivedResumeRequest.current) {
-            console.log('🎯 Skipping auto-send: already received resume request from opponent');
-          } else if (wsService.current?.hasPendingResumeRequest()) {
-            console.log('🎯 Skipping auto-send: already has pending resume request in service');
-          } else if (!isReadyForAutoSend.current) {
-            console.log('🎯 Skipping auto-send: listeners not ready yet');
-          }
+          console.error('🎯 All resume request attempts failed');
+          // Reset state so user can try manually
+          setIsWaitingForResumeResponse(false);
+          setShouldAutoSendResume(false);
+          hasAutoRequestedResume.current = false;
+
+          // Show error to user
+          setErrorMessage('Failed to send resume request automatically. Please try manually.');
+          setShowError(true);
         }
-        setShouldAutoSendResume(false); // Reset flag after sending
-      }, 1500);
+        return false;
+      };
+
+      // Start with a small delay to ensure everything is initialized
+      const timer = setTimeout(() => {
+        attemptResumeRequest();
+      }, 2000);
 
       return () => clearTimeout(timer);
     }
@@ -2637,7 +2662,7 @@ const PlayMultiplayer = () => {
 
   // Extract sections for PlayShell slots (COMPOSITION ONLY - no logic changes)
   const headerSection = (
-    <div className="game-header">
+    <div className={`game-header ${championshipContext ? 'championship-mode' : ''}`}>
       <h2>Multiplayer Chess</h2>
 
       {/* Championship Context Banner - Only shown for championship games */}
@@ -2645,7 +2670,11 @@ const PlayMultiplayer = () => {
         <div className="championship-banner">
           <div className="championship-badge">🏆</div>
           <div className="championship-info">
-            <div className="championship-name">{championshipContext.championship?.title}</div>
+            <div className="championship-name" title={championshipContext.championship?.title}>
+              {championshipContext.championship?.title && championshipContext.championship.title.length > 20
+                ? championshipContext.championship.title.substring(0, 20) + '...'
+                : championshipContext.championship?.title}
+            </div>
             <div className="championship-details">
               Round {championshipContext.round_number} • Board {championshipContext.board_number}
             </div>
@@ -3021,7 +3050,7 @@ const PlayMultiplayer = () => {
                     // Show auto-requesting message for lobby resumes
                     <div>
                       <div style={{
-                        backgroundColor: '#2196F3',
+                        backgroundColor: isWaitingForResumeResponse ? '#2196F3' : '#ff9800',
                         color: 'white',
                         border: 'none',
                         padding: '14px 28px',
@@ -3031,7 +3060,7 @@ const PlayMultiplayer = () => {
                         marginBottom: '12px',
                         display: 'inline-block'
                       }}>
-                        📤 Sending resume request...
+                        {isWaitingForResumeResponse ? '📤 Sending resume request...' : '⚠️ Auto-resume may have failed'}
                       </div>
                       {isWaitingForResumeResponse && resumeRequestCountdown > 0 && (
                         <div style={{
@@ -3042,9 +3071,37 @@ const PlayMultiplayer = () => {
                           Waiting for opponent to accept... {resumeRequestCountdown}s
                         </div>
                       )}
+                      {!isWaitingForResumeResponse && (
+                        <div>
+                          <div style={{
+                            fontSize: '12px',
+                            color: '#ff9800',
+                            marginTop: '8px',
+                            marginBottom: '12px'
+                          }}>
+                            Please try clicking the manual resume button below.
+                          </div>
+                          <button
+                            onClick={handleRequestResume}
+                            disabled={isWaitingForResumeResponse}
+                            style={{
+                              backgroundColor: '#4CAF50',
+                              color: 'white',
+                              border: 'none',
+                              padding: '14px 28px',
+                              borderRadius: '8px',
+                              fontSize: '16px',
+                              cursor: 'pointer',
+                              marginRight: '12px'
+                            }}
+                          >
+                            🔄 Manual Resume Request
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ) : (
-                    // Regular resume button for inactivity pauses
+                    // Regular resume button for inactivity pauses OR lobby resume fallback
                     <div>
                       <button
                         onClick={handleRequestResume}
@@ -3061,7 +3118,8 @@ const PlayMultiplayer = () => {
                           marginBottom: '12px'
                         }}
                       >
-                        {isWaitingForResumeResponse ? 'Requesting...' : 'Request Resume'}
+                        {isWaitingForResumeResponse ? 'Requesting...' :
+                         isLobbyResume ? 'Retry Resume Request' : 'Request Resume'}
                       </button>
                       {isWaitingForResumeResponse && resumeRequestCountdown > 0 && (
                         <div style={{
@@ -3070,6 +3128,15 @@ const PlayMultiplayer = () => {
                           marginTop: '8px'
                         }}>
                           Waiting for response... {resumeRequestCountdown}s
+                        </div>
+                      )}
+                      {isLobbyResume && !isWaitingForResumeResponse && (
+                        <div style={{
+                          fontSize: '12px',
+                          color: '#ff9800',
+                          marginTop: '8px'
+                        }}>
+                          Auto-resume may have failed. Click to try manually.
                         </div>
                       )}
                     </div>

@@ -42,7 +42,8 @@ const ActiveGamesList = ({ activeGames, currentUserId, onResumeGame }) => {
                 />
                 <div className="unified-card-content">
                   <h3 className="unified-card-title">vs {opponent?.name}</h3>
-                  <p className="unified-card-subtitle">
+                  <p className="unified-card-subtitle">{opponent?.email}</p>
+                  <p className="unified-card-info">
                     <span className={`unified-card-status ${statusClass}`}>
                       {game.status}
                     </span>

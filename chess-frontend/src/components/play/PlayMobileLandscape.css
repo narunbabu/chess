@@ -1,6 +1,94 @@
 /* PlayMobileLandscape.css - Mobile Landscape Dedicated Styles */
 /* This file provides nuclear-option overrides for mobile landscape layout */
 
+/* === MOBILE PORTRAIT FIXES === */
+/* Fix footer blocking and layout issues in mobile portrait */
+@media screen and (max-width: 768px) and (orientation: portrait) {
+  /* Hide footer in mobile portrait on play pages to prevent blocking buttons */
+  .play-shell-container footer,
+  .play-shell-container .footer,
+  .play-shell-container .app-footer,
+  .game-container footer,
+  .game-container .footer,
+  .game-container .app-footer {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  /* Ensure game container has proper bottom padding */
+  .play-shell-container,
+  .game-container {
+    padding-bottom: 20px !important;
+    margin-bottom: 0 !important;
+  }
+
+  /* Mobile portrait championship banner improvements */
+  .game-header .championship-banner {
+    padding: 8px 12px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .game-header .championship-name {
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .game-header .championship-details {
+    font-size: 12px !important;
+    opacity: 0.9 !important;
+  }
+
+  /* Hide "Multiplayer Chess" title in championship mode on mobile */
+  .game-header.championship-mode h2 {
+    display: none !important;
+  }
+
+  /* Compact time control and turn status in single row */
+  .game-header .time-control-display,
+  .game-header .game-status {
+    display: inline-block !important;
+    vertical-align: top !important;
+    margin: 0 !important;
+  }
+
+  .game-header .time-control-display {
+    width: 50% !important;
+    font-size: 12px !important;
+    padding-right: 8px !important;
+  }
+
+  .game-header .game-status {
+    width: 50% !important;
+    font-size: 12px !important;
+    padding-left: 8px !important;
+  }
+
+  .game-header .turn-status {
+    font-size: 11px !important;
+    line-height: 1.2 !important;
+  }
+
+  /* Game controls - ensure they're not blocked by footer */
+  .game-controls {
+    position: relative !important;
+    z-index: 10 !important;
+    padding-bottom: 30px !important;
+    margin-bottom: 20px !important;
+  }
+
+  .game-controls button {
+    padding: 8px 16px !important;
+    font-size: 14px !important;
+    margin: 4px !important;
+  }
+}
+
 /* === MOBILE LANDSCAPE OVERRIDES === */
 /* Force hide header and footer in mobile landscape */
 @media screen and (max-width: 812px) and (orientation: landscape) {

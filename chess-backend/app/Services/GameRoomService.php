@@ -1347,25 +1347,55 @@ class GameRoomService
             'resume_status' => 'pending'
         ]);
 
+        // Check if this is a championship game
+        $championshipContext = $game->getChampionshipContext();
+        $isChampionshipGame = $championshipContext['is_championship'];
+
         // Broadcast resume request event to opponent
-        Log::info('📨 Broadcasting ResumeRequestSent event', [
+        Log::info('📨 Broadcasting resume request event', [
             'game_id' => $gameId,
             'requested_by' => $userId,
             'opponent' => $opponentId,
             'channel' => "private-App.Models.User.{$opponentId}",
-            'event' => 'resume.request.sent',
+            'is_championship_game' => $isChampionshipGame,
+            'championship_id' => $championshipContext['championship_id'] ?? null,
+            'match_id' => $championshipContext['match_id'] ?? null,
+            'event' => $isChampionshipGame ? 'championship.game.resume.request' : 'resume.request.sent',
             'invitation_id' => $resumeInvitation->id,
             'game_resume_status' => $game->resume_status,
             'expires_at' => $game->resume_request_expires_at
         ]);
 
-        $event = new \App\Events\ResumeRequestSent($game, $userId);
-        broadcast($event);
+        if ($isChampionshipGame) {
+            // Create championship game resume request record
+            $championshipResumeRequest = \App\Models\ChampionshipGameResumeRequest::create([
+                'championship_match_id' => $championshipContext['match_id'],
+                'game_id' => $gameId,
+                'requester_id' => $userId,
+                'recipient_id' => $opponentId,
+                'expires_at' => $resumeInvitation->expires_at
+            ]);
 
-        Log::info('✅ ResumeRequestSent event dispatched', [
-            'event_class' => get_class($event),
-            'broadcast_channel' => 'App.Models.User.' . $opponentId
-        ]);
+            // Broadcast championship-specific event
+            $event = new \App\Events\ChampionshipGameResumeRequestSent($championshipResumeRequest);
+            broadcast($event);
+
+            Log::info('✅ ChampionshipGameResumeRequestSent event dispatched', [
+                'event_class' => get_class($event),
+                'broadcast_channel' => 'App.Models.User.' . $opponentId,
+                'championship_resume_request_id' => $championshipResumeRequest->id,
+                'match_id' => $championshipContext['match_id']
+            ]);
+        } else {
+            // Broadcast regular resume request event
+            $event = new \App\Events\ResumeRequestSent($game, $userId);
+            broadcast($event);
+
+            Log::info('✅ ResumeRequestSent event dispatched', [
+                'event_class' => get_class($event),
+                'broadcast_channel' => 'App.Models.User.' . $opponentId
+            ]);
+        }
 
         Log::info('Resume request created', [
             'game_id' => $gameId,
@@ -1464,6 +1494,10 @@ class GameRoomService
             ];
         }
 
+        // Check if this is a championship game
+        $championshipContext = $game->getChampionshipContext();
+        $isChampionshipGame = $championshipContext['is_championship'];
+
         if ($accepted) {
             // Resume the game
             $resumeResult = $this->resumeGameFromInactivity($gameId, $userId);
@@ -1480,6 +1514,17 @@ class GameRoomService
                         'responded_at' => now()
                     ]);
 
+                // Update championship resume request if it exists
+                if ($isChampionshipGame) {
+                    \App\Models\ChampionshipGameResumeRequest::where('game_id', $gameId)
+                        ->where('recipient_id', $userId)
+                        ->where('status', 'pending')
+                        ->update([
+                            'status' => 'accepted',
+                            'responded_at' => now()
+                        ]);
+                }
+
                 // Clear resume request fields
                 $game->update([
                     'resume_status' => 'accepted',
@@ -1488,20 +1533,40 @@ class GameRoomService
                     'resume_request_expires_at' => null
                 ]);
 
-                // Broadcast resume accepted event
-                Log::info('📨 Broadcasting ResumeRequestResponse event (accepted)', [
+                // Broadcast appropriate resume accepted event
+                Log::info('📨 Broadcasting resume accepted event', [
                     'game_id' => $gameId,
                     'accepted_by' => $userId,
                     'requested_by' => $game->resume_requested_by,
+                    'is_championship_game' => $isChampionshipGame,
+                    'championship_id' => $championshipContext['championship_id'] ?? null,
+                    'match_id' => $championshipContext['match_id'] ?? null,
                     'channel' => "App.Models.User.{$game->resume_requested_by}",
-                    'event' => 'resume.request.response'
+                    'event' => $isChampionshipGame ? 'championship.game.resume.accepted' : 'resume.request.response'
                 ]);
-                broadcast(new \App\Events\ResumeRequestResponse($game, 'accepted', $userId));
+
+                if ($isChampionshipGame) {
+                    // Broadcast championship-specific accepted event
+                    $championshipResumeRequest = \App\Models\ChampionshipGameResumeRequest::where('game_id', $gameId)
+                        ->where('recipient_id', $userId)
+                        ->first();
+
+                    broadcast(new \App\Events\ChampionshipGameResumeRequestAccepted($championshipResumeRequest));
+
+                    Log::info('✅ ChampionshipGameResumeRequestAccepted event dispatched', [
+                        'championship_resume_request_id' => $championshipResumeRequest->id,
+                        'match_id' => $championshipContext['match_id']
+                    ]);
+                } else {
+                    // Broadcast regular resume accepted event
+                    broadcast(new \App\Events\ResumeRequestResponse($game, 'accepted', $userId));
+                }
 
                 Log::info('Resume request accepted, game resumed', [
                     'game_id' => $gameId,
                     'accepted_by' => $userId,
-                    'requested_by' => $game->resume_requested_by
+                    'requested_by' => $game->resume_requested_by,
+                    'is_championship' => $isChampionshipGame
                 ]);
 
                 return array_merge($resumeResult, [
@@ -1522,6 +1587,17 @@ class GameRoomService
                     'responded_at' => now()
                 ]);
 
+            // Update championship resume request if it exists
+            if ($isChampionshipGame) {
+                \App\Models\ChampionshipGameResumeRequest::where('game_id', $gameId)
+                    ->where('recipient_id', $userId)
+                    ->where('status', 'pending')
+                    ->update([
+                        'status' => 'declined',
+                        'responded_at' => now()
+                    ]);
+            }
+
             // Request declined
             $game->update([
                 'resume_status' => 'none',
@@ -1530,20 +1606,40 @@ class GameRoomService
                 'resume_request_expires_at' => null
             ]);
 
-            // Broadcast resume declined event
-            Log::info('📨 Broadcasting ResumeRequestResponse event (declined)', [
+            // Broadcast appropriate resume declined event
+            Log::info('📨 Broadcasting resume declined event', [
                 'game_id' => $gameId,
                 'declined_by' => $userId,
                 'requested_by' => $game->resume_requested_by,
+                'is_championship_game' => $isChampionshipGame,
+                'championship_id' => $championshipContext['championship_id'] ?? null,
+                'match_id' => $championshipContext['match_id'] ?? null,
                 'channel' => "App.Models.User.{$game->resume_requested_by}",
-                'event' => 'resume.request.response'
+                'event' => $isChampionshipGame ? 'championship.game.resume.declined' : 'resume.request.response'
             ]);
-            broadcast(new \App\Events\ResumeRequestResponse($game, 'declined', $userId));
+
+            if ($isChampionshipGame) {
+                // Broadcast championship-specific declined event
+                $championshipResumeRequest = \App\Models\ChampionshipGameResumeRequest::where('game_id', $gameId)
+                    ->where('recipient_id', $userId)
+                    ->first();
+
+                broadcast(new \App\Events\ChampionshipGameResumeRequestDeclined($championshipResumeRequest));
+
+                Log::info('✅ ChampionshipGameResumeRequestDeclined event dispatched', [
+                    'championship_resume_request_id' => $championshipResumeRequest->id,
+                    'match_id' => $championshipContext['match_id']
+                ]);
+            } else {
+                // Broadcast regular resume declined event
+                broadcast(new \App\Events\ResumeRequestResponse($game, 'declined', $userId));
+            }
 
             Log::info('Resume request declined', [
                 'game_id' => $gameId,
                 'declined_by' => $userId,
-                'requested_by' => $game->resume_requested_by
+                'requested_by' => $game->resume_requested_by,
+                'is_championship' => $isChampionshipGame
             ]);
 
             return [

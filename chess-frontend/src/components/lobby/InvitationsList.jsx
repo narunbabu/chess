@@ -40,7 +40,8 @@ const InvitationsList = ({
                 />
                 <div className="unified-card-content">
                   <h3 className="unified-card-title">{invitation.inviter.name}</h3>
-                  <p className="unified-card-subtitle">
+                  <p className="unified-card-subtitle">{invitation.inviter.email}</p>
+                  <p className="unified-card-info">
                     {invitation.type === 'resume_request'
                       ? '🔄 wants to resume the paused game!'
                       : 'wants to play chess with you!'
@@ -97,7 +98,8 @@ const InvitationsList = ({
                 />
                 <div className="unified-card-content">
                   <h3 className="unified-card-title">{invitation.invited.name}</h3>
-                  <p className="unified-card-subtitle">
+                  <p className="unified-card-subtitle">{invitation.invited.email}</p>
+                  <p className="unified-card-info">
                     {invitation.type === 'resume_request'
                       ? '🔄 Resume request sent'
                       : '⏰ Waiting for response...'

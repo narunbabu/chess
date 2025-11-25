@@ -58,7 +58,7 @@ const GlobalInvitationDialog = () => {
     } else if (resumeRequest) {
       declineResumeRequest(resumeRequest.gameId);
     } else if (championshipResumeRequest) {
-      declineChampionshipResumeRequest(championshipResumeRequest.matchId);
+      declineChampionshipResumeRequest(championshipResumeRequest.matchId, championshipResumeRequest.gameId);
     }
     setShowColorChoice(false);
   };

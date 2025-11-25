@@ -421,20 +421,19 @@ export const GlobalInvitationProvider = ({ children }) => {
     try {
       console.log('[GlobalInvitation] Accepting championship resume request for match:', matchId, 'game:', gameId);
 
-      // Find the championship ID from the request data or try to infer it
-      let championshipId = championshipResumeRequestRef.current?.championshipId;
+      const echo = getEcho();
+      const socketId = echo?.socketId();
 
-      // If championshipId not available, we need to find it. For now, let's try to extract from URL
-      // or we could make an API call to get the match details
-      if (!championshipId) {
-        console.warn('[GlobalInvitation] Championship ID not found in request, attempting to find match');
-        // We could make an API call here to find the championship, but for now let's use a different approach
-        throw new Error('Championship ID not found. Please accept the request from the championship matches page.');
+      // Build request body, only include socket_id if it's a valid string
+      const requestBody = { response: true };
+      if (typeof socketId === 'string' && socketId.length > 0) {
+        requestBody.socket_id = socketId;
       }
 
+      // Use the same WebSocket resume response endpoint as regular games
       const response = await api.post(
-        `/championships/${championshipId}/matches/${matchId}/resume-request/accept`,
-        {}
+        `/websocket/games/${gameId}/resume-response`,
+        requestBody
       );
 
       if (!response.data.success) {
@@ -460,25 +459,26 @@ export const GlobalInvitationProvider = ({ children }) => {
   }, [navigate]);
 
   // Decline championship resume request
-  const declineChampionshipResumeRequest = useCallback(async (matchId) => {
+  const declineChampionshipResumeRequest = useCallback(async (matchId, gameId) => {
     if (isProcessingRef.current) return;
 
     setIsProcessing(true);
     try {
-      console.log('[GlobalInvitation] Declining championship resume request for match:', matchId);
+      console.log('[GlobalInvitation] Declining championship resume request for match:', matchId, 'game:', gameId);
 
-      // Find the championship ID from the request data or try to infer it
-      let championshipId = championshipResumeRequestRef.current?.championshipId;
+      const echo = getEcho();
+      const socketId = echo?.socketId();
 
-      // If championshipId not available, we need to find it
-      if (!championshipId) {
-        console.warn('[GlobalInvitation] Championship ID not found in request, attempting to find match');
-        throw new Error('Championship ID not found. Please decline the request from the championship matches page.');
+      // Build request body, only include socket_id if it's a valid string
+      const requestBody = { response: false };
+      if (typeof socketId === 'string' && socketId.length > 0) {
+        requestBody.socket_id = socketId;
       }
 
+      // Use the same WebSocket resume response endpoint as regular games
       await api.post(
-        `/championships/${championshipId}/matches/${matchId}/resume-request/decline`,
-        {}
+        `/websocket/games/${gameId}/resume-response`,
+        requestBody
       );
 
       // Clear the dialog
