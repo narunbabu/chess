@@ -47,14 +47,15 @@ export const GameNavigationProvider = ({ children }) => {
     console.log('[GameNavigation] Updating game state:', gameState);
     gamePausedRef.current = gameState === 'paused';
 
-    if (activeGame) {
-      setActiveGame(prev => ({
+    setActiveGame(prev => {
+      if (!prev) return prev;
+      return {
         ...prev,
         isPaused: gameState === 'paused',
         state: gameState
-      }));
-    }
-  }, [activeGame]);
+      };
+    });
+  }, []); // Remove activeGame dependency to prevent infinite loop
 
   // Check if current page is a game page
   const isGamePage = useCallback(() => {

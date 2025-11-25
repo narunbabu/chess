@@ -17,6 +17,7 @@ export const useMultiplayerTimer = ({
   const timerRef = useRef(null);
   const lastServerTurnRef = useRef(serverTurn);
   const onFlagRef = useRef(onFlag);
+  const currentTurnRef = useRef({ serverTurn, myColor });
 
   useEffect(() => {
     onFlagRef.current = onFlag;
@@ -57,7 +58,14 @@ export const useMultiplayerTimer = ({
       return;
     }
 
-    if (gameStatus === 'active' && serverTurn) {
+    // Check if turn actually changed to prevent unnecessary timer restarts
+    const turnChanged = currentTurnRef.current.serverTurn !== serverTurn ||
+                       currentTurnRef.current.myColor !== myColor;
+
+    if (gameStatus === 'active' && serverTurn && turnChanged) {
+      // Update turn reference
+      currentTurnRef.current = { serverTurn, myColor };
+
       // Clear existing timer
       if (timerRef.current) {
         clearInterval(timerRef.current);
@@ -93,7 +101,7 @@ export const useMultiplayerTimer = ({
         clearInterval(timerRef.current);
       }
     };
-  }, [gameStatus, serverTurn, myColor]);
+  }, [gameStatus, serverTurn, myColor]); // Keep dependencies but add logic to prevent unnecessary restarts
 
   return { myMs, oppMs, setMyMs, setOppMs };
 };
