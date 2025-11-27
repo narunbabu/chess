@@ -1030,6 +1030,16 @@ const ChampionshipMatches = ({
         transition: 'all 0.3s ease'
       }}>
         <div className="match-header">
+          <div className="match-meta" style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '12px', fontSize: '12px' }}>
+            
+            <span className="round-info" style={{ color: '#6b7280' }}>
+              Round {match.round_number || match.round || 1}
+              {match.board_number && `, Board ${match.board_number}`}
+            </span>
+            <span className={`match-status ${getMatchStatusColor(match.status)}`} style={{ padding: '4px 8px', borderRadius: '4px' }}>
+              {match.status}
+            </span>
+          </div>
           <div className="match-players" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             {/* White Player */}
             <div className="player-info" style={{ flex: '1', minWidth: '0' }}>
@@ -1053,14 +1063,16 @@ const ChampionshipMatches = ({
                   fontWeight: '600',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'nowrap',
+                  maxWidth: '10ch',
+                  color: match.white_player_id === user?.id ? 'white' : '#1f2937'
                 }}>
                   {match.white_player ? match.white_player.name : (match.result_type === 'bye' ? 'Bye' : 'Unknown Player')}
                   {match.white_player_id === user?.id && <span className="you-indicator" style={{ fontSize: '12px', marginLeft: '4px' }}>(You)</span>}
                 </div>
               </div>
               {match.white_player?.email && (
-                <div style={{ fontSize: '11px', color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginLeft: '14px' }}>
+                <div style={{ fontSize: '11px', color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginLeft: '14px', maxWidth: '10ch' }}>
                   {match.white_player.email}
                 </div>
               )}
@@ -1094,14 +1106,16 @@ const ChampionshipMatches = ({
                   fontWeight: '600',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'nowrap',
+                  maxWidth: '10ch',
+                  color: match.black_player_id === user?.id ? 'white' : '#1f2937'
                 }}>
                   {match.black_player ? match.black_player.name : (match.result_type === 'bye' ? 'Bye' : 'Unknown Player')}
                   {match.black_player_id === user?.id && <span className="you-indicator" style={{ fontSize: '12px', marginLeft: '4px' }}>(You)</span>}
                 </div>
               </div>
               {match.black_player?.email && (
-                <div style={{ fontSize: '11px', color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginLeft: '14px' }}>
+                <div style={{ fontSize: '11px', color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginLeft: '14px', maxWidth: '10ch' }}>
                   {match.black_player.email}
                 </div>
               )}
@@ -1111,15 +1125,7 @@ const ChampionshipMatches = ({
             </div>
           </div>
 
-          <div className="match-meta" style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '12px', fontSize: '12px' }}>
-            <span className={`match-status ${getMatchStatusColor(match.status)}`} style={{ padding: '4px 8px', borderRadius: '4px' }}>
-              {match.status}
-            </span>
-            <span className="round-info" style={{ color: '#6b7280' }}>
-              Round {match.round_number || match.round || 1}
-              {match.board_number && `, Board ${match.board_number}`}
-            </span>
-          </div>
+          
         </div>
 
         <div className="match-details" style={{ marginTop: '12px' }}>
@@ -1554,15 +1560,15 @@ const ChampionshipMatches = ({
           {rounds.map(round => (
             (filterRound === '' || parseInt(filterRound) === round) && (
               <div key={round} className="round-section">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <h3 className="round-title" style={{ margin: 0 }}>Round {round}</h3>
+                <div style={{ marginBottom: '12px' }}>
+                  <h3 className="round-title" style={{ margin: '0 0 8px 0' }}>Round {round}</h3>
                   <button
                     onClick={() => {
                       setLeaderboardRound(round);
                       setShowLeaderboardModal(true);
                     }}
                     className="btn btn-info btn-small"
-                    style={{ fontSize: '14px', padding: '6px 12px' }}
+                    style={{ fontSize: '14px', padding: '6px 12px', width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}
                   >
                     📊 View Leaderboard
                   </button>

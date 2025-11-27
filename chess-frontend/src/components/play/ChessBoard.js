@@ -94,7 +94,7 @@ const ChessBoard = ({
         piece,
         currentTurn,
         playerColor,
-        playerColorChess,
+        playerColorChess: playerColor === 'white' || playerColor === 'w' ? 'w' : 'b',
         isPlayerTurn
     });
 
@@ -124,7 +124,8 @@ const ChessBoard = ({
   };
 
   // Convert playerColor to chess.js format for comparison
-  const playerColorChess = playerColor === 'white' ? 'w' : 'b';
+  // playerColor might already be in chess.js format ('w' or 'b') or full format ('white' or 'black')
+  const playerColorChess = playerColor === 'white' || playerColor === 'w' ? 'w' : 'b';
 
   // Ensure game object is valid before accessing methods like turn()
   // Add instance check
@@ -136,7 +137,7 @@ const ChessBoard = ({
     validGame: isValidChessInstance(game),
     gameTurn: isValidChessInstance(game) ? game.turn() : 'invalid',
     playerColor,
-    playerColorChess
+    playerColorChess: playerColor === 'white' || playerColor === 'w' ? 'w' : 'b'
   });
 
   const onSquareClick = (square) => {
@@ -149,7 +150,8 @@ const ChessBoard = ({
             isReplayMode,
             isPlayerTurn,
             currentTurn: game.turn(),
-            playerColor
+            playerColor,
+            playerColorChess: playerColor === 'white' || playerColor === 'w' ? 'w' : 'b'
         });
         if (!isValidChessInstance(game)) console.warn("ChessBoard: Invalid game object received in onSquareClick.");
         setMoveFrom("");
@@ -172,7 +174,7 @@ const ChessBoard = ({
             moveFrom,
             currentTurn: game.turn(),
             playerColor,
-            playerColorChess
+            playerColorChess: playerColor === 'white' || playerColor === 'w' ? 'w' : 'b'
         });
 
         // Add instance check before game.turn()
@@ -187,7 +189,8 @@ const ChessBoard = ({
                 square,
                 hasPiece: !!pieceOnSquare,
                 pieceColor: pieceOnSquare?.color,
-                turnMatch: pieceOnSquare?.color === game.turn()
+                turnMatch: pieceOnSquare?.color === game.turn(),
+                playerColorChess: playerColor === 'white' || playerColor === 'w' ? 'w' : 'b'
             });
             // Clicked on empty square or opponent's piece without a source selected
             setMoveFrom("");

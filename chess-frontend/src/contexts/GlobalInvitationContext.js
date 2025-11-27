@@ -243,6 +243,23 @@ export const GlobalInvitationProvider = ({ children }) => {
       // Note: Could show a notification here that the request was declined, but keeping it simple for now
     });
 
+    // Listen for resume request expired (auto-dismiss dialog for both regular and championship games)
+    userChannel.listen('.resume.request.expired', (data) => {
+      console.log('[GlobalInvitation] ⏰ Resume request expired event received:', data);
+
+      // Check if it's a regular resume request
+      if (data.game_id && resumeRequestRef.current?.gameId === data.game_id) {
+        console.log('[GlobalInvitation] Auto-dismissing expired resume request');
+        setResumeRequest(null);
+      }
+
+      // Check if it's a championship resume request (same game_id check)
+      if (data.game_id && championshipResumeRequestRef.current?.gameId === data.game_id) {
+        console.log('[GlobalInvitation] Auto-dismissing expired championship resume request');
+        setChampionshipResumeRequest(null);
+      }
+    });
+
     // Listen for invitation cancelled (for cleanup)
     userChannel.listen('.invitation.cancelled', (data) => {
       console.log('[GlobalInvitation] Invitation cancelled:', data);
@@ -261,6 +278,7 @@ export const GlobalInvitationProvider = ({ children }) => {
       userChannel.stopListening('.championship.game.resume.request');
       userChannel.stopListening('.championship.game.resume.accepted');
       userChannel.stopListening('.championship.game.resume.declined');
+      userChannel.stopListening('.resume.request.expired');
     };
     // Only re-run when user changes, not on every route change
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -421,19 +439,16 @@ export const GlobalInvitationProvider = ({ children }) => {
     try {
       console.log('[GlobalInvitation] Accepting championship resume request for match:', matchId, 'game:', gameId);
 
-      const echo = getEcho();
-      const socketId = echo?.socketId();
+      // Get championship ID from the current championship resume request state
+      const championshipId = championshipResumeRequestRef.current?.championshipId;
 
-      // Build request body, only include socket_id if it's a valid string
-      const requestBody = { response: true };
-      if (typeof socketId === 'string' && socketId.length > 0) {
-        requestBody.socket_id = socketId;
+      if (!championshipId) {
+        throw new Error('Championship ID not found in request data');
       }
 
-      // Use the same WebSocket resume response endpoint as regular games
+      // Use the championship-specific accept endpoint
       const response = await api.post(
-        `/websocket/games/${gameId}/resume-response`,
-        requestBody
+        `/championships/${championshipId}/matches/${matchId}/resume-request/accept`
       );
 
       if (!response.data.success) {
@@ -466,19 +481,16 @@ export const GlobalInvitationProvider = ({ children }) => {
     try {
       console.log('[GlobalInvitation] Declining championship resume request for match:', matchId, 'game:', gameId);
 
-      const echo = getEcho();
-      const socketId = echo?.socketId();
+      // Get championship ID from the current championship resume request state
+      const championshipId = championshipResumeRequestRef.current?.championshipId;
 
-      // Build request body, only include socket_id if it's a valid string
-      const requestBody = { response: false };
-      if (typeof socketId === 'string' && socketId.length > 0) {
-        requestBody.socket_id = socketId;
+      if (!championshipId) {
+        throw new Error('Championship ID not found in request data');
       }
 
-      // Use the same WebSocket resume response endpoint as regular games
+      // Use the championship-specific decline endpoint
       await api.post(
-        `/websocket/games/${gameId}/resume-response`,
-        requestBody
+        `/championships/${championshipId}/matches/${matchId}/resume-request/decline`
       );
 
       // Clear the dialog

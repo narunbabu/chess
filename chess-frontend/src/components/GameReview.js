@@ -250,12 +250,12 @@ const GameReview = () => {
             computer_level: 0
           };
 
-          // Handle moves conversion from different formats (reuse existing logic)
+          // Handle moves conversion - expect semicolon-separated format: "e4,2.52;Nf6,0.98;..."
           let convertedMoves = [{ move: { san: 'Start' }, fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1' }];
 
-          if (typeof gameData.moves === 'string') {
-            // Parse string format: "e4,2.52;Nf6,0.98;..."
-            console.log("Converting string moves format for multiplayer:", gameData.moves.substring(0, 50) + "...");
+          if (typeof gameData.moves === 'string' && gameData.moves.length > 0) {
+            // Parse semicolon-separated format: "e4,2.52;Nf6,0.98;..."
+            console.log("Converting encoded moves format for multiplayer:", gameData.moves.substring(0, 50) + "...");
             const tempGame = new Chess();
 
             gameData.moves.split(';').forEach(moveStr => {
@@ -303,6 +303,19 @@ const GameReview = () => {
             formattedGameHistory.moves = gameData.moves;
           }
 
+          // Ensure consistency: prepend 'Start' entry if first move is a real move (for detailed JSON format)
+          if (formattedGameHistory.moves && formattedGameHistory.moves.length > 0) {
+            const firstEntry = formattedGameHistory.moves[0];
+            if (firstEntry && firstEntry.move && firstEntry.move.san && firstEntry.move.san !== 'Start') {
+              const startEntry = {
+                move: { san: 'Start' },
+                fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
+              };
+              formattedGameHistory.moves.unshift(startEntry);
+              console.log('Prepended Start entry to moves array for consistent indexing');
+            }
+          }
+
           setGameHistory(formattedGameHistory);
         } else {
           // For non-multiplayer, use existing history fetch
@@ -317,12 +330,12 @@ const GameReview = () => {
 
           let formattedGameHistory = { ...gameData };
 
-          // Handle moves conversion from different formats
+          // Handle moves conversion - expect semicolon-separated format: "e4,2.52;Nf6,0.98;..."
           let convertedMoves = [{ move: { san: 'Start' }, fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1' }];
 
-          if (typeof gameData.moves === 'string') {
-            // Parse string format: "e4,2.52;Nf6,0.98;..."
-            console.log("Converting string moves format:", gameData.moves.substring(0, 50) + "...");
+          if (typeof gameData.moves === 'string' && gameData.moves.length > 0) {
+            // Parse semicolon-separated format: "e4,2.52;Nf6,0.98;..."
+            console.log("Converting encoded moves format:", gameData.moves.substring(0, 50) + "...");
             const tempGame = new Chess();
 
             gameData.moves.split(';').forEach(moveStr => {

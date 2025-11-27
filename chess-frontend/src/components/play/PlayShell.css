@@ -462,39 +462,114 @@
   }
 }
 
-/* Championship Banner - Non-intrusive styling */
+/* Championship Banner - Horizontally expanding, vertically lean */
 .championship-banner {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  padding: 12px 20px;
-  border-radius: 12px;
-  margin: 1rem 0;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  padding: 1px 4px;
+  border-radius: 3px;
+  margin: 0.25rem 0;
+  box-shadow: 0 1px 4px rgba(102, 126, 234, 0.3);
   border: 1px solid rgba(102, 126, 234, 0.4);
   animation: fadeIn 0.5s ease-in;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  min-height: 32px;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .championship-badge {
-  font-size: 1.5rem;
+  font-size: 1rem;
   flex-shrink: 0;
+  line-height: 1;
 }
 
 .championship-info {
   flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .championship-name {
   font-weight: 600;
-  font-size: 1rem;
-  margin-bottom: 2px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 1;
+  min-width: 0;
+  line-height: 1.1;
 }
 
 .championship-details {
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   opacity: 0.9;
+  white-space: nowrap;
+  flex-shrink: 0;
+  line-height: 1.1;
+}
+
+/* Game Header Info Row - Time control and status below championship banner */
+.game-header .time-control-display,
+.game-header .game-status {
+  display: inline-block;
+  vertical-align: top;
+  margin: 0.5rem 0;
+}
+
+.game-header .time-control-display {
+  width: 50%;
+  padding-right: 1rem;
+  font-size: 0.9rem;
+  color: #666;
+  box-sizing: border-box;
+}
+
+.game-header .game-status {
+  width: 50%;
+  padding-left: 1rem;
+  font-size: 0.9rem;
+  box-sizing: border-box;
+}
+
+/* Championship mode - ensure elements are in proper rows */
+.game-header.championship-mode {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+/* Hide "Multiplayer Chess" title in championship mode */
+.game-header.championship-mode h2 {
+  display: none;
+}
+
+.game-header.championship-mode .championship-banner {
+  order: 1;
+  margin-top: 0;
+  margin-bottom: 0.25rem;
+}
+
+.game-header.championship-mode .time-control-display {
+  order: 2;
+  display: inline-block;
+  width: 50%;
+}
+
+.game-header.championship-mode .game-status {
+  order: 3;
+  display: inline-block;
+  width: 50%;
 }
 
 @keyframes fadeIn {

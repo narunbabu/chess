@@ -536,6 +536,9 @@ class WebSocketController extends Controller
             // Accept both players' scores to preserve scoring across moves
             'move.white_player_score' => 'nullable|numeric',
             'move.black_player_score' => 'nullable|numeric',
+            // Accept remaining clock times to persist across moves
+            'move.white_time_remaining_ms' => 'nullable|integer',
+            'move.black_time_remaining_ms' => 'nullable|integer',
             'socket_id' => 'required|string'
         ]);
 
@@ -557,15 +560,22 @@ class WebSocketController extends Controller
             return response()->json($result);
 
         } catch (\Exception $e) {
+            // Refresh game to get current status for error context
+            $game->refresh();
+
             Log::error('Failed to broadcast move', [
                 'user_id' => Auth::id(),
                 'game_id' => $gameId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'game_status' => $game->status,
+                'game_updated_at' => $game->updated_at
             ]);
 
             return response()->json([
                 'error' => 'Failed to broadcast move',
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
+                'game_status' => $game->status,
+                'game_id' => $gameId
             ], 400);
         }
     }
@@ -788,12 +798,24 @@ class WebSocketController extends Controller
     public function pauseGame(Request $request, int $gameId): JsonResponse
     {
         try {
-            $result = $this->gameRoomService->pauseGame($gameId, Auth::id());
+            // Extract time data if provided
+            $whiteTimeMs = $request->input('white_time_remaining_ms');
+            $blackTimeMs = $request->input('black_time_remaining_ms');
+
+            $result = $this->gameRoomService->pauseGame(
+                $gameId,
+                Auth::id(),
+                'inactivity',
+                $whiteTimeMs,
+                $blackTimeMs
+            );
 
             Log::info('Game paused due to inactivity', [
                 'user_id' => Auth::id(),
                 'game_id' => $gameId,
                 'reason' => 'inactivity',
+                'white_time_ms' => $whiteTimeMs,
+                'black_time_ms' => $blackTimeMs,
                 'result' => $result['result'] ?? null
             ]);
 

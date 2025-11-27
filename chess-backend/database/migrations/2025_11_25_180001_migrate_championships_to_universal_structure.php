@@ -78,6 +78,7 @@ return new class extends Migration
             }
 
             // Log migration details for auditing
+            $structureType = $shouldUseUniversal ? 'universal' : 'preset';
             DB::table('championships')
                 ->where('id', $championship->id)
                 ->update([
@@ -87,25 +88,19 @@ return new class extends Migration
                         JSON_OBJECT(
                             'migrated_at', NOW(),
                             'participant_count', {$participantCount},
-                            'structure_type', '{$shouldUseUniversal ? 'universal' : 'preset'}',
+                            'structure_type', '{$structureType}',
                             'migration_version', '1.0'
                         )
                     )")
                 ]);
         }
 
-        // Log migration summary
-        DB::table('system_logs')->insert([
-            'level' => 'info',
-            'message' => 'Championship universal structure migration completed',
-            'context' => json_encode([
-                'total_championships' => $updatedCount,
-                'migrated_to_universal' => $migratedToUniversal,
-                'kept_as_preset' => $keptAsPreset,
-                'migration_timestamp' => now()->toISOString()
-            ]),
-            'created_at' => now(),
-            'updated_at' => now()
+        // Log migration summary (using Laravel's log system instead of non-existent system_logs table)
+        \Illuminate\Support\Facades\Log::info('Championship universal structure migration completed', [
+            'total_championships' => $updatedCount,
+            'migrated_to_universal' => $migratedToUniversal,
+            'kept_as_preset' => $keptAsPreset,
+            'migration_timestamp' => now()->toISOString()
         ]);
     }
 

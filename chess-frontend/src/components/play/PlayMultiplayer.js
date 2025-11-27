@@ -211,6 +211,16 @@ const PlayMultiplayer = () => {
     incrementMs: initialTimerState.incrementMs
   });
 
+  // Helper to get current time data for both players
+  const getTimeData = useCallback(() => {
+    const whiteTimeMs = myColor === 'w' ? myMs : oppMs;
+    const blackTimeMs = myColor === 'b' ? myMs : oppMs;
+    return {
+      white_time_remaining_ms: whiteTimeMs,
+      black_time_remaining_ms: blackTimeMs
+    };
+  }, [myColor, myMs, oppMs]);
+
   // Play sound helper
   const playSound = useCallback((soundEffect) => {
     try {
@@ -564,43 +574,65 @@ const PlayMultiplayer = () => {
       // Set game history from moves
       setGameHistory(data.moves || []);
 
-      // Fetch move history to calculate timer state
+      // Initialize timer state from database or calculate from move history
       try {
-        const movesResponse = await fetch(`${BACKEND_URL}/websocket/games/${gameId}/moves`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
         const timeControlMinutes = data.time_control_minutes || 10;
         const timeControlIncrement = data.time_control_increment || 0; // Backend provides in seconds
-        let calculatedWhiteMs = timeControlMinutes * 60 * 1000;
-        let calculatedBlackMs = timeControlMinutes * 60 * 1000;
         const incrementMs = timeControlIncrement * 1000; // Convert to milliseconds
 
-        if (movesResponse.ok) {
-          const movesData = await movesResponse.json();
-          const initialTimeMs = (movesData.time_control_minutes || 10) * 60 * 1000;
+        // Check if we have stored time values from database (persisted across pauses/moves)
+        const storedWhiteMs = data.white_time_paused_ms;
+        const storedBlackMs = data.black_time_paused_ms;
 
-          // Calculate remaining time from move history with increment support
-          const { whiteMs, blackMs } = calculateRemainingTime(
-            movesData.moves || [],
-            initialTimeMs,
-            incrementMs
-          );
+        let calculatedWhiteMs, calculatedBlackMs;
 
-          calculatedWhiteMs = whiteMs;
-          calculatedBlackMs = blackMs;
+        if (storedWhiteMs != null && storedBlackMs != null) {
+          // Use stored times from database (includes time from moves + pause persistence)
+          calculatedWhiteMs = storedWhiteMs;
+          calculatedBlackMs = storedBlackMs;
 
-          console.log('[Timer] Calculated from move history with increment:', {
-            whiteMs: Math.floor(whiteMs / 1000) + 's',
-            blackMs: Math.floor(blackMs / 1000) + 's',
+          console.log('[Timer] Restored from database:', {
+            whiteMs: Math.floor(calculatedWhiteMs / 1000) + 's',
+            blackMs: Math.floor(calculatedBlackMs / 1000) + 's',
             increment: incrementMs / 1000 + 's',
-            totalMoves: movesData.moves?.length || 0
+            source: 'database'
           });
         } else {
-          console.warn('[Timer] Failed to fetch moves, using default 10min');
+          // Fallback: Calculate from move history if database values not available
+          const movesResponse = await fetch(`${BACKEND_URL}/websocket/games/${gameId}/moves`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+
+          calculatedWhiteMs = timeControlMinutes * 60 * 1000;
+          calculatedBlackMs = timeControlMinutes * 60 * 1000;
+
+          if (movesResponse.ok) {
+            const movesData = await movesResponse.json();
+            const initialTimeMs = (movesData.time_control_minutes || 10) * 60 * 1000;
+
+            // Calculate remaining time from move history with increment support
+            const { whiteMs, blackMs } = calculateRemainingTime(
+              movesData.moves || [],
+              initialTimeMs,
+              incrementMs
+            );
+
+            calculatedWhiteMs = whiteMs;
+            calculatedBlackMs = blackMs;
+
+            console.log('[Timer] Calculated from move history (fallback):', {
+              whiteMs: Math.floor(whiteMs / 1000) + 's',
+              blackMs: Math.floor(blackMs / 1000) + 's',
+              increment: incrementMs / 1000 + 's',
+              totalMoves: movesData.moves?.length || 0,
+              source: 'move_history'
+            });
+          } else {
+            console.warn('[Timer] Failed to fetch moves, using default 10min');
+          }
         }
 
         // Store these values to pass to timer hook
@@ -1569,18 +1601,13 @@ const PlayMultiplayer = () => {
         });
       }
 
-      if (inactiveDuration >= 60 && !showPresenceDialogRef.current && !isPausingRef.current && isMyTurn) {
-        console.log('[Inactivity] Opening presence dialog after', inactiveDuration.toFixed(1), 's (my turn)');
+      if (inactiveDuration >= 60 && !showPresenceDialogRef.current && !isPausingRef.current) {
+        console.log('[Inactivity] Opening presence dialog after', inactiveDuration.toFixed(1), 's (turn:', turnRef.current, 'myColor:', myColorRef.current, ')');
         setShowPresenceDialog(true);
         showPresenceDialogRef.current = true;
 
         // Note: The dialog itself handles the countdown and timeout via onCloseTimeout callback
         // No need for a separate timeout here as it creates a race condition
-      } else if (inactiveDuration >= 60 && !isMyTurn) {
-        // Log but don't show dialog when it's not my turn
-        if (inactiveDuration < 65) { // Log once
-          console.log('[Inactivity] Inactive for', inactiveDuration.toFixed(1), 's but NOT my turn - no dialog shown');
-        }
       }
     };
 
@@ -1667,7 +1694,8 @@ const PlayMultiplayer = () => {
       try {
         // Trigger pause functionality and wait for it to complete
         if (wsService.current) {
-          const pauseResult = await wsService.current.pauseGame();
+          const timeData = getTimeData();
+          const pauseResult = await wsService.current.pauseGame(timeData);
           console.log('[PlayMultiplayer] Game paused successfully for navigation:', pauseResult);
         }
 
@@ -2114,6 +2142,20 @@ const PlayMultiplayer = () => {
         try {
           console.log(`🎯 Resume request attempt ${retryCount + 1}/${maxRetries}`);
 
+          // Early state validation to prevent race conditions
+          if (hasReceivedResumeRequest.current) {
+            console.log('🎯 Already received resume request from opponent, skipping auto-send');
+            setShouldAutoSendResume(false);
+            return true;
+          }
+
+          // Check if WebSocket service already has a pending request
+          if (wsService.current && wsService.current.hasPendingResumeRequest()) {
+            console.log('🎯 WebSocket service already has pending request, skipping auto-send');
+            setShouldAutoSendResume(false);
+            return true;
+          }
+
           // Pre-check server status to prevent duplicate sends
           const token = localStorage.getItem('auth_token');
           const statusResponse = await fetch(`${BACKEND_URL}/websocket/games/${gameId}/resume-status`, {
@@ -2343,6 +2385,10 @@ const PlayMultiplayer = () => {
     const white_player_score = myColor === 'w' ? newCumulativeScore : parseFloat(opponentScore) || 0;
     const black_player_score = myColor === 'b' ? newCumulativeScore : parseFloat(opponentScore) || 0;
 
+    // Calculate remaining times for both players
+    const whiteTimeRemainingMs = myColor === 'w' ? myMs : oppMs;
+    const blackTimeRemainingMs = myColor === 'b' ? myMs : oppMs;
+
     const moveData = {
       from: source,
       to: target,
@@ -2363,7 +2409,10 @@ const PlayMultiplayer = () => {
       player_rating: user?.rating || 1200,
       // Send BOTH players' cumulative scores to preserve scoring across moves
       white_player_score: white_player_score,
-      black_player_score: black_player_score
+      black_player_score: black_player_score,
+      // Send remaining clock times for both players to persist across moves
+      white_time_remaining_ms: whiteTimeRemainingMs,
+      black_time_remaining_ms: blackTimeRemainingMs
     };
 
     wsService.current.sendMove(moveData);
@@ -2974,7 +3023,8 @@ const PlayMultiplayer = () => {
             isPausingRef.current = true;
 
             try {
-              const pauseResult = await wsService.current?.pauseGame();
+              const timeData = getTimeData();
+              const pauseResult = await wsService.current?.pauseGame(timeData);
               console.log('[PresenceConfirmationDialogSimple] Game paused successfully:', pauseResult);
 
               // Only close dialog if pause succeeded
@@ -3412,7 +3462,8 @@ const PlayMultiplayer = () => {
           isPausingRef.current = true;
 
           try {
-            const pauseResult = await wsService.current?.pauseGame();
+            const timeData = getTimeData();
+            const pauseResult = await wsService.current?.pauseGame(timeData);
             console.log('[PresenceConfirmationDialogSimple] Game paused successfully:', pauseResult);
 
             // Only close dialog if pause succeeded

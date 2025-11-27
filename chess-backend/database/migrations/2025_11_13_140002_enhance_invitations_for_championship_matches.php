@@ -52,32 +52,53 @@ return new class extends Migration
      */
     public function down(): void
     {
-        if (Schema::hasTable('invitations')) {
-            Schema::table('invitations', function (Blueprint $table) {
-                if (Schema::hasColumn('invitations', 'championship_match_id')) {
-                    $table->dropForeign(['championship_match_id']);
-                    $table->dropIndex(['championship_match_id']);
-                    $table->dropColumn('championship_match_id');
-                }
+        if (!Schema::hasTable('invitations')) {
+            return;
+        }
 
-                if (Schema::hasColumn('invitations', 'priority')) {
-                    $table->dropColumn('priority');
-                }
-
-                if (Schema::hasColumn('invitations', 'desired_color')) {
-                    $table->dropColumn('desired_color');
-                }
-
-                if (Schema::hasColumn('invitations', 'auto_generated')) {
-                    $table->dropColumn('auto_generated');
-                }
-
-                if (Schema::hasColumn('invitations', 'metadata')) {
-                    $table->dropColumn('metadata');
-                }
-
+        // Drop indexes first before dropping columns
+        Schema::table('invitations', function (Blueprint $table) {
+            // Drop indexes manually using DB for SQLite compatibility
+            try {
                 $table->dropIndex(['type', 'status', 'priority']);
+            } catch (\Exception $e) {
+                // Index doesn't exist or already dropped
+            }
+
+            try {
                 $table->dropIndex(['expires_at', 'status']);
+            } catch (\Exception $e) {
+                // Index doesn't exist or already dropped
+            }
+        });
+
+        // Then drop foreign keys and columns
+        Schema::table('invitations', function (Blueprint $table) {
+            if (Schema::hasColumn('invitations', 'championship_match_id')) {
+                $table->dropForeign(['championship_match_id']);
+                $table->dropIndex(['championship_match_id']);
+            }
+        });
+
+        // Only drop columns that actually exist
+        $columnsToDrop = [];
+        $columnsToCheck = [
+            'championship_match_id',
+            'priority',
+            'desired_color',
+            'auto_generated',
+            'metadata'
+        ];
+
+        foreach ($columnsToCheck as $column) {
+            if (Schema::hasColumn('invitations', $column)) {
+                $columnsToDrop[] = $column;
+            }
+        }
+
+        if (!empty($columnsToDrop)) {
+            Schema::table('invitations', function (Blueprint $table) use ($columnsToDrop) {
+                $table->dropColumn($columnsToDrop);
             });
         }
     }

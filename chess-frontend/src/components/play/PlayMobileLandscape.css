@@ -26,22 +26,38 @@
 
   /* Mobile portrait championship banner improvements */
   .game-header .championship-banner {
-    padding: 8px 12px !important;
-    margin-bottom: 8px !important;
+    padding: 2px 6px !important;
+    margin: 0.15rem 0 !important;
+    gap: 6px !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 28px !important;
+    max-width: 100% !important;
+  }
+
+  .game-header .championship-badge {
+    font-size: 0.9rem !important;
+    line-height: 1 !important;
+  }
+
+  .game-header .championship-info {
+    gap: 6px !important;
   }
 
   .game-header .championship-name {
-    font-size: 14px !important;
+    font-size: 0.8rem !important;
     font-weight: 600 !important;
     max-width: 100% !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
     white-space: nowrap !important;
+    line-height: 1.1 !important;
   }
 
   .game-header .championship-details {
-    font-size: 12px !important;
+    font-size: 0.7rem !important;
     opacity: 0.9 !important;
+    line-height: 1.1 !important;
   }
 
   /* Hide "Multiplayer Chess" title in championship mode on mobile */

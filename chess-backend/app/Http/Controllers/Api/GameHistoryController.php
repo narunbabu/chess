@@ -13,12 +13,12 @@ class GameHistoryController extends Controller
      * Extract final scores from moves string
      * Moves format: "move1,score1;move2,score2;...;moveN,scoreN"
      */
-    private function extractScoresFromMoves(string $moves, string $playerColor): array
+    private function extractScoresFromMoves(?string $moves, string $playerColor): array
     {
         $whiteScore = 0;
         $blackScore = 0;
 
-        if (empty($moves)) {
+        if ($moves === null || empty($moves)) {
             return ['white_score' => 0, 'black_score' => 0];
         }
 
@@ -69,7 +69,7 @@ class GameHistoryController extends Controller
             'played_at'      => 'required|date_format:Y-m-d H:i:s',
             'player_color'   => 'required|in:w,b',
             'computer_level' => 'nullable|integer',
-            'moves'          => 'required|string',
+            'moves'          => 'nullable|string',
             'final_score'    => 'required|numeric',
             'opponent_score' => 'nullable|numeric',
             'result'         => 'required', // Accept both string and array/object
@@ -153,7 +153,7 @@ class GameHistoryController extends Controller
                 'played_at'      => 'nullable|date_format:Y-m-d H:i:s',
                 'player_color'   => 'required|in:w,b',
                 'computer_level' => 'nullable|integer',
-                'moves'          => 'required|string',
+                'moves'          => 'nullable|string',
                 'final_score'    => 'required|numeric',
                 'opponent_score' => 'nullable|numeric',
                 'result'         => 'required', // Accept both string and array/object

@@ -12,15 +12,24 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (Schema::hasTable('championships') && !Schema::hasColumn('championships', 'tournament_config')) {
+        if (!Schema::hasTable('championships')) {
+            return;
+        }
+
+        // Add tournament_config columns if they don't exist (from earlier migration)
+        if (!Schema::hasColumn('championships', 'tournament_config')) {
             Schema::table('championships', function (Blueprint $table) {
-                // Full tournament generation support
                 $table->json('tournament_config')->nullable()->after('tournament_settings')->comment('Complete tournament configuration including round structure and tiebreak policy');
                 $table->boolean('tournament_generated')->default(false)->after('tournament_config')->comment('Whether tournament has been fully generated');
                 $table->timestamp('tournament_generated_at')->nullable()->after('tournament_generated')->comment('When tournament was generated');
+            });
+        }
 
+        // Add universal structure columns if they don't exist
+        if (!Schema::hasColumn('championships', 'structure_type')) {
+            Schema::table('championships', function (Blueprint $table) {
                 // Universal structure support
-                $table->string('structure_type', 20)->default('preset')->after('format')->comment('Tournament structure type: preset, universal, custom');
+                $table->string('structure_type', 20)->default('preset')->after('format_id')->comment('Tournament structure type: preset, universal, custom');
                 $table->boolean('use_universal_structure')->default(false)->after('structure_type')->comment('Use universal tournament structure (3-100 participants)');
                 $table->integer('k4_override')->nullable()->after('use_universal_structure')->comment('Override K4 value for selective rounds');
 
@@ -51,20 +60,45 @@ return new class extends Migration
      */
     public function down(): void
     {
-        if (Schema::hasTable('championships') && Schema::hasColumn('championships', 'tournament_config')) {
-            Schema::table('championships', function (Blueprint $table) {
-                $table->dropIndex(['structure_type', 'use_universal_structure']);
-                $table->dropIndex(['tournament_generated', 'status_id']);
+        if (!Schema::hasTable('championships')) {
+            return;
+        }
 
-                $table->dropColumn([
-                    'tournament_config',
-                    'tournament_generated',
-                    'tournament_generated_at',
-                    'structure_type',
-                    'use_universal_structure',
-                    'k4_override',
-                    'tiebreak_config'
-                ]);
+        // Only drop columns that actually exist
+        $columnsToDrop = [];
+        $columnsToCheck = [
+            'tournament_config',
+            'tournament_generated',
+            'tournament_generated_at',
+            'structure_type',
+            'use_universal_structure',
+            'k4_override',
+            'tiebreak_config'
+        ];
+
+        foreach ($columnsToCheck as $column) {
+            if (Schema::hasColumn('championships', $column)) {
+                $columnsToDrop[] = $column;
+            }
+        }
+
+        if (!empty($columnsToDrop)) {
+            // Drop indexes manually using raw SQL for SQLite compatibility
+            $indexNames = [
+                'championships_structure_type_use_universal_structure_index',
+                'championships_tournament_generated_status_id_index'
+            ];
+
+            foreach ($indexNames as $indexName) {
+                $exists = DB::select("SELECT name FROM sqlite_master WHERE type='index' AND name=?", [$indexName]);
+                if (!empty($exists)) {
+                    DB::statement("DROP INDEX {$indexName}");
+                }
+            }
+
+            // Drop columns
+            Schema::table('championships', function (Blueprint $table) use ($columnsToDrop) {
+                $table->dropColumn($columnsToDrop);
             });
         }
     }

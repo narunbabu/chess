@@ -73,6 +73,7 @@ const PlayComputer = () => {
   const moveStartTimeRef = useRef(null); // Tracks when player's turn started for move timing
   const previousGameStateRef = useRef(null); // Stores previous FEN for evaluation/history
   const [gameHistory, setGameHistory] = useState([]); // Stores move history [{ fen, move, playerColor, timeSpent, evaluation }]
+  const [encodedMoves, setEncodedMoves] = useState(''); // Stores encoded moves string for Login to Save
   const [savedGames, setSavedGames] = useState([]); // List of games loaded for replay
   const [isReplayMode, setIsReplayMode] = useState(false);
   const [replayPaused, setReplayPaused] = useState(true);
@@ -141,9 +142,26 @@ const PlayComputer = () => {
         const now = new Date();
 
         // Ensure encodeGameHistory exists and is used, otherwise stringify
+        console.log('[PlayComputer] 🎯 Encoding game history:', {
+            finalHistory_type: typeof finalHistory,
+            finalHistory_is_array: Array.isArray(finalHistory),
+            finalHistory_length: finalHistory?.length || 0,
+            finalHistory_sample: finalHistory?.[0],
+            encodeGameHistory_available: typeof encodeGameHistory === 'function'
+        });
+
         const conciseGameString = typeof encodeGameHistory === 'function'
             ? encodeGameHistory(finalHistory)
             : JSON.stringify(finalHistory);
+
+        console.log('[PlayComputer] ✅ Encoded moves:', {
+            conciseGameString_type: typeof conciseGameString,
+            conciseGameString_length: conciseGameString?.length || 0,
+            conciseGameString_sample: conciseGameString?.substring?.(0, 100) || 'NO_STRING'
+        });
+
+        // Store encoded moves in state for GameCompletionAnimation (Login to Save)
+        setEncodedMoves(conciseGameString);
 
         // Create standardized result object
         const standardizedResult = createResultFromComputerGame(
@@ -556,7 +574,8 @@ const PlayComputer = () => {
   // --- Player Move Logic (onDrop on ChessBoard) ---
    const onDrop = useCallback((sourceSquare, targetSquare) => {
         // Convert playerColor to chess.js format for comparison
-        const playerColorChess = playerColor === 'white' ? 'w' : 'b';
+        // playerColor might already be in chess.js format ('w' or 'b') or full format ('white' or 'black')
+        const playerColorChess = playerColor === 'white' || playerColor === 'w' ? 'w' : 'b';
 
         // Debug logging to identify pawn movement issues
         console.log('🎯 [PlayComputer] Move attempt:', {
@@ -575,7 +594,7 @@ const PlayComputer = () => {
 
         // Fix for timer not being initialized - ensure activeTimer is set if game started
         if (gameStarted && !activeTimer && !gameOver && !isReplayMode) {
-            console.log('🔧 [PlayComputer] Fixing uninitialized timer - setting to', playerColor);
+            console.log('🔧 [PlayComputer] Fixing uninitialized timer - setting to', playerColorChess);
             setActiveTimer(playerColorChess);
             startTimerInterval();
         }
@@ -583,15 +602,19 @@ const PlayComputer = () => {
         // Prevent move if game over, replay mode, not player's turn, or computer is thinking
         // Allow moves if game is started but timer hasn't been set yet (fallback for timer issues)
         const isTimerIssue = !activeTimer && gameStarted;
+        // Simplified condition: check turn, game state, and timer issues
         if (
-            gameOver || isReplayMode || game.turn() !== playerColorChess ||
-            (!isTimerIssue && activeTimer !== playerColor) || computerMoveInProgress
+            gameOver ||
+            isReplayMode ||
+            game.turn() !== playerColorChess ||
+            computerMoveInProgress ||
+            (!isTimerIssue && activeTimer && activeTimer !== playerColorChess)
         ) {
             console.log('❌ [PlayComputer] Move rejected - Turn/State check failed:', {
                 gameOver,
                 isReplayMode,
                 turnMatch: game.turn() !== playerColorChess,
-                activeTimerMatch: !isTimerIssue && activeTimer !== playerColor,
+                activeTimerMatch: activeTimer && activeTimer !== playerColorChess,
                 computerMoveInProgress,
                 isTimerIssue,
                 gameStarted,
@@ -741,7 +764,7 @@ const PlayComputer = () => {
         setLastMoveEvaluation(null);
         setGame(new Chess()); // Reset board to starting position
         resetTimer(); // Reset timer values (ensure useGameTimer provides initial values)
-        // Optionally set time based on difficulty here if needed using setPlayerTime/setComputerTime
+        // White always starts in chess, so set active timer to white
         setActiveTimer("w"); // White always starts
         startTimerInterval(); // Start the first timer (White's timer)
         if (playerColor === "w") {
@@ -749,6 +772,13 @@ const PlayComputer = () => {
             moveStartTimeRef.current = Date.now();
         }
         setMoveCompleted(false); // No move made yet
+
+        // If player is black, computer (white) should move immediately
+        // The computer turn useEffect will handle this automatically since:
+        // - gameStarted will be true
+        // - game.turn() will be 'w' (computer's color when player is black)
+        // - activeTimer will be 'w'
+
     }, [ // Dependencies for onCountdownFinish
         playerColor, // Read
         setActiveTimer, startTimerInterval, resetTimer, // Stable from hook
@@ -1335,20 +1365,22 @@ const PlayComputer = () => {
 
   const modalsSection = (
     <>
-      {showGameCompletion && (
-        <GameCompletionAnimation
-          result={gameResult || gameStatus} // Use standardized result object if available, fallback to text
-          score={typeof playerScore === 'number' && !isNaN(playerScore) ? playerScore : 0}
-          opponentScore={typeof computerScore === 'number' && !isNaN(computerScore) ? computerScore : 0}
-          playerColor={playerColor}
-          computerLevel={computerDepth} // Pass computer difficulty level for rating calculation
-          isMultiplayer={false} // This is computer mode
-          onClose={() => {
-            setShowGameCompletion(false);
-            resetGame();
-          }}
-        />
-      )}
+        {showGameCompletion && (
+          <GameCompletionAnimation
+            result={gameResult || gameStatus} // Use standardized result object if available, fallback to text
+            score={typeof playerScore === 'number' && !isNaN(playerScore) ? playerScore : 0}
+            opponentScore={typeof computerScore === 'number' && !isNaN(computerScore) ? computerScore : 0}
+            playerColor={playerColor}
+            computerLevel={computerDepth} // Pass computer difficulty level for rating calculation
+            moves={encodedMoves} // Pass encoded moves string for Login to Save functionality
+            gameHistory={gameHistory} // Pass full history array for pending construction
+            isMultiplayer={false} // This is computer mode
+            onClose={() => {
+              setShowGameCompletion(false);
+              resetGame();
+            }}
+          />
+        )}
     </>
   );
 
@@ -1441,6 +1473,8 @@ const PlayComputer = () => {
             opponentScore={typeof computerScore === 'number' && !isNaN(computerScore) ? computerScore : 0}
             playerColor={playerColor}
             computerLevel={computerDepth} // Pass computer difficulty level for rating calculation
+            moves={encodedMoves} // Pass encoded moves string for Login to Save functionality
+            gameHistory={gameHistory} // Pass full history array for pending construction
             isMultiplayer={false} // This is computer mode
             onClose={() => {
               setShowGameCompletion(false); // Hide the animation

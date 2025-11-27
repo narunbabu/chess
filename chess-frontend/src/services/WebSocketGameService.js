@@ -463,8 +463,8 @@ class WebSocketGameService {
   /**
    * Pause the current game
    */
-  async pauseGame() {
-    console.log('🛑 pauseGame() called - attempting to pause game');
+  async pauseGame(timeData = {}) {
+    console.log('🛑 pauseGame() called - attempting to pause game', timeData);
 
     // Prevent duplicate pause attempts
     if (this.isPausing) {
@@ -487,7 +487,7 @@ class WebSocketGameService {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(this.buildRequestBody({})),
+        body: JSON.stringify(this.buildRequestBody(timeData)),
       });
 
       const data = await response.json();
@@ -550,6 +550,18 @@ class WebSocketGameService {
       // Check for backend success flag
       if (data.success === false) {
         throw new Error(data.message || 'Game could not be resumed');
+      }
+
+      // If accepting resume, wait for game to become active
+      if (acceptResume) {
+        console.log('[ResumeGame] Waiting for game to become active...');
+        try {
+          const gameState = await this.waitForGameActive(10, 500);
+          console.log('[ResumeGame] ✅ Game is active, ready for moves', gameState);
+          data.gameState = gameState;
+        } catch (waitError) {
+          console.warn('[ResumeGame] ⚠️ Timeout waiting for active status, proceeding anyway', waitError);
+        }
       }
 
       return data;
@@ -642,6 +654,57 @@ class WebSocketGameService {
   }
 
   /**
+   * Poll game state until it becomes active or timeout
+   * @param {number} maxAttempts - Maximum number of polling attempts (default: 10)
+   * @param {number} intervalMs - Interval between polls in milliseconds (default: 500)
+   * @returns {Promise<Object>} Game state object when active
+   */
+  async waitForGameActive(maxAttempts = 10, intervalMs = 500) {
+    console.log('[WaitForGameActive] Starting to poll for active game status', {
+      maxAttempts,
+      intervalMs,
+      gameId: this.gameId
+    });
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch(`${BACKEND_URL}/websocket/games/${this.gameId}/state`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const gameStatus = data.game?.status;
+
+          console.log(`[WaitForGameActive] Attempt ${attempt}/${maxAttempts} - Status: ${gameStatus}`);
+
+          if (gameStatus === 'active') {
+            console.log('[WaitForGameActive] ✅ Game is now active');
+            return data;
+          }
+        } else {
+          console.warn(`[WaitForGameActive] Failed to fetch game state (attempt ${attempt}):`, response.status);
+        }
+      } catch (error) {
+        console.error(`[WaitForGameActive] Error on attempt ${attempt}:`, error);
+      }
+
+      // Wait before next attempt (except on last attempt)
+      if (attempt < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, intervalMs));
+      }
+    }
+
+    console.warn('[WaitForGameActive] ⚠️ Timeout waiting for game to become active');
+    throw new Error('Timeout waiting for game to become active');
+  }
+
+  /**
    * Respond to a resume request
    */
   async respondToResumeRequest(accepted) {
@@ -674,6 +737,20 @@ class WebSocketGameService {
       }
 
       console.log('✅ respondToResumeRequest() - Resume response sent successfully:', data);
+
+      // If accepted, wait for game to become active before proceeding
+      if (accepted) {
+        console.log('[RespondToResumeRequest] Waiting for game to become active...');
+        try {
+          const gameState = await this.waitForGameActive(10, 500);
+          console.log('[RespondToResumeRequest] ✅ Game is active, ready for moves', gameState);
+          // Update data with fresh game state
+          data.gameState = gameState;
+        } catch (waitError) {
+          console.warn('[RespondToResumeRequest] ⚠️ Timeout waiting for active status, proceeding anyway', waitError);
+          // Don't fail the entire operation, but log the warning
+        }
+      }
 
       // Emit resume response sent event
       this.emit('resumeResponseSent', { accepted, ...data });

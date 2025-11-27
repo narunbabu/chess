@@ -26,7 +26,10 @@ Route::group(['middleware' => 'api', 'prefix' => 'auth'], function () {
     Route::post('register', [AuthController::class, 'register']);
     Route::post('logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
 
-    // Social authentication routes
+    // Mobile authentication routes (Android/iOS)
+    Route::post('google/mobile', [AuthController::class, 'googleMobileLogin']);
+
+    // Social authentication routes (Web)
     Route::get('{provider}/redirect', [SocialAuthController::class, 'redirect']);
     Route::get('{provider}/callback', [SocialAuthController::class, 'callback']);
 });

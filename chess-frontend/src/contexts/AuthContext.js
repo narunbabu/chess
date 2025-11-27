@@ -5,6 +5,7 @@ import { initEcho, disconnectEcho } from '../services/echoSingleton';
 import presenceService from '../services/presenceService';
 import userStatusService from '../services/userStatusService';
 import { logger } from '../utils/logger';
+import { savePendingGame, getPendingGame } from '../services/gameHistoryService';
 
 // Create the AuthContext
 const AuthContext = createContext(null);
@@ -14,6 +15,48 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const pendingGameSavedRef = React.useRef(false); // Use ref instead of state to avoid re-renders
+
+  // Check for and save any pending games after successful authentication
+  const checkAndSavePendingGames = useCallback(async () => {
+    console.log('[Auth] 🔍 checkAndSavePendingGames called, ref value:', pendingGameSavedRef.current);
+    console.trace('[Auth] 📍 Call stack trace'); // Add trace to see where it's called from
+
+    if (pendingGameSavedRef.current) {
+      console.log('[Auth] ⏭️ Skipping pending game save - already processed');
+      return;
+    }
+
+    // Set flag IMMEDIATELY to prevent race condition
+    pendingGameSavedRef.current = true;
+    console.log('[Auth] 🔒 Set ref to true to prevent duplicate saves');
+
+    try {
+      const pendingGame = getPendingGame();
+      if (pendingGame) {
+        console.log('[Auth] 📝 Found pending game, attempting to save after authentication...');
+
+        const saveSuccess = await savePendingGame();
+
+        if (saveSuccess) {
+          console.log('[Auth] ✅ Pending game saved successfully after login!');
+          // ref already set to true above
+          // TODO: Show success notification to user
+          // Could use a toast notification or temporary banner
+        } else {
+          console.warn('[Auth] ⚠️ Failed to save pending game, resetting flag for retry');
+          pendingGameSavedRef.current = false; // Reset flag to allow retry
+          // Game remains in localStorage for future retry attempts
+        }
+      } else {
+        console.log('[Auth] ℹ️ No pending game found');
+        // ref already set to true above
+      }
+    } catch (error) {
+      console.error('[Auth] ❌ Error checking for pending games:', error);
+      // Keep ref as true to prevent infinite retries on error
+    }
+  }, []); // No dependencies - this function never changes
 
   // Fetch current user data
   const fetchUser = useCallback(async () => {
@@ -39,6 +82,9 @@ export const AuthProvider = ({ children }) => {
 
       setUser(response.data);
       setIsAuthenticated(true);
+
+      // Check for and save any pending games after successful authentication
+      await checkAndSavePendingGames();
 
       // Initialize Echo singleton after successful auth
       const wsConfig = {
@@ -93,7 +139,7 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [checkAndSavePendingGames]);
 
   // Check for token presence when the provider mounts
   useEffect(() => {
@@ -121,6 +167,9 @@ export const AuthProvider = ({ children }) => {
     // Disconnect Echo WebSocket before logout
     disconnectEcho();
     console.log('[Auth] Echo disconnected on logout');
+
+    // Reset pending game saved flag for next login
+    pendingGameSavedRef.current = false;
 
     localStorage.removeItem("auth_token");
     localStorage.removeItem("user"); // Also remove user data

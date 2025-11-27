@@ -253,6 +253,10 @@ class GameRoomService
                 'avatar' => $game->blackPlayer->avatar,
                 'online' => $this->isUserOnline($game->blackPlayer->id, $game->id)
             ],
+            'white_time_paused_ms' => $game->white_time_paused_ms,
+            'black_time_paused_ms' => $game->black_time_paused_ms,
+            'white_player_score' => $game->white_player_score,
+            'black_player_score' => $game->black_player_score,
             'last_move_at' => $game->last_move_at?->toISOString(),
             'created_at' => $game->created_at->toISOString(),
             'updated_at' => $game->updated_at->toISOString()
@@ -483,8 +487,23 @@ class GameRoomService
             throw new \Exception('User not authorized to make moves in this game');
         }
 
+        // Allow brief window for status update if recently resumed
         if ($game->status !== 'active') {
-            throw new \Exception('Game is not active, current status: ' . $game->status);
+            // If game was recently updated (within last 5 seconds), refresh to get latest status
+            // This handles race conditions where resume request was just accepted
+            if ($game->status === 'paused' && $game->updated_at->diffInSeconds(now()) < 5) {
+                \Log::info('Game status check: refreshing recently updated game', [
+                    'game_id' => $gameId,
+                    'current_status' => $game->status,
+                    'updated_at' => $game->updated_at,
+                    'seconds_ago' => $game->updated_at->diffInSeconds(now())
+                ]);
+                $game->refresh();
+            }
+
+            if ($game->status !== 'active') {
+                throw new \Exception('Game is not active, current status: ' . $game->status);
+            }
         }
 
         // Verify it's the user's turn
@@ -549,11 +568,23 @@ class GameRoomService
             $updateData['black_player_score'] = (float)$move['black_player_score'];
         }
 
-        \Log::info('Updating game scores', [
+        // Update remaining clock times if provided
+        // This ensures times are preserved across moves, pauses, and page refreshes
+        if (isset($move['white_time_remaining_ms']) && is_numeric($move['white_time_remaining_ms'])) {
+            $updateData['white_time_paused_ms'] = (int)$move['white_time_remaining_ms'];
+        }
+
+        if (isset($move['black_time_remaining_ms']) && is_numeric($move['black_time_remaining_ms'])) {
+            $updateData['black_time_paused_ms'] = (int)$move['black_time_remaining_ms'];
+        }
+
+        \Log::info('Updating game scores and times', [
             'game_id' => $gameId,
             'user_id' => $userId,
             'white_score' => $updateData['white_player_score'] ?? 'not provided',
-            'black_score' => $updateData['black_player_score'] ?? 'not provided'
+            'black_score' => $updateData['black_player_score'] ?? 'not provided',
+            'white_time_ms' => $updateData['white_time_paused_ms'] ?? 'not provided',
+            'black_time_ms' => $updateData['black_time_paused_ms'] ?? 'not provided'
         ]);
 
         $game->update($updateData);
@@ -1107,7 +1138,7 @@ class GameRoomService
     /**
      * Pause game due to inactivity
      */
-    public function pauseGame(int $gameId, int $pausedByUserId, string $reason = 'inactivity'): array
+    public function pauseGame(int $gameId, int $pausedByUserId, string $reason = 'inactivity', ?int $whiteTimeMs = null, ?int $blackTimeMs = null): array
     {
         $game = Game::findOrFail($gameId);
         $pausedByUser = User::findOrFail($pausedByUserId);
@@ -1119,9 +1150,9 @@ class GameRoomService
             ];
         }
 
-        // Store current time remaining for each player before pausing
-        $whiteTimeRemaining = $game->white_time_remaining_ms;
-        $blackTimeRemaining = $game->black_time_remaining_ms;
+        // Use provided time data if available, otherwise fallback to existing values in DB
+        $whiteTimeRemaining = $whiteTimeMs ?? $game->white_time_paused_ms ?? 600000; // Default 10 minutes
+        $blackTimeRemaining = $blackTimeMs ?? $game->black_time_paused_ms ?? 600000; // Default 10 minutes
         $currentTurn = $game->turn;
 
         // Give 40 seconds grace time to the player whose turn it was when paused
@@ -1336,7 +1367,7 @@ class GameRoomService
             'status' => 'pending',
             'type' => 'resume_request',
             'game_id' => $gameId,
-            'expires_at' => now()->addSeconds(10) // 10 second window
+            'expires_at' => now()->addMinutes(2) // 2 minute window for better UX
         ]);
 
         // Set resume request data
@@ -1503,6 +1534,22 @@ class GameRoomService
             $resumeResult = $this->resumeGameFromInactivity($gameId, $userId);
 
             if ($resumeResult['success']) {
+                // Ensure game status is fully committed before broadcasting success
+                $game->refresh();
+
+                // Verify game is actually active after resume
+                if ($game->status !== 'active') {
+                    Log::error('Game status not active after resume', [
+                        'game_id' => $gameId,
+                        'current_status' => $game->status,
+                        'resume_result' => $resumeResult
+                    ]);
+                    return [
+                        'success' => false,
+                        'message' => 'Failed to activate game after resume'
+                    ];
+                }
+
                 // Update the invitation record to accepted
                 \App\Models\Invitation::where('type', 'resume_request')
                     ->where('game_id', $gameId)

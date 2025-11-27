@@ -1,12 +1,13 @@
 // src/components/GameCompletionAnimation.js
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { saveGameHistory } from "../services/gameHistoryService"; // Assuming this path is correct
+import { saveGameHistory, storePendingGame } from "../services/gameHistoryService"; // Assuming this path is correct
 import { updateRating } from "../services/ratingService";
 import { getRatingFromLevel } from "../utils/eloUtils";
 import { useAuth } from "../contexts/AuthContext";
 import { isWin, isDraw as isDrawResult, getResultDisplayText } from "../utils/resultStandardization";
 import { shareGameWithFriends } from "../utils/shareUtils";
+import { encodeGameHistory } from "../utils/gameHistoryStringUtils"; // Import for encoding moves
 import GIF from 'gif.js';
 import GameEndCard from "./GameEndCard";
 import "./GameCompletionAnimation.css";
@@ -21,6 +22,7 @@ const GameCompletionAnimation = ({
   playerColor,
   onClose,
   moves,
+  gameHistory = [], // Full history array for pending construction
   onNewGame,
   onBackToLobby,
   onPreview,
@@ -212,7 +214,46 @@ const GameCompletionAnimation = ({
     navigate("/dashboard"); // Navigate to dashboard or another appropriate route
   };
 
-  const handleLoginRedirect = () => navigate("/login");
+  const handleLoginRedirect = () => {
+    // Encode moves to semicolon-separated format for efficient storage
+    let movesString;
+    if (Array.isArray(gameHistory) && gameHistory.length > 0) {
+      // Use encodeGameHistory to convert to semicolon format: e4,2.52;Nf6,0.98;...
+      movesString = encodeGameHistory(gameHistory);
+      console.log('[GameCompletionAnimation] ✅ Encoded gameHistory to semicolon format:', {
+        history_length: gameHistory.length,
+        encoded_sample: movesString.substring(0, 100),
+        string_length: movesString.length
+      });
+    } else if (typeof moves === 'string' && moves) {
+      movesString = moves;
+      console.log('[GameCompletionAnimation] Using passed moves string:', moves.substring(0, 100));
+    } else {
+      movesString = ''; // Use empty string for no moves
+      console.warn('[GameCompletionAnimation] No moves available for pending game, using empty string');
+    }
+
+    // Store the game data locally before redirecting to login
+    const gameDataToStore = {
+      result,
+      score,
+      opponentScore,
+      playerColor,
+      timestamp: new Date().toISOString(),
+      computerLevel,
+      moves: movesString, // Detailed JSON string
+      gameId,
+      opponentRating,
+      opponentId,
+      championshipData,
+      isMultiplayer
+    };
+
+    storePendingGame(gameDataToStore);
+    console.log('[GameCompletionAnimation] Game data stored for deferred save before login redirect');
+
+    navigate("/login");
+  };
   const handleViewInHistory = () => {
     const savedGameId = localStorage.getItem('lastGameId');
     if (savedGameId) {

@@ -28,8 +28,24 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('championships', function (Blueprint $table) {
-            $table->dropColumn(['tournament_config', 'tournament_generated', 'tournament_generated_at']);
-        });
+        if (!Schema::hasTable('championships')) {
+            return;
+        }
+
+        // Only drop columns that actually exist
+        $columnsToDrop = [];
+        $columnsToCheck = ['tournament_config', 'tournament_generated', 'tournament_generated_at'];
+
+        foreach ($columnsToCheck as $column) {
+            if (Schema::hasColumn('championships', $column)) {
+                $columnsToDrop[] = $column;
+            }
+        }
+
+        if (!empty($columnsToDrop)) {
+            Schema::table('championships', function (Blueprint $table) use ($columnsToDrop) {
+                $table->dropColumn($columnsToDrop);
+            });
+        }
     }
 };

@@ -30,12 +30,31 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (!Schema::hasTable('games')) {
+            return;
+        }
+
         Schema::table('games', function (Blueprint $table) {
-            $table->dropColumn([
-                'draw_reason',
-                'insufficient_material_draw',
-                'timeout_winner_id'
-            ]);
+            // Drop foreign key constraint first if it exists
+            if (Schema::hasColumn('games', 'timeout_winner_id')) {
+                $table->dropForeign(['timeout_winner_id']);
+            }
         });
+
+        // Only drop columns that actually exist
+        $columnsToDrop = [];
+        $columnsToCheck = ['draw_reason', 'insufficient_material_draw', 'timeout_winner_id'];
+
+        foreach ($columnsToCheck as $column) {
+            if (Schema::hasColumn('games', $column)) {
+                $columnsToDrop[] = $column;
+            }
+        }
+
+        if (!empty($columnsToDrop)) {
+            Schema::table('games', function (Blueprint $table) use ($columnsToDrop) {
+                $table->dropColumn($columnsToDrop);
+            });
+        }
     }
 };

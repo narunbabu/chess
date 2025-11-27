@@ -4,6 +4,8 @@
 // import axios from "axios";
 // import { BACKEND_URL } from "../config";
 import api from "./api";
+import { encodeGameHistory } from "../utils/gameHistoryStringUtils";
+
 const STORAGE_KEY = "chess_trainer_game_history";
 
 /**
@@ -29,12 +31,24 @@ export const saveGameHistory = async (gameData) => {
            String(date.getSeconds()).padStart(2, '0');
   };
 
+  // Convert moves to encoded string format if needed
+  let movesString;
+  if (typeof gameData.moves === 'string') {
+    movesString = gameData.moves;
+  } else if (Array.isArray(gameData.moves)) {
+    movesString = encodeGameHistory(gameData.moves);
+    console.log('[gameHistoryService] 🔄 Encoded moves array to string format');
+  } else {
+    movesString = '';
+    console.warn('[gameHistoryService] ⚠️ Invalid moves format, using empty string');
+  }
+
   // Prepare data for backend (Laravel format)
   const backendData = {
     played_at: formatDateForLaravel(gameData.played_at || new Date().toISOString()),
     player_color: gameData.player_color || gameData.playerColor,
     computer_level: gameData.computer_level || gameData.computer_depth || gameData.computerLevel,
-    moves: typeof gameData.moves === 'string' ? gameData.moves : JSON.stringify(gameData.moves),
+    moves: movesString,
     final_score: gameData.final_score ?? gameData.finalScore ?? gameData.score ?? 0,
     opponent_score: gameData.opponent_score ?? gameData.opponentScore ?? 0,
     result: gameData.result,
@@ -44,14 +58,31 @@ export const saveGameHistory = async (gameData) => {
     game_mode: gameData.game_mode || 'computer'
   };
 
-  // Prepare a history record for localStorage (keeps original format)
+  // Debug logging to verify data structure before sending
+  console.log('[gameHistoryService] 📤 Attempting to save game with data:', {
+    played_at: backendData.played_at,
+    player_color: backendData.player_color,
+    computer_level: backendData.computer_level,
+    moves: backendData.moves,
+    moves_type: typeof backendData.moves,
+    moves_length: backendData.moves?.length || 0,
+    moves_sample: backendData.moves?.substring?.(0, 100) || 'NO_MOVES',
+    final_score: backendData.final_score,
+    opponent_score: backendData.opponent_score,
+    result: backendData.result,
+    game_id: backendData.game_id,
+    opponent_name: backendData.opponent_name,
+    game_mode: backendData.game_mode
+  });
+
+  // Prepare a history record for localStorage (uses encoded format)
   const record = {
     ...gameData,
     finalScore: gameData.finalScore ?? gameData.final_score ?? gameData.score,
     finalNormScore: gameData.finalNormScore ?? null,
     id: gameData.id || `local_${Date.now()}`,
     played_at: gameData.played_at || new Date().toISOString(),
-    moves: typeof gameData.moves === 'string' ? gameData.moves : JSON.stringify(gameData.moves),
+    moves: movesString, // Use the encoded string format
   };
 
   try {
@@ -243,6 +274,152 @@ export const deleteGameHistory = async (id) => {
     console.error("Error deleting game history:", error);
     return false;
   }
+};
+
+// PENDING GAME STORAGE FOR "LOGIN TO SAVE" FUNCTIONALITY
+const PENDING_GAME_KEY = "pending_chess_game_save";
+
+/**
+ * Store game data locally for deferred saving after login
+ * @param {Object} gameData - The game data to save later
+ */
+export const storePendingGame = (gameData) => {
+  // Handle undefined/null/empty moves for backend compatibility
+  let movesAsString;
+
+  if (gameData.moves === undefined || gameData.moves === null || gameData.moves === '') {
+    // If moves is undefined/null/empty, create an empty string to satisfy validation
+    movesAsString = '';
+    console.warn('[PendingGame] ⚠️ Moves field is undefined/null/empty, using empty string for backend validation');
+  } else if (typeof gameData.moves === 'string') {
+    // If already a string, use as-is
+    movesAsString = gameData.moves;
+    console.log('[PendingGame] 📝 Moves already in string format:', movesAsString?.substring(0, 100));
+  } else if (Array.isArray(gameData.moves)) {
+    // If array, use encodeGameHistory to convert to semicolon-separated format
+    movesAsString = encodeGameHistory(gameData.moves);
+    console.log('[PendingGame] 🔄 Moves converted from array to semicolon format:', movesAsString?.substring(0, 100));
+  } else {
+    // Fallback for unknown formats
+    movesAsString = JSON.stringify(gameData.moves);
+    console.warn('[PendingGame] ⚠️ Unknown moves format, using JSON.stringify as fallback');
+  }
+
+  const pendingGame = {
+    gameData: {
+      result: gameData.result,
+      score: gameData.score,
+      opponentScore: gameData.opponentScore,
+      playerColor: gameData.playerColor,
+      timestamp: gameData.timestamp || new Date().toISOString(),
+      computerLevel: gameData.computerLevel,
+      moves: movesAsString, // Store as string for backend compatibility
+      gameId: gameData.gameId,
+      opponentRating: gameData.opponentRating,
+      opponentId: gameData.opponentId,
+      championshipData: gameData.championshipData,
+      isMultiplayer: gameData.isMultiplayer
+    },
+    metadata: {
+      timestamp: Date.now(),
+      source: 'game_completion',
+      redirectAfterSave: '/dashboard'
+    },
+    ttl: 24 * 60 * 60 * 1000 // 24 hours expiry
+  };
+
+  localStorage.setItem(PENDING_GAME_KEY, JSON.stringify(pendingGame));
+  console.log('[PendingGame] 📝 Game data stored for deferred save:', pendingGame);
+  console.log('[PendingGame] 📊 Final moves verification:', {
+    original_type: typeof gameData.moves,
+    original_value: gameData.moves,
+    final_type: typeof movesAsString,
+    final_value: movesAsString,
+    is_empty: movesAsString === '',
+    backend_compatible: movesAsString !== undefined && movesAsString !== null
+  });
+};
+
+/**
+ * Retrieve pending game data
+ * @returns {Object|null} Pending game data or null if none exists/expired
+ */
+export const getPendingGame = () => {
+  try {
+    const pendingGameStr = localStorage.getItem(PENDING_GAME_KEY);
+    if (!pendingGameStr) return null;
+
+    const pendingGame = JSON.parse(pendingGameStr);
+
+    // Check if pending game has expired (24 hours)
+    if (Date.now() - pendingGame.metadata.timestamp > pendingGame.ttl) {
+      localStorage.removeItem(PENDING_GAME_KEY);
+      console.log('[PendingGame] Pending game expired, removing from storage');
+      return null;
+    }
+
+    console.log('[PendingGame] Found pending game:', pendingGame);
+    return pendingGame;
+  } catch (error) {
+    console.error('[PendingGame] Error retrieving pending game:', error);
+    localStorage.removeItem(PENDING_GAME_KEY);
+    return null;
+  }
+};
+
+/**
+ * Save pending game to backend and clear from localStorage
+ * @returns {Promise<boolean>} Success status
+ */
+export const savePendingGame = async () => {
+  const pendingGame = getPendingGame();
+  if (!pendingGame) return false;
+
+  try {
+    console.log('[PendingGame] 📤 Saving pending game to backend...');
+    console.log('[PendingGame] 📊 Game data being saved:', pendingGame.gameData);
+
+    // Verify moves format before sending
+    const movesType = typeof pendingGame.gameData.moves;
+    const movesLength = pendingGame.gameData.moves?.length || 0;
+    console.log('[PendingGame] 🎯 Moves verification:', {
+      moves_type: movesType,
+      moves_length: movesLength,
+      moves_sample: pendingGame.gameData.moves?.substring?.(0, 100),
+      is_empty: !pendingGame.gameData.moves,
+      is_null: pendingGame.gameData.moves === null,
+      is_undefined: pendingGame.gameData.moves === undefined
+    });
+
+    const response = await saveGameHistory(pendingGame.gameData);
+
+    if (response) {
+      localStorage.removeItem(PENDING_GAME_KEY);
+      console.log('[PendingGame] ✅ Pending game saved successfully:', response);
+      return true;
+    } else {
+      console.warn('[PendingGame] Backend returned no response for pending game');
+      return false;
+    }
+  } catch (error) {
+    console.error('[PendingGame] ❌ Failed to save pending game:', error);
+    console.error('[PendingGame] 📄 Error details:', {
+      message: error.message,
+      status: error.response?.status,
+      data: error.response?.data,
+      config: error.config
+    });
+    // Don't remove from localStorage on failure, let it retry
+    return false;
+  }
+};
+
+/**
+ * Clear pending game from localStorage
+ */
+export const clearPendingGame = () => {
+  localStorage.removeItem(PENDING_GAME_KEY);
+  console.log('[PendingGame] Pending game cleared from storage');
 };
 
 export const clearGameHistory = async () => {
