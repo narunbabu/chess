@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Unfinished Game</title>
+</head>
+<body>
+    <h1>Testing Unfinished Game Storage</h1>
+    <button onclick="createTestGame()">Create Test Unfinished Game</button>
+    <button onclick="checkUnfinishedGames()">Check Unfinished Games</button>
+    <button onclick="clearUnfinishedGames()">Clear Unfinished Games</button>
+    <div id="result"></div>
+
+    <script>
+        function createTestGame() {
+            const testGame = {
+                gameId: null,
+                fen: 'rnbqkbnr/pppppppp/8/8/8/8 w KQkq - 0 1',
+                pgn: '',
+                moves: ['e2e4', 'e7e5'],
+                playerColor: 'white',
+                opponentName: 'Computer',
+                gameMode: 'computer',
+                computerLevel: 1,
+                timerState: {
+                    whiteMs: 300000,
+                    blackMs: 300000,
+                    incrementMs: 1000
+                },
+                turn: 'black',
+                timestamp: Date.now(),
+                savedReason: 'navigation',
+                ttl: Date.now() + (7 * 24 * 60 * 60 * 1000)
+            };
+            localStorage.setItem('chess_unfinished_game', JSON.stringify(testGame));
+            document.getElementById('result').innerHTML = '<div style="color: green;">✅ Test game created! Now visit the main app.</div>';
+        }
+
+        function checkUnfinishedGames() {
+            const data = localStorage.getItem('chess_unfinished_game');
+            if (data) {
+                const game = JSON.parse(data);
+                document.getElementById('result').innerHTML = '<div style="color: blue;">Found game: ' + game.opponentName + ' (' + game.gameMode + ')</div>';
+            } else {
+                document.getElementById('result').innerHTML = '<div style="color: red;">No unfinished games found</div>';
+            }
+        }
+
+        function clearUnfinishedGames() {
+            localStorage.removeItem('chess_unfinished_game');
+            document.getElementById('result').innerHTML = '<div style="color: orange;">🗑️ Cleared!</div>';
+        }
+    </script>
+</body>
+</html>

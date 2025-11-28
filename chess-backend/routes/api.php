@@ -63,10 +63,14 @@ Route::middleware('auth:sanctum')->group(function () {
     // Game routes
     Route::post('/games', [GameController::class, 'create']);
     Route::get('/games/active', [GameController::class, 'activeGames']);
+    Route::get('/games/unfinished', [GameController::class, 'unfinishedGames']);
+    Route::post('/games/create-from-unfinished', [GameController::class, 'createFromUnfinished']);
     Route::get('/games/{id}', [GameController::class, 'show']);
     Route::get('/games/{id}/moves', [GameController::class, 'moves']); // Efficient compact format
     Route::post('/games/{id}/move', [GameController::class, 'move']);
     Route::post('/games/{id}/resign', [GameController::class, 'resign']);
+    Route::post('/games/{id}/pause-navigation', [GameController::class, 'pauseNavigation']);
+    Route::delete('/games/{id}/unfinished', [GameController::class, 'deleteUnfinished']);
     Route::get('/games', [GameController::class, 'userGames']);
 
     // Contextual Presence routes (Smart, context-aware tracking) - MUST come before parameterized routes

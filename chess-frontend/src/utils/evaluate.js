@@ -3,6 +3,7 @@
  * A comprehensive chess move evaluation system
  * Based on principles from modern chess engines and evaluation systems
  */
+import { logMoveEvaluation } from './devLogger';
 
 // Constants for scoring components
 const PIECE_VALUES = {
@@ -160,26 +161,18 @@ function evaluatePlayerMove(
   const totalBeforeCap = totalScore;
   totalScore = Math.max(-cap, Math.min(cap, totalScore));
 
-  // Console logging for debugging
-  console.log('📊 [Score Calculation]', {
-    move: move.san || `${move.from}-${move.to}`,
+  // Use optimized logging for debugging
+  logMoveEvaluation({
+    move: move,
     color: move.color,
-    components: {
-      material: scoreComponents.material.toFixed(2),
-      positional: scoreComponents.positional.toFixed(2),
-      tactical: scoreComponents.tactical.toFixed(2),
-      kingThreat: scoreComponents.kingThreat.toFixed(2),
-      development: scoreComponents.development.toFixed(2),
-      timeBonus: scoreComponents.timeBonus.toFixed(2),
-      risk: scoreComponents.risk.toFixed(2)
-    },
-    totalBeforeCap: totalBeforeCap.toFixed(2),
-    difficultyFactor: difficultyFactor.toFixed(2),
-    cap: cap.toFixed(2),
-    totalAfterCap: totalScore.toFixed(2),
-    playerRating: playerRating,
-    engineLevel: engineLevel,
-    gamePhase: gamePhase
+    components: scoreComponents,
+    totalBeforeCap,
+    difficultyFactor,
+    cap,
+    totalScore,
+    playerRating,
+    engineLevel,
+    gamePhase
   });
 
   // Adjust score based on game result
@@ -192,26 +185,53 @@ function evaluatePlayerMove(
       );
       if (newGameState.turn() === move.color) {
         totalScore -= bonus;
-        console.log('⚠️ [Checkmate Penalty]', { bonus: bonus.toFixed(2), newTotal: totalScore.toFixed(2) });
+        logMoveEvaluation({
+          move,
+          color: move.color,
+          total: totalScore,
+          totalBeforeCap,
+          classification: 'Checkmate Penalty',
+          engineEvaluation: `-${bonus.toFixed(2)}`
+        });
       } else {
         totalScore += bonus;
-        console.log('✅ [Checkmate Bonus]', { bonus: bonus.toFixed(2), newTotal: totalScore.toFixed(2) });
+        logMoveEvaluation({
+          move,
+          color: move.color,
+          total: totalScore,
+          totalBeforeCap,
+          classification: 'Checkmate Bonus',
+          engineEvaluation: `+${bonus.toFixed(2)}`
+        });
       }
     } else if (newGameState.isDraw()) {
       // Draw results in a small negative score
       totalScore -= 10;
-      console.log('⚖️ [Draw Penalty]', { penalty: -10, newTotal: totalScore.toFixed(2) });
+      logMoveEvaluation({
+        move,
+        color: move.color,
+        total: totalScore,
+        totalBeforeCap,
+        classification: 'Draw Penalty',
+        engineEvaluation: -10
+      });
     }
   }
 
   const finalTotal = Math.round(totalScore * 10) / 10;
   const classification = classifyMove(totalScore, engineEvaluation, playerRating);
 
-  console.log('🎯 [Final Score]', {
-    total: finalTotal,
-    classification: classification,
-    engineDifference: engineEvaluation
-  });
+  // Only log final scores that are significant (outside normal range)
+  if (Math.abs(finalTotal) > 1 || classification !== 'Inaccuracy') {
+    logMoveEvaluation({
+      move,
+      color: move.color,
+      total: finalTotal,
+      totalBeforeCap,
+      classification,
+      engineEvaluation
+    });
+  }
 
   return {
     components: scoreComponents, // Return raw components (no rating adaptation)
@@ -762,7 +782,7 @@ function classifyMove(score, engineDifference, playerRating) {
 }
 
 // Export the main evaluation function
-module.exports = {
+export {
   evaluatePlayerMove,
   PIECE_VALUES,
   determineGamePhase,

@@ -6,6 +6,7 @@ import presenceService from '../services/presenceService';
 import userStatusService from '../services/userStatusService';
 import { logger } from '../utils/logger';
 import { savePendingGame, getPendingGame } from '../services/gameHistoryService';
+import { migrateGuestGame } from '../services/unfinishedGameService';
 
 // Create the AuthContext
 const AuthContext = createContext(null);
@@ -16,6 +17,72 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const pendingGameSavedRef = React.useRef(false); // Use ref instead of state to avoid re-renders
+  const unfinishedGamesMigratedRef = React.useRef(false); // Track if unfinished games have been migrated
+
+  // Migrate guest unfinished games to backend after login
+  const migrateGuestUnfinishedGames = useCallback(async () => {
+    console.log('[Auth] 🔍 Checking for guest unfinished games to migrate...');
+
+    if (unfinishedGamesMigratedRef.current) {
+      console.log('[Auth] ⏭️ Skipping unfinished games migration - already processed');
+      return;
+    }
+
+    // Set flag IMMEDIATELY to prevent race condition
+    unfinishedGamesMigratedRef.current = true;
+    console.log('[Auth] 🔒 Set migration ref to true');
+
+    try {
+      // Get unfinished games from localStorage (guest games)
+      const localStorageKey = 'chess_unfinished_games_guest';
+      const guestGamesJson = localStorage.getItem(localStorageKey);
+
+      if (!guestGamesJson) {
+        console.log('[Auth] ℹ️ No guest unfinished games found');
+        return;
+      }
+
+      const guestGames = JSON.parse(guestGamesJson);
+      const validGames = guestGames.filter(game => {
+        const age = Date.now() - game.savedAt;
+        const ttl = 7 * 24 * 60 * 60 * 1000; // 7 days
+        return age < ttl && game.gameMode === 'computer'; // Only migrate computer games
+      });
+
+      if (validGames.length === 0) {
+        console.log('[Auth] ℹ️ No valid guest unfinished games to migrate');
+        localStorage.removeItem(localStorageKey);
+        return;
+      }
+
+      console.log(`[Auth] 📦 Found ${validGames.length} guest unfinished games to migrate`);
+
+      // Migrate each game to backend
+      let migratedCount = 0;
+      for (const game of validGames) {
+        try {
+          const success = await migrateGuestGame(game);
+          if (success) {
+            migratedCount++;
+          }
+        } catch (error) {
+          console.error('[Auth] ❌ Error migrating game:', game.gameId, error);
+        }
+      }
+
+      console.log(`[Auth] ✅ Migrated ${migratedCount}/${validGames.length} unfinished games`);
+
+      // Clear guest games from localStorage after successful migration
+      if (migratedCount > 0) {
+        localStorage.removeItem(localStorageKey);
+        console.log('[Auth] 🗑️ Cleared guest unfinished games from localStorage');
+      }
+
+    } catch (error) {
+      console.error('[Auth] ❌ Error migrating guest unfinished games:', error);
+      unfinishedGamesMigratedRef.current = false; // Reset flag to allow retry
+    }
+  }, []);
 
   // Check for and save any pending games after successful authentication
   const checkAndSavePendingGames = useCallback(async () => {
@@ -86,6 +153,9 @@ export const AuthProvider = ({ children }) => {
       // Check for and save any pending games after successful authentication
       await checkAndSavePendingGames();
 
+      // Migrate guest unfinished games to backend
+      await migrateGuestUnfinishedGames();
+
       // Initialize Echo singleton after successful auth
       const wsConfig = {
         key: process.env.REACT_APP_REVERB_APP_KEY,
@@ -139,7 +209,7 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, [checkAndSavePendingGames]);
+  }, [checkAndSavePendingGames, migrateGuestUnfinishedGames]);
 
   // Check for token presence when the provider mounts
   useEffect(() => {

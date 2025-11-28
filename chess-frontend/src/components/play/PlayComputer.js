@@ -18,9 +18,11 @@ import { makeComputerMove } from "../../utils/computerMoveUtils"; // Adjust path
 import { updateGameStatus, evaluateMove } from "../../utils/gameStateUtils"; // Adjust paths if needed (ensure evaluateMove exists)
 import { encodeGameHistory, reconstructGameFromHistory } from "../../utils/gameHistoryStringUtils"; // Adjust paths if needed
 import { createResultFromComputerGame } from "../../utils/resultStandardization"; // Standardized result format
+import { monitorPerformance } from "../../utils/devLogger";
 
 // Import Services
 import { saveGameHistory, getGameHistories } from "../../services/gameHistoryService"; // Adjust paths if needed
+import { saveUnfinishedGame } from "../../services/unfinishedGameService"; // For saving paused games
 import { useAuth } from "../../contexts/AuthContext";
 import { useAppData } from "../../contexts/AppDataContext";
 
@@ -95,9 +97,54 @@ const PlayComputer = () => {
   // --- Custom timer hook ---
   const {
     playerTime, computerTime, activeTimer, isTimerRunning, timerRef,
-    setActiveTimer, setIsTimerRunning,
+    setActiveTimer, setIsTimerRunning, setPlayerTime, setComputerTime,
     handleTimer: startTimerInterval, pauseTimer, switchTimer, resetTimer
   } = useGameTimer(playerColor, game, setGameStatus); // Pass callbacks
+
+  // --- Enhanced pause handler with game saving ---
+  const handlePauseWithSave = useCallback(async () => {
+    console.log('[PlayComputer] ⏸️ Pause clicked - saving game state');
+
+    // First pause the timer
+    pauseTimer();
+
+    // Save current game state as unfinished game
+    if (gameStarted && !gameOver && gameHistory.length > 0) {
+      try {
+        const gameState = {
+          fen: game.fen(),
+          pgn: game.pgn(),
+          moves: gameHistory,
+          playerColor: playerColor,
+          opponentName: 'Computer',
+          gameMode: 'computer',
+          computerLevel: computerDepth,
+          timerState: {
+            whiteTime: playerColor === 'w' ? playerTime : computerTime,
+            blackTime: playerColor === 'b' ? playerTime : computerTime,
+            whiteMs: playerColor === 'w' ? playerTime * 1000 : computerTime * 1000,
+            blackMs: playerColor === 'b' ? playerTime * 1000 : computerTime * 1000
+          },
+          turn: game.turn(),
+          savedReason: 'pause'
+        };
+
+        const result = await saveUnfinishedGame(gameState, !!user, null);
+        console.log('[PlayComputer] 💾 Game saved on pause:', result);
+
+        // Show brief confirmation to user
+        setGameStatus(prev => prev + ' (Game saved - can resume from landing page)');
+
+        // Invalidate game history cache to refresh unfinished games
+        if (invalidateGameHistory) {
+          invalidateGameHistory();
+        }
+      } catch (error) {
+        console.error('[PlayComputer] ❌ Failed to save game on pause:', error);
+        setGameStatus(prev => prev + ' (Error saving game)');
+      }
+    }
+  }, [gameStarted, gameOver, gameHistory, playerColor, computerDepth, playerTime, computerTime, game, pauseTimer, user, invalidateGameHistory]);
 
   // --- Utility Callbacks ---
    const safeGameMutate = useCallback((modify) => {
@@ -265,6 +312,88 @@ const PlayComputer = () => {
     };
   }, []); // setIsPortrait is stable
 
+  // Effect for auto-saving game on page navigation/unload
+  useEffect(() => {
+    const handleBeforeUnload = async (event) => {
+      // Only save if game is active and has history
+      if (gameStarted && !gameOver && gameHistory.length > 0) {
+        try {
+          const gameState = {
+            fen: game.fen(),
+            pgn: game.pgn(),
+            moves: gameHistory,
+            playerColor: playerColor,
+            opponentName: 'Computer',
+            gameMode: 'computer',
+            computerLevel: computerDepth,
+            timerState: {
+              whiteTime: playerColor === 'w' ? playerTime : computerTime,
+              blackTime: playerColor === 'b' ? playerTime : computerTime,
+              whiteMs: playerColor === 'w' ? playerTime * 1000 : computerTime * 1000,
+              blackMs: playerColor === 'b' ? playerTime * 1000 : computerTime * 1000
+            },
+            turn: game.turn(),
+            savedReason: 'navigation'
+          };
+
+          // Save to localStorage synchronously for beforeunload (can't use async)
+          const result = saveUnfinishedGame(gameState, !!user, null);
+          console.log('[PlayComputer] 📂 Auto-saving on navigation:', result);
+
+          // Show user a brief message (though might not be visible due to page unload)
+          event.returnValue = 'Your game will be saved and can be resumed later.';
+          return event.returnValue;
+        } catch (error) {
+          console.error('[PlayComputer] ❌ Failed to auto-save on navigation:', error);
+        }
+      }
+    };
+
+    const handleVisibilityChange = async () => {
+      // Save when page becomes hidden (user switches tabs, minimizes browser)
+      if (document.hidden && gameStarted && !gameOver && gameHistory.length > 0) {
+        try {
+          const gameState = {
+            fen: game.fen(),
+            pgn: game.pgn(),
+            moves: gameHistory,
+            playerColor: playerColor,
+            opponentName: 'Computer',
+            gameMode: 'computer',
+            computerLevel: computerDepth,
+            timerState: {
+              whiteTime: playerColor === 'w' ? playerTime : computerTime,
+              blackTime: playerColor === 'b' ? playerTime : computerTime,
+              whiteMs: playerColor === 'w' ? playerTime * 1000 : computerTime * 1000,
+              blackMs: playerColor === 'b' ? playerTime * 1000 : computerTime * 1000
+            },
+            turn: game.turn(),
+            savedReason: 'visibility_change'
+          };
+
+          const result = await saveUnfinishedGame(gameState, !!user, null);
+          console.log('[PlayComputer] 👁 Auto-saving on visibility change:', result);
+
+          // Invalidate cache to refresh unfinished games
+          if (invalidateGameHistory) {
+            invalidateGameHistory();
+          }
+        } catch (error) {
+          console.error('[PlayComputer] ❌ Failed to auto-save on visibility change:', error);
+        }
+      }
+    };
+
+    // Add event listeners for auto-save functionality
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [gameStarted, gameOver, gameHistory, playerColor, computerDepth, playerTime, computerTime, game, saveUnfinishedGame, user, invalidateGameHistory]); // Dependencies for auto-save
+
   useEffect(() => {
     if (location.state?.gameMode === 'online') {
       const { player1, player2 } = location.state;
@@ -284,6 +413,88 @@ const PlayComputer = () => {
       });
 
       startGame();
+    }
+  }, [location.state]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Handle resuming unfinished games
+  useEffect(() => {
+    const gameState = location.state?.gameState;
+    if (gameState?.isResume) {
+      console.log('[PlayComputer] 📂 Resuming unfinished game:', gameState);
+
+      try {
+        // Restore game state from FEN
+        const restoredGame = new Chess(gameState.fen);
+        setGame(restoredGame);
+
+        // Restore player color and board orientation
+        setPlayerColor(gameState.playerColor);
+        setBoardOrientation(gameState.playerColor === 'w' ? 'white' : 'black');
+
+        // Restore computer difficulty
+        setComputerDepth(gameState.computerLevel || DEFAULT_DEPTH);
+
+        // Restore game history
+        if (gameState.moves && Array.isArray(gameState.moves)) {
+          setGameHistory(gameState.moves);
+          setMoveCount(gameState.moves.length);
+        }
+
+        // Restore scores (if saved, though currently not)
+        if (gameState.playerScore !== undefined) {
+          setPlayerScore(gameState.playerScore);
+        }
+        if (gameState.opponentScore !== undefined) {
+          setComputerScore(gameState.opponentScore);
+        }
+
+        // Restore timers
+        const restoredTimerState = gameState.timerState;
+        if (restoredTimerState) {
+          const whiteTime = restoredTimerState.whiteMs / 1000;
+          const blackTime = restoredTimerState.blackMs / 1000;
+          if (gameState.playerColor === 'w') {
+            setPlayerTime(whiteTime);
+            setComputerTime(blackTime);
+          } else {
+            setPlayerTime(blackTime);
+            setComputerTime(whiteTime);
+          }
+        }
+
+        // Start the game
+        setGameStarted(true);
+        setGameStatus("Game resumed!");
+
+        // Start timer for appropriate side
+        const currentTurn = restoredGame.turn();
+        const playerColorChess = gameState.playerColor === 'w' ? 'w' : 'b';
+        const computerColor = playerColorChess === 'w' ? 'b' : 'w';
+        if (currentTurn === playerColorChess) {
+          // Player's turn
+          setActiveTimer(playerColorChess);
+          setIsTimerRunning(true);
+          startTimerInterval();
+          moveStartTimeRef.current = performance.now();
+        } else {
+          // Computer's turn - trigger computer move
+          setActiveTimer(computerColor);
+          setIsTimerRunning(true);
+          startTimerInterval();
+          // Trigger computer move after a short delay
+          setTimeout(() => {
+            setComputerMoveInProgress(true);
+          }, 500);
+        }
+
+        console.log('[PlayComputer] ✅ Game resumed successfully');
+      } catch (error) {
+        console.error('[PlayComputer] ❌ Error resuming game:', error);
+        setGameStatus("Error resuming game. Please start a new game.");
+      }
+
+      // Clear the resume state to prevent re-triggering
+      window.history.replaceState({}, document.title);
     }
   }, [location.state]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -415,12 +626,14 @@ const PlayComputer = () => {
 
           // Call the utility function to get Stockfish's move based on time control
           // This function now handles the engine interaction and returns actual thinking time
-          const result = await makeComputerMove(
-            game,             // Current game state
-            computerDepth,    // Difficulty level (used for time mapping)
-            computerColor,    // Computer's color
-            setTimerButtonColor // Pass setter for internal feedback (optional usage)
-          );
+          const result = await monitorPerformance('Computer Move Calculation', async () => {
+            return await makeComputerMove(
+              game,             // Current game state
+              computerDepth,    // Difficulty level (used for time mapping)
+              computerColor,    // Computer's color
+              setTimerButtonColor // Pass setter for internal feedback (optional usage)
+            );
+          });
 
            // Double-check game state *after* the async calculation returns
            // In case the game was reset, ended, or switched to replay while waiting
@@ -687,9 +900,11 @@ const PlayComputer = () => {
             : 0;
 
         // Evaluate the move (if evaluateMove function is available)
-        const evaluationResult = typeof evaluateMove === 'function'
-            ? evaluateMove(moveResult, previousState, gameCopy, moveTimeInSeconds, user?.rating || DEFAULT_RATING, setLastMoveEvaluation, setPlayerScore, computerDepth)
-            : null; // Provides feedback/scoring
+        const evaluationResult = monitorPerformance('Move Evaluation', () => {
+            return typeof evaluateMove === 'function'
+                ? evaluateMove(moveResult, previousState, gameCopy, moveTimeInSeconds, user?.rating || DEFAULT_RATING, setLastMoveEvaluation, setPlayerScore, computerDepth)
+                : null; // Provides feedback/scoring
+        });
 
         // Add move to game history
         const newHistoryEntry = {
@@ -709,6 +924,37 @@ const PlayComputer = () => {
         setGame(gameCopy);
         setMoveFrom(""); // Clear selection state
         setMoveSquares({});
+
+        // *** AUTO-SAVE AFTER EACH MOVE ***
+        const autoSaveAfterMove = async () => {
+            try {
+                const gameState = {
+                    fen: gameCopy.fen(),
+                    pgn: gameCopy.pgn(),
+                    moves: [...gameHistory, newHistoryEntry],
+                    playerColor: playerColor,
+                    opponentName: 'Computer',
+                    gameMode: 'computer',
+                    computerLevel: computerDepth,
+                    timerState: {
+                        whiteTime: playerColor === 'w' ? playerTime : computerTime,
+                        blackTime: playerColor === 'b' ? playerTime : computerTime,
+                        whiteMs: playerColor === 'w' ? playerTime * 1000 : computerTime * 1000,
+                        blackMs: playerColor === 'b' ? playerTime * 1000 : computerTime * 1000
+                    },
+                    turn: gameCopy.turn(),
+                    savedReason: 'after_move'
+                };
+
+                const result = await saveUnfinishedGame(gameState, !!user, null);
+                console.log('[PlayComputer] 💾 Auto-saved after move:', result);
+            } catch (error) {
+                console.error('[PlayComputer] ❌ Failed to auto-save after move:', error);
+            }
+        };
+
+        // Execute auto-save asynchronously (don't block game flow)
+        autoSaveAfterMove();
 
         // Check game status after the move
         const status = typeof updateGameStatus === 'function'
@@ -740,6 +986,7 @@ const PlayComputer = () => {
         playSound, handleGameComplete, switchTimer, startTimerInterval, // Stable callbacks/timer fns
         setIsTimerRunning, setLastMoveEvaluation, setPlayerScore, setGameHistory, // Stable setters
         setMoveCount, setGame, setMoveFrom, setMoveSquares, setGameStatus, setMoveCompleted, // Stable setters
+        saveUnfinishedGame, user, // Auto-save dependencies
         timerRef // Ref accessed
         // Note: updateGameStatus, evaluateMove, DEFAULT_RATING are imports/constants (stable)
     ]);
@@ -1141,8 +1388,9 @@ const PlayComputer = () => {
         gameStarted,
         countdownActive,
         resetGame: resetCurrentGameSetup,
+        startGame,
         handleTimer: startTimerInterval,
-        pauseTimer,
+        pauseTimer: handlePauseWithSave, // Enhanced pause with auto-save
         handleResign,
         replayPaused,
         startReplay,
@@ -1150,6 +1398,8 @@ const PlayComputer = () => {
         savedGames,
         loadGame,
         moveCount,
+        playerColor,
+        onColorChange: handleColorToggle,
         replayTimerRef,
         timerButtonColor,
         timerButtonText,

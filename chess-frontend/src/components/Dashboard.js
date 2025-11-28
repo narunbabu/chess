@@ -6,17 +6,21 @@ import { getGameHistories } from "../services/gameHistoryService";
 import api from "../services/api";
 import SkillAssessmentModal from "./auth/SkillAssessmentModal";
 import DetailedStatsModal from "./DetailedStatsModal";
+import UnfinishedGamePrompt from "./UnfinishedGamePrompt";
 import { getPlayerAvatar } from "../utils/playerDisplayUtils";
 import { isWin, getResultDisplayText } from "../utils/resultStandardization";
+import { getUnfinishedGame, getUnfinishedGames, deleteUnfinishedGame } from "../services/unfinishedGameService";
 import "./Dashboard.css";
 import "../styles/UnifiedCards.css"; // Import unified card styles
 
 const Dashboard = () => {
   const [gameHistories, setGameHistories] = useState([]);
   const [activeGames, setActiveGames] = useState([]);
+  const [unfinishedGames, setUnfinishedGames] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showSkillAssessment, setShowSkillAssessment] = useState(false);
   const [showDetailedStats, setShowDetailedStats] = useState(false);
+  const [selectedUnfinishedGame, setSelectedUnfinishedGame] = useState(null);
   const [visibleActiveGames, setVisibleActiveGames] = useState(3);
   const [visibleRecentGames, setVisibleRecentGames] = useState(3);
   const { user } = useAuth();
@@ -35,32 +39,41 @@ const Dashboard = () => {
     const loadGameHistories = async () => {
       let histories = [];
       let activeGamesResponse = { data: [] };
+      let unfinishedGamesData = [];
 
       try {
-        console.log('[Dashboard] 📊 Loading game histories and active games...');
-        // Fetch both game histories and active games in parallel
-        const [fetchedHistories, fetchedActiveGames] = await Promise.all([
+        console.log('[Dashboard] 📊 Loading game histories, active games, and unfinished games...');
+        // Fetch game histories, active games, and unfinished games in parallel
+        const [fetchedHistories, fetchedActiveGames, fetchedUnfinishedGames] = await Promise.all([
           getGameHistory(true).catch(() => getGameHistories()), // Force refresh to bypass cache
           api.get('/games/active').catch(err => {
             console.error("[Dashboard] ❌ Error loading active games:", err);
             return { data: [] };
+          }),
+          getUnfinishedGames(!!user).catch(err => {
+            console.error("[Dashboard] ❌ Error loading unfinished games:", err);
+            return [];
           })
         ]);
 
         histories = fetchedHistories || [];
         activeGamesResponse = fetchedActiveGames;
+        unfinishedGamesData = fetchedUnfinishedGames || [];
 
         console.log('[Dashboard] ✅ Loaded', histories.length, 'game histories');
         console.log('[Dashboard] ✅ Loaded', activeGamesResponse.data.length, 'active games');
+        console.log('[Dashboard] ✅ Loaded', unfinishedGamesData.length, 'unfinished games');
 
         // Correct multiplayer history scores and results
         const correctedHistories = await correctMultiplayerHistories(histories);
         setGameHistories(correctedHistories);
         setActiveGames(activeGamesResponse.data || []);
+        setUnfinishedGames(unfinishedGamesData);
       } catch (error) {
         console.error("[Dashboard] ❌ Error loading data:", error);
         setGameHistories([]);
         setActiveGames([]);
+        setUnfinishedGames([]);
       } finally {
         setLoading(false);
       }
@@ -150,6 +163,39 @@ const Dashboard = () => {
     navigate(`/play/review/${game.id}`);
   };
 
+  const handleResumeUnfinishedGame = async (game) => {
+    console.log('[Dashboard] 📂 Resuming unfinished game:', game);
+    try {
+      if (game.gameMode === 'computer') {
+        // For computer games, navigate to PlayComputer with state
+        navigate('/play', { state: { resumeGame: game } });
+      } else if (game.gameMode === 'multiplayer') {
+        // For multiplayer games, navigate to PlayMultiplayer with game ID
+        if (game.gameId) {
+          navigate(`/play/multiplayer/${game.gameId}`, { state: { resumeGame: game } });
+        } else {
+          console.error('[Dashboard] ❌ Cannot resume multiplayer game without gameId');
+        }
+      }
+    } catch (error) {
+      console.error('[Dashboard] ❌ Error resuming game:', error);
+    }
+    setSelectedUnfinishedGame(null);
+  };
+
+  const handleDiscardUnfinishedGame = async (game) => {
+    console.log('[Dashboard] 🗑️ Discarding unfinished game:', game);
+    try {
+      await deleteUnfinishedGame(game.gameId, !!user);
+      // Reload unfinished games
+      const updatedGames = await getUnfinishedGames(!!user);
+      setUnfinishedGames(updatedGames || []);
+    } catch (error) {
+      console.error('[Dashboard] ❌ Error discarding game:', error);
+    }
+    setSelectedUnfinishedGame(null);
+  };
+
   const handleSkillAssessmentComplete = async (rating) => {
     console.log('Skill assessment completed with rating:', rating);
     setShowSkillAssessment(false);
@@ -178,6 +224,14 @@ const Dashboard = () => {
         onClose={() => setShowDetailedStats(false)}
         gameHistories={gameHistories}
         user={user}
+      />
+
+      <UnfinishedGamePrompt
+        open={!!selectedUnfinishedGame}
+        game={selectedUnfinishedGame}
+        onResume={handleResumeUnfinishedGame}
+        onDiscard={handleDiscardUnfinishedGame}
+        onClose={() => setSelectedUnfinishedGame(null)}
       />
 
       <div className="dashboard-container">
@@ -335,6 +389,55 @@ const Dashboard = () => {
             <div className="unified-empty-state">
               <p>🎮 No active games</p>
               <p>Start a new game from the lobby!</p>
+            </div>
+          )}
+        </section>
+
+        {/* Unfinished Games Section */}
+        <section className="unified-section">
+          <h2 className="unified-section-header">⏸️ Unfinished Games</h2>
+          {unfinishedGames.length > 0 ? (
+            <div className="unified-card-grid cols-1">
+              {unfinishedGames.map((game, index) => {
+                const gameMode = game.gameMode === 'computer' ? '🤖 vs Computer' : '👥 vs Human';
+                const opponent = game.opponentName || (game.gameMode === 'computer' ? 'Computer' : 'Opponent');
+                const moveCount = game.moves ? game.moves.length : 0;
+                const lastMoveTime = game.lastMoveAt ? new Date(game.lastMoveAt).toLocaleString() : 'Unknown';
+
+                return (
+                  <div key={game.gameId || index} className="unified-card horizontal">
+                    <div className="unified-card-content">
+                      <h3 className="unified-card-title">{gameMode} - vs {opponent}</h3>
+                      <p className="unified-card-subtitle">
+                        {moveCount} moves • Last played: {lastMoveTime}
+                      </p>
+                      <p className="unified-card-meta">
+                        Playing as {game.playerColor === 'w' ? 'White' : 'Black'}
+                        {game.turn && ` • ${game.turn === game.playerColor ? "Your turn" : "Opponent's turn"}`}
+                      </p>
+                    </div>
+                    <div className="unified-card-actions">
+                      <button
+                        onClick={() => setSelectedUnfinishedGame(game)}
+                        className="unified-card-btn primary"
+                      >
+                        ▶️ Resume
+                      </button>
+                      <button
+                        onClick={() => handleDiscardUnfinishedGame(game)}
+                        className="unified-card-btn secondary"
+                      >
+                        🗑️ Discard
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="unified-empty-state">
+              <p>⏸️ No unfinished games</p>
+              <p>Games you leave will appear here for quick resuming!</p>
             </div>
           )}
         </section>

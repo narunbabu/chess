@@ -357,4 +357,186 @@ class GameController extends Controller
 
         return response()->json($games);
     }
+
+    /**
+     * Get unfinished games (paused by navigation or inactivity)
+     */
+    public function unfinishedGames()
+    {
+        $user = Auth::user();
+
+        $games = Game::where(function($query) use ($user) {
+            $query->where('white_player_id', $user->id)
+                  ->orWhere('black_player_id', $user->id);
+        })
+        ->whereHas('statusRelation', function($query) {
+            $query->where('code', 'paused');
+        })
+        ->where(function($query) {
+            // Only games paused due to navigation or inactivity (not manual pause)
+            $query->where('paused_reason', 'navigation')
+                  ->orWhere('paused_reason', 'inactivity')
+                  ->orWhere('paused_reason', 'beforeunload');
+        })
+        ->with(['whitePlayer', 'blackPlayer', 'statusRelation', 'endReasonRelation'])
+        ->orderBy('paused_at', 'desc')
+        ->get()
+        ->map(function($game) use ($user) {
+            // Add convenience fields for frontend
+            $isWhite = $game->white_player_id === $user->id;
+            $opponent = $isWhite ? $game->blackPlayer : $game->whitePlayer;
+
+            return [
+                ...$game->toArray(),
+                'current_user_id' => $user->id,
+                'opponent_name' => $opponent->name ?? 'Unknown',
+                'opponent_id' => $opponent->id ?? null
+            ];
+        });
+
+        return response()->json($games);
+    }
+
+    /**
+     * Pause game due to navigation/page close
+     */
+    public function pauseNavigation(Request $request, $id)
+    {
+        $request->validate([
+            'fen' => 'sometimes|string',
+            'pgn' => 'sometimes|string',
+            'white_time_remaining_ms' => 'sometimes|integer',
+            'black_time_remaining_ms' => 'sometimes|integer',
+            'paused_reason' => 'sometimes|string|in:navigation,beforeunload,inactivity'
+        ]);
+
+        $game = Game::find($id);
+
+        if (!$game) {
+            return response()->json(['error' => 'Game not found'], 404);
+        }
+
+        $user = Auth::user();
+
+        // Check if user is part of this game
+        if ($game->white_player_id !== $user->id && $game->black_player_id !== $user->id) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        // Don't pause if game is already finished
+        $status = $game->statusRelation;
+        if ($status && $status->code === 'finished') {
+            return response()->json(['message' => 'Game already finished', 'game' => $game], 200);
+        }
+
+        // Update game status to paused
+        $updateData = [
+            'status_id' => \DB::table('game_statuses')->where('code', 'paused')->first()->id,
+            'paused_at' => now(),
+            'paused_reason' => $request->input('paused_reason', 'navigation'),
+            'paused_by_user_id' => $user->id,
+            'turn_at_pause' => $game->turn
+        ];
+
+        // Update timer state if provided
+        if ($request->has('white_time_remaining_ms')) {
+            $updateData['white_time_paused_ms'] = $request->input('white_time_remaining_ms');
+        }
+        if ($request->has('black_time_remaining_ms')) {
+            $updateData['black_time_paused_ms'] = $request->input('black_time_remaining_ms');
+        }
+
+        // Update position if provided
+        if ($request->has('fen')) {
+            $updateData['fen'] = $request->input('fen');
+        }
+        if ($request->has('pgn')) {
+            $updateData['pgn'] = $request->input('pgn');
+        }
+
+        $game->update($updateData);
+
+        return response()->json([
+            'message' => 'Game paused successfully',
+            'game' => $game->fresh(['whitePlayer', 'blackPlayer', 'statusRelation', 'endReasonRelation'])
+        ]);
+    }
+
+    /**
+     * Create game from unfinished guest game (computer games only)
+     */
+    public function createFromUnfinished(Request $request)
+    {
+        $request->validate([
+            'fen' => 'required|string',
+            'pgn' => 'sometimes|string',
+            'moves' => 'sometimes|array',
+            'player_color' => 'required|in:white,black',
+            'computer_level' => 'sometimes|integer|min:1|max:20',
+            'white_time_remaining_ms' => 'sometimes|integer',
+            'black_time_remaining_ms' => 'sometimes|integer',
+            'increment_seconds' => 'sometimes|integer',
+            'turn' => 'required|in:w,b,white,black'
+        ]);
+
+        $user = Auth::user();
+
+        // Normalize turn value
+        $turn = $request->input('turn');
+        if ($turn === 'w') $turn = 'white';
+        if ($turn === 'b') $turn = 'black';
+
+        // Create game
+        $game = Game::create([
+            'white_player_id' => $request->input('player_color') === 'white' ? $user->id : null,
+            'black_player_id' => $request->input('player_color') === 'black' ? $user->id : null,
+            'status_id' => \DB::table('game_statuses')->where('code', 'paused')->first()->id,
+            'fen' => $request->input('fen'),
+            'pgn' => $request->input('pgn'),
+            'moves' => $request->has('moves') ? json_encode($request->input('moves')) : json_encode([]),
+            'turn' => $turn,
+            'paused_at' => now(),
+            'paused_reason' => 'migration',
+            'paused_by_user_id' => $user->id,
+            'white_time_remaining_ms' => $request->input('white_time_remaining_ms', 10 * 60 * 1000),
+            'black_time_remaining_ms' => $request->input('black_time_remaining_ms', 10 * 60 * 1000),
+            'increment_seconds' => $request->input('increment_seconds', 0),
+            'move_count' => count($request->input('moves', []))
+        ]);
+
+        return response()->json([
+            'message' => 'Game created successfully from unfinished state',
+            'game' => $game->fresh(['whitePlayer', 'blackPlayer', 'statusRelation', 'endReasonRelation']),
+            'id' => $game->id
+        ], 201);
+    }
+
+    /**
+     * Delete unfinished game
+     */
+    public function deleteUnfinished($id)
+    {
+        $game = Game::find($id);
+
+        if (!$game) {
+            return response()->json(['error' => 'Game not found'], 404);
+        }
+
+        $user = Auth::user();
+
+        // Check if user is part of this game
+        if ($game->white_player_id !== $user->id && $game->black_player_id !== $user->id) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        // Only allow deletion of paused games
+        $status = $game->statusRelation;
+        if ($status && $status->code !== 'paused') {
+            return response()->json(['error' => 'Can only delete paused games'], 400);
+        }
+
+        $game->delete();
+
+        return response()->json(['message' => 'Game deleted successfully']);
+    }
 }

@@ -19,7 +19,7 @@ import GameReview from "./components/GameReview";
 import Login from "./pages/Login";
 import Dashboard from "./components/Dashboard";
 import AuthCallback from "./components/auth/AuthCallback";
-import LandingPage from "./pages/LandingPage";
+import LandingPage from "./pages/landingPage";
 import LobbyPage from "./pages/LobbyPage";
 import Puzzles from "./components/Puzzles";
 import Learn from "./components/Learn";

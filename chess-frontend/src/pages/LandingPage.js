@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { trackUI } from '../utils/analytics';
 import AuthGateModal from '../components/layout/AuthGateModal';
+import UnfinishedGamesSection from '../components/UnfinishedGamesSection';
 import chessPlayingKids from '../assets/images/chess-playing-kids-crop.png';
 import logo from '../assets/images/logo.png';
 import '../styles/UnifiedCards.css';
@@ -290,6 +291,11 @@ const LandingPage = () => {
                 </div>
               )}
             </div>
+
+            {/* Unfinished Games Section - Only show for guest users */}
+            {!isAuthenticated && (
+              <UnfinishedGamesSection isAuthenticated={isAuthenticated} />
+            )}
           </div>
         </div>
       </section>

@@ -3,6 +3,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { Chessboard } from "react-chessboard";
 import { Chess } from 'chess.js'; // Import the Chess class
 import './ChessBoard.css'; // Import custom chess board styling
+import { logBoardResize, logTurnChange, logPieceSelection, monitorPerformance } from '../../utils/devLogger';
 
 const ChessBoard = ({
   game,
@@ -40,17 +41,6 @@ const ChessBoard = ({
       // Use the smaller dimension to ensure square board fits within container
       const newSize = Math.floor(Math.min(width, height));
 
-      // Debug logging to track size changes (only log when size actually changes)
-      if (newSize !== currentSize) {
-        console.log(`🎯 ChessBoard ResizeObserver triggered:`, {
-          containerWidth: width,
-          containerHeight: height,
-          calculatedSize: newSize,
-          currentBoardSize: currentSize,
-          sizeChanged: newSize !== currentSize
-        });
-      }
-
       // Debounce rapid resize events to prevent flickering
       if (resizeTimeoutRef.current) {
         clearTimeout(resizeTimeoutRef.current);
@@ -59,8 +49,8 @@ const ChessBoard = ({
       resizeTimeoutRef.current = setTimeout(() => {
         // Only update if size actually changed and is valid (prevent unnecessary re-renders)
         if (newSize !== currentSize && newSize > 0) {
-          console.log(`📐 Setting new board size: ${currentSize} → ${newSize}`);
           setBoardSize(newSize);
+          logBoardResize(currentSize, newSize, { width, height });
         }
       }, 50); // 50ms debounce to prevent rapid recalculations
     });
@@ -131,7 +121,8 @@ const ChessBoard = ({
   // Add instance check
   const isPlayerTurn = allowAllMoves || (isValidChessInstance(game) && game.turn() === playerColorChess);
 
-  console.log('🔄 [ChessBoard] Turn status:', {
+  // Only log turn changes to reduce console spam
+  logTurnChange({
     isPlayerTurn,
     allowAllMoves,
     validGame: isValidChessInstance(game),
@@ -144,16 +135,16 @@ const ChessBoard = ({
     // Add instance check
     if (!isValidChessInstance(game) || isReplayMode || !isPlayerTurn) {
         // Prevent interaction if not player's turn, in replay, or invalid game object
-        console.log('❌ [ChessBoard] Click rejected:', {
+        logPieceSelection('reject', {
             square,
             validGame: isValidChessInstance(game),
             isReplayMode,
             isPlayerTurn,
-            currentTurn: game.turn(),
+            currentTurn: isValidChessInstance(game) ? game.turn() : 'invalid',
             playerColor,
             playerColorChess: playerColor === 'white' || playerColor === 'w' ? 'w' : 'b'
         });
-        if (!isValidChessInstance(game)) console.warn("ChessBoard: Invalid game object received in onSquareClick.");
+        if (!isValidChessInstance(game)) logPieceSelection('reject', "Invalid game object received in onSquareClick.");
         setMoveFrom("");
         setMoveSquares({});
         return false;
@@ -168,28 +159,28 @@ const ChessBoard = ({
 
     // If no piece is selected yet, or clicking the same piece again
     if (!moveFrom || moveFrom === square) {
-        console.log('👆 [ChessBoard] Piece selection attempt:', {
+        logPieceSelection('attempt', {
             square,
             pieceOnSquare,
             moveFrom,
-            currentTurn: game.turn(),
+            currentTurn: isValidChessInstance(game) ? game.turn() : 'invalid',
             playerColor,
             playerColorChess: playerColor === 'white' || playerColor === 'w' ? 'w' : 'b'
         });
 
         // Add instance check before game.turn()
         if (pieceOnSquare && isValidChessInstance(game) && pieceOnSquare.color === game.turn()) {
-            console.log('✅ [ChessBoard] Selecting piece:', square, pieceOnSquare);
+            logPieceSelection('select', { square, piece: pieceOnSquare });
             // Select the piece if it's the player's color and their turn
             const options = getMoveOptions(square); // getMoveOptions already checks instance
             setMoveSquares(options || {}); // Update visual options
             return options !== false;
         } else {
-            console.log('❌ [ChessBoard] Cannot select piece:', {
+            logPieceSelection('reject', {
                 square,
                 hasPiece: !!pieceOnSquare,
                 pieceColor: pieceOnSquare?.color,
-                turnMatch: pieceOnSquare?.color === game.turn(),
+                turnMatch: pieceOnSquare?.color === (isValidChessInstance(game) ? game.turn() : 'invalid'),
                 playerColorChess: playerColor === 'white' || playerColor === 'w' ? 'w' : 'b'
             });
             // Clicked on empty square or opponent's piece without a source selected

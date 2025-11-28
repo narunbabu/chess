@@ -11,7 +11,7 @@ import GameContainer from './GameContainer'; // Unified game container
 import { useAuth } from '../../contexts/AuthContext';
 import { useAppData } from '../../contexts/AppDataContext';
 import { useGameNavigation } from '../../contexts/GameNavigationContext';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { BACKEND_URL } from '../../config';
 import WebSocketGameService from '../../services/WebSocketGameService';
 import { getEcho } from '../../services/echoSingleton';
@@ -21,6 +21,7 @@ import { saveGameHistory } from '../../services/gameHistoryService';
 import { createResultFromMultiplayerGame } from '../../utils/resultStandardization';
 import { useMultiplayerTimer } from '../../utils/timerUtils';
 import { calculateRemainingTime } from '../../utils/timerCalculator';
+import { saveUnfinishedGame } from '../../services/unfinishedGameService';
 
 // Import sounds
 import moveSound from '../../assets/sounds/move.mp3';
@@ -126,6 +127,7 @@ const PlayMultiplayer = () => {
   const { registerActiveGame, unregisterActiveGame, updateGameState } = useGameNavigation();
   const { gameId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const wsService = useRef(null);
   const moveStartTimeRef = useRef(null); // Tracks when current turn started for move timing
   const gameRegisteredRef = useRef(false); // Track if game is already registered to prevent duplicates
@@ -2247,6 +2249,66 @@ const PlayMultiplayer = () => {
       setTimeout(() => setShowError(false), 4000);
     }
   }, [isMyTurn, game.fen(), myColor, game]);
+
+  // Auto-save unfinished game on navigation/page close
+  useEffect(() => {
+    const handleBeforeUnload = async (event) => {
+      // Only save if game is active or paused (not finished)
+      if (gameComplete || gameInfo.status === 'finished') {
+        console.log('[BeforeUnload] Game already finished, skipping save');
+        return;
+      }
+
+      // Only save if game data is loaded
+      if (!gameData || !game) {
+        console.log('[BeforeUnload] Game not initialized, skipping save');
+        return;
+      }
+
+      console.log('[BeforeUnload] Saving unfinished game...');
+
+      // Get current timer state
+      const currentTimerState = {
+        whiteMs: myMs || initialTimerState.whiteMs,
+        blackMs: oppMs || initialTimerState.blackMs,
+        incrementMs: initialTimerState.incrementMs
+      };
+
+      // Prepare game state
+      const gameState = {
+        fen: game.fen(),
+        pgn: game.pgn(),
+        moves: game.history({ verbose: true }),
+        playerColor: myColor === 'w' ? 'white' : 'black',
+        opponentName: gameInfo.opponentName,
+        gameMode: 'multiplayer',
+        timerState: currentTimerState,
+        turn: game.turn(),
+        savedReason: 'beforeunload'
+      };
+
+      try {
+        // Save synchronously (beforeunload requires synchronous operations)
+        const isAuthenticated = !!user && !!localStorage.getItem('auth_token');
+        await saveUnfinishedGame(gameState, isAuthenticated, gameData.id);
+        console.log('[BeforeUnload] ✅ Unfinished game saved successfully');
+      } catch (error) {
+        console.error('[BeforeUnload] ❌ Failed to save unfinished game:', error);
+      }
+
+      // Show browser confirmation dialog
+      event.preventDefault();
+      event.returnValue = ''; // Required for Chrome
+    };
+
+    // Add event listener
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      // Cleanup
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [gameComplete, gameInfo.status, gameData, game, myColor, gameInfo.opponentName, myMs, oppMs, initialTimerState, user]);
 
   const performMove = (source, target) => {
     if (gameComplete || gameInfo.status === 'finished') return false;
