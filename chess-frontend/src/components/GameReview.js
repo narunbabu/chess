@@ -176,10 +176,19 @@ const GameReview = () => {
   const [searchParams] = useSearchParams();
   const [showEndCard, setShowEndCard] = useState(false);
   const [isTestSharing, setIsTestSharing] = useState(false);
+  const [sharePlayerName, setSharePlayerName] = useState(null);
 
   // Load game data when component mounts or gameId changes
   useEffect(() => {
     const loadGameData = async () => {
+      // Prioritize location.state.gameHistory for local games (guest users)
+      if (location.state?.gameHistory) {
+        console.log('[GameReview] Using gameHistory from navigation state (local game)');
+        setGameHistory(location.state.gameHistory);
+        setLoading(false);
+        return;
+      }
+
       let effectiveGameId = gameId;
 
       // If no gameId in URL, try to get from location state or localStorage
@@ -220,7 +229,7 @@ const GameReview = () => {
           if (!gameData) {
             setError('Game not found');
             setGameHistory({ moves: [] });
-            setLoading(false);
+            setLoading(false); // Stop loading even if not found
             return;
           }
 
@@ -600,12 +609,23 @@ const GameReview = () => {
     URL.revokeObjectURL(url);
   };
 
-  // Test Share - Upload image to server and share URL with preview
+  // Test Share - Upload image to server and share URL with preview (authenticated) or download (guest)
   const handleTestShare = async () => {
     console.log('🔵 Test Share started');
     try {
       setIsTestSharing(true);
       console.log('✅ State set to sharing');
+
+      // For guests, prompt for player name
+      let playerName = user?.name || 'Player';
+      if (!isAuthenticated) {
+        const name = window.prompt('Enter your name for the share image:', playerName);
+        if (name && name.trim()) {
+          playerName = name.trim();
+        }
+      }
+
+      setSharePlayerName(playerName);
 
       // Show the card temporarily for capture
       setShowEndCard(true);
@@ -669,70 +689,121 @@ const GameReview = () => {
       // Remove share-mode class after capture
       cardElement.classList.remove('share-mode');
 
-      // Convert canvas to data URL (base64)
-      const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
-      console.log('✅ Image data URL created, length:', imageDataUrl.length);
+      // Convert canvas to blob for download/share
+      canvas.toBlob(async (blob) => {
+        if (blob) {
+          const fileName = `chess-game-result-${Date.now()}.jpg`;
+          const file = new File([blob], fileName, { type: 'image/jpeg' });
 
-      // Upload to server
-      console.log('📤 Uploading to server...');
-      const response = await uploadGameResultImage(imageDataUrl, {
-        game_id: gameHistory.id,
-        user_id: user?.id,
-        winner: isWin(gameHistory.result) ? 'player' : (isDraw(gameHistory.result) ? 'draw' : 'opponent'),
-        playerName: user?.name || 'Player',
-        opponentName: gameHistory.opponent_name || (gameHistory.game_mode === 'computer' ? 'Computer' : 'Opponent'),
-        result: gameHistory.result,
-        gameMode: gameHistory.game_mode
-      });
-      console.log('✅ Server response:', response);
+          if (isAuthenticated) {
+            // Authenticated: Upload to server and share URL
+            try {
+              // Convert to data URL for upload
+              const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+              console.log('📤 Uploading to server...');
+              const response = await uploadGameResultImage(imageDataUrl, {
+                game_id: gameHistory.id,
+                user_id: user?.id,
+                winner: isWin(gameHistory.result) ? 'player' : (isDraw(gameHistory.result) ? 'draw' : 'opponent'),
+                playerName: user?.name || 'Player',
+                opponentName: gameHistory.opponent_name || (gameHistory.game_mode === 'computer' ? 'Computer' : 'Opponent'),
+                result: gameHistory.result,
+                gameMode: gameHistory.game_mode
+              });
+              console.log('✅ Server response:', response);
 
-      if (response.success && response.share_url) {
-        const shareUrl = response.share_url;
+              if (response.success && response.share_url) {
+                const shareUrl = response.share_url;
 
-        // Generate personalized share message based on game result
-        let shareMessage;
-        const opponentName = gameHistory.opponent_name || (gameHistory.game_mode === 'computer' ? 'Computer' : 'Opponent');
-        const playerWon = isWin(gameHistory.result);
-        const isDrawResult = isDraw(gameHistory.result);
+                // Generate personalized share message based on game result
+                let shareMessage;
+                const opponentName = gameHistory.opponent_name || (gameHistory.game_mode === 'computer' ? 'Computer' : 'Opponent');
+                const playerWon = isWin(gameHistory.result);
+                const isDrawResult = isDraw(gameHistory.result);
 
-        if (isDrawResult) {
-          shareMessage = `♟️ I just played an exciting chess game against ${opponentName} at Chess99.com!\n\nGame ended in a draw. Can you do better?\n\n${shareUrl}`;
-        } else if (playerWon) {
-          shareMessage = `🏆 Victory! I just defeated ${opponentName} in an epic chess battle at Chess99.com!\n\nThink you can beat me? Challenge me now!\n\n${shareUrl}`;
-        } else {
-          shareMessage = `♟️ Just played an intense chess match against ${opponentName} at Chess99.com!\n\nCan you avenge my defeat? Play now!\n\n${shareUrl}`;
-        }
+                if (isDrawResult) {
+                  shareMessage = `♟️ I just played an exciting chess game against ${opponentName} at Chess99.com!\n\nGame ended in a draw. Can you do better?\n\n${shareUrl}`;
+                } else if (playerWon) {
+                  shareMessage = `🏆 Victory! I just defeated ${opponentName} in an epic chess battle at Chess99.com!\n\nThink you can beat me? Challenge me now!\n\n${shareUrl}`;
+                } else {
+                  shareMessage = `♟️ Just played an intense chess match against ${opponentName} at Chess99.com!\n\nCan you avenge my defeat? Play now!\n\n${shareUrl}`;
+                }
 
-        // Copy share URL to clipboard
-        try {
-          await navigator.clipboard.writeText(shareUrl);
-          console.log('Share URL copied to clipboard');
-        } catch (clipboardError) {
-          console.log('Could not copy to clipboard:', clipboardError);
-        }
+                // Copy share URL to clipboard
+                try {
+                  await navigator.clipboard.writeText(shareUrl);
+                  console.log('Share URL copied to clipboard');
+                } catch (clipboardError) {
+                  console.log('Could not copy to clipboard:', clipboardError);
+                }
 
-        // Try native share with URL (works great on WhatsApp)
-        if (navigator.share) {
-          try {
-            await navigator.share({
-              title: 'Chess Game Result',
-              text: shareMessage,
-              url: shareUrl
-            });
-          } catch (shareError) {
-            if (shareError.name !== 'AbortError') {
-              console.error('Error sharing:', shareError);
-              // Fallback: show share URL
-              alert(`Share URL copied!\n\n${shareUrl}\n\nPaste this link on WhatsApp to share with preview!`);
+                // Try native share with URL (works great on WhatsApp)
+                if (navigator.share) {
+                  try {
+                    await navigator.share({
+                      title: 'Chess Game Result',
+                      text: shareMessage,
+                      url: shareUrl
+                    });
+                  } catch (shareError) {
+                    if (shareError.name !== 'AbortError') {
+                      console.error('Error sharing:', shareError);
+                      // Fallback: show share URL
+                      alert(`Share URL copied!\n\n${shareUrl}\n\nPaste this link on WhatsApp to share with preview!`);
+                    }
+                  }
+                } else {
+                  // Desktop fallback: show share URL and instructions
+                  alert(`Share URL copied!\n\n${shareUrl}\n\nPaste this link on WhatsApp to share with preview!`);
+                }
+              } else {
+                throw new Error('Failed to upload image');
+              }
+            } catch (uploadError) {
+              console.error('Upload failed, falling back to download:', uploadError);
+              // Fallback to download
+              downloadBlob(blob, fileName);
+              alert('Upload failed. Image downloaded instead.');
+            }
+          } else {
+            // Guest: Generate share message with custom name
+            const opponentName = gameHistory.opponent_name || 'Computer';
+            const playerWon = isWin(gameHistory.result);
+            const isDrawResult = isDraw(gameHistory.result);
+            let shareMessage;
+            if (isDrawResult) {
+              shareMessage = `♟️ ${playerName} just played an exciting chess game against ${opponentName}!\n\nGame ended in a draw. Can you do better?\n\n🎯 Play at www.chess99.com`;
+            } else if (playerWon) {
+              shareMessage = `🏆 Victory! ${playerName} defeated ${opponentName} in an epic chess battle!\n\nThink you can beat ${playerName}?\n\n🎯 Play at www.chess99.com`;
+            } else {
+              shareMessage = `♟️ ${playerName} just played an intense chess match against ${opponentName}!\n\nCan you avenge the defeat?\n\n🎯 Play at www.chess99.com`;
+            }
+
+            // Copy message to clipboard
+            try {
+              await navigator.clipboard.writeText(shareMessage);
+              console.log('Share message copied to clipboard');
+            } catch (clipboardError) {
+              console.log('Could not copy to clipboard:', clipboardError);
+            }
+
+            // Try native share if supported
+            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+              try {
+                await navigator.share({
+                  title: 'Chess Game Result',
+                  text: shareMessage,
+                  files: [file]
+                });
+              } catch (shareError) {
+                if (shareError.name !== 'AbortError') {
+                  console.error('Error sharing:', shareError);
+                }
+              }
             }
           }
-        } else {
-          // Desktop fallback: show share URL and instructions
-          alert(`Share URL copied!\n\n${shareUrl}\n\nPaste this link on WhatsApp to share with preview!`);
         }
-      } else {
-        throw new Error('Failed to upload image');
-      }
+      }, 'image/jpeg', 0.8);
 
     } catch (error) {
       console.error('Error in test share:', error);
@@ -1148,12 +1219,14 @@ const GameReview = () => {
           <GameEndCard
             result={gameHistory}
             user={user || {}}
+            sharePlayerName={sharePlayerName}
             isAuthenticated={isAuthenticated}
             playerColor={gameHistory.player_color === 'w' ? 'white' : 'black'}
             score={gameHistory.final_score || 0}
             opponentScore={gameHistory.opponent_score || 0}
             isMultiplayer={gameHistory.game_mode === 'multiplayer'}
             computerLevel={gameHistory.computer_level}
+            hideShareButton={true}
           />
         </div>
       )}

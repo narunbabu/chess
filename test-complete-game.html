@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<body>
+<script>
+localStorage.setItem('chess_completed_games', JSON.stringify([{
+  id: 'test_completed',
+  gameId: 'test_completed',
+  fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+  pgn: '',
+  moves: [],
+  playerColor: 'white',
+  opponentName: 'Computer',
+  gameMode: 'computer',
+  difficulty: 'Medium',
+  startTime: Date.now() - 60000,
+  endTime: Date.now(),
+  result: 'white',
+  timestamp: Date.now(),
+  status: 'completed'
+}]));
+console.log('Completed game added to localStorage');
+</script>
+<p>Check console for confirmation. Close this tab and navigate to game-history.</p>
+</body>
+</html>

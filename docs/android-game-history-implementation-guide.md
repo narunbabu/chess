@@ -1,4 +1,6 @@
 # Complete Guide: Game History Encoding & Storage System
+## Location of Chess-Web weith chess-frontend/ and chess-backend/
+/mnt/c/ArunApps/Chess-Web
 ## For Android Chess App Implementation
 
 Based on Chess-Web codebase analysis - comprehensive documentation of move encoding, storage, and game saving mechanisms.

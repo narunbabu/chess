@@ -248,6 +248,11 @@ function evaluatePlayerMove(
  * @returns {string} Game phase identifier
  */
 function determineGamePhase(gameState) {
+  // Add null check to prevent errors
+  if (!gameState || typeof gameState.history !== 'function') {
+    return MIDDLEGAME_PHASE; // Default to middlegame if gameState is invalid
+  }
+
   const pieceCount = countPieces(gameState);
   const totalPieces = pieceCount.white + pieceCount.black;
   const moveNumber = Math.floor(gameState.history().length / 2) + 1;
@@ -268,6 +273,11 @@ function determineGamePhase(gameState) {
  * @returns {Object} Count of white and black pieces
  */
 function countPieces(gameState) {
+  // Add null check to prevent errors
+  if (!gameState || typeof gameState.board !== 'function') {
+    return { white: 0, black: 0 };
+  }
+
   const board = gameState.board();
   let white = 0;
   let black = 0;
@@ -323,6 +333,12 @@ function evaluatePositionalChange(previousState, newState, gamePhase) {
  */
 function evaluateCenterControl(previousState, newState) {
   const centerSquares = ["d4", "e4", "d5", "e5"];
+
+  // Add null checks to prevent errors
+  if (!previousState || !newState) {
+    return 0;
+  }
+
   let prevControl = calculateCenterControl(previousState, centerSquares);
   let newControl = calculateCenterControl(newState, centerSquares);
 
@@ -336,6 +352,11 @@ function evaluateCenterControl(previousState, newState) {
  * @returns {number} Center control score
  */
 function calculateCenterControl(gameState, centerSquares) {
+  // Add null check to prevent errors
+  if (!gameState || typeof gameState.turn !== 'function') {
+    return 0;
+  }
+
   // For simplicity, a square is considered controlled if
   // it's occupied by a friendly piece or attacked by a friendly piece
   let controlScore = 0;
@@ -391,6 +412,11 @@ function evaluatePieceMobility(previousState, newState) {
  * @returns {number} Number of legal moves
  */
 function countLegalMoves(gameState) {
+  // Add null check to prevent errors
+  if (!gameState || typeof gameState.moves !== 'function') {
+    return 0;
+  }
+
   return gameState.moves().length;
 }
 

@@ -292,9 +292,29 @@ const LandingPage = () => {
               )}
             </div>
 
-            {/* Unfinished Games Section - Only show for guest users */}
+            {/* Game History Button - Only show for guest users */}
             {!isAuthenticated && (
-              <UnfinishedGamesSection isAuthenticated={isAuthenticated} />
+              <div className="mt-6 w-full max-w-sm sm:max-w-md mx-auto">
+                <Link
+                  to="/game-history"
+                  onClick={() => trackUI('game_history', 'click', { button: 'view_games', location: 'landing_page' })}
+                  className="unified-card light-theme hover:shadow-lg transition-shadow cursor-pointer block"
+                >
+                  <div className="unified-card-header">
+                    <div className="unified-card-avatar">🔄</div>
+                    <h3 className="unified-card-title centered text-lg sm:text-xl">Your Games</h3>
+                  </div>
+                  <div className="unified-card-body text-center">
+                    <p className="text-gray-600 mb-3">
+                      View your unfinished and completed games
+                    </p>
+                    <div className="inline-flex items-center text-orange-500 font-semibold">
+                      <span>View Game History</span>
+                      <span className="ml-2">→</span>
+                    </div>
+                  </div>
+                </Link>
+              </div>
             )}
           </div>
         </div>

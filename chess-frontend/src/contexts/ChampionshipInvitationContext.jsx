@@ -21,8 +21,16 @@ export const ChampionshipInvitationProvider = ({ children }) => {
   // Fetch user's championship invitations
   const fetchInvitations = useCallback(async () => {
     try {
-      setLoading(true);
       const token = localStorage.getItem('auth_token');
+
+      // Skip API call if not authenticated
+      if (!token) {
+        console.log('[ChampionshipInvitation] No auth token found, skipping invitations fetch');
+        setInvitations([]);
+        return;
+      }
+
+      setLoading(true);
       const response = await axios.get(`${BACKEND_URL}/invitations/pending`, {
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -322,16 +322,13 @@ export async function getCompletedGames(isAuthenticated = false) {
   // For guests or as fallback, get from localStorage
   try {
     const localData = localStorage.getItem(COMPLETED_GAMES_KEY);
-    console.log('[CompletedGame] Raw localStorage data:', localData);
 
     if (localData) {
       const games = JSON.parse(localData);
-      console.log('[CompletedGame] Parsed games:', games);
       const completedGames = games.filter(game => game.status === 'completed' || game.completed === true);
-      console.log('[CompletedGame] Filtered completed games:', completedGames);
       console.log('[CompletedGame] 📂 Found', completedGames.length, 'completed games in localStorage');
 
-      // Sort by timestamp descending (most recent first) and add source
+      // Sort by timestamp (newest first) and add source
       return completedGames
         .sort((a, b) => b.timestamp - a.timestamp)
         .map(game => ({

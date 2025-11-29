@@ -19,8 +19,9 @@ import GameReview from "./components/GameReview";
 import Login from "./pages/Login";
 import Dashboard from "./components/Dashboard";
 import AuthCallback from "./components/auth/AuthCallback";
-import LandingPage from "./pages/landingPage";
+import LandingPage from "./pages/LandingPage";
 import LobbyPage from "./pages/LobbyPage";
+import GameHistoryPage from "./pages/GameHistoryPage";
 import Puzzles from "./components/Puzzles";
 import Learn from "./components/Learn";
 import Profile from "./components/Profile";
@@ -109,6 +110,9 @@ const AppContent = () => {
             {/* Play computer - No auth required */}
             <Route path="/play" element={<PlayComputer />} />
             <Route path="/test/championship" element={<ChampionshipVictoryTest />} />
+
+            {/* Game History - Guest users */}
+            <Route path="/game-history" element={<GameHistoryPage />} />
 
             {/* Multiplayer game routes - Auth required */}
             <Route

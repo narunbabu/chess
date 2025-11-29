@@ -43,7 +43,9 @@ const GameEndCard = React.forwardRef(({
   computerLevel,
   isAuthenticated,
   championshipData = null, // Championship info: { tournamentName, round, matchId, standing, points }
-  onClose = null // Close handler for the card
+  onClose = null, // Close handler for the card
+  sharePlayerName = null, // Custom player name for sharing (guest users)
+  hideShareButton = false // Hide share button when card is used for capturing only
 }, forwardedRef) => {
   const internalRef = useRef(null);
   const cardRef = forwardedRef || internalRef;
@@ -113,22 +115,28 @@ const GameEndCard = React.forwardRef(({
     // Use the provided computerLevel if available, otherwise fall back to result.computer_level
     const effectiveComputerLevel = computerLevel !== undefined ? computerLevel : result.computer_level;
 
+    // Determine the effective user name - prioritize sharePlayerName over user?.name
+    const effectiveUserName = sharePlayerName || user?.name || 'Player';
+
     console.log('Player assignment debug:', {
       isComputerGame,
       playerIsWhite,
       computerLevel,
       effectiveComputerLevel,
       userName: user?.name,
+      sharePlayerName: sharePlayerName,
+      effectiveUserName: effectiveUserName,
       opponentName: result.opponent_name
     });
 
     // If result already has player objects from backend, use them with merged data
     const white_player = result.white_player ? {
       ...result.white_player, // Preserve all backend data including email
+      name: sharePlayerName && playerIsWhite ? sharePlayerName : result.white_player.name, // Override with sharePlayerName if sharing
       isComputer: playerIsWhite ? false : isComputerGame
     } : {
       id: playerIsWhite ? result.user_id : null,
-      name: playerIsWhite ? (user?.name || 'Player') : (isComputerGame ? `Computer Level ${effectiveComputerLevel || 8}` : (result.opponent_name || 'Opponent')),
+      name: playerIsWhite ? effectiveUserName : (isComputerGame ? `Computer Level ${effectiveComputerLevel || 8}` : (result.opponent_name || 'Opponent')),
       email: playerIsWhite ? (user?.email || null) : null,
       rating: playerIsWhite ? (user?.rating || 1200) : (isComputerGame ? (effectiveComputerLevel ? 1000 + (effectiveComputerLevel * 100) : 1800) : 1200),
       is_provisional: playerIsWhite ? (user?.is_provisional || false) : false,
@@ -140,10 +148,11 @@ const GameEndCard = React.forwardRef(({
 
     const black_player = result.black_player ? {
       ...result.black_player, // Preserve all backend data including email
+      name: sharePlayerName && !playerIsWhite ? sharePlayerName : result.black_player.name, // Override with sharePlayerName if sharing
       isComputer: !playerIsWhite ? false : isComputerGame
     } : {
       id: !playerIsWhite ? result.user_id : null,
-      name: !playerIsWhite ? (user?.name || 'Player') : (isComputerGame ? `Computer Level ${effectiveComputerLevel || 8}` : (result.opponent_name || 'Opponent')),
+      name: !playerIsWhite ? effectiveUserName : (isComputerGame ? `Computer Level ${effectiveComputerLevel || 8}` : (result.opponent_name || 'Opponent')),
       email: !playerIsWhite ? (user?.email || null) : null,
       rating: !playerIsWhite ? (user?.rating || 1200) : (isComputerGame ? (effectiveComputerLevel ? 1000 + (effectiveComputerLevel * 100) : 1800) : 1200),
       is_provisional: !playerIsWhite ? (user?.is_provisional || false) : false,
@@ -305,7 +314,7 @@ const GameEndCard = React.forwardRef(({
     }
 
     return { isPlayerWin, isDraw, playersInfo, resultText, icon, title, gameDurationText };
-  }, [result, user, score, opponentScore, playerColor, isMultiplayer, computerLevel, isAuthenticated]);
+  }, [result, user, score, opponentScore, playerColor, isMultiplayer, computerLevel, isAuthenticated, sharePlayerName]);
 
   const handleAvatarError = (e, name, color) => {
     // Create a text-based avatar fallback instead of using external service
@@ -923,8 +932,8 @@ const handleShare = async () => {
           </div>
         </div>
 
-        {/* Share button - only show for non-multiplayer games */}
-        {!isMultiplayer && (
+        {/* Share button - only show for non-multiplayer games and when not hidden */}
+        {!isMultiplayer && !hideShareButton && (
           <div className="text-center mb-3">
             <button
               onClick={handleShare}
@@ -1109,7 +1118,7 @@ const handleShare = async () => {
 
             {/* Close button */}
             <button
-              onClick={closeShareModal}
+              onClick={(e) => { e.stopPropagation(); closeShareModal(); }}
               style={{
                 width: '100%',
                 padding: '12px',
