@@ -99,6 +99,9 @@
   background: linear-gradient(90deg, var(--brand), var(--brand-2));
   opacity: 0;
   transition: opacity 0.3s ease;
+
+  /* Allows clicks to pass through to buttons below */
+  pointer-events: none;
 }
 
 .unified-card.stat:hover::before {

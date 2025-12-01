@@ -8,6 +8,12 @@ import { encodeGameHistory } from "../utils/gameHistoryStringUtils";
 
 const STORAGE_KEY = "chess_trainer_game_history";
 
+// Request deduplication: Track in-flight requests to prevent duplicate API calls
+let gameHistoriesRequest = null;
+let gameHistoriesCache = null;
+let gameHistoriesCacheTime = 0;
+const CACHE_TTL = 5000; // 5 seconds cache
+
 /**
  * Save a completed game to history
  * @param {Object} gameData - The game data to save
@@ -119,20 +125,36 @@ export const saveGameHistory = async (gameData) => {
 };
 
 export const getGameHistories = async () => {
-  try {
-    const token = localStorage.getItem("auth_token");
-    if (token) {
-      try {
-        const res = await api.get("/game-history");
-        console.log('[gameHistoryService] ✅ NEW CODE LOADED - Keeping moves as string');
-        return res.data.data.map(game => {
-          console.log(`[gameHistoryService] Game ${game.id}: moves type = ${typeof game.moves}, value =`, game.moves?.substring?.(0, 50));
+  // Check cache first
+  const now = Date.now();
+  if (gameHistoriesCache && (now - gameHistoriesCacheTime) < CACHE_TTL) {
+    console.log('[gameHistoryService] 📦 Returning cached game histories (age:', now - gameHistoriesCacheTime, 'ms)');
+    return gameHistoriesCache;
+  }
+
+  // If request already in-flight, wait for it
+  if (gameHistoriesRequest) {
+    console.log('[gameHistoryService] ⏳ Request already in-flight, waiting for existing request...');
+    return gameHistoriesRequest;
+  }
+
+  // Start new request
+  console.log('[gameHistoryService] 🚀 Starting new game histories request');
+  gameHistoriesRequest = (async () => {
+    try {
+      const token = localStorage.getItem("auth_token");
+      if (token) {
+        try {
+          const res = await api.get("/game-history");
+          console.log('[gameHistoryService] ✅ Fetched from backend - Keeping moves as string');
+          const processedData = res.data.data.map(game => {
+          // console.log(`[gameHistoryService] Game ${game.id}: moves type = ${typeof game.moves}, value =`, game.moves?.substring?.(0, 50));
           let parsedMoves = game.moves;
           if (typeof game.moves === 'string') {
             // Keep as string - let the consuming component parse it
             // This preserves the original semicolon-separated format: "e4,2.52;Nf6,0.98;..."
             parsedMoves = game.moves;
-            console.log(`[gameHistoryService] Game ${game.id}: Keeping as string (${game.moves.length} chars)`);
+            // console.log(`[gameHistoryService] Game ${game.id}: Keeping as string (${game.moves.length} chars)`);
           }
 
           // Normalize finalScore from backend data
@@ -141,43 +163,59 @@ export const getGameHistories = async () => {
             ? null
             : (typeof raw === 'string' ? parseFloat(raw) : raw);
 
-          return { ...game, moves: parsedMoves, finalScore };
-        });
-      } catch (backendError) {
-        console.warn("Backend fetch failed (likely unauthenticated), falling back to localStorage:", backendError.message);
-        // Clear invalid token if authentication failed
-        if (backendError.response?.status === 401) {
-          localStorage.removeItem("auth_token");
+            return { ...game, moves: parsedMoves, finalScore };
+          });
+
+          // Cache the result
+          gameHistoriesCache = processedData;
+          gameHistoriesCacheTime = Date.now();
+          return processedData;
+        } catch (backendError) {
+          console.warn("Backend fetch failed (likely unauthenticated), falling back to localStorage:", backendError.message);
+          // Clear invalid token if authentication failed
+          if (backendError.response?.status === 401) {
+            localStorage.removeItem("auth_token");
+          }
+          // Fallback to localStorage if backend fails
         }
-        // Fallback to localStorage if backend fails
       }
+
+      // Get from localStorage (either no token or backend failed)
+      const games = JSON.parse(localStorage.getItem("chess_trainer_game_history") || "[]");
+      const processedData = games.map(game => {
+        // Keep moves as string - let the consuming component parse it
+        let parsedMoves = game.moves;
+        if (typeof parsedMoves === 'string') {
+          parsedMoves = game.moves; // Keep as string
+        }
+
+        // Normalize finalScore into a Number
+        const raw = game.finalScore ?? game.final_score ?? game.score;
+        const finalScore = raw == null
+          ? null
+          : (typeof raw === 'string' ? parseFloat(raw) : raw);
+
+        return {
+          ...game,
+          moves: parsedMoves,
+          finalScore
+        };
+      });
+
+      // Cache the result
+      gameHistoriesCache = processedData;
+      gameHistoriesCacheTime = Date.now();
+      return processedData;
+    } catch (error) {
+      console.error("Error retrieving game histories:", error);
+      return [];
+    } finally {
+      // Clear in-flight request tracker
+      gameHistoriesRequest = null;
     }
+  })();
 
-    // Get from localStorage (either no token or backend failed)
-    const games = JSON.parse(localStorage.getItem("chess_trainer_game_history") || "[]");
-    return games.map(game => {
-      // Keep moves as string - let the consuming component parse it
-      let parsedMoves = game.moves;
-      if (typeof parsedMoves === 'string') {
-        parsedMoves = game.moves; // Keep as string
-      }
-
-      // Normalize finalScore into a Number
-      const raw = game.finalScore ?? game.final_score ?? game.score;
-      const finalScore = raw == null
-        ? null
-        : (typeof raw === 'string' ? parseFloat(raw) : raw);
-
-      return {
-        ...game,
-        moves: parsedMoves,
-        finalScore
-      };
-    });
-  } catch (error) {
-    console.error("Error retrieving game histories:", error);
-    return [];
-  }
+  return gameHistoriesRequest;
 };
 
 export const getGameHistoryById = async (id) => {

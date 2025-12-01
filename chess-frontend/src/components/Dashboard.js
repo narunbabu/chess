@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useAppData } from "../contexts/AppDataContext";
@@ -6,7 +6,6 @@ import { getGameHistories } from "../services/gameHistoryService";
 import api from "../services/api";
 import SkillAssessmentModal from "./auth/SkillAssessmentModal";
 import DetailedStatsModal from "./DetailedStatsModal";
-import UnfinishedGamePrompt from "./UnfinishedGamePrompt";
 import { getPlayerAvatar } from "../utils/playerDisplayUtils";
 import { isWin, getResultDisplayText } from "../utils/resultStandardization";
 import { getUnfinishedGame, getUnfinishedGames, deleteUnfinishedGame } from "../services/unfinishedGameService";
@@ -20,18 +19,60 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [showSkillAssessment, setShowSkillAssessment] = useState(false);
   const [showDetailedStats, setShowDetailedStats] = useState(false);
-  const [selectedUnfinishedGame, setSelectedUnfinishedGame] = useState(null);
   const [visibleActiveGames, setVisibleActiveGames] = useState(3);
   const [visibleRecentGames, setVisibleRecentGames] = useState(3);
   const { user } = useAuth();
   const { getGameHistory } = useAppData();
   const navigate = useNavigate();
-  const didFetchRef = useRef(false); // Guard against StrictMode double-mount
+
+  // Performance guards: Prevent duplicate API calls across multiple mounts
+  // Note: Dashboard may mount 2-3 times in development due to:
+  // 1. Initial render when route matches
+  // 2. Re-render when auth state updates (user data loads)
+  // 3. Re-render when context providers stabilize
+  // The didFetchRef ensures we only fetch data once regardless of mount count
+  const didFetchRef = useRef(false); // Guard against multiple mounts
+  const mountCountRef = useRef(0); // Track mount count for debugging
+  const activeGamesRequestRef = useRef(null); // Track in-flight active games request
+
+  // Active games fetch with deduplication
+  const fetchActiveGames = useCallback(async () => {
+    // If request already in-flight, wait for it
+    if (activeGamesRequestRef.current) {
+      console.log('[Dashboard] ⏳ Active games fetch already in-flight, waiting...');
+      return activeGamesRequestRef.current;
+    }
+
+    console.log('[Dashboard] 🚀 Fetching active games');
+    activeGamesRequestRef.current = api.get('/games/active')
+      .then(response => {
+        console.log('[Dashboard] ✅ Active games fetched');
+        return response;
+      })
+      .catch(err => {
+        console.error("[Dashboard] ❌ Error loading active games:", err);
+        return { data: [] };
+      })
+      .finally(() => {
+        activeGamesRequestRef.current = null;
+      });
+
+    return activeGamesRequestRef.current;
+  }, []);
 
   useEffect(() => {
-    // Prevent duplicate fetches in StrictMode
+    // Component mount logging
+    mountCountRef.current += 1;
+    console.log(`[Dashboard] 🔄 Component mounted (mount #${mountCountRef.current})`);
+
+    // Only log trace on first mount to reduce noise
+    if (mountCountRef.current === 1) {
+      console.trace('[Dashboard] 📍 First mount call stack');
+    }
+
+    // Prevent duplicate fetches across mounts
     if (didFetchRef.current) {
-      console.log('[Dashboard] ⏭️ Already fetched game histories, skipping');
+      console.log('[Dashboard] ⏭️ Already fetched data, skipping (mount #' + mountCountRef.current + ')');
       return;
     }
     didFetchRef.current = true;
@@ -44,12 +85,13 @@ const Dashboard = () => {
       try {
         console.log('[Dashboard] 📊 Loading game histories, active games, and unfinished games...');
         // Fetch game histories, active games, and unfinished games in parallel
+        // Use AppDataContext's cached version first, only force refresh if it fails
         const [fetchedHistories, fetchedActiveGames, fetchedUnfinishedGames] = await Promise.all([
-          getGameHistory(true).catch(() => getGameHistories()), // Force refresh to bypass cache
-          api.get('/games/active').catch(err => {
-            console.error("[Dashboard] ❌ Error loading active games:", err);
-            return { data: [] };
+          getGameHistory(false).catch(() => {
+            console.log('[Dashboard] ⚠️ Cache miss, fetching directly');
+            return getGameHistories();
           }),
+          fetchActiveGames(),
           getUnfinishedGames(!!user).catch(err => {
             console.error("[Dashboard] ❌ Error loading unfinished games:", err);
             return [];
@@ -166,9 +208,57 @@ const Dashboard = () => {
   const handleResumeUnfinishedGame = async (game) => {
     console.log('[Dashboard] 📂 Resuming unfinished game:', game);
     try {
+      // Calculate actual remaining time from move history
+      const calculateRemainingTime = (moves, initialTimeMs = 10 * 60 * 1000) => {
+        if (!moves || !Array.isArray(moves)) {
+          return { whiteMs: initialTimeMs, blackMs: initialTimeMs };
+        }
+
+        let whiteTimeSpent = 0;
+        let blackTimeSpent = 0;
+
+        moves.forEach(moveEntry => {
+          const timeSpent = (moveEntry.timeSpent || 0) * 1000; // Convert to ms
+          if (moveEntry.playerColor === 'w') {
+            whiteTimeSpent += timeSpent;
+          } else if (moveEntry.playerColor === 'b') {
+            blackTimeSpent += timeSpent;
+          }
+        });
+
+        return {
+          whiteMs: Math.max(0, initialTimeMs - whiteTimeSpent),
+          blackMs: Math.max(0, initialTimeMs - blackTimeSpent)
+        };
+      };
+
+      // Calculate remaining time if timerState exists
+      let updatedTimerState = game.timerState;
+      if (game.timerState && game.moves) {
+        const calculatedTimes = calculateRemainingTime(
+          game.moves,
+          game.timerState.whiteMs || 10 * 60 * 1000
+        );
+        updatedTimerState = {
+          ...game.timerState,
+          whiteMs: calculatedTimes.whiteMs,
+          blackMs: calculatedTimes.blackMs
+        };
+        console.log('[Dashboard] ⏱️ Calculated remaining times:', calculatedTimes);
+      }
+
       if (game.gameMode === 'computer') {
         // For computer games, navigate to PlayComputer with state
-        navigate('/play', { state: { resumeGame: game } });
+        // PlayComputer expects location.state.gameState with isResume: true
+        navigate('/play', {
+          state: {
+            gameState: {
+              ...game,
+              timerState: updatedTimerState,
+              isResume: true
+            }
+          }
+        });
       } else if (game.gameMode === 'multiplayer') {
         // For multiplayer games, navigate to PlayMultiplayer with game ID
         if (game.gameId) {
@@ -180,7 +270,6 @@ const Dashboard = () => {
     } catch (error) {
       console.error('[Dashboard] ❌ Error resuming game:', error);
     }
-    setSelectedUnfinishedGame(null);
   };
 
   const handleDiscardUnfinishedGame = async (game) => {
@@ -211,6 +300,38 @@ const Dashboard = () => {
   // Check if user should be prompted to set their rating
   const shouldShowRatingPrompt = user && user.rating === 1200 && (user.games_played === 0 || !user.games_played);
 
+  // Memoize stats calculations to prevent repetitive computation
+  const stats = useMemo(() => {
+    const totalGames = gameHistories.length;
+
+    if (totalGames === 0) {
+      return {
+        totalGames: 0,
+        winRate: "0%",
+        averageScore: "0.0"
+      };
+    }
+
+    const wins = gameHistories.filter((g) => isWin(g.result)).length;
+    const winRate = `${Math.round((wins / totalGames) * 100)}%`;
+
+    const scores = gameHistories.map(game => {
+      const score = game.finalScore ?? game.final_score ?? game.score ?? 0;
+      return typeof score === 'number' ? score : parseFloat(score) || 0;
+    });
+    const sum = scores.reduce((a, b) => a + b, 0);
+    const avg = sum / totalGames;
+    const averageScore = avg.toFixed(1);
+
+    console.log('📊 [Stats] Calculated once - Total games:', totalGames, 'Wins:', wins, 'Average:', averageScore);
+
+    return {
+      totalGames,
+      winRate,
+      averageScore
+    };
+  }, [gameHistories]); // Only recalculate when gameHistories changes
+
   return (
     <>
       <SkillAssessmentModal
@@ -224,14 +345,6 @@ const Dashboard = () => {
         onClose={() => setShowDetailedStats(false)}
         gameHistories={gameHistories}
         user={user}
-      />
-
-      <UnfinishedGamePrompt
-        open={!!selectedUnfinishedGame}
-        game={selectedUnfinishedGame}
-        onResume={handleResumeUnfinishedGame}
-        onDiscard={handleDiscardUnfinishedGame}
-        onClose={() => setSelectedUnfinishedGame(null)}
       />
 
       <div className="dashboard-container">
@@ -418,7 +531,7 @@ const Dashboard = () => {
                     </div>
                     <div className="unified-card-actions">
                       <button
-                        onClick={() => setSelectedUnfinishedGame(game)}
+                        onClick={() => handleResumeUnfinishedGame(game)}
                         className="unified-card-btn primary"
                       >
                         ▶️ Resume
@@ -518,7 +631,7 @@ const Dashboard = () => {
               <div className="unified-card centered">
                 <div className="unified-card-content">
                   <h3 className="unified-card-title title-large title-primary">
-                    {gameHistories.length}
+                    {stats.totalGames}
                   </h3>
                   <p className="unified-card-subtitle">Games Played</p>
                 </div>
@@ -526,13 +639,7 @@ const Dashboard = () => {
               <div className="unified-card centered">
                 <div className="unified-card-content">
                   <h3 className="unified-card-title title-large title-success">
-                    {gameHistories.length > 0
-                      ? (() => {
-                          const wins = gameHistories.filter((g) => isWin(g.result)).length;
-                          console.log('📊 [Stats] Total games:', gameHistories.length, 'Wins:', wins);
-                          return `${Math.round((wins / gameHistories.length) * 100)}%`;
-                        })()
-                      : "0%"}
+                    {stats.winRate}
                   </h3>
                   <p className="unified-card-subtitle">Win Rate</p>
                 </div>
@@ -540,20 +647,7 @@ const Dashboard = () => {
               <div className="unified-card centered">
                 <div className="unified-card-content">
                   <h3 className="unified-card-title title-large title-accent">
-                    {gameHistories.length > 0
-                      ? (() => {
-                          const scores = gameHistories.map(game => {
-                            // Backend now calculates final_score properly for all game types
-                            const score = game.finalScore ?? game.final_score ?? game.score ?? 0;
-                            const numScore = typeof score === 'number' ? score : parseFloat(score) || 0;
-                            return numScore;
-                          });
-                          const sum = scores.reduce((a, b) => a + b, 0);
-                          const avg = sum / gameHistories.length;
-                          console.log('📊 [Stats] Scores:', scores, 'Average:', avg);
-                          return avg.toFixed(1);
-                        })()
-                      : "0.0"}
+                    {stats.averageScore}
                   </h3>
                   <p className="unified-card-subtitle">Average Score</p>
                 </div>

@@ -12,12 +12,13 @@ const TimerDisplay = ({
   playerData = null, // player object with avatar_url
   opponentData = null, // opponent/computer data
 }) => {
-  // Format time as mm:ss
+  // Format time as mm:ss (integer seconds only)
   const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60)
+    const totalSeconds = Math.floor(seconds); // Round down to whole seconds
+    const mins = Math.floor(totalSeconds / 60)
       .toString()
       .padStart(2, "0");
-    const secs = (seconds % 60).toString().padStart(2, "0");
+    const secs = (totalSeconds % 60).toString().padStart(2, "0");
     return `${mins}:${secs}`;
   };
 

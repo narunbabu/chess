@@ -139,53 +139,13 @@ export const ChampionshipInvitationProvider = ({ children }) => {
         return;
       }
 
-      // Listen for new championship match invitations
-      // Note: Backend broadcasts as 'invitation.sent' to 'private-App.Models.User.{id}' channel
-      echo.private(`App.Models.User.${userId}`)
-        .listen('InvitationSent', (e) => {
-          console.log('[ChampionshipInvitation] New invitation received:', e);
+      console.log('[ChampionshipInvitation] ⚠️ Note: Championship invitation dialogs are now handled by GlobalInvitationContext');
+      console.log('[ChampionshipInvitation] This context only handles championship scheduling events');
 
-          // Only process championship match invitations
-          if (e.invitation && e.invitation.championship_match_id) {
-            setInvitations(prev => {
-              // Check if invitation already exists
-              const exists = prev.some(inv => inv.id === e.invitation.id);
-              if (!exists) {
-                console.log('[ChampionshipInvitation] Adding new championship invitation to list:', e.invitation);
-                return [...prev, e.invitation];
-              }
-              return prev;
-            });
+      // NOTE: Championship invitation dialogs (.invitation.sent) are now handled by GlobalInvitationContext
+      // to prevent duplicate channel subscriptions. This context only handles championship-specific scheduling events.
 
-            // Show notification
-            if ('Notification' in window && 'permission' in Notification) {
-              if (Notification.permission === 'granted') {
-                const inviterName = e.invitation.inviter?.name || 'an opponent';
-                new Notification('New Championship Match!', {
-                  body: `You have a new match invitation from ${inviterName}`,
-                  icon: '/favicon.ico'
-                });
-              }
-            }
-          }
-        });
-
-      // Listen for invitation status changes
-      echo.private(`App.Models.User.${userId}`).listen('ChampionshipMatchInvitationExpired', (e) => {
-        console.log('[ChampionshipInvitation] Invitation expired:', e);
-
-        if (e.invitation_id) {
-          setInvitations(prev => prev.filter(inv => inv.id !== e.invitation_id));
-        }
-      });
-
-      echo.private(`App.Models.User.${userId}`).listen('ChampionshipMatchInvitationCancelled', (e) => {
-        console.log('[ChampionshipInvitation] Invitation cancelled:', e);
-
-        if (e.invitation_id) {
-          setInvitations(prev => prev.filter(inv => inv.id !== e.invitation_id));
-        }
-      });
+      const userChannel = echo.private(`App.Models.User.${userId}`);
 
       // NEW: Championship scheduling WebSocket listeners
       echo.private(`App.Models.User.${userId}`).listen('championship.schedule.updated', (e) => {
@@ -355,13 +315,9 @@ export const ChampionshipInvitationProvider = ({ children }) => {
     setupWebSocketListeners();
 
     // Cleanup function
+    // NOTE: We don't leave the channel here because GlobalInvitationContext manages the channel lifecycle
     return () => {
-      const echo = getEcho();
-      const userId = localStorage.getItem('user_id');
-
-      if (echo && userId) {
-        echo.leave(`App.Models.User.${userId}`);
-      }
+      console.log('[ChampionshipInvitation] Cleanup - channel managed by GlobalInvitationContext');
     };
   }, []);
 

@@ -501,7 +501,6 @@ const PlayComputer = () => {
     try {
       // Restore game state from FEN
       const restoredGame = new Chess(gameState.fen);
-      console.log('[PlayComputer] ✅ Game restored from FEN:', gameState.fen);
       setGame(restoredGame);
 
       // Restore player color and board orientation
@@ -509,27 +508,22 @@ const PlayComputer = () => {
       const normalizedPlayerColor = gameState.playerColor === 'white' || gameState.playerColor === 'w' ? 'w' : 'b';
       setPlayerColor(normalizedPlayerColor);
       setBoardOrientation(normalizedPlayerColor === 'w' ? 'white' : 'black');
-      console.log('[PlayComputer] ✅ Player color restored:', normalizedPlayerColor, '(original:', gameState.playerColor, ')');
 
       // Restore computer difficulty
       setComputerDepth(gameState.computerLevel || DEFAULT_DEPTH);
-      console.log('[PlayComputer] ✅ Computer depth restored:', gameState.computerLevel || DEFAULT_DEPTH);
 
       // Restore game history
       if (gameState.moves && Array.isArray(gameState.moves)) {
         setGameHistory(gameState.moves);
         setMoveCount(gameState.moves.length);
-        console.log('[PlayComputer] ✅ Game history restored:', gameState.moves.length, 'moves');
       }
 
       // Restore scores (if saved, though currently not)
       if (gameState.playerScore !== undefined) {
         setPlayerScore(gameState.playerScore);
-        console.log('[PlayComputer] ✅ Player score restored:', gameState.playerScore);
       }
       if (gameState.opponentScore !== undefined) {
         setComputerScore(gameState.opponentScore);
-        console.log('[PlayComputer] ✅ Computer score restored:', gameState.opponentScore);
       }
 
       // Restore timers
@@ -544,19 +538,20 @@ const PlayComputer = () => {
           setPlayerTime(blackTime);
           setComputerTime(whiteTime);
         }
-        console.log('[PlayComputer] ✅ Timers restored - White:', whiteTime, 'Black:', blackTime);
+      }
+
+      // Restore game ID to prevent creating a new ID when pausing again
+      if (gameState.id) {
+        setCurrentGameId(gameState.id);
       }
 
       // Start the game
       setGameStarted(true);
       setGameStatus("Game resumed!");
-      console.log('[PlayComputer] ✅ Game started flag set to true');
-
       // Start timer for appropriate side
       const currentTurn = restoredGame.turn();
       const playerColorChess = normalizedPlayerColor;
       const computerColor = playerColorChess === 'w' ? 'b' : 'w';
-      console.log('[PlayComputer] 🎯 Current turn:', currentTurn, 'Player:', playerColorChess, 'Computer:', computerColor);
 
       if (currentTurn === playerColorChess) {
         // Player's turn
@@ -564,22 +559,18 @@ const PlayComputer = () => {
         setIsTimerRunning(true);
         startTimerInterval();
         moveStartTimeRef.current = performance.now();
-        console.log('[PlayComputer] ⏱️ Player turn - timer started');
       } else {
         // Computer's turn - trigger computer move
         setActiveTimer(computerColor);
         setIsTimerRunning(true);
         startTimerInterval();
-        console.log('[PlayComputer] ⏱️ Computer turn - scheduling move');
         // Trigger computer move after a short delay
         setTimeout(() => {
           setComputerMoveInProgress(true);
-          console.log('[PlayComputer] 🤖 Computer move triggered');
         }, 500);
       }
 
-      console.log('[PlayComputer] ✅ Game resumed successfully');
-    } catch (error) {
+        } catch (error) {
       console.error('[PlayComputer] ❌ Error resuming game:', error);
       setGameStatus("Error resuming game. Please start a new game.");
     }
@@ -881,21 +872,7 @@ const PlayComputer = () => {
         // playerColor might already be in chess.js format ('w' or 'b') or full format ('white' or 'black')
         const playerColorChess = playerColor === 'white' || playerColor === 'w' ? 'w' : 'b';
 
-        // Debug logging to identify pawn movement issues
-        console.log('🎯 [PlayComputer] Move attempt:', {
-            from: sourceSquare,
-            to: targetSquare,
-            currentTurn: game.turn(),
-            playerColor,
-            playerColorChess,
-            gameOver,
-            isReplayMode,
-            gameStarted,
-            activeTimer,
-            computerMoveInProgress,
-            fen: game.fen()
-        });
-
+  
         // Fix for timer not being initialized - ensure activeTimer is set if game started
         if (gameStarted && !activeTimer && !gameOver && !isReplayMode) {
             console.log('🔧 [PlayComputer] Fixing uninitialized timer - setting to', playerColorChess);
@@ -914,18 +891,6 @@ const PlayComputer = () => {
             computerMoveInProgress ||
             (!isTimerIssue && activeTimer && activeTimer !== playerColorChess)
         ) {
-            console.log('❌ [PlayComputer] Move rejected - Turn/State check failed:', {
-                gameOver,
-                isReplayMode,
-                turnMatch: game.turn() !== playerColorChess,
-                activeTimerMatch: activeTimer && activeTimer !== playerColorChess,
-                computerMoveInProgress,
-                isTimerIssue,
-                gameStarted,
-                activeTimer,
-                playerColor,
-                playerColorChess
-            });
             return false; // Indicate move was not accepted
         }
 
@@ -939,20 +904,11 @@ const PlayComputer = () => {
 
         try {
             // Attempt the move
-            console.log('🔄 [PlayComputer] Attempting chess.js move:', {
-                from: sourceSquare,
-                to: targetSquare,
-                promotion: "q",
-                piece: game.get(sourceSquare)
-            });
-
             moveResult = gameCopy.move({
                 from: sourceSquare,
                 to: targetSquare,
                 promotion: "q", // Automatically promote to queen for simplicity
             });
-
-            console.log('✅ [PlayComputer] Chess.js move result:', moveResult);
         } catch (error) {
             // chess.js throws error for completely invalid format, but returns null for illegal moves
             console.error('❌ [PlayComputer] Chess.js move error:', error);
@@ -963,13 +919,6 @@ const PlayComputer = () => {
 
         // Check if the move was legal (chess.js returns null for illegal moves)
         if (!moveResult) {
-            console.error('❌ [PlayComputer] Illegal move detected:', {
-                from: sourceSquare,
-                to: targetSquare,
-                legalMoves: gameCopy.moves({ verbose: true }),
-                piece: game.get(sourceSquare),
-                targetPiece: game.get(targetSquare)
-            });
             setMoveFrom(""); // Clear selection state
             setMoveSquares({});
             return false; // Indicate move failed

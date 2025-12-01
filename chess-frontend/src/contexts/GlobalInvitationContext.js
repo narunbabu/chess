@@ -50,11 +50,12 @@ export const GlobalInvitationProvider = ({ children }) => {
     console.log('[GlobalInvitation] 🔌 Echo available:', !!echo);
     console.log('[GlobalInvitation] 📍 Current location:', location.pathname);
 
-    // Subscribe to user-specific channel
+    // Subscribe to user-specific channel (shared for all invitation types)
     const userChannel = echo.private(`App.Models.User.${user.id}`);
     console.log('[GlobalInvitation] 📡 Subscribing to channel:', `App.Models.User.${user.id}`);
     console.log('[GlobalInvitation] 🔌 Echo available:', !!echo);
     console.log('[GlobalInvitation] 📍 User location:', location.pathname);
+    console.log('[GlobalInvitation] ℹ️ This channel handles ALL invitation types (regular + championship)');
 
     // Add subscription success confirmation
     if (userChannel) {

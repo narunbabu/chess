@@ -128,6 +128,9 @@ export const AuthProvider = ({ children }) => {
   // Fetch current user data
   const fetchUser = useCallback(async () => {
     try {
+      console.log('[AuthContext] 🔄 fetchUser called');
+      console.trace('[AuthContext] 📍 fetchUser call stack');
+
       const token = localStorage.getItem("auth_token");
       if (!token) {
         logger.auth('Login', 'No auth token found');

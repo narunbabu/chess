@@ -13,49 +13,13 @@ export function useAppData() {
 }
 
 export function AppDataProvider({ children }) {
-  const [me, setMe] = useState(null);
   const [gameHistory, setGameHistory] = useState(null);
 
   // In-flight request tracking to prevent duplicate fetches
-  const meRequestRef = useRef(null);
   const historyRequestRef = useRef(null);
 
-  /**
-   * Get current user info with caching and deduplication
-   * @param {boolean} forceRefresh - Force a fresh fetch even if cached
-   * @returns {Promise<Object>} User data
-   */
-  const getMe = useCallback(async (forceRefresh = false) => {
-    // Return cached if available and not forcing refresh
-    if (me && !forceRefresh) {
-      console.log('[AppData] Returning cached user');
-      return me;
-    }
-
-    // If already fetching, wait for that request
-    if (meRequestRef.current) {
-      console.log('[AppData] User fetch already in-flight, waiting...');
-      return meRequestRef.current;
-    }
-
-    console.log('[AppData] Fetching user data');
-    meRequestRef.current = api.get('/user')
-      .then(response => {
-        const data = response.data;
-        setMe(data);
-        console.log('[AppData] User data cached');
-        return data;
-      })
-      .catch(err => {
-        console.error('[AppData] Failed to fetch user:', err);
-        throw err;
-      })
-      .finally(() => {
-        meRequestRef.current = null;
-      });
-
-    return meRequestRef.current;
-  }, [me]); // Memoize with me dependency
+  // NOTE: User data fetching removed - AuthContext is the single source of truth for user data
+  // This prevents duplicate /user API calls
 
   /**
    * Get game history with caching and deduplication
@@ -63,19 +27,22 @@ export function AppDataProvider({ children }) {
    * @returns {Promise<Array>} Game history data
    */
   const getGameHistory = useCallback(async (forceRefresh = false) => {
+    console.log('[AppData] 🔄 getGameHistory called, forceRefresh:', forceRefresh);
+    console.trace('[AppData] 📍 getGameHistory call stack');
+
     // Return cached if available and not forcing refresh
     if (gameHistory && !forceRefresh) {
-      console.log('[AppData] Returning cached game history');
+      console.log('[AppData] 📦 Returning cached game history');
       return gameHistory;
     }
 
     // If already fetching, wait for that request
     if (historyRequestRef.current) {
-      console.log('[AppData] Game history fetch already in-flight, waiting...');
+      console.log('[AppData] ⏳ Game history fetch already in-flight, waiting...');
       return historyRequestRef.current;
     }
 
-    console.log('[AppData] Fetching game history');
+    console.log('[AppData] 🚀 Fetching game history');
     historyRequestRef.current = getGameHistories()
       .then(data => {
         setGameHistory(data);
@@ -94,14 +61,6 @@ export function AppDataProvider({ children }) {
   }, [gameHistory]); // Memoize with gameHistory dependency
 
   /**
-   * Invalidate cache for user data
-   */
-  const invalidateMe = useCallback(() => {
-    console.log('[AppData] Invalidating user cache');
-    setMe(null);
-  }, []); // No dependencies needed
-
-  /**
    * Invalidate cache for game history
    */
   const invalidateGameHistory = useCallback(() => {
@@ -109,28 +68,15 @@ export function AppDataProvider({ children }) {
     setGameHistory(null);
   }, []); // No dependencies needed
 
-  /**
-   * Clear all caches
-   */
-  const clearCache = useCallback(() => {
-    console.log('[AppData] Clearing all caches');
-    setMe(null);
-    setGameHistory(null);
-  }, []); // No dependencies needed
-
   const value = {
     // Data
-    me,
     gameHistory,
 
     // Fetchers
-    getMe,
     getGameHistory,
 
     // Cache invalidation
-    invalidateMe,
     invalidateGameHistory,
-    clearCache,
   };
 
   return (

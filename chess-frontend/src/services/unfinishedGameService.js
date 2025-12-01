@@ -4,10 +4,68 @@
  */
 
 import api from './api';
+import { Chess } from 'chess.js';
 
 const UNFINISHED_GAMES_KEY = 'chess_unfinished_games';
 const COMPLETED_GAMES_KEY = 'chess_completed_games';
 const TTL_DAYS = 7; // Keep unfinished games for 7 days
+
+/**
+ * Parse moves from backend CSV format to frontend array format
+ * Backend format: "a4,2.52;d5,1.01;h3,1.09"
+ * Frontend format: [{move: {san: 'a4', ...}, timeSpent: 2.52, fen: '...', ...}, ...]
+ *
+ * NOTE: Moves should be replayed from the starting position, not the final FEN
+ */
+function parseBackendMoves(movesString) {
+  if (!movesString || typeof movesString !== 'string') {
+    return [];
+  }
+
+  try {
+    // Try JSON parse first (in case it's already in the correct format)
+    const parsed = JSON.parse(movesString);
+    if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'object') {
+      return parsed; // Already in correct format
+    }
+  } catch {
+    // Not JSON, proceed with CSV parsing
+  }
+
+  // Parse CSV format: "move,time;move,time"
+  // Always start from the initial position to replay moves correctly
+  const game = new Chess();
+  const moveEntries = movesString.split(';').filter(m => m.trim());
+
+  return moveEntries.map((moveStr, index) => {
+    const [moveNotation, timeSpent] = moveStr.split(',');
+    const trimmedMove = moveNotation?.trim();
+
+    if (!trimmedMove) return null;
+
+    try {
+      // Apply the move to get the resulting position
+      const moveObj = game.move(trimmedMove);
+
+      if (!moveObj) {
+        console.warn(`[parseBackendMoves] Invalid move: ${trimmedMove}`);
+        return null;
+      }
+
+      return {
+        move: moveObj, // Full move object with san, from, to, etc.
+        fen: game.fen(),
+        playerColor: moveObj.color, // 'w' or 'b'
+        timeSpent: parseFloat(timeSpent) || 0,
+        timestamp: Date.now() - ((moveEntries.length - index) * 1000), // Approximate timestamp
+        moveNumber: Math.floor(index / 2) + 1
+      };
+    } catch (error) {
+      console.warn(`[parseBackendMoves] Error parsing move ${trimmedMove}:`, error);
+      return null;
+    }
+  }).filter(m => m !== null); // Remove invalid moves
+}
 
 /**
  * Save unfinished game state
@@ -142,16 +200,19 @@ export async function getUnfinishedGame(isAuthenticated) {
         const game = response.data[0];
         console.log('[UnfinishedGame] 📂 Found unfinished game in backend:', game.id);
 
+        // Parse moves from backend format using helper function
+        const parsedMoves = parseBackendMoves(game.moves);
+
         return {
           id: game.id,
           gameId: game.id,
           fen: game.fen,
           pgn: game.pgn,
-          moves: game.moves ? JSON.parse(game.moves) : [],
+          moves: parsedMoves,
           playerColor: game.white_player_id === game.current_user_id ? 'w' : 'b',
           opponentName: game.opponent_name,
-          gameMode: 'multiplayer',
-          computerLevel: null,
+          gameMode: game.game_type === 'computer' ? 'computer' : 'multiplayer',
+          computerLevel: game.computer_level,
           timerState: {
             whiteMs: game.white_time_remaining_ms,
             blackMs: game.black_time_remaining_ms,
@@ -283,33 +344,38 @@ export async function getCompletedGames(isAuthenticated = false) {
       const response = await api.get('/games/completed');
 
       if (response.data && Array.isArray(response.data)) {
-        const backendGames = response.data.map(game => ({
-          gameId: game.id,
-          fen: game.fen,
-          pgn: game.pgn,
-          moves: game.moves ? JSON.parse(game.moves) : [],
-          playerColor: game.white_player_id === game.current_user_id ? 'white' : 'black',
-          opponentName: game.opponent_name || 'Computer',
-          gameMode: game.game_type === 'computer' ? 'computer' : 'multiplayer',
-          computerLevel: game.computer_level,
-          difficulty: game.computer_level || 'Medium',
-          timerState: {
-            whiteMs: game.white_time_remaining_ms,
-            blackMs: game.black_time_remaining_ms,
-            incrementMs: game.increment_seconds * 1000
-          },
-          turn: game.turn,
-          startTime: new Date(game.started_at).getTime(),
-          endTime: new Date(game.finished_at).getTime(),
-          result: game.result,
-          playerScore: game.white_player_id === game.current_user_id ? game.white_score : game.black_score,
-          opponentScore: game.white_player_id === game.current_user_id ? game.black_score : game.white_score,
-          timestamp: new Date(game.finished_at).getTime(),
-          status: 'completed',
-          completed: true,
-          opening: game.opening || null,
-          source: 'backend'
-        }));
+        const backendGames = response.data.map(game => {
+          // Parse moves from backend format using helper function
+          const parsedMoves = parseBackendMoves(game.moves, game.fen);
+
+          return {
+            gameId: game.id,
+            fen: game.fen,
+            pgn: game.pgn,
+            moves: parsedMoves,
+            playerColor: game.white_player_id === game.current_user_id ? 'white' : 'black',
+            opponentName: game.opponent_name || 'Computer',
+            gameMode: game.game_type === 'computer' ? 'computer' : 'multiplayer',
+            computerLevel: game.computer_level,
+            difficulty: game.computer_level || 'Medium',
+            timerState: {
+              whiteMs: game.white_time_remaining_ms,
+              blackMs: game.black_time_remaining_ms,
+              incrementMs: game.increment_seconds * 1000
+            },
+            turn: game.turn,
+            startTime: new Date(game.started_at).getTime(),
+            endTime: new Date(game.finished_at).getTime(),
+            result: game.result,
+            playerScore: game.white_player_id === game.current_user_id ? game.white_score : game.black_score,
+            opponentScore: game.white_player_id === game.current_user_id ? game.black_score : game.white_score,
+            timestamp: new Date(game.finished_at).getTime(),
+            status: 'completed',
+            completed: true,
+            opening: game.opening || null,
+            source: 'backend'
+          };
+        });
 
         console.log('[CompletedGame] 📂 Loaded', backendGames.length, 'completed games from backend');
         return backendGames;
@@ -440,27 +506,32 @@ export async function getUnfinishedGames(isAuthenticated = false) {
       const response = await api.get('/games/unfinished');
 
       if (response.data && Array.isArray(response.data)) {
-        const backendGames = response.data.map(game => ({
-          id: game.id,
-          gameId: game.id,
-          fen: game.fen,
-          pgn: game.pgn,
-          moves: game.moves ? JSON.parse(game.moves) : [],
-          playerColor: game.white_player_id === game.current_user_id ? 'w' : 'b',
-          opponentName: game.opponent_name || 'Computer',
-          gameMode: game.game_type === 'computer' ? 'computer' : 'multiplayer',
-          computerLevel: game.computer_level,
-          timerState: {
-            whiteMs: game.white_time_remaining_ms,
-            blackMs: game.black_time_remaining_ms,
-            incrementMs: game.increment_seconds * 1000
-          },
-          turn: game.turn,
-          timestamp: new Date(game.paused_at || game.updated_at).getTime(),
-          savedReason: game.paused_reason || 'navigation',
-          source: 'backend',
-          status: 'unfinished'
-        }));
+        const backendGames = response.data.map(game => {
+          // Parse moves from backend format using helper function
+          const parsedMoves = parseBackendMoves(game.moves, game.fen);
+
+          return {
+            id: game.id,
+            gameId: game.id,
+            fen: game.fen,
+            pgn: game.pgn,
+            moves: parsedMoves,
+            playerColor: game.white_player_id === game.current_user_id ? 'w' : 'b',
+            opponentName: game.opponent_name || 'Computer',
+            gameMode: game.game_type === 'computer' ? 'computer' : 'multiplayer',
+            computerLevel: game.computer_level,
+            timerState: {
+              whiteMs: game.white_time_remaining_ms,
+              blackMs: game.black_time_remaining_ms,
+              incrementMs: game.increment_seconds * 1000
+            },
+            turn: game.turn,
+            timestamp: new Date(game.paused_at || game.updated_at).getTime(),
+            savedReason: game.paused_reason || 'navigation',
+            source: 'backend',
+            status: 'unfinished'
+          };
+        });
 
         games.push(...backendGames);
         console.log('[UnfinishedGame] 📂 Loaded', backendGames.length, 'unfinished games from backend');

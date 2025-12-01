@@ -66,7 +66,7 @@ const App = () => {
         <FeatureFlagsProvider>
           <ChampionshipProvider>
             <ChampionshipInvitationProvider>
-              <Router future={{ v7_relativeSplatPath: true }}>
+              <Router future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
                 <GameNavigationProvider>
                   <Layout>
                     <GlobalInvitationProvider>
