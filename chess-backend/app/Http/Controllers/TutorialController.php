@@ -211,6 +211,14 @@ class TutorialController extends Controller
                 'attempts' => 'nullable|integer|min:0',
             ]);
 
+            \Log::info('📊 Lesson completion request received', [
+                'lesson_id' => $id,
+                'score' => $request->score,
+                'time_spent' => $request->time_spent_seconds,
+                'attempts' => $request->attempts,
+                'request_data' => $request->all()
+            ]);
+
             $user = Auth::user();
             $lesson = TutorialLesson::active()->findOrFail($id);
 
@@ -221,6 +229,12 @@ class TutorialController extends Controller
                     'message' => 'Lesson progress not found. Start the lesson first.',
                 ], 404);
             }
+
+            \Log::info('📊 Progress before completion', [
+                'current_best_score' => $progress->best_score,
+                'current_status' => $progress->status,
+                'new_score' => $request->score
+            ]);
 
             // Update user's daily streak
             try {
@@ -236,12 +250,36 @@ class TutorialController extends Controller
 
             // Mark lesson as completed
             try {
+                \Log::info('📊 Calling markAsCompleted', [
+                    'score_param' => $request->score,
+                    'time_param' => $request->time_spent_seconds
+                ]);
+
                 $progress->markAsCompleted(
                     $request->score,
                     $request->time_spent_seconds
                 );
+
+                // Refresh from database to get updated values
+                $progress->refresh();
+
+                \Log::info('📊 Progress after completion', [
+                    'best_score' => $progress->best_score,
+                    'status' => $progress->status,
+                    'completed_at' => $progress->completed_at
+                ]);
+
+                // Auto-detect mastery: If score >= 90, mark as mastered
+                if ($request->score >= 90 && $progress->status !== 'mastered') {
+                    \Log::info('🏆 Lesson mastered!', [
+                        'user_id' => $user->id,
+                        'lesson_id' => $lesson->id,
+                        'score' => $request->score
+                    ]);
+                    $progress->markAsMastered();
+                }
             } catch (\Exception $e) {
-                \Log::error('Error marking lesson as completed', [
+                \Log::error('❌ Error marking lesson as completed', [
                     'user_id' => $user->id,
                     'lesson_id' => $lesson->id,
                     'error' => $e->getMessage(),
@@ -690,20 +728,29 @@ class TutorialController extends Controller
         // Add progress to each stage
         $stagesWithProgress = $lesson->interactiveStages->map(function ($stage) use ($userStageProgress) {
             $progress = $userStageProgress->get($stage->id);
+            $isDemonstration = $stage->isDemonstrationStage();
             return array_merge($stage->toArray(), [
                 'user_progress' => $progress,
                 'is_completed' => $progress && $progress->status === 'completed',
+                'is_demonstration' => $isDemonstration,
             ]);
         });
 
         // Get current stage for user
         $currentStage = $lesson->getCurrentStage($user->id);
+        $currentStageData = null;
+        if ($currentStage) {
+            $isDemonstration = $currentStage->isDemonstrationStage();
+            $currentStageData = array_merge($currentStage->toArray(), [
+                'is_demonstration' => $isDemonstration,
+            ]);
+        }
 
         return response()->json([
             'success' => true,
             'data' => array_merge($lesson->toArray(), [
                 'interactive_stages' => $stagesWithProgress->toArray(),
-                'current_stage' => $currentStage ? $currentStage->toArray() : null,
+                'current_stage' => $currentStageData,
                 'stage_progress_percentage' => $lesson->getUserStageProgressPercentage($user->id),
                 'interactive_config' => $lesson->interactive_config,
                 'validation_rules' => $lesson->validation_rules,
@@ -885,11 +932,18 @@ class TutorialController extends Controller
             ]
         );
 
+        $stageData = $stage->fresh();
+        $isDemonstration = $stageData->isDemonstrationStage();
+
         return response()->json([
             'success' => true,
             'data' => [
                 'message' => 'Stage reset successfully.',
-                'stage' => $stage->fresh()->toArray(),
+                'stage' => array_merge($stageData->toArray(), [
+                    'is_demonstration' => $isDemonstration,
+                    'is_completed' => false,
+                    'user_progress' => null,
+                ]),
             ],
         ]);
     }

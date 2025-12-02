@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
+import logger from '../../utils/logger';
+import { DEFAULTS, TIMING, getTierColor, getTierIcon, getTierName } from '../../constants/tutorialConstants';
+import ErrorBoundary from './ErrorBoundary';
 import '../../styles/UnifiedCards.css';
 
 const TutorialHub = () => {
@@ -13,7 +16,7 @@ const TutorialHub = () => {
   const [nextLesson, setNextLesson] = useState(null);
   const [dailyChallenge, setDailyChallenge] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [selectedTier, setSelectedTier] = useState('all');
+  const [selectedTier, setSelectedTier] = useState('beginner');
   const [showCompletionMessage, setShowCompletionMessage] = useState(false);
 
   useEffect(() => {
@@ -23,17 +26,17 @@ const TutorialHub = () => {
       // Clear the state to prevent showing the message again on refresh
       window.history.replaceState({}, document.title);
 
-      // Hide the message after 5 seconds
+      // Hide the message after configured duration
       setTimeout(() => {
         setShowCompletionMessage(false);
-      }, 5000);
+      }, TIMING.COMPLETION_MESSAGE_DURATION);
 
       // Enhanced refresh with verified progress if available
       if (location.state?.verifiedProgress) {
-        console.log('🎯 Using verified progress from lesson completion:', location.state.verifiedProgress);
+        logger.debug('Tutorial:verified-progress', location.state.verifiedProgress);
         loadTutorialData(location.state.verifiedProgress);
       } else {
-        console.log('🔄 Refreshing tutorial data after lesson completion');
+        logger.debug('Tutorial:refresh', 'Refreshing data after lesson completion');
         loadTutorialData();
       }
     } else {
@@ -51,10 +54,11 @@ const TutorialHub = () => {
       const modulesResponse = await api.get(`/tutorial/modules?_t=${timestamp}`);
       const modulesData = modulesResponse.data.data;
 
-      console.log('🔍 Tutorial Modules API Response:', modulesData);
+      logger.debug('Tutorial:modules-loaded', modulesData);
       if (modulesData && modulesData.length > 0) {
         modulesData.forEach((module, index) => {
-          console.log(`📊 Module ${index + 1} (${module.name}):`, {
+          logger.debug(`Tutorial:module-${index + 1}`, {
+            name: module.name,
             total_lessons: module.user_progress?.total_lessons,
             completed_lessons: module.user_progress?.completed_lessons,
             percentage: module.user_progress?.percentage,
@@ -71,34 +75,6 @@ const TutorialHub = () => {
               is_completed: l.user_progress?.status === 'completed'
             }))
           });
-
-          // 🔍 CROSS-CHECK: Verify module progress by counting lesson-level progress
-          const lessonsList = module.lessons || module.activeLessons || [];
-          const actualCompletedLessons = lessonsList?.filter(l =>
-            l.user_progress?.status === 'completed' || l.user_progress?.status === 'mastered'
-          ).length || 0;
-          const actualTotalLessons = lessonsList?.length || 0;
-
-          if (actualCompletedLessons !== module.user_progress?.completed_lessons) {
-            console.warn(`⚠️ Module ${index + 1} progress mismatch!`, {
-              moduleId: module.id,
-              backend_completed: module.user_progress?.completed_lessons,
-              frontend_count: actualCompletedLessons,
-              backend_total: module.user_progress?.total_lessons,
-              frontend_total: actualTotalLessons
-            });
-
-            // 🛠️ FIX: Override with frontend-calculated progress if there's a mismatch
-            module.user_progress = {
-              ...module.user_progress,
-              completed_lessons: actualCompletedLessons,
-              total_lessons: actualTotalLessons,
-              percentage: actualTotalLessons > 0 ? round((actualCompletedLessons / actualTotalLessons) * 100, 2) : 0,
-              is_completed: actualCompletedLessons === actualTotalLessons && actualTotalLessons > 0
-            };
-
-            console.log(`✅ Module ${index + 1} progress corrected:`, module.user_progress);
-          }
         });
       }
 
@@ -107,60 +83,29 @@ const TutorialHub = () => {
       // Load user progress and stats (or use verified progress)
       let progressData;
       if (verifiedProgress) {
-        console.log('✅ Using verified progress from lesson completion');
-        progressData = verifiedProgress;
+        // When coming from lesson completion, verifiedProgress IS the stats object
+        progressData = { stats: verifiedProgress };
       } else {
         const progressResponse = await api.get('/tutorial/progress');
         progressData = progressResponse.data.data;
-        console.log('🔍 Tutorial Progress API Response:', progressData);
       }
 
-      // Comprehensive API response structure handling
-      let userStats = null;
-      let nextLesson = null;
+      // Standardized API response structure
+      const userStats = progressData.stats || {
+        completed_lessons: 0,
+        total_lessons: DEFAULTS.TOTAL_LESSONS,
+        completion_percentage: DEFAULTS.COMPLETION_PERCENTAGE,
+        average_score: DEFAULTS.AVERAGE_SCORE,
+        current_streak: DEFAULTS.CURRENT_STREAK,
+        skill_tier: DEFAULTS.SKILL_TIER,
+        level: DEFAULTS.LEVEL,
+        xp: DEFAULTS.XP,
+        formatted_time_spent: DEFAULTS.FORMATTED_TIME_SPENT
+      };
 
-      if (progressData.stats) {
-        // Primary expected structure
-        userStats = progressData.stats;
-        nextLesson = progressData.next_lesson;
-        console.log('✅ Using primary stats structure');
-      } else if (progressData.user_stats) {
-        // Alternative structure
-        userStats = progressData.user_stats;
-        nextLesson = progressData.next_lesson;
-        console.log('✅ Using user_stats structure');
-      } else if (progressData.completed_lessons !== undefined) {
-        // Direct progress object fallback
-        userStats = {
-          completed_lessons: progressData.completed_lessons,
-          total_lessons: progressData.total_lessons || 9,
-          completion_percentage: progressData.completion_percentage || 0,
-          average_score: progressData.average_score || 0,
-          current_streak: progressData.current_streak || 0,
-          skill_tier: progressData.skill_tier || 'beginner',
-          level: progressData.level || 1,
-          xp: progressData.xp || 0,
-          formatted_time_spent: progressData.formatted_time_spent || '0m'
-        };
-        nextLesson = progressData.next_lesson;
-        console.log('✅ Using direct progress structure');
-      } else {
-        console.warn('⚠️ Unknown progress structure, using fallback');
-        // Defensive fallback
-        userStats = {
-          completed_lessons: 0,
-          total_lessons: 9,
-          completion_percentage: 0,
-          average_score: 0,
-          current_streak: 0,
-          skill_tier: 'beginner',
-          level: 1,
-          xp: 0,
-          formatted_time_spent: '0m'
-        };
-      }
+      const nextLesson = progressData.next_lesson || null;
 
-      console.log('📊 Final User Stats:', userStats);
+      logger.debug('Tutorial:user-stats', userStats);
       setStats(userStats);
       setNextLesson(nextLesson);
 
@@ -169,7 +114,7 @@ const TutorialHub = () => {
       setDailyChallenge(challengeResponse.data.data);
 
     } catch (error) {
-      console.error('Error loading tutorial data:', error);
+      logger.error('Tutorial:load-error', error);
     } finally {
       setLoading(false);
     }
@@ -180,36 +125,7 @@ const TutorialHub = () => {
     navigate(`/tutorial/module/${module.slug}`);
   };
 
-  const getTierColor = (tier) => {
-    switch (tier) {
-      case 'beginner': return 'bg-green-500';
-      case 'intermediate': return 'bg-blue-500';
-      case 'advanced': return 'bg-purple-600';
-      default: return 'bg-gray-500';
-    }
-  };
-
-  const getTierIcon = (tier) => {
-    switch (tier) {
-      case 'beginner': return '🌱';
-      case 'intermediate': return '🎯';
-      case 'advanced': return '🏆';
-      default: return '📚';
-    }
-  };
-
-  const getTierName = (tier) => {
-    switch (tier) {
-      case 'beginner': return 'Beginner';
-      case 'intermediate': return 'Intermediate';
-      case 'advanced': return 'Advanced';
-      default: return 'All Levels';
-    }
-  };
-
-  const filteredModules = selectedTier === 'all'
-    ? modules
-    : modules.filter(module => module.skill_tier === selectedTier);
+  const filteredModules = modules.filter(module => module.skill_tier === selectedTier);
 
   const XPProgressBar = ({ xp, level }) => {
     const xpForNextLevel = Math.floor(100 * Math.pow(1.5, level));
@@ -287,17 +203,14 @@ const TutorialHub = () => {
     return (
       <div
         key={module.id}
-        className={`unified-card relative ${isLocked ? 'opacity-75' : ''} ${
-          module.skill_tier === 'beginner' ? 'tier-beginner' :
-          module.skill_tier === 'intermediate' ? 'tier-intermediate' : 'tier-advanced'
-        }`}
+        className={`bg-white rounded-2xl shadow-lg border-2 border-blue-100 hover:border-blue-300 hover:shadow-2xl transition-all p-6 relative ${isLocked ? 'opacity-75' : ''}`}
       >
         {/* Lock overlay */}
         {isLocked && (
-          <div className="absolute inset-0 bg-gray-900 bg-opacity-50 rounded-lg flex items-center justify-center z-10">
+          <div className="absolute inset-0 bg-gray-900 bg-opacity-70 rounded-2xl flex items-center justify-center z-10">
             <div className="text-white text-center">
-              <div className="text-3xl mb-2">🔒</div>
-              <div className="text-sm font-medium">Complete previous lessons to unlock</div>
+              <div className="text-4xl mb-3">🔒</div>
+              <div className="text-base font-bold">Complete previous lessons to unlock</div>
             </div>
           </div>
         )}
@@ -305,56 +218,62 @@ const TutorialHub = () => {
         {/* Module header */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center space-x-3">
-            <div className={`w-12 h-12 ${getTierColor(module.skill_tier)} rounded-lg flex items-center justify-center text-white text-xl shadow-md`}>
+            <div className={`w-16 h-16 ${getTierColor(module.skill_tier)} rounded-xl flex items-center justify-center text-white text-2xl shadow-lg transform hover:scale-110 transition-transform`}>
               {module.icon || getTierIcon(module.skill_tier)}
             </div>
             <div>
-              <h3 className="text-lg font-bold text-gray-800">{module.name}</h3>
-              <span className={`inline-block px-2 py-1 rounded text-xs font-semibold text-white ${getTierColor(module.skill_tier)} shadow-sm`}>
+              <h3 className="text-xl font-extrabold text-gray-900">{module.name}</h3>
+              <span className={`inline-block px-3 py-1.5 rounded-lg text-xs font-bold text-white ${getTierColor(module.skill_tier)} shadow-md mt-1`}>
                 {getTierName(module.skill_tier)}
               </span>
             </div>
           </div>
           <div className="text-right">
-            <CircularProgress percentage={progress.percentage} size={60} />
+            <CircularProgress percentage={progress.percentage} size={70} />
           </div>
         </div>
 
         {/* Module info */}
-        <p className="text-gray-700 mb-4 text-sm font-medium">{module.description}</p>
+        <p className="text-gray-700 mb-5 text-base font-semibold">{module.description}</p>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-3 mb-4">
-          <div className="text-center p-2 rounded-lg bg-gradient-to-br from-green-50 to-emerald-50">
-            <div className="text-2xl font-bold" style={{ background: 'var(--tutorial-gradient-green)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+        <div className="grid grid-cols-4 gap-2 mb-5">
+          <div className="text-center p-3 rounded-xl bg-gradient-to-br from-green-100 to-emerald-100 border-2 border-green-200 shadow-sm hover:shadow-md transition-shadow">
+            <div className="text-2xl font-extrabold text-green-700">
               {progress.completed_lessons}
             </div>
-            <div className="text-xs font-medium text-gray-600">✓ Done</div>
+            <div className="text-xs font-bold text-gray-700 mt-1">✓ Done</div>
           </div>
-          <div className="text-center p-2 rounded-lg bg-gradient-to-br from-purple-50 to-indigo-50">
-            <div className="text-2xl font-bold" style={{ background: 'var(--tutorial-gradient-purple)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+          <div className="text-center p-3 rounded-xl bg-gradient-to-br from-purple-100 to-indigo-100 border-2 border-purple-200 shadow-sm hover:shadow-md transition-shadow">
+            <div className="text-2xl font-extrabold text-purple-700">
               {progress.total_lessons}
             </div>
-            <div className="text-xs font-medium text-gray-600">📚 Total</div>
+            <div className="text-xs font-bold text-gray-700 mt-1">📚 Total</div>
           </div>
-          <div className="text-center p-2 rounded-lg bg-gradient-to-br from-yellow-50 to-amber-50">
-            <div className="text-2xl font-bold" style={{ background: 'var(--tutorial-xp-gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-              {module.total_xp}
+          <div className="text-center p-3 rounded-xl bg-gradient-to-br from-yellow-100 to-amber-100 border-2 border-yellow-200 shadow-sm hover:shadow-md transition-shadow">
+            <div className="text-xl font-extrabold text-yellow-700">
+              {progress.earned_xp || 0}/{module.total_xp}
             </div>
-            <div className="text-xs font-medium text-gray-600">⭐ XP</div>
+            <div className="text-xs font-bold text-gray-700 mt-1">⭐ XP</div>
+          </div>
+          <div className="text-center p-3 rounded-xl bg-gradient-to-br from-blue-100 to-sky-100 border-2 border-blue-200 shadow-sm hover:shadow-md transition-shadow">
+            <div className="text-2xl font-extrabold text-blue-700">
+              {progress.average_score ? `${Math.round(progress.average_score)}%` : '-'}
+            </div>
+            <div className="text-xs font-bold text-gray-700 mt-1">📊 Score</div>
           </div>
         </div>
 
         {/* Duration */}
-        <div className="flex items-center text-sm text-gray-700 font-medium mb-4">
-          <span className="mr-2">⏱️</span>
+        <div className="flex items-center text-base text-gray-800 font-bold mb-5 bg-gray-50 p-2 rounded-lg">
+          <span className="mr-2 text-xl">⏱️</span>
           <span>{module.formatted_duration}</span>
         </div>
 
         {/* Action button */}
         {isLocked ? (
           <button
-            className="w-full py-3 px-4 rounded-lg font-semibold transition-colors text-center bg-gray-300 text-gray-600 cursor-not-allowed"
+            className="w-full py-4 px-4 rounded-xl font-bold transition-colors text-center bg-gray-300 text-gray-700 cursor-not-allowed border-2 border-gray-400 text-lg"
             disabled
           >
             🔒 Locked
@@ -362,10 +281,11 @@ const TutorialHub = () => {
         ) : (
           <button
             onClick={() => handleModuleClick(module)}
-            className="w-full py-3 px-4 rounded-lg font-semibold transition-all text-center text-white hover:scale-105 hover:shadow-lg"
+            className="w-full py-4 px-4 rounded-xl font-bold transition-all text-center text-white hover:scale-105 hover:shadow-2xl text-lg border-2"
             style={{
-              background: progress.is_completed ? 'var(--tutorial-gradient-green)' : 'var(--tutorial-gradient-purple)',
-              boxShadow: progress.is_completed ? '0 4px 15px rgba(34, 197, 94, 0.3)' : '0 4px 15px rgba(124, 58, 237, 0.3)'
+              background: progress.is_completed ? 'linear-gradient(135deg, #10b981, #34d399)' : 'linear-gradient(135deg, #8b5cf6, #a78bfa)',
+              borderColor: progress.is_completed ? '#10b981' : '#8b5cf6',
+              boxShadow: progress.is_completed ? '0 6px 20px rgba(34, 197, 94, 0.4)' : '0 6px 20px rgba(124, 58, 237, 0.4)'
             }}
           >
             {progress.is_completed ? '✅ Review Lessons' : progress.completed_lessons > 0 ? '🚀 Continue Learning' : '📖 View Lessons'}
@@ -376,39 +296,44 @@ const TutorialHub = () => {
   };
 
   const QuickStatsCard = () => (
-    <div className="unified-card">
-      <h3 className="text-lg font-bold mb-4 text-gray-800">📊 Your Progress</h3>
+    <div className="bg-white rounded-2xl shadow-lg border-2 border-blue-100 p-6">
+      <h3 className="text-2xl font-extrabold mb-5 text-gray-900">📊 Your Progress</h3>
 
       {/* XP and Level */}
-      <div className="mb-6 p-3 bg-gray-50 rounded-lg">
-        <XPProgressBar xp={stats?.xp || 0} level={stats?.level || 1} />
+      <div className="mb-6 p-4 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl border-2 border-indigo-200 shadow-sm">
+        <XPProgressBar xp={stats?.earned_xp || stats?.xp || 0} level={stats?.level || 1} />
+        {stats?.earned_xp !== stats?.xp && (
+          <div className="mt-2 text-xs text-gray-600 text-center">
+            <span className="font-semibold">Total XP (with bonuses): {stats?.xp || 0}</span>
+          </div>
+        )}
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        <div className="text-center p-3 rounded-lg bg-gradient-to-br from-green-50 to-emerald-50 hover:shadow-md transition-all">
-          <div className="text-3xl font-bold" style={{ background: 'var(--tutorial-gradient-green)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+      <div className="grid grid-cols-2 gap-3 mb-5">
+        <div className="text-center p-3 rounded-xl bg-gradient-to-br from-green-100 to-emerald-100 border-2 border-green-200 hover:shadow-lg hover:scale-105 transition-all">
+          <div className="text-3xl font-extrabold text-green-700">
             {stats?.completed_lessons || 0}
           </div>
-          <div className="text-xs font-medium text-gray-600 mt-1">✅ Lessons</div>
+          <div className="text-xs font-bold text-gray-700 mt-1">✅ Lessons</div>
         </div>
-        <div className="text-center p-3 rounded-lg bg-gradient-to-br from-purple-50 to-indigo-50 hover:shadow-md transition-all">
-          <div className="text-3xl font-bold" style={{ background: 'var(--tutorial-gradient-purple)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+        <div className="text-center p-3 rounded-xl bg-gradient-to-br from-purple-100 to-indigo-100 border-2 border-purple-200 hover:shadow-lg hover:scale-105 transition-all">
+          <div className="text-3xl font-extrabold text-purple-700">
             {stats?.achievements_count || 0}
           </div>
-          <div className="text-xs font-medium text-gray-600 mt-1">🏆 Achievements</div>
+          <div className="text-xs font-bold text-gray-700 mt-1">🏆 Achievements</div>
         </div>
-        <div className="text-center p-3 rounded-lg bg-gradient-to-br from-orange-50 to-amber-50 hover:shadow-md transition-all">
-          <div className="text-3xl font-bold" style={{ background: 'var(--tutorial-xp-gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+        <div className="text-center p-3 rounded-xl bg-gradient-to-br from-orange-100 to-amber-100 border-2 border-orange-200 hover:shadow-lg hover:scale-105 transition-all">
+          <div className="text-3xl font-extrabold text-orange-700">
             {stats?.current_streak || 0}
           </div>
-          <div className="text-xs font-medium text-gray-600 mt-1">🔥 Day Streak</div>
+          <div className="text-xs font-bold text-gray-700 mt-1">🔥 Day Streak</div>
         </div>
-        <div className="text-center p-3 rounded-lg bg-gradient-to-br from-blue-50 to-sky-50 hover:shadow-md transition-all">
-          <div className="text-3xl font-bold" style={{ background: 'var(--tutorial-gradient-blue)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+        <div className="text-center p-3 rounded-xl bg-gradient-to-br from-blue-100 to-sky-100 border-2 border-blue-200 hover:shadow-lg hover:scale-105 transition-all">
+          <div className="text-3xl font-extrabold text-blue-700">
             {stats?.completion_percentage || 0}%
           </div>
-          <div className="text-xs font-medium text-gray-600 mt-1">📊 Progress</div>
+          <div className="text-xs font-bold text-gray-700 mt-1">📊 Progress</div>
         </div>
       </div>
 
@@ -416,10 +341,10 @@ const TutorialHub = () => {
       {nextLesson && (
         <Link
           to={`/tutorial/lesson/${nextLesson.id}`}
-          className="w-full text-white py-3 px-4 rounded-lg font-semibold transition-all text-center block hover:scale-105 hover:shadow-lg"
+          className="w-full text-white py-4 px-4 rounded-xl font-bold transition-all text-center block hover:scale-105 hover:shadow-2xl text-base border-2 border-green-600"
           style={{
-            background: 'var(--tutorial-gradient-green)',
-            boxShadow: '0 4px 15px rgba(34, 197, 94, 0.3)'
+            background: 'linear-gradient(135deg, #10b981, #34d399)',
+            boxShadow: '0 6px 20px rgba(34, 197, 94, 0.4)'
           }}
         >
           🎯 Continue: {nextLesson.title}
@@ -434,43 +359,39 @@ const TutorialHub = () => {
     const isCompleted = dailyChallenge.user_completion?.completed;
 
     return (
-      <div className="unified-card">
-        <h3 className="text-lg font-bold mb-4 text-gray-800">🏅 Daily Challenge</h3>
+      <div className="bg-white rounded-2xl shadow-lg border-2 border-blue-100 p-6">
+        <h3 className="text-2xl font-extrabold mb-5 text-gray-900">🏅 Daily Challenge</h3>
 
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-5">
           <div className="flex items-center space-x-3">
-            <div className="text-3xl">{dailyChallenge.challenge_type_icon}</div>
+            <div className="text-4xl">{dailyChallenge.challenge_type_icon}</div>
             <div>
-              <div className="font-semibold text-gray-800">{dailyChallenge.challenge_type_display}</div>
-              <div className={`text-sm px-2 py-1 rounded text-xs font-medium text-white ${dailyChallenge.tier_color_class}`}>
+              <div className="font-bold text-gray-900 text-base">{dailyChallenge.challenge_type_display}</div>
+              <div className={`text-sm px-3 py-1.5 rounded-lg text-xs font-bold text-white ${dailyChallenge.tier_color_class} mt-1 inline-block shadow-md`}>
                 {getTierName(dailyChallenge.skill_tier)}
               </div>
             </div>
           </div>
-          <div className="text-right p-3 bg-yellow-50 rounded-lg">
-            <div className="text-2xl font-bold" style={{
-              background: 'var(--tutorial-xp-gradient)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text'
-            }}>
+          <div className="text-right p-3 bg-gradient-to-br from-yellow-100 to-amber-100 rounded-xl border-2 border-yellow-200 shadow-sm">
+            <div className="text-2xl font-extrabold text-yellow-700">
               {dailyChallenge.xp_reward}
             </div>
-            <div className="text-xs text-gray-600 font-semibold">XP</div>
+            <div className="text-xs text-gray-700 font-bold">XP</div>
           </div>
         </div>
 
-        <div className="flex items-center text-sm text-gray-700 font-medium mb-4">
-          <span className="mr-2">🏆</span>
+        <div className="flex items-center text-base text-gray-800 font-bold mb-5 bg-gray-50 p-2 rounded-lg">
+          <span className="mr-2 text-xl">🏆</span>
           <span>{dailyChallenge.completion_count} players completed</span>
         </div>
 
         <Link
           to={`/tutorial/daily`}
-          className="w-full py-3 px-4 rounded-lg font-semibold transition-all text-center block text-white hover:scale-105 hover:shadow-lg"
+          className="w-full py-4 px-4 rounded-xl font-bold transition-all text-center block text-white hover:scale-105 hover:shadow-2xl text-base border-2"
           style={{
-            background: isCompleted ? 'var(--tutorial-gradient-green)' : 'var(--tutorial-gradient-orange)',
-            boxShadow: isCompleted ? '0 4px 15px rgba(34, 197, 94, 0.3)' : '0 4px 15px rgba(249, 115, 22, 0.4)'
+            background: isCompleted ? 'linear-gradient(135deg, #10b981, #34d399)' : 'linear-gradient(135deg, #f97316, #fb923c)',
+            borderColor: isCompleted ? '#10b981' : '#f97316',
+            boxShadow: isCompleted ? '0 6px 20px rgba(34, 197, 94, 0.4)' : '0 6px 20px rgba(249, 115, 22, 0.5)'
           }}
         >
           {isCompleted ? '✅ Completed Today!' : '⚡ Start Challenge'}
@@ -491,95 +412,99 @@ const TutorialHub = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Completion Message */}
-      {showCompletionMessage && (
-        <div className="mb-6 bg-green-50 border-l-4 border-green-500 p-4 rounded-lg shadow-md animate-fade-in">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <svg className="h-8 w-8 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <h3 className="text-lg font-semibold text-green-800">
-                🎉 Congratulations! Lesson Completed!
-              </h3>
-              <p className="mt-1 text-green-700">
-                {location.state?.lessonTitle && `You've completed "${location.state.lessonTitle}"!`}
-                {location.state?.score !== undefined && (
-                  <span className="ml-2 font-semibold">Score: {location.state.score}%</span>
+    <ErrorBoundary errorMessage="The tutorial hub encountered an error. Please try reloading.">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
+      <div className="container mx-auto px-4 py-8">
+        {/* Completion Message */}
+        {showCompletionMessage && (
+          <div className="mb-6 bg-green-50 border-l-4 border-green-500 p-4 rounded-lg shadow-md animate-fade-in">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <svg className="h-8 w-8 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-lg font-semibold text-green-800">
+                  🎉 Congratulations! Lesson Completed!
+                </h3>
+                <p className="mt-1 text-green-700">
+                  {location.state?.lessonTitle && `You've completed "${location.state.lessonTitle}"!`}
+                  {location.state?.score !== undefined && (
+                    <span className="ml-2 font-semibold">Score: {location.state.score}%</span>
+                  )}
+                </p>
+                {location.state?.xpAwarded && (
+                  <p className="mt-1 font-semibold text-green-700">
+                    ⭐ +{location.state.xpAwarded} XP earned!
+                  </p>
                 )}
-              </p>
-              {location.state?.xpAwarded && (
-                <p className="mt-1 font-semibold text-green-700">
-                  ⭐ +{location.state.xpAwarded} XP earned!
+                {location.state?.moduleCompleted && (
+                  <p className="mt-1 font-semibold text-green-700">
+                    🏆 Module completed! Check your achievements.
+                  </p>
+                )}
+                <p className="mt-1 text-sm text-green-600">
+                  💡 Your progress has been automatically saved and your statistics updated.
                 </p>
-              )}
-              {location.state?.moduleCompleted && (
-                <p className="mt-1 font-semibold text-green-700">
-                  🏆 Module completed! Check your achievements.
-                </p>
-              )}
-              <p className="mt-1 text-sm text-green-600">
-                💡 Your progress has been automatically saved and your statistics updated.
-              </p>
+              </div>
+              <button
+                onClick={() => setShowCompletionMessage(false)}
+                className="ml-auto flex-shrink-0 text-green-500 hover:text-green-700"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
-            <button
-              onClick={() => setShowCompletionMessage(false)}
-              className="ml-auto flex-shrink-0 text-green-500 hover:text-green-700"
-            >
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
           </div>
+        )}
+
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-5xl font-extrabold mb-4 text-gray-900">🎓 Learn Chess</h1>
+          <p className="text-xl text-gray-700 font-semibold">Master the game with our interactive tutorials</p>
         </div>
-      )}
 
-      {/* Header */}
-      <div className="text-center mb-8">
-        <h1 className="text-4xl font-bold mb-4 text-gray-800">🎓 Learn Chess</h1>
-        <p className="text-lg text-gray-700 font-medium">Master the game with our interactive tutorials</p>
-      </div>
-
-      {/* Tier Filter */}
-      <div className="flex justify-center mb-8">
-        <div className="flex space-x-2 bg-gray-100 rounded-lg p-1">
-          {['all', 'beginner', 'intermediate', 'advanced'].map((tier) => (
-            <button
-              key={tier}
-              onClick={() => setSelectedTier(tier)}
-              className={`px-4 py-2 rounded-md font-medium transition-colors ${
-                selectedTier === tier
-                  ? 'bg-white shadow-sm text-blue-600'
-                  : 'text-gray-600 hover:text-gray-800'
-              }`}
-            >
-              {getTierName(tier)}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* Modules Grid */}
-        <div className="lg:col-span-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {filteredModules.map((module) => (
-              <ModuleCard key={module.id} module={module} />
+        {/* Tier Filter */}
+        <div className="flex justify-center mb-8">
+          <div className="flex space-x-2 bg-white rounded-xl p-2 shadow-md border-2 border-gray-200">
+            {['beginner', 'intermediate', 'advanced'].map((tier) => (
+              <button
+                key={tier}
+                onClick={() => setSelectedTier(tier)}
+                className={`px-6 py-3 rounded-lg font-bold transition-all ${
+                  selectedTier === tier
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-500 shadow-lg text-white transform scale-105'
+                    : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
+                }`}
+              >
+                {getTierName(tier)}
+              </button>
             ))}
           </div>
         </div>
 
-        {/* Sidebar */}
-        <div className="space-y-6">
-          <QuickStatsCard />
-          <DailyChallengeCard />
+        {/* Main Content */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* Modules Grid */}
+          <div className="lg:col-span-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {filteredModules.map((module) => (
+                <ModuleCard key={module.id} module={module} />
+              ))}
+            </div>
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            <QuickStatsCard />
+            <DailyChallengeCard />
+          </div>
         </div>
       </div>
     </div>
+    </ErrorBoundary>
   );
 };
 

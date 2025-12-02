@@ -707,6 +707,15 @@ class User extends Authenticatable
         $totalTimeSpent = $this->tutorialProgress()->sum('time_spent_seconds');
         $achievementsCount = $this->userAchievements()->count();
 
+        // Calculate earned XP from completed lessons only (excluding mastery bonuses)
+        $earnedXp = $this->tutorialProgress()
+            ->completed()
+            ->with('lesson')
+            ->get()
+            ->sum(function ($progress) {
+                return $progress->lesson->xp_reward ?? 0;
+            });
+
         return [
             'total_lessons' => $totalLessons,
             'completed_lessons' => $completedLessons,
@@ -720,6 +729,7 @@ class User extends Authenticatable
             'achievements_count' => $achievementsCount,
             'current_streak' => $this->current_streak_days,
             'xp' => $this->tutorial_xp,
+            'earned_xp' => $earnedXp,
             'level' => $this->tutorial_level,
             'skill_tier' => $this->current_skill_tier,
         ];

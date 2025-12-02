@@ -64,17 +64,72 @@ class UserTutorialProgress extends Model
      */
     public function markAsCompleted($score = null, $timeSpent = null): void
     {
+        $currentBestScore = $this->best_score;
+        $newBestScore = max($currentBestScore, $score ?? 100);
+
+        \Log::info('📊 markAsCompleted called', [
+            'lesson_id' => $this->lesson_id,
+            'user_id' => $this->user_id,
+            'score_param' => $score,
+            'current_best_score' => $currentBestScore,
+            'calculated_new_best_score' => $newBestScore,
+            'time_spent_param' => $timeSpent
+        ]);
+
         $this->update([
             'status' => 'completed',
-            'best_score' => max($this->best_score, $score ?? 100),
+            'best_score' => $newBestScore,
             'time_spent_seconds' => $this->time_spent_seconds + ($timeSpent ?? 0),
             'completed_at' => now(),
             'last_accessed_at' => now(),
         ]);
 
-        // Award XP to user
-        $xpAwarded = $this->lesson->xp_reward;
-        $this->user->awardTutorialXp($xpAwarded, $this->lesson->title);
+        \Log::info('✅ Progress updated in database', [
+            'best_score' => $this->best_score,
+            'status' => $this->status
+        ]);
+
+        // Award XP to user - proportional to score achieved
+        // XP tiers based on performance (0% score = 0 XP, no completion reward for failing all stages)
+        $baseXp = $this->lesson->xp_reward;
+        $scorePercentage = $newBestScore / 100;
+
+        if ($scorePercentage >= 0.8) {
+            // 80-100%: Full XP (Excellent - 1st or 2nd attempt on most stages)
+            $xpMultiplier = 1.0;
+        } elseif ($scorePercentage >= 0.6) {
+            // 60-79%: 80% XP (Good - mix of 2nd and 3rd attempts)
+            $xpMultiplier = 0.8;
+        } elseif ($scorePercentage >= 0.4) {
+            // 40-59%: 60% XP (Average - mostly 3rd attempts)
+            $xpMultiplier = 0.6;
+        } elseif ($scorePercentage >= 0.2) {
+            // 20-39%: 40% XP (Below Average - mix of 3rd attempts and failures)
+            $xpMultiplier = 0.4;
+        } elseif ($scorePercentage > 0) {
+            // 1-19%: 20% XP (Poor - mostly failures but some success)
+            $xpMultiplier = 0.2;
+        } else {
+            // 0%: No XP (Failed all 3 attempts on all stages)
+            $xpMultiplier = 0.0;
+        }
+
+        $xpAwarded = (int) round($baseXp * $xpMultiplier);
+
+        \Log::info('💎 XP Calculation', [
+            'base_xp' => $baseXp,
+            'score' => $newBestScore,
+            'score_percentage' => $scorePercentage,
+            'xp_multiplier' => $xpMultiplier,
+            'xp_awarded' => $xpAwarded
+        ]);
+
+        // Only award XP if score > 0
+        if ($xpAwarded > 0) {
+            $this->user->awardTutorialXp($xpAwarded, $this->lesson->title);
+        } else {
+            \Log::info('⚠️ No XP awarded - score is 0%');
+        }
 
         // Check for achievements
         $this->checkAchievements();

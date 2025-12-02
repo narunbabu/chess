@@ -5,6 +5,8 @@ import api from '../../services/api';
 import { Chess } from 'chess.js';
 import ChessBoard from '../play/ChessBoard';
 import EnhancedInteractiveLesson from './EnhancedInteractiveLesson';
+import DOMPurify from 'dompurify';
+import ErrorBoundary from './ErrorBoundary';
 
 const LessonPlayer = () => {
   const { lessonId } = useParams();
@@ -26,6 +28,7 @@ const LessonPlayer = () => {
   const [playerColor, setPlayerColor] = useState('white');
   const [chessGame, setChessGame] = useState(null);
   const [quizAnswers, setQuizAnswers] = useState({}); // Track quiz answers: {questionIndex: selectedOptionIndex}
+  const [totalQuizQuestions, setTotalQuizQuestions] = useState(0); // Total quiz questions across all slides
 
   useEffect(() => {
     loadLesson();
@@ -41,12 +44,25 @@ const LessonPlayer = () => {
     try {
       setLoading(true);
       const response = await api.get(`/tutorial/lessons/${lessonId}`);
-      setLesson(response.data.data);
-      setUserProgress(response.data.data.user_progress);
+      const loadedLesson = response.data.data;
+      setLesson(loadedLesson);
+      setUserProgress(loadedLesson.user_progress);
       setStartTime(Date.now());
 
+      // Calculate total quiz questions for proportional scoring
+      if (loadedLesson.lesson_type === 'theory' && loadedLesson.content_data?.slides) {
+        const total = loadedLesson.content_data.slides.reduce((sum, slide) => {
+          return sum + (slide.quiz?.length || 0);
+        }, 0);
+        setTotalQuizQuestions(total);
+        console.log('📊 Quiz scoring setup:', {
+          totalQuestions: total,
+          pointsPerQuestion: total > 0 ? Math.round((100 / total) * 100) / 100 : 0
+        });
+      }
+
       // Start the lesson to create attendance record
-      if (response.data.data.user_progress?.status === 'not_started' || !response.data.data.user_progress) {
+      if (loadedLesson.user_progress?.status === 'not_started' || !loadedLesson.user_progress) {
         await startLesson();
       }
     } catch (error) {
@@ -335,52 +351,56 @@ const LessonPlayer = () => {
     if (index !== currentStep) return null;
 
     return (
-      <div className="bg-white rounded-lg p-6 shadow-sm">
+      <div className="bg-white rounded-2xl p-8 shadow-xl border-2 border-blue-100">
         {slide.title && (
-          <h2 className="text-2xl font-bold mb-4 text-gray-800">{slide.title}</h2>
+          <h2 className="text-3xl font-bold mb-6 text-gray-900">{slide.title}</h2>
         )}
 
         {slide.content && (
-          <div className="prose max-w-none mb-6 text-gray-700">
-            <div dangerouslySetInnerHTML={{ __html: slide.content }} />
+          <div className="prose max-w-none mb-8 text-gray-800 text-lg leading-relaxed">
+            <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(slide.content) }} />
           </div>
         )}
 
         {slide.diagram && chessGame && (
-          <div className="mb-6">
-            <div className="text-center text-sm font-semibold text-gray-700 mb-2">
+          <div className="mb-8 bg-gradient-to-br from-blue-50 to-purple-50 p-6 rounded-xl border-2 border-blue-200">
+            <div className="text-center text-base font-bold text-gray-900 mb-4">
               📋 Board Position
             </div>
-            <ChessBoard
-              game={chessGame}
-              boardOrientation="white"
-              playerColor="white"
-              isReplayMode={slide.highlights ? false : true}
-              onDrop={slide.highlights ? (sourceSquare, targetSquare) => {
-                const move = `${sourceSquare}${targetSquare}`;
-                // For interactive theory lessons, allow any move and provide feedback
-                console.log('Interactive move attempted:', move);
-                // Reset the position to the original diagram
-                try {
-                  const newGame = new Chess(slide.diagram);
-                  setChessGame(newGame);
-                } catch (error) {
-                  console.error('Error resetting position:', error);
-                }
-                return true;
-              } : undefined}
-              moveFrom=""
-              setMoveFrom={() => {}}
-              rightClickedSquares={{}}
-              setRightClickedSquares={() => {}}
-              moveSquares={slide.highlights ? slide.highlights.reduce((acc, square) => {
-                acc[square] = { backgroundColor: 'rgba(255, 255, 0, 0.5)' };
-                return acc;
-              }, {}) : {}}
-              setMoveSquares={() => {}}
-            />
+            <div className="flex justify-center items-center">
+              <div style={{ width: '500px', height: '500px' }}>
+                <ChessBoard
+                  game={chessGame}
+                  boardOrientation="white"
+                  playerColor="white"
+                  isReplayMode={slide.highlights ? false : true}
+                  onDrop={slide.highlights ? (sourceSquare, targetSquare) => {
+                    const move = `${sourceSquare}${targetSquare}`;
+                    // For interactive theory lessons, allow any move and provide feedback
+                    console.log('Interactive move attempted:', move);
+                    // Reset the position to the original diagram
+                    try {
+                      const newGame = new Chess(slide.diagram);
+                      setChessGame(newGame);
+                    } catch (error) {
+                      console.error('Error resetting position:', error);
+                    }
+                    return true;
+                  } : undefined}
+                  moveFrom=""
+                  setMoveFrom={() => {}}
+                  rightClickedSquares={{}}
+                  setRightClickedSquares={() => {}}
+                  moveSquares={slide.highlights ? slide.highlights.reduce((acc, square) => {
+                    acc[square] = { backgroundColor: 'rgba(255, 255, 0, 0.5)' };
+                    return acc;
+                  }, {}) : {}}
+                  setMoveSquares={() => {}}
+                />
+              </div>
+            </div>
             {slide.highlights && (
-              <div className="text-center text-sm text-gray-600 mt-2">
+              <div className="text-center text-sm text-gray-800 mt-4 font-semibold bg-yellow-50 p-3 rounded-lg border border-yellow-200">
                 💡 Try moving the pieces on the board above!
               </div>
             )}
@@ -433,11 +453,18 @@ const LessonPlayer = () => {
                               const answerKey = `${index}-${qIndex}`;
                               setQuizAnswers(prev => ({ ...prev, [answerKey]: oIndex }));
 
-                              // Update immediate score feedback
+                              // Update immediate score feedback with proportional scoring
+                              const pointsPerQuestion = totalQuizQuestions > 0
+                                ? Math.round((100 / totalQuizQuestions) * 100) / 100
+                                : 10;
+
                               if (oIndex === question.correct) {
-                                setScore(prev => Math.min(100, prev + 10)); // Small reward for correct answers
+                                setScore(prev => Math.min(100, prev + pointsPerQuestion));
+                                console.log(`✅ Correct answer! +${pointsPerQuestion} points`);
                               } else {
-                                setScore(prev => Math.max(0, prev - 2)); // Small penalty for wrong answers
+                                const penalty = Math.round(pointsPerQuestion * 0.2 * 100) / 100; // 20% penalty
+                                setScore(prev => Math.max(0, prev - penalty));
+                                console.log(`❌ Wrong answer! -${penalty} points`);
                               }
                             }}
                             disabled={isAnswered}
@@ -518,58 +545,62 @@ const LessonPlayer = () => {
     if (!currentPuzzle) return null;
 
     return (
-      <div className="bg-white rounded-lg p-6 shadow-sm">
-        <div className="mb-4">
-          <h3 className="text-xl font-bold mb-2 text-gray-800">
+      <div className="bg-white rounded-2xl p-8 shadow-xl border-2 border-blue-100">
+        <div className="mb-6 bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-xl border-2 border-purple-200">
+          <h3 className="text-2xl font-bold mb-3 text-gray-900">
             🧩 Puzzle {currentStep + 1} of {puzzles.length}
           </h3>
-          <p className="text-gray-700 font-medium">{currentPuzzle.objective}</p>
+          <p className="text-gray-800 font-semibold text-lg">{currentPuzzle.objective}</p>
         </div>
 
-        <div className="mb-4">
+        <div className="mb-6 bg-gradient-to-br from-blue-50 to-purple-50 p-6 rounded-xl border-2 border-blue-200">
           {chessGame && (
-            <ChessBoard
-              game={chessGame}
-              boardOrientation={playerColor}
-              playerColor={playerColor}
-              isReplayMode={false}
-              onDrop={(sourceSquare, targetSquare) => {
-                // Format move as UCI notation (e.g., "e2e4")
-                const move = `${sourceSquare}${targetSquare}`;
+            <div className="flex justify-center items-center">
+              <div style={{ width: '500px', height: '500px' }}>
+                <ChessBoard
+                  game={chessGame}
+                  boardOrientation={playerColor}
+                  playerColor={playerColor}
+                  isReplayMode={false}
+                  onDrop={(sourceSquare, targetSquare) => {
+                    // Format move as UCI notation (e.g., "e2e4")
+                    const move = `${sourceSquare}${targetSquare}`;
 
-                // Try to make the move on the game object to validate it
-                try {
-                  const moveResult = chessGame.move(move);
-                  if (moveResult) {
-                    // Move is valid, check if it matches solution
-                    handleMove(move);
+                    // Try to make the move on the game object to validate it
+                    try {
+                      const moveResult = chessGame.move(move);
+                      if (moveResult) {
+                        // Move is valid, check if it matches solution
+                        handleMove(move);
 
-                    // If move is wrong, reset the position after a short delay
-                    setTimeout(() => {
-                      try {
-                        const newGame = new Chess(currentPuzzle.fen);
-                        setChessGame(newGame);
-                      } catch (error) {
-                        console.error('Error resetting puzzle:', error);
+                        // If move is wrong, reset the position after a short delay
+                        setTimeout(() => {
+                          try {
+                            const newGame = new Chess(currentPuzzle.fen);
+                            setChessGame(newGame);
+                          } catch (error) {
+                            console.error('Error resetting puzzle:', error);
+                          }
+                        }, 1500);
+                      } else {
+                        console.log('Invalid move:', move);
+                        handleMove(move); // Let the puzzle handler show error
                       }
-                    }, 1500);
-                  } else {
-                    console.log('Invalid move:', move);
-                    handleMove(move); // Let the puzzle handler show error
-                  }
-                } catch (error) {
-                  console.error('Move error:', error);
-                }
+                    } catch (error) {
+                      console.error('Move error:', error);
+                    }
 
-                return true;
-              }}
-              moveFrom=""
-              setMoveFrom={() => {}}
-              rightClickedSquares={{}}
-              setRightClickedSquares={() => {}}
-              moveSquares={{}}
-              setMoveSquares={() => {}}
-            />
+                  return true;
+                }}
+                moveFrom=""
+                setMoveFrom={() => {}}
+                rightClickedSquares={{}}
+                setRightClickedSquares={() => {}}
+                moveSquares={{}}
+                setMoveSquares={() => {}}
+              />
+            </div>
+          </div>
           )}
         </div>
 
@@ -639,33 +670,37 @@ const LessonPlayer = () => {
 
   const renderPracticeGame = () => {
     return (
-      <div className="bg-white rounded-lg p-6 shadow-sm">
-        <div className="mb-4">
-          <h3 className="text-xl font-bold mb-2 text-gray-800">🎮 Practice Game</h3>
-          <p className="text-gray-700 font-medium">
+      <div className="bg-white rounded-2xl p-8 shadow-xl border-2 border-blue-100">
+        <div className="mb-6 bg-gradient-to-r from-green-50 to-blue-50 p-6 rounded-xl border-2 border-green-200">
+          <h3 className="text-2xl font-bold mb-3 text-gray-900">🎮 Practice Game</h3>
+          <p className="text-gray-800 font-semibold text-lg">
             Play against AI to practice what you've learned!
           </p>
         </div>
 
-        <div className="mb-4">
+        <div className="mb-6 bg-gradient-to-br from-blue-50 to-purple-50 p-6 rounded-xl border-2 border-blue-200">
           {chessGame && (
-            <ChessBoard
-              game={chessGame}
-              boardOrientation={playerColor}
-              playerColor={playerColor}
-              isReplayMode={false}
-              onDrop={(sourceSquare, targetSquare) => {
-                // Handle practice game moves
-                console.log('Practice game move:', sourceSquare, targetSquare);
-                return true;
-              }}
-              moveFrom=""
-              setMoveFrom={() => {}}
-              rightClickedSquares={{}}
-              setRightClickedSquares={() => {}}
-              moveSquares={{}}
-              setMoveSquares={() => {}}
-            />
+            <div className="flex justify-center items-center">
+              <div style={{ width: '500px', height: '500px' }}>
+                <ChessBoard
+                  game={chessGame}
+                  boardOrientation={playerColor}
+                  playerColor={playerColor}
+                  isReplayMode={false}
+                  onDrop={(sourceSquare, targetSquare) => {
+                    // Handle practice game moves
+                    console.log('Practice game move:', sourceSquare, targetSquare);
+                    return true;
+                  }}
+                  moveFrom=""
+                  setMoveFrom={() => {}}
+                  rightClickedSquares={{}}
+                  setRightClickedSquares={() => {}}
+                  moveSquares={{}}
+                  setMoveSquares={() => {}}
+                />
+              </div>
+            </div>
           )}
         </div>
 
@@ -689,28 +724,30 @@ const LessonPlayer = () => {
   };
 
   const renderInteractive = () => {
-    // Use the enhanced interactive lesson component
+    // Use the enhanced interactive lesson component with error boundary
     return (
-      <EnhancedInteractiveLesson
-        lesson={lesson}
-        user={user}
-        onLessonComplete={(completionData) => {
-          console.log('🎉 Interactive lesson completed:', completionData);
-          // You can handle completion here, e.g., navigate back with completion data
-          setTimeout(() => {
-            navigate('/tutorial', {
-              state: {
-                completed: true,
-                score: completionData.xp_awarded || score,
-                lessonTitle: lesson.title,
-                xpAwarded: completionData.xp_awarded,
-                moduleCompleted: completionData.module_completed,
-                verifiedProgress: completionData.user_stats
-              }
-            });
+      <ErrorBoundary errorMessage="The interactive lesson encountered an error. Please try reloading.">
+        <EnhancedInteractiveLesson
+          lesson={lesson}
+          user={user}
+          onLessonComplete={(completionData) => {
+            console.log('🎉 Interactive lesson completed:', completionData);
+            // You can handle completion here, e.g., navigate back with completion data
+            setTimeout(() => {
+              navigate('/tutorial', {
+                state: {
+                  completed: true,
+                  score: completionData.xp_awarded || score,
+                  lessonTitle: lesson.title,
+                  xpAwarded: completionData.xp_awarded,
+                  moduleCompleted: completionData.module_completed,
+                  verifiedProgress: completionData.user_stats
+                }
+              });
           }, 2000);
         }}
       />
+      </ErrorBoundary>
     );
   };
 
@@ -805,9 +842,10 @@ const LessonPlayer = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Header */}
-      <div className="mb-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
+      <div className="container mx-auto px-4 py-8">
+        {/* Header */}
+        <div className="mb-6">
         <button
           onClick={() => navigate('/tutorial')}
           className="mb-4 inline-flex items-center font-semibold px-4 py-2 rounded-lg transition-all hover:scale-105"
@@ -820,27 +858,22 @@ const LessonPlayer = () => {
           ← Back to {lesson.module.name}
         </button>
 
-        <div className="flex items-center justify-between">
+        <div className="bg-white rounded-2xl p-6 shadow-xl border-2 border-blue-100 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold mb-2 text-gray-800">{lesson.title}</h1>
-            <div className="flex items-center space-x-4 text-gray-700 font-medium">
-              <span>⏱️ {lesson.formatted_duration}</span>
-              <span>🎯 {lesson.difficulty_level}</span>
-              <span>🏆 {lesson.xp_reward} XP</span>
+            <h1 className="text-4xl font-bold mb-3 text-gray-900">{lesson.title}</h1>
+            <div className="flex items-center space-x-6 text-gray-800 font-semibold text-base">
+              <span className="bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">⏱️ {lesson.formatted_duration}</span>
+              <span className="bg-purple-50 px-4 py-2 rounded-lg border border-purple-200">🎯 {lesson.difficulty_level}</span>
+              <span className="bg-yellow-50 px-4 py-2 rounded-lg border border-yellow-200">🏆 {lesson.xp_reward} XP</span>
             </div>
           </div>
 
-          <div className="text-center p-4 rounded-lg" style={{
+          <div className="text-center p-6 rounded-xl border-2 border-green-300" style={{
             background: 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)',
-            boxShadow: '0 4px 15px rgba(34, 197, 94, 0.2)'
+            boxShadow: '0 4px 15px rgba(34, 197, 94, 0.3)'
           }}>
-            <div className="text-xs font-semibold text-gray-600 mb-1">Score</div>
-            <div className="text-3xl font-bold" style={{
-              background: 'var(--tutorial-gradient-green)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text'
-            }}>
+            <div className="text-sm font-bold text-gray-700 mb-2">Score</div>
+            <div className="text-4xl font-extrabold text-green-600">
               {Math.round(score)}%
             </div>
           </div>
@@ -851,8 +884,12 @@ const LessonPlayer = () => {
       {renderProgressBar()}
 
       {/* Step Counter */}
-      <div className="text-center mb-6 text-gray-700 font-semibold">
-        📍 Step {currentStep + 1} of {getTotalSteps()}
+      <div className="text-center mb-6">
+        <div className="inline-block bg-white px-8 py-4 rounded-xl shadow-lg border-2 border-purple-200">
+          <span className="text-gray-900 font-bold text-xl">
+            📍 Step {currentStep + 1} of {getTotalSteps()}
+          </span>
+        </div>
       </div>
 
       {/* Lesson Content */}
@@ -925,6 +962,7 @@ const LessonPlayer = () => {
           </button>
         </div>
       </div>
+    </div>
     </div>
   );
 };

@@ -1,22 +1,21 @@
-# Quick Migration Script
+# Navigate to chess-backend directory
+cd $PSScriptRoot
+
 Write-Host "Running database migrations..." -ForegroundColor Cyan
 
-# Clear caches
-php artisan config:clear | Out-Null
-php artisan cache:clear | Out-Null
-
 # Run migrations
-php artisan migrate:fresh --seed --force
+php artisan migrate --force
 
 if ($LASTEXITCODE -eq 0) {
-    Write-Host ""
-    Write-Host "✓ Migrations completed successfully!" -ForegroundColor Green
-    Write-Host ""
-    Write-Host "Starting Laravel server..." -ForegroundColor Yellow
-    php artisan serve
+    Write-Host "`n✅ Migrations completed successfully!" -ForegroundColor Green
+
+    Write-Host "`nVerifying progress tables..." -ForegroundColor Cyan
+    php artisan db:show
+
+    Write-Host "`nProgress tracking tables should now be available:" -ForegroundColor Yellow
+    Write-Host "  - user_tutorial_progress" -ForegroundColor White
+    Write-Host "  - user_stage_progress" -ForegroundColor White
 } else {
-    Write-Host ""
-    Write-Host "✗ Migrations failed!" -ForegroundColor Red
-    Write-Host "Check the errors above for details" -ForegroundColor Yellow
+    Write-Host "`n❌ Migration failed! Please check the error messages above." -ForegroundColor Red
     exit 1
 }

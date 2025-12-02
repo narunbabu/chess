@@ -71,56 +71,51 @@ class TutorialModule extends Model
 
     /**
      * Get user progress for this module
+     * Optimized with eager loading to prevent N+1 queries
      */
     public function getUserProgress($userId): array
     {
-        $totalLessons = $this->activeLessons()->count();
+        // Single eager-loaded query to get all lessons with user progress
+        $lessons = $this->activeLessons()
+            ->with(['userProgress' => function ($query) use ($userId) {
+                $query->where('user_id', $userId);
+            }])
+            ->get();
 
-        // Debug: Get all active lessons with their user progress
-        $activeLessons = $this->activeLessons()->get();
-        $lessonDebug = [];
+        $totalLessons = $lessons->count();
+        $earnedXp = 0;
+        $totalScore = 0;
+        $lessonsWithScores = 0;
 
-        foreach ($activeLessons as $lesson) {
-            $userProgress = $lesson->userProgress()->where('user_id', $userId)->first();
-            $lessonDebug[] = [
-                'lesson_id' => $lesson->id,
-                'lesson_title' => $lesson->title,
-                'user_progress_status' => $userProgress?->status,
-                'is_completed' => in_array($userProgress?->status, ['completed', 'mastered']),
-            ];
-        }
+        // Count completed lessons and calculate XP/scores using the already-loaded data
+        $completedLessons = $lessons->filter(function ($lesson) use (&$earnedXp, &$totalScore, &$lessonsWithScores) {
+            $progress = $lesson->userProgress->first();
+            $isCompleted = $progress && in_array($progress->status, ['completed', 'mastered']);
 
-        \Log::info('Module Progress Debug', [
-            'module_id' => $this->id,
-            'module_name' => $this->name,
-            'user_id' => $userId,
-            'total_lessons' => $totalLessons,
-            'active_lessons_debug' => $lessonDebug,
-        ]);
+            if ($isCompleted) {
+                $earnedXp += $lesson->xp_reward ?? 0;
 
-        $completedLessons = $this->activeLessons()
-            ->whereHas('userProgress', function ($query) use ($userId) {
-                $query->where('user_id', $userId)
-                      ->whereIn('status', ['completed', 'mastered']);
-            })
-            ->count();
+                // Add score if available
+                if ($progress->best_score !== null && $progress->best_score > 0) {
+                    $totalScore += $progress->best_score;
+                    $lessonsWithScores++;
+                }
+            }
+
+            return $isCompleted;
+        })->count();
 
         $percentage = $totalLessons > 0 ? ($completedLessons / $totalLessons) * 100 : 0;
+        $averageScore = $lessonsWithScores > 0 ? round($totalScore / $lessonsWithScores, 2) : null;
 
-        $result = [
+        return [
             'total_lessons' => $totalLessons,
             'completed_lessons' => $completedLessons,
             'percentage' => round($percentage, 2),
             'is_completed' => $completedLessons === $totalLessons && $totalLessons > 0,
+            'earned_xp' => $earnedXp,
+            'average_score' => $averageScore,
         ];
-
-        \Log::info('Module Progress Result', [
-            'module_id' => $this->id,
-            'user_id' => $userId,
-            'result' => $result,
-        ]);
-
-        return $result;
     }
 
     /**

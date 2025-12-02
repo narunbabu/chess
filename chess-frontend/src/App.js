@@ -136,6 +136,10 @@ const AppContent = () => {
               path="/tutorial/lesson/:lessonId"
               element={requireAuth(<LessonPlayer />, 'tutorial')}
             />
+            <Route
+              path="/tutorial/daily"
+              element={requireAuth(<div className="min-h-screen flex items-center justify-center"><div className="text-center"><h1 className="text-4xl font-bold mb-4">🏅 Daily Challenge</h1><p className="text-gray-600">Coming Soon!</p></div></div>, 'tutorial')}
+            />
 
             {/* Lobby - Auth required */}
             <Route

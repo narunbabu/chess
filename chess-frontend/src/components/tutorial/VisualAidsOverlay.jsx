@@ -28,16 +28,61 @@ const VisualAidsOverlay = ({ visualAids, boardSize = 480 }) => {
 
   return (
     <div
-      className="absolute inset-0 pointer-events-none"
-      style={{ width: boardSize, height: boardSize }}
+      className="absolute pointer-events-none"
+      style={{
+        width: boardSize,
+        height: boardSize,
+        top: 0,
+        left: 0
+      }}
     >
       <svg
         width={boardSize}
         height={boardSize}
-        className="absolute inset-0"
+        className="absolute"
         viewBox={`0 0 ${boardSize} ${boardSize}`}
-        style={{ zIndex: 10 }}
+        style={{
+          zIndex: 10,
+          top: 0,
+          left: 0,
+          pointerEvents: 'none'
+        }}
       >
+        {/* Define marker for arrowheads */}
+        <defs>
+          {arrows.map((arrow, index) => {
+            const { color = 'green' } = arrow;
+            const colors = {
+              green: '#10b981',
+              red: '#ef4444',
+              yellow: '#f59e0b',
+              blue: '#3b82f6'
+            };
+            const arrowColor = color.startsWith('#') || color.startsWith('rgb')
+              ? color
+              : (colors[color] || colors.green);
+
+            return (
+              <marker
+                key={`arrowhead-${index}`}
+                id={`arrowhead-${index}`}
+                markerWidth="10"
+                markerHeight="10"
+                refX="9"
+                refY="3"
+                orient="auto"
+                markerUnits="strokeWidth"
+              >
+                <path
+                  d="M0,0 L0,6 L9,3 z"
+                  fill={arrowColor}
+                  opacity="0.9"
+                />
+              </marker>
+            );
+          })}
+        </defs>
+
         {/* Highlights */}
         {highlights.map((square, index) => {
           const { x, y } = squareToPixel(square);
@@ -50,29 +95,20 @@ const VisualAidsOverlay = ({ visualAids, boardSize = 480 }) => {
               y={y}
               width={squareSize}
               height={squareSize}
-              fill="rgba(59, 130, 246, 0.3)"
-              stroke="rgba(59, 130, 246, 0.6)"
-              strokeWidth="2"
+              fill="rgba(59, 130, 246, 0.25)"
+              stroke="rgba(59, 130, 246, 0.5)"
+              strokeWidth="1.5"
             />
           );
         })}
 
         {/* Arrows */}
         {arrows.map((arrow, index) => {
-          const { start: startSquare, end: endSquare, color = 'green' } = arrow;
+          const { from: startSquare, to: endSquare, color = 'green' } = arrow;
           const startPos = squareToPixel(startSquare, true);
           const endPos = squareToPixel(endSquare, true);
 
-          // Calculate arrow angle and length
-          const angle = Math.atan2(endPos.y - startPos.y, endPos.x - startPos.x);
-          const length = Math.sqrt(
-            Math.pow(endPos.x - startPos.x, 2) + Math.pow(endPos.y - startPos.y, 2)
-          );
-
-          // Adjust for arrow head (leave some space at the end)
-          const adjustedLength = length - 20;
-
-          // Arrow colors
+          // Arrow colors - support both color names and direct color values (rgba, hex, etc)
           const colors = {
             green: '#10b981',
             red: '#ef4444',
@@ -80,36 +116,24 @@ const VisualAidsOverlay = ({ visualAids, boardSize = 480 }) => {
             blue: '#3b82f6'
           };
 
-          const arrowColor = colors[color] || colors.green;
+          // If color is already a valid color string (rgba, hex), use it directly
+          const arrowColor = color.startsWith('#') || color.startsWith('rgb')
+            ? color
+            : (colors[color] || colors.green);
 
           return (
-            <g key={`arrow-${index}`}>
-              {/* Arrow line */}
-              <line
-                x1={startPos.x}
-                y1={startPos.y}
-                x2={startPos.x + Math.cos(angle) * adjustedLength}
-                y2={startPos.y + Math.sin(angle) * adjustedLength}
-                stroke={arrowColor}
-                strokeWidth="4"
-                strokeLinecap="round"
-                opacity="0.8"
-              />
-
-              {/* Arrow head */}
-              <polygon
-                points={`
-                  ${startPos.x + Math.cos(angle) * adjustedLength},
-                  ${startPos.y + Math.sin(angle) * adjustedLength}
-                  ${startPos.x + Math.cos(angle - 0.5) * (adjustedLength - 10)},
-                  ${startPos.y + Math.sin(angle - 0.5) * (adjustedLength - 10)}
-                  ${startPos.x + Math.cos(angle + 0.5) * (adjustedLength - 10)},
-                  ${startPos.y + Math.sin(angle + 0.5) * (adjustedLength - 10)}
-                `}
-                fill={arrowColor}
-                opacity="0.8"
-              />
-            </g>
+            <line
+              key={`arrow-${index}`}
+              x1={startPos.x}
+              y1={startPos.y}
+              x2={endPos.x}
+              y2={endPos.y}
+              stroke={arrowColor}
+              strokeWidth="3"
+              strokeLinecap="round"
+              opacity="0.85"
+              markerEnd={`url(#arrowhead-${index})`}
+            />
           );
         })}
 
