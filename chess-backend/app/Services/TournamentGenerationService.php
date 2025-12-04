@@ -281,10 +281,15 @@ class TournamentGenerationService
 
         // 🎯 CRITICAL FIX: For Swiss rounds beyond Round 1, create placeholder pairings
         // These will be assigned dynamically when the previous round completes
-        if ($method === TournamentConfig::PAIRING_SWISS && $roundNumber > 1) {
+        // Check both PAIRING_SWISS and PAIRING_STANDINGS_BASED (which is also used for Swiss rounds)
+        $isSwissRound = ($method === TournamentConfig::PAIRING_SWISS ||
+                         $method === TournamentConfig::PAIRING_STANDINGS_BASED);
+
+        if ($isSwissRound && $roundNumber > 1 && $roundConfig['type'] === 'swiss') {
             Log::info("Creating placeholder pairings for Swiss round", [
                 'championship_id' => $championship->id,
                 'round_number' => $roundNumber,
+                'pairing_method' => $method,
             ]);
             return $this->generateSwissPlaceholderPairings($participants->count());
         }

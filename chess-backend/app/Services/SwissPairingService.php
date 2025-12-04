@@ -178,7 +178,7 @@ class SwissPairingService
             'score_groups' => array_map(fn($g) => count($g), $scoreGroups),
         ]);
 
-        // 🎯 STEP 2: Handle BYE if total participants is odd
+        // 🎯 STEP 2: Handle BYE only when total participants is odd (Swiss rule)
         if ($unpaired->count() % 2 === 1) {
             // 🎯 ENHANCED: Smart BYE selection that balances group sizes
             $byeRecipient = $this->selectOptimalByeRecipientWithGroupBalancing($championship, $scoreGroups);
@@ -259,12 +259,99 @@ class SwissPairingService
         $pairings = [];
         $group = collect($group);
 
+        // 🎯 ENHANCED: Allow odd-sized groups but handle last player with cross-group pairing
+        if ($group->count() % 2 !== 0) {
+            Log::info("Score group has odd number of players - will use cross-group pairing", [
+                'championship_id' => $championship->id,
+                'round' => $roundNumber,
+                'group_size' => $group->count(),
+                'total_players' => $championship->participants()->count(),
+            ]);
+        }
+
         // Sort by float (who had white/black more) for color balance
         $sortedGroup = $this->balanceColors($championship, $group);
 
+        // 🎯 FIXED: Track paired players to prevent duplicates
+        $paired = collect();
+
         // Pair participants
-        for ($i = 0; $i < $sortedGroup->count() - 1; $i += 2) {
+        for ($i = 0; $i < $sortedGroup->count(); $i += 2) {
+            // 🎯 SAFETY CHECK: Ensure current player exists
+            if (!isset($sortedGroup[$i])) {
+                Log::warning("Current player not found at index {$i} - breaking loop", [
+                    'index' => $i,
+                    'groupCount' => $sortedGroup->count(),
+                    'round' => $roundNumber,
+                ]);
+                break;
+            }
+
+            // 🎯 SAFETY CHECK: Skip if this player was already paired
+            if ($paired->contains($sortedGroup[$i]->user_id)) {
+                Log::warning("Player already paired - skipping", [
+                    'user_id' => $sortedGroup[$i]->user_id,
+                    'round' => $roundNumber,
+                ]);
+                continue;
+            }
+
+            // 🎯 SAFETY CHECK: Ensure second player exists before checking if paired
+            if (!isset($sortedGroup[$i + 1])) {
+                Log::info("Unpaired player in odd-sized group - using cross-group pairing", [
+                    'unpaired_player_id' => $sortedGroup[$i]->user_id,
+                    'round' => $roundNumber,
+                    'index' => $i,
+                    'groupCount' => $sortedGroup->count(),
+                ]);
+
+                $crossPairing = $this->crossScoreGroupPairing($championship, $sortedGroup[$i], $roundNumber);
+                if ($crossPairing) {
+                    $pairings[] = $crossPairing;
+                    $paired->push($crossPairing['player1_id']);
+                    $paired->push($crossPairing['player2_id']);
+                }
+                continue; // Continue to next iteration, don't break the loop
+            }
+
+            if ($paired->contains($sortedGroup[$i + 1]->user_id)) {
+                Log::warning("Opponent already paired - skipping", [
+                    'user_id' => $sortedGroup[$i + 1]->user_id,
+                    'round' => $roundNumber,
+                ]);
+                continue;
+            }
+
+            // 🎯 SAFETY CHECK: Ensure we don't go out of bounds
+            if ($i >= $sortedGroup->count()) {
+                Log::warning("Loop index out of bounds - breaking", [
+                    'index' => $i,
+                    'groupCount' => $sortedGroup->count(),
+                    'round' => $roundNumber,
+                ]);
+                break;
+            }
+
             $player1 = $sortedGroup[$i];
+
+            // 🎯 HANDLE ODD-SIZED GROUP: If no second player, use cross-group pairing
+            if (!isset($sortedGroup[$i + 1])) {
+                Log::info("Unpaired player in odd-sized group - using cross-group pairing", [
+                    'unpaired_player_id' => $player1->user_id,
+                    'round' => $roundNumber,
+                    'index' => $i,
+                    'groupCount' => $sortedGroup->count(),
+                ]);
+
+                $crossPairing = $this->crossScoreGroupPairing($championship, $player1, $roundNumber);
+                if ($crossPairing) {
+                    $pairings[] = $crossPairing;
+                    $paired->push($crossPairing['player1_id']);
+                    $paired->push($crossPairing['player2_id']);
+                }
+                continue;
+            }
+
             $player2 = $sortedGroup[$i + 1];
 
             // Check if they have already played
@@ -273,11 +360,16 @@ class SwissPairingService
                 $alternativePairing = $this->findAlternativePairing($championship, $sortedGroup, $i, $roundNumber);
                 if ($alternativePairing) {
                     $pairings[] = $alternativePairing;
+                    // Mark both players as paired
+                    $paired->push($alternativePairing['player1_id']);
+                    $paired->push($alternativePairing['player2_id']);
                 } else {
                     // Cross-score group pairing needed
                     $crossPairing = $this->crossScoreGroupPairing($championship, $player1, $roundNumber);
                     if ($crossPairing) {
                         $pairings[] = $crossPairing;
+                        $paired->push($crossPairing['player1_id']);
+                        $paired->push($crossPairing['player2_id']);
                     }
                 }
             } else {
@@ -292,8 +384,20 @@ class SwissPairingService
                     'deadline' => now()->addHours($championship->match_time_window_hours),
                     'color_assignment_method' => $colorMethod,
                 ];
+
+                // 🎯 FIXED: Mark both players as paired
+                $paired->push($player1->user_id);
+                $paired->push($player2->user_id);
             }
         }
+
+        Log::info("Score group pairing completed", [
+            'championship_id' => $championship->id,
+            'round' => $roundNumber,
+            'group_size' => $group->count(),
+            'pairings_created' => count($pairings),
+            'players_paired' => $paired->count(),
+        ]);
 
         return $pairings;
     }
@@ -476,12 +580,32 @@ class SwissPairingService
      */
     private function findAlternativePairing(Championship $championship, Collection $group, int $currentIndex, int $roundNumber): ?array
     {
+        // 🎯 SAFETY CHECK: Ensure index is within bounds
+        if ($currentIndex >= $group->count()) {
+            Log::warning("findAlternativePairing: Index out of bounds", [
+                'currentIndex' => $currentIndex,
+                'groupCount' => $group->count(),
+                'round' => $roundNumber,
+            ]);
+            return null;
+        }
+
         $currentPlayer = $group[$currentIndex];
 
         for ($i = $currentIndex + 2; $i < $group->count(); $i++) {
             $potentialOpponent = $group[$i];
 
             if (!$this->haveAlreadyPlayed($championship, $currentPlayer->user_id, $potentialOpponent->user_id)) {
+                // 🎯 SAFETY CHECK: Ensure we have enough elements for swap
+                if (!isset($group[$currentIndex + 1])) {
+                    Log::warning("findAlternativePairing: Cannot swap - missing element", [
+                        'currentIndex' => $currentIndex,
+                        'groupCount' => $group->count(),
+                        'round' => $roundNumber,
+                    ]);
+                    return null;
+                }
+
                 // Swap opponents
                 $originalOpponent = $group[$currentIndex + 1];
                 $group[$currentIndex + 1] = $potentialOpponent;
@@ -506,15 +630,62 @@ class SwissPairingService
      */
     private function crossScoreGroupPairing(Championship $championship, $player, int $roundNumber): ?array
     {
-        // This is a simplified implementation
-        // In reality, you'd need to check lower score groups
-        Log::warning("Cross-score group pairing needed - simplified implementation", [
+        // 🎯 CRITICAL FIX: Implement proper cross-score-group pairing
+        // Find a player from the next lower score group
+        $playerScore = $championship->standings()
+            ->where('user_id', $player->user_id)
+            ->first()?->points ?? 0;
+
+        // Look for players in the next lower score group
+        $lowerScoreGroups = $championship->standings()
+            ->where('points', '<', $playerScore)
+            ->orderBy('points', 'desc')
+            ->orderBy('rating', 'desc') // Prefer higher rated players
+            ->get();
+
+        foreach ($lowerScoreGroups as $potentialOpponent) {
+            // Check if this opponent is already paired
+            $alreadyPaired = $this->isPlayerAlreadyPaired($championship, $potentialOpponent->user_id, $roundNumber);
+            if (!$alreadyPaired) {
+                Log::info("Cross-score group pairing found", [
+                    'championship_id' => $championship->id,
+                    'player1_id' => $player->user_id,
+                    'player1_score' => $playerScore,
+                    'player2_id' => $potentialOpponent->user_id,
+                    'player2_score' => $potentialOpponent->points,
+                    'round' => $roundNumber,
+                ]);
+
+                return [
+                    'player1_id' => $player->user_id,
+                    'player2_id' => $potentialOpponent->user_id,
+                    'round_number' => $roundNumber,
+                ];
+            }
+        }
+
+        Log::warning("No cross-score group pairing found", [
             'championship_id' => $championship->id,
-            'user_id' => $player->user_id,
+            'player_id' => $player->user_id,
+            'player_score' => $playerScore,
             'round' => $roundNumber,
         ]);
 
         return null;
+    }
+
+    /**
+     * Check if a player is already paired in the current round
+     */
+    private function isPlayerAlreadyPaired(Championship $championship, int $userId, int $roundNumber): bool
+    {
+        return $championship->matches()
+            ->where('round_number', $roundNumber)
+            ->where(function ($query) use ($userId) {
+                $query->where('player1_id', $userId)
+                    ->orWhere('player2_id', $userId);
+            })
+            ->exists();
     }
 
     /**
@@ -614,6 +785,13 @@ class SwissPairingService
             // 🎯 PRIORITY 2: No perfect solution - use lowest score group (Swiss rule)
             ksort($scoreGroups); // Ensure lowest score first
             $selectedScore = array_key_first($scoreGroups);
+
+            // 🎯 SAFETY CHECK: Ensure we have a valid score group
+            if ($selectedScore === null || !isset($scoreGroups[$selectedScore])) {
+                Log::warning("No valid score groups found for BYE selection");
+                return null;
+            }
+
             $selectedGroup = $scoreGroups[$selectedScore];
             Log::info("No perfect balance - using lowest score group", ['selected_score' => $selectedScore]);
         }

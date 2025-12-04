@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
 use App\Enums\ChampionshipMatchStatus as ChampionshipMatchStatusEnum;
 use App\Enums\ChampionshipRoundType as ChampionshipRoundTypeEnum;
 use App\Enums\ChampionshipResultType as ChampionshipResultTypeEnum;
@@ -399,6 +400,87 @@ class ChampionshipMatch extends Model
             'result_type' => $resultType,
             'status' => ChampionshipMatchStatusEnum::COMPLETED->value,
         ]);
+
+        // 🎯 CRITICAL FIX: Trigger automatic round progression for Swiss tournaments
+        $this->triggerAutomaticRoundProgression();
+    }
+
+    /**
+     * Trigger automatic round progression for Swiss tournaments
+     */
+    private function triggerAutomaticRoundProgression(): void
+    {
+        $championship = $this->championship;
+
+        // Only proceed for Swiss tournaments
+        if (!$championship || !$championship->getFormatEnum()->isSwiss()) {
+            return;
+        }
+
+        // Check if this was the last match to complete in the current round
+        $roundNumber = $this->round_number;
+        $totalMatchesInRound = $championship->matches()->where('round_number', $roundNumber)->count();
+        $completedMatchesInRound = $championship->matches()
+            ->where('round_number', $roundNumber)
+            ->where('status_id', ChampionshipMatchStatusEnum::COMPLETED->getId())
+            ->count();
+
+        if ($completedMatchesInRound === $totalMatchesInRound) {
+            Log::info("Round completed - triggering next round activation", [
+                'championship_id' => $championship->id,
+                'completed_round' => $roundNumber,
+                'total_matches' => $totalMatchesInRound,
+                'completed_matches' => $completedMatchesInRound
+            ]);
+
+            // Activate the next round by assigning players to placeholder matches
+            $this->activateNextSwissRound($championship, $roundNumber + 1);
+        }
+    }
+
+    /**
+     * Activate the next Swiss round by assigning players to placeholder matches
+     */
+    private function activateNextSwissRound(Championship $championship, int $nextRoundNumber): void
+    {
+        try {
+            $placeholderMatches = $championship->matches()
+                ->where('round_number', $nextRoundNumber)
+                ->where('status_id', ChampionshipMatchStatusEnum::PENDING->getId())
+                ->where('is_placeholder', true)
+                ->whereNull('players_assigned_at')
+                ->get();
+
+            if ($placeholderMatches->isEmpty()) {
+                Log::info("No placeholder matches found for next round", [
+                    'championship_id' => $championship->id,
+                    'next_round' => $nextRoundNumber
+                ]);
+                return;
+            }
+
+            Log::info("Activating next Swiss round", [
+                'championship_id' => $championship->id,
+                'next_round' => $nextRoundNumber,
+                'placeholder_matches' => $placeholderMatches->count()
+            ]);
+
+            // Use the PlaceholderMatchAssignmentService to assign players
+            $assignmentService = app(\App\Services\PlaceholderMatchAssignmentService::class);
+            $assignmentService->assignPlayersToPlaceholderMatches($championship, $nextRoundNumber);
+
+            Log::info("Next Swiss round activated successfully", [
+                'championship_id' => $championship->id,
+                'activated_round' => $nextRoundNumber
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("Failed to activate next Swiss round", [
+                'championship_id' => $championship->id,
+                'next_round' => $nextRoundNumber,
+                'error' => $e->getMessage()
+            ]);
+        }
     }
 
     /**
