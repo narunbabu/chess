@@ -5,7 +5,7 @@ namespace App\Services;
 use App\Models\Championship;
 use App\Models\ChampionshipMatch;
 use App\Models\ChampionshipStanding;
-use App\Enums\ChampionshipRoundType;
+use App\Enums\ChampionshipRoundType as ChampionshipRoundTypeEnum;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 
@@ -513,7 +513,7 @@ class PlaceholderMatchAssignmentService
      * @param \App\Enums\ChampionshipRoundType $roundType
      * @return bool
      */
-    private function isEliminationRound(\App\Enums\ChampionshipRoundType $roundType): bool
+    private function isEliminationRound(ChampionshipRoundTypeEnum $roundType): bool
     {
         return in_array($roundType->value, [
             'quarter_final',
@@ -1144,7 +1144,7 @@ class PlaceholderMatchAssignmentService
         Championship $championship,
         int $roundNumber,
         Collection $placeholderMatches,
-        ChampionshipRoundType $roundType
+        ChampionshipRoundTypeEnum $roundType
     ): array {
         // Get current standings to determine top qualifiers
         $standings = $this->getCurrentStandings($championship);
@@ -1226,7 +1226,7 @@ class PlaceholderMatchAssignmentService
         Championship $championship,
         ChampionshipMatch $match,
         Collection $qualifiedPlayers,
-        ChampionshipRoundType $roundType
+        ChampionshipRoundTypeEnum $roundType
     ): array {
         if ($qualifiedPlayers->count() < 2) {
             throw new \Exception("Not enough qualified players for elimination match");
