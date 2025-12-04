@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Tournament Visualizer Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        h2 {
+            color: #666;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+        pre {
+            background: #f8f8f8;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .btn {
+            padding: 10px 20px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        .btn:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1>🏆 Tournament Visualizer Test Suite</h1>
+
+    <div class="test-section">
+        <h2>Test 1: Load Completed Tournament</h2>
+        <button class="btn" onclick="runTest1()">Run Test 1</button>
+        <div id="test1-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 2: Verify Standings Calculation</h2>
+        <button class="btn" onclick="runTest2()">Run Test 2</button>
+        <div id="test2-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 3: Verify Final Rankings</h2>
+        <button class="btn" onclick="runTest3()">Run Test 3</button>
+        <div id="test3-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Open Full Visualizer</h2>
+        <a href="tournament_visualizer_v3.html" target="_blank" class="btn">Open Visualizer</a>
+        <p>Click the "✅ 5 Players (Completed)" button to see the fully completed tournament.</p>
+    </div>
+
+    <script>
+        async function runTest1() {
+            const resultsDiv = document.getElementById('test1-results');
+            resultsDiv.innerHTML = '<p>Loading tournament data...</p>';
+
+            try {
+                const response = await fetch('tournament_test_5_players_v3_completed.json');
+                const data = await response.json();
+
+                let html = '<p class="success">✅ Tournament data loaded successfully</p>';
+                html += '<pre>' + JSON.stringify(data.tournament_info, null, 2) + '</pre>';
+
+                // Count completed matches
+                let completedCount = 0;
+                data.rounds.forEach(round => {
+                    round.matches.forEach(match => {
+                        if (match.status === 'completed' && match.player1_result) {
+                            completedCount++;
+                        }
+                    });
+                });
+
+                html += `<p><strong>Total Matches:</strong> ${data.matches.length}</p>`;
+                html += `<p><strong>Completed Matches:</strong> ${completedCount}</p>`;
+                html += `<p class="${completedCount === data.matches.length ? 'success' : 'error'}">`;
+                html += completedCount === data.matches.length ?
+                    '✅ All matches are completed' :
+                    `❌ Only ${completedCount}/${data.matches.length} matches completed`;
+                html += '</p>';
+
+                resultsDiv.innerHTML = html;
+            } catch (error) {
+                resultsDiv.innerHTML = `<p class="error">❌ Error: ${error.message}</p>`;
+            }
+        }
+
+        async function runTest2() {
+            const resultsDiv = document.getElementById('test2-results');
+            resultsDiv.innerHTML = '<p>Calculating standings...</p>';
+
+            try {
+                const response = await fetch('tournament_test_5_players_v3_completed.json');
+                const data = await response.json();
+
+                // Calculate standings for each round
+                let html = '<h3>Round-by-Round Standings</h3>';
+
+                for (let roundNum = 1; roundNum <= data.rounds.length; roundNum++) {
+                    const standings = calculateStandingsUpToRound(data, roundNum);
+                    html += `<h4>After Round ${roundNum} (${data.rounds[roundNum-1].round_type})</h4>`;
+                    html += '<table border="1" style="border-collapse: collapse; width: 100%;">';
+                    html += '<tr><th>Rank</th><th>Player</th><th>Points</th><th>W-L-D</th></tr>';
+
+                    standings.forEach((player, index) => {
+                        html += `<tr>
+                            <td>${index + 1}</td>
+                            <td>${player.name}</td>
+                            <td><strong>${player.points}</strong></td>
+                            <td>${player.wins}-${player.losses}-${player.draws}</td>
+                        </tr>`;
+                    });
+
+                    html += '</table>';
+                }
+
+                resultsDiv.innerHTML = html;
+            } catch (error) {
+                resultsDiv.innerHTML = `<p class="error">❌ Error: ${error.message}</p>`;
+            }
+        }
+
+        async function runTest3() {
+            const resultsDiv = document.getElementById('test3-results');
+            resultsDiv.innerHTML = '<p>Calculating final rankings...</p>';
+
+            try {
+                const response = await fetch('tournament_test_5_players_v3_completed.json');
+                const data = await response.json();
+
+                const finalMatch = data.rounds.find(r => r.round_type === 'final')?.matches[0];
+                const semiMatches = data.rounds.find(r => r.round_type === 'semi_final')?.matches;
+
+                let html = '<h3>🏆 Final Results</h3>';
+
+                if (finalMatch && finalMatch.player1_result === 'win') {
+                    html += `<p><strong>🥇 Champion:</strong> ${finalMatch.player1.name} (Rating: ${finalMatch.player1.rating})</p>`;
+                    html += `<p><strong>🥈 Runner-up:</strong> ${finalMatch.player2.name} (Rating: ${finalMatch.player2.rating})</p>`;
+                } else if (finalMatch && finalMatch.player2_result === 'win') {
+                    html += `<p><strong>🥇 Champion:</strong> ${finalMatch.player2.name} (Rating: ${finalMatch.player2.rating})</p>`;
+                    html += `<p><strong>🥈 Runner-up:</strong> ${finalMatch.player1.name} (Rating: ${finalMatch.player1.rating})</p>`;
+                } else {
+                    html += '<p class="error">❌ Final match not completed or no winner determined</p>';
+                }
+
+                // Semi-finalists
+                if (semiMatches) {
+                    html += '<h4>🥉 Semi-finalists:</h4>';
+                    semiMatches.forEach((match, index) => {
+                        const loser = match.player1_result === 'win' ? match.player2 : match.player1;
+                        html += `<p>Semi-Final ${index + 1} Loser: ${loser.name} (Rating: ${loser.rating})</p>`;
+                    });
+                }
+
+                // Calculate final standings
+                const finalStandings = calculateStandingsUpToRound(data, data.rounds.length);
+                html += '<h4>📊 Final Tournament Standings</h4>';
+                html += '<table border="1" style="border-collapse: collapse; width: 100%;">';
+                html += '<tr><th>Position</th><th>Player</th><th>Rating</th><th>Points</th><th>Record</th></tr>';
+
+                finalStandings.forEach((player, index) => {
+                    const position = index + 1;
+                    const medal = position === 1 ? '🥇' : position === 2 ? '🥈' : position === 3 ? '🥉' : '';
+                    html += `<tr>
+                        <td><strong>${medal} ${position}</strong></td>
+                        <td>${player.name}</td>
+                        <td>${player.rating}</td>
+                        <td><strong>${player.points}</strong></td>
+                        <td>${player.wins}-${player.losses}-${player.draws}</td>
+                    </tr>`;
+                });
+
+                html += '</table>';
+
+                resultsDiv.innerHTML = html;
+            } catch (error) {
+                resultsDiv.innerHTML = `<p class="error">❌ Error: ${error.message}</p>`;
+            }
+        }
+
+        function calculateStandingsUpToRound(data, roundNumber) {
+            const playerStats = {};
+
+            data.participants.forEach(p => {
+                playerStats[p.id] = {
+                    id: p.id,
+                    name: p.name,
+                    rating: p.rating,
+                    points: 0,
+                    wins: 0,
+                    losses: 0,
+                    draws: 0,
+                    matches_played: 0
+                };
+            });
+
+            // Process matches up to the specified round
+            data.rounds.slice(0, roundNumber).forEach(round => {
+                round.matches.forEach(match => {
+                    if (match.status !== 'completed' || !match.player1_result) return;
+
+                    const p1Id = match.player1_id;
+                    const p2Id = match.player2_id;
+
+                    if (!p1Id || !p2Id) return;
+
+                    if (match.player1_result === 'win') {
+                        playerStats[p1Id].wins++;
+                        playerStats[p1Id].points += 1;
+                        playerStats[p2Id].losses++;
+                    } else if (match.player2_result === 'win') {
+                        playerStats[p2Id].wins++;
+                        playerStats[p2Id].points += 1;
+                        playerStats[p1Id].losses++;
+                    } else if (match.player1_result === 'draw') {
+                        playerStats[p1Id].draws++;
+                        playerStats[p1Id].points += 0.5;
+                        playerStats[p2Id].draws++;
+                        playerStats[p2Id].points += 0.5;
+                    }
+
+                    playerStats[p1Id].matches_played++;
+                    playerStats[p2Id].matches_played++;
+                });
+            });
+
+            return Object.values(playerStats).sort((a, b) => {
+                if (b.points !== a.points) return b.points - a.points;
+                return b.rating - a.rating;
+            });
+        }
+    </script>
+</body>
+</html>

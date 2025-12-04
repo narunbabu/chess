@@ -1,0 +1,1554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Tournament Visualizer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .creation-panel {
+            background: #f8f9fa;
+            padding: 30px;
+            border-bottom: 3px solid #e9ecef;
+        }
+
+        .creation-panel h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.8rem;
+        }
+
+        .preset-buttons {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-create {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-create:hover {
+            background: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+        }
+
+        .btn-create:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .management-panel {
+            background: white;
+            padding: 30px;
+            border-bottom: 3px solid #e9ecef;
+        }
+
+        .management-panel h2 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .tournament-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .btn-list {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-list:hover {
+            background: #0056b3;
+        }
+
+        .btn-export {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .btn-export:hover {
+            background: #138496;
+        }
+
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-delete:hover {
+            background: #c82333;
+        }
+
+        .btn-tiebreak {
+            background: #6f42c1;
+            color: white;
+        }
+
+        .btn-tiebreak:hover {
+            background: #5a32a3;
+        }
+
+        .btn-tiebreak:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .tournament-list {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .tournament-item {
+            background: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid #e9ecef;
+        }
+
+        .tournament-info {
+            flex: 1;
+        }
+
+        .tournament-info h4 {
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .tournament-info p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .tournament-item-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+
+        .visualizer-panel {
+            padding: 30px;
+        }
+
+        .status-bar {
+            background: #e9ecef;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .status-item {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .status-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .status-value {
+            font-size: 18px;
+            color: #333;
+            font-weight: bold;
+        }
+
+        .tournament-view {
+            padding: 30px;
+        }
+
+        .rounds-container {
+            display: flex;
+            gap: 30px;
+            overflow-x: auto;
+            padding-bottom: 20px;
+        }
+
+        .round {
+            min-width: 300px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+        }
+
+        .round-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .round-header h3 {
+            font-size: 1.2rem;
+            margin-bottom: 5px;
+        }
+
+        .round-header p {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .match-card {
+            background: white;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .match-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .match-card.completed {
+            background: #e8f5e9;
+            border-color: #4caf50;
+        }
+
+        .match-card.placeholder {
+            background: #fff3cd;
+            border-color: #ffc107;
+            border-style: dashed;
+        }
+
+        .player {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 5px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+        }
+
+        .player:hover {
+            background: #f8f9fa;
+        }
+
+        .player.winner {
+            background: #d4edda;
+            font-weight: bold;
+            border: 2px solid #28a745;
+        }
+
+        .player.loser {
+            background: #f8d7da;
+            opacity: 0.7;
+        }
+
+        .player-name {
+            font-size: 16px;
+            color: #333;
+        }
+
+        .player-rating {
+            font-size: 14px;
+            color: #666;
+            background: #e9ecef;
+            padding: 3px 8px;
+            border-radius: 3px;
+        }
+
+        .match-vs {
+            text-align: center;
+            color: #666;
+            font-weight: bold;
+            font-size: 14px;
+            margin: 5px 0;
+        }
+
+        .standings-section {
+            margin-top: 40px;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .standings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .standings-header h2 {
+            color: #333;
+            font-size: 1.8rem;
+        }
+
+        .standings-table {
+            width: 100%;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .standings-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .standings-table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .standings-table td {
+            padding: 15px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .standings-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .rank-badge {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            line-height: 30px;
+            text-align: center;
+            border-radius: 50%;
+            font-weight: bold;
+            color: white;
+        }
+
+        .rank-1 { background: #ffd700; }
+        .rank-2 { background: #c0c0c0; }
+        .rank-3 { background: #cd7f32; }
+        .rank-other { background: #6c757d; }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 18px;
+            color: #666;
+        }
+
+        .loading::after {
+            content: '...';
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border: 1px solid #f5c6cb;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border: 1px solid #c3e6cb;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            animation: fadeIn 0.3s;
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            animation: slideIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-header {
+            margin-bottom: 20px;
+        }
+
+        .modal-header h3 {
+            color: #333;
+            font-size: 1.5rem;
+        }
+
+        .modal-close {
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            color: #aaa;
+            cursor: pointer;
+        }
+
+        .modal-close:hover {
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏆 Database Tournament Visualizer</h1>
+            <p>Real-time tournament management connected to Laravel backend</p>
+        </header>
+
+        <!-- Tournament Creation Panel -->
+        <div class="creation-panel">
+            <h2>🎮 Create New Tournament</h2>
+            <div class="preset-buttons">
+                <button class="btn btn-create" onclick="createTournament(3)">
+                    <span>🎲</span> Create 3-Player Tournament
+                </button>
+                <button class="btn btn-create" onclick="createTournament(5)">
+                    <span>🎯</span> Create 5-Player Tournament
+                </button>
+                <button class="btn btn-create" onclick="createTournament(10)">
+                    <span>🎪</span> Create 10-Player Tournament
+                </button>
+                <button class="btn btn-create" onclick="createTournament(50)">
+                    <span>🏟️</span> Create 50-Player Tournament
+                </button>
+            </div>
+            <div id="creation-message"></div>
+            <div id="match-update-message"></div>
+        </div>
+
+        <!-- Tournament Management Panel -->
+        <div class="management-panel">
+            <h2>📋 Tournament Management</h2>
+            <div class="tournament-actions">
+                <button class="btn btn-list" onclick="listTournaments()">
+                    <span>📜</span> List All Test Tournaments
+                </button>
+                <button class="btn btn-export" onclick="exportCurrentTournament()" id="exportBtn" disabled>
+                    <span>💾</span> Export Current Tournament (JSON)
+                </button>
+                <button class="btn btn-delete" onclick="deleteCurrentTournament()" id="deleteBtn" disabled>
+                    <span>🗑️</span> Delete Current Tournament
+                </button>
+                <button class="btn btn-tiebreak" onclick="showTiebreakerBreakdown()" id="tiebreakBtn" disabled>
+                    <span>🏆</span> Show Tiebreaker Breakdown
+                </button>
+            </div>
+            <div id="tournament-list" class="tournament-list hidden"></div>
+        </div>
+
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div class="status-item">
+                <span class="status-label">Tournament</span>
+                <span class="status-value" id="tournamentStatus">No tournament loaded</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Players</span>
+                <span class="status-value" id="playerCount">-</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Total Matches</span>
+                <span class="status-value" id="totalMatches">-</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Completed</span>
+                <span class="status-value" id="completedMatches">-</span>
+            </div>
+        </div>
+
+        <!-- Tournament Visualization -->
+        <div class="visualizer-panel">
+            <div id="loading" class="loading hidden">Loading tournament data</div>
+            <div id="error" class="error hidden"></div>
+            <div id="tournament-view" class="tournament-view hidden">
+                <div id="rounds-container" class="rounds-container"></div>
+            </div>
+        </div>
+
+        <!-- Standings Section -->
+        <div id="standings-section" class="standings-section hidden">
+            <div class="standings-header">
+                <h2>📊 Current Standings</h2>
+                <button class="btn btn-list btn-small" onclick="showStandingsModal()">
+                    View Round-by-Round
+                </button>
+            </div>
+            <div class="standings-table" id="standings-table"></div>
+        </div>
+    </div>
+
+    <!-- Standings Modal -->
+    <div id="standingsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-close" onclick="closeStandingsModal()">&times;</span>
+                <h3>📈 Round-by-Round Standings</h3>
+            </div>
+            <div id="modal-standings-content"></div>
+        </div>
+    </div>
+
+    <script>
+        // ===================== CONFIGURATION =====================
+        const API_BASE_URL = 'http://localhost:8000/api/visualizer';
+
+        // ===================== STATE =====================
+        let currentTournament = null;
+        let currentStandings = [];
+
+        // ===================== API CLIENT =====================
+        class TournamentAPI {
+            static async createTournament(playerCount) {
+                const response = await fetch(`${API_BASE_URL}/tournaments/create`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ player_count: playerCount })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to create tournament');
+                }
+
+                return await response.json();
+            }
+
+            static async getTournament(id) {
+                const response = await fetch(`${API_BASE_URL}/tournaments/${id}`);
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to fetch tournament');
+                }
+
+                return await response.json();
+            }
+
+            static async updateMatchResult(matchId, winnerId) {
+                const response = await fetch(`${API_BASE_URL}/matches/${matchId}/result`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ winner_id: winnerId })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to update match result');
+                }
+
+                return await response.json();
+            }
+
+            static async getStandings(tournamentId, roundNumber = null) {
+                const url = roundNumber
+                    ? `${API_BASE_URL}/tournaments/${tournamentId}/standings?round_number=${roundNumber}`
+                    : `${API_BASE_URL}/tournaments/${tournamentId}/standings`;
+
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to fetch standings');
+                }
+
+                return await response.json();
+            }
+
+            static async exportTournament(id) {
+                const response = await fetch(`${API_BASE_URL}/tournaments/${id}/export`);
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to export tournament');
+                }
+
+                const data = await response.json();
+                const filename = `tournament_${id}_export_${new Date().toISOString()}.json`;
+
+                // Trigger download
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.click();
+                window.URL.revokeObjectURL(url);
+            }
+
+            static async deleteTournament(id) {
+                const response = await fetch(`${API_BASE_URL}/tournaments/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to delete tournament');
+                }
+
+                return await response.json();
+            }
+
+            static async listTournaments() {
+                const response = await fetch(`${API_BASE_URL}/tournaments/list`);
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to list tournaments');
+                }
+
+                return await response.json();
+            }
+        }
+
+        // ===================== TOURNAMENT CREATION =====================
+        async function createTournament(playerCount) {
+            showLoading();
+            hideError();
+            showMessage('creation-message', `Creating ${playerCount}-player tournament...`, 'info');
+
+            try {
+                const data = await TournamentAPI.createTournament(playerCount);
+                currentTournament = data;
+
+                showMessage('creation-message',
+                    `✅ Tournament created successfully! ID: ${data.tournament_info.id}`,
+                    'success'
+                );
+
+                loadTournamentData(data);
+
+            } catch (error) {
+                console.error('Failed to create tournament:', error);
+                showError('Failed to create tournament: ' + error.message);
+                showMessage('creation-message',
+                    `❌ Error: ${error.message}`,
+                    'error'
+                );
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // ===================== TOURNAMENT MANAGEMENT =====================
+        async function listTournaments() {
+            showLoading();
+            hideError();
+
+            try {
+                const data = await TournamentAPI.listTournaments();
+                displayTournamentList(data.tournaments);
+            } catch (error) {
+                console.error('Failed to list tournaments:', error);
+                showError('Failed to list tournaments: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function displayTournamentList(tournaments) {
+            const container = document.getElementById('tournament-list');
+
+            if (tournaments.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #666;">No test tournaments found</p>';
+                container.classList.remove('hidden');
+                return;
+            }
+
+            const html = tournaments.map(t => `
+                <div class="tournament-item">
+                    <div class="tournament-info">
+                        <h4>${t.title}</h4>
+                        <p>ID: ${t.id} | Players: ${t.players} | Rounds: ${t.rounds} | Status: ${t.status}</p>
+                        <p style="font-size: 12px; color: #999;">Created: ${new Date(t.created_at).toLocaleString()}</p>
+                    </div>
+                    <div class="tournament-item-actions">
+                        <button class="btn btn-list btn-small" onclick="loadTournamentById(${t.id})">Load</button>
+                        <button class="btn btn-delete btn-small" onclick="deleteTournamentById(${t.id})">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+
+            container.innerHTML = html;
+            container.classList.remove('hidden');
+        }
+
+        async function loadTournamentById(id) {
+            showLoading();
+            hideError();
+
+            try {
+                const data = await TournamentAPI.getTournament(id);
+                currentTournament = data;
+                loadTournamentData(data);
+            } catch (error) {
+                console.error('Failed to load tournament:', error);
+                showError('Failed to load tournament: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function exportCurrentTournament() {
+            if (!currentTournament) {
+                alert('No tournament loaded');
+                return;
+            }
+
+            try {
+                await TournamentAPI.exportTournament(currentTournament.tournament_info.id);
+                alert('Tournament exported successfully!');
+            } catch (error) {
+                console.error('Failed to export tournament:', error);
+                alert('Failed to export tournament: ' + error.message);
+            }
+        }
+
+        async function deleteCurrentTournament() {
+            if (!currentTournament) {
+                alert('No tournament loaded');
+                return;
+            }
+
+            const confirmed = confirm(
+                `⚠️ WARNING: This will permanently delete tournament #${currentTournament.tournament_info.id}\n\n` +
+                `"${currentTournament.tournament_info.name}"\n\n` +
+                `This action cannot be undone. Are you sure?`
+            );
+
+            if (!confirmed) return;
+
+            try {
+                await TournamentAPI.deleteTournament(currentTournament.tournament_info.id);
+                alert('Tournament deleted successfully!');
+
+                // Clear current tournament
+                currentTournament = null;
+                document.getElementById('tournament-view').classList.add('hidden');
+                document.getElementById('standings-section').classList.add('hidden');
+                document.getElementById('tournamentStatus').textContent = 'No tournament loaded';
+                document.getElementById('exportBtn').disabled = true;
+                document.getElementById('deleteBtn').disabled = true;
+                document.getElementById('tiebreakBtn').disabled = true;
+
+            } catch (error) {
+                console.error('Failed to delete tournament:', error);
+                alert('Failed to delete tournament: ' + error.message);
+            }
+        }
+
+        async function deleteTournamentById(id) {
+            const confirmed = confirm(`⚠️ Are you sure you want to delete tournament #${id}?`);
+            if (!confirmed) return;
+
+            try {
+                await TournamentAPI.deleteTournament(id);
+                alert('Tournament deleted successfully!');
+                listTournaments(); // Refresh list
+            } catch (error) {
+                console.error('Failed to delete tournament:', error);
+                alert('Failed to delete tournament: ' + error.message);
+            }
+        }
+
+        // ===================== TIEBREAKER BREAKDOWN =====================
+
+        async function showTiebreakerBreakdown() {
+            if (!currentTournament) {
+                alert('No tournament loaded');
+                return;
+            }
+
+            const tournamentId = currentTournament.tournament_info.id;
+
+            try {
+                // Show modal
+                document.getElementById('tiebreakModal').style.display = 'block';
+                document.getElementById('tiebreakContent').innerHTML = '<div class="loading">Loading tiebreaker data...</div>';
+
+                // Fetch tiebreaker data
+                const cacheBuster = new Date().getTime();
+                const response = await fetch(`${API_BASE_URL}/tournaments/${tournamentId}/tiebreaker?_=${cacheBuster}`);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.error || 'Failed to load tiebreaker data');
+                }
+
+                // Display the data
+                displayTiebreakerData(data.data);
+
+            } catch (error) {
+                console.error('Failed to load tiebreaker data:', error);
+                document.getElementById('tiebreakContent').innerHTML = `
+                    <div class="error">
+                        <h3>Error Loading Tiebreaker Data</h3>
+                        <p>${error.message}</p>
+                        <button onclick="showTiebreakerBreakdown()" class="btn btn-create">Retry</button>
+                    </div>
+                `;
+            }
+        }
+
+        function displayTiebreakerData(breakdown) {
+            let html = '';
+
+            // Add explanation section
+            html += `
+                <div class="tiebreak-explanation">
+                    <h3>How Tiebreakers Work</h3>
+                    <p>When players have the same points, the following tiebreakers are used in order:</p>
+                    <ul>
+                        <li><strong>1. Points:</strong> Total tournament points (1 for win, 0.5 for draw, 0 for loss)</li>
+                        <li><strong>2. Buchholz:</strong> Sum of all opponents' tournament points</li>
+                        <li><strong>3. Sonneborn-Berger:</strong> Sum of opponents' points weighted by your result against them</li>
+                        <li><strong>4. Rating:</strong> Player's initial rating (higher rating wins ties)</li>
+                    </ul>
+                </div>
+            `;
+
+            // Display each round's breakdown
+            Object.keys(breakdown).forEach(roundKey => {
+                if (roundKey.startsWith('round_')) {
+                    const round = breakdown[roundKey];
+                    html += generateRoundHTML(round);
+                }
+            });
+
+            // Display final standings if available
+            if (breakdown.final_standings) {
+                html += `
+                    <div class="tiebreak-round">
+                        <div class="tiebreak-round-header">
+                            🏆 Final Standings
+                        </div>
+                        <table class="tiebreak-table">
+                            <thead>
+                                <tr>
+                                    <th>Rank</th>
+                                    <th>Player</th>
+                                    <th>Rating</th>
+                                    <th>Points</th>
+                                    <th>W-D-L</th>
+                                    <th>Buchholz</th>
+                                    <th>Sonneborn-Berger</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+
+                breakdown.final_standings.forEach(player => {
+                    html += `
+                        <tr class="${player.rank <= 4 ? 'final-rank' : ''}">
+                            <td class="tiebreak-rank">${player.rank}</td>
+                            <td class="tiebreak-player">${player.name}</td>
+                            <td class="tiebreak-rating">${player.rating}</td>
+                            <td class="tiebreak-value">${player.points}</td>
+                            <td class="tiebreak-value">${player.wins}-${player.draws}-${player.losses}</td>
+                            <td class="tiebreak-value">${Number(player.buchholz || 0).toFixed(1)}</td>
+                            <td class="tiebreak-value">${Number(player.sonneborn_berger || 0).toFixed(2)}</td>
+                        </tr>
+                    `;
+                });
+
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }
+
+            document.getElementById('tiebreakContent').innerHTML = html;
+        }
+
+        function generateRoundHTML(round) {
+            const players = round.players || [];
+            let html = `
+                <div class="tiebreak-round">
+                    <div class="tiebreak-round-header">
+                        📊 Round ${round.round_number} Standings (${round.matches_count} matches completed)
+                    </div>
+                    <table class="tiebreak-table">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Player</th>
+                                <th>Rating</th>
+                                <th>Points</th>
+                                <th>W-D-L</th>
+                                <th>Buchholz</th>
+                                <th>Sonneborn-Berger</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            players.forEach((player, index) => {
+                // Highlight players who are tied on points but ranked differently
+                let isTiebreakerHighlight = false;
+                if (index > 0 && players[index - 1].points === player.points) {
+                    isTiebreakerHighlight = true;
+                }
+
+                let rowClass = '';
+                if (isTiebreakerHighlight) {
+                    rowClass = 'tiebreaker-highlight';
+                }
+                if (player.rank <= 4) { // Top 4 players get special styling
+                    rowClass += ' final-rank';
+                }
+
+                html += `
+                    <tr class="${rowClass}">
+                        <td class="tiebreak-rank">${player.rank}</td>
+                        <td class="tiebreak-player">${player.name}</td>
+                        <td class="tiebreak-rating">${player.rating}</td>
+                        <td class="tiebreak-value">${player.points}</td>
+                        <td class="tiebreak-value">${player.wins}-${player.draws}-${player.losses}</td>
+                        <td class="tiebreak-value">${Number(player.buchholz || 0).toFixed(1)}</td>
+                        <td class="tiebreak-value">${Number(player.sonneborn_berger || 0).toFixed(2)}</td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                        </tbody>
+                    </table>
+                `;
+
+            // Add round-specific explanation if available
+            if (round.explanation && round.explanation.length > 0) {
+                html += `
+                    <div class="tiebreak-explanation">
+                        <h4>Round ${round.round_number} Analysis</h4>
+                        <ul>
+                `;
+                round.explanation.forEach(explanation => {
+                    html += `<li>${explanation}</li>`;
+                });
+                html += `
+                        </ul>
+                    </div>
+                `;
+            }
+
+            html += `
+                </div>
+            `;
+
+            return html;
+        }
+
+        function closeTiebreakModal() {
+            document.getElementById('tiebreakModal').style.display = 'none';
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('tiebreakModal');
+            if (event.target === modal) {
+                closeTiebreakModal();
+            }
+        }
+
+        // ===================== MATCH INTERACTION =====================
+        async function handlePlayerClick(matchId, playerId, playerName) {
+            if (!currentTournament) return;
+
+            const match = findMatchById(matchId);
+            if (!match) return;
+
+            // Don't allow clicking on completed matches
+            if (match.status === 'completed') {
+                alert('This match is already completed!');
+                return;
+            }
+
+            // Don't allow clicking on placeholder matches without players
+            if (match.is_placeholder && (!match.player1_id || !match.player2_id)) {
+                alert('This match is waiting for players from previous rounds!');
+                return;
+            }
+
+            // Add immediate visual feedback
+            showLoading();
+            hideError();
+            showMessage('match-update-message', `🏆 Setting ${playerName} as winner...`, 'info');
+
+            try {
+                const data = await TournamentAPI.updateMatchResult(matchId, playerId);
+                currentTournament = data;
+                loadTournamentData(data);
+                showMessage('match-update-message', `✅ ${playerName} wins! Standings updated.`, 'success');
+                // Auto-hide success message after 3 seconds
+                setTimeout(() => {
+                    document.getElementById('match-update-message').innerHTML = '';
+                }, 3000);
+            } catch (error) {
+                console.error('Failed to update match result:', error);
+                showError('Failed to update match result: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // ===================== DATA RENDERING =====================
+        function loadTournamentData(data) {
+            currentTournament = data;
+            currentStandings = data.initial_standings || [];
+
+            // Update status bar
+            document.getElementById('tournamentStatus').textContent =
+                `${data.tournament_info.name} (#${data.tournament_info.id})`;
+            document.getElementById('playerCount').textContent = data.tournament_info.players;
+            document.getElementById('totalMatches').textContent = data.matches.length;
+
+            const completedCount = data.matches.filter(m => m.status === 'completed').length;
+            document.getElementById('completedMatches').textContent = completedCount;
+
+            // Enable management buttons
+            document.getElementById('exportBtn').disabled = false;
+            document.getElementById('deleteBtn').disabled = false;
+            document.getElementById('tiebreakBtn').disabled = false;
+
+            // Render rounds
+            renderRounds(data.rounds);
+
+            // Render standings
+            renderStandings(data.initial_standings || []);
+
+            // Show tournament view
+            document.getElementById('tournament-view').classList.remove('hidden');
+            document.getElementById('standings-section').classList.remove('hidden');
+        }
+
+        function renderRounds(rounds) {
+            const container = document.getElementById('rounds-container');
+
+            const html = rounds.map(round => `
+                <div class="round">
+                    <div class="round-header">
+                        <h3>${round.name}</h3>
+                        <p>Round ${round.round_number} - ${round.round_type}</p>
+                    </div>
+                    ${round.matches.map(match => renderMatch(match)).join('')}
+                </div>
+            `).join('');
+
+            container.innerHTML = html;
+        }
+
+        function renderMatch(match) {
+            const isCompleted = match.status === 'completed';
+            const isPlaceholder = (!match.player1_id && !match.player2_id) || (match.is_placeholder && (!match.player1_id || !match.player2_id));
+
+            const classes = ['match-card'];
+            if (isCompleted) classes.push('completed');
+            if (isPlaceholder) classes.push('placeholder');
+
+            let player1HTML, player2HTML;
+
+            if (isPlaceholder) {
+                player1HTML = `<div class="player">
+                    <span class="player-name">TBD - Position ${match.player1_bracket_position ?? 1}</span>
+                </div>`;
+                player2HTML = `<div class="player">
+                    <span class="player-name">TBD - Position ${match.player2_bracket_position ?? 2}</span>
+                </div>`;
+            } else {
+                const player1 = match.player1;
+                const player2 = match.player2;
+
+                const player1Classes = ['player'];
+                const player2Classes = ['player'];
+
+                if (isCompleted) {
+                    if (match.player1_result === 'win') {
+                        player1Classes.push('winner');
+                        player2Classes.push('loser');
+                    } else if (match.player2_result === 'win') {
+                        player2Classes.push('winner');
+                        player1Classes.push('loser');
+                    }
+                }
+
+                // Player 1 - always exists for non-placeholder matches
+                if (player1) {
+                    player1HTML = `<div class="${player1Classes.join(' ')}"
+                        onclick="handlePlayerClick(${match.id}, ${player1.id}, '${player1.name.replace(/'/g, "\\'")}')">
+                        <span class="player-name">${player1.name}</span>
+                        <span class="player-rating">${player1.rating}</span>
+                    </div>`;
+                } else {
+                    player1HTML = `<div class="${player1Classes.join(' ')}">
+                        <span class="player-name">Player 1 TBD</span>
+                    </div>`;
+                }
+
+                // Player 2 - may not exist (bye situation)
+                if (player2) {
+                    player2HTML = `<div class="${player2Classes.join(' ')}"
+                        onclick="handlePlayerClick(${match.id}, ${player2.id}, '${player2.name.replace(/'/g, "\\'")}')">
+                        <span class="player-name">${player2.name}</span>
+                        <span class="player-rating">${player2.rating}</span>
+                    </div>`;
+                } else {
+                    player2HTML = `<div class="${player2Classes.join(' ')}">
+                        <span class="player-name">BYE</span>
+                    </div>`;
+                }
+            }
+
+            let statusBadge = '';
+            if (isCompleted) {
+                statusBadge = '<div style="text-align: center; color: #28a745; font-weight: bold;">✅ Completed</div>';
+            } else if (isPlaceholder) {
+                statusBadge = '<div style="text-align: center; color: #ffc107; font-weight: bold;">⏳ Waiting</div>';
+            }
+
+            return `
+                <div class="${classes.join(' ')}">
+                    ${player1HTML}
+                    <div class="match-vs">VS</div>
+                    ${player2HTML}
+                    ${statusBadge}
+                </div>
+            `;
+        }
+
+        function renderStandings(standings) {
+            if (!standings || standings.length === 0) return;
+
+            const html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Player</th>
+                            <th>Rating</th>
+                            <th>Points</th>
+                            <th>W-L-D</th>
+                            <th>Matches</th>
+                            <th>Buchholz</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${standings.map((player, index) => {
+                            const rank = index + 1;
+                            const rankClass = rank <= 3 ? `rank-${rank}` : 'rank-other';
+                            return `
+                                <tr>
+                                    <td><span class="rank-badge ${rankClass}">${rank}</span></td>
+                                    <td><strong>${player.name}</strong></td>
+                                    <td>${player.rating}</td>
+                                    <td><strong>${player.points}</strong></td>
+                                    <td>${player.wins}-${player.losses}-${player.draws}</td>
+                                    <td>${player.matches_played}</td>
+                                    <td>${player.buchholz || 0}</td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            document.getElementById('standings-table').innerHTML = html;
+        }
+
+        // ===================== STANDINGS MODAL =====================
+        async function showStandingsModal() {
+            if (!currentTournament) return;
+
+            const modal = document.getElementById('standingsModal');
+            const content = document.getElementById('modal-standings-content');
+
+            modal.classList.add('active');
+            content.innerHTML = '<div class="loading">Loading round-by-round standings</div>';
+
+            try {
+                const totalRounds = currentTournament.tournament_info.rounds;
+                let html = '';
+
+                for (let round = 1; round <= totalRounds; round++) {
+                    const data = await TournamentAPI.getStandings(
+                        currentTournament.tournament_info.id,
+                        round
+                    );
+
+                    html += `
+                        <h4>After Round ${round}</h4>
+                        <table style="width: 100%; margin-bottom: 20px; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: #f8f9fa;">
+                                    <th style="padding: 10px;">Rank</th>
+                                    <th style="padding: 10px;">Player</th>
+                                    <th style="padding: 10px;">Points</th>
+                                    <th style="padding: 10px;">W-L-D</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.standings.map((p, i) => `
+                                    <tr>
+                                        <td style="padding: 10px;">${i + 1}</td>
+                                        <td style="padding: 10px;">${p.name}</td>
+                                        <td style="padding: 10px;"><strong>${p.points}</strong></td>
+                                        <td style="padding: 10px;">${p.wins}-${p.losses}-${p.draws}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                }
+
+                content.innerHTML = html;
+
+            } catch (error) {
+                console.error('Failed to load standings:', error);
+                content.innerHTML = `<div class="error">Failed to load standings: ${error.message}</div>`;
+            }
+        }
+
+        function closeStandingsModal() {
+            document.getElementById('standingsModal').classList.remove('active');
+        }
+
+        // ===================== UTILITY FUNCTIONS =====================
+        function findMatchById(matchId) {
+            if (!currentTournament) return null;
+
+            for (const round of currentTournament.rounds) {
+                const match = round.matches.find(m => m.id === matchId);
+                if (match) return match;
+            }
+            return null;
+        }
+
+        function showLoading() {
+            document.getElementById('loading').classList.remove('hidden');
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').classList.add('hidden');
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.classList.remove('hidden');
+        }
+
+        function hideError() {
+            document.getElementById('error').classList.add('hidden');
+        }
+
+        function showMessage(containerId, message, type) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = `<div class="${type === 'success' ? 'success' : type === 'error' ? 'error' : 'info'}">${message}</div>`;
+
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                container.innerHTML = '';
+            }, 5000);
+        }
+
+        // ===================== INITIALIZATION =====================
+        console.log('🏆 Database Tournament Visualizer Loaded');
+        console.log('API Base URL:', API_BASE_URL);
+    </script>
+
+    <!-- Tiebreaker Breakdown Modal -->
+    <div id="tiebreakModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🏆 Tiebreaker Breakdown</h2>
+                <span class="close" onclick="closeTiebreakModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="tiebreakContent">
+                    <div class="loading">Loading tiebreaker data...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 0;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 1000px;
+            max-height: 85vh;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 12px 12px 0 0;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+
+        .close {
+            color: white;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+            opacity: 0.8;
+            transition: opacity 0.3s;
+        }
+
+        .close:hover {
+            opacity: 1;
+        }
+
+        .modal-body {
+            padding: 30px;
+            max-height: calc(85vh - 80px);
+            overflow-y: auto;
+        }
+
+        .tiebreak-round {
+            margin-bottom: 30px;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .tiebreak-round-header {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            border-bottom: 1px solid #e9ecef;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .tiebreak-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        .tiebreak-table th,
+        .tiebreak-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .tiebreak-table th {
+            background: #f1f3f4;
+            font-weight: 600;
+            color: #333;
+            position: sticky;
+            top: 0;
+        }
+
+        .tiebreak-table tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .tiebreak-value {
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .tiebreak-rank {
+            font-weight: bold;
+            text-align: center;
+            width: 60px;
+        }
+
+        .tiebreak-player {
+            font-weight: 500;
+        }
+
+        .tiebreak-rating {
+            text-align: center;
+            color: #666;
+        }
+
+        .tiebreak-explanation {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e7f3ff;
+            border-left: 4px solid #007bff;
+            border-radius: 4px;
+        }
+
+        .tiebreak-explanation h3 {
+            margin-top: 0;
+            color: #004085;
+        }
+
+        .tiebreak-explanation ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+
+        .tiebreak-explanation li {
+            margin: 5px 0;
+        }
+
+        .tiebreaker-highlight {
+            background-color: #fff3cd !important;
+            font-weight: bold;
+        }
+
+        .final-rank {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%) !important;
+            color: white !important;
+            font-weight: bold;
+        }
+    </style>
+
+</body>
+</html>

@@ -160,43 +160,68 @@ class SwissPairingService
 
     /**
      * Enhanced Dutch pairing algorithm with optimal bye handling
+     *
+     * 🎯 FIXED: BYE assignment now prioritizes lowest score groups (Swiss rule compliance)
      */
     private function dutchAlgorithm(Championship $championship, Collection $participants, int $roundNumber): array
     {
         $pairings = [];
         $unpaired = $participants->collect();
 
-        // Handle odd number of participants with optimal bye assignment
-        if ($unpaired->count() % 2 === 1) {
-            $byeRecipient = $this->selectOptimalByeRecipient($championship, $unpaired);
-            $unpaired = $unpaired->reject(function ($participant) use ($byeRecipient) {
-                return $participant->user_id === $byeRecipient->user_id;
-            });
-
-            $byeInfo = $this->handleBye($championship, $byeRecipient, $roundNumber);
-
-            // Add bye pairing to the pairings array for broadcasting
-            $pairings[] = [
-                'is_bye' => true,
-                'player1_id' => $byeRecipient->user_id,
-                'player2_id' => null,
-                'bye_points' => $championship->getByePoints(),
-                'round_number' => $roundNumber,
-                'user_info' => $byeInfo,
-            ];
-
-            Log::info("Optimal bye assignment", [
-                'championship_id' => $championship->id,
-                'round' => $roundNumber,
-                'bye_recipient_id' => $byeRecipient->user_id,
-                'remaining_participants' => $unpaired->count(),
-            ]);
-        }
-
-        // Group participants by score
+        // 🎯 STEP 1: Create score groups FIRST (before BYE assignment)
         $scoreGroups = $this->createScoreGroups($championship, $unpaired);
 
+        Log::info("Dutch algorithm - Score groups created", [
+            'championship_id' => $championship->id,
+            'round' => $roundNumber,
+            'total_participants' => $unpaired->count(),
+            'score_groups' => array_map(fn($g) => count($g), $scoreGroups),
+        ]);
+
+        // 🎯 STEP 2: Handle BYE if total participants is odd
+        if ($unpaired->count() % 2 === 1) {
+            // 🎯 ENHANCED: Smart BYE selection that balances group sizes
+            $byeRecipient = $this->selectOptimalByeRecipientWithGroupBalancing($championship, $scoreGroups);
+
+            if ($byeRecipient) {
+                // Remove bye recipient from their score group
+                $recipientScore = $championship->standings()
+                    ->where('user_id', $byeRecipient->user_id)
+                    ->first()?->points ?? 0;
+
+                $scoreGroups[$recipientScore] = array_filter($scoreGroups[$recipientScore], function($p) use ($byeRecipient) {
+                    return $p->user_id !== $byeRecipient->user_id;
+                });
+
+                $byeInfo = $this->handleBye($championship, $byeRecipient, $roundNumber);
+
+                // Add bye pairing to the pairings array for broadcasting
+                $pairings[] = [
+                    'is_bye' => true,
+                    'player1_id' => $byeRecipient->user_id,
+                    'player2_id' => null,
+                    'bye_points' => $championship->getByePoints(),
+                    'round_number' => $roundNumber,
+                    'user_info' => $byeInfo,
+                ];
+
+                Log::info("Smart BYE assignment with group balancing", [
+                    'championship_id' => $championship->id,
+                    'round' => $roundNumber,
+                    'bye_recipient_id' => $byeRecipient->user_id,
+                    'bye_recipient_score' => $recipientScore,
+                    'bye_recipient_rating' => $byeRecipient->user->rating ?? 1200,
+                    'score_groups_before' => array_map(fn($g) => count($g), $scoreGroups),
+                ]);
+            }
+        }
+
+        // 🎯 STEP 3: Pair participants within each score group
         foreach ($scoreGroups as $score => $group) {
+            if (empty($group)) {
+                continue; // Skip empty groups (e.g., after BYE removal)
+            }
+
             $pairs = $this->pairScoreGroup($championship, $group, $roundNumber);
             $pairings = array_merge($pairings, $pairs);
         }
@@ -499,29 +524,30 @@ class SwissPairingService
     {
         $byePoints = $championship->getByePoints();
 
-        // Award bye points from tournament settings
+        // 🎯 FIXED: Do NOT award points immediately for Swiss tournaments
+        // Points will be awarded when all real matches in the round complete
+        // This ensures fairness: BYE points awarded AFTER everyone plays their matches
+
+        // Get standing for tracking purposes (don't modify points yet)
         $standing = $championship->standings()
             ->where('user_id', $participant->user_id)
             ->first();
 
-        if ($standing) {
-            $standing->increment('points', $byePoints);
-            // Note: byes_received column doesn't exist - tracking removed
-        } else {
+        if (!$standing) {
+            // Create standing entry if doesn't exist (with 0 points for now)
             $championship->standings()->create([
                 'user_id' => $participant->user_id,
-                'points' => $byePoints,
+                'points' => 0, // Will be awarded when round completes
                 'matches_played' => 0,
                 'wins' => 0,
                 'draws' => 0,
                 'losses' => 0,
                 'buchholz_score' => 0,
                 'sonneborn_berger' => 0,
-                // Note: byes_received column doesn't exist - tracking removed
             ]);
         }
 
-        // Create a "bye match" record for tracking purposes
+        // Create a BYE match as PENDING (will be completed when round finishes)
         ChampionshipMatch::create([
             'championship_id' => $championship->id,
             'round_number' => $roundNumber,
@@ -534,31 +560,135 @@ class SwissPairingService
             'auto_generated' => true,
             'scheduled_at' => now(),
             'deadline' => now()->addHours($championship->match_time_window_hours),
-            'status' => ChampionshipMatchStatus::COMPLETED,
+            'status' => ChampionshipMatchStatus::PENDING, // 🎯 FIXED: PENDING until round completes
             'result_type' => 'bye',
-            'winner_id' => $participant->user_id,
+            'winner_id' => $participant->user_id, // Pre-set winner (will be used when completing)
         ]);
 
-        Log::info("Enhanced bye assignment", [
+        Log::info("🎯 [BYE CREATED] Swiss BYE match created as PENDING", [
             'championship_id' => $championship->id,
             'round' => $roundNumber,
             'user_id' => $participant->user_id,
             'bye_points' => $byePoints,
-            'total_byes_received' => ($standing->byes_received ?? 0) + 1,
+            'status' => 'PENDING',
+            'timing' => 'will_complete_when_round_finishes',
+            'fairness' => 'points_awarded_after_all_real_matches_complete',
         ]);
 
         // Return bye information for broadcasting
         return [
             'user_id' => $participant->user_id,
             'user' => $participant->user,
-            'points_awarded' => $byePoints,
-            'total_byes_received' => ($standing->byes_received ?? 0) + 1,
+            'points_to_award' => $byePoints, // Not awarded yet!
+            'status' => 'PENDING',
             'round_number' => $roundNumber
         ];
     }
 
     /**
+     * 🎯 NEW: Smart BYE selection with group balancing
+     *
+     * Strategy: Give BYE to player whose removal creates the most balanced group sizes
+     * Priority 1: Find group where removal makes ALL groups even-sized
+     * Priority 2: If no perfect solution, remove from lowest score group
+     * Priority 3: Within selected group, choose lowest-rated player with fewest BYEs
+     */
+    private function selectOptimalByeRecipientWithGroupBalancing(Championship $championship, array $scoreGroups): mixed
+    {
+        if (empty($scoreGroups)) {
+            return null;
+        }
+
+        Log::info("Smart BYE selection - analyzing group balance", [
+            'championship_id' => $championship->id,
+            'score_groups' => array_map(fn($g) => count($g), $scoreGroups),
+        ]);
+
+        // 🎯 PRIORITY 1: Find group where removal makes ALL groups even-sized
+        $perfectGroup = $this->findGroupForPerfectBalancing($scoreGroups);
+        if ($perfectGroup !== null) {
+            $selectedScore = $perfectGroup['score'];
+            $selectedGroup = $perfectGroup['group'];
+            Log::info("Perfect balancing found", ['selected_score' => $selectedScore]);
+        } else {
+            // 🎯 PRIORITY 2: No perfect solution - use lowest score group (Swiss rule)
+            ksort($scoreGroups); // Ensure lowest score first
+            $selectedScore = array_key_first($scoreGroups);
+            $selectedGroup = $scoreGroups[$selectedScore];
+            Log::info("No perfect balance - using lowest score group", ['selected_score' => $selectedScore]);
+        }
+
+        if (empty($selectedGroup)) {
+            return null;
+        }
+
+        // 🎯 PRIORITY 3: Within selected group, choose optimal player
+        return $this->selectBestPlayerForBye($championship, collect($selectedGroup));
+    }
+
+    /**
+     * Find score group where removing one player creates all even-sized groups
+     */
+    private function findGroupForPerfectBalancing(array $scoreGroups): ?array
+    {
+        foreach ($scoreGroups as $score => $group) {
+            if (count($group) % 2 === 1) { // Only check odd-sized groups
+                // Simulate removing one player from this group
+                $remainingSize = count($group) - 1;
+
+                // Check if all groups would be even after removal
+                $allGroupsEven = true;
+                foreach ($scoreGroups as $otherScore => $otherGroup) {
+                    $checkSize = ($otherScore === $score) ? $remainingSize : count($otherGroup);
+                    if ($checkSize % 2 !== 0) {
+                        $allGroupsEven = false;
+                        break;
+                    }
+                }
+
+                if ($allGroupsEven) {
+                    return ['score' => $score, 'group' => $group];
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Select best player for BYE from a candidate group
+     * Priority: 1) Fewest BYEs received, 2) Lowest rating
+     */
+    private function selectBestPlayerForBye(Championship $championship, \Illuminate\Support\Collection $candidates): mixed
+    {
+        if ($candidates->isEmpty()) {
+            return null;
+        }
+
+        // Get BYE history for all candidates
+        $byeHistory = $championship->matches()
+            ->where('result_type_id', \App\Enums\ChampionshipResultType::BYE->getId())
+            ->whereIn('player1_id', $candidates->pluck('user_id'))
+            ->get()
+            ->groupBy('player1_id')
+            ->map(fn($matches) => $matches->count());
+
+        // Sort candidates by: 1) Fewest BYEs, 2) Lowest rating
+        return $candidates->sortBy(function ($participant) use ($byeHistory) {
+            $byes = $byeHistory->get($participant->user_id, 0);
+            $rating = $participant->user->rating ?? 1200;
+
+            // Lower array = higher priority in sortBy
+            return [
+                $byes,    // Fewest BYEs first
+                $rating,  // Lowest rating first
+            ];
+        })->first();
+    }
+
+    /**
      * Optimal bye assignment - select player with lowest score who hasn't had bye recently
+     *
+     * @deprecated Use selectOptimalByeRecipientFromLowestGroup instead
      */
     private function selectOptimalByeRecipient(Championship $championship, Collection $participants): mixed
     {

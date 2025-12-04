@@ -7,6 +7,7 @@ enum ChampionshipStatus: string
     case UPCOMING = 'upcoming';
     case REGISTRATION_OPEN = 'registration_open';
     case IN_PROGRESS = 'in_progress';
+    case PAUSED = 'paused';
     case COMPLETED = 'completed';
     case CANCELLED = 'cancelled';
 
@@ -19,8 +20,9 @@ enum ChampionshipStatus: string
             self::UPCOMING => 1,
             self::REGISTRATION_OPEN => 2,
             self::IN_PROGRESS => 3,
-            self::COMPLETED => 4,
-            self::CANCELLED => 5,
+            self::PAUSED => 6,
+            self::COMPLETED => 5,
+            self::CANCELLED => 4,
         };
     }
 
@@ -33,6 +35,7 @@ enum ChampionshipStatus: string
             self::UPCOMING => 'Upcoming',
             self::REGISTRATION_OPEN => 'Registration Open',
             self::IN_PROGRESS => 'In Progress',
+            self::PAUSED => 'Paused',
             self::COMPLETED => 'Completed',
             self::CANCELLED => 'Cancelled',
         };
@@ -52,6 +55,14 @@ enum ChampionshipStatus: string
     public function isActive(): bool
     {
         return $this === self::IN_PROGRESS;
+    }
+
+    /**
+     * Check if championship is paused
+     */
+    public function isPaused(): bool
+    {
+        return $this === self::PAUSED;
     }
 
     /**

@@ -15,7 +15,7 @@ return [
     |
     */
 
-    'paths' => ['api/*', 'sanctum/csrf-cookie', 'auth/*', 'user'],
+    'paths' => ['api/*', 'sanctum/csrf-cookie', 'auth/*', 'user', 'visualizer/*'],
 
     'allowed_methods' => ['*'],
 
@@ -24,6 +24,11 @@ return [
         env('FRONTEND_URL'),
         env('APP_ENV') === 'local' ? 'http://localhost:3000' : null,
         env('APP_ENV') === 'local' ? 'http://localhost:8000' : null,
+        env('APP_ENV') === 'local' ? 'http://localhost:8080' : null,
+        env('APP_ENV') === 'local' ? 'http://localhost' : null,
+        env('APP_ENV') === 'local' ? 'http://127.0.0.1' : null,
+        env('APP_ENV') === 'local' ? 'http://127.0.0.1:8000' : null,
+        env('APP_ENV') === 'local' ? 'http://127.0.0.1:8080' : null,
     ]),
 
     'allowed_origins_patterns' => [],

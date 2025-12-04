@@ -1,0 +1,204 @@
+{
+    "config_name": "3-Player Tournament",
+    "player_count": 3,
+    "championship_id": 5,
+    "participants": [
+        {
+            "id": 5,
+            "name": "Test Player 1",
+            "rating": 1300
+        },
+        {
+            "id": 6,
+            "name": "Test Player 2",
+            "rating": 1250
+        },
+        {
+            "id": 7,
+            "name": "Test Player 3",
+            "rating": 1200
+        }
+    ],
+    "rounds": [
+        {
+            "round_number": 1,
+            "name": "Round 1",
+            "type": "swiss",
+            "matches": [
+                {
+                    "id": 37,
+                    "round_number": 1,
+                    "player1": {
+                        "id": 5,
+                        "name": "Test Player 1",
+                        "rating": 1300
+                    },
+                    "player2": {
+                        "id": 6,
+                        "name": "Test Player 2",
+                        "rating": 1250
+                    },
+                    "winner_id": null,
+                    "round_type": "swiss"
+                },
+                {
+                    "id": 38,
+                    "round_number": 1,
+                    "player1": {
+                        "id": 6,
+                        "name": "Test Player 2",
+                        "rating": 1250
+                    },
+                    "player2": {
+                        "id": 7,
+                        "name": "Test Player 3",
+                        "rating": 1200
+                    },
+                    "winner_id": null,
+                    "round_type": "swiss"
+                },
+                {
+                    "id": 39,
+                    "round_number": 1,
+                    "player1": {
+                        "id": 7,
+                        "name": "Test Player 3",
+                        "rating": 1200
+                    },
+                    "player2": {
+                        "id": 5,
+                        "name": "Test Player 1",
+                        "rating": 1300
+                    },
+                    "winner_id": null,
+                    "round_type": "swiss"
+                }
+            ]
+        },
+        {
+            "round_number": 2,
+            "name": "Round 2",
+            "type": "swiss",
+            "matches": [
+                {
+                    "id": 40,
+                    "round_number": 2,
+                    "player1": {
+                        "id": 5,
+                        "name": "Test Player 1",
+                        "rating": 1300
+                    },
+                    "player2": {
+                        "id": 6,
+                        "name": "Test Player 2",
+                        "rating": 1250
+                    },
+                    "winner_id": null,
+                    "round_type": "swiss"
+                },
+                {
+                    "id": 41,
+                    "round_number": 2,
+                    "player1": {
+                        "id": 6,
+                        "name": "Test Player 2",
+                        "rating": 1250
+                    },
+                    "player2": {
+                        "id": 7,
+                        "name": "Test Player 3",
+                        "rating": 1200
+                    },
+                    "winner_id": null,
+                    "round_type": "swiss"
+                }
+            ]
+        },
+        {
+            "round_number": 3,
+            "name": "Final",
+            "type": "final",
+            "matches": [
+                {
+                    "id": 42,
+                    "round_number": 3,
+                    "player1": {
+                        "id": 5,
+                        "name": "Test Player 1",
+                        "rating": 1300
+                    },
+                    "player2": {
+                        "id": 6,
+                        "name": "Test Player 2",
+                        "rating": 1250
+                    },
+                    "winner_id": null,
+                    "round_type": "final"
+                }
+            ]
+        }
+    ],
+    "summary": {
+        "total_rounds": 3,
+        "total_matches": 6,
+        "rounds": [
+            {
+                "round": 1,
+                "type": "swiss",
+                "participants": 3,
+                "matches_created": 3,
+                "byes": 0
+            },
+            {
+                "round": 2,
+                "type": "swiss",
+                "participants": 3,
+                "matches_created": 2,
+                "byes": 0
+            },
+            {
+                "round": 3,
+                "type": "final",
+                "participants": 2,
+                "matches_created": 1,
+                "byes": 0
+            }
+        ],
+        "participants": 3
+    },
+    "initial_standings": [
+        {
+            "rank": 1,
+            "player_id": 5,
+            "player_name": "Test Player 1",
+            "rating": 1300,
+            "points": 0,
+            "wins": 0,
+            "losses": 0,
+            "draws": 0,
+            "matches_played": 0
+        },
+        {
+            "rank": 2,
+            "player_id": 6,
+            "player_name": "Test Player 2",
+            "rating": 1250,
+            "points": 0,
+            "wins": 0,
+            "losses": 0,
+            "draws": 0,
+            "matches_played": 0
+        },
+        {
+            "rank": 3,
+            "player_id": 7,
+            "player_name": "Test Player 3",
+            "rating": 1200,
+            "points": 0,
+            "wins": 0,
+            "losses": 0,
+            "draws": 0,
+            "matches_played": 0
+        }
+    ]
+}

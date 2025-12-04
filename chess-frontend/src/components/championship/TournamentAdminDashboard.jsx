@@ -248,6 +248,21 @@ const TournamentAdminDashboard = () => {
         errorMsg = 'Authentication Error: Please log in again.';
       } else if (err.response?.status === 403) {
         errorMsg = 'Permission Error: You do not have permission to generate tournaments.';
+      } else if (err.response?.status === 400) {
+        // Handle 400 errors with detailed messages
+        const errorData = err.response?.data;
+        if (errorData?.error) {
+          errorMsg = errorData.error;
+          // If there's additional context, show it
+          if (errorData?.message && errorData.message !== errorData.error) {
+            errorMsg += '\n' + errorData.message;
+          }
+          if (errorData?.participants_count !== undefined) {
+            errorMsg += `\n(Current participants: ${errorData.participants_count})`;
+          }
+        } else if (errorData?.message) {
+          errorMsg = errorData.message;
+        }
       } else if (err.response?.data?.error) {
         errorMsg = err.response.data.error;
       } else if (err.response?.data?.message) {
@@ -255,6 +270,7 @@ const TournamentAdminDashboard = () => {
       }
 
       setError(errorMsg);
+      alert(`⚠️ Tournament Generation Failed\n\n${errorMsg}`);
       console.error('Error generating tournament:', {
         message: err.message,
         code: err.code,
@@ -323,9 +339,13 @@ const TournamentAdminDashboard = () => {
           {/* Quick Generate Button */}
           <button
             onClick={handleQuickGenerate}
-            disabled={loading || !championship?.participants_count}
+            disabled={loading || !championship?.participants_count || championship.participants_count < 2}
             className="btn btn-success quick-generate-btn"
-            title="Generate tournament with recommended preset"
+            title={
+              !championship?.participants_count || championship.participants_count < 2
+                ? "At least 2 participants required"
+                : "Generate tournament with recommended preset"
+            }
           >
             <span className="btn-icon">⚡</span>
             <span className="btn-text">
@@ -339,9 +359,13 @@ const TournamentAdminDashboard = () => {
           {/* Advanced Configuration Button */}
           <button
             onClick={() => handleGenerateFullTournament()}
-            disabled={loading}
+            disabled={loading || !championship?.participants_count || championship.participants_count < 2}
             className="btn btn-primary config-generate-btn"
-            title="Configure tournament settings before generation"
+            title={
+              !championship?.participants_count || championship.participants_count < 2
+                ? "At least 2 participants required"
+                : "Configure tournament settings before generation"
+            }
           >
             <span className="btn-icon">⚙️</span>
             <span className="btn-text">
@@ -355,9 +379,13 @@ const TournamentAdminDashboard = () => {
           {/* Preview Tournament Button */}
           <button
             onClick={() => setShowTournamentConfigModal(true)}
-            disabled={loading}
+            disabled={loading || !championship?.participants_count || championship.participants_count < 2}
             className="btn btn-secondary preview-btn"
-            title="Preview tournament structure"
+            title={
+              !championship?.participants_count || championship.participants_count < 2
+                ? "At least 2 participants required"
+                : "Preview tournament structure"
+            }
           >
             <span className="btn-icon">👁️</span>
             <span className="btn-text">
@@ -379,12 +407,18 @@ const TournamentAdminDashboard = () => {
           </div>
         )}
 
-        {!championship?.participants_count && (
+        {(!championship?.participants_count || championship?.participants_count < 2) && (
           <div className="tournament-status warning">
             <span className="status-icon">⚠️</span>
             <div className="status-content">
-              <strong>No Participants Yet</strong>
-              <p>Wait for participants to register before generating the tournament.</p>
+              <strong>Insufficient Participants</strong>
+              <p>
+                At least 2 participants are required to generate a tournament.
+                {championship?.participants_count === 1
+                  ? ' You have 1 participant - need 1 more.'
+                  : ' No participants have registered yet.'}
+              </p>
+              <small>Tournament generation buttons are disabled until enough participants register.</small>
             </div>
           </div>
         )}
@@ -463,15 +497,29 @@ const TournamentAdminDashboard = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {pairingsPreview.map((pairing, index) => (
-                        <tr key={index}>
-                          <td>{index + 1}</td>
-                          <td>{pairing.player1?.name || `Player ${pairing.player1_id || 'Unknown'}`}</td>
-                          <td>{pairing.player2?.name || `Player ${pairing.player2_id || 'Unknown'}`}</td>
-                        </tr>
-                      ))}
+                      {pairingsPreview.map((pairing, index) => {
+                        // Handle placeholder matches (elimination rounds)
+                        const isPlaceholder = pairing.is_placeholder || (!pairing.player1_id || !pairing.player2_id);
+                        const player1Name = isPlaceholder
+                          ? `TBD (Rank #${pairing.player1_bracket_position || '?'})`
+                          : pairing.player1?.name || `Player ${pairing.player1_id || 'Unknown'}`;
+                        const player2Name = isPlaceholder
+                          ? `TBD (Rank #${pairing.player2_bracket_position || '?'})`
+                          : pairing.player2?.name || `Player ${pairing.player2_id || 'Unknown'}`;
+
+                        return (
+                          <tr key={index} className={isPlaceholder ? 'placeholder-match' : ''}>
+                            <td>{index + 1}</td>
+                            <td>{player1Name}</td>
+                            <td>{player2Name}</td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
+                  <div className="placeholder-info" style={{marginTop: '10px', fontSize: '12px', color: '#666'}}>
+                    <em>TBD matches will be resolved dynamically based on tournament standings</em>
+                  </div>
                 </div>
               )}
             </div>

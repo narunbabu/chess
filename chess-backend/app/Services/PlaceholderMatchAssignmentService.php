@@ -54,7 +54,45 @@ class PlaceholderMatchAssignmentService
             ];
         }
 
-        // Get current standings to determine rankings
+        // Guard: Check if previous round is complete for Swiss rounds
+        $roundType = $placeholderMatches->first()->getRoundTypeEnum();
+        if ($roundType && $roundType->value === 'swiss' && $roundNumber > 1) {
+            $progressionService = app(ChampionshipRoundProgressionService::class);
+            $previousRoundComplete = $progressionService->isRoundComplete($championship, $roundNumber - 1);
+
+            if (!$previousRoundComplete) {
+                Log::info("Skipping Swiss round assignment - previous round not complete", [
+                    'championship_id' => $championship->id,
+                    'round_number' => $roundNumber,
+                    'previous_round' => $roundNumber - 1,
+                ]);
+
+                return [
+                    'assigned_count' => 0,
+                    'matches' => [],
+                    'reason' => 'previous_round_incomplete',
+                ];
+            }
+
+            Log::info("Previous round complete - proceeding with Swiss assignment", [
+                'championship_id' => $championship->id,
+                'round_number' => $roundNumber,
+            ]);
+        }
+
+        // 🎯 NEW: Check if this is a Swiss round - use Swiss pairing algorithm
+        $firstMatch = $placeholderMatches->first();
+        $roundType = $firstMatch->getRoundTypeEnum();
+
+        if ($roundType && $roundType->value === 'swiss') {
+            Log::info("Swiss round placeholder detected - using Swiss pairing algorithm", [
+                'championship_id' => $championship->id,
+                'round_number' => $roundNumber,
+            ]);
+            return $this->assignSwissRoundPlaceholders($championship, $roundNumber, $placeholderMatches);
+        }
+
+        // Get current standings to determine rankings (for elimination rounds)
         $standings = $this->getCurrentStandings($championship);
 
         $assignedCount = 0;
@@ -107,6 +145,19 @@ class PlaceholderMatchAssignmentService
         }
 
         $positions = $match->placeholder_positions;
+
+        // 🎯 NEW: Check if this is a Swiss round placeholder (positions will be null)
+        $roundType = $match->getRoundTypeEnum();
+        if ($roundType && $roundType->value === 'swiss' && !$positions) {
+            Log::info("Swiss placeholder match detected - will use Swiss pairing algorithm", [
+                'match_id' => $match->id,
+                'round_number' => $match->round_number,
+            ]);
+            // Swiss placeholders are assigned as a group via assignSwissRoundPlaceholders
+            // This individual assignment is not used for Swiss rounds
+            return null;
+        }
+
         if (!$positions) {
             Log::warning("Placeholder match missing position data", [
                 'match_id' => $match->id,
@@ -114,6 +165,23 @@ class PlaceholderMatchAssignmentService
             return null;
         }
 
+        // 🎯 CRITICAL FIX: Check if this is an elimination round that should use match winners
+        $determinedByRound = $match->determined_by_round;
+
+        if ($determinedByRound && $this->isEliminationRound($roundType)) {
+            // Check what type of round determined this match
+            // If determined by a Swiss round, use standings
+            // If determined by an elimination round, use match winners
+            $previousRoundType = $this->getPreviousRoundType($championship, $determinedByRound);
+
+            if ($previousRoundType && $this->isEliminationRound($previousRoundType)) {
+                // Previous round was elimination → use match winners
+                return $this->assignPlayersFromPreviousMatches($championship, $match, $determinedByRound);
+            }
+            // Otherwise, fall through to use standings (Swiss → Elimination transition)
+        }
+
+        // For Swiss-to-Elimination transition, use standings
         // Extract rank numbers from position strings (e.g., 'rank_1' => 1)
         $player1Rank = $this->extractRankNumber($positions['player1'] ?? null);
         $player2Rank = $this->extractRankNumber($positions['player2'] ?? null);
@@ -155,9 +223,10 @@ class PlaceholderMatchAssignmentService
             $colors['black']
         );
 
-        Log::info("Assigned players to placeholder match", [
+        Log::info("Assigned players to placeholder match from standings", [
             'match_id' => $match->id,
             'round_number' => $match->round_number,
+            'round_type' => $roundType->value,
             'player1' => [
                 'rank' => $player1Rank,
                 'user_id' => $player1->user_id,
@@ -183,6 +252,376 @@ class PlaceholderMatchAssignmentService
     }
 
     /**
+     * Assign Swiss round placeholder matches using Swiss pairing algorithm
+     *
+     * @param Championship $championship
+     * @param int $roundNumber
+     * @param Collection $placeholderMatches
+     * @return array
+     */
+    private function assignSwissRoundPlaceholders(
+        Championship $championship,
+        int $roundNumber,
+        Collection $placeholderMatches
+    ): array {
+        Log::info("Assigning Swiss round placeholders", [
+            'championship_id' => $championship->id,
+            'round_number' => $roundNumber,
+            'placeholder_count' => $placeholderMatches->count(),
+        ]);
+
+        // Additional guard: Ensure previous round is complete
+        if ($roundNumber > 1) {
+            $progressionService = app(ChampionshipRoundProgressionService::class);
+            $previousRoundComplete = $progressionService->isRoundComplete($championship, $roundNumber - 1);
+
+            if (!$previousRoundComplete) {
+                Log::warning("Swiss pairings blocked - previous round incomplete", [
+                    'championship_id' => $championship->id,
+                    'round_number' => $roundNumber,
+                ]);
+
+                return [
+                    'assigned_count' => 0,
+                    'matches' => [],
+                    'reason' => 'previous_round_incomplete',
+                ];
+            }
+        }
+
+        // 1. Generate Swiss pairings (Source of Truth)
+        // Returns array like: [['player1_id'=>1, 'player2_id'=>2], ['player1_id'=>3, 'player2_id'=>null]]
+        $pairings = $this->swissService->generatePairings($championship, $roundNumber);
+
+        if (empty($pairings)) {
+            Log::warning("No Swiss pairings generated for round", [
+                'championship_id' => $championship->id,
+                'round_number' => $roundNumber,
+            ]);
+            return [
+                'assigned_count' => 0,
+                'matches' => [],
+            ];
+        }
+
+        Log::info("Swiss pairings generated", [
+            'championship_id' => $championship->id,
+            'round' => $roundNumber,
+            'pairings_count' => count($pairings),
+            'placeholders_count' => $placeholderMatches->count()
+        ]);
+
+        // 2. Prepare placeholders queue (re-index to ensure 0, 1, 2 access)
+        $availablePlaceholders = $placeholderMatches->values();
+        $placeholderIndex = 0;
+        $assignedCount = 0;
+        $assignmentDetails = [];
+
+        // 3. Iterate PAIRINGS (not matches) to ensure everyone gets a spot
+        foreach ($pairings as $pairing) {
+            $player1Id = $pairing['player1_id'];
+            $player2Id = $pairing['player2_id']; // null indicates BYE
+
+            // 🎯 IDEMPOTENCY FIX: Check if players are already matched in this round
+            // This prevents duplicate Byes and double-assignments
+            $existingMatch = ChampionshipMatch::where('championship_id', $championship->id)
+                ->where('round_number', $roundNumber)
+                ->where(function ($q) use ($player1Id, $player2Id) {
+                    $q->where('player1_id', $player1Id)
+                      ->orWhere('player2_id', $player1Id);
+
+                    if ($player2Id !== null) {
+                        $q->orWhere('player1_id', $player2Id)
+                          ->orWhere('player2_id', $player2Id);
+                    }
+                })
+                ->first();
+
+            if ($existingMatch) {
+                Log::info("Skipping pairing {$player1Id} vs " . ($player2Id ?? 'BYE') . " - already exists in Match {$existingMatch->id}");
+                continue;
+            }
+
+            // 🎯 FIXED: Both BYE and standard matches now use placeholders
+            // Determine colors for standard matches
+            $colors = null;
+            if ($player2Id !== null) {
+                $colors = $this->swissService->assignColorsPub($championship, $player1Id, $player2Id);
+            }
+
+            // Try to use a placeholder (for both BYE and standard matches)
+            if (isset($availablePlaceholders[$placeholderIndex])) {
+                $match = $availablePlaceholders[$placeholderIndex];
+
+                // Case A: BYE - Assign to placeholder
+                // 🎯 IMPROVED: Swiss BYEs are PENDING, completed when round finishes
+                if ($player2Id === null) {
+                    $isSwissRound = $roundType && $roundType->value === 'swiss';
+
+                    $updateData = [
+                        'player1_id' => $player1Id,
+                        'player2_id' => null,
+                        'is_placeholder' => false,
+                        'players_assigned_at' => now(),
+                        'result_type_id' => \App\Enums\ChampionshipResultType::BYE->getId(),
+                    ];
+
+                    // BYE completion strategy:
+                    // - Swiss: Always PENDING → Completed when all real matches finish
+                    // - Elimination/Round-Robin: Immediately COMPLETED (no dependency on other matches)
+                    if ($isSwissRound) {
+                        // Swiss BYEs wait for all real matches to complete
+                        $updateData['status_id'] = \App\Enums\ChampionshipMatchStatus::PENDING->getId();
+                        $completionNote = " and left as PENDING (will complete when round finishes)";
+                    } else {
+                        // Non-Swiss BYEs complete immediately
+                        $updateData['status_id'] = \App\Enums\ChampionshipMatchStatus::COMPLETED->getId();
+                        $updateData['winner_id'] = $player1Id;
+                        $completionNote = " and marked as COMPLETED";
+                    }
+
+                    $match->update($updateData);
+
+                    Log::info("Assigned BYE to Player {$player1Id} using Match {$match->id}{$completionNote}", [
+                        'championship_id' => $championship->id,
+                        'round_number' => $roundNumber,
+                        'player_id' => $player1Id,
+                        'is_swiss' => $isSwissRound,
+                        'status' => $isSwissRound ? 'PENDING' : 'COMPLETED',
+                        'completion_timing' => $isSwissRound ? 'deferred_to_round_end' : 'immediate',
+                    ]);
+
+                    $assignmentDetails[] = "Assigned BYE to Player {$player1Id} using Match {$match->id}{$completionNote}";
+                }
+                // Case B: Standard Match
+                else {
+                    $match->assignPlaceholderPlayers(
+                        $player1Id,
+                        $player2Id,
+                        $colors['white'],
+                        $colors['black']
+                    );
+                    $assignmentDetails[] = "Assigned {$player1Id} vs {$player2Id} to Match {$match->id}";
+                }
+
+                $placeholderIndex++; // Increment for both BYE and standard matches
+                $assignedCount++;
+            }
+            // Fallback: Create new match if we ran out of placeholders
+            else {
+                Log::warning("No placeholder available for pairing, creating new match", [
+                    'p1' => $player1Id,
+                    'p2' => $player2Id ?? 'BYE'
+                ]);
+
+                if ($player2Id === null) {
+                    $this->createByeMatch($championship, $roundNumber, $player1Id);
+                    $assignmentDetails[] = "Created new BYE match for Player {$player1Id}";
+                } else {
+                    $this->createNewMatch($championship, $roundNumber, $player1Id, $player2Id, $colors);
+                    $assignmentDetails[] = "Created new match for {$player1Id} vs {$player2Id}";
+                }
+                $assignedCount++;
+            }
+        }
+
+        // 4. Cleanup: Delete unused placeholders (e.g., when player count changed)
+        if ($placeholderIndex < $availablePlaceholders->count()) {
+            $unusedCount = $availablePlaceholders->count() - $placeholderIndex;
+            Log::info("Deleting unused placeholders", [
+                'count' => $unusedCount,
+                'championship_id' => $championship->id,
+                'round_number' => $roundNumber,
+            ]);
+
+            // Delete all unused placeholders starting from current index
+            for ($i = $placeholderIndex; $i < $availablePlaceholders->count(); $i++) {
+                $unusedMatch = $availablePlaceholders[$i];
+                Log::info("Deleting unused placeholder", [
+                    'match_id' => $unusedMatch->id,
+                    'round_number' => $roundNumber,
+                ]);
+                $unusedMatch->delete();
+            }
+        }
+
+        Log::info("Swiss round placeholder assignment completed", [
+            'championship_id' => $championship->id,
+            'round_number' => $roundNumber,
+            'assigned_count' => $assignedCount,
+        ]);
+
+        return [
+            'assigned_count' => $assignedCount,
+            'matches' => $assignmentDetails,
+        ];
+    }
+
+    /**
+     * Helper to create a Bye match immediately
+     */
+    private function createByeMatch(Championship $championship, int $roundNumber, int $playerId): void
+    {
+        ChampionshipMatch::create([
+            'championship_id' => $championship->id,
+            'round_number' => $roundNumber,
+            'round_type_id' => 1, // Swiss Round
+            'player1_id' => $playerId,
+            'player2_id' => null, // Bye
+            'status_id' => \App\Enums\ChampionshipMatchStatus::COMPLETED->getId(), // Auto-complete
+            'result_type_id' => \App\Enums\ChampionshipResultType::BYE->getId(),
+            'winner_id' => $playerId,
+            'is_placeholder' => false,
+            'scheduled_at' => now(),
+            'deadline' => now()->addHours($championship->match_time_window_hours ?? 24)
+        ]);
+    }
+
+    /**
+     * Helper to create a new match (fallback)
+     */
+    private function createNewMatch($championship, $roundNumber, $p1, $p2, $colors): void
+    {
+         ChampionshipMatch::create([
+            'championship_id' => $championship->id,
+            'round_number' => $roundNumber,
+            'round_type_id' => 1, // Swiss Round
+            'player1_id' => $p1,
+            'player2_id' => $p2,
+            'status_id' => \App\Enums\ChampionshipMatchStatus::PENDING->getId(),
+            'is_placeholder' => false,
+            'scheduled_at' => now(),
+            'deadline' => now()->addHours($championship->match_time_window_hours ?? 24)
+            // Apply colors if your model supports 'white_player_id' etc or just rely on p1/p2 order
+        ]);
+    }
+
+    /**
+     * Check if round type is elimination (not Swiss)
+     *
+     * @param \App\Enums\ChampionshipRoundType $roundType
+     * @return bool
+     */
+    private function isEliminationRound(\App\Enums\ChampionshipRoundType $roundType): bool
+    {
+        return in_array($roundType->value, [
+            'quarter_final',
+            'semi_final',
+            'final',
+            'third_place',
+            'elimination',
+        ]);
+    }
+
+    /**
+     * Get the round type of a previous round
+     *
+     * @param Championship $championship
+     * @param int $roundNumber
+     * @return \App\Enums\ChampionshipRoundType|null
+     */
+    private function getPreviousRoundType(Championship $championship, int $roundNumber): ?\App\Enums\ChampionshipRoundType
+    {
+        // Get any match from the previous round to determine its type
+        $previousMatch = $championship->matches()
+            ->where('round_number', $roundNumber)
+            ->first();
+
+        if (!$previousMatch) {
+            return null;
+        }
+
+        return $previousMatch->getRoundTypeEnum();
+    }
+
+    /**
+     * Assign players to elimination match based on winners of previous round
+     *
+     * @param Championship $championship
+     * @param ChampionshipMatch $match
+     * @param int $previousRoundNumber
+     * @return array|null
+     */
+    private function assignPlayersFromPreviousMatches(
+        Championship $championship,
+        ChampionshipMatch $match,
+        int $previousRoundNumber
+    ): ?array {
+        Log::info("Assigning players from previous round matches", [
+            'match_id' => $match->id,
+            'round_number' => $match->round_number,
+            'determined_by_round' => $previousRoundNumber,
+        ]);
+
+        // Get completed matches from previous round
+        $previousMatches = $championship->matches()
+            ->where('round_number', $previousRoundNumber)
+            ->whereNotNull('winner_id')
+            ->with('winner')
+            ->get();
+
+        if ($previousMatches->isEmpty()) {
+            Log::warning("No completed matches found in previous round", [
+                'match_id' => $match->id,
+                'previous_round' => $previousRoundNumber,
+            ]);
+            return null;
+        }
+
+        // Extract winners (for finals, semis, etc.)
+        $winners = $previousMatches->pluck('winner_id')->toArray();
+
+        if (count($winners) < 2) {
+            Log::warning("Not enough winners from previous round", [
+                'match_id' => $match->id,
+                'previous_round' => $previousRoundNumber,
+                'winners_count' => count($winners),
+            ]);
+            return null;
+        }
+
+        // For standard elimination: assign first two winners
+        // TODO: This assumes match order determines bracket position
+        // For more complex brackets, use placeholder_positions to map specific matches to positions
+        $player1Id = $winners[0];
+        $player2Id = $winners[1];
+
+        // Assign colors
+        $colors = $this->swissService->assignColorsPub(
+            $championship,
+            $player1Id,
+            $player2Id
+        );
+
+        // Assign players to the match
+        $match->assignPlaceholderPlayers(
+            $player1Id,
+            $player2Id,
+            $colors['white'],
+            $colors['black']
+        );
+
+        Log::info("Assigned players to placeholder match from previous winners", [
+            'match_id' => $match->id,
+            'round_number' => $match->round_number,
+            'previous_round' => $previousRoundNumber,
+            'player1_id' => $player1Id,
+            'player2_id' => $player2Id,
+        ]);
+
+        return [
+            'match_id' => $match->id,
+            'round_number' => $match->round_number,
+            'source' => 'previous_match_winners',
+            'previous_round' => $previousRoundNumber,
+            'player1_id' => $player1Id,
+            'player2_id' => $player2Id,
+            'white_player_id' => $colors['white'],
+            'black_player_id' => $colors['black'],
+        ];
+    }
+
+    /**
      * Get current standings ordered by rank
      *
      * @param Championship $championship
@@ -195,6 +634,7 @@ class PlaceholderMatchAssignmentService
             ->orderByDesc('points')
             ->orderByDesc('buchholz_score')
             ->orderByDesc('sonneborn_berger')
+            ->orderByRaw('(SELECT rating FROM users WHERE users.id = championship_standings.user_id) DESC')
             ->get();
     }
 

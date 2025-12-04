@@ -58,25 +58,88 @@ class StandingsCalculatorService
         $losses = 0;
         $gamesPlayed = 0;
 
+        // 🔍 DEBUG: Log all matches for this participant
+        Log::debug("📊 [STANDINGS DEBUG] Calculating for User {$participant->user_id}", [
+            'championship_id' => $championship->id,
+            'total_matches_found' => $participantMatches->count(),
+        ]);
+
         foreach ($participantMatches as $match) {
             $result = $this->getMatchResult($match, $participant->user_id);
+
+            // 🔍 DEBUG: Log each match processing
+            // Safe enum resolution
+            $statusName = 'UNKNOWN';
+            try {
+                $statusName = ChampionshipMatchStatus::from($match->status_id)->name;
+            } catch (\ValueError $e) {
+                $statusName = "INVALID_STATUS_ID_{$match->status_id}";
+            }
+
+            Log::debug("🔍 [MATCH DEBUG] Processing match", [
+                'match_id' => $match->id,
+                'round' => $match->round_number,
+                'status_id' => $match->status_id,
+                'status_name' => $statusName,
+                'result_type' => $match->result_type,
+                'result_type_id' => $match->result_type_id,
+                'player1_id' => $match->player1_id,
+                'player2_id' => $match->player2_id,
+                'winner_id' => $match->winner_id,
+                'user_id' => $participant->user_id,
+                'calculated_result' => $result,
+                'score_before' => $score,
+            ]);
 
             switch ($result) {
                 case 'win':
                     $score += 1;
                     $wins++;
+                    Log::debug("✅ [RESULT] WIN - Added 1.0 point", [
+                        'match_id' => $match->id,
+                        'new_score' => $score,
+                    ]);
                     break;
                 case 'draw':
                     $score += 0.5;
                     $draws++;
+                    Log::debug("⚖️ [RESULT] DRAW - Added 0.5 point", [
+                        'match_id' => $match->id,
+                        'new_score' => $score,
+                    ]);
                     break;
                 case 'loss':
                     $losses++;
+                    Log::debug("❌ [RESULT] LOSS - Added 0 points", [
+                        'match_id' => $match->id,
+                        'score_unchanged' => $score,
+                    ]);
+                    break;
+                case 'not_participant':
+                    // This should not happen in properly filtered matches, but handle gracefully
+                    Log::warning("⚠️ [RESULT] NOT_PARTICIPANT - Skipping match", [
+                        'match_id' => $match->id,
+                        'user_id' => $participant->user_id,
+                        'player1_id' => $match->player1_id,
+                        'player2_id' => $match->player2_id,
+                    ]);
+                    continue 2; // Skip to next match entirely
                     break;
             }
 
             $gamesPlayed++;
         }
+
+        // 🔍 DEBUG: Final calculation summary
+        Log::info("📊 [STANDINGS FINAL] User {$participant->user_id}", [
+            'championship_id' => $championship->id,
+            'final_score' => $score,
+            'wins' => $wins,
+            'draws' => $draws,
+            'losses' => $losses,
+            'games_played' => $gamesPlayed,
+            'matches_processed' => $participantMatches->count(),
+        ]);
 
         return [
             'championship_id' => $championship->id,
@@ -107,10 +170,38 @@ class StandingsCalculatorService
      */
     private function getCompletedMatches(Championship $championship): Collection
     {
-        return $championship->matches()
+        $matches = $championship->matches()
             ->completed() // Use model scope instead of direct status query
             ->with(['player1', 'player2'])
             ->get();
+
+        // 🔍 DEBUG: Log all completed matches
+        Log::debug("🔍 [COMPLETED MATCHES] Retrieved for Championship {$championship->id}", [
+            'total_completed' => $matches->count(),
+            'matches' => $matches->map(function ($match) {
+                // Safe enum resolution
+                $statusName = 'UNKNOWN';
+                try {
+                    $statusName = ChampionshipMatchStatus::from($match->status_id)->name;
+                } catch (\ValueError $e) {
+                    $statusName = "INVALID_STATUS_ID_{$match->status_id}";
+                }
+
+                return [
+                    'id' => $match->id,
+                    'round' => $match->round_number,
+                    'status_id' => $match->status_id,
+                    'status_name' => $statusName,
+                    'result_type' => $match->result_type,
+                    'result_type_id' => $match->result_type_id,
+                    'player1_id' => $match->player1_id,
+                    'player2_id' => $match->player2_id,
+                    'winner_id' => $match->winner_id,
+                ];
+            })->toArray(),
+        ]);
+
+        return $matches;
     }
 
     /**
@@ -118,6 +209,12 @@ class StandingsCalculatorService
      */
     private function getMatchResult(ChampionshipMatch $match, int $userId): string
     {
+        // 🎯 FIXED: Handle BYE matches properly
+        if ($match->result_type === ChampionshipResultType::BYE->value) {
+            // Only player1 exists in BYE matches, and they get a win
+            return $match->player1_id === $userId ? 'win' : 'not_participant';
+        }
+
         // Handle forfeits
         if ($match->result_type === ChampionshipResultType::FORFEIT_PLAYER1->value) {
             return $match->player1_id === $userId ? 'loss' : 'win';
@@ -243,21 +340,25 @@ class StandingsCalculatorService
     private function updateRanks(Championship $championship): void
     {
         $standings = $championship->standings()
+            ->with('user') // Load user relationship for rating access
             ->orderBy('points', 'desc')
             ->orderBy('buchholz_score', 'desc')
             ->orderBy('sonneborn_berger', 'desc')
+            ->orderByRaw('(SELECT rating FROM users WHERE users.id = championship_standings.user_id) DESC')
             ->get();
 
         $currentRank = 1;
         $previousScore = null;
         $previousBuchholz = null;
         $previousSonnebornBerger = null;
+        $previousRating = null;
 
         foreach ($standings as $index => $standing) {
-            // Check if this player ties with previous
+            // Check if this player ties with previous (including rating as 4th tiebreaker)
             $isTie = ($previousScore !== null && $standing->points === $previousScore && // Database uses 'points'
                      $standing->buchholz_score === $previousBuchholz && // Database uses 'buchholz_score'
-                     $standing->sonneborn_berger === $previousSonnebornBerger);
+                     $standing->sonneborn_berger === $previousSonnebornBerger &&
+                     $standing->user->rating === $previousRating);
 
             if (!$isTie) {
                 $currentRank = $index + 1;
@@ -268,6 +369,7 @@ class StandingsCalculatorService
             $previousScore = $standing->points; // Database uses 'points'
             $previousBuchholz = $standing->buchholz_score; // Database uses 'buchholz_score'
             $previousSonnebornBerger = $standing->sonneborn_berger;
+            $previousRating = $standing->user->rating;
         }
     }
 
@@ -438,6 +540,10 @@ class StandingsCalculatorService
                     break;
                 case 'draw':
                     $score += 0.5;
+                    break;
+                case 'not_participant':
+                    // Skip entirely - this player wasn't in this match
+                    continue 2;
                     break;
             }
         }

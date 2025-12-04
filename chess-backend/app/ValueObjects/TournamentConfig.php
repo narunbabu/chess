@@ -988,6 +988,77 @@ class TournamentConfig implements Arrayable, Jsonable, \JsonSerializable
         $config = new self();
         $config->mode = $data['mode'] ?? self::MODE_SWISS;
         $config->roundStructure = $data['round_structure'] ?? [];
+
+        // Normalize round structure: convert frontend field names to backend expected names
+        // Frontend sends different field names than backend expects
+        foreach ($config->roundStructure as $index => &$round) {
+            // Handle round_number -> round mapping
+            if (isset($round['round_number']) && !isset($round['round'])) {
+                $round['round'] = $round['round_number'];
+            }
+
+            // Ensure round field exists with default value (use index + 1)
+            if (!isset($round['round'])) {
+                $round['round'] = $index + 1;
+            }
+
+            // Add missing type field with default value
+            if (!isset($round['type'])) {
+                $round['type'] = 'swiss'; // Default to swiss type
+            }
+
+            // Handle selection_rule -> participant_selection mapping
+            if (isset($round['selection_rule']) && !isset($round['participant_selection'])) {
+                // Map frontend selection_rule values to backend participant_selection format
+                switch ($round['selection_rule']) {
+                    case 'all_participants':
+                    case 'all':
+                        $round['participant_selection'] = 'all';
+                        break;
+                    case 'top_k':
+                        $round['participant_selection'] = isset($round['selection_value'])
+                            ? ['top_k' => $round['selection_value']]
+                            : 'all';
+                        break;
+                    case 'top_percent':
+                        $round['participant_selection'] = isset($round['selection_value'])
+                            ? ['top_percent' => $round['selection_value']]
+                            : 'all';
+                        break;
+                    default:
+                        // Default to all participants if unknown selection rule
+                        $round['participant_selection'] = 'all';
+                }
+            }
+
+            // Ensure participant_selection exists with default value
+            if (!isset($round['participant_selection'])) {
+                $round['participant_selection'] = 'all';
+            }
+
+            // Handle pairing_method -> pairing_algorithm mapping if needed
+            if (isset($round['pairing_method']) && !isset($round['pairing_algorithm'])) {
+                $round['pairing_algorithm'] = $round['pairing_method'];
+            }
+
+            // Ensure pairing_method exists with default value
+            if (!isset($round['pairing_method'])) {
+                $round['pairing_method'] = $round['pairing_algorithm'] ?? 'random';
+            }
+
+            // Ensure matches_per_player exists with default value
+            if (!isset($round['matches_per_player']) || $round['matches_per_player'] < 1) {
+                $round['matches_per_player'] = 1;
+            }
+
+            // Add missing 'type' field for round type validation
+            if (!isset($round['type'])) {
+                // Default to 'swiss' for custom configurations since most custom rounds use Swiss pairing
+                $round['type'] = 'swiss';
+            }
+        }
+        unset($round); // Break reference
+
         $config->avoidRepeatMatches = $data['avoid_repeat_matches'] ?? true;
         $config->colorBalanceStrict = $data['color_balance_strict'] ?? true;
         $config->byeHandling = $data['bye_handling'] ?? 'automatic';

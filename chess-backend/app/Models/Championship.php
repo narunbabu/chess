@@ -57,6 +57,7 @@ class Championship extends Model
         'tournament_config',
         'tournament_generated',
         'tournament_generated_at',
+        'is_test_tournament',
     ];
 
     protected $casts = [
@@ -91,6 +92,7 @@ class Championship extends Model
         'tournament_config' => 'array',
         'tournament_generated' => 'boolean',
         'tournament_generated_at' => 'datetime',
+        'is_test_tournament' => 'boolean',
     ];
 
     /**

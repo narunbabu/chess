@@ -643,6 +643,8 @@ class ChampionshipMatch extends Model
             'player1_id' => $player1Id,
             'player2_id' => $player2Id,
             'players_assigned_at' => now(),
+            'is_placeholder' => false, // 🎯 CRITICAL FIX: Mark as no longer a placeholder
+            'status_id' => \App\Enums\ChampionshipMatchStatus::PENDING->getId(), // Set to pending for play
         ];
 
         // Assign colors if provided
@@ -708,7 +710,12 @@ class ChampionshipMatch extends Model
      */
     public function canPlayerPlay(int $userId): array
     {
-        // Players can always play round 1
+        // 🎯 CRITICAL FIX: Check if this match is a placeholder without assigned players
+        if ($this->isPlaceholder() && !$this->hasAssignedPlayers()) {
+            return ['canPlay' => false, 'reason' => 'Match players not yet determined'];
+        }
+
+        // Players can always play round 1 (if players are assigned)
         if ($this->round_number === 1) {
             return ['canPlay' => true, 'reason' => null];
         }

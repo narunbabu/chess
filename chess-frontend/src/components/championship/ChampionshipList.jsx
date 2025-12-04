@@ -138,7 +138,14 @@ const ChampionshipList = () => {
       closeConfirmationModal();
     } catch (error) {
       console.error('Archive failed:', error);
-      alert(error.response?.data?.message || 'Failed to archive championship');
+
+      // Handle specific error for active championships
+      const errorMessage = error.response?.data?.message;
+      if (errorMessage?.includes('Cannot archive active championship')) {
+        alert('Cannot archive an active championship.\n\nPlease complete or pause the championship first before archiving.');
+      } else {
+        alert(errorMessage || 'Failed to archive championship');
+      }
     }
   };
 
@@ -155,6 +162,12 @@ const ChampionshipList = () => {
   };
 
   const openConfirmationModal = (type, championship) => {
+    // Prevent archiving active championships with participants
+    if (type === 'archive' && championship.status === 'in_progress' && championship.participants_count > 0) {
+      alert('Cannot archive an active championship.\n\nPlease complete or pause the championship first before archiving.');
+      return;
+    }
+
     setConfirmationModal({ isOpen: true, type, championship });
   };
 
@@ -399,7 +412,7 @@ const ChampionshipList = () => {
             <span className="btn-icon">⚙️</span>
             <span className="btn-text">Manage</span>
             </button>
-            {championship.status !== 'in_progress' || (championship.status === 'in_progress' && championship.participants_count === 0) && (
+            {(championship.status !== 'in_progress' || championship.participants_count === 0) && (
             <button
               onClick={() => openConfirmationModal('archive', championship)}
               className="btn btn-warning"

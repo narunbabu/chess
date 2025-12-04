@@ -1,0 +1,324 @@
+﻿{
+    "tournament_info":  {
+                            "id":  11,
+                            "name":  "[VISUALIZER] 5-Player Test Tournament",
+                            "players":  5,
+                            "rounds":  3,
+                            "format":  "Swiss + Elimination",
+                            "status":  "REGISTRATION_OPEN"
+                        },
+    "participants":  [
+                         {
+                             "id":  79,
+                             "name":  "Test Player A",
+                             "rating":  1500,
+                             "email":  "test_visualizer_11_1@example.com"
+                         },
+                         {
+                             "id":  80,
+                             "name":  "Test Player B",
+                             "rating":  1450,
+                             "email":  "test_visualizer_11_2@example.com"
+                         },
+                         {
+                             "id":  81,
+                             "name":  "Test Player C",
+                             "rating":  1400,
+                             "email":  "test_visualizer_11_3@example.com"
+                         },
+                         {
+                             "id":  82,
+                             "name":  "Test Player D",
+                             "rating":  1350,
+                             "email":  "test_visualizer_11_4@example.com"
+                         },
+                         {
+                             "id":  83,
+                             "name":  "Test Player E",
+                             "rating":  1300,
+                             "email":  "test_visualizer_11_5@example.com"
+                         }
+                     ],
+    "rounds":  [
+                   {
+                       "round_number":  2,
+                       "name":  "Semi Final",
+                       "round_type":  "semi_final",
+                       "matches":  [
+                                       {
+                                           "id":  255,
+                                           "round_number":  2,
+                                           "round_type":  "semi_final",
+                                           "is_placeholder":  null,
+                                           "status":  "pending",
+                                           "player1_id":  null,
+                                           "player2_id":  null
+                                       },
+                                       {
+                                           "id":  256,
+                                           "round_number":  2,
+                                           "round_type":  "semi_final",
+                                           "is_placeholder":  null,
+                                           "status":  "pending",
+                                           "player1_id":  null,
+                                           "player2_id":  null
+                                       }
+                                   ]
+                   },
+                   {
+                       "round_number":  3,
+                       "name":  "Final",
+                       "round_type":  "final",
+                       "matches":  [
+                                       {
+                                           "id":  257,
+                                           "round_number":  3,
+                                           "round_type":  "final",
+                                           "is_placeholder":  null,
+                                           "status":  "pending",
+                                           "player1_id":  null,
+                                           "player2_id":  null
+                                       }
+                                   ]
+                   },
+                   {
+                       "round_number":  1,
+                       "name":  "Round 1",
+                       "round_type":  "swiss",
+                       "matches":  [
+                                       {
+                                           "id":  251,
+                                           "round_number":  1,
+                                           "round_type":  "swiss",
+                                           "is_placeholder":  null,
+                                           "status":  "pending",
+                                           "player1_id":  79,
+                                           "player2_id":  80,
+                                           "player1":  {
+                                                           "id":  79,
+                                                           "name":  "Test Player A",
+                                                           "rating":  1500
+                                                       },
+                                           "player2":  {
+                                                           "id":  80,
+                                                           "name":  "Test Player B",
+                                                           "rating":  1450
+                                                       }
+                                       },
+                                       {
+                                           "id":  253,
+                                           "round_number":  1,
+                                           "round_type":  "swiss",
+                                           "is_placeholder":  null,
+                                           "status":  "pending",
+                                           "player1_id":  81,
+                                           "player2_id":  79,
+                                           "player1":  {
+                                                           "id":  81,
+                                                           "name":  "Test Player C",
+                                                           "rating":  1400
+                                                       },
+                                           "player2":  {
+                                                           "id":  79,
+                                                           "name":  "Test Player A",
+                                                           "rating":  1500
+                                                       }
+                                       },
+                                       {
+                                           "id":  252,
+                                           "round_number":  1,
+                                           "round_type":  "swiss",
+                                           "is_placeholder":  null,
+                                           "status":  "pending",
+                                           "player1_id":  80,
+                                           "player2_id":  81,
+                                           "player1":  {
+                                                           "id":  80,
+                                                           "name":  "Test Player B",
+                                                           "rating":  1450
+                                                       },
+                                           "player2":  {
+                                                           "id":  81,
+                                                           "name":  "Test Player C",
+                                                           "rating":  1400
+                                                       }
+                                       },
+                                       {
+                                           "id":  254,
+                                           "round_number":  1,
+                                           "round_type":  "swiss",
+                                           "is_placeholder":  null,
+                                           "status":  "pending",
+                                           "player1_id":  82,
+                                           "player2_id":  83,
+                                           "player1":  {
+                                                           "id":  82,
+                                                           "name":  "Test Player D",
+                                                           "rating":  1350
+                                                       },
+                                           "player2":  {
+                                                           "id":  83,
+                                                           "name":  "Test Player E",
+                                                           "rating":  1300
+                                                       }
+                                       }
+                                   ]
+                   }
+               ],
+    "matches":  [
+                    {
+                        "id":  255,
+                        "round_number":  2,
+                        "round_type":  "semi_final",
+                        "player1_id":  null,
+                        "player2_id":  null,
+                        "status":  "pending",
+                        "winner_id":  null,
+                        "is_placeholder":  null,
+                        "created_at":  "2025-12-03T17:34:17.000000Z"
+                    },
+                    {
+                        "id":  256,
+                        "round_number":  2,
+                        "round_type":  "semi_final",
+                        "player1_id":  null,
+                        "player2_id":  null,
+                        "status":  "pending",
+                        "winner_id":  null,
+                        "is_placeholder":  null,
+                        "created_at":  "2025-12-03T17:34:17.000000Z"
+                    },
+                    {
+                        "id":  257,
+                        "round_number":  3,
+                        "round_type":  "final",
+                        "player1_id":  null,
+                        "player2_id":  null,
+                        "status":  "pending",
+                        "winner_id":  null,
+                        "is_placeholder":  null,
+                        "created_at":  "2025-12-03T17:34:17.000000Z"
+                    },
+                    {
+                        "id":  251,
+                        "round_number":  1,
+                        "round_type":  "swiss",
+                        "player1_id":  79,
+                        "player2_id":  80,
+                        "status":  "pending",
+                        "winner_id":  null,
+                        "is_placeholder":  null,
+                        "created_at":  "2025-12-03T17:34:17.000000Z"
+                    },
+                    {
+                        "id":  253,
+                        "round_number":  1,
+                        "round_type":  "swiss",
+                        "player1_id":  81,
+                        "player2_id":  79,
+                        "status":  "pending",
+                        "winner_id":  null,
+                        "is_placeholder":  null,
+                        "created_at":  "2025-12-03T17:34:17.000000Z"
+                    },
+                    {
+                        "id":  252,
+                        "round_number":  1,
+                        "round_type":  "swiss",
+                        "player1_id":  80,
+                        "player2_id":  81,
+                        "status":  "pending",
+                        "winner_id":  null,
+                        "is_placeholder":  null,
+                        "created_at":  "2025-12-03T17:34:17.000000Z"
+                    },
+                    {
+                        "id":  254,
+                        "round_number":  1,
+                        "round_type":  "swiss",
+                        "player1_id":  82,
+                        "player2_id":  83,
+                        "status":  "pending",
+                        "winner_id":  null,
+                        "is_placeholder":  null,
+                        "created_at":  "2025-12-03T17:34:17.000000Z"
+                    }
+                ],
+    "initial_standings":  [
+                              {
+                                  "id":  79,
+                                  "player_id":  79,
+                                  "player_name":  "Test Player A",
+                                  "name":  "Test Player A",
+                                  "rating":  1500,
+                                  "rank":  1,
+                                  "points":  "0.0",
+                                  "wins":  0,
+                                  "losses":  0,
+                                  "draws":  0,
+                                  "matches_played":  0,
+                                  "buchholz":  "0.0",
+                                  "sonneborn_berger":  "0.0"
+                              },
+                              {
+                                  "id":  80,
+                                  "player_id":  80,
+                                  "player_name":  "Test Player B",
+                                  "name":  "Test Player B",
+                                  "rating":  1450,
+                                  "rank":  1,
+                                  "points":  "0.0",
+                                  "wins":  0,
+                                  "losses":  0,
+                                  "draws":  0,
+                                  "matches_played":  0,
+                                  "buchholz":  "0.0",
+                                  "sonneborn_berger":  "0.0"
+                              },
+                              {
+                                  "id":  81,
+                                  "player_id":  81,
+                                  "player_name":  "Test Player C",
+                                  "name":  "Test Player C",
+                                  "rating":  1400,
+                                  "rank":  1,
+                                  "points":  "0.0",
+                                  "wins":  0,
+                                  "losses":  0,
+                                  "draws":  0,
+                                  "matches_played":  0,
+                                  "buchholz":  "0.0",
+                                  "sonneborn_berger":  "0.0"
+                              },
+                              {
+                                  "id":  82,
+                                  "player_id":  82,
+                                  "player_name":  "Test Player D",
+                                  "name":  "Test Player D",
+                                  "rating":  1350,
+                                  "rank":  1,
+                                  "points":  "0.0",
+                                  "wins":  0,
+                                  "losses":  0,
+                                  "draws":  0,
+                                  "matches_played":  0,
+                                  "buchholz":  "0.0",
+                                  "sonneborn_berger":  "0.0"
+                              },
+                              {
+                                  "id":  83,
+                                  "player_id":  83,
+                                  "player_name":  "Test Player E",
+                                  "name":  "Test Player E",
+                                  "rating":  1300,
+                                  "rank":  1,
+                                  "points":  "0.0",
+                                  "wins":  0,
+                                  "losses":  0,
+                                  "draws":  0,
+                                  "matches_played":  0,
+                                  "buchholz":  "0.0",
+                                  "sonneborn_berger":  "0.0"
+                              }
+                          ]
+}

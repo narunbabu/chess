@@ -1655,6 +1655,87 @@ textarea.form-input {
   color: #6b7280;
 }
 
+.tiebreaker-rules {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border: 1px solid #bae6fd;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+}
+
+.tiebreaker-rules h4 {
+  margin: 0 0 12px 0;
+  color: #0369a1;
+  font-size: 1rem;
+}
+
+.tiebreaker-rules > p {
+  margin: 0 0 16px 0;
+  color: #374151;
+  font-size: 0.875rem;
+}
+
+.tiebreaker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tiebreaker-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #dbeafe;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.tiebreaker-rank {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  min-width: 40px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.tiebreaker-details {
+  flex: 1;
+}
+
+.tiebreaker-details strong {
+  color: #1e40af;
+  display: block;
+  margin-bottom: 2px;
+  font-size: 0.875rem;
+}
+
+.tiebreaker-desc {
+  font-size: 0.8rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.tiebreaker-note {
+  margin-top: 16px;
+  padding: 12px;
+  background: #f8fafc;
+  border-left: 3px solid #3b82f6;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  color: #475569;
+}
+
+.tiebreaker-note small {
+  display: block;
+  line-height: 1.4;
+}
+
 .standings-summary {
   background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
   padding: 24px;
@@ -3392,6 +3473,27 @@ textarea.form-input {
   .championship-list-container {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+  }
+
+  /* Tiebreaker rules mobile styles */
+  .tiebreaker-rules {
+    padding: 16px;
+  }
+
+  .tiebreaker-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .tiebreaker-rank {
+    align-self: flex-start;
+    margin-bottom: 4px;
+  }
+
+  .tiebreaker-list {
+    gap: 8px;
   }
 
   /* Improve touch targets for mobile */

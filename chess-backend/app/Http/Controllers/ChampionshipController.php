@@ -1017,7 +1017,7 @@ class ChampionshipController extends Controller
             $matches = $championship->matches;
             $matchStats = [
                 'pending' => $matches->where('status', 'pending')->count(),
-                'active' => $matches->where('status', 'active')->count(),
+                'active' => $matches->where('status', 'in_progress')->count(),
                 'completed' => $matches->where('status', 'completed')->count(),
                 'cancelled' => $matches->where('status', 'cancelled')->count(),
                 'total' => $matches->count()
@@ -1029,7 +1029,7 @@ class ChampionshipController extends Controller
                     'round' => (int)$roundNumber,
                     'matches' => [
                         'pending' => $roundMatches->where('status', 'pending')->count(),
-                        'active' => $roundMatches->where('status', 'active')->count(),
+                        'active' => $roundMatches->where('status', 'in_progress')->count(),
                         'completed' => $roundMatches->where('status', 'completed')->count(),
                         'cancelled' => $roundMatches->where('status', 'cancelled')->count(),
                         'total' => $roundMatches->count()
@@ -1071,7 +1071,7 @@ class ChampionshipController extends Controller
                 $participant = $championship->participants()->where('user_id', $user->id)->first();
                 $userStatus = [
                     'is_registered' => !is_null($participant),
-                    'has_paid' => $participant?->payment_status_id === PaymentStatus::Completed,
+                    'has_paid' => $participant?->payment_status_id === PaymentStatus::COMPLETED->getId(),
                     'can_register' => $championship->canRegister($user->id)
                 ];
             }
@@ -1160,8 +1160,12 @@ class ChampionshipController extends Controller
                 ], 422);
             }
 
-            // Only allow free registration through this endpoint
-            if ($championship->entry_fee > 0) {
+            // Check if payment is required
+            // Admins and championship creators can register without payment
+            $isAdmin = $user->hasAnyRole(['platform_admin', 'organization_admin']) ||
+                      $championship->created_by === $user->id;
+
+            if ($championship->entry_fee > 0 && !$isAdmin) {
                 return response()->json([
                     'error' => 'Payment required',
                     'message' => 'This championship requires an entry fee. Please use the payment registration endpoint.',
@@ -1189,13 +1193,21 @@ class ChampionshipController extends Controller
                 ]);
             });
 
+            // Determine registration type for logging
+            $registrationType = 'free';
+            if ($championship->entry_fee > 0 && $isAdmin) {
+                $registrationType = 'admin_bypass';
+            }
+
             Log::info('User registered for championship', [
                 'championship_id' => $championship->id,
                 'championship_title' => $championship->title,
                 'user_id' => $user->id,
                 'user_email' => $user->email,
                 'participant_id' => $participant->id,
-                'registration_type' => 'free',
+                'registration_type' => $registrationType,
+                'is_admin' => $isAdmin,
+                'entry_fee' => $championship->entry_fee,
             ]);
 
             return response()->json([

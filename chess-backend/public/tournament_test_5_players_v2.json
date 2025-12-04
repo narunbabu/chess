@@ -1,0 +1,514 @@
+{
+    "tournament_info": {
+        "name": "5-Player Tournament",
+        "players": 5,
+        "rounds": 5,
+        "format": "Swiss + Elimination",
+        "description": "Test tournament with dynamic placeholder matches",
+        "version": "2.0"
+    },
+    "participants": [
+        {
+            "id": 8,
+            "name": "Test Player 1",
+            "rating": 1400,
+            "email": "tournament_test_5_1@example.com"
+        },
+        {
+            "id": 9,
+            "name": "Test Player 2",
+            "rating": 1350,
+            "email": "tournament_test_5_2@example.com"
+        },
+        {
+            "id": 10,
+            "name": "Test Player 3",
+            "rating": 1300,
+            "email": "tournament_test_5_3@example.com"
+        },
+        {
+            "id": 11,
+            "name": "Test Player 4",
+            "rating": 1250,
+            "email": "tournament_test_5_4@example.com"
+        },
+        {
+            "id": 12,
+            "name": "Test Player 5",
+            "rating": 1200,
+            "email": "tournament_test_5_5@example.com"
+        }
+    ],
+    "initial_standings": [
+        {
+            "id": 8,
+            "player_id": 8,
+            "player_name": "Test Player 1",
+            "name": "Test Player 1",
+            "rating": 1400,
+            "rank": 1,
+            "points": 0,
+            "wins": 0,
+            "losses": 0,
+            "draws": 0,
+            "matches_played": 0,
+            "buchholz": 0,
+            "sonneborn_berger": 0
+        },
+        {
+            "id": 9,
+            "player_id": 9,
+            "player_name": "Test Player 2",
+            "name": "Test Player 2",
+            "rating": 1350,
+            "rank": 2,
+            "points": 0,
+            "wins": 0,
+            "losses": 0,
+            "draws": 0,
+            "matches_played": 0,
+            "buchholz": 0,
+            "sonneborn_berger": 0
+        },
+        {
+            "id": 10,
+            "player_id": 10,
+            "player_name": "Test Player 3",
+            "name": "Test Player 3",
+            "rating": 1300,
+            "rank": 3,
+            "points": 0,
+            "wins": 0,
+            "losses": 0,
+            "draws": 0,
+            "matches_played": 0,
+            "buchholz": 0,
+            "sonneborn_berger": 0
+        },
+        {
+            "id": 11,
+            "player_id": 11,
+            "player_name": "Test Player 4",
+            "name": "Test Player 4",
+            "rating": 1250,
+            "rank": 4,
+            "points": 0,
+            "wins": 0,
+            "losses": 0,
+            "draws": 0,
+            "matches_played": 0,
+            "buchholz": 0,
+            "sonneborn_berger": 0
+        },
+        {
+            "id": 12,
+            "player_id": 12,
+            "player_name": "Test Player 5",
+            "name": "Test Player 5",
+            "rating": 1200,
+            "rank": 5,
+            "points": 0,
+            "wins": 0,
+            "losses": 0,
+            "draws": 0,
+            "matches_played": 0,
+            "buchholz": 0,
+            "sonneborn_berger": 0
+        }
+    ],
+    "rounds": [
+        {
+            "round_number": 1,
+            "name": "Round 1",
+            "round_type": "swiss",
+            "matches": [
+                {
+                    "id": 41,
+                    "round_number": 1,
+                    "round_type": "swiss",
+                    "is_placeholder": false,
+                    "status": "pending",
+                    "player1_result": null,
+                    "player2_result": null,
+                    "player1_id": 8,
+                    "player2_id": 9,
+                    "player1": {
+                        "id": 8,
+                        "name": "Test Player 1",
+                        "rating": 1400
+                    },
+                    "player2": {
+                        "id": 9,
+                        "name": "Test Player 2",
+                        "rating": 1350
+                    }
+                },
+                {
+                    "id": 42,
+                    "round_number": 1,
+                    "round_type": "swiss",
+                    "is_placeholder": false,
+                    "status": "pending",
+                    "player1_result": null,
+                    "player2_result": null,
+                    "player1_id": 9,
+                    "player2_id": 10,
+                    "player1": {
+                        "id": 9,
+                        "name": "Test Player 2",
+                        "rating": 1350
+                    },
+                    "player2": {
+                        "id": 10,
+                        "name": "Test Player 3",
+                        "rating": 1300
+                    }
+                },
+                {
+                    "id": 43,
+                    "round_number": 1,
+                    "round_type": "swiss",
+                    "is_placeholder": false,
+                    "status": "pending",
+                    "player1_result": null,
+                    "player2_result": null,
+                    "player1_id": 10,
+                    "player2_id": 8,
+                    "player1": {
+                        "id": 10,
+                        "name": "Test Player 3",
+                        "rating": 1300
+                    },
+                    "player2": {
+                        "id": 8,
+                        "name": "Test Player 1",
+                        "rating": 1400
+                    }
+                },
+                {
+                    "id": 44,
+                    "round_number": 1,
+                    "round_type": "swiss",
+                    "is_placeholder": false,
+                    "status": "pending",
+                    "player1_result": null,
+                    "player2_result": null,
+                    "player1_id": 11,
+                    "player2_id": 12,
+                    "player1": {
+                        "id": 11,
+                        "name": "Test Player 4",
+                        "rating": 1250
+                    },
+                    "player2": {
+                        "id": 12,
+                        "name": "Test Player 5",
+                        "rating": 1200
+                    }
+                }
+            ]
+        },
+        {
+            "round_number": 2,
+            "name": "Round 2",
+            "round_type": "swiss",
+            "matches": [
+                {
+                    "id": 45,
+                    "round_number": 2,
+                    "round_type": "swiss",
+                    "is_placeholder": false,
+                    "status": "pending",
+                    "player1_result": null,
+                    "player2_result": null,
+                    "player1_id": 8,
+                    "player2_id": 9,
+                    "player1": {
+                        "id": 8,
+                        "name": "Test Player 1",
+                        "rating": 1400
+                    },
+                    "player2": {
+                        "id": 9,
+                        "name": "Test Player 2",
+                        "rating": 1350
+                    }
+                },
+                {
+                    "id": 46,
+                    "round_number": 2,
+                    "round_type": "swiss",
+                    "is_placeholder": false,
+                    "status": "pending",
+                    "player1_result": null,
+                    "player2_result": null,
+                    "player1_id": 9,
+                    "player2_id": 10,
+                    "player1": {
+                        "id": 9,
+                        "name": "Test Player 2",
+                        "rating": 1350
+                    },
+                    "player2": {
+                        "id": 10,
+                        "name": "Test Player 3",
+                        "rating": 1300
+                    }
+                },
+                {
+                    "id": 47,
+                    "round_number": 2,
+                    "round_type": "swiss",
+                    "is_placeholder": false,
+                    "status": "pending",
+                    "player1_result": null,
+                    "player2_result": null,
+                    "player1_id": 10,
+                    "player2_id": 11,
+                    "player1": {
+                        "id": 10,
+                        "name": "Test Player 3",
+                        "rating": 1300
+                    },
+                    "player2": {
+                        "id": 11,
+                        "name": "Test Player 4",
+                        "rating": 1250
+                    }
+                },
+                {
+                    "id": 48,
+                    "round_number": 2,
+                    "round_type": "swiss",
+                    "is_placeholder": false,
+                    "status": "pending",
+                    "player1_result": null,
+                    "player2_result": null,
+                    "player1_id": 11,
+                    "player2_id": 12,
+                    "player1": {
+                        "id": 11,
+                        "name": "Test Player 4",
+                        "rating": 1250
+                    },
+                    "player2": {
+                        "id": 12,
+                        "name": "Test Player 5",
+                        "rating": 1200
+                    }
+                }
+            ]
+        },
+        {
+            "round_number": 3,
+            "name": "Semi Final",
+            "round_type": "semi_final",
+            "matches": [
+                {
+                    "id": 49,
+                    "round_number": 3,
+                    "round_type": "semi_final",
+                    "is_placeholder": true,
+                    "status": "pending",
+                    "player1_result": null,
+                    "player2_result": null,
+                    "player1_id": null,
+                    "player2_id": null,
+                    "player1": null,
+                    "player2": null,
+                    "player1_bracket_position": 1,
+                    "player2_bracket_position": 4,
+                    "determined_by_round": 2,
+                    "requires_top_k": 4
+                },
+                {
+                    "id": 50,
+                    "round_number": 3,
+                    "round_type": "semi_final",
+                    "is_placeholder": true,
+                    "status": "pending",
+                    "player1_result": null,
+                    "player2_result": null,
+                    "player1_id": null,
+                    "player2_id": null,
+                    "player1": null,
+                    "player2": null,
+                    "player1_bracket_position": 1,
+                    "player2_bracket_position": 4,
+                    "determined_by_round": 2,
+                    "requires_top_k": 4
+                }
+            ]
+        },
+        {
+            "round_number": 4,
+            "name": "Third Place Match",
+            "round_type": "third_place",
+            "matches": [
+                {
+                    "id": 51,
+                    "round_number": 4,
+                    "round_type": "third_place",
+                    "is_placeholder": true,
+                    "status": "pending",
+                    "player1_result": null,
+                    "player2_result": null,
+                    "player1_id": null,
+                    "player2_id": null,
+                    "player1": null,
+                    "player2": null,
+                    "player1_bracket_position": 1,
+                    "player2_bracket_position": 2,
+                    "determined_by_round": 3,
+                    "requires_top_k": 2
+                }
+            ]
+        },
+        {
+            "round_number": 5,
+            "name": "Final",
+            "round_type": "final",
+            "matches": [
+                {
+                    "id": 52,
+                    "round_number": 5,
+                    "round_type": "final",
+                    "is_placeholder": true,
+                    "status": "pending",
+                    "player1_result": null,
+                    "player2_result": null,
+                    "player1_id": null,
+                    "player2_id": null,
+                    "player1": null,
+                    "player2": null,
+                    "player1_bracket_position": 1,
+                    "player2_bracket_position": 2,
+                    "determined_by_round": 4,
+                    "requires_top_k": 2
+                }
+            ]
+        }
+    ],
+    "matches": [
+        {
+            "id": 41,
+            "round_number": 1,
+            "round_type": "swiss",
+            "player1_id": 8,
+            "player2_id": 9,
+            "status": "pending",
+            "created_at": "2025-12-03T06:01:17.000000Z"
+        },
+        {
+            "id": 42,
+            "round_number": 1,
+            "round_type": "swiss",
+            "player1_id": 9,
+            "player2_id": 10,
+            "status": "pending",
+            "created_at": "2025-12-03T06:01:17.000000Z"
+        },
+        {
+            "id": 43,
+            "round_number": 1,
+            "round_type": "swiss",
+            "player1_id": 10,
+            "player2_id": 8,
+            "status": "pending",
+            "created_at": "2025-12-03T06:01:17.000000Z"
+        },
+        {
+            "id": 44,
+            "round_number": 1,
+            "round_type": "swiss",
+            "player1_id": 11,
+            "player2_id": 12,
+            "status": "pending",
+            "created_at": "2025-12-03T06:01:17.000000Z"
+        },
+        {
+            "id": 45,
+            "round_number": 2,
+            "round_type": "swiss",
+            "player1_id": 8,
+            "player2_id": 9,
+            "status": "pending",
+            "created_at": "2025-12-03T06:01:17.000000Z"
+        },
+        {
+            "id": 46,
+            "round_number": 2,
+            "round_type": "swiss",
+            "player1_id": 9,
+            "player2_id": 10,
+            "status": "pending",
+            "created_at": "2025-12-03T06:01:17.000000Z"
+        },
+        {
+            "id": 47,
+            "round_number": 2,
+            "round_type": "swiss",
+            "player1_id": 10,
+            "player2_id": 11,
+            "status": "pending",
+            "created_at": "2025-12-03T06:01:17.000000Z"
+        },
+        {
+            "id": 48,
+            "round_number": 2,
+            "round_type": "swiss",
+            "player1_id": 11,
+            "player2_id": 12,
+            "status": "pending",
+            "created_at": "2025-12-03T06:01:17.000000Z"
+        },
+        {
+            "id": 49,
+            "round_number": 3,
+            "round_type": "semi_final",
+            "player1_id": null,
+            "player2_id": null,
+            "status": "pending",
+            "created_at": "2025-12-03T06:01:17.000000Z"
+        },
+        {
+            "id": 50,
+            "round_number": 3,
+            "round_type": "semi_final",
+            "player1_id": null,
+            "player2_id": null,
+            "status": "pending",
+            "created_at": "2025-12-03T06:01:17.000000Z"
+        },
+        {
+            "id": 51,
+            "round_number": 4,
+            "round_type": "third_place",
+            "player1_id": null,
+            "player2_id": null,
+            "status": "pending",
+            "created_at": "2025-12-03T06:01:17.000000Z"
+        },
+        {
+            "id": 52,
+            "round_number": 5,
+            "round_type": "final",
+            "player1_id": null,
+            "player2_id": null,
+            "status": "pending",
+            "created_at": "2025-12-03T06:01:17.000000Z"
+        }
+    ],
+    "tournament_settings": {
+        "swiss_pairing_method": "standings_based",
+        "elimination_seeding": "top_standings",
+        "include_third_place": true,
+        "bracket_type": "standard",
+        "tiebreakers": [
+            "points",
+            "buchholz",
+            "sonneborn_berger",
+            "rating"
+        ]
+    }
+}

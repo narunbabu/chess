@@ -54,3 +54,22 @@ Route::group(['prefix' => 'auth'], function () {
     // Handle POST requests from some OAuth providers
     Route::post('{provider}/callback', [SocialAuthController::class, 'callback']);
 });
+
+// Catch-all route for development tools and unwanted requests
+Route::any('/{path}', function ($path) {
+    // Log the request for debugging
+    \Log::info('Catch-all route hit', [
+        'path' => $path,
+        'method' => request()->method(),
+        'user_agent' => request()->userAgent(),
+        'referer' => request()->header('referer'),
+        'ip' => request()->ip()
+    ]);
+
+    // Return 404 for unknown routes instead of 500
+    return response()->json([
+        'error' => 'Route not found',
+        'path' => $path,
+        'message' => 'The requested route does not exist on this server.'
+    ], 404);
+})->where('path', '.*')->fallback();

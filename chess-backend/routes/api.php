@@ -499,3 +499,15 @@ Route::post('/public/game-history', function (Illuminate\Http\Request $request) 
         ], 500);
     }
 });
+
+// Tournament Visualizer API (internal testing only - disabled in production)
+Route::prefix('visualizer')->group(function () {
+    Route::post('/tournaments/create', [\App\Http\Controllers\TournamentVisualizerController::class, 'createTournament']);
+    Route::get('/tournaments/list', [\App\Http\Controllers\TournamentVisualizerController::class, 'listTournaments']);
+    Route::get('/tournaments/{id}', [\App\Http\Controllers\TournamentVisualizerController::class, 'getTournament']);
+    Route::put('/matches/{matchId}/result', [\App\Http\Controllers\TournamentVisualizerController::class, 'updateMatchResult']);
+    Route::get('/tournaments/{id}/standings', [\App\Http\Controllers\TournamentVisualizerController::class, 'getStandings']);
+    Route::get('/tournaments/{id}/export', [\App\Http\Controllers\TournamentVisualizerController::class, 'exportTournament']);
+    Route::delete('/tournaments/{id}', [\App\Http\Controllers\TournamentVisualizerController::class, 'deleteTournament']);
+    Route::get('/tournaments/{id}/tiebreaker', [\App\Http\Controllers\TiebreakerController::class, 'getBreakdown']);
+});

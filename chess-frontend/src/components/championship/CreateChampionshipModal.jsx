@@ -36,6 +36,14 @@ function formatDateTimeForInput(dateString) {
   }
 }
 
+// Helper function to add days/hours to a date
+function addTimeToDate(dateString, days = 0, hours = 0) {
+  const date = new Date(dateString);
+  date.setDate(date.getDate() + days);
+  date.setHours(date.getHours() + hours);
+  return formatDateTimeForInput(date);
+}
+
 const CreateChampionshipModal = ({ isOpen, onClose, onSuccess, championship: editingChampionship }) => {
   const { createChampionship, updateChampionship } = useChampionship();
   const [loading, setLoading] = useState(false);
@@ -65,7 +73,14 @@ const CreateChampionshipModal = ({ isOpen, onClose, onSuccess, championship: edi
       color_preference: true,
       tiebreak_rules: ['buchholz', 'sonnenborn_berger'],
       auto_pairing: true,
-      round_duration_days: 3
+      round_duration_days: 1, // Gap between rounds
+      registration_gap_days: 7, // Gap between registration start and end
+      start_gap_days: 7 // Gap between registration end and championship start
+    },
+    gaps: {
+      registration_duration_days: 7, // Days for registration period
+      preparation_days: 7, // Days between registration end and championship start
+      round_gap_hours: 24 // Hours between rounds (default 1 day)
     }
   });
 
@@ -92,11 +107,43 @@ const CreateChampionshipModal = ({ isOpen, onClose, onSuccess, championship: edi
           color_preference: editingChampionship.settings?.color_preference ?? true,
           tiebreak_rules: editingChampionship.settings?.tiebreak_rules || ['buchholz', 'sonnenborn_berger'],
           auto_pairing: editingChampionship.settings?.auto_pairing ?? true,
-          round_duration_days: editingChampionship.settings?.round_duration_days || editingChampionship.match_time_window_hours / 24 || 3
+          round_duration_days: editingChampionship.settings?.round_duration_days || editingChampionship.match_time_window_hours / 24 || 1
+        },
+        gaps: {
+          registration_duration_days: editingChampionship.gaps?.registration_duration_days || 7,
+          preparation_days: editingChampionship.gaps?.preparation_days || 7,
+          round_gap_hours: editingChampionship.gaps?.round_gap_hours || 24
         }
       });
     }
   }, [isEditing, editingChampionship]);
+
+  // Auto-calculate dates when gaps change
+  useEffect(() => {
+    if (!isEditing && formData.registration_start_at) {
+      const regEnd = addTimeToDate(
+        formData.registration_start_at,
+        formData.gaps.registration_duration_days,
+        0
+      );
+      const champStart = addTimeToDate(
+        regEnd,
+        formData.gaps.preparation_days,
+        0
+      );
+
+      setFormData(prev => ({
+        ...prev,
+        registration_end_at: regEnd,
+        starts_at: champStart
+      }));
+    }
+  }, [
+    formData.gaps.registration_duration_days,
+    formData.gaps.preparation_days,
+    formData.registration_start_at,
+    isEditing
+  ]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -205,6 +252,29 @@ const CreateChampionshipModal = ({ isOpen, onClose, onSuccess, championship: edi
         if (!formData.starts_at) {
           stepErrors.starts_at = 'Championship start date is required';
         }
+
+        // Validate chronological order
+        const regStart = new Date(formData.registration_start_at);
+        const regEnd = new Date(formData.registration_end_at);
+        const champStart = new Date(formData.starts_at);
+
+        if (regEnd <= regStart) {
+          stepErrors.registration_end_at = 'Registration end must be after registration start';
+        }
+        if (champStart <= regEnd) {
+          stepErrors.starts_at = 'Championship start must be after registration end';
+        }
+
+        // Check minimum gaps
+        const regGapHours = (regEnd - regStart) / (1000 * 60 * 60);
+        const prepGapHours = (champStart - regEnd) / (1000 * 60 * 60);
+
+        if (regGapHours < 1) {
+          stepErrors.registration_end_at = 'Registration period must be at least 1 hour';
+        }
+        if (prepGapHours < 1) {
+          stepErrors.starts_at = 'Preparation period must be at least 1 hour';
+        }
         break;
     }
 
@@ -289,7 +359,12 @@ const CreateChampionshipModal = ({ isOpen, onClose, onSuccess, championship: edi
           color_preference: true,
           tiebreak_rules: ['buchholz', 'sonnenborn_berger'],
           auto_pairing: true,
-          round_duration_days: 3
+          round_duration_days: 1
+        },
+        gaps: {
+          registration_duration_days: 7,
+          preparation_days: 7,
+          round_gap_hours: 24
         }
       });
       setCurrentStep(1);
@@ -451,6 +526,57 @@ const CreateChampionshipModal = ({ isOpen, onClose, onSuccess, championship: edi
             </div>
 
             <div className="form-group">
+              <h4 style={{ marginTop: '20px', marginBottom: '10px' }}>Schedule Gaps</h4>
+              <small style={{ display: 'block', marginBottom: '15px', color: '#666' }}>
+                Configure time intervals between different phases
+              </small>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="registration_duration_days">Registration Period (days)</label>
+                <input
+                  type="number"
+                  id="registration_duration_days"
+                  value={formData.gaps.registration_duration_days}
+                  onChange={(e) => handleNestedInputChange('gaps', 'registration_duration_days', parseInt(e.target.value) || 1)}
+                  min="1"
+                  max="90"
+                  className="form-input"
+                />
+                <small>Days from registration start to end</small>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="preparation_days">Preparation Period (days)</label>
+                <input
+                  type="number"
+                  id="preparation_days"
+                  value={formData.gaps.preparation_days}
+                  onChange={(e) => handleNestedInputChange('gaps', 'preparation_days', parseInt(e.target.value) || 1)}
+                  min="1"
+                  max="90"
+                  className="form-input"
+                />
+                <small>Days from registration end to championship start</small>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="round_gap_hours">Gap Between Rounds (hours)</label>
+              <input
+                type="number"
+                id="round_gap_hours"
+                value={formData.gaps.round_gap_hours}
+                onChange={(e) => handleNestedInputChange('gaps', 'round_gap_hours', parseInt(e.target.value) || 1)}
+                min="1"
+                max="168"
+                className="form-input"
+              />
+              <small>Hours between consecutive rounds (default: 24 = 1 day)</small>
+            </div>
+
+            <div className="form-group">
               <label>Prizes</label>
               {formData.prizes.length === 0 ? (
                 <button type="button" onClick={handleAddPrize} className="btn btn-secondary">
@@ -517,6 +643,27 @@ const CreateChampionshipModal = ({ isOpen, onClose, onSuccess, championship: edi
           <div className="step-content">
             <h3>Schedule</h3>
 
+            <div style={{
+              background: '#f0f7ff',
+              border: '1px solid #b3d9ff',
+              borderRadius: '6px',
+              padding: '12px 16px',
+              marginBottom: '20px',
+              fontSize: '14px'
+            }}>
+              <div style={{ fontWeight: '600', marginBottom: '8px', color: '#0066cc' }}>
+                📅 Auto-Calculated Schedule
+              </div>
+              <div style={{ color: '#333' }}>
+                • Registration Period: <strong>{formData.gaps.registration_duration_days} days</strong><br/>
+                • Preparation Time: <strong>{formData.gaps.preparation_days} days</strong><br/>
+                • Gap Between Rounds: <strong>{formData.gaps.round_gap_hours} hours</strong>
+              </div>
+              <small style={{ display: 'block', marginTop: '8px', color: '#666' }}>
+                💡 Dates are calculated based on gaps set in Step 2. You can still manually adjust them below.
+              </small>
+            </div>
+
             <div className="form-group">
               <label htmlFor="registration_start_at">Registration Start *</label>
               <input
@@ -538,6 +685,9 @@ const CreateChampionshipModal = ({ isOpen, onClose, onSuccess, championship: edi
                 onChange={(e) => handleInputChange('registration_end_at', e.target.value)}
                 className={`form-input ${errors.registration_end_at ? 'error' : ''}`}
               />
+              <small>
+                Auto-calculated: {formData.gaps.registration_duration_days} days after registration start
+              </small>
               {stepInteracted[currentStep] && errors.registration_end_at && <span className="error-message">{errors.registration_end_at}</span>}
             </div>
 
@@ -550,6 +700,9 @@ const CreateChampionshipModal = ({ isOpen, onClose, onSuccess, championship: edi
                 onChange={(e) => handleInputChange('starts_at', e.target.value)}
                 className={`form-input ${errors.starts_at ? 'error' : ''}`}
               />
+              <small>
+                Auto-calculated: {formData.gaps.preparation_days} days after registration end
+              </small>
               {stepInteracted[currentStep] && errors.starts_at && <span className="error-message">{errors.starts_at}</span>}
             </div>
 

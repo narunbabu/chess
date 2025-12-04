@@ -74,6 +74,9 @@ class TournamentGenerationService
         ];
 
         DB::transaction(function () use ($championship, $config, $participants, &$pairHistory, &$summary) {
+            // Generate ALL rounds upfront
+            // Swiss rounds: Create matches with assigned players
+            // Elimination rounds: Create placeholder matches with TBD players
             foreach ($config->roundStructure as $roundConfig) {
                 $roundNumber = $roundConfig['round'];
 
@@ -107,6 +110,7 @@ class TournamentGenerationService
 
         return $summary;
     }
+
 
     /**
      * Generate a single round based on configuration
@@ -275,7 +279,17 @@ class TournamentGenerationService
             return $this->generatePlaceholderPairings($roundConfig);
         }
 
-        // For early rounds (round 1-2), create fixed pairings
+        // 🎯 CRITICAL FIX: For Swiss rounds beyond Round 1, create placeholder pairings
+        // These will be assigned dynamically when the previous round completes
+        if ($method === TournamentConfig::PAIRING_SWISS && $roundNumber > 1) {
+            Log::info("Creating placeholder pairings for Swiss round", [
+                'championship_id' => $championship->id,
+                'round_number' => $roundNumber,
+            ]);
+            return $this->generateSwissPlaceholderPairings($participants->count());
+        }
+
+        // For early rounds (round 1), create fixed pairings
         switch ($method) {
             case TournamentConfig::PAIRING_RANDOM:
                 return $this->pairRandom($participants, $matchesPerPlayer);
@@ -297,7 +311,7 @@ class TournamentGenerationService
                 return $this->pairDirect($participants);
 
             case TournamentConfig::PAIRING_SWISS:
-                // Use existing Swiss pairing service
+                // Use existing Swiss pairing service for Round 1
                 return $this->swissService->generatePairings($championship, $roundNumber);
 
             case TournamentConfig::PAIRING_ROUND_ROBIN_TOP_K:
@@ -318,6 +332,35 @@ class TournamentGenerationService
         return is_array($selection) && (
             isset($selection['top_k']) || isset($selection['top_percent'])
         );
+    }
+
+    /**
+     * Generate placeholder pairings for Swiss rounds (Round 2+)
+     *
+     * Creates TBD matches that will be assigned when previous round completes
+     * Number of matches = floor(participants / 2)
+     */
+    private function generateSwissPlaceholderPairings(int $participantCount): array
+    {
+        $matchCount = (int)floor($participantCount / 2);
+        $pairings = [];
+
+        Log::info("Generating Swiss placeholder pairings", [
+            'participant_count' => $participantCount,
+            'match_count' => $matchCount,
+        ]);
+
+        // Create placeholder matches (will be assigned based on Swiss pairings later)
+        for ($i = 0; $i < $matchCount; $i++) {
+            $pairings[] = [
+                'is_placeholder' => true,
+                'player1_rank' => null, // Will be determined by Swiss algorithm
+                'player2_rank' => null,
+                'match_index' => $i + 1,
+            ];
+        }
+
+        return $pairings;
     }
 
     /**

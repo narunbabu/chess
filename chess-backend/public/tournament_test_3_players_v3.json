@@ -1,0 +1,223 @@
+{
+    "tournament_info": {
+        "name": "3-Player Tournament v3",
+        "players": 3,
+        "rounds": 2,
+        "format": "Swiss + Elimination",
+        "description": "Test tournament with dynamic placeholder matches - version 3",
+        "version": "3.0"
+    },
+    "participants": [
+        {
+            "id": 101,
+            "name": "Player Alpha",
+            "rating": 1400,
+            "email": "tournament_test_3_v3_1@example.com"
+        },
+        {
+            "id": 102,
+            "name": "Player Beta",
+            "rating": 1350,
+            "email": "tournament_test_3_v3_2@example.com"
+        },
+        {
+            "id": 103,
+            "name": "Player Gamma",
+            "rating": 1300,
+            "email": "tournament_test_3_v3_3@example.com"
+        }
+    ],
+    "initial_standings": [
+        {
+            "id": 101,
+            "player_id": 101,
+            "player_name": "Player Alpha",
+            "name": "Player Alpha",
+            "rating": 1400,
+            "rank": 1,
+            "points": 0,
+            "wins": 0,
+            "losses": 0,
+            "draws": 0,
+            "matches_played": 0,
+            "buchholz": 0,
+            "sonneborn_berger": 0
+        },
+        {
+            "id": 102,
+            "player_id": 102,
+            "player_name": "Player Beta",
+            "name": "Player Beta",
+            "rating": 1350,
+            "rank": 2,
+            "points": 0,
+            "wins": 0,
+            "losses": 0,
+            "draws": 0,
+            "matches_played": 0,
+            "buchholz": 0,
+            "sonneborn_berger": 0
+        },
+        {
+            "id": 103,
+            "player_id": 103,
+            "player_name": "Player Gamma",
+            "name": "Player Gamma",
+            "rating": 1300,
+            "rank": 3,
+            "points": 0,
+            "wins": 0,
+            "losses": 0,
+            "draws": 0,
+            "matches_played": 0,
+            "buchholz": 0,
+            "sonneborn_berger": 0
+        }
+    ],
+    "rounds": [
+        {
+            "round_number": 1,
+            "name": "Round 1",
+            "round_type": "swiss",
+            "matches": [
+                {
+                    "id": 1001,
+                    "round_number": 1,
+                    "round_type": "swiss",
+                    "is_placeholder": false,
+                    "status": "completed",
+                    "player1_result": "win",
+                    "player2_result": "loss",
+                    "player1_id": 101,
+                    "player2_id": 102,
+                    "player1": {
+                        "id": 101,
+                        "name": "Player Alpha",
+                        "rating": 1400
+                    },
+                    "player2": {
+                        "id": 102,
+                        "name": "Player Beta",
+                        "rating": 1350
+                    }
+                },
+                {
+                    "id": 1002,
+                    "round_number": 1,
+                    "round_type": "swiss",
+                    "is_placeholder": false,
+                    "status": "completed",
+                    "player1_result": "win",
+                    "player2_result": "loss",
+                    "player1_id": 102,
+                    "player2_id": 103,
+                    "player1": {
+                        "id": 102,
+                        "name": "Player Beta",
+                        "rating": 1350
+                    },
+                    "player2": {
+                        "id": 103,
+                        "name": "Player Gamma",
+                        "rating": 1300
+                    }
+                },
+                {
+                    "id": 1003,
+                    "round_number": 1,
+                    "round_type": "swiss",
+                    "is_placeholder": false,
+                    "status": "pending",
+                    "player1_result": null,
+                    "player2_result": null,
+                    "player1_id": 103,
+                    "player2_id": 101,
+                    "player1": {
+                        "id": 103,
+                        "name": "Player Gamma",
+                        "rating": 1300
+                    },
+                    "player2": {
+                        "id": 101,
+                        "name": "Player Alpha",
+                        "rating": 1400
+                    }
+                }
+            ]
+        },
+        {
+            "round_number": 2,
+            "name": "Final",
+            "round_type": "final",
+            "matches": [
+                {
+                    "id": 1004,
+                    "round_number": 2,
+                    "round_type": "final",
+                    "is_placeholder": true,
+                    "status": "pending",
+                    "player1_result": null,
+                    "player2_result": null,
+                    "player1_id": null,
+                    "player2_id": null,
+                    "player1": null,
+                    "player2": null,
+                    "player1_bracket_position": 1,
+                    "player2_bracket_position": 2,
+                    "determined_by_round": 1,
+                    "requires_top_k": 2
+                }
+            ]
+        }
+    ],
+    "matches": [
+        {
+            "id": 1001,
+            "round_number": 1,
+            "round_type": "swiss",
+            "player1_id": 101,
+            "player2_id": 102,
+            "status": "completed",
+            "created_at": "2025-12-03T10:00:00.000000Z"
+        },
+        {
+            "id": 1002,
+            "round_number": 1,
+            "round_type": "swiss",
+            "player1_id": 102,
+            "player2_id": 103,
+            "status": "completed",
+            "created_at": "2025-12-03T10:00:00.000000Z"
+        },
+        {
+            "id": 1003,
+            "round_number": 1,
+            "round_type": "swiss",
+            "player1_id": 103,
+            "player2_id": 101,
+            "status": "pending",
+            "created_at": "2025-12-03T10:00:00.000000Z"
+        },
+        {
+            "id": 1004,
+            "round_number": 2,
+            "round_type": "final",
+            "player1_id": null,
+            "player2_id": null,
+            "status": "pending",
+            "created_at": "2025-12-03T10:00:00.000000Z"
+        }
+    ],
+    "tournament_settings": {
+        "swiss_pairing_method": "standings_based",
+        "elimination_seeding": "top_standings",
+        "include_third_place": true,
+        "bracket_type": "standard",
+        "tiebreakers": [
+            "points",
+            "buchholz",
+            "sonneborn_berger",
+            "rating"
+        ]
+    }
+}

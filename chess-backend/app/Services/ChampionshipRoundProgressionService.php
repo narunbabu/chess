@@ -19,8 +19,9 @@ class ChampionshipRoundProgressionService
 {
     private PlaceholderMatchAssignmentService $placeholderService;
 
-    public function __construct(PlaceholderMatchAssignmentService $placeholderService)
-    {
+    public function __construct(
+        PlaceholderMatchAssignmentService $placeholderService
+    ) {
         $this->placeholderService = $placeholderService;
     }
 
@@ -58,15 +59,80 @@ class ChampionshipRoundProgressionService
      */
     public function checkChampionshipRoundProgression(Championship $championship): ?array
     {
+        Log::info("=== CHECKING ROUND PROGRESSION ===", [
+            'championship_id' => $championship->id,
+            'status' => $championship->status,
+        ]);
+
         $currentRound = $this->getCurrentRound($championship);
 
         if (!$currentRound) {
+            Log::info("No current round found", [
+                'championship_id' => $championship->id,
+            ]);
             return null;
         }
 
+        $previousRound = $currentRound - 1;
+        $previousComplete = $this->isRoundComplete($championship, $previousRound);
+        $currentHasUnassigned = $this->placeholderService->hasUnassignedPlaceholders($championship, $currentRound);
+
+        Log::info("Progression analysis", [
+            'championship_id' => $championship->id,
+            'current_round' => $currentRound,
+            'previous_round' => $previousRound,
+            'previous_complete' => $previousComplete,
+            'current_unassigned_placeholders' => $currentHasUnassigned,
+        ]);
+
+        // Case 1: Current round is complete - progress normally
         if ($this->isRoundComplete($championship, $currentRound)) {
+            Log::info("Current round complete - progressing", [
+                'championship_id' => $championship->id,
+                'round' => $currentRound,
+            ]);
             return $this->progressToNextRound($championship, $currentRound);
         }
+
+        // Case 2: Previous round complete + current has unassigned placeholders - assign and "progress"
+        if ($previousComplete && $currentHasUnassigned) {
+            Log::info("Previous complete + current unassigned - assigning placeholders", [
+                'championship_id' => $championship->id,
+                'previous_round' => $previousRound,
+                'current_round' => $currentRound,
+            ]);
+
+            // Update standings for previous round (if not already)
+            $this->updateStandingsForRound($championship, $previousRound);
+
+            // Assign placeholders for current round
+            $assignmentResult = $this->assignPlaceholderMatchesForRound($championship, $currentRound);
+
+            // Update championship current_round if needed
+            if ($championship->current_round < $currentRound) {
+                $championship->update(['current_round' => $currentRound]);
+            }
+
+            Log::info("Placeholder assignment completed", [
+                'championship_id' => $championship->id,
+                'assigned_count' => $assignmentResult['assigned_count'],
+            ]);
+
+            return [
+                'championship_id' => $championship->id,
+                'action' => 'placeholders_assigned',
+                'previous_round' => $previousRound,
+                'current_round' => $currentRound,
+                'assignment_result' => $assignmentResult,
+                'updated_standings' => $this->getCurrentStandings($championship),
+            ];
+        }
+
+        Log::info("No progression triggered", [
+            'championship_id' => $championship->id,
+            'current_round' => $currentRound,
+            'reason' => 'neither current complete nor previous+unassigned',
+        ]);
 
         return null;
     }
@@ -108,6 +174,10 @@ class ChampionshipRoundProgressionService
 
     /**
      * Check if a specific round is complete
+     *
+     * A round is complete when all REAL matches (non-BYE) are completed.
+     * Pending BYE matches are excluded from this check and will be completed
+     * automatically when all real matches finish.
      */
     public function isRoundComplete(Championship $championship, int $roundNumber): bool
     {
@@ -115,10 +185,97 @@ class ChampionshipRoundProgressionService
             ->where('round_number', $roundNumber)
             ->get();
 
-        // Round is complete if all matches are completed
-        return $roundMatches->every(function ($match) {
+        // Separate real matches from BYE matches
+        $realMatches = $roundMatches->filter(function ($match) {
+            // A match is "real" if it's not a BYE OR if it's a completed BYE
+            return $match->result_type_id !== ResultTypeEnum::BYE->getId()
+                || $match->status_id === MatchStatusEnum::COMPLETED->getId();
+        });
+
+        $pendingByes = $roundMatches->filter(function ($match) {
+            // Find pending BYE matches that need completion
+            return $match->result_type_id === ResultTypeEnum::BYE->getId()
+                && $match->status_id === MatchStatusEnum::PENDING->getId();
+        });
+
+        Log::debug("🔍 [ROUND COMPLETE CHECK] Analyzing round {$roundNumber}", [
+            'championship_id' => $championship->id,
+            'total_matches' => $roundMatches->count(),
+            'real_matches' => $realMatches->count(),
+            'pending_byes' => $pendingByes->count(),
+        ]);
+
+        // Check if all real matches are completed
+        $allRealMatchesComplete = $realMatches->every(function ($match) {
             return $match->status_id === MatchStatusEnum::COMPLETED->getId();
         });
+
+        // If all real matches are complete and there are pending BYEs, complete them now
+        if ($allRealMatchesComplete && $pendingByes->count() > 0) {
+            $this->completePendingByes($championship, $roundNumber, $pendingByes);
+
+            // After completing BYEs, re-check all matches
+            return $this->isRoundComplete($championship, $roundNumber);
+        }
+
+        return $allRealMatchesComplete;
+    }
+
+    /**
+     * Complete all pending BYE matches for a round
+     *
+     * Called automatically when all real matches in a round are completed.
+     * This ensures BYE points are awarded at the correct time.
+     */
+    private function completePendingByes(Championship $championship, int $roundNumber, $pendingByes): void
+    {
+        $byePoints = $championship->getByePoints();
+
+        Log::info("✅ [BYE COMPLETION] Completing pending BYE matches for round {$roundNumber}", [
+            'championship_id' => $championship->id,
+            'round_number' => $roundNumber,
+            'bye_count' => $pendingByes->count(),
+            'bye_points' => $byePoints,
+        ]);
+
+        foreach ($pendingByes as $byeMatch) {
+            // Complete the match
+            $byeMatch->update([
+                'status_id' => MatchStatusEnum::COMPLETED->getId(),
+                'winner_id' => $byeMatch->player1_id, // Player1 always wins BYE
+            ]);
+
+            // Award bye points NOW (this is the fair timing!)
+            $standing = $championship->standings()
+                ->where('user_id', $byeMatch->player1_id)
+                ->first();
+
+            if ($standing) {
+                $standing->increment('points', $byePoints);
+            } else {
+                // Create standing if doesn't exist
+                $championship->standings()->create([
+                    'user_id' => $byeMatch->player1_id,
+                    'points' => $byePoints,
+                    'matches_played' => 0,
+                    'wins' => 0,
+                    'draws' => 0,
+                    'losses' => 0,
+                    'buchholz_score' => 0,
+                    'sonneborn_berger' => 0,
+                ]);
+            }
+
+            Log::info("🎯 [BYE AWARDED] BYE match completed and points awarded", [
+                'match_id' => $byeMatch->id,
+                'championship_id' => $championship->id,
+                'round_number' => $roundNumber,
+                'player_id' => $byeMatch->player1_id,
+                'points_awarded' => $byePoints,
+                'timing' => 'after_all_real_matches_complete',
+                'fairness' => 'bye_points_awarded_at_correct_time',
+            ]);
+        }
     }
 
     /**
@@ -186,7 +343,57 @@ class ChampionshipRoundProgressionService
             ];
         }
 
-        // Assign players based on current standings
+        // 🎯 CRITICAL FIX: Check if this round is an elimination round
+        // Elimination rounds should only be assigned AFTER all Swiss rounds complete
+        // Swiss rounds can be assigned as soon as the previous round completes
+        if ($this->isEliminationRound($championship, $roundNumber)) {
+            // Check if all Swiss rounds are completed
+            if (!$this->areAllSwissRoundsComplete($championship)) {
+                Log::info("Skipping elimination round assignment - Swiss rounds not complete", [
+                    'championship_id' => $championship->id,
+                    'round_number' => $roundNumber,
+                ]);
+
+                return [
+                    'assigned_count' => 0,
+                    'matches' => [],
+                    'reason' => 'swiss_rounds_incomplete',
+                ];
+            }
+
+            Log::info("All Swiss rounds complete - assigning elimination round matches", [
+                'championship_id' => $championship->id,
+                'round_number' => $roundNumber,
+            ]);
+        } else {
+            // For Swiss rounds, check if the immediately previous round is complete
+            $previousRound = $roundNumber - 1;
+            if ($previousRound > 0) {
+                $previousRoundComplete = $this->isRoundComplete($championship, $previousRound);
+
+                if (!$previousRoundComplete) {
+                    Log::info("Skipping Swiss round assignment - previous round not complete", [
+                        'championship_id' => $championship->id,
+                        'round_number' => $roundNumber,
+                        'previous_round' => $previousRound,
+                    ]);
+
+                    return [
+                        'assigned_count' => 0,
+                        'matches' => [],
+                        'reason' => 'previous_round_incomplete',
+                    ];
+                }
+
+                Log::info("Previous round complete - assigning Swiss round matches", [
+                    'championship_id' => $championship->id,
+                    'round_number' => $roundNumber,
+                    'previous_round' => $previousRound,
+                ]);
+            }
+        }
+
+        // Assign players based on current standings (or Swiss algorithm for Swiss rounds)
         return $this->placeholderService->assignPlayersToPlaceholderMatches($championship, $roundNumber);
     }
 
@@ -401,16 +608,37 @@ class ChampionshipRoundProgressionService
 
     /**
      * Generate matches for the next round
+     *
+     * NOTE: All rounds are now pre-generated during tournament creation
+     * This method exists for compatibility but should rarely be called
      */
     private function generateNextRoundMatches(Championship $championship, int $nextRound): array
     {
-        $format = $championship->getFormatEnum();
+        Log::info("Checking if next round matches already exist", [
+            'championship_id' => $championship->id,
+            'next_round' => $nextRound,
+        ]);
 
-        if ($format->isSwiss() || ($format->isHybrid() && $nextRound <= ($championship->swiss_rounds ?? 0))) {
-            return $this->generateSwissPairings($championship, $nextRound);
-        } else {
-            return $this->generateEliminationPairings($championship, $nextRound);
+        // Check if matches already exist for this round
+        $existingMatches = $championship->matches()
+            ->where('round_number', $nextRound)
+            ->count();
+
+        if ($existingMatches > 0) {
+            Log::info("Matches already exist for round {$nextRound}, skipping generation", [
+                'championship_id' => $championship->id,
+                'existing_matches' => $existingMatches,
+            ]);
+            return [];
         }
+
+        // If matches don't exist, log a warning (this shouldn't happen in normal flow)
+        Log::warning("No matches found for next round - tournament may not have been fully generated", [
+            'championship_id' => $championship->id,
+            'next_round' => $nextRound,
+        ]);
+
+        return [];
     }
 
     /**
@@ -680,5 +908,94 @@ class ChampionshipRoundProgressionService
         }
 
         return $result;
+    }
+
+    /**
+     * Check if a round is an elimination round (Quarter Final, Semi Final, Final, etc.)
+     *
+     * @param Championship $championship
+     * @param int $roundNumber
+     * @return bool
+     */
+    private function isEliminationRound(Championship $championship, int $roundNumber): bool
+    {
+        // Get any match from this round to check its type
+        $match = $championship->matches()
+            ->where('round_number', $roundNumber)
+            ->first();
+
+        if (!$match) {
+            return false;
+        }
+
+        $roundType = $match->getRoundTypeEnum();
+
+        // Check if this round type is an elimination round
+        return in_array($roundType->value, [
+            'quarter_final',
+            'semi_final',
+            'final',
+            'third_place',
+            'round_of_16',
+            'elimination',
+        ]);
+    }
+
+    /**
+     * Check if all Swiss rounds in the tournament are completed
+     *
+     * @param Championship $championship
+     * @return bool
+     */
+    private function areAllSwissRoundsComplete(Championship $championship): bool
+    {
+        // Get tournament configuration
+        $config = $championship->getTournamentConfig();
+
+        if (!$config) {
+            // If no config, assume Swiss rounds are complete (fallback)
+            Log::warning("No tournament config found, assuming Swiss rounds complete", [
+                'championship_id' => $championship->id,
+            ]);
+            return true;
+        }
+
+        // Find all Swiss rounds from config
+        $swissRounds = [];
+        foreach ($config->roundStructure as $roundConfig) {
+            $roundType = $roundConfig['type'] ?? 'swiss';
+            if ($roundType === 'swiss') {
+                $swissRounds[] = $roundConfig['round'];
+            }
+        }
+
+        if (empty($swissRounds)) {
+            // No Swiss rounds configured
+            return true;
+        }
+
+        // Check if all Swiss rounds have all matches completed
+        foreach ($swissRounds as $swissRoundNumber) {
+            $incompleteMatches = $championship->matches()
+                ->where('round_number', $swissRoundNumber)
+                ->where('status_id', '!=', MatchStatusEnum::COMPLETED->getId())
+                ->count();
+
+            if ($incompleteMatches > 0) {
+                Log::info("Swiss round {$swissRoundNumber} has incomplete matches", [
+                    'championship_id' => $championship->id,
+                    'round_number' => $swissRoundNumber,
+                    'incomplete_count' => $incompleteMatches,
+                ]);
+                return false;
+            }
+        }
+
+        Log::info("All Swiss rounds are complete", [
+            'championship_id' => $championship->id,
+            'swiss_rounds' => $swissRounds,
+        ]);
+
+        return true;
     }
 }

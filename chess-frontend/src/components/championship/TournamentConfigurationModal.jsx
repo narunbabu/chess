@@ -54,6 +54,7 @@ const TournamentConfigurationModal = ({
           {
             round_number: 1,
             name: 'Round 1',
+            type: 'swiss',
             selection_rule: 'all_participants',
             matches_per_player: 2,
             pairing_method: 'random_seeded',
@@ -62,6 +63,7 @@ const TournamentConfigurationModal = ({
           {
             round_number: 2,
             name: 'Round 2',
+            type: 'swiss',
             selection_rule: 'all_participants',
             matches_per_player: 1,
             pairing_method: 'rating_based',
@@ -194,6 +196,7 @@ const TournamentConfigurationModal = ({
     newConfig.round_structure.push({
       round_number: nextRound,
       name: `Round ${nextRound}`,
+      type: 'swiss',
       selection_rule: 'all_participants',
       matches_per_player: 1,
       pairing_method: 'random',
@@ -365,6 +368,20 @@ const TournamentConfigurationModal = ({
                           value={round.name || ''}
                           onChange={(e) => updateCustomConfigRound(index, 'name', e.target.value)}
                         />
+                      </div>
+                      <div className="config-field">
+                        <label>Round Type</label>
+                        <select
+                          value={round.type || 'swiss'}
+                          onChange={(e) => updateCustomConfigRound(index, 'type', e.target.value)}
+                        >
+                          <option value="swiss">Swiss Round</option>
+                          <option value="round_of_16">Round of 16</option>
+                          <option value="quarter_final">Quarter Final</option>
+                          <option value="semi_final">Semi Final</option>
+                          <option value="final">Final</option>
+                          <option value="third_place">Third Place Match</option>
+                        </select>
                       </div>
                       <div className="config-field">
                         <label>Participant Selection</label>

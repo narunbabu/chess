@@ -217,6 +217,48 @@ const ChampionshipStandings = ({ championshipId }) => {
         </div>
       </div>
 
+      {/* Tiebreaker Rules */}
+      <div className="tiebreaker-rules">
+        <h4>🏆 Tiebreaker Rules</h4>
+        <p>When players have the same score, the following tiebreakers are applied in order:</p>
+        <div className="tiebreaker-list">
+          <div className="tiebreaker-item">
+            <div className="tiebreaker-rank">1st</div>
+            <div className="tiebreaker-details">
+              <strong>Points</strong>
+              <div className="tiebreaker-desc">Total tournament points (1 for win, 0.5 for draw, 0 for loss)</div>
+            </div>
+          </div>
+          <div className="tiebreaker-item">
+            <div className="tiebreaker-rank">2nd</div>
+            <div className="tiebreaker-details">
+              <strong>Buchholz Score</strong>
+              <div className="tiebreaker-desc">Sum of all opponents' tournament points (higher is better)</div>
+            </div>
+          </div>
+          <div className="tiebreaker-item">
+            <div className="tiebreaker-rank">3rd</div>
+            <div className="tiebreaker-details">
+              <strong>Sonneborn-Berger Score</strong>
+              <div className="tiebreaker-desc">Sum of opponents' points weighted by your result against them (higher is better)</div>
+            </div>
+          </div>
+          <div className="tiebreaker-item">
+            <div className="tiebreaker-rank">4th</div>
+            <div className="tiebreaker-details">
+              <strong>Initial Rating</strong>
+              <div className="tiebreaker-desc">Player's rating at tournament start (higher rating wins ties)</div>
+            </div>
+          </div>
+        </div>
+        <div className="tiebreaker-note">
+          <small>
+            💡 <strong>Example:</strong> If two players both have 3 points, the player with the higher Buchholz score ranks above.
+            If Buchholz scores are equal, Sonneborn-Berger decides, then rating as the final tiebreaker.
+          </small>
+        </div>
+      </div>
+
       {/* Statistics Summary */}
       <div className="standings-summary">
         <h3>📈 Tournament Statistics</h3>
