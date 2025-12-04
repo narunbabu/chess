@@ -29,11 +29,16 @@ echo "============================\n\n";
 echo "\n";
 
 $data = $result->getData();
-if (isset($data->data)) {
-    $rounds = $data->data->rounds;
-} else {
-    $rounds = $data->rounds;
+echo "DEBUG: Response structure:\n";
+echo json_encode($data, JSON_PRETTY_PRINT) . "\n\n";
+
+$rounds = $data->rounds ?? [];
+
+if (empty($rounds) && isset($data->data)) {
+    $rounds = $data->data->rounds ?? [];
 }
+
+echo "DEBUG: Rounds count: " . count($rounds) . "\n";
 
 foreach ($rounds as $round) {
     echo "=== {$round->name} === ({$round->round_type})\n";

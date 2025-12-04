@@ -122,6 +122,9 @@ class TournamentGenerationService
         Collection $allParticipants,
         array &$pairHistory
     ): array {
+
+        // Map round type string to ChampionshipRoundType enum
+        $roundTypeEnum = $this->mapRoundTypeToEnum($roundConfig['type'] ?? 'swiss');
         // Check for coverage enforcement first
         if (isset($roundConfig['enforce_coverage']) && $roundConfig['enforce_coverage']) {
             return $this->generateCoverageEnforcedRound(
@@ -154,8 +157,8 @@ class TournamentGenerationService
             $pairHistory
         );
 
-        // Create matches
-        $matches = $this->createMatches($championship, $roundNumber, $pairings);
+        // Create matches with correct round type
+        $matches = $this->createMatches($championship, $roundNumber, $pairings, $roundTypeEnum);
 
         // Update pair history (skip placeholder matches)
         foreach ($pairings as $pairing) {
@@ -855,7 +858,7 @@ class TournamentGenerationService
      *
      * Handles both fixed pairings (with player IDs) and placeholder pairings (with rank positions)
      */
-    private function createMatches(Championship $championship, int $roundNumber, array $pairings): Collection
+    private function createMatches(Championship $championship, int $roundNumber, array $pairings, ChampionshipRoundType $roundTypeEnum): Collection
     {
         $matches = collect();
 
@@ -888,6 +891,7 @@ class TournamentGenerationService
                     $championship,
                     $roundNumber,
                     $pairing,
+                    $roundTypeEnum,
                     $matchStartTime,
                     $roundStartDate
                 );
@@ -910,7 +914,7 @@ class TournamentGenerationService
                 $match = ChampionshipMatch::create([
                     'championship_id' => $championship->id,
                     'round_number' => $roundNumber,
-                    'round_type' => ChampionshipRoundType::SWISS,
+                    'round_type' => $roundTypeEnum,
                     'player1_id' => $pairing['player1_id'],
                     'player2_id' => $pairing['player2_id'],
                     'white_player_id' => $colors['white'],
@@ -937,6 +941,7 @@ class TournamentGenerationService
         Championship $championship,
         int $roundNumber,
         array $pairing,
+        ChampionshipRoundType $roundTypeEnum,
         Carbon $matchStartTime,
         Carbon $roundStartDate
     ): ChampionshipMatch {
@@ -954,7 +959,7 @@ class TournamentGenerationService
         return ChampionshipMatch::create([
             'championship_id' => $championship->id,
             'round_number' => $roundNumber,
-            'round_type' => ChampionshipRoundType::SWISS,
+            'round_type' => $roundTypeEnum,
             'player1_id' => null, // Will be assigned later based on rankings
             'player2_id' => null,
             'white_player_id' => null,
@@ -1564,8 +1569,8 @@ class TournamentGenerationService
             ];
         }
 
-        // Create matches from coverage pairings
-        $matches = $this->createMatches($championship, $roundNumber, $pairings);
+        // Create matches from coverage pairings (using Swiss as default for coverage rounds)
+        $matches = $this->createMatches($championship, $roundNumber, $pairings, ChampionshipRoundType::SWISS);
 
         return [
             'round' => $roundNumber,
@@ -1576,5 +1581,21 @@ class TournamentGenerationService
             'coverage_pairs_enforced' => count($coveragePairs),
             'determined_by_round' => $determinedByRound,
         ];
+    }
+
+    /**
+     * Map round type string to ChampionshipRoundType enum
+     */
+    private function mapRoundTypeToEnum(string $roundType): ChampionshipRoundType
+    {
+        return match($roundType) {
+            'swiss' => ChampionshipRoundType::SWISS,
+            'round_of_16' => ChampionshipRoundType::ROUND_OF_16,
+            'quarter_final' => ChampionshipRoundType::QUARTER_FINAL,
+            'semi_final' => ChampionshipRoundType::SEMI_FINAL,
+            'final' => ChampionshipRoundType::FINAL,
+            'third_place' => ChampionshipRoundType::THIRD_PLACE,
+            default => ChampionshipRoundType::SWISS, // Fallback to Swiss for unknown types
+        };
     }
 }

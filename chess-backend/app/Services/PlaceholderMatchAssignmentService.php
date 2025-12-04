@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Championship;
 use App\Models\ChampionshipMatch;
 use App\Models\ChampionshipStanding;
+use App\Enums\ChampionshipRoundType;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 
@@ -84,12 +85,22 @@ class PlaceholderMatchAssignmentService
         $firstMatch = $placeholderMatches->first();
         $roundType = $firstMatch->getRoundTypeEnum();
 
-        if ($roundType && $roundType->value === 'swiss') {
+        if ($roundType && $roundType->isSwiss()) {
             Log::info("Swiss round placeholder detected - using Swiss pairing algorithm", [
                 'championship_id' => $championship->id,
                 'round_number' => $roundNumber,
             ]);
             return $this->assignSwissRoundPlaceholders($championship, $roundNumber, $placeholderMatches);
+        }
+
+        // 🎯 NEW: Handle elimination rounds
+        if ($roundType && $roundType->isElimination()) {
+            Log::info("Elimination round placeholder detected - using elimination bracket assignment", [
+                'championship_id' => $championship->id,
+                'round_number' => $roundNumber,
+                'round_type' => $roundType->value,
+            ]);
+            return $this->assignEliminationRoundPlaceholders($championship, $roundNumber, $placeholderMatches, $roundType);
         }
 
         // Get current standings to determine rankings (for elimination rounds)
@@ -1124,5 +1135,132 @@ class PlaceholderMatchAssignmentService
         }
 
         return $details;
+    }
+
+    /**
+     * Assign players to elimination round placeholder matches based on standings
+     */
+    private function assignEliminationRoundPlaceholders(
+        Championship $championship,
+        int $roundNumber,
+        Collection $placeholderMatches,
+        ChampionshipRoundType $roundType
+    ): array {
+        // Get current standings to determine top qualifiers
+        $standings = $this->getCurrentStandings($championship);
+
+        // Determine how many players should participate in this elimination round
+        $participantCount = $roundType->expectedMatches() * 2;
+
+        Log::info("Assigning elimination round placeholders", [
+            'championship_id' => $championship->id,
+            'round_number' => $roundNumber,
+            'round_type' => $roundType->value,
+            'participant_count' => $participantCount,
+            'available_qualifiers' => $standings->count(),
+        ]);
+
+        // Take top N players based on standings
+        $qualifiedPlayers = $standings->take($participantCount);
+
+        if ($qualifiedPlayers->count() < $participantCount) {
+            Log::warning("Not enough qualified players for elimination round", [
+                'expected' => $participantCount,
+                'available' => $qualifiedPlayers->count(),
+            ]);
+            // Fill remaining with random players if needed
+            $remainingPlayers = $standings->slice($participantCount);
+            $qualifiedPlayers = $qualifiedPlayers->concat($remainingPlayers)->take($participantCount);
+        }
+
+        $assignedCount = 0;
+        $assignmentDetails = [];
+
+        foreach ($placeholderMatches as $match) {
+            try {
+                // For elimination rounds, pair top qualifiers appropriately
+                $assignment = $this->assignPlayersToEliminationMatch(
+                    $championship,
+                    $match,
+                    $qualifiedPlayers,
+                    $roundType
+                );
+
+                $assignmentDetails[] = $assignment;
+                $assignedCount++;
+
+                // Remove assigned players from the pool
+                if ($assignment['player1_id']) {
+                    $qualifiedPlayers = $qualifiedPlayers->reject(fn($p) => $p->user_id === $assignment['player1_id']);
+                }
+                if ($assignment['player2_id']) {
+                    $qualifiedPlayers = $qualifiedPlayers->reject(fn($p) => $p->user_id === $assignment['player2_id']);
+                }
+
+            } catch (\Exception $e) {
+                Log::error("Failed to assign players to elimination match", [
+                    'match_id' => $match->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        Log::info("Elimination round placeholder assignments completed", [
+            'championship_id' => $championship->id,
+            'round_number' => $roundNumber,
+            'assigned_count' => $assignedCount,
+            'matches_processed' => $placeholderMatches->count(),
+        ]);
+
+        return [
+            'assigned_count' => $assignedCount,
+            'matches_processed' => $placeholderMatches->count(),
+            'assignments' => $assignmentDetails,
+        ];
+    }
+
+    /**
+     * Assign players to a single elimination match
+     */
+    private function assignPlayersToEliminationMatch(
+        Championship $championship,
+        ChampionshipMatch $match,
+        Collection $qualifiedPlayers,
+        ChampionshipRoundType $roundType
+    ): array {
+        if ($qualifiedPlayers->count() < 2) {
+            throw new \Exception("Not enough qualified players for elimination match");
+        }
+
+        // Take top 2 players for this match
+        $player1 = $qualifiedPlayers->first();
+        $player2 = $qualifiedPlayers->slice(1)->first();
+
+        // Update the match with assigned players
+        $match->update([
+            'player1_id' => $player1->user_id,
+            'player2_id' => $player2->user_id,
+            'white_player_id' => $player1->user_id, // Higher ranked player gets white
+            'black_player_id' => $player2->user_id,
+        ]);
+
+        Log::info("Elimination match assigned", [
+            'match_id' => $match->id,
+            'round_type' => $roundType->value,
+            'player1' => $player1->user->name,
+            'player2' => $player2->user->name,
+            'player1_rank' => $player1->rank,
+            'player2_rank' => $player2->rank,
+        ]);
+
+        return [
+            'match_id' => $match->id,
+            'player1_id' => $player1->user_id,
+            'player2_id' => $player2->user_id,
+            'player1_name' => $player1->user->name,
+            'player2_name' => $player2->user->name,
+            'player1_rank' => $player1->rank,
+            'player2_rank' => $player2->rank,
+        ];
     }
 }
