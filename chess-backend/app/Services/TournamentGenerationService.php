@@ -271,6 +271,19 @@ class TournamentGenerationService
         $method = $roundConfig['pairing_method'];
         $matchesPerPlayer = $roundConfig['matches_per_player'];
 
+        // 🎯 CRITICAL FIX: Check round type FIRST before checking selective
+        $roundType = $roundConfig['type'] ?? 'swiss';
+
+        // For elimination rounds (semi-final, final), use selective pairing
+        if (in_array($roundType, ['semi_final', 'final', 'elimination'])) {
+            Log::info("Using elimination pairing for round", [
+                'championship_id' => $championship->id,
+                'round_number' => $roundNumber,
+                'round_type' => $roundType,
+            ]);
+            return $this->generatePlaceholderPairings($roundConfig);
+        }
+
         // Check if this is a selective round that should use placeholders
         $isSelectiveRound = $this->isSelectiveRound($roundConfig);
 

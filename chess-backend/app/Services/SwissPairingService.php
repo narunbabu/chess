@@ -159,136 +159,279 @@ class SwissPairingService
     }
 
     /**
-     * Enhanced Dutch pairing algorithm with optimal bye handling
+     * Enhanced Dutch pairing algorithm with proper floating mechanism
      *
-     * 🎯 FIXED: BYE assignment now prioritizes lowest score groups (Swiss rule compliance)
-     * 🎯 CRITICAL FIX: Ensure ALL players are paired by collecting unpaired players across groups
+     * 🎯 FLOATING LOGIC: Players from odd-sized groups "fall down" to lower score groups
+     * This ensures ALL players get paired, following Swiss tournament gravity rules
      */
     private function dutchAlgorithm(Championship $championship, Collection $participants, int $roundNumber): array
     {
         $pairings = [];
-        $unpaired = $participants->collect();
 
-        // 🎯 STEP 1: Create score groups FIRST (before BYE assignment)
-        $scoreGroups = $this->createScoreGroups($championship, $unpaired);
+        // STEP 1: Create score groups sorted by score (descending)
+        $scoreGroups = $this->createScoreGroups($championship, $participants);
 
         Log::info("Dutch algorithm - Score groups created", [
             'championship_id' => $championship->id,
             'round' => $roundNumber,
-            'total_participants' => $unpaired->count(),
+            'total_participants' => $participants->count(),
             'score_groups' => array_map(fn($g) => count($g), $scoreGroups),
         ]);
 
-        // 🎯 STEP 2: Handle BYE only when total participants is odd (Swiss rule)
-        if ($unpaired->count() % 2 === 1) {
-            // 🎯 ENHANCED: Smart BYE selection that balances group sizes
-            $byeRecipient = $this->selectOptimalByeRecipientWithGroupBalancing($championship, $scoreGroups);
+        // STEP 2: Process groups with floating mechanism
+        $floater = null; // Player falling down from group above
 
-            if ($byeRecipient) {
-                // Remove bye recipient from their score group
-                $recipientScore = $championship->standings()
-                    ->where('user_id', $byeRecipient->user_id)
-                    ->first()?->points ?? 0;
+        foreach ($scoreGroups as $score => $group) {
+            $players = collect($group);
 
-                $scoreGroups[$recipientScore] = array_filter($scoreGroups[$recipientScore], function($p) use ($byeRecipient) {
-                    return $p->user_id !== $byeRecipient->user_id;
-                });
+            Log::info("Processing score group", [
+                'score' => $score,
+                'group_size' => $players->count(),
+                'player_ids' => $players->pluck('user_id')->toArray(),
+                'has_floater' => $floater !== null,
+            ]);
 
-                $byeInfo = $this->handleBye($championship, $byeRecipient, $roundNumber);
+            // Add floater from previous (higher) group
+            if ($floater) {
+                Log::info("Adding floater to current group", [
+                    'floater_id' => $floater->user_id,
+                    'from_score' => 'previous_group',
+                    'to_score' => $score,
+                    'group_size_before' => $players->count(),
+                ]);
+                $players->push($floater);
+                $floater = null;
 
-                // Add bye pairing to the pairings array for broadcasting
-                $pairings[] = [
-                    'is_bye' => true,
-                    'player1_id' => $byeRecipient->user_id,
-                    'player2_id' => null,
-                    'bye_points' => $championship->getByePoints(),
-                    'round_number' => $roundNumber,
-                    'user_info' => $byeInfo,
-                ];
+                Log::info("Group after adding floater", [
+                    'score' => $score,
+                    'group_size' => $players->count(),
+                    'player_ids' => $players->pluck('user_id')->toArray(),
+                ]);
+            }
 
-                Log::info("Smart BYE assignment with group balancing", [
-                    'championship_id' => $championship->id,
-                    'round' => $roundNumber,
-                    'bye_recipient_id' => $byeRecipient->user_id,
-                    'bye_recipient_score' => $recipientScore,
-                    'bye_recipient_rating' => $byeRecipient->user->rating ?? 1200,
-                    'score_groups_before' => array_map(fn($g) => count($g), $scoreGroups),
+            // If odd number, remove lowest-rated player as floater for next group
+            if ($players->count() % 2 !== 0) {
+                // Sort by rating to identify lowest
+                $sorted = $players->sortBy(fn($p) => $p->user->rating ?? 1200)->values();
+                $floater = $sorted->first(); // Lowest rated becomes floater
+                $players = $sorted->slice(1)->values(); // Remove floater from current group and re-index
+
+                Log::info("Player will float to next group", [
+                    'floater_id' => $floater->user_id,
+                    'floater_rating' => $floater->user->rating ?? 1200,
+                    'current_score' => $score,
+                    'group_size_before_float' => $sorted->count(),
+                    'group_size_after' => $players->count(),
+                    'remaining_player_ids' => $players->pluck('user_id')->toArray(),
+                ]);
+            }
+
+            // STEP 3: Pair the even-numbered group
+            if ($players->count() > 0) {
+                Log::info("About to pair even group", [
+                    'score' => $score,
+                    'player_count' => $players->count(),
+                    'is_even' => $players->count() % 2 === 0,
+                    'player_ids' => $players->pluck('user_id')->toArray(),
+                ]);
+
+                $groupPairings = $this->pairEvenGroup($championship, $players, $roundNumber);
+                $pairings = array_merge($pairings, $groupPairings);
+
+                Log::info("Completed pairing group", [
+                    'score' => $score,
+                    'pairings_created' => count($groupPairings),
+                ]);
+            } else {
+                Log::warning("Skipping empty group", [
+                    'score' => $score,
                 ]);
             }
         }
 
-        // 🎯 STEP 3: Track all paired players to verify completeness
-        $pairedPlayers = collect();
-
-        // 🎯 STEP 4: Pair participants within each score group and collect unpaired
-        $unpairedPlayers = collect();
-
-        foreach ($scoreGroups as $score => $group) {
-            if (empty($group)) {
-                continue; // Skip empty groups (e.g., after BYE removal)
-            }
-
-            $result = $this->pairScoreGroup($championship, $group, $roundNumber, $pairedPlayers);
-            $pairings = array_merge($pairings, $result['pairings']);
-
-            // Collect players that were paired
-            foreach ($result['pairings'] as $pairing) {
-                $pairedPlayers->push($pairing['player1_id']);
-                $pairedPlayers->push($pairing['player2_id']);
-            }
-
-            // Collect unpaired players from this group
-            if (!empty($result['unpaired'])) {
-                foreach ($result['unpaired'] as $unpairedPlayer) {
-                    $unpairedPlayers->push($unpairedPlayer);
-                }
-            }
-        }
-
-        // 🎯 STEP 5: Pair any remaining unpaired players across score groups
-        if ($unpairedPlayers->count() > 0) {
-            Log::info("Pairing remaining unpaired players across score groups", [
+        // STEP 4: Handle final floater (becomes BYE)
+        if ($floater) {
+            Log::info("Final floater receives BYE", [
+                'floater_id' => $floater->user_id,
                 'championship_id' => $championship->id,
                 'round' => $roundNumber,
-                'unpaired_count' => $unpairedPlayers->count(),
-                'unpaired_player_ids' => $unpairedPlayers->pluck('user_id')->toArray(),
             ]);
 
-            $crossGroupPairings = $this->pairRemainingPlayers($championship, $unpairedPlayers, $roundNumber);
-            $pairings = array_merge($pairings, $crossGroupPairings);
+            $byeInfo = $this->handleBye($championship, $floater, $roundNumber);
+            $pairings[] = [
+                'is_bye' => true,
+                'player1_id' => $floater->user_id,
+                'player2_id' => null,
+                'bye_points' => $championship->getByePoints(),
+                'round_number' => $roundNumber,
+                'user_info' => $byeInfo,
+            ];
         }
 
-        // 🎯 STEP 6: Final validation - ensure all players are accounted for
-        $totalPlayers = $unpaired->count();
-        $totalPaired = 0;
-        foreach ($pairings as $pairing) {
-            if (isset($pairing['is_bye']) && $pairing['is_bye']) {
-                $totalPaired += 1; // BYE counts as 1 player
-            } else {
-                $totalPaired += 2; // Regular match counts as 2 players
-            }
-        }
-
-        Log::info("Dutch algorithm pairing complete", [
-            'championship_id' => $championship->id,
-            'round' => $roundNumber,
-            'total_participants' => $totalPlayers,
-            'total_paired' => $totalPaired,
-            'pairings_count' => count($pairings),
-            'all_paired' => $totalPaired === $totalPlayers,
-        ]);
-
-        if ($totalPaired !== $totalPlayers) {
-            Log::error("⚠️ PAIRING MISMATCH: Not all players were paired!", [
-                'championship_id' => $championship->id,
-                'round' => $roundNumber,
-                'expected_players' => $totalPlayers,
-                'actually_paired' => $totalPaired,
-                'missing_players' => $totalPlayers - $totalPaired,
-            ]);
-        }
+        // STEP 5: CRITICAL VALIDATION
+        $this->validatePairingCompleteness($participants, $pairings, $championship, $roundNumber);
 
         return $pairings;
+    }
+
+    /**
+     * Pair players within an even-sized group
+     *
+     * Assumes group size is EVEN (guaranteed by floating logic)
+     *
+     * @param Championship $championship
+     * @param Collection $players Even-sized collection of players
+     * @param int $roundNumber
+     * @return array Array of pairings
+     */
+    private function pairEvenGroup(Championship $championship, Collection $players, int $roundNumber): array
+    {
+        $pairings = [];
+
+        if ($players->count() === 0) {
+            return $pairings;
+        }
+
+        // Assert even number
+        if ($players->count() % 2 !== 0) {
+            Log::error("pairEvenGroup called with odd-sized group", [
+                'group_size' => $players->count(),
+                'championship_id' => $championship->id,
+                'round' => $roundNumber,
+            ]);
+            throw new \Exception("pairEvenGroup requires even-sized group");
+        }
+
+        // Sort by color balance for fair color distribution
+        $sortedPlayers = $this->balanceColors($championship, $players);
+
+        // Pair sequentially with opponent validation
+        $paired = collect();
+
+        for ($i = 0; $i < $sortedPlayers->count(); $i += 2) {
+            $player1 = $sortedPlayers[$i];
+            $player2 = $sortedPlayers[$i + 1];
+
+            // Skip if already paired (safety check)
+            if ($paired->contains($player1->user_id) || $paired->contains($player2->user_id)) {
+                continue;
+            }
+
+            // Check if they've already played
+            if ($this->haveAlreadyPlayed($championship, $player1->user_id, $player2->user_id)) {
+                // Try to find alternative within remaining unpaired players
+                $alternative = $this->findAlternativeInGroup($championship, $sortedPlayers, $i, $paired);
+
+                if ($alternative) {
+                    $player2 = $alternative;
+                } else {
+                    // CONSTRAINT RELAXATION: Pair anyway (repeat match allowed if no alternative)
+                    Log::warning("No alternative pairing found - allowing repeat match", [
+                        'player1_id' => $player1->user_id,
+                        'player2_id' => $player2->user_id,
+                        'round' => $roundNumber,
+                    ]);
+                }
+            }
+
+            // Create pairing with color assignment
+            $colorMethod = $championship->getColorAssignmentMethod();
+            $colors = $this->assignColorsByMethod($championship, $player1->user_id, $player2->user_id, $colorMethod);
+
+            $pairings[] = [
+                'player1_id' => $colors['white'],
+                'player2_id' => $colors['black'],
+                'scheduled_at' => now(),
+                'deadline' => now()->addHours($championship->match_time_window_hours),
+                'color_assignment_method' => $colorMethod,
+            ];
+
+            $paired->push($player1->user_id);
+            $paired->push($player2->user_id);
+        }
+
+        Log::info("Even group paired successfully", [
+            'championship_id' => $championship->id,
+            'round' => $roundNumber,
+            'group_size' => $players->count(),
+            'pairings_created' => count($pairings),
+        ]);
+
+        return $pairings;
+    }
+
+    /**
+     * Find alternative pairing within group to avoid repeat matches
+     */
+    private function findAlternativeInGroup(Championship $championship, Collection $players, int $currentIndex, Collection $alreadyPaired): mixed
+    {
+        $currentPlayer = $players[$currentIndex];
+
+        // Look for unpaired player that hasn't played current player
+        for ($i = $currentIndex + 2; $i < $players->count(); $i++) {
+            $candidate = $players[$i];
+
+            if ($alreadyPaired->contains($candidate->user_id)) {
+                continue;
+            }
+
+            if (!$this->haveAlreadyPlayed($championship, $currentPlayer->user_id, $candidate->user_id)) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Validate that all participants are accounted for in pairings
+     *
+     * 🎯 CRITICAL SAFETY NET: Prevents silent player drops
+     *
+     * @throws \Exception if validation fails
+     */
+    private function validatePairingCompleteness(Collection $participants, array $pairings, Championship $championship, int $roundNumber): void
+    {
+        $participantIds = $participants->pluck('user_id')->toArray();
+        $pairedIds = [];
+
+        foreach ($pairings as $pairing) {
+            if (isset($pairing['is_bye']) && $pairing['is_bye']) {
+                $pairedIds[] = $pairing['player1_id'];
+            } else {
+                $pairedIds[] = $pairing['player1_id'];
+                $pairedIds[] = $pairing['player2_id'];
+            }
+        }
+
+        $pairedIds = array_unique($pairedIds);
+        $expectedCount = count($participantIds);
+        $actualCount = count($pairedIds);
+
+        if ($actualCount !== $expectedCount) {
+            $missingIds = array_diff($participantIds, $pairedIds);
+
+            Log::error("🚨 CRITICAL PAIRING FAILURE: Not all players paired", [
+                'championship_id' => $championship->id,
+                'round' => $roundNumber,
+                'expected_players' => $expectedCount,
+                'actually_paired' => $actualCount,
+                'missing_player_ids' => $missingIds,
+                'pairings_count' => count($pairings),
+            ]);
+
+            throw new \Exception(
+                "Swiss Pairing Validation Failed: Expected $expectedCount players, paired $actualCount. " .
+                "Missing players: " . implode(', ', $missingIds)
+            );
+        }
+
+        Log::info("✅ Pairing validation passed", [
+            'championship_id' => $championship->id,
+            'round' => $roundNumber,
+            'players_paired' => $actualCount,
+            'matches_created' => count($pairings),
+        ]);
     }
 
     /**

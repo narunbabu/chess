@@ -233,8 +233,14 @@ class TournamentConfig implements Arrayable, Jsonable, \JsonSerializable
 
         switch ($preset) {
             case self::PRESET_SMALL:
-                $config->mode = self::MODE_PROGRESSIVE;
-                $config->roundStructure = self::generateSmallTournamentStructure($totalRounds, $participantCount);
+                // For 16 or fewer players, use Swiss + Elimination
+                if ($participantCount <= 16) {
+                    $config->mode = self::MODE_SWISS;
+                    $config->roundStructure = self::generateSwissEliminationStructure($participantCount);
+                } else {
+                    $config->mode = self::MODE_PROGRESSIVE;
+                    $config->roundStructure = self::generateSmallTournamentStructure($totalRounds, $participantCount);
+                }
                 break;
 
             case self::PRESET_MEDIUM:
@@ -603,6 +609,79 @@ class TournamentConfig implements Arrayable, Jsonable, \JsonSerializable
         }
 
         return $structure;
+    }
+
+    /**
+     * Generate Swiss + Elimination structure
+     *
+     * @param int $participantCount Total participants
+     * @param int $swissRounds Number of Swiss rounds (default: calculated by formula)
+     * @return array Round structure configuration
+     */
+    public static function generateSwissEliminationStructure(int $participantCount, ?int $swissRounds = null): array
+    {
+        // Import the TournamentStructureCalculator
+        $calculator = new \App\Services\TournamentStructureCalculator();
+
+        // Calculate structure if swiss rounds not specified
+        if ($swissRounds === null) {
+            $structure = $calculator::calculateStructure($participantCount);
+            $swissRounds = $structure['swiss_rounds'];
+        } else {
+            // Use custom swiss rounds
+            $structure = $calculator::generateCustomStructure($participantCount, $swissRounds);
+        }
+
+        $roundStructure = [];
+
+        // Phase 1: Swiss Rounds (all players)
+        for ($round = 1; $round <= $swissRounds; $round++) {
+            $roundStructure[] = [
+                'round' => $round,
+                'type' => 'swiss',  // Mark as Swiss type
+                'participant_selection' => 'all',  // All players participate
+                'matches_per_player' => 1,
+                'pairing_method' => $round === 1 ? self::PAIRING_RANDOM_SEEDED : self::PAIRING_SWISS,
+            ];
+        }
+
+        // Phase 2: Elimination Rounds (Top K)
+        $currentTopK = $structure['top_k'];
+        $roundNumber = $swissRounds + 1;
+
+        while ($currentTopK >= 2) {
+            $stageType = $currentTopK == 2 ? 'final' : ($currentTopK == 4 ? 'semi_final' : 'elimination');
+
+            $roundStructure[] = [
+                'round' => $roundNumber,
+                'type' => $stageType,  // Explicit type
+                'participant_selection' => ['top_k' => $currentTopK],
+                'matches_per_player' => 1,
+                'pairing_method' => self::PAIRING_DIRECT,  // 1v4, 2v3, etc.
+                'round_description' => self::getEliminationStageName($currentTopK),
+            ];
+
+            $currentTopK /= 2;
+            $roundNumber++;
+        }
+
+        return $roundStructure;
+    }
+
+    /**
+     * Get elimination stage name based on participant count
+     */
+    private static function getEliminationStageName(int $participantCount): string
+    {
+        $names = [
+            2 => 'Finals (Winners of semi-finals)',
+            4 => 'Semi-finals (Top 4 from Swiss rounds)',
+            8 => 'Quarter-finals (Top 8 from Swiss rounds)',
+            16 => 'Round of 16 (Top 16 from Swiss rounds)',
+            32 => 'Round of 32 (Top 32 from Swiss rounds)',
+        ];
+
+        return $names[$participantCount] ?? "Top {$participantCount} from Swiss rounds";
     }
 
     /**

@@ -7,6 +7,7 @@ use App\Models\ChampionshipMatch;
 use App\Models\ChampionshipStanding;
 use App\Models\ChampionshipParticipant;
 use App\Models\User;
+use Illuminate\Support\Collection;
 use App\Enums\ChampionshipStatus as ChampionshipStatusEnum;
 use App\Enums\ChampionshipMatchStatus as MatchStatusEnum;
 use App\Enums\ChampionshipResultType as ResultTypeEnum;
@@ -18,11 +19,17 @@ use Carbon\Carbon;
 class ChampionshipRoundProgressionService
 {
     private PlaceholderMatchAssignmentService $placeholderService;
+    private SwissPairingService $swissPairingService;
+    private RoundTypeDetectionService $roundTypeDetectionService;
 
     public function __construct(
-        PlaceholderMatchAssignmentService $placeholderService
+        PlaceholderMatchAssignmentService $placeholderService,
+        SwissPairingService $swissPairingService,
+        RoundTypeDetectionService $roundTypeDetectionService
     ) {
         $this->placeholderService = $placeholderService;
+        $this->swissPairingService = $swissPairingService;
+        $this->roundTypeDetectionService = $roundTypeDetectionService;
     }
 
     /**
@@ -308,8 +315,24 @@ class ChampionshipRoundProgressionService
                     'placeholder_assignments' => $placeholderAssignments,
                 ];
             } else {
-                // Generate next round matches (if not already generated during tournament generation)
-                $newMatches = $this->generateNextRoundMatches($championship, $nextRound);
+                // Determine round type and generate appropriate matches
+                $roundType = $this->roundTypeDetectionService->determineRoundType($championship, $nextRound);
+
+                Log::info("Generating next round with type detection", [
+                    'championship_id' => $championship->id,
+                    'next_round' => $nextRound,
+                    'round_type' => $roundType,
+                ]);
+
+                if ($roundType === 'swiss') {
+                    // Generate Swiss pairings
+                    $pairings = $this->swissPairingService->generatePairings($championship, $nextRound);
+                    $newMatches = $this->swissPairingService->createMatches($championship, $pairings, $nextRound);
+                } else {
+                    // Generate elimination bracket
+                    $eliminationConfig = $this->roundTypeDetectionService->getEliminationConfig($championship, $nextRound);
+                    $newMatches = $this->generateEliminationMatches($championship, $nextRound, $eliminationConfig);
+                }
 
                 // Update championship status
                 $championship->update([
@@ -322,6 +345,7 @@ class ChampionshipRoundProgressionService
                     'action' => 'next_round_generated',
                     'completed_round' => $completedRound,
                     'next_round' => $nextRound,
+                    'round_type' => $roundType,
                     'new_matches_count' => count($newMatches),
                     'placeholder_assignments' => $placeholderAssignments,
                     'updated_standings' => $this->getCurrentStandings($championship)
@@ -670,6 +694,103 @@ class ChampionshipRoundProgressionService
     }
 
     /**
+     * Generate elimination matches based on top standings
+     */
+    private function generateEliminationMatches(Championship $championship, int $roundNumber, array $config): Collection
+    {
+        Log::info("Generating elimination matches", [
+            'championship_id' => $championship->id,
+            'round_number' => $roundNumber,
+            'config' => $config,
+        ]);
+
+        $participantCount = $config['participants'] ?? 4;
+        $eliminationType = $config['type'] ?? 'elimination';
+
+        // Get top participants from standings
+        $topParticipants = $championship->standings()
+            ->orderBy('points', 'desc')
+            ->orderBy('buchholz_score', 'desc')
+            ->orderBy('sonneborn_berger', 'desc')
+            ->orderBy('rating', 'desc')
+            ->limit($participantCount)
+            ->get();
+
+        Log::info("Top participants for elimination", [
+            'participants_count' => $topParticipants->count(),
+            'expected_count' => $participantCount,
+            'participant_ids' => $topParticipants->pluck('user_id')->toArray(),
+        ]);
+
+        $matches = collect();
+
+        if ($eliminationType === 'semi_final' && $participantCount === 4) {
+            // Semi-finals: 1st vs 4th, 2nd vs 3rd
+            $pairings = [
+                [0, 3], // 1st vs 4th
+                [1, 2], // 2nd vs 3rd
+            ];
+
+            foreach ($pairings as [$index1, $index2]) {
+                if (isset($topParticipants[$index1]) && isset($topParticipants[$index2])) {
+                    $player1 = $topParticipants[$index1];
+                    $player2 = $topParticipants[$index2];
+
+                    $match = ChampionshipMatch::create([
+                        'championship_id' => $championship->id,
+                        'round_number' => $roundNumber,
+                        'round_type' => \App\Enums\ChampionshipRoundType::ELIMINATION,
+                        'player1_id' => $player1->user_id,
+                        'player2_id' => $player2->user_id,
+                        'white_player_id' => $player1->user_id, // Higher seed gets white
+                        'black_player_id' => $player2->user_id,
+                        'color_assignment_method' => 'elimination_seeding',
+                        'auto_generated' => true,
+                        'scheduled_at' => now(),
+                        'deadline' => now()->addHours($championship->match_time_window_hours),
+                        'status' => MatchStatusEnum::PENDING,
+                    ]);
+
+                    $match->load(['whitePlayer', 'blackPlayer']);
+                    $matches->push($match);
+                }
+            }
+        } elseif ($eliminationType === 'final' && $participantCount === 2) {
+            // Finals: Top 2 remaining participants
+            if ($topParticipants->count() >= 2) {
+                $player1 = $topParticipants[0];
+                $player2 = $topParticipants[1];
+
+                $match = ChampionshipMatch::create([
+                    'championship_id' => $championship->id,
+                    'round_number' => $roundNumber,
+                    'round_type' => \App\Enums\ChampionshipRoundType::ELIMINATION,
+                    'player1_id' => $player1->user_id,
+                    'player2_id' => $player2->user_id,
+                    'white_player_id' => $player1->user_id, // Higher seed gets white
+                    'black_player_id' => $player2->user_id,
+                    'color_assignment_method' => 'elimination_seeding',
+                    'auto_generated' => true,
+                    'scheduled_at' => now(),
+                    'deadline' => now()->addHours($championship->match_time_window_hours),
+                    'status' => MatchStatusEnum::PENDING,
+                ]);
+
+                $match->load(['whitePlayer', 'blackPlayer']);
+                $matches->push($match);
+            }
+        }
+
+        Log::info("Generated elimination matches", [
+            'championship_id' => $championship->id,
+            'round_number' => $roundNumber,
+            'matches_created' => $matches->count(),
+        ]);
+
+        return $matches;
+    }
+
+    /**
      * Get current standings
      */
     public function getCurrentStandings(Championship $championship): array
@@ -919,26 +1040,9 @@ class ChampionshipRoundProgressionService
      */
     private function isEliminationRound(Championship $championship, int $roundNumber): bool
     {
-        // Get any match from this round to check its type
-        $match = $championship->matches()
-            ->where('round_number', $roundNumber)
-            ->first();
-
-        if (!$match) {
-            return false;
-        }
-
-        $roundType = $match->getRoundTypeEnum();
-
-        // Check if this round type is an elimination round
-        return in_array($roundType->value, [
-            'quarter_final',
-            'semi_final',
-            'final',
-            'third_place',
-            'round_of_16',
-            'elimination',
-        ]);
+        // Use RoundTypeDetectionService for accurate determination
+        $roundType = $this->roundTypeDetectionService->determineRoundType($championship, $roundNumber);
+        return $roundType === 'elimination';
     }
 
     /**

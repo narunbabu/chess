@@ -915,4 +915,133 @@ class Championship extends Model
             'final_participants' => 2,
         ];
     }
+
+    /**
+     * Get number of Swiss rounds before elimination
+     */
+    public function getSwissRoundsCount(): int
+    {
+        $config = $this->tournament_configuration ?? [];
+
+        if (isset($config['swiss_rounds'])) {
+            return (int) $config['swiss_rounds'];
+        }
+
+        // Default: Use standard Swiss formula
+        $participantCount = $this->participants()->count();
+        return (int) ceil(log($participantCount, 2));
+    }
+
+    /**
+     * Check if a specific round is Swiss or Elimination
+     */
+    public function isSwissRound(int $roundNumber): bool
+    {
+        return $roundNumber <= $this->getSwissRoundsCount();
+    }
+
+    /**
+     * Check if a specific round is Elimination
+     */
+    public function isEliminationRound(int $roundNumber): bool
+    {
+        return !$this->isSwissRound($roundNumber);
+    }
+
+    /**
+     * Get the type of round ('swiss' or 'elimination')
+     */
+    public function getRoundType(int $roundNumber): string
+    {
+        return $this->isSwissRound($roundNumber) ? 'swiss' : 'elimination';
+    }
+
+    /**
+     * Get elimination round participants count
+     */
+    public function getEliminationParticipantCount(int $roundNumber): int
+    {
+        if (!$this->isEliminationRound($roundNumber)) {
+            return 0;
+        }
+
+        $swissRounds = $this->getSwissRoundsCount();
+        $eliminationRound = $roundNumber - $swissRounds;
+        $totalParticipants = $this->participants()->count();
+
+        if ($totalParticipants <= 8) {
+            return match($eliminationRound) {
+                1 => 4, // Semi-finals
+                2 => 2, // Finals
+                default => 2
+            };
+        } elseif ($totalParticipants <= 16) {
+            return match($eliminationRound) {
+                1 => 8, // Quarter-finals
+                2 => 4, // Semi-finals
+                3 => 2, // Finals
+                default => 2
+            };
+        } else {
+            return match($eliminationRound) {
+                1 => 16, // Round of 16
+                2 => 8,  // Quarter-finals
+                3 => 4,  // Semi-finals
+                4 => 2,  // Finals
+                default => 2
+            };
+        }
+    }
+
+    /**
+     * Update tournament configuration to support Swiss+Elimination format
+     */
+    public function updateSwissEliminationConfig(): void
+    {
+        $participantCount = $this->participants()->count();
+        $swissRounds = (int) ceil(log($participantCount, 2));
+        $totalRounds = $swissRounds + 2; // Swiss rounds + semi-final + final
+
+        $config = $this->tournament_configuration ?? [];
+
+        // Update configuration
+        $config['format'] = 'swiss_elimination';
+        $config['swiss_rounds'] = $swissRounds;
+        $config['elimination_format'] = 'single_elimination_top_4';
+        $config['total_rounds'] = $totalRounds;
+
+        // Define explicit round types
+        $config['rounds'] = [];
+
+        // Swiss rounds
+        for ($i = 1; $i <= $swissRounds; $i++) {
+            $config['rounds'][$i] = [
+                'type' => 'swiss',
+                'pairing_system' => 'swiss'
+            ];
+        }
+
+        // Elimination rounds
+        $config['rounds'][$swissRounds + 1] = [
+            'type' => 'semi_final',
+            'participants' => 4,
+            'pairing_system' => 'elimination'
+        ];
+
+        $config['rounds'][$swissRounds + 2] = [
+            'type' => 'final',
+            'participants' => 2,
+            'pairing_system' => 'elimination'
+        ];
+
+        $this->tournament_configuration = $config;
+        $this->save();
+
+        Log::info("Updated championship with Swiss+Elimination configuration", [
+            'championship_id' => $this->id,
+            'participant_count' => $participantCount,
+            'swiss_rounds' => $swissRounds,
+            'total_rounds' => $totalRounds,
+        ]);
+    }
 }
