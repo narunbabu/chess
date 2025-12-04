@@ -298,13 +298,25 @@ class TournamentGenerationService
         $isSwissRound = ($method === TournamentConfig::PAIRING_SWISS ||
                          $method === TournamentConfig::PAIRING_STANDINGS_BASED);
 
-        if ($isSwissRound && $roundNumber > 1 && $roundConfig['type'] === 'swiss') {
-            Log::info("Creating placeholder pairings for Swiss round", [
-                'championship_id' => $championship->id,
-                'round_number' => $roundNumber,
-                'pairing_method' => $method,
-            ]);
-            return $this->generateSwissPlaceholderPairings($participants->count());
+        // Generate Swiss pairings with proper tournament progression logic
+        if ($isSwissRound && $roundConfig['type'] === 'swiss') {
+            if ($roundNumber === 1) {
+                // Round 1: Pair by rating (highest vs lowest, etc.)
+                Log::info("Creating Round 1 pairings by rating", [
+                    'championship_id' => $championship->id,
+                    'round_number' => $roundNumber,
+                    'pairing_method' => $method,
+                ]);
+                return $this->swissService->generatePairings($championship, $roundNumber);
+            } else {
+                // Round 2+: Create TBD placeholder matches (will be assigned after previous round completion)
+                Log::info("Creating TBD placeholder matches for future Swiss round", [
+                    'championship_id' => $championship->id,
+                    'round_number' => $roundNumber,
+                    'pairing_method' => $method,
+                ]);
+                return $this->generateSwissPlaceholderPairings($participants->count());
+            }
         }
 
         // For early rounds (round 1), create fixed pairings

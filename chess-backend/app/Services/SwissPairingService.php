@@ -126,9 +126,10 @@ class SwissPairingService
      */
     private function getEligibleParticipants(Championship $championship): Collection
     {
-        // All registered participants are eligible for pairings
-        // Admin controls tournament structure and advancement rules
+        // Only paid participants are eligible for pairings
+        // This ensures consistency with StandingsCalculatorService and other tournament services
         return $championship->participants()
+            ->where('payment_status_id', \App\Enums\PaymentStatus::COMPLETED->getId())
             ->with('user')
             ->get();
     }

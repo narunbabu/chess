@@ -1,19 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(php artisan:*)",
-      "Read(//usr/**)",
-      "Bash(./vendor/bin/sail artisan optimize:clear:*)",
-      "Bash(sqlite3:*)",
-      "Bash(./vendor/bin/sail artisan migrate:*)",
-      "Bash(./vendor/bin/sail artisan make:migration:*)",
-      "Bash(powershell.exe:*)",
-      "Bash(cat:*)",
-      "Bash(find:*)",
-      "Bash(/usr/bin/php artisan tinker:*)",
-      "Bash(git log:*)",
-      "Bash(xargs:*)",
-      "Bash(wc:*)"
+      "Bash(ERROR)",
+      "Bash(Completed \")"
     ],
     "deny": [],
     "ask": []

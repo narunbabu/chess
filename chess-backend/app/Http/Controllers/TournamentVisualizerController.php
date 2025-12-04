@@ -61,6 +61,13 @@ class TournamentVisualizerController extends Controller
             // Get tournament configuration based on player count
             $config = $this->getTournamentConfigForPlayerCount($playerCount);
 
+            // DEBUG: Log the structure being generated
+            Log::info("TournamentVisualizer: Generated config", [
+                'player_count' => $playerCount,
+                'total_rounds' => count($config['rounds']),
+                'structure' => $config,
+            ]);
+
             // Create championship
             $championship = Championship::create([
                 'title' => $title,
@@ -436,44 +443,73 @@ class TournamentVisualizerController extends Controller
 
     private function getTournamentConfigForPlayerCount(int $playerCount): array
     {
-        $configs = [
-            3 => [
-                'rounds' => [
-                    ['round' => 1, 'name' => 'Round 1', 'type' => 'swiss', 'participant_selection' => 'all', 'pairing_method' => 'swiss', 'matches_per_player' => 1],
-                    ['round' => 2, 'name' => 'Final', 'type' => 'final', 'participant_selection' => ['top_k' => 2], 'pairing_method' => 'standings_based', 'matches_per_player' => 1],
-                ],
-            ],
-            5 => [
-                'rounds' => [
-                    ['round' => 1, 'name' => 'Round 1', 'type' => 'swiss', 'participant_selection' => 'all', 'pairing_method' => 'swiss', 'matches_per_player' => 1],
-                    ['round' => 2, 'name' => 'Semi Final', 'type' => 'semi_final', 'participant_selection' => ['top_k' => 4], 'pairing_method' => 'standings_based', 'matches_per_player' => 1],
-                    ['round' => 3, 'name' => 'Final', 'type' => 'final', 'participant_selection' => ['top_k' => 2], 'pairing_method' => 'standings_based', 'matches_per_player' => 1],
-                ],
-            ],
-            10 => [
-                'rounds' => [
-                    ['round' => 1, 'name' => 'Round 1', 'type' => 'swiss', 'participant_selection' => 'all', 'pairing_method' => 'swiss', 'matches_per_player' => 1],
-                    ['round' => 2, 'name' => 'Round 2', 'type' => 'swiss', 'participant_selection' => 'all', 'pairing_method' => 'standings_based', 'matches_per_player' => 1],
-                    ['round' => 3, 'name' => 'Quarter Final', 'type' => 'quarter_final', 'participant_selection' => ['top_k' => 8], 'pairing_method' => 'standings_based', 'matches_per_player' => 1],
-                    ['round' => 4, 'name' => 'Semi Final', 'type' => 'semi_final', 'participant_selection' => ['top_k' => 4], 'pairing_method' => 'standings_based', 'matches_per_player' => 1],
-                    ['round' => 5, 'name' => 'Third Place', 'type' => 'third_place', 'participant_selection' => ['top_k' => 2], 'pairing_method' => 'standings_based', 'matches_per_player' => 1],
-                    ['round' => 6, 'name' => 'Final', 'type' => 'final', 'participant_selection' => ['top_k' => 2], 'pairing_method' => 'standings_based', 'matches_per_player' => 1],
-                ],
-            ],
-            50 => [
-                'rounds' => [
-                    ['round' => 1, 'name' => 'Round 1', 'type' => 'swiss', 'participant_selection' => 'all', 'pairing_method' => 'swiss', 'matches_per_player' => 1],
-                    ['round' => 2, 'name' => 'Round 2', 'type' => 'swiss', 'participant_selection' => 'all', 'pairing_method' => 'standings_based', 'matches_per_player' => 1],
-                    ['round' => 3, 'name' => 'Round of 16', 'type' => 'round_of_16', 'participant_selection' => ['top_k' => 16], 'pairing_method' => 'standings_based', 'matches_per_player' => 1],
-                    ['round' => 4, 'name' => 'Quarter Final', 'type' => 'quarter_final', 'participant_selection' => ['top_k' => 8], 'pairing_method' => 'standings_based', 'matches_per_player' => 1],
-                    ['round' => 5, 'name' => 'Semi Final', 'type' => 'semi_final', 'participant_selection' => ['top_k' => 4], 'pairing_method' => 'standings_based', 'matches_per_player' => 1],
-                    ['round' => 6, 'name' => 'Third Place', 'type' => 'third_place', 'participant_selection' => ['top_k' => 2], 'pairing_method' => 'standings_based', 'matches_per_player' => 1],
-                    ['round' => 7, 'name' => 'Final', 'type' => 'final', 'participant_selection' => ['top_k' => 2], 'pairing_method' => 'standings_based', 'matches_per_player' => 1],
-                ],
-            ],
-        ];
+        // Use TournamentStructureCalculator for dynamic configuration
+        $structure = \App\Services\TournamentStructureCalculator::calculateStructure($playerCount);
 
-        return $configs[$playerCount];
+        $rounds = [];
+        $roundNumber = 1;
+
+        // Generate Swiss rounds
+        for ($i = 1; $i <= $structure['swiss_rounds']; $i++) {
+            $rounds[] = [
+                'round' => $roundNumber,
+                'name' => "Round $roundNumber",
+                'type' => 'swiss',
+                'participant_selection' => 'all',
+                'pairing_method' => $i === 1 ? 'swiss' : 'standings_based',
+                'matches_per_player' => 1,
+            ];
+            $roundNumber++;
+        }
+
+        // Generate elimination rounds based on top_k
+        if ($structure['top_k'] > 1) {
+            $topK = $structure['top_k'];
+
+            // Generate elimination bracket rounds
+            while ($topK >= 2) {
+                $roundType = $this->getEliminationRoundType($topK);
+                $roundName = $this->getEliminationRoundName($topK);
+
+                $rounds[] = [
+                    'round' => $roundNumber,
+                    'name' => $roundName,
+                    'type' => $roundType,
+                    'participant_selection' => ['top_k' => $topK],
+                    'pairing_method' => 'standings_based',
+                    'matches_per_player' => 1,
+                ];
+
+                $roundNumber++;
+                $topK = $topK / 2;
+            }
+        }
+
+        return ['rounds' => $rounds];
+    }
+
+    private function getEliminationRoundType(int $topK): string
+    {
+        return match($topK) {
+            32 => 'round_of_32',
+            16 => 'round_of_16',
+            8 => 'quarter_final',
+            4 => 'semi_final',
+            2 => 'final',
+            default => 'swiss',
+        };
+    }
+
+    private function getEliminationRoundName(int $topK): string
+    {
+        return match($topK) {
+            32 => 'Round of 32',
+            16 => 'Round of 16',
+            8 => 'Quarter Finals',
+            4 => 'Semi Finals',
+            2 => 'Final',
+            default => "Top $topK",
+        };
     }
 
     private function countSwissRounds(array $rounds): int

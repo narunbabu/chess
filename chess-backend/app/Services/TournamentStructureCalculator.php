@@ -102,24 +102,27 @@ class TournamentStructureCalculator
      */
     private static function calculateSwissRounds(int $playerCount): int
     {
-        if ($playerCount <= 4) {
-            return 2; // Minimum for very small tournaments
+        // Formula: Balanced approach between player differentiation and tournament length
+        // Swiss rounds should be log2(playerCount) ±1 for fairness
+
+        if ($playerCount <= 2) {
+            return 1; // Special case: only 1 Swiss round needed
         }
 
-        if ($playerCount <= 10) {
-            return 3; // Standard minimum for fair seeding (10 players = 3 Swiss rounds)
+        if ($playerCount <= 4) {
+            return 2; // Minimum for very small tournaments (3-4 players)
+        }
+
+        if ($playerCount <= 12) {
+            return 3; // Small tournaments (5-12 players): 3 Swiss rounds
         }
 
         if ($playerCount <= 16) {
-            return 4;
-        }
-
-        if ($playerCount <= 32) {
-            return 5;
+            return 4; // Medium-small (13-16 players): 4 Swiss rounds
         }
 
         if ($playerCount <= 64) {
-            return 6;
+            return 5; // Medium-large (17-64 players): 5 Swiss rounds
         }
 
         // For very large tournaments (65-128)
@@ -134,34 +137,35 @@ class TournamentStructureCalculator
      */
     private static function calculateTopK(int $playerCount): int
     {
-        // Minimum tournament size
-        if ($playerCount < 4) {
-            return $playerCount; // Too small for elimination
+        // Top K must be power of 2 and cannot exceed player count
+        // Aim for roughly 25-40% of players in elimination for fairness
+
+        if ($playerCount <= 2) {
+            return 2; // Special case: Final only
         }
 
-        // Aim for roughly 25-50% of players in elimination
-        // But must be power of 2 and at least 4
+        if ($playerCount == 3) {
+            return 2; // Top 2 advance to final
+        }
 
         if ($playerCount <= 8) {
-            return 4; // Minimum bracket size
+            return 4; // 4-8 players → Top 4 (semifinals + final)
         }
 
-        if ($playerCount <= 10) {
-            return 4; // For 10 players, Top 4 goes to elimination
-        } elseif ($playerCount <= 16) {
-            return min(8, self::nearestPowerOf2($playerCount / 2));
+        if ($playerCount <= 16) {
+            return 4; // 9-16 players → Top 4 (semifinals + final)
         }
 
         if ($playerCount <= 32) {
-            return 8;
+            return 8; // 17-32 players → Top 8 (quarterfinals onwards)
         }
 
-        if ($playerCount <= 48) {
-            return 16;
+        if ($playerCount <= 64) {
+            return 16; // 33-64 players → Top 16 (round of 16 onwards)
         }
 
-        if ($playerCount <= 100) {
-            return 32;
+        if ($playerCount <= 128) {
+            return 32; // 65-128 players → Top 32 (round of 32 onwards)
         }
 
         // For very large tournaments
