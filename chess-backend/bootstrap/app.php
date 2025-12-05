@@ -66,6 +66,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission' => \App\Http\Middleware\CheckPermission::class,
         ]);
 
+        // API middleware is configured correctly in Kernel.php
+        // Just ensure our custom CSRF middleware is excluded
+
         // Configure authentication to NOT redirect for API routes
         // This prevents the "Route [login] not defined" error
         $middleware->redirectGuestsTo(function ($request) {

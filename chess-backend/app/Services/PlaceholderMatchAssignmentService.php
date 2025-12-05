@@ -579,23 +579,65 @@ class PlaceholderMatchAssignmentService
             return null;
         }
 
-        // Extract winners (for finals, semis, etc.)
-        $winners = $previousMatches->pluck('winner_id')->toArray();
+        // 🎯 FIXED: Use placeholder_positions to determine which winners to assign
+        // Get standings to map rank positions to actual winners
+        $standings = $this->getCurrentStandings($championship);
 
-        if (count($winners) < 2) {
-            Log::warning("Not enough winners from previous round", [
+        // Get the placeholder positions for this match
+        $positions = $match->placeholder_positions;
+
+        if (!$positions) {
+            Log::warning("Missing placeholder_positions for elimination match", [
                 'match_id' => $match->id,
-                'previous_round' => $previousRoundNumber,
-                'winners_count' => count($winners),
+                'round_number' => $match->round_number,
             ]);
-            return null;
-        }
+            // Fallback to old behavior if no positions defined
+            $winners = $previousMatches->pluck('winner_id')->toArray();
+            if (count($winners) < 2) {
+                return null;
+            }
+            $player1Id = $winners[0];
+            $player2Id = $winners[1];
+        } else {
+            // Extract rank numbers from position strings (e.g., 'rank_1' => 1, 'rank_2' => 2)
+            $player1Rank = $this->extractRankNumber($positions['player1'] ?? null);
+            $player2Rank = $this->extractRankNumber($positions['player2'] ?? null);
 
-        // For standard elimination: assign first two winners
-        // TODO: This assumes match order determines bracket position
-        // For more complex brackets, use placeholder_positions to map specific matches to positions
-        $player1Id = $winners[0];
-        $player2Id = $winners[1];
+            if ($player1Rank === null || $player2Rank === null) {
+                Log::warning("Invalid placeholder positions", [
+                    'match_id' => $match->id,
+                    'positions' => $positions,
+                ]);
+                return null;
+            }
+
+            // Get players at specified ranks from standings
+            $player1 = $this->getPlayerAtRank($standings, $player1Rank);
+            $player2 = $this->getPlayerAtRank($standings, $player2Rank);
+
+            if (!$player1 || !$player2) {
+                Log::warning("Could not find players at specified ranks", [
+                    'match_id' => $match->id,
+                    'player1_rank' => $player1Rank,
+                    'player2_rank' => $player2Rank,
+                    'standings_count' => $standings->count(),
+                ]);
+                return null;
+            }
+
+            $player1Id = $player1->user_id;
+            $player2Id = $player2->user_id;
+
+            Log::info("Using placeholder positions to assign players", [
+                'match_id' => $match->id,
+                'player1_rank' => $player1Rank,
+                'player1_id' => $player1Id,
+                'player1_name' => $player1->user->name,
+                'player2_rank' => $player2Rank,
+                'player2_id' => $player2Id,
+                'player2_name' => $player2->user->name,
+            ]);
+        }
 
         // Assign colors
         $colors = $this->swissService->assignColorsPub(

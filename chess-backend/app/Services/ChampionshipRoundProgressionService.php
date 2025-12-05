@@ -325,6 +325,21 @@ class ChampionshipRoundProgressionService
                 ]);
 
                 if ($roundType === 'swiss') {
+                    // 🎯 CRITICAL FIX: Delete placeholder matches before creating new Swiss pairings
+                    // Swiss rounds 2+ need dynamic pairings based on standings, not pre-generated placeholders
+                    $existingMatches = $championship->matches()->where('round_number', $nextRound)->get();
+
+                    if ($existingMatches->count() > 0) {
+                        Log::info("Deleting placeholder matches before Swiss pairing generation", [
+                            'championship_id' => $championship->id,
+                            'round' => $nextRound,
+                            'existing_matches' => $existingMatches->count(),
+                        ]);
+
+                        // Delete the placeholder matches
+                        $championship->matches()->where('round_number', $nextRound)->delete();
+                    }
+
                     // Generate Swiss pairings
                     $pairings = $this->swissPairingService->generatePairings($championship, $nextRound);
                     $newMatches = $this->swissPairingService->createMatches($championship, $pairings, $nextRound);

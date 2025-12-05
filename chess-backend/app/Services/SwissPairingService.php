@@ -40,11 +40,17 @@ class SwissPairingService
             );
         }
 
+        // Store original participants count for validation
+        $originalParticipantsCount = $participants->count();
+
         // Sort participants by score (descending) and tiebreakers
         $sortedParticipants = $this->sortParticipantsByScore($championship, $participants);
 
         // Generate pairings using Dutch algorithm (FIDE standard)
         $pairings = $this->dutchAlgorithm($championship, $sortedParticipants, $roundNumber);
+
+        // 🎯 CRITICAL FIX: Validate using original participant count, not filtered
+        $this->validatePairingCompletenessWithCount($participants, $pairings, $championship, $roundNumber, $originalParticipantsCount);
 
         return $pairings;
     }
@@ -58,6 +64,24 @@ class SwissPairingService
         $byePlayers = collect();
 
         DB::transaction(function () use ($championship, $pairings, $roundNumber, $matches, $byePlayers) {
+            // First, check for any existing matches in this round to prevent duplicates
+            $existingPairings = $championship->matches()
+                ->where('round_number', $roundNumber)
+                ->whereNot('result_type', 'bye')
+                ->get()
+                ->map(function ($match) {
+                    return [
+                        'player1_id' => min($match->player1_id, $match->player2_id),
+                        'player2_id' => max($match->player1_id, $match->player2_id)
+                    ];
+                })
+                ->toArray();
+
+            Log::info("Checking for existing matches in round", [
+                'championship_id' => $championship->id,
+                'round' => $roundNumber,
+                'existing_matches_count' => count($existingPairings),
+            ]);
             foreach ($pairings as $pairing) {
                 // Check if this is a bye pairing (player2_id is null)
                 if (isset($pairing['is_bye']) && $pairing['is_bye']) {
@@ -67,6 +91,23 @@ class SwissPairingService
                         'user' => \App\Models\User::find($pairing['player1_id'])
                     ];
                     $byePlayers->push($byeInfo);
+                    continue;
+                }
+
+                // Check for duplicate pairing in this round
+                $pairingKey = [
+                    'player1_id' => min($pairing['player1_id'], $pairing['player2_id']),
+                    'player2_id' => max($pairing['player1_id'], $pairing['player2_id'])
+                ];
+
+                if (in_array($pairingKey, $existingPairings)) {
+                    Log::warning("Skipping duplicate pairing in round", [
+                        'championship_id' => $championship->id,
+                        'round' => $roundNumber,
+                        'player1_id' => $pairing['player1_id'],
+                        'player2_id' => $pairing['player2_id'],
+                        'action' => 'skipping_duplicate'
+                    ]);
                     continue;
                 }
 
@@ -210,18 +251,17 @@ class SwissPairingService
                 ]);
             }
 
-            // If odd number, remove lowest-rated player as floater for next group
+            // If odd number, remove player with fewest BYEs as floater for next group
             if ($players->count() % 2 !== 0) {
-                // Sort by rating to identify lowest
-                $sorted = $players->sortBy(fn($p) => $p->user->rating ?? 1200)->values();
-                $floater = $sorted->first(); // Lowest rated becomes floater
-                $players = $sorted->slice(1)->values(); // Remove floater from current group and re-index
+                // 🎯 FIXED: Select floater based on BYE history, not just rating
+                $floater = $this->selectFloaterWithFewestByes($championship, $players);
+                $players = $players->filter(fn($p) => $p->user_id !== $floater->user_id)->values(); // Remove floater from current group and re-index
 
-                Log::info("Player will float to next group", [
+                Log::info("Player will float to next group (selected by BYE fairness)", [
                     'floater_id' => $floater->user_id,
                     'floater_rating' => $floater->user->rating ?? 1200,
                     'current_score' => $score,
-                    'group_size_before_float' => $sorted->count(),
+                    'group_size_before_float' => $players->count() + 1,
                     'group_size_after' => $players->count(),
                     'remaining_player_ids' => $players->pluck('user_id')->toArray(),
                 ]);
@@ -250,10 +290,14 @@ class SwissPairingService
             }
         }
 
-        // STEP 4: Handle final floater (becomes BYE)
+        // STEP 4: 🎯 CRITICAL FIX: BYE HANDLING
+        // If we have a final floater after processing all groups, they get the BYE
+        // We CANNOT use "fair BYE selection" here because it tries to find pairings
+        // that don't exist yet for players in lower score groups
         if ($floater) {
-            Log::info("Final floater receives BYE", [
+            Log::info("🎯 Final floater receives BYE", [
                 'floater_id' => $floater->user_id,
+                'floater_name' => $floater->user->name,
                 'championship_id' => $championship->id,
                 'round' => $roundNumber,
             ]);
@@ -269,8 +313,8 @@ class SwissPairingService
             ];
         }
 
-        // STEP 5: CRITICAL VALIDATION
-        $this->validatePairingCompleteness($participants, $pairings, $championship, $roundNumber);
+        // STEP 5: CRITICAL VALIDATION (use original participants)
+        // Don't validate here - it's already done in generatePairings()
 
         return $pairings;
     }
@@ -318,10 +362,10 @@ class SwissPairingService
                 continue;
             }
 
-            // Check if they've already played
-            if ($this->haveAlreadyPlayed($championship, $player1->user_id, $player2->user_id)) {
+            // Check if they've already played OR are already paired in current round
+            if ($this->haveAlreadyPlayed($championship, $player1->user_id, $player2->user_id, $roundNumber)) {
                 // Try to find alternative within remaining unpaired players
-                $alternative = $this->findAlternativeInGroup($championship, $sortedPlayers, $i, $paired);
+                $alternative = $this->findAlternativeInGroup($championship, $sortedPlayers, $i, $paired, $roundNumber);
 
                 if ($alternative) {
                     $player2 = $alternative;
@@ -364,7 +408,7 @@ class SwissPairingService
     /**
      * Find alternative pairing within group to avoid repeat matches
      */
-    private function findAlternativeInGroup(Championship $championship, Collection $players, int $currentIndex, Collection $alreadyPaired): mixed
+    private function findAlternativeInGroup(Championship $championship, Collection $players, int $currentIndex, Collection $alreadyPaired, int $roundNumber): mixed
     {
         $currentPlayer = $players[$currentIndex];
 
@@ -376,7 +420,7 @@ class SwissPairingService
                 continue;
             }
 
-            if (!$this->haveAlreadyPlayed($championship, $currentPlayer->user_id, $candidate->user_id)) {
+            if (!$this->haveAlreadyPlayed($championship, $currentPlayer->user_id, $candidate->user_id, $roundNumber)) {
                 return $candidate;
             }
         }
@@ -428,6 +472,74 @@ class SwissPairingService
         }
 
         Log::info("✅ Pairing validation passed", [
+            'championship_id' => $championship->id,
+            'round' => $roundNumber,
+            'players_paired' => $actualCount,
+            'matches_created' => count($pairings),
+        ]);
+    }
+
+    /**
+     * 🎯 NEW: Validate pairing completeness with explicit participant count
+     *
+     * This method is used when participants might be filtered during processing
+     * but we need to validate against the original participant count
+     *
+     * @throws \Exception if validation fails
+     */
+    private function validatePairingCompletenessWithCount(Collection $originalParticipants, array $pairings, Championship $championship, int $roundNumber, int $expectedCount): void
+    {
+        $participantIds = $originalParticipants->pluck('user_id')->toArray();
+        $pairedIds = [];
+
+        foreach ($pairings as $pairing) {
+            if (isset($pairing['is_bye']) && $pairing['is_bye']) {
+                $pairedIds[] = $pairing['player1_id'];
+            } else {
+                $pairedIds[] = $pairing['player1_id'];
+                $pairedIds[] = $pairing['player2_id'];
+            }
+        }
+
+        $pairedIds = array_unique($pairedIds);
+        $actualCount = count($pairedIds);
+
+        Log::info("🎯 Pairing completeness check", [
+            'championship_id' => $championship->id,
+            'round' => $roundNumber,
+            'original_participants' => count($participantIds),
+            'expected_count' => $expectedCount,
+            'actually_paired' => $actualCount,
+            'pairings_count' => count($pairings),
+        ]);
+
+        // Validate that all expected participants are paired
+        if ($actualCount !== $expectedCount) {
+            // Find which original participants are missing
+            $missingIds = [];
+            foreach ($participantIds as $participantId) {
+                if (!in_array($participantId, $pairedIds)) {
+                    $missingIds[] = $participantId;
+                }
+            }
+
+            Log::error("🚨 CRITICAL PAIRING FAILURE: Not all participants paired", [
+                'championship_id' => $championship->id,
+                'round' => $roundNumber,
+                'expected_players' => $expectedCount,
+                'actually_paired' => $actualCount,
+                'missing_player_ids' => $missingIds,
+                'pairings_count' => count($pairings),
+                'original_participant_count' => count($participantIds),
+            ]);
+
+            throw new \Exception(
+                "Swiss Pairing Validation Failed: Expected $expectedCount players, paired $actualCount. " .
+                "Missing players: " . implode(', ', $missingIds)
+            );
+        }
+
+        Log::info("✅ Enhanced pairing validation passed", [
             'championship_id' => $championship->id,
             'round' => $roundNumber,
             'players_paired' => $actualCount,
@@ -541,8 +653,8 @@ class SwissPairingService
                 continue;
             }
 
-            // Check if they have already played each other
-            if ($this->haveAlreadyPlayed($championship, $player1->user_id, $player2->user_id)) {
+            // Check if they have already played each other OR are already paired in current round
+            if ($this->haveAlreadyPlayed($championship, $player1->user_id, $player2->user_id, $roundNumber)) {
                 // Try to find alternative pairing within remaining players in group
                 $alternativePairing = $this->findAlternativePairing($championship, $sortedGroup, $i, $roundNumber);
                 if ($alternativePairing) {
@@ -635,9 +747,9 @@ class SwissPairingService
 
             $player2 = $remaining[$i + 1];
 
-            // Check if these players have already played
-            if ($this->haveAlreadyPlayed($championship, $player1->user_id, $player2->user_id)) {
-                Log::info("Unpaired players have already played - trying next combination", [
+            // Check if these players have already played OR are already paired in current round
+            if ($this->haveAlreadyPlayed($championship, $player1->user_id, $player2->user_id, $roundNumber)) {
+                Log::info("Unpaired players have already played or already paired - trying next combination", [
                     'player1_id' => $player1->user_id,
                     'player2_id' => $player2->user_id,
                     'round' => $roundNumber,
@@ -834,11 +946,12 @@ class SwissPairingService
     }
 
     /**
-     * Check if two participants have already played each other
+     * Check if two participants have already played each other OR are already paired in current round
      */
-    private function haveAlreadyPlayed(Championship $championship, int $player1Id, int $player2Id): bool
+    private function haveAlreadyPlayed(Championship $championship, int $player1Id, int $player2Id, ?int $currentRound = null): bool
     {
-        return $championship->matches()
+        // Check if they have played in completed matches
+        $completedMatch = $championship->matches()
             ->completed()
             ->where(function ($query) use ($player1Id, $player2Id) {
                 $query->where(function ($q) use ($player1Id, $player2Id) {
@@ -850,6 +963,28 @@ class SwissPairingService
                 });
             })
             ->exists();
+
+        if ($completedMatch) {
+            return true;
+        }
+
+        // If checking for current round, also check if they're already paired
+        if ($currentRound !== null) {
+            return $championship->matches()
+                ->where('round_number', $currentRound)
+                ->where(function ($query) use ($player1Id, $player2Id) {
+                    $query->where(function ($q) use ($player1Id, $player2Id) {
+                        $q->where('player1_id', $player1Id)
+                          ->where('player2_id', $player2Id);
+                    })->orWhere(function ($q) use ($player1Id, $player2Id) {
+                        $q->where('player1_id', $player2Id)
+                          ->where('player2_id', $player1Id);
+                    });
+                })
+                ->exists();
+        }
+
+        return false;
     }
 
     /**
@@ -872,7 +1007,7 @@ class SwissPairingService
         for ($i = $currentIndex + 2; $i < $group->count(); $i++) {
             $potentialOpponent = $group[$i];
 
-            if (!$this->haveAlreadyPlayed($championship, $currentPlayer->user_id, $potentialOpponent->user_id)) {
+            if (!$this->haveAlreadyPlayed($championship, $currentPlayer->user_id, $potentialOpponent->user_id, $roundNumber)) {
                 // 🎯 SAFETY CHECK: Ensure we have enough elements for swap
                 if (!isset($group[$currentIndex + 1])) {
                     Log::warning("findAlternativePairing: Cannot swap - missing element", [
@@ -970,6 +1105,37 @@ class SwissPairingService
      */
     private function handleBye(Championship $championship, $participant, int $roundNumber): array
     {
+        // 🎯 CRITICAL FIX: Check if player already has a BYE in this round
+        $existingBye = $championship->matches()
+            ->where('round_number', $roundNumber)
+            ->where('player1_id', $participant->user_id)
+            ->whereNull('player2_id')
+            ->exists();
+
+        if ($existingBye) {
+            Log::warning("Player already has BYE in round - skipping duplicate BYE", [
+                'championship_id' => $championship->id,
+                'round' => $roundNumber,
+                'user_id' => $participant->user_id,
+            ]);
+
+            // Return existing BYE info instead of creating duplicate
+            $existingByeMatch = $championship->matches()
+                ->where('round_number', $roundNumber)
+                ->where('player1_id', $participant->user_id)
+                ->whereNull('player2_id')
+                ->first();
+
+            return [
+                'user_id' => $participant->user_id,
+                'user' => $participant->user,
+                'points_to_award' => $championship->getByePoints(),
+                'status' => 'PENDING',
+                'round_number' => $roundNumber,
+                'existing' => true, // Flag that this is existing
+            ];
+        }
+
         $byePoints = $championship->getByePoints();
 
         // 🎯 FIXED: Do NOT award points immediately for Swiss tournaments
@@ -1034,12 +1200,12 @@ class SwissPairingService
     }
 
     /**
-     * 🎯 NEW: Smart BYE selection with group balancing
+     * 🎯 ENHANCED: Smart BYE selection with fairness balancing
      *
-     * Strategy: Give BYE to player whose removal creates the most balanced group sizes
+     * Strategy: Select player who has received the fewest BYEs so far
      * Priority 1: Find group where removal makes ALL groups even-sized
      * Priority 2: If no perfect solution, remove from lowest score group
-     * Priority 3: Within selected group, choose lowest-rated player with fewest BYEs
+     * Priority 3: Within selected group, choose player with fewest BYEs (not lowest rating)
      */
     private function selectOptimalByeRecipientWithGroupBalancing(Championship $championship, array $scoreGroups): mixed
     {
@@ -1047,7 +1213,7 @@ class SwissPairingService
             return null;
         }
 
-        Log::info("Smart BYE selection - analyzing group balance", [
+        Log::info("Smart BYE selection - analyzing group balance and BYE history", [
             'championship_id' => $championship->id,
             'score_groups' => array_map(fn($g) => count($g), $scoreGroups),
         ]);
@@ -1077,8 +1243,8 @@ class SwissPairingService
             return null;
         }
 
-        // 🎯 PRIORITY 3: Within selected group, choose optimal player
-        return $this->selectBestPlayerForBye($championship, collect($selectedGroup));
+        // 🎯 PRIORITY 3: Within selected group, choose player with fewest BYEs for fairness
+        return $this->selectBestPlayerForByeWithFairness($championship, collect($selectedGroup));
     }
 
     /**
@@ -1110,7 +1276,161 @@ class SwissPairingService
     }
 
     /**
-     * Select best player for BYE from a candidate group
+     * 🎯 NEW: Select fairest BYE recipient across ALL participants
+     * Priority: 1) Lowest score, 2) Fewest BYEs received, 3) Lowest rating
+     * This ensures BYEs are distributed fairly according to Swiss tournament rules
+     */
+    private function selectFairByeRecipient(Championship $championship, \Illuminate\Support\Collection $allParticipants, int $roundNumber): mixed
+    {
+        if ($allParticipants->isEmpty()) {
+            return null;
+        }
+
+        // Get current standings for all participants
+        $standings = $championship->standings()->get()->keyBy('user_id');
+
+        // Get BYE history for all participants
+        $byeHistory = $championship->matches()
+            ->whereNull('player2_id')  // BYE matches
+            ->get()
+            ->groupBy('player1_id')
+            ->map(fn($matches) => $matches->count());
+
+        Log::info("Fair BYE Selection Analysis", [
+            'championship_id' => $championship->id,
+            'round' => $roundNumber,
+            'participants' => $allParticipants->count(),
+        ]);
+
+        // Sort by: 1) Lowest score, 2) Fewest BYEs, 3) Lowest rating
+        $sortedCandidates = $allParticipants->sortBy(function ($participant) use ($standings, $byeHistory) {
+            $score = $standings->get($participant->user_id)?->points ?? 0;
+            $byes = $byeHistory->get($participant->user_id, 0);
+            $rating = $participant->user->rating ?? 1200;
+
+            Log::info("BYE candidate analysis", [
+                'user_id' => $participant->user_id,
+                'name' => $participant->user->name,
+                'score' => $score,
+                'byes' => $byes,
+                'rating' => $rating,
+            ]);
+
+            // Lower array = higher priority (should get BYE)
+            return [
+                $score,   // Lowest score first (Swiss fairness)
+                $byes,    // Fewest BYEs second (distribution fairness)
+                $rating,  // Lowest rating third (traditional approach)
+            ];
+        });
+
+        $bestCandidate = $sortedCandidates->first();
+
+        Log::info("Fair BYE selection result", [
+            'selected_player' => $bestCandidate->user->name,
+            'selected_score' => $standings->get($bestCandidate->user_id)?->points ?? 0,
+            'selected_byes' => $byeHistory->get($bestCandidate->user_id, 0),
+            'round' => $roundNumber,
+        ]);
+
+        return $bestCandidate;
+    }
+
+    /**
+     * Select floater from a score group with fewest previous BYEs
+     * Used when a score group has odd number of players and one must float to the next group
+     * Priority: 1) Fewest BYEs received, 2) Lowest rating
+     */
+    private function selectFloaterWithFewestByes(Championship $championship, \Illuminate\Support\Collection $players): mixed
+    {
+        if ($players->isEmpty()) {
+            return null;
+        }
+
+        // Get BYE history for all players in this group
+        $byeHistory = $championship->matches()
+            ->whereNull('player2_id')  // BYE matches
+            ->whereIn('player1_id', $players->pluck('user_id'))
+            ->get()
+            ->groupBy('player1_id')
+            ->map(fn($matches) => $matches->count());
+
+        Log::info("Selecting floater with fewest BYEs", [
+            'championship_id' => $championship->id,
+            'players_count' => $players->count(),
+            'bye_history' => $byeHistory->toArray(),
+        ]);
+
+        // Sort by: 1) Fewest BYEs (fairness), 2) Lowest rating (tiebreaker)
+        $sorted = $players->sortBy(function ($player) use ($byeHistory) {
+            $byes = $byeHistory->get($player->user_id, 0);
+            $rating = $player->user->rating ?? 1200;
+
+            // Lower array values = higher priority to float
+            return [
+                $byes,    // Fewest BYEs first (fair distribution)
+                $rating,  // Lowest rating second (traditional Swiss)
+            ];
+        });
+
+        $floater = $sorted->first();
+
+        Log::info("Floater selected", [
+            'user_id' => $floater->user_id,
+            'name' => $floater->user->name,
+            'previous_byes' => $byeHistory->get($floater->user_id, 0),
+            'rating' => $floater->user->rating ?? 1200,
+        ]);
+
+        return $floater;
+    }
+
+    /**
+     * Select best player for BYE from a candidate group (FAIRNESS VERSION)
+     * Priority: 1) Fewest BYEs received (PRIMARY - fairness), 2) Lowest rating
+     */
+    private function selectBestPlayerForByeWithFairness(Championship $championship, \Illuminate\Support\Collection $candidates): mixed
+    {
+        if ($candidates->isEmpty()) {
+            return null;
+        }
+
+        // Get BYE history for all candidates (all rounds, not just completed)
+        $byeHistory = $championship->matches()
+            ->whereNull('player2_id')  // BYE matches have null player2
+            ->whereIn('player1_id', $candidates->pluck('user_id'))
+            ->get()
+            ->groupBy('player1_id')
+            ->map(fn($matches) => $matches->count());
+
+        Log::info("BYE Fairness Analysis", [
+            'championship_id' => $championship->id,
+            'candidates' => $candidates->pluck('user_id')->toArray(),
+            'bye_history' => $byeHistory->toArray(),
+        ]);
+
+        // Sort candidates by: 1) Fewest BYEs (PRIMARY for fairness), 2) Lowest rating
+        return $candidates->sortBy(function ($participant) use ($byeHistory) {
+            $byes = $byeHistory->get($participant->user_id, 0);
+            $rating = $participant->user->rating ?? 1200;
+
+            Log::info("BYE priority for player", [
+                'user_id' => $participant->user_id,
+                'name' => $participant->user->name,
+                'byes_received' => $byes,
+                'rating' => $rating,
+            ]);
+
+            // Lower array = higher priority in sortBy
+            return [
+                $byes,    // Fewest BYEs first (FAIRNESS PRIORITY)
+                $rating,  // Lowest rating first (traditional Swiss approach)
+            ];
+        })->first();
+    }
+
+    /**
+     * Original method kept for compatibility (legacy version)
      * Priority: 1) Fewest BYEs received, 2) Lowest rating
      */
     private function selectBestPlayerForBye(Championship $championship, \Illuminate\Support\Collection $candidates): mixed
@@ -1195,7 +1515,7 @@ class SwissPairingService
             $participantIds[] = $pairing['player1_id'];
             $participantIds[] = $pairing['player2_id'];
 
-            // Check if players have already faced each other
+            // Check if players have already faced each other (completed matches only for validation)
             if ($this->haveAlreadyPlayed($championship, $pairing['player1_id'], $pairing['player2_id'])) {
                 $errors[] = "Pairing {$index}: Players have already faced each other";
             }

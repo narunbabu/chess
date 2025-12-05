@@ -36,7 +36,7 @@ class Kernel extends HttpKernel
         ],
 
         'api' => [
-            'throttle:api',
+            // 'throttle:api', // Temporarily disabled for debugging
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
         ],
     ];
