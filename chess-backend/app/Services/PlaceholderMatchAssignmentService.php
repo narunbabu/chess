@@ -1249,6 +1249,21 @@ class PlaceholderMatchAssignmentService
                 continue;
             }
 
+            // 🛡️ NEW FIX: Skip matches that already have players assigned (tournament integrity protection)
+            if ($match->player1_id && $match->player2_id) {
+                Log::info("🛡️ [TOURNAMENT INTEGRITY] Skipping match with players already assigned", [
+                    'match_id' => $match->id,
+                    'round_number' => $match->round_number,
+                    'current_player1_id' => $match->player1_id,
+                    'current_player2_id' => $match->player2_id,
+                    'players_assigned_at' => $match->players_assigned_at,
+                    'current_status' => $match->status_id,
+                    'reason' => 'tournament_integrity_protection',
+                    'warning' => 'DO NOT MODIFY - bracket integrity at stake'
+                ]);
+                continue;
+            }
+
             try {
                 // For elimination rounds, pair top qualifiers appropriately
                 $assignment = $this->assignPlayersToEliminationMatch(
@@ -1300,6 +1315,28 @@ class PlaceholderMatchAssignmentService
         Collection $qualifiedPlayers,
         ChampionshipRoundTypeEnum $roundType
     ): array {
+        // 🛡️ SAFETY CHECK: Prevent reassigning players to matches that already have players
+        if ($match->player1_id && $match->player2_id) {
+            Log::warning("🚨 [SAFETY VIOLATION] Attempted to reassign players to already-assigned match", [
+                'match_id' => $match->id,
+                'round_number' => $match->round_number,
+                'current_player1_id' => $match->player1_id,
+                'current_player2_id' => $match->player2_id,
+                'players_assigned_at' => $match->players_assigned_at,
+                'attempt_reassign_blocked' => true,
+                'warning' => 'Tournament integrity protection activated'
+            ]);
+
+            // Return current assignment without changes
+            return [
+                'match_id' => $match->id,
+                'player1_id' => $match->player1_id,
+                'player2_id' => $match->player2_id,
+                'assignment_blocked' => true,
+                'reason' => 'players_already_assigned'
+            ];
+        }
+
         if ($qualifiedPlayers->count() < 2) {
             throw new \Exception("Not enough qualified players for elimination match");
         }
@@ -1326,6 +1363,7 @@ class PlaceholderMatchAssignmentService
             'player2_id' => $player2->user_id,
             'white_player_id' => $player1->user_id, // Higher ranked player gets white
             'black_player_id' => $player2->user_id,
+            'players_assigned_at' => now(), // 🛡️ CRITICAL: Mark when players are assigned to prevent reassignment
         ]);
 
         Log::info("✅ [ELIMINATION] Match updated successfully", [

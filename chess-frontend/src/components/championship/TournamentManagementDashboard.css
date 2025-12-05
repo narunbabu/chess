@@ -709,6 +709,48 @@
   transform: translateY(-1px);
 }
 
+/* Swiss-Elimination Button Special Styling */
+.swiss-elimination-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: 2px solid #5a67d8;
+  position: relative;
+  overflow: hidden;
+}
+
+.swiss-elimination-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transition: left 0.5s;
+}
+
+.swiss-elimination-btn:hover::before {
+  left: 100%;
+}
+
+.swiss-elimination-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #5a67d8 0%, #667eea 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(90, 103, 216, 0.4);
+}
+
+.swiss-elimination-btn:disabled {
+  background: #e9ecef;
+  color: #6c757d;
+  border-color: #dee2e6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.swiss-elimination-btn:disabled::before {
+  display: none;
+}
+
 .btn-danger {
   background: #dc3545;
   color: white;

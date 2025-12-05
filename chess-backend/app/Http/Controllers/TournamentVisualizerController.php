@@ -48,12 +48,21 @@ class TournamentVisualizerController extends Controller
         }
 
         $validated = $request->validate([
-            'player_count' => 'required|integer|in:3,5,10,50',
-            'title' => 'nullable|string|max:255'
+            'player_count' => 'required|integer|min:3|max:1000',
+            'title' => 'nullable|string|max:255',
+            'championship_id' => 'nullable|integer|exists:championships,id'
         ]);
 
         $playerCount = $validated['player_count'];
         $title = $validated['title'] ?? "[VISUALIZER] {$playerCount}-Player Test Tournament";
+        $useExistingChampionship = !empty($validated['championship_id']);
+
+        Log::info('🏆 [TOURNAMENT CREATION] Starting tournament generation', [
+            'player_count' => $playerCount,
+            'use_existing_championship' => $useExistingChampionship,
+            'championship_id' => $validated['championship_id'] ?? null,
+            'title' => $title
+        ]);
 
         try {
             DB::beginTransaction();
@@ -68,25 +77,66 @@ class TournamentVisualizerController extends Controller
                 'structure' => $config,
             ]);
 
-            // Create championship
-            $championship = Championship::create([
-                'title' => $title,
-                'description' => 'Test tournament created via visualizer',
-                'format_id' => 1, // Swiss + Elimination
-                'status_id' => \App\Enums\ChampionshipStatus::REGISTRATION_OPEN->getId(),
-                'start_date' => now()->addDays(7),
-                'registration_deadline' => now()->addDays(5),
-                'entry_fee' => 0,
-                'max_participants' => $playerCount,
-                'total_rounds' => count($config['rounds']),
-                'swiss_rounds' => $this->countSwissRounds($config['rounds']),
-                'top_qualifiers' => $this->getTopQualifiers($config['rounds']),
-                'created_by' => 1, // System user
-                'is_test_tournament' => true, // MARKER FIELD
-            ]);
+            // Use existing championship or create new one
+            if ($useExistingChampionship) {
+                $championship = Championship::findOrFail($validated['championship_id']);
 
-            // Create test users and participants
-            $participants = $this->createTestParticipants($championship, $playerCount);
+                Log::info("🏆 [TOURNAMENT] Using existing championship", [
+                    'championship_id' => $championship->id,
+                    'title' => $championship->title,
+                    'current_participants' => $championship->participants()->count()
+                ]);
+
+                // Safety check: Reset tournament_generated flag if no matches exist
+                // This handles cases where generation failed after flag was set
+                if ($championship->tournament_generated && $championship->matches()->count() === 0) {
+                    Log::warning("⚠️ [TOURNAMENT] Resetting tournament_generated flag - no matches found", [
+                        'championship_id' => $championship->id,
+                    ]);
+                    $championship->update([
+                        'tournament_generated' => false,
+                        'tournament_generated_at' => null,
+                    ]);
+                }
+
+                // Check if we should regenerate (delete existing matches)
+                if ($request->input('force_regenerate', false)) {
+                    Log::info("🔄 [TOURNAMENT] Force regenerating - deleting existing matches");
+                    $championship->matches()->delete();
+                    $championship->update([
+                        'tournament_generated' => false,
+                        'tournament_generated_at' => null,
+                    ]);
+                }
+
+                // Update championship with tournament settings
+                // NOTE: tournament_generated flag is set by TournamentGenerationService after successful generation
+                $championship->update([
+                    'format_id' => 1, // Swiss + Elimination
+                    'status_id' => \App\Enums\ChampionshipStatus::IN_PROGRESS->getId(),
+                    'total_rounds' => count($config['rounds']),
+                    'swiss_rounds' => $this->countSwissRounds($config['rounds']),
+                    'top_qualifiers' => $this->getTopQualifiers($config['rounds']),
+                ]);
+            } else {
+                // Create championship
+                $championship = Championship::create([
+                    'title' => $title,
+                    'description' => 'Test tournament created via visualizer',
+                    'format_id' => 1, // Swiss + Elimination
+                    'status_id' => \App\Enums\ChampionshipStatus::REGISTRATION_OPEN->getId(),
+                    'start_date' => now()->addDays(7),
+                    'registration_deadline' => now()->addDays(5),
+                    'entry_fee' => 0,
+                    'max_participants' => $playerCount,
+                    'total_rounds' => count($config['rounds']),
+                    'swiss_rounds' => $this->countSwissRounds($config['rounds']),
+                    'top_qualifiers' => $this->getTopQualifiers($config['rounds']),
+                    'created_by' => 1, // System user
+                    'is_test_tournament' => true, // MARKER FIELD
+                ]);
+
+            }
 
             // Generate tournament structure - convert rounds to round_structure for TournamentConfig
             $tournamentConfigData = [
@@ -101,6 +151,11 @@ class TournamentVisualizerController extends Controller
             ];
             $tournamentConfig = TournamentConfig::fromArray($tournamentConfigData);
             $summary = $this->tournamentGenerator->generateFullTournament($championship, $tournamentConfig);
+
+            // Create test users and participants for new championships only
+            if (!$useExistingChampionship) {
+                $participants = $this->createTestParticipants($championship, $playerCount);
+            }
 
             // Initialize standings
             $this->standingsCalculator->updateStandings($championship);
@@ -801,5 +856,195 @@ class TournamentVisualizerController extends Controller
         });
 
         return array_values($standings);
+    }
+
+    /**
+     * Get all championships for player assignment
+     */
+    public function getChampionships(): JsonResponse
+    {
+        Log::info('📋 [ASSIGNMENT] Getting all championships');
+
+        $championships = Championship::select([
+            'id', 'name', 'status', 'current_round', 'participant_limit',
+            'registration_open', 'created_at', 'updated_at'
+        ])
+        ->withCount('participants as participant_count')
+        ->orderBy('created_at', 'desc')
+        ->get()
+        ->map(function ($championship) {
+            return [
+                'id' => $championship->id,
+                'name' => $championship->name,
+                'status' => $championship->status,
+                'current_round' => $championship->current_round,
+                'participant_limit' => $championship->participant_limit,
+                'participant_count' => $championship->participant_count,
+                'registration_open' => $championship->registration_open,
+                'created_at' => $championship->created_at->toISOString(),
+                'updated_at' => $championship->updated_at->toISOString(),
+            ];
+        });
+
+        Log::info('✅ [ASSIGNMENT] Championships retrieved', [
+            'count' => $championships->count()
+        ]);
+
+        return response()->json($championships);
+    }
+
+    /**
+     * Get all users available for assignment
+     */
+    public function getUsers(): JsonResponse
+    {
+        Log::info('👥 [ASSIGNMENT] Getting all users');
+
+        $users = User::select(['id', 'name', 'email', 'rating'])
+        ->orderBy('name')
+        ->get()
+        ->map(function ($user) {
+            return [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'rating' => $user->rating ?? 0,
+            ];
+        });
+
+        Log::info('✅ [ASSIGNMENT] Users retrieved', [
+            'count' => $users->count()
+        ]);
+
+        return response()->json($users);
+    }
+
+    /**
+     * Assign players to a championship
+     */
+    public function assignPlayersToChampionship(Request $request, int $championshipId): JsonResponse
+    {
+        Log::info('🎯 [ASSIGNMENT] Starting player assignment', [
+            'championship_id' => $championshipId,
+            'user_ids' => $request->input('user_ids')
+        ]);
+
+        $validated = $request->validate([
+            'user_ids' => 'required|array|min:1',
+            'user_ids.*' => 'integer|exists:users,id'
+        ]);
+
+        try {
+            $championship = Championship::findOrFail($championshipId);
+
+            Log::info('📋 [ASSIGNMENT] Championship found', [
+                'championship_id' => $championship->id,
+                'name' => $championship->name,
+                'status' => $championship->status,
+                'current_participants' => $championship->participants()->count()
+            ]);
+
+            // Check if championship is in a state that allows player assignment
+            $registrationDeadline = $championship->registration_deadline;
+            $now = now();
+            $deadlinePassed = $now->greaterThan($registrationDeadline);
+
+            Log::info('🔍 [ASSIGNMENT] Registration check', [
+                'championship_id' => $championshipId,
+                'status_id' => $championship->status_id,
+                'status_code' => $championship->status,
+                'registration_deadline' => $registrationDeadline->toISOString(),
+                'current_time' => $now->toISOString(),
+                'deadline_passed' => $deadlinePassed,
+                'is_registration_open' => $championship->is_registration_open,
+                'allow_public_registration' => $championship->allow_public_registration
+            ]);
+
+            if ($deadlinePassed || $championship->status_id !== \App\Enums\ChampionshipStatus::REGISTRATION_OPEN->getId()) {
+                Log::warning('⚠️ [ASSIGNMENT] Championship registration is closed', [
+                    'championship_id' => $championshipId,
+                    'reason' => $deadlinePassed ? 'registration_deadline_passed' : 'status_not_registration_open',
+                    'deadline_passed' => $deadlinePassed,
+                    'current_status_id' => $championship->status_id
+                ]);
+                return response()->json([
+                    'message' => 'Cannot assign players: championship registration is closed'
+                ], 403);
+            }
+
+            DB::beginTransaction();
+
+            $assignedCount = 0;
+            $skippedCount = 0;
+            $duplicateCount = 0;
+
+            foreach ($validated['user_ids'] as $userId) {
+                // Check if user is already a participant
+                $existingParticipant = ChampionshipParticipant::where('championship_id', $championshipId)
+                    ->where('user_id', $userId)
+                    ->first();
+
+                if ($existingParticipant) {
+                    Log::info('⏭️ [ASSIGNMENT] User already a participant', [
+                        'championship_id' => $championshipId,
+                        'user_id' => $userId
+                    ]);
+                    $duplicateCount++;
+                    continue;
+                }
+
+                // Create new participant with COMPLETED payment status
+                $participant = ChampionshipParticipant::create([
+                    'championship_id' => $championshipId,
+                    'user_id' => $userId,
+                    'registration_status' => 'registered',
+                    'registered_at' => now(),
+                    'payment_status_id' => 2, // COMPLETED - automatically mark as paid for tournament assignment
+                ]);
+
+                Log::info('✅ [ASSIGNMENT] Participant created with COMPLETED payment status', [
+                    'championship_id' => $championshipId,
+                    'user_id' => $userId,
+                    'participant_id' => $participant->id,
+                    'payment_status_id' => $participant->payment_status_id,
+                    'payment_status_code' => $participant->payment_status
+                ]);
+
+                $assignedCount++;
+            }
+
+            // Note: participants_count is not a real column, it's a virtual computed field
+            // No need to update championship record after participant assignment
+
+            DB::commit();
+
+            Log::info('🏁 [ASSIGNMENT] Assignment completed', [
+                'championship_id' => $championshipId,
+                'assigned_count' => $assignedCount,
+                'duplicate_count' => $duplicateCount,
+                'total_participants' => $championship->participants()->count()
+            ]);
+
+            return response()->json([
+                'message' => 'Players assigned successfully',
+                'assigned_count' => $assignedCount,
+                'duplicate_count' => $duplicateCount,
+                'total_participants' => $championship->participants()->count(),
+                'championship_id' => $championshipId
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            Log::error('❌ [ASSIGNMENT] Assignment failed', [
+                'championship_id' => $championshipId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'message' => 'Failed to assign players: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

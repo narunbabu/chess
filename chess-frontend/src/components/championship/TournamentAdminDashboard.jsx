@@ -6,6 +6,9 @@ import TournamentConfigurationModal from './TournamentConfigurationModal';
 import { BACKEND_URL } from '../../config';
 import './TournamentManagementDashboard.css';
 
+// API Base URL for visualizer routes
+const API_BASE_URL = 'http://localhost:8000/api';
+
 const TournamentAdminDashboard = () => {
   const { id: championshipId } = useParams();
   const navigate = useNavigate();
@@ -282,7 +285,112 @@ const TournamentAdminDashboard = () => {
     }
   };
 
-  
+  // Swiss-Elimination Auto Generation using Visualizer Algorithm
+  const handleSwissEliminationGenerate = async () => {
+    if (!championshipId) return;
+
+    const participantCount = championship?.participants_count || 0;
+    const isTournamentGenerated = championship?.tournament_generated;
+
+    const confirmed = window.confirm(
+      `🏆 Auto Swiss-Elimination Tournament Generation\n\n` +
+      `Algorithm: Swiss rounds + Elimination bracket\n` +
+      `Participants: ${participantCount}\n` +
+      `Structure: Will be calculated based on participant count\n` +
+      (participantCount <= 3 ? 'Note: 3 players = Swiss rounds only\n' :
+       participantCount <= 5 ? 'Note: 5 players = 3 Swiss + Semi-Finals + Final\n' :
+       participantCount <= 10 ? 'Note: 10 players = 3 Swiss + Quarter-Finals onward\n' :
+       'Note: 50+ players = 4 Swiss + full elimination bracket\n') +
+      (isTournamentGenerated ? '\n⚠️ Tournament already exists. This will delete all existing matches and regenerate.\n' : '\n') +
+      `This uses the tested algorithm from tournament visualizer. Continue?`
+    );
+
+    if (!confirmed) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const token = localStorage.getItem('auth_token');
+
+      // Use the visualizer tournament creation endpoint
+      const response = await axios.post(
+        `${API_BASE_URL}/visualizer/tournaments/create`,
+        {
+          player_count: participantCount,
+          championship_id: championshipId,
+          // Force regenerate if tournament already exists
+          ...(isTournamentGenerated && { force_regenerate: true })
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data?.id || response.data?.tournament_id) {
+        const tournamentId = response.data.id || response.data.tournament_id;
+        const summary = response.data.summary || {};
+
+        alert(`✅ Swiss-Elimination Tournament Generated Successfully!\n\n` +
+              `Tournament ID: ${tournamentId}\n` +
+              `Total Matches: ${summary.total_matches || 'N/A'}\n` +
+              `Total Rounds: ${summary.total_rounds || 'N/A'}\n` +
+              `Swiss Rounds: ${summary.swiss_rounds || 'N/A'}\n` +
+              `Top Qualifiers: ${summary.top_k || 'N/A'}`);
+
+        // Refresh championship data to show updated tournament status
+        fetchChampionship();
+      } else if (response.data?.error) {
+        setError(response.data.error);
+      }
+    } catch (err) {
+      let errorMsg = 'Failed to generate Swiss-Elimination tournament';
+
+      if (err.code === 'ERR_NETWORK') {
+        errorMsg = 'Network Error: Unable to connect to the server. Please ensure the backend server is running.';
+      } else if (err.response?.status === 401) {
+        errorMsg = 'Authentication Error: Please log in again.';
+      } else if (err.response?.status === 403) {
+        errorMsg = 'Permission Error: You do not have permission to generate tournaments.';
+      } else if (err.response?.status === 404) {
+        errorMsg = 'Not Found: The championship or tournament generation endpoint may not be available.';
+      } else if (err.response?.status === 500) {
+        errorMsg = 'Server Error: An error occurred while generating the tournament.';
+        const errorData = err.response?.data;
+        if (errorData?.message) {
+          errorMsg += `\n\nServer Details: ${errorData.message}`;
+        }
+      } else if (err.response?.status >= 400 && err.response?.status < 500) {
+        const errorData = err.response?.data;
+        errorMsg = `Client Error (${err.response.status}): ${err.response.statusText}`;
+
+        if (errorData?.participants_count !== undefined) {
+          errorMsg += `\n(Current participants: ${errorData.participants_count})`;
+        }
+      } else if (errorData?.message) {
+        errorMsg = errorData.message;
+      } else if (err.response?.data?.error) {
+        errorMsg = err.response.data.error;
+      } else if (err.response?.data?.message) {
+        errorMsg = err.response.data.message;
+      }
+
+      setError(errorMsg);
+      console.error('Swiss-Elimination tournament generation error:', {
+        message: err.message,
+        code: err.code,
+        status: err.response?.status,
+        data: err.response?.data
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
   return (
     <div className="tournament-admin-dashboard">
       <h2>🏆 Tournament Management</h2>
@@ -373,6 +481,26 @@ const TournamentAdminDashboard = () => {
             </span>
             <span className="btn-subtitle">
               Custom tournament settings
+            </span>
+          </button>
+
+          {/* Swiss-Elimination Auto Generation Button */}
+          <button
+            onClick={handleSwissEliminationGenerate}
+            disabled={loading || !championship?.participants_count || championship.participants_count < 2}
+            className="btn btn-warning swiss-elimination-btn"
+            title={
+              !championship?.participants_count || championship.participants_count < 2
+                ? "At least 2 participants required"
+                : "Generate Swiss + Elimination tournament using tested algorithm"
+            }
+          >
+            <span className="btn-icon">🏆</span>
+            <span className="btn-text">
+              {loading ? 'Generating...' : 'Auto Swiss-Elimination'}
+            </span>
+            <span className="btn-subtitle">
+              Swiss rounds + Elimination bracket
             </span>
           </button>
 

@@ -438,6 +438,24 @@
             border: 1px solid #c3e6cb;
         }
 
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border: 1px solid #ffeeba;
+        }
+
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border: 1px solid #bee5eb;
+        }
+
         .hidden {
             display: none;
         }
@@ -502,6 +520,167 @@
         .modal-close:hover {
             color: #333;
         }
+
+        /* Player Assignment Styles */
+        .assignment-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+
+        .assignment-section h3 {
+            color: #495057;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+
+        .form-select {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            background: white;
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+
+        .user-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            background: white;
+        }
+
+        .user-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin: 2px;
+        }
+
+        .user-item:hover {
+            border-color: #007bff;
+            background: #f0f8ff;
+        }
+
+        .user-item.selected {
+            background: #007bff;
+            color: white;
+            border-color: #0056b3;
+        }
+
+        .user-item.selected .user-meta {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .user-checkbox {
+            margin-right: 12px;
+            width: 18px;
+            height: 18px;
+        }
+
+        .user-info {
+            flex-grow: 1;
+        }
+
+        .user-name {
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 2px;
+        }
+
+        .user-meta {
+            font-size: 14px;
+            color: #6c757d;
+        }
+
+        .assignment-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #dee2e6;
+        }
+
+        .selection-count {
+            margin-left: auto;
+            font-weight: 600;
+            color: #495057;
+            background: #e9ecef;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 14px;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+            font-size: 14px;
+            padding: 8px 16px;
+        }
+
+        .btn-secondary:hover {
+            background: #545b62;
+            transform: translateY(-1px);
+        }
+
+        .assignment-result {
+            margin-top: 20px;
+            padding: 20px;
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            border-radius: 8px;
+            color: #0c5460;
+        }
+
+        .assignment-result.success {
+            background: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+
+        .assignment-result.error {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+
+        .championship-info {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .championship-info h4 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+
+        .championship-details {
+            font-size: 14px;
+            color: #856404;
+        }
+
+        .selected-championship {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
     </style>
 </head>
 <body>
@@ -550,6 +729,58 @@
                 </button>
             </div>
             <div id="tournament-list" class="tournament-list hidden"></div>
+        </div>
+
+        <!-- Player Assignment Panel -->
+        <div class="management-panel">
+            <h2>👥 Player Assignment</h2>
+            <div class="tournament-actions">
+                <button class="btn btn-list" onclick="loadChampionships()">
+                    <span>🏆</span> Load All Championships
+                </button>
+                <button class="btn btn-primary" onclick="loadUsers()" id="loadUsersBtn" disabled>
+                    <span>👤</span> Load Available Users
+                </button>
+                <button class="btn btn-create" onclick="showAssignmentInterface()" id="assignBtn" disabled>
+                    <span>✅</span> Assign Players
+                </button>
+            </div>
+
+            <!-- Championship Selection -->
+            <div id="championship-selection" class="assignment-section hidden">
+                <h3>Select Championship</h3>
+                <select id="championshipSelect" class="form-select">
+                    <option value="">Choose a championship...</option>
+                </select>
+                <div style="margin-top: 15px; display: flex; gap: 10px;">
+                    <button class="btn btn-list" onclick="viewSelectedChampionship()" id="viewChampionshipBtn" disabled>
+                        <span>👁️</span> View Tournament
+                    </button>
+                    <button class="btn btn-create" onclick="generateTournamentForChampionship()" id="generateTournamentBtn" disabled>
+                        <span>⚙️</span> Generate Tournament Structure
+                    </button>
+                </div>
+            </div>
+
+            <!-- User Selection -->
+            <div id="user-selection" class="assignment-section hidden">
+                <h3>Available Users</h3>
+                <div id="userList" class="user-grid"></div>
+                <div class="assignment-controls">
+                    <button class="btn btn-secondary" onclick="selectAllUsers()">
+                        <span>☑️</span> Select All
+                    </button>
+                    <button class="btn btn-secondary" onclick="clearUserSelection()">
+                        <span>❌</span> Clear Selection
+                    </button>
+                    <span class="selection-count">Selected: <span id="selectedCount">0</span> users</span>
+                </div>
+            </div>
+
+            <!-- Assignment Result -->
+            <div id="assignment-result" class="assignment-result hidden"></div>
+
+            <div id="assignment-message"></div>
         </div>
 
         <!-- Status Bar -->
@@ -1424,11 +1655,384 @@
 
         function showMessage(containerId, message, type) {
             const container = document.getElementById(containerId);
-            container.innerHTML = `<div class="${type === 'success' ? 'success' : type === 'error' ? 'error' : 'info'}">${message}</div>`;
+            const className = type === 'success' ? 'success' :
+                             type === 'error' ? 'error' :
+                             type === 'warning' ? 'warning' : 'info';
+            container.innerHTML = `<div class="${className}">${message}</div>`;
 
             // Auto-hide after 5 seconds
             setTimeout(() => {
                 container.innerHTML = '';
+            }, 5000);
+        }
+
+        // ===================== PLAYER ASSIGNMENT FUNCTIONS =====================
+
+        let allChampionships = [];
+        let allUsers = [];
+        let selectedUsers = new Set();
+
+        // Load all championships for assignment
+        async function loadChampionships() {
+            console.log('🏆 [ASSIGNMENT] Loading championships...');
+            try {
+                const response = await fetch(`${API_BASE_URL}/championships`);
+                if (!response.ok) throw new Error('Failed to load championships');
+
+                allChampionships = await response.json();
+                console.log('📋 [ASSIGNMENT] Loaded championships:', allChampionships.length);
+
+                populateChampionshipSelect();
+                enableButton('loadUsersBtn');
+                showMessage('assignment-message', `✅ Loaded ${allChampionships.length} championships`, 'success');
+
+            } catch (error) {
+                console.error('❌ [ASSIGNMENT] Error loading championships:', error);
+                showMessage('assignment-message', `❌ Error loading championships: ${error.message}`, 'error');
+            }
+        }
+
+        // Populate championship dropdown
+        function populateChampionshipSelect() {
+            const select = document.getElementById('championshipSelect');
+            select.innerHTML = '<option value="">Choose a championship...</option>';
+
+            // Sort championships by most recent first
+            const sortedChampionships = allChampionships.sort((a, b) => {
+                return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+            });
+
+            sortedChampionships.forEach(championship => {
+                const option = document.createElement('option');
+                option.value = championship.id;
+                const createdDate = championship.created_at ? new Date(championship.created_at).toLocaleDateString() : 'Unknown';
+                option.textContent = `${championship.name} (ID: ${championship.id}, Created: ${createdDate})`;
+                select.appendChild(option);
+            });
+
+            select.addEventListener('change', onChampionshipSelect);
+            showSection('championship-selection');
+        }
+
+        // Handle championship selection
+        function onChampionshipSelect() {
+            const selectedId = document.getElementById('championshipSelect').value;
+            if (selectedId) {
+                const championship = allChampionships.find(c => c.id == selectedId);
+                if (championship) {
+                    console.log('🎯 [ASSIGNMENT] Selected championship:', championship);
+                    enableButton('assignBtn');
+                    enableButton('viewChampionshipBtn');
+                    enableButton('generateTournamentBtn');
+                }
+            } else {
+                disableButton('assignBtn');
+                disableButton('viewChampionshipBtn');
+                disableButton('generateTournamentBtn');
+            }
+        }
+
+        // View selected championship tournament
+        function viewSelectedChampionship() {
+            const selectedId = document.getElementById('championshipSelect').value;
+            if (!selectedId) {
+                showMessage('assignment-message', '⚠️ Please select a championship first', 'warning');
+                return;
+            }
+
+            console.log('👁️ [VIEW] Loading championship tournament:', selectedId);
+            loadTournamentById(parseInt(selectedId));
+        }
+
+        // Generate tournament structure for selected championship
+        async function generateTournamentForChampionship() {
+            const selectedId = document.getElementById('championshipSelect').value;
+            if (!selectedId) {
+                showMessage('assignment-message', '⚠️ Please select a championship first', 'warning');
+                return;
+            }
+
+            const championship = allChampionships.find(c => c.id == selectedId);
+            if (!championship) {
+                showMessage('assignment-message', '❌ Championship not found', 'error');
+                return;
+            }
+
+            const confirmed = confirm(
+                `⚙️ Generate Tournament Structure\n\n` +
+                `Championship: ${championship.name} (ID: ${championship.id})\n` +
+                `Participants: ${championship.participant_count}\n\n` +
+                `This will create tournament rounds and matches based on the registered participants.\n\n` +
+                `Continue?`
+            );
+
+            if (!confirmed) return;
+
+            try {
+                showLoading();
+                showMessage('assignment-message', '⚙️ Generating tournament structure...', 'info');
+
+                const response = await fetch(`${API_BASE_URL}/tournaments/create`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        player_count: championship.participant_count,
+                        championship_id: championship.id,
+                        title: championship.name
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Failed to generate tournament');
+                }
+
+                const data = await response.json();
+                console.log('✅ [GENERATE] Tournament structure generated:', data);
+
+                showMessage('assignment-message', '✅ Tournament structure generated successfully!', 'success');
+
+                // Automatically load the tournament
+                currentTournament = data;
+                loadTournamentData(data);
+
+            } catch (error) {
+                console.error('❌ [GENERATE] Generation failed:', error);
+                showMessage('assignment-message', `❌ Error: ${error.message}`, 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Load available users
+        async function loadUsers() {
+            console.log('👤 [ASSIGNMENT] Loading users...');
+            try {
+                const response = await fetch(`${API_BASE_URL}/users`);
+                if (!response.ok) throw new Error('Failed to load users');
+
+                allUsers = await response.json();
+                console.log('👥 [ASSIGNMENT] Loaded users:', allUsers.length);
+
+                displayUsers();
+                showMessage('assignment-message', `✅ Loaded ${allUsers.length} available users`, 'success');
+
+            } catch (error) {
+                console.error('❌ [ASSIGNMENT] Error loading users:', error);
+                showMessage('assignment-message', `❌ Error loading users: ${error.message}`, 'error');
+            }
+        }
+
+        // Display users for selection
+        function displayUsers() {
+            const userList = document.getElementById('userList');
+            userList.innerHTML = '';
+
+            allUsers.forEach(user => {
+                const userItem = document.createElement('div');
+                userItem.className = 'user-item';
+                userItem.dataset.userId = user.id;
+
+                userItem.innerHTML = `
+                    <input type="checkbox" class="user-checkbox" ${selectedUsers.has(user.id) ? 'checked' : ''}>
+                    <div class="user-info">
+                        <div class="user-name">${user.name}</div>
+                        <div class="user-meta">ID: ${user.id} | Email: ${user.email}</div>
+                    </div>
+                `;
+
+                userItem.addEventListener('click', () => toggleUserSelection(user.id));
+                userList.appendChild(userItem);
+            });
+
+            updateSelectionCount();
+            showSection('user-selection');
+        }
+
+        // Toggle user selection
+        function toggleUserSelection(userId) {
+            if (selectedUsers.has(userId)) {
+                selectedUsers.delete(userId);
+            } else {
+                selectedUsers.add(userId);
+            }
+
+            // Update UI
+            const userItem = document.querySelector(`[data-user-id="${userId}"]`);
+            const checkbox = userItem.querySelector('.user-checkbox');
+
+            if (selectedUsers.has(userId)) {
+                userItem.classList.add('selected');
+                checkbox.checked = true;
+            } else {
+                userItem.classList.remove('selected');
+                checkbox.checked = false;
+            }
+
+            updateSelectionCount();
+        }
+
+        // Update selection count
+        function updateSelectionCount() {
+            document.getElementById('selectedCount').textContent = selectedUsers.size;
+        }
+
+        // Select all users
+        function selectAllUsers() {
+            allUsers.forEach(user => selectedUsers.add(user.id));
+            displayUsers();
+        }
+
+        // Clear user selection
+        function clearUserSelection() {
+            selectedUsers.clear();
+            displayUsers();
+        }
+
+        // Show assignment interface
+        function showAssignmentInterface() {
+            const championshipId = document.getElementById('championshipSelect').value;
+
+            if (!championshipId) {
+                showMessage('assignment-message', '⚠️ Please select a championship first', 'warning');
+                return;
+            }
+
+            if (selectedUsers.size === 0) {
+                showMessage('assignment-message', '⚠️ Please select at least one user', 'warning');
+                return;
+            }
+
+            const championship = allChampionships.find(c => c.id == championshipId);
+
+            // Show confirmation dialog
+            const confirmHtml = `
+                <div class="championship-info">
+                    <h4>🏆 Championship Details</h4>
+                    <div class="championship-details">
+                        <strong>Name:</strong> ${championship.name}<br>
+                        <strong>ID:</strong> ${championship.id}<br>
+                        <strong>Current Round:</strong> ${championship.current_round || 'Not started'}<br>
+                        <strong>Status:</strong> ${championship.status || 'Unknown'}
+                    </div>
+                </div>
+                <h4>👥 Players to Assign (${selectedUsers.size})</h4>
+                <ul>
+                    ${Array.from(selectedUsers).map(userId => {
+                        const user = allUsers.find(u => u.id == userId);
+                        return `<li>${user.name} (ID: ${user.id})</li>`;
+                    }).join('')}
+                </ul>
+                <p><strong>⚠️ This will assign the selected users to the championship as participants.</strong></p>
+                <div style="margin-top: 20px;">
+                    <button class="btn btn-create" onclick="assignPlayers(${championshipId})">
+                        <span>✅</span> Confirm Assignment
+                    </button>
+                    <button class="btn btn-secondary" onclick="hideAssignmentResult()" style="margin-left: 10px;">
+                        <span>❌</span> Cancel
+                    </button>
+                </div>
+            `;
+
+            showAssignmentResult(confirmHtml, false);
+        }
+
+        // Assign players to championship
+        async function assignPlayers(championshipId) {
+            console.log('🎯 [ASSIGNMENT] Assigning players to championship', {
+                championshipId: championshipId,
+                userIds: Array.from(selectedUsers)
+            });
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/championships/${championshipId}/assign-players`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                    },
+                    body: JSON.stringify({
+                        user_ids: Array.from(selectedUsers)
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Failed to assign players');
+                }
+
+                const result = await response.json();
+                console.log('✅ [ASSIGNMENT] Assignment successful:', result);
+
+                // Show success message
+                showAssignmentResult(`
+                    <h4>✅ Assignment Successful!</h4>
+                    <p><strong>${result.assigned_count || selectedUsers.size}</strong> players have been assigned to the championship.</p>
+                    <p>Championship ID: ${championshipId}</p>
+                    ${result.message ? `<p>${result.message}</p>` : ''}
+                    <button class="btn btn-primary" onclick="loadTournamentById(${championshipId})" style="margin-top: 15px;">
+                        <span>🏆</span> View Tournament
+                    </button>
+                `, true);
+
+                // Clear selections
+                selectedUsers.clear();
+                displayUsers();
+
+            } catch (error) {
+                console.error('❌ [ASSIGNMENT] Assignment failed:', error);
+                showAssignmentResult(`
+                    <h4>❌ Assignment Failed</h4>
+                    <p>Error: ${error.message}</p>
+                    <p>Please check the championship status and try again.</p>
+                `, false);
+            }
+        }
+
+        // Show assignment result
+        function showAssignmentResult(html, isSuccess) {
+            const resultDiv = document.getElementById('assignment-result');
+            resultDiv.innerHTML = html;
+            resultDiv.classList.remove('hidden', 'success', 'error');
+            if (isSuccess) {
+                resultDiv.classList.add('success');
+            } else {
+                resultDiv.classList.add('error');
+            }
+        }
+
+        // Hide assignment result
+        function hideAssignmentResult() {
+            document.getElementById('assignment-result').classList.add('hidden');
+        }
+
+        // Show section
+        function showSection(sectionId) {
+            document.getElementById(sectionId).classList.remove('hidden');
+        }
+
+        // Utility functions
+        function enableButton(buttonId) {
+            document.getElementById(buttonId).disabled = false;
+        }
+
+        function disableButton(buttonId) {
+            document.getElementById(buttonId).disabled = true;
+        }
+
+        function showAssignmentMessage(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            const className = type === 'success' ? 'success' :
+                             type === 'error' ? 'error' :
+                             type === 'warning' ? 'warning' : 'info';
+            element.innerHTML = `<div class="${className}">${message}</div>`;
+            element.classList.remove('hidden');
+
+            setTimeout(() => {
+                element.classList.add('hidden');
             }, 5000);
         }
 

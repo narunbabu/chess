@@ -510,4 +510,9 @@ Route::prefix('visualizer')->group(function () {
     Route::get('/tournaments/{id}/export', [\App\Http\Controllers\TournamentVisualizerController::class, 'exportTournament']);
     Route::delete('/tournaments/{id}', [\App\Http\Controllers\TournamentVisualizerController::class, 'deleteTournament']);
     Route::get('/tournaments/{id}/tiebreaker', [\App\Http\Controllers\TiebreakerController::class, 'getBreakdown']);
+
+    // Player Assignment Routes
+    Route::get('/championships', [\App\Http\Controllers\TournamentVisualizerController::class, 'getChampionships']);
+    Route::get('/users', [\App\Http\Controllers\TournamentVisualizerController::class, 'getUsers']);
+    Route::post('/championships/{championshipId}/assign-players', [\App\Http\Controllers\TournamentVisualizerController::class, 'assignPlayersToChampionship']);
 });

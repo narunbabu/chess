@@ -29,16 +29,16 @@ class SwissPairingService
         // Get eligible participants
         $participants = $this->getEligibleParticipants($championship);
 
-        if ($participants->count() < 2) {
-            $totalParticipants = $championship->participants()->count();
-            $paidParticipants = $participants->count();
+        // if ($participants->count() < 2) {
+        //     $totalParticipants = $championship->participants()->count();
+        //     $paidParticipants = $participants->count();
 
-            throw new \InvalidArgumentException(
-                "Not enough eligible participants for pairings. " .
-                "Total registered: {$totalParticipants}, Paid: {$paidParticipants}. " .
-                "At least 2 paid participants are required to generate matches."
-            );
-        }
+        //     throw new \InvalidArgumentException(
+        //         "Not enough eligible participants for pairings. " .
+        //         "Total registered: {$totalParticipants}, Paid: {$paidParticipants}. " .
+        //         "At least 2 paid participants are required to generate matches."
+        //     );
+        // }
 
         // Store original participants count for validation
         $originalParticipantsCount = $participants->count();
@@ -167,12 +167,50 @@ class SwissPairingService
      */
     private function getEligibleParticipants(Championship $championship): Collection
     {
+        // DEBUG: Log what we're working with
+        $allParticipants = $championship->participants()->with('user')->get();
+        Log::info("🔍 [DEBUG] getEligibleParticipants called", [
+            'championship_id' => $championship->id,
+            'total_participants' => $allParticipants->count(),
+            'is_test_tournament' => $championship->is_test_tournament,
+        ]);
+
+        // For test tournaments, allow all registered participants to bypass payment requirement
+        if ($championship->is_test_tournament) {
+            Log::info("🧪 [TEST TOURNAMENT] Bypassing payment requirement for test tournament", [
+                'championship_id' => $championship->id,
+                'title' => $championship->title,
+            ]);
+
+            return $allParticipants;
+        }
+
+        // Check if championship creator is admin (nalamara.arun@gmail.com) - allow bypass
+        $creator = $championship->user;
+        if ($creator && $creator->email === 'nalamara.arun@gmail.com') {
+            Log::info("👑 [ADMIN BYPASS] Payment requirement bypassed for admin tournament", [
+                'championship_id' => $championship->id,
+                'title' => $championship->title,
+                'admin_email' => $creator->email,
+            ]);
+
+            return $allParticipants;
+        }
+
         // Only paid participants are eligible for pairings
         // This ensures consistency with StandingsCalculatorService and other tournament services
-        return $championship->participants()
+        $paidParticipants = $championship->participants()
             ->where('payment_status_id', \App\Enums\PaymentStatus::COMPLETED->getId())
             ->with('user')
             ->get();
+
+        Log::info("💰 [PAYMENT FILTER] Applied payment filter", [
+            'championship_id' => $championship->id,
+            'total_participants' => $allParticipants->count(),
+            'paid_participants' => $paidParticipants->count(),
+        ]);
+
+        return $paidParticipants;
     }
 
     /**
