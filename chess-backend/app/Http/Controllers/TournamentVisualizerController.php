@@ -201,15 +201,36 @@ class TournamentVisualizerController extends Controller
             'winner_id' => 'nullable|integer|exists:users,id'
         ]);
 
+        $winnerId = $validated['winner_id'];
+
         try {
+            Log::info('🎯 [BACKEND] Starting match result update', [
+                'match_id' => $matchId,
+                'winner_id' => $winnerId,
+                'request_data' => $validated,
+                'timestamp' => now()->toISOString()
+            ]);
+
             $match = ChampionshipMatch::with(['championship', 'player1', 'player2'])->findOrFail($matchId);
-            $winnerId = $validated['winner_id'];
+
+            Log::info('📋 [BACKEND] Match found', [
+                'match_id' => $match->id,
+                'championship_id' => $match->championship_id,
+                'round_number' => $match->round_number,
+                'round_type' => $match->round_type,
+                'player1_id' => $match->player1_id,
+                'player2_id' => $match->player2_id,
+                'current_status' => $match->status_id,
+                'current_winner' => $match->winner_id,
+                'is_placeholder' => $match->is_placeholder ?? false
+            ]);
 
             DB::beginTransaction();
 
             // Update match result
             if ($winnerId === null) {
                 // Draw
+                Log::info('🎨 [BACKEND] Processing draw result');
                 $match->update([
                     'status_id' => \App\Enums\ChampionshipMatchStatus::COMPLETED->getId(),
                     'winner_id' => null,
@@ -220,6 +241,13 @@ class TournamentVisualizerController extends Controller
             } else {
                 // Win/Loss
                 $loserId = $winnerId === $match->player1_id ? $match->player2_id : $match->player1_id;
+
+                Log::info('🏆 [BACKEND] Processing win/loss result', [
+                    'winner_id' => $winnerId,
+                    'loser_id' => $loserId,
+                    'is_player1_winner' => $winnerId === $match->player1_id,
+                    'is_player2_winner' => $winnerId === $match->player2_id
+                ]);
 
                 $match->update([
                     'status_id' => \App\Enums\ChampionshipMatchStatus::COMPLETED->getId(),
@@ -234,14 +262,33 @@ class TournamentVisualizerController extends Controller
                 ]);
             }
 
+            Log::info('✅ [BACKEND] Match updated successfully', [
+                'match_id' => $match->id,
+                'new_status' => $match->status_id,
+                'new_winner' => $match->winner_id,
+                'completed_at' => $match->completed_at
+            ]);
+
             // Recalculate standings
+            Log::info('📊 [BACKEND] Updating standings for championship', [
+                'championship_id' => $match->championship_id
+            ]);
             $this->standingsCalculator->updateStandings($match->championship);
 
             // Check for round progression
+            Log::info('🔄 [BACKEND] Checking round progression', [
+                'championship_id' => $match->championship_id,
+                'round_number' => $match->round_number
+            ]);
             $progressionService = app(\App\Services\ChampionshipRoundProgressionService::class);
             $progressionResult = $progressionService->checkChampionshipRoundProgression($match->championship);
 
             DB::commit();
+
+            Log::info('🏁 [BACKEND] Transaction committed', [
+                'progression_result' => $progressionResult ? (is_array($progressionResult) ? 'array' : get_class($progressionResult)) : 'null',
+                'progression_action' => $progressionResult ? ($progressionResult['action'] ?? 'none') : 'none'
+            ]);
 
             // Return updated tournament data with basic progression info
             $tournamentResponse = $this->getTournament($match->championship_id);
@@ -250,11 +297,22 @@ class TournamentVisualizerController extends Controller
             // Add debug info
             $tournamentData['debug'] = [
                 'progression_triggered' => $progressionResult !== null,
-                'progression_action' => $progressionResult ? ($progressionResult->action ?? 'none') : 'none',
-                'assigned_count' => $progressionResult && isset($progressionResult->assignment_result) ? ($progressionResult->assignment_result->assigned_count ?? 0) : 0,
+                'progression_action' => $progressionResult ? ($progressionResult['action'] ?? 'none') : 'none',
+                'assigned_count' => $progressionResult && isset($progressionResult['assignment_result']) ? ($progressionResult['assignment_result']['assigned_count'] ?? 0) : 0,
                 'current_round' => $match->championship->current_round ?? 'not set',
-                'debug_note' => 'Check server logs (storage/logs/laravel.log) for detailed info. Look for "CHECKING ROUND PROGRESSION" and "Previous complete + current unassigned".',
+                'debug_note' => 'Check server logs (storage/logs/laravel.log) for detailed info. Look for "[BACKEND]" logs.',
+                'match_updated' => [
+                    'id' => $match->id,
+                    'round' => $match->round_number,
+                    'status' => $match->status_id,
+                    'winner' => $match->winner_id
+                ]
             ];
+
+            Log::info('📤 [BACKEND] Sending response', [
+                'match_count_in_response' => count($tournamentData['matches'] ?? []),
+                'debug_info' => $tournamentData['debug']
+            ]);
 
             return response()->json($tournamentData);
 

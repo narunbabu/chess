@@ -400,6 +400,22 @@ class ChampionshipRoundProgressionService
                 ];
             }
 
+            // 🚨 FIXED: Don't re-assign elimination rounds if they already have completed matches
+            // Elimination rounds (semi-finals, finals) should be static once assigned
+            // Players shouldn't be shuffled around when matches are being completed
+            if ($this->roundHasCompletedMatches($championship, $roundNumber)) {
+                Log::info("Skipping elimination round assignment - round already has completed matches", [
+                    'championship_id' => $championship->id,
+                    'round_number' => $roundNumber,
+                ]);
+
+                return [
+                    'assigned_count' => 0,
+                    'matches' => [],
+                    'reason' => 'elimination_round_has_completed_matches',
+                ];
+            }
+
             Log::info("All Swiss rounds complete - assigning elimination round matches", [
                 'championship_id' => $championship->id,
                 'round_number' => $roundNumber,
@@ -1116,5 +1132,28 @@ class ChampionshipRoundProgressionService
         ]);
 
         return true;
+    }
+
+    /**
+     * Check if a round has any completed matches
+     * Used to prevent re-assigning elimination rounds that are already in progress
+     */
+    private function roundHasCompletedMatches(Championship $championship, int $roundNumber): bool
+    {
+        $completedMatches = $championship->matches()
+            ->where('round_number', $roundNumber)
+            ->where('status_id', MatchStatusEnum::COMPLETED->getId())
+            ->count();
+
+        $hasCompleted = $completedMatches > 0;
+
+        Log::info("Checking round for completed matches", [
+            'championship_id' => $championship->id,
+            'round_number' => $roundNumber,
+            'completed_matches' => $completedMatches,
+            'has_completed' => $hasCompleted,
+        ]);
+
+        return $hasCompleted;
     }
 }

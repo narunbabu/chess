@@ -36,9 +36,10 @@ class PlaceholderMatchAssignmentService
      */
     public function assignPlayersToPlaceholderMatches(Championship $championship, int $roundNumber): array
     {
-        Log::info("Assigning players to placeholder matches", [
+        Log::info("🔧 [PLACEHOLDER] Starting placeholder assignment", [
             'championship_id' => $championship->id,
             'round_number' => $roundNumber,
+            'timestamp' => now()->toISOString()
         ]);
 
         // Get unassigned placeholder matches for this round
@@ -47,8 +48,13 @@ class PlaceholderMatchAssignmentService
             ->unassignedPlaceholders()
             ->get();
 
+        Log::info("🔍 [PLACEHOLDER] Found placeholder matches", [
+            'count' => $placeholderMatches->count(),
+            'match_ids' => $placeholderMatches->pluck('id')->toArray()
+        ]);
+
         if ($placeholderMatches->isEmpty()) {
-            Log::info("No placeholder matches found for round {$roundNumber}");
+            Log::info("❌ [PLACEHOLDER] No placeholder matches found for round {$roundNumber}");
             return [
                 'assigned_count' => 0,
                 'matches' => [],
@@ -1194,19 +1200,26 @@ class PlaceholderMatchAssignmentService
         // Determine how many players should participate in this elimination round
         $participantCount = $roundType->expectedMatches() * 2;
 
-        Log::info("Assigning elimination round placeholders", [
+        Log::info("🏆 [ELIMINATION] Assigning elimination round placeholders", [
             'championship_id' => $championship->id,
             'round_number' => $roundNumber,
             'round_type' => $roundType->value,
             'participant_count' => $participantCount,
             'available_qualifiers' => $standings->count(),
+            'placeholder_match_ids' => $placeholderMatches->pluck('id')->toArray()
         ]);
 
         // Take top N players based on standings
         $qualifiedPlayers = $standings->take($participantCount);
 
+        Log::info("🎯 [ELIMINATION] Qualified players selected", [
+            'qualified_count' => $qualifiedPlayers->count(),
+            'qualified_player_ids' => $qualifiedPlayers->pluck('user_id')->toArray(),
+            'qualified_players' => $qualifiedPlayers->pluck('user.name')->toArray()
+        ]);
+
         if ($qualifiedPlayers->count() < $participantCount) {
-            Log::warning("Not enough qualified players for elimination round", [
+            Log::warning("⚠️ [ELIMINATION] Not enough qualified players for elimination round", [
                 'expected' => $participantCount,
                 'available' => $qualifiedPlayers->count(),
             ]);
@@ -1219,6 +1232,23 @@ class PlaceholderMatchAssignmentService
         $assignmentDetails = [];
 
         foreach ($placeholderMatches as $match) {
+            Log::info("🔄 [ELIMINATION] Processing match", [
+                'match_id' => $match->id,
+                'round_number' => $match->round_number,
+                'placeholder_positions' => $match->placeholder_positions
+            ]);
+
+            // 🚨 CRITICAL FIX: Skip matches that are already completed
+            if ($match->status_id == \App\Enums\ChampionshipMatchStatus::COMPLETED->getId()) {
+                Log::info("⏭️ [ELIMINATION] Skipping completed match", [
+                    'match_id' => $match->id,
+                    'current_status' => $match->status_id,
+                    'current_winner' => $match->winner_id,
+                    'reason' => 'match_already_completed'
+                ]);
+                continue;
+            }
+
             try {
                 // For elimination rounds, pair top qualifiers appropriately
                 $assignment = $this->assignPlayersToEliminationMatch(
@@ -1278,6 +1308,18 @@ class PlaceholderMatchAssignmentService
         $player1 = $qualifiedPlayers->first();
         $player2 = $qualifiedPlayers->slice(1)->first();
 
+        Log::info("✏️ [ELIMINATION] Updating match with players", [
+            'match_id' => $match->id,
+            'current_player1_id' => $match->player1_id,
+            'current_player2_id' => $match->player2_id,
+            'new_player1_id' => $player1->user_id,
+            'new_player2_id' => $player2->user_id,
+            'new_player1_name' => $player1->user->name,
+            'new_player2_name' => $player2->user->name,
+            'current_status' => $match->status_id,
+            'current_winner' => $match->winner_id
+        ]);
+
         // Update the match with assigned players
         $match->update([
             'player1_id' => $player1->user_id,
@@ -1286,13 +1328,15 @@ class PlaceholderMatchAssignmentService
             'black_player_id' => $player2->user_id,
         ]);
 
-        Log::info("Elimination match assigned", [
+        Log::info("✅ [ELIMINATION] Match updated successfully", [
             'match_id' => $match->id,
             'round_type' => $roundType->value,
-            'player1' => $player1->user->name,
-            'player2' => $player2->user->name,
+            'player1_name' => $player1->user->name,
+            'player2_name' => $player2->user->name,
             'player1_rank' => $player1->rank,
             'player2_rank' => $player2->rank,
+            'final_status' => $match->fresh()->status_id,
+            'final_winner' => $match->fresh()->winner_id
         ]);
 
         return [

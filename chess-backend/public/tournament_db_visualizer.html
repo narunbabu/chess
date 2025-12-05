@@ -1079,19 +1079,41 @@
 
         // ===================== MATCH INTERACTION =====================
         async function handlePlayerClick(matchId, playerId, playerName) {
+            console.log('🎯 [FRONTEND CLICK]', {
+                matchId: matchId,
+                playerId: playerId,
+                playerName: playerName,
+                timestamp: new Date().toISOString()
+            });
+
             if (!currentTournament) return;
 
             const match = findMatchById(matchId);
-            if (!match) return;
+            if (!match) {
+                console.error('❌ [FRONTEND ERROR] Match not found:', matchId);
+                return;
+            }
+
+            console.log('📋 [FRONTEND MATCH INFO]', {
+                matchId: match.id,
+                roundNumber: match.round_number,
+                roundType: match.round_type,
+                player1_id: match.player1_id,
+                player2_id: match.player2_id,
+                status: match.status,
+                is_placeholder: match.is_placeholder
+            });
 
             // Don't allow clicking on completed matches
             if (match.status === 'completed') {
+                console.log('⚠️ [FRONTEND] Match already completed, ignoring click');
                 alert('This match is already completed!');
                 return;
             }
 
             // Don't allow clicking on placeholder matches without players
             if (match.is_placeholder && (!match.player1_id || !match.player2_id)) {
+                console.log('⚠️ [FRONTEND] Placeholder match without players, ignoring click');
                 alert('This match is waiting for players from previous rounds!');
                 return;
             }
@@ -1101,8 +1123,41 @@
             hideError();
             showMessage('match-update-message', `🏆 Setting ${playerName} as winner...`, 'info');
 
+            console.log('🚀 [FRONTEND API CALL]', {
+                method: 'PUT',
+                url: `${API_BASE_URL}/matches/${matchId}/result`,
+                body: { winner_id: playerId }
+            });
+
             try {
-                const data = await TournamentAPI.updateMatchResult(matchId, playerId);
+                const response = await fetch(`${API_BASE_URL}/matches/${matchId}/result`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ winner_id: playerId })
+                });
+
+                console.log('📡 [FRONTEND RESPONSE]', {
+                    status: response.status,
+                    ok: response.ok,
+                    statusText: response.statusText
+                });
+
+                const data = await response.json();
+                console.log('📦 [FRONTEND RESPONSE DATA]', {
+                    success: response.ok,
+                    dataKeys: Object.keys(data),
+                    tournamentInfo: data.tournament_info,
+                    matchCount: data.matches?.length,
+                    debug: data.debug
+                });
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Failed to update match result');
+                }
+
                 currentTournament = data;
                 loadTournamentData(data);
                 showMessage('match-update-message', `✅ ${playerName} wins! Standings updated.`, 'success');
@@ -1111,7 +1166,7 @@
                     document.getElementById('match-update-message').innerHTML = '';
                 }, 3000);
             } catch (error) {
-                console.error('Failed to update match result:', error);
+                console.error('❌ [FRONTEND ERROR] Failed to update match result:', error);
                 showError('Failed to update match result: ' + error.message);
             } finally {
                 hideLoading();
