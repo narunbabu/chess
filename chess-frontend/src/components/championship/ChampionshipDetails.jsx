@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useChampionship } from '../../contexts/ChampionshipContext';
 import { useAuth } from '../../contexts/AuthContext';
+import api from '../../services/api';
 import { formatChampionshipStatus, formatChampionshipType, formatPrizePool, formatParticipantCount, calculateProgress, formatDateTime, canUserRegister, isUserOrganizer, calculateDaysRemaining, getStatusColorClass, formatCurrency } from '../../utils/championshipHelpers';
 import ChampionshipStandings from './ChampionshipStandings';
 import ChampionshipMatches from './ChampionshipMatches';
@@ -80,6 +81,25 @@ const ChampionshipDetails = () => {
         console.error('Error details:', err.response?.data || err.message);
         // Error is already handled by the context state, no need for additional handling
       });
+
+      // Also fetch championship stats to get progress information
+      const fetchChampionshipStats = async () => {
+        try {
+          const response = await api.get(`/championships/${id}/stats`);
+          console.log('Championship stats:', response.data.summary);
+
+          // Update the active championship with stats data
+          setActiveChampionship(prev => ({
+            ...prev,
+            ...response.data.summary
+          }));
+        } catch (err) {
+          console.error('Failed to fetch championship stats:', err);
+          // Don't throw error - stats are supplementary
+        }
+      };
+
+      fetchChampionshipStats();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
@@ -376,18 +396,53 @@ const ChampionshipDetails = () => {
       {activeChampionship.status === 'in_progress' && (
         <div className="progress-section">
           <h3>📊 Tournament Progress</h3>
+
+          {/* Tournament Rounds Progress */}
           <div className="progress-bar-container">
-            <div className="progress-info">
-              <span>Round {activeChampionship.current_round || 0} of {activeChampionship.total_rounds}</span>
-              <span>{Math.round(progress)}%</span>
+            <div className="progress-info" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <span style={{ fontWeight: '600', color: '#1e293b' }}>
+                Round {activeChampionship.current_round || 1}/{activeChampionship.total_rounds}
+                <span style={{ fontWeight: 'normal', color: '#64748b', marginLeft: '8px', fontSize: '0.9em' }}>
+                  ({activeChampionship.completed_rounds || 0} completed)
+                </span>
+              </span>
+              <span style={{ fontWeight: '600', color: '#7c3aed' }}>
+                {Math.round(((activeChampionship.current_round || 1) / (activeChampionship.total_rounds || 1)) * 100)}%
+              </span>
             </div>
-            <div className="progress-bar">
+
+            <div className="progress-bar" style={{ height: '12px', background: '#e2e8f0', borderRadius: '6px', overflow: 'hidden' }}>
               <div
                 className="progress-fill"
-                style={{ width: `${progress}%` }}
+                style={{
+                  /* Use current_round for visual width so users see where they ARE, not just what's done */
+                  width: `${((activeChampionship.current_round || 1) / (activeChampionship.total_rounds || 1)) * 100}%`,
+                  height: '100%',
+                  background: 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)',
+                  transition: 'width 0.5s ease-in-out'
+                }}
               ></div>
             </div>
           </div>
+
+          {/* Matches Progress */}
+          {activeChampionship.matches && (
+            <div className="progress-bar-container" style={{ marginTop: '20px' }}>
+              <div className="progress-info">
+                <span>Matches: {activeChampionship.matches.completed || 0} completed, {activeChampionship.matches.pending || 0} pending, {activeChampionship.matches.active || 0} active (Total: {activeChampionship.matches.total || 0})</span>
+                <span>{Math.round(((activeChampionship.matches.completed || 0) / (activeChampionship.matches.total || 1)) * 100)}%</span>
+              </div>
+              <div className="progress-bar">
+                <div
+                  className="progress-fill"
+                  style={{
+                    width: `${((activeChampionship.matches.completed || 0) / (activeChampionship.matches.total || 1)) * 100}%`,
+                    backgroundColor: '#22c55e'
+                  }}
+                ></div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -1038,29 +1038,35 @@ class ChampionshipController extends Controller
             })->sortBy('round')->values();
 
             // Calculate current round and completion status
-            // Get highest round number, then check if it's complete
-            $highestRound = $matches->max('round_number') ?? 0;
+            // Find the first round that is not complete, starting from round 1
+            $maxRound = $matches->max('round_number') ?? 0;
             $currentRound = 1;
+            $completedRounds = 0;
 
-            if ($highestRound > 0) {
-                // Check each round from highest to lowest to find the current round
-                for ($round = $highestRound; $round >= 1; $round--) {
+            if ($maxRound > 0) {
+                // Check rounds in order to to find the current active round
+                for ($round = 1; $round <= $maxRound; $round++) {
                     $roundMatches = $matches->where('round_number', $round);
                     $isRoundComplete = $roundMatches->every(function ($match) {
                         return $match->status === 'completed';
                     });
 
-                    if (!$isRoundComplete) {
-                        // This is the current round (not complete)
+                    if ($isRoundComplete) {
+                        $completedRounds++;
+                    } else {
+                        // This is the first incomplete round
                         $currentRound = $round;
                         break;
-                    } elseif ($round === $highestRound) {
-                        // If highest round is complete, current round is next one
-                        $currentRound = $round + 1;
                     }
                 }
+
+                // If all rounds are complete, current round is maxRound + 1
+                if ($completedRounds === $maxRound) {
+                    $currentRound = $maxRound + 1;
+                }
             } else {
-                $currentRound = 0; // No matches exist
+                $currentRound = 1; // No matches exist, starting with round 1
+                $completedRounds = 0;
             }
             $totalRounds = $championship->total_rounds;
             $isComplete = $currentRound > $totalRounds || ($matchStats['pending'] === 0 && $matchStats['active'] === 0);
@@ -1080,6 +1086,8 @@ class ChampionshipController extends Controller
                 'championship_id' => $id,
                 'matches_total' => $matchStats['total'],
                 'current_round' => $currentRound,
+                'completed_rounds' => $completedRounds,
+                'total_rounds' => $totalRounds,
                 'is_complete' => $isComplete
             ]);
 
@@ -1088,10 +1096,11 @@ class ChampionshipController extends Controller
                 'summary' => [
                     'current_round' => $currentRound,
                     'total_rounds' => $totalRounds,
+                    'completed_rounds' => $completedRounds,
                     'is_complete' => $isComplete,
                     'matches' => $matchStats,
                     'can_schedule_next' => !$isComplete && $currentRound <= $totalRounds && $matchStats['completed'] > 0,
-                    'next_round_number' => $currentRound + 1
+                    'next_round_number' => $currentRound <= $totalRounds ? $currentRound + 1 : null
                 ],
                 'rounds' => $roundStats,
                 'user_status' => $userStatus

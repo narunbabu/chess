@@ -432,44 +432,49 @@ const TournamentAdminDashboard = () => {
           </div>
         </div>
 
+        {/* Notice about feature availability */}
+        <div className="info-notice" style={{
+          backgroundColor: '#e3f2fd',
+          border: '1px solid #2196f3',
+          borderRadius: '8px',
+          padding: '12px 16px',
+          margin: '16px 0',
+          color: '#1565c0',
+          fontSize: '14px'
+        }}>
+          <span style={{ fontSize: '16px', marginRight: '8px' }}>ℹ️</span>
+          <strong>Quick tournament features coming soon!</strong><br />
+          <span style={{ opacity: 0.9 }}>Some tournament generation options are temporarily disabled while we enhance the system. Use the "Auto Swiss-Elimination" button for full tournament generation in the meantime.</span>
+        </div>
+
         <div className="tournament-actions-grid">
-          {/* Quick Generate Button */}
+          {/* Quick Generate Button - Disabled */}
           <button
-            onClick={handleQuickGenerate}
-            disabled={loading || !championship?.participants_count || championship.participants_count < 2}
-            className="btn btn-success quick-generate-btn"
-            title={
-              !championship?.participants_count || championship.participants_count < 2
-                ? "At least 2 participants required"
-                : "Generate tournament with recommended preset"
-            }
+            disabled={true}
+            className="btn btn-success quick-generate-btn disabled"
+            title="Quick Generate All Rounds - Available in near future"
           >
             <span className="btn-icon">⚡</span>
             <span className="btn-text">
-              {loading ? 'Generating...' : (championship?.tournament_generated ? '🔄 Regenerate All Rounds' : 'Quick Generate All Rounds')}
+              Quick Generate All Rounds
             </span>
             <span className="btn-subtitle">
-              {getRecommendedPreset().replace('_', ' ')} preset
+              Coming soon! 🚧
             </span>
           </button>
 
-          {/* Advanced Configuration Button */}
+          {/* Advanced Configuration Button - Disabled */}
           <button
-            onClick={() => handleGenerateFullTournament()}
-            disabled={loading || !championship?.participants_count || championship.participants_count < 2}
-            className="btn btn-primary config-generate-btn"
-            title={
-              !championship?.participants_count || championship.participants_count < 2
-                ? "At least 2 participants required"
-                : "Configure tournament settings before generation"
-            }
+            disabled={true}
+            className="btn btn-primary config-generate-btn disabled"
+            title="Custom tournament settings - Available in near future"
           >
             <span className="btn-icon">⚙️</span>
             <span className="btn-text">
-              {loading ? 'Loading...' : 'Configure & Generate'}
+              Configure & Generate
             </span>
             <span className="btn-subtitle">
-              Custom tournament settings
+              Available soon! 🔧
             </span>
           </button>
 
@@ -493,23 +498,18 @@ const TournamentAdminDashboard = () => {
             </span>
           </button>
 
-          {/* Preview Tournament Button */}
+          {/* Preview Tournament Button - Disabled */}
           <button
-            onClick={() => setShowTournamentConfigModal(true)}
-            disabled={loading || !championship?.participants_count || championship.participants_count < 2}
-            className="btn btn-secondary preview-btn"
-            title={
-              !championship?.participants_count || championship.participants_count < 2
-                ? "At least 2 participants required"
-                : "Preview tournament structure"
-            }
+            disabled={true}
+            className="btn btn-secondary preview-btn disabled"
+            title="Preview Tournament - Available in near future"
           >
             <span className="btn-icon">👁️</span>
             <span className="btn-text">
-              {loading ? 'Loading...' : 'Preview Tournament'}
+              Preview Tournament
             </span>
             <span className="btn-subtitle">
-              See structure before generating
+              Coming soon! 🔍
             </span>
           </button>
         </div>

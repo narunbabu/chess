@@ -1240,3 +1240,45 @@
     align-items: center;
   }
 }
+
+/* FIX: Active Tab Visibility - Final Polish */
+
+/* 1. Ensure the container has a distinct background so the white tab pops */
+.championship-tabs {
+  display: flex;
+  gap: 8px;
+  background: #f1f5f9; /* Light Slate Gray Background */
+  padding: 12px 12px 0 12px; /* Add padding to top/sides */
+  border-radius: 12px 12px 0 0;
+  border-bottom: 1px solid #e2e8f0;
+  overflow-x: auto;
+}
+
+/* 2. Standard Tab Styling */
+.championship-tabs .tab {
+  padding: 10px 20px;
+  border: none;
+  background: transparent;
+  color: #64748b; /* Medium Gray for inactive */
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 8px 8px 0 0;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+/* 3. Hover State */
+.championship-tabs .tab:hover {
+  color: #1e293b; /* Dark text on hover */
+  background: rgba(255, 255, 255, 0.5); /* Slight white tint */
+}
+
+/* 4. ACTIVE STATE - High Contrast "Card" Look */
+.championship-tabs .tab.active {
+  background: #ffffff !important; /* Pure White Background */
+  color: #1e293b !important;      /* Dark Slate Text (High Contrast) */
+  font-weight: 700;               /* Bold Text */
+  border-bottom: 3px solid #7c3aed; /* Purple Underline to show selection */
+  box-shadow: 0 -2px 5px rgba(0,0,0,0.05); /* Subtle lift effect */
+}

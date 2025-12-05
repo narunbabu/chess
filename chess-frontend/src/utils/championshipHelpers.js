@@ -61,11 +61,24 @@ export const formatTimeControl = (timeControl) => {
  * Calculate championship progress percentage
  */
 export const calculateProgress = (championship) => {
-  if (!championship.total_rounds || !championship.current_round) {
+  if (!championship.total_rounds) {
     return 0;
   }
 
-  return Math.min((championship.current_round / championship.total_rounds) * 100, 100);
+  // If we have completed_rounds from the API, use that
+  if (championship.completed_rounds !== undefined) {
+    return Math.min((championship.completed_rounds / championship.total_rounds) * 100, 100);
+  }
+
+  // Fallback: if current_round is provided, calculate based on completed rounds
+  if (championship.current_round) {
+    // Progress should be based on completed rounds, not current round
+    // If we're in round 2, then 1 round is completed
+    const completedRounds = Math.max(0, championship.current_round - 1);
+    return Math.min((completedRounds / championship.total_rounds) * 100, 100);
+  }
+
+  return 0;
 };
 
 /**

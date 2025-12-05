@@ -6,35 +6,69 @@
 }
 
 .championship-list-header {
+  /* Changed from Green to Deep Royal Blue/Purple */
+  background: linear-gradient(135deg, #1e1b4b 0%, #4c1d95 100%);
+  padding: 32px;
+  border-radius: 16px;
+  margin-bottom: 32px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 30px;
-  padding-bottom: 20px;
-  border-bottom: 2px solid #e2e8f0;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Add a subtle shine effect */
+.championship-list-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
 }
 
 .championship-list-header h1 {
   font-size: 2.5rem;
-  font-weight: 700;
-  color: #1a202c;
+  font-weight: 800; /* Extra bold */
+  color: #ffffff;
   margin: 0;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  letter-spacing: -0.5px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-family: 'Georgia', 'Times New Roman', serif; /* Classic serif as fallback */
 }
 
 .create-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  /* Amber/Gold Gradient - High Contrast against Purple */
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
   color: white;
   border: none;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-weight: 600;
+  padding: 14px 28px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 1rem;
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border: 1px solid rgba(255,255,255,0.2);
 }
 
 .create-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 8px 25px rgba(245, 158, 11, 0.5);
+  background: linear-gradient(135deg, #fbbf24 0%, #b45309 100%);
+}
+
+.create-btn:active {
+  transform: translateY(1px);
 }
 
 /* Filters */
@@ -88,27 +122,138 @@
   margin: 0;
 }
 
-/* Championship Cards */
+/* Championship Cards - Modern "Royal Ticket" Style */
 .championships-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 25px;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); /* Slightly wider */
+  gap: 24px;
 }
 
 .championship-card {
-  background: white;
+  background: #ffffff; /* Revert to white for readability */
   border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  /* The "Top Accent" - A thick Gold bar at the top */
+  border-top: 4px solid #f59e0b;
+  border-right: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
+  border-left: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
   position: relative;
-  padding: 24px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  border: 1px solid #e2e8f0;
-  overflow-anchor: none; /* Prevent scroll anchoring issues */
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
+/* Hover Effect: Lift and Glow */
 .championship-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  transform: translateY(-8px);
+  /* A Gold Glow shadow */
+  box-shadow: 0 20px 25px -5px rgba(245, 158, 11, 0.15), 0 10px 10px -5px rgba(245, 158, 11, 0.1);
+  border-top-color: #d97706; /* Darker gold on hover */
+}
+
+/* Card Header - Clean & Spacious */
+.championship-card .card-header {
+  padding: 24px 24px 16px 24px; /* More padding */
+  background: white;
+}
+
+.championship-name {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #1e1b4b; /* Deep Indigo */
+  margin-bottom: 8px;
+  letter-spacing: -0.5px;
+}
+
+/* Status Badge - Refined */
+.championship-status {
+  padding: 6px 12px;
+  border-radius: 9999px; /* Fully pill-shaped */
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Customize specific statuses */
+.championship-status.in_progress {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+
+.championship-status.completed {
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
+/* STATS GRID - The replacement for the heavy footer */
+.card-stats-grid {
+  padding: 16px 24px 24px 24px;
+  background: #ffffff;
+  border-top: 1px dashed #e2e8f0; /* Dashed line looks like a tear-off ticket */
+  display: grid;
+  grid-template-columns: repeat(3, 1fr); /* 3 Equal columns */
+  gap: 12px;
+}
+
+/* Individual Stat Box styling */
+.stat-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc; /* Very light gray */
+  padding: 12px 8px;
+  border-radius: 12px;
+  text-align: center;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+/* Hovering a stat box makes it pop slightly */
+.championship-card:hover .stat-box {
+  background: #fff;
+  border-color: #e2e8f0;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.stat-icon {
+  font-size: 1.25rem;
+  margin-bottom: 6px;
+  color: #6366f1; /* Indigo Icon */
+}
+
+.stat-value {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1e293b; /* Dark slate text */
+}
+
+.stat-label {
+  font-size: 0.7rem;
+  color: #64748b; /* Muted label */
+  text-transform: uppercase;
+  margin-top: 2px;
+  font-weight: 600;
+}
+
+/* Prize Money - Make it Gold */
+.prize-badge {
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+  color: #b45309;
+  border: 1px solid #fcd34d;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-weight: 700;
+  display: inline-block;
+  margin-top: 12px;
 }
 
 /* Archived Championship Styles */
@@ -920,31 +1065,51 @@ textarea.form-input {
   padding: 20px;
 }
 
+/* Hero Header - Add a subtle pattern */
 .championship-header {
-  background: white;
-  border-radius: 12px;
-  padding: 24px;
-  margin-bottom: 24px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  background-color: #ffffff;
+  /* Optional: A very subtle chess pattern overlay */
+  background-image: radial-gradient(#e2e8f0 1px, transparent 1px);
+  background-size: 20px 20px;
+  border-radius: 16px;
+  padding: 32px;
+  border-bottom: 4px solid #1e1b4b; /* Indigo bottom border anchor */
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
   display: flex;
   align-items: center;
   gap: 20px;
   flex-wrap: wrap;
   position: relative;
+  margin-bottom: 24px;
 }
 
+/* Sleek Back Button */
 .back-btn {
+  background: transparent;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
   padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  box-shadow: none; /* Remove heavy shadow */
   font-size: 0.875rem;
-  min-width: fit-content !important;
-  white-space: nowrap !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 4px !important;
+  min-width: fit-content;
+  white-space: nowrap;
 }
 
 .back-btn::after {
   content: none !important;
+}
+
+.back-btn:hover {
+  background: #f1f5f9;
+  color: #1e1b4b; /* Indigo on hover */
+  border-color: #cbd5e1;
+  transform: translateX(-3px); /* Slide left slightly */
 }
 
 .championship-title-section {
@@ -958,6 +1123,7 @@ textarea.form-input {
   color: #1a202c;
   margin: 0 0 12px 0;
   line-height: 1.2;
+  font-family: 'Georgia', 'Times New Roman', serif;
 }
 
 .championship-meta {
@@ -992,11 +1158,14 @@ textarea.form-input {
   font-size: 0.875rem;
 }
 
-/* Tabs */
+/* Tabs - Clean Card Style */
 .championship-tabs {
   display: flex;
-  background: white;
+  gap: 8px;
+  background: #f1f5f9; /* Light Slate Gray Background for the bar */
+  padding: 12px 12px 0 12px; /* Padding to frame the tabs */
   border-radius: 12px 12px 0 0;
+  border-bottom: 1px solid #e2e8f0;
   overflow: hidden;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
   margin-bottom: 0;
@@ -1005,11 +1174,11 @@ textarea.form-input {
 .tab {
   flex: 1;
   padding: 16px 20px;
-  background: none;
+  background: transparent;
   border: none;
   font-size: 0.875rem;
   font-weight: 500;
-  color: #6b7280;
+  color: #64748b; /* Medium Gray for inactive */
   cursor: pointer;
   transition: all 0.2s ease;
   border-bottom: 3px solid transparent;
@@ -1020,6 +1189,7 @@ textarea.form-input {
   justify-content: center;
   gap: 6px;
   z-index: 1;
+  border-radius: 8px 8px 0 0;
 }
 
 .tab span {
@@ -1027,39 +1197,20 @@ textarea.form-input {
   line-height: 1;
 }
 
-.tab::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  opacity: 0;
-  transition: opacity 0.2s ease;
-  border-radius: 12px 12px 0 0;
-}
-
 .tab:hover:not(:disabled) {
-  background: #f9fafb;
-  color: #374151;
+  color: #1e293b; /* Dark text on hover */
+  background: rgba(255, 255, 255, 0.5); /* Slight white tint */
   transform: translateY(-1px);
-}
-
-.tab:hover:not(:disabled)::before {
-  opacity: 0.05;
 }
 
 .tab.active {
-  color: white;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-bottom-color: #667eea;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  background: #ffffff !important; /* Pure White Background */
+  color: #1e293b !important;      /* Dark Slate Text (High Contrast) */
+  font-weight: 700;               /* Bold Text */
+  border-bottom: 3px solid #7c3aed; /* Purple Underline to show selection */
+  box-shadow: 0 -2px 5px rgba(0,0,0,0.05); /* Subtle lift effect */
   transform: translateY(-1px);
-}
-
-.tab.active::before {
-  opacity: 1;
+  z-index: 2;
 }
 
 .tab:disabled {
