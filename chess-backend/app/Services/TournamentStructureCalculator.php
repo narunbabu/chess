@@ -113,16 +113,20 @@ class TournamentStructureCalculator
             return 2; // Minimum for very small tournaments (3-4 players)
         }
 
-        if ($playerCount <= 12) {
-            return 3; // Small tournaments (5-12 players): 3 Swiss rounds
+        if ($playerCount <= 16) {
+            return 3; // Small to medium tournaments (5-16 players): 3 Swiss rounds
         }
 
-        if ($playerCount <= 16) {
-            return 4; // Medium-small (13-16 players): 4 Swiss rounds
+        if ($playerCount <= 24) {
+            return 4; // Medium (17-24 players): 4 Swiss rounds
+        }
+
+        if ($playerCount <= 48) {
+            return 5; // Medium-large (25-48 players): 5 Swiss rounds
         }
 
         if ($playerCount <= 64) {
-            return 5; // Medium-large (17-64 players): 5 Swiss rounds
+            return 6; // Large (49-64 players): 6 Swiss rounds
         }
 
         // For very large tournaments (65-128)

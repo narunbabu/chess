@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios'; // Or your API service
+import { useChampionship } from '../../contexts/ChampionshipContext';
 import ChampionshipMatches from './ChampionshipMatches'; // Existing component
 import TournamentConfigurationModal from './TournamentConfigurationModal';
 import { BACKEND_URL } from '../../config';
@@ -12,7 +13,7 @@ const API_BASE_URL = 'http://localhost:8000/api';
 const TournamentAdminDashboard = () => {
   const { id: championshipId } = useParams();
   const navigate = useNavigate();
-  const [championship, setChampionship] = useState(null);
+  const { activeChampionship: championship, fetchChampionship } = useChampionship();
   const [matches, setMatches] = useState([]);
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -22,23 +23,7 @@ const TournamentAdminDashboard = () => {
   const [pairingsPreview, setPairingsPreview] = useState([]);
   const [tournamentStats, setTournamentStats] = useState(null);
 
-  // Fetch championship details
-  const fetchChampionship = async () => {
-    if (!championshipId) return;
-    try {
-      const token = localStorage.getItem('auth_token');
-      const response = await axios.get(`${BACKEND_URL}/championships/${championshipId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      setChampionship(response.data.championship);
-    } catch (err) {
-      console.error('Error fetching championship:', err);
-    }
-  };
-
+  
   // Fetch matches (existing logic)
   const fetchMatches = async () => {
     if (!championshipId) return;
@@ -59,10 +44,12 @@ const TournamentAdminDashboard = () => {
   };
 
   useEffect(() => {
-    fetchChampionship();
-    fetchMatches();
-    fetchTournamentStats();
-  }, [championshipId]);
+    if (championshipId) {
+      fetchChampionship(championshipId);
+      fetchMatches();
+      fetchTournamentStats();
+    }
+  }, [championshipId, fetchChampionship]);
 
   // Fetch tournament statistics
   const fetchTournamentStats = async () => {
@@ -135,7 +122,7 @@ const TournamentAdminDashboard = () => {
         // Show success message
         alert(`Success!\n\n${message}\n\nRound: ${round_number}\nMatches Created: ${matches_scheduled}`);
         // Refresh data
-        fetchChampionship();
+        fetchChampionship(championshipId);
         fetchMatches();
       } else if (response.data.error) {
         setError(response.data.error);
@@ -177,7 +164,7 @@ const TournamentAdminDashboard = () => {
   // Handle tournament generated callback
   const handleTournamentGenerated = (data) => {
     // Refresh all data
-    fetchChampionship();
+    fetchChampionship(championshipId);
     fetchMatches();
     fetchTournamentStats();
   };
@@ -342,7 +329,9 @@ const TournamentAdminDashboard = () => {
               `Top Qualifiers: ${summary.top_k || 'N/A'}`);
 
         // Refresh championship data to show updated tournament status
-        fetchChampionship();
+        fetchChampionship(championshipId);
+        // Also refresh matches to ensure matches are loaded
+        fetchMatches();
       } else if (response.data?.error) {
         setError(response.data.error);
       }

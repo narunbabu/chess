@@ -29,27 +29,53 @@ class SwissPairingService
         // Get eligible participants
         $participants = $this->getEligibleParticipants($championship);
 
-        // if ($participants->count() < 2) {
-        //     $totalParticipants = $championship->participants()->count();
-        //     $paidParticipants = $participants->count();
-
-        //     throw new \InvalidArgumentException(
-        //         "Not enough eligible participants for pairings. " .
-        //         "Total registered: {$totalParticipants}, Paid: {$paidParticipants}. " .
-        //         "At least 2 paid participants are required to generate matches."
-        //     );
-        // }
-
         // Store original participants count for validation
         $originalParticipantsCount = $participants->count();
 
-        // Sort participants by score (descending) and tiebreakers
+        // 🎯 RETRY LOGIC: Try up to 5 times to find a valid strict pairing
+        for ($attempt = 1; $attempt <= 5; $attempt++) {
+            try {
+                Log::info("Swiss pairing attempt $attempt for championship {$championship->id}, round $roundNumber");
+
+                // Shuffle participants within score groups to find different combinations
+                // We do this by adding a tiny random decimal to their score for sorting purposes only
+                $shuffledParticipants = $participants->map(function($p) {
+                    $p->temp_sort = $p->score + (mt_rand(0, 100) / 100000);
+                    return $p;
+                })->sortByDesc('temp_sort')->values();
+
+                // Sort participants by score (descending) and tiebreakers
+                $sortedParticipants = $this->sortParticipantsByScore($championship, $shuffledParticipants);
+
+                // Generate pairings using Dutch algorithm (FIDE standard)
+                $pairings = $this->dutchAlgorithm($championship, $sortedParticipants, $roundNumber);
+
+                // 🎯 CRITICAL FIX: Validate using original participant count, not filtered
+                $this->validatePairingCompletenessWithCount($participants, $pairings, $championship, $roundNumber, $originalParticipantsCount);
+
+                Log::info("Swiss pairing successful on attempt $attempt", [
+                    'championship_id' => $championship->id,
+                    'round' => $roundNumber,
+                    'pairings_count' => count($pairings)
+                ]);
+
+                return $pairings;
+            } catch (\Exception $e) {
+                Log::warning("Swiss pairing attempt $attempt failed: " . $e->getMessage());
+                // Continue to next attempt
+            }
+        }
+
+        // 🎯 FALLBACK: If strict pairing fails, allow repeat matchups
+        Log::warning("Strict Swiss pairing failed 5 times. Enabling fallback (repeat matchups allowed) for championship {$championship->id}, round $roundNumber");
+
+        // Sort participants by score (descending) and tiebreakers for final attempt
         $sortedParticipants = $this->sortParticipantsByScore($championship, $participants);
 
-        // Generate pairings using Dutch algorithm (FIDE standard)
-        $pairings = $this->dutchAlgorithm($championship, $sortedParticipants, $roundNumber);
+        // Generate pairings with repeat matchups allowed
+        $pairings = $this->dutchAlgorithm($championship, $sortedParticipants, $roundNumber, true);
 
-        // 🎯 CRITICAL FIX: Validate using original participant count, not filtered
+        // Final validation (should pass since repeats are allowed)
         $this->validatePairingCompletenessWithCount($participants, $pairings, $championship, $roundNumber, $originalParticipantsCount);
 
         return $pairings;
@@ -244,7 +270,7 @@ class SwissPairingService
      * 🎯 FLOATING LOGIC: Players from odd-sized groups "fall down" to lower score groups
      * This ensures ALL players get paired, following Swiss tournament gravity rules
      */
-    private function dutchAlgorithm(Championship $championship, Collection $participants, int $roundNumber): array
+    private function dutchAlgorithm(Championship $championship, Collection $participants, int $roundNumber, bool $allowRepeats = false): array
     {
         $pairings = [];
 
@@ -314,7 +340,7 @@ class SwissPairingService
                     'player_ids' => $players->pluck('user_id')->toArray(),
                 ]);
 
-                $groupPairings = $this->pairEvenGroup($championship, $players, $roundNumber);
+                $groupPairings = $this->pairEvenGroup($championship, $players, $roundNumber, $allowRepeats);
                 $pairings = array_merge($pairings, $groupPairings);
 
                 Log::info("Completed pairing group", [
@@ -365,9 +391,10 @@ class SwissPairingService
      * @param Championship $championship
      * @param Collection $players Even-sized collection of players
      * @param int $roundNumber
+     * @param bool $allowRepeats Whether to allow repeat matchups
      * @return array Array of pairings
      */
-    private function pairEvenGroup(Championship $championship, Collection $players, int $roundNumber): array
+    private function pairEvenGroup(Championship $championship, Collection $players, int $roundNumber, bool $allowRepeats = false): array
     {
         $pairings = [];
 
@@ -400,10 +427,10 @@ class SwissPairingService
                 continue;
             }
 
-            // Check if they've already played OR are already paired in current round
-            if ($this->haveAlreadyPlayed($championship, $player1->user_id, $player2->user_id, $roundNumber)) {
+            // Check if they've already played OR are already paired in current round (unless repeats allowed)
+            if (!$allowRepeats && $this->haveAlreadyPlayed($championship, $player1->user_id, $player2->user_id, $roundNumber)) {
                 // Try to find alternative within remaining unpaired players
-                $alternative = $this->findAlternativeInGroup($championship, $sortedPlayers, $i, $paired, $roundNumber);
+                $alternative = $this->findAlternativeInGroup($championship, $sortedPlayers, $i, $paired, $roundNumber, $allowRepeats);
 
                 if ($alternative) {
                     $player2 = $alternative;
@@ -446,7 +473,7 @@ class SwissPairingService
     /**
      * Find alternative pairing within group to avoid repeat matches
      */
-    private function findAlternativeInGroup(Championship $championship, Collection $players, int $currentIndex, Collection $alreadyPaired, int $roundNumber): mixed
+    private function findAlternativeInGroup(Championship $championship, Collection $players, int $currentIndex, Collection $alreadyPaired, int $roundNumber, bool $allowRepeats = false): mixed
     {
         $currentPlayer = $players[$currentIndex];
 
@@ -458,7 +485,7 @@ class SwissPairingService
                 continue;
             }
 
-            if (!$this->haveAlreadyPlayed($championship, $currentPlayer->user_id, $candidate->user_id, $roundNumber)) {
+            if ($allowRepeats || !$this->haveAlreadyPlayed($championship, $currentPlayer->user_id, $candidate->user_id, $roundNumber)) {
                 return $candidate;
             }
         }
@@ -691,10 +718,10 @@ class SwissPairingService
                 continue;
             }
 
-            // Check if they have already played each other OR are already paired in current round
-            if ($this->haveAlreadyPlayed($championship, $player1->user_id, $player2->user_id, $roundNumber)) {
+            // Check if they have already played each other OR are already paired in current round (unless repeats allowed)
+            if (!$allowRepeats && $this->haveAlreadyPlayed($championship, $player1->user_id, $player2->user_id, $roundNumber)) {
                 // Try to find alternative pairing within remaining players in group
-                $alternativePairing = $this->findAlternativePairing($championship, $sortedGroup, $i, $roundNumber);
+                $alternativePairing = $this->findAlternativePairing($championship, $sortedGroup, $i, $roundNumber, $allowRepeats);
                 if ($alternativePairing) {
                     $pairings[] = $alternativePairing;
                     // Mark both players as paired
@@ -752,7 +779,7 @@ class SwissPairingService
      * @param int $roundNumber
      * @return array Array of pairings
      */
-    private function pairRemainingPlayers(Championship $championship, Collection $unpairedPlayers, int $roundNumber): array
+    private function pairRemainingPlayers(Championship $championship, Collection $unpairedPlayers, int $roundNumber, bool $allowRepeats = false): array
     {
         $pairings = [];
         $remaining = $unpairedPlayers->values(); // Re-index collection
@@ -785,8 +812,8 @@ class SwissPairingService
 
             $player2 = $remaining[$i + 1];
 
-            // Check if these players have already played OR are already paired in current round
-            if ($this->haveAlreadyPlayed($championship, $player1->user_id, $player2->user_id, $roundNumber)) {
+            // Check if these players have already played OR are already paired in current round (unless repeats allowed)
+            if (!$allowRepeats && $this->haveAlreadyPlayed($championship, $player1->user_id, $player2->user_id, $roundNumber)) {
                 Log::info("Unpaired players have already played or already paired - trying next combination", [
                     'player1_id' => $player1->user_id,
                     'player2_id' => $player2->user_id,
@@ -1028,7 +1055,7 @@ class SwissPairingService
     /**
      * Find alternative pairing within score group
      */
-    private function findAlternativePairing(Championship $championship, Collection $group, int $currentIndex, int $roundNumber): ?array
+    private function findAlternativePairing(Championship $championship, Collection $group, int $currentIndex, int $roundNumber, bool $allowRepeats = false): ?array
     {
         // 🎯 SAFETY CHECK: Ensure index is within bounds
         if ($currentIndex >= $group->count()) {
@@ -1045,7 +1072,7 @@ class SwissPairingService
         for ($i = $currentIndex + 2; $i < $group->count(); $i++) {
             $potentialOpponent = $group[$i];
 
-            if (!$this->haveAlreadyPlayed($championship, $currentPlayer->user_id, $potentialOpponent->user_id, $roundNumber)) {
+            if ($allowRepeats || !$this->haveAlreadyPlayed($championship, $currentPlayer->user_id, $potentialOpponent->user_id, $roundNumber)) {
                 // 🎯 SAFETY CHECK: Ensure we have enough elements for swap
                 if (!isset($group[$currentIndex + 1])) {
                     Log::warning("findAlternativePairing: Cannot swap - missing element", [
