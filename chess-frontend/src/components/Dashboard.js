@@ -282,7 +282,7 @@ const Dashboard = () => {
     } catch (error) {
       console.error('[Dashboard] ❌ Error discarding game:', error);
     }
-    setSelectedUnfinishedGame(null);
+    // Removed setSelectedUnfinishedGame(null) - state variable no longer exists
   };
 
   const handleSkillAssessmentComplete = async (rating) => {

@@ -22,6 +22,9 @@ export const GlobalInvitationProvider = ({ children }) => {
   const pendingInvitationRef = useRef(null);
   pendingInvitationRef.current = pendingInvitation;
 
+  const resumeRequestRef = useRef(null);
+  resumeRequestRef.current = resumeRequest;
+
   const championshipResumeRequestRef = useRef(null);
   championshipResumeRequestRef.current = championshipResumeRequest;
 

@@ -338,6 +338,8 @@ const TournamentAdminDashboard = () => {
     } catch (err) {
       let errorMsg = 'Failed to generate Swiss-Elimination tournament';
 
+      const errorData = err.response?.data;
+
       if (err.code === 'ERR_NETWORK') {
         errorMsg = 'Network Error: Unable to connect to the server. Please ensure the backend server is running.';
       } else if (err.response?.status === 401) {
@@ -348,12 +350,10 @@ const TournamentAdminDashboard = () => {
         errorMsg = 'Not Found: The championship or tournament generation endpoint may not be available.';
       } else if (err.response?.status === 500) {
         errorMsg = 'Server Error: An error occurred while generating the tournament.';
-        const errorData = err.response?.data;
         if (errorData?.message) {
           errorMsg += `\n\nServer Details: ${errorData.message}`;
         }
       } else if (err.response?.status >= 400 && err.response?.status < 500) {
-        const errorData = err.response?.data;
         errorMsg = `Client Error (${err.response.status}): ${err.response.statusText}`;
 
         if (errorData?.participants_count !== undefined) {
@@ -361,10 +361,8 @@ const TournamentAdminDashboard = () => {
         }
       } else if (errorData?.message) {
         errorMsg = errorData.message;
-      } else if (err.response?.data?.error) {
-        errorMsg = err.response.data.error;
-      } else if (err.response?.data?.message) {
-        errorMsg = err.response.data.message;
+      } else if (errorData?.error) {
+        errorMsg = errorData.error;
       }
 
       setError(errorMsg);

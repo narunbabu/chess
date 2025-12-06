@@ -32,7 +32,8 @@ const ChampionshipDetails = () => {
     completeChampionship,
     deleteChampionship,
     restoreChampionship,
-    forceDeleteChampionship
+    forceDeleteChampionship,
+    setActiveChampionship
   } = useChampionship();
 
   // Get initial tab from query params or default to 'overview'
