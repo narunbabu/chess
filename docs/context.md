@@ -1,9 +1,9 @@
 # Chess Web - Project Context Documentation
 
 **Project:** Real-time Multiplayer Chess Platform
-**Current Status:** Phase 4 Complete ✅ (Production Platform with Tournament System)
+**Current Status:** Phase 5 Complete ✅ (Production Platform with Tournament System + Learning Hub)
 **Technology Stack:** Laravel 12 + React 18 + Laravel Reverb WebSockets
-**Phase:** Fully operational production platform with multiplayer, social sharing, game review, and tournament system
+**Phase:** Fully operational production platform with multiplayer, social sharing, game review, championship tournaments, and comprehensive learning system
 
 ---
 
@@ -12,10 +12,12 @@
 A web-based chess application designed to provide real-time multiplayer chess experiences with a complete game ecosystem including:
 
 - **Real-time Multiplayer Chess** - Players can connect and play chess games in real-time with WebSocket support
-- **Tournament System** - Full-featured championship management with Swiss/Elimination/Hybrid formats
-- **Social Features** - Game sharing with WhatsApp/social media, professional branded cards
-- **User Profiles** - Rating system, statistics tracking, avatar uploads
+- **Championship Tournament System** - Full-featured tournament management with Swiss/Elimination/Hybrid formats, registration, pairings, and standings
+- **Comprehensive Learning Hub** - Interactive tutorials, training exercises, puzzles, and skill assessment system with progression tracking
+- **Social Features** - Game sharing with WhatsApp/social media, professional branded cards, guest game resumes
+- **User Profiles** - Rating system, statistics tracking, avatar uploads, skill assessment integration
 - **Game Review** - Complete game replay with move-by-move navigation
+- **Guest Game Support** - Play as guest with local storage persistence and game resumption capability
 - **AI Opponents** - Play against various AI engines (Stockfish, LLM bots) [Planned]
 - **Credit Economy** - In-game currency system for premium features [Planned]
 
@@ -76,81 +78,115 @@ A web-based chess application designed to provide real-time multiplayer chess ex
 ### ✅ Phase 2A: Connection & Handshake Protocol (COMPLETE)
 **Implementation Details:** 16 hours actual development time (within 13-19 hour estimate)
 
-**Delivered Components:**
-1. **WebSocket Authentication System**
-   - `WebSocketAuth.php` middleware for secure connections
-   - Laravel Sanctum integration for token-based auth
-   - Channel authorization for game-specific access
-
-2. **Game Room Management**
-   - `GameRoomService.php` for room creation and management
-   - `GameConnection.php` model for tracking player connections
-   - Room capacity management (exactly 2 players)
-   - Unique room codes and joining mechanics
-
-3. **Player Handshake Protocol**
-   - `HandshakeProtocol.php` service for connection establishment
-   - Player readiness confirmation and color assignment
-   - Initial game state synchronization (FEN notation)
-   - Connection recovery and reconnection support
-
 ### ✅ Phase 2B: Move Synchronization & Validation (COMPLETE)
 **Implementation Details:** Completed with full multiplayer functionality
 
-**Delivered Features:**
-1. **Real-time Move Synchronization**
-   - WebSocket-based move broadcasting
-   - Real-time board updates for both players
-   - Move history tracking and persistence
-
-2. **Server-side Chess Logic**
-   - Complete chess rules validation using chess.js
-   - Legal move checking
-   - Turn order enforcement
-   - Special moves support (castling, en passant, promotion)
-
-3. **Game State Management**
-   - Authoritative server state
-   - Move history storage in database
-   - Game completion detection
-   - Result calculation (win/loss/draw)
-
 ### ✅ Phase 3: Enhanced Gameplay & User Experience (COMPLETE)
+**Implementation Details:** All social sharing and user experience features implemented
+
+### ✅ Phase 4: Championship Tournament System (COMPLETE)
+**Implementation Details:** Full tournament management system with Swiss/Elimination/Hybrid formats
+
+### ✅ Phase 5: Learning Hub & Training System (COMPLETE)
+**Implementation Details:** Interactive tutorial system with skill assessment and progress tracking
+
+---
+
+## 📁 Project Structure
+
+```
+Chess-Web/
+├── chess-backend/          # Laravel 12 Backend
+│   ├── app/
+│   │   ├── Models/         # Eloquent models (Game, Championship, Tutorial, etc.)
+│   │   ├── Http/Controllers/ # API controllers
+│   │   ├── Services/       # Business logic services
+│   │   └── Events/         # WebSocket events and notifications
+│   ├── database/
+│   │   └── migrations/     # Database schema
+│   └── routes/
+│       ├── api.php         # API routes
+│       └── channels.php    # WebSocket channel definitions
+├── chess-frontend/         # React 18 Frontend
+│   ├── src/
+│   │   ├── components/     # React components
+│   │   │   ├── championship/ # Tournament components
+│   │   │   ├── tutorial/    # Learning system components
+│   │   │   ├── play/        # Game interface components
+│   │   │   └── auth/        # Authentication components
+│   │   ├── pages/          # Page components
+│   │   ├── services/       # API services
+│   │   └── utils/          # Utility functions
+│   └── public/             # Static assets
+├── docs/                   # Documentation
+└── package.json            # Root package file
+```
+
+---
+
+## 🛠️ Development Environment
+
+### Prerequisites
+   - Match scheduling and time windows
+   - Round progression and elimination brackets
+
+2. **Tournament Participation**
+   - User registration and payment integration
+   - Participant management and seeding
+   - "My Matches" personal schedule view
+   - Game creation from tournament matches
+   - Automatic result recording and standings
+
+3. **Tournament Administration**
+   - Organizer dashboard for tournament management
+   - Real-time standings calculation with tiebreaks
+   - Match rescheduling and management
+   - Participant approval and seeding
+   - Prize distribution system
+
+4. **Advanced Tournament Features**
+   - Hybrid format (Swiss rounds + elimination playoffs)
+   - Bye point management and timing optimization
+   - Match invitation system with acceptance/decline
+   - Tournament game resume requests
+   - Comprehensive authorization and policies
+
+### ✅ Phase 5: Learning Hub & Training System (COMPLETE)
 
 **Delivered Features:**
-1. **Game Review System**
-   - Complete game replay functionality
-   - Move-by-move navigation
-   - Game history browsing
-   - Share functionality with "Test Share" button
+1. **Interactive Tutorial System**
+   - Multi-tier tutorial modules (Beginner, Intermediate, Advanced)
+   - Lesson progression with unlock mechanics
+   - Skill assessment and placement testing
+   - Visual aids and interactive chess board demonstrations
+   - Lesson completion tracking and achievements
 
-2. **User Profiles**
-   - Profile management with avatar uploads
-   - Rating system display
-   - User statistics tracking
-   - Profile picture customization
+2. **Training Exercises Platform**
+   - Structured exercises by difficulty level
+   - Position-based tactical puzzles
+   - Interactive chess board with move validation
+   - Solution hints and move highlighting
+   - Exercise completion feedback
 
-3. **Social Sharing Features**
-   - WhatsApp share with Open Graph meta tags
-   - Branded game result cards
-   - Professional share images with html2canvas
-   - Rich social media previews
-   - Share URL system (`chess99.com/share/result/{id}`)
+3. **Skill Assessment System**
+   - Initial skill evaluation for new users
+   - Adaptive difficulty based on performance
+   - Progress tracking and statistics
+   - Achievement badges and milestones
+   - Personalized learning paths
 
-4. **Branded Game End Cards**
-   - Professional game completion screen
-   - Player avatars and statistics
-   - Chess99 branding and logo
-   - Website promotion footer
-   - Shareable image generation
-   - Compelling call-to-action
+4. **Tutorial Content Structure**
+   - **Beginner Tier**: Basic piece movement, checkmate patterns, pawn promotion
+   - **Intermediate Tier**: Advanced tactics, positional play, endgame techniques
+   - **Advanced Tier**: Complex combinations, strategic planning, master-level concepts
+   - **Daily Challenges**: Time-limited puzzles and scenarios
 
-5. **Production Infrastructure**
-   - Nginx reverse proxy configuration
-   - CORS headers for cross-origin requests
-   - SSL/HTTPS deployment
-   - Static asset serving optimization
-   - Image caching strategy
+5. **Tutorial Infrastructure**
+   - Backend API for tutorial data management
+   - User progress tracking with database persistence
+   - Tutorial achievement system with rewards
+   - Lesson completion analytics
+   - Error boundary handling for robust learning experience
 
 ---
 
@@ -287,13 +323,38 @@ pnpm dev
    - Tournament creation with Swiss/Elimination/Hybrid formats
    - User registration and payment integration
    - Automatic pairing generation (Swiss system algorithm)
-   - Match scheduling and management
+   - Match scheduling and management with time windows
    - Game creation from tournament matches
-   - Automatic result recording
-   - Live standings with tiebreak calculations
-   - Organizer admin dashboard
-   - Participant "My Matches" view
-   - Authorization and access control
+   - Automatic result recording and standings calculation
+   - Live standings with tiebreak calculations (Buchholz, Sonneborn-Berger)
+   - Organizer admin dashboard with full tournament control
+   - Participant "My Matches" view for personal schedules
+   - Match invitation system with accept/decline functionality
+   - Tournament game resume requests and notifications
+   - Hybrid format support (Swiss rounds + elimination playoffs)
+   - Bye point management and timing optimization
+   - Authorization policies and access control
+   - Full tournament lifecycle management (creation → completion)
+
+8. **Learning & Training System**
+   - Interactive tutorial modules with beginner/intermediate/advanced tiers
+   - Skill assessment and placement testing for personalized learning
+   - Structured training exercises with position-based puzzles
+   - Interactive chess board with move validation and hints
+   - Lesson progression with unlock mechanics
+   - Visual aids and demonstration overlays
+   - Achievement system with badges and milestones
+   - Progress tracking and performance analytics
+   - Daily challenges and time-limited puzzles
+   - Tutorial completion rewards and statistics
+   - Backend API for comprehensive learning data management
+
+9. **Guest User Support**
+   - Play as guest without registration
+   - Local storage persistence for game states
+   - Game resumption capability for interrupted games
+   - Guest game sharing functionality
+   - Seamless transition from guest to registered user
 
 ### Planned Features 🚧
 1. **Enhanced Gameplay Features**
@@ -769,7 +830,7 @@ chess-backend/tests/
 
 ### Near-term Milestones
 1. **Enhanced Gameplay** (Next Sprint)
-   - Chess clocks and time controls
+   - Chess clocks and time controls (partially implemented)
    - Draw offers and resignation buttons
    - Game abandonment handling
    - Rematch functionality
@@ -780,11 +841,17 @@ chess-backend/tests/
    - Computer game mode
    - AI practice games
 
-3. **Tournament System** (2-3 months)
-   - Tournament creation
-   - Bracket management
-   - Leaderboards
-   - Prize distribution
+3. **Tournament Enhancements** (Next Sprint)
+   - Payment processing integration (Razorpay)
+   - Email notifications for matches and results
+   - Live WebSocket updates for tournaments
+   - Tournament chat and announcements
+
+4. **Learning System Expansion** (1-2 months)
+   - Advanced tactical puzzle categories
+   - Personalized learning recommendations
+   - Video tutorial integration
+   - Multi-language support for tutorials
 
 ### Long-term Vision
 - **Credit Economy:** Premium features and monetization
@@ -839,6 +906,35 @@ REDIS_PORT=6379
 ---
 
 ## 🔥 Recent Technical Achievements
+
+### December 2025 Updates
+
+**Learning Hub & Training System Launch** (Dec 4, 2025)
+- ✅ Complete interactive tutorial system with beginner/intermediate/advanced tiers
+- ✅ Skill assessment and placement testing for personalized learning paths
+- ✅ Structured training exercises with position-based chess puzzles
+- ✅ Interactive chess board with move validation and solution hints
+- ✅ Lesson progression system with unlock mechanics and achievements
+- ✅ Visual aids and demonstration overlays for better understanding
+- ✅ Progress tracking and performance analytics with backend persistence
+- ✅ Tutorial achievement system with badges and milestone rewards
+- ✅ Daily challenges and time-limited puzzles for engagement
+- ✅ Comprehensive backend API for learning data management
+
+**Championship Tournament System Enhancements** (Dec 2-4, 2025)
+- ✅ Swiss + Elimination hybrid format working perfectly
+- ✅ Semi-final and final round management completed
+- ✅ Tournament CSS styling and responsive card designs
+- ✅ Championship visualizer integration with both frontend and backend
+- ✅ Complete tournament lifecycle management (registration → completion)
+- ✅ Automatic rankings and prize distribution system
+
+**Guest User Experience Improvements** (Late November 2025)
+- ✅ Local storage saves for guest games fully implemented
+- ✅ Pause and resume functionality working seamlessly
+- ✅ Game resumption from any device with guest state persistence
+- ✅ Guest game sharing capabilities with social media integration
+- ✅ Resume game request system working anywhere in the application
 
 ### November 2025 Updates
 
@@ -971,7 +1067,7 @@ REDIS_PORT=6379
 
 ---
 
-**Last Updated:** November 13, 2025
-**Document Version:** 2.1
+**Last Updated:** December 5, 2025
+**Document Version:** 3.0
 **Production Status:** ✅ LIVE at chess99.com
-**Overall Progress:** 75-80% complete (Core multiplayer, social features, and tournament system operational)
+**Overall Progress:** 85-90% complete (Core multiplayer, social features, championship tournaments, learning system, and guest support operational)
