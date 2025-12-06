@@ -129,14 +129,25 @@ class DatabaseContentsChecker
         }
 
         try {
-            // Connect to backup database
-            $backupDb = new PDO("sqlite:{$this->backupFile}");
+            // Check backup file type
+            $backupType = $this->detectBackupType($this->backupFile);
 
-            // Get all current tables
-            $currentTables = $this->getAllTables();
-            $backupTables = $this->getBackupTables($backupDb);
-            $allTables = array_unique(array_merge($currentTables, $backupTables));
-            sort($allTables);
+            if ($backupType === 'mysql') {
+                // For MySQL backups, we need to parse the SQL file
+                echo "📁 Comparing with MySQL backup: " . basename($this->backupFile) . "\n\n";
+                $this->compareWithMySQLBackup($this->backupFile);
+                return;
+            } else {
+                // SQLite backup
+                // Connect to backup database
+                $backupDb = new PDO("sqlite:{$this->backupFile}");
+
+                // Get all current tables
+                $currentTables = $this->getAllTables();
+                $backupTables = $this->getBackupTables($backupDb);
+                $allTables = array_unique(array_merge($currentTables, $backupTables));
+                sort($allTables);
+            }
 
             echo sprintf("%-40s %12s %12s %12s %15s\n",
                 "Table Name", "Current", "Backup", "Difference", "Status");
@@ -202,8 +213,19 @@ class DatabaseContentsChecker
      */
     private function getAllTables(): array
     {
-        $tables = DB::select("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'");
-        return array_map(fn($table) => $table->name, $tables);
+        // Check if we're using MySQL or SQLite
+        $connection = DB::connection();
+        $driver = $connection->getDriverName();
+
+        if ($driver === 'mysql') {
+            $tables = DB::select("SHOW TABLES");
+            $key = array_keys((array)$tables[0])[0]; // Get the first key (table name)
+            return array_map(fn($table) => $table->$key, $tables);
+        } else {
+            // SQLite fallback
+            $tables = DB::select("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'");
+            return array_map(fn($table) => $table->name, $tables);
+        }
     }
 
     /**
@@ -287,7 +309,11 @@ class DatabaseContentsChecker
             return;
         }
 
-        $files = glob($backupDir . '/chess_web_backup_*.sqlite');
+        // Look for both SQLite and MySQL backups
+        $files = array_merge(
+            glob($backupDir . '/chess_web_backup_*.sqlite'),
+            glob($backupDir . '/chess_web_backup_*.sql')
+        );
 
         if ($files) {
             usort($files, function($a, $b) {
@@ -296,6 +322,45 @@ class DatabaseContentsChecker
 
             $this->backupFile = $files[0];
         }
+    }
+
+    /**
+     * Detect backup file type
+     */
+    private function detectBackupType(string $backupFile): string
+    {
+        $extension = strtolower(pathinfo($backupFile, PATHINFO_EXTENSION));
+
+        if ($extension === 'sqlite') {
+            return 'sqlite';
+        } elseif ($extension === 'sql') {
+            return 'mysql';
+        }
+
+        // Check file content if extension is ambiguous
+        $content = file_get_contents($backupFile, false, null, 0, 1000);
+        if (strpos($content, 'SQLite format') !== false) {
+            return 'sqlite';
+        } elseif (strpos($content, '-- MySQL dump') !== false || strpos($content, 'CREATE TABLE') !== false) {
+            return 'mysql';
+        }
+
+        return 'unknown';
+    }
+
+    /**
+     * Compare with MySQL backup (SQL file)
+     */
+    private function compareWithMySQLBackup(string $backupFile): void
+    {
+        echo "⚠️  MySQL backup comparison is not yet implemented for SQL files.\n";
+        echo "Current database contents:\n\n";
+        $this->showCurrentContents();
+
+        echo "\n💡 Note: MySQL backups are stored as SQL files. To compare:\n";
+        echo "1. Restore the backup to a temporary database\n";
+        echo "2. Run: mysqldump --no-data temp_db > schema.sql\n";
+        echo "3. Compare record counts manually\n";
     }
 }
 
