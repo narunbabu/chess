@@ -184,6 +184,51 @@ jobs:
               chown -R www-data:www-data /opt/Chess-Web/chess-backend/storage || true
               chown -R www-data:www-data /opt/Chess-Web/chess-backend/bootstrap/cache || true
               echo "✅ Permissions updated"
+
+              # ==================== LOG ROTATION SETUP ====================
+              echo ""
+              echo "🔄 Configuring log rotation..."
+              cd /opt/Chess-Web/chess-backend
+
+              # Check if log rotation command exists
+              if php artisan list | grep -q "logs:rotate"; then
+                echo "✅ Log rotation command available"
+
+                # Set up Laravel scheduler cron job for www-data user
+                CRON_CMD="* * * * * cd /opt/Chess-Web/chess-backend && php artisan schedule:run >> /dev/null 2>&1"
+
+                # Check if cron job already exists
+                if crontab -u www-data -l 2>/dev/null | grep -q "artisan schedule:run"; then
+                  echo "ℹ️  Laravel scheduler cron already configured"
+                else
+                  echo "📋 Installing Laravel scheduler cron job..."
+                  # Add cron job for www-data user
+                  (crontab -u www-data -l 2>/dev/null; echo "$CRON_CMD") | crontab -u www-data - && {
+                    echo "✅ Laravel scheduler cron job installed"
+                  } || {
+                    echo "⚠️  Failed to install cron job - may need manual setup"
+                  }
+                fi
+
+                # Verify the setup
+                if crontab -u www-data -l 2>/dev/null | grep -q "artisan schedule:run"; then
+                  echo "✅ Log rotation automated via Laravel scheduler"
+
+                  # Optional: Run rotation now if logs are large
+                  LOG_SIZE=$(du -sm /opt/Chess-Web/chess-backend/storage/logs/laravel.log 2>/dev/null | cut -f1)
+                  if [ ! -z "$LOG_SIZE" ] && [ "$LOG_SIZE" -gt 10 ]; then
+                    echo "ℹ️  Current log size: ${LOG_SIZE}MB - running rotation..."
+                    php artisan logs:rotate --force || echo "⚠️  Log rotation encountered issues"
+                  fi
+                else
+                  echo "⚠️  Scheduler setup incomplete - log rotation may not work automatically"
+                  echo "💡 Manual setup: Run 'crontab -u www-data -e' and add:"
+                  echo "    $CRON_CMD"
+                fi
+              else
+                echo "⚠️  Log rotation command not found"
+                echo "💡 Ensure app/Console/Commands/LogRotation.php is committed to repository"
+              fi
             fi
 
             # ==================== NGINX CONFIGURATION ====================

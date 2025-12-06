@@ -38,6 +38,11 @@ class DatabaseBackup
         }
     }
 
+    public function getBackupPath(): string
+    {
+        return $this->backupPath;
+    }
+
     /**
      * Create complete database backup
      */
@@ -288,7 +293,7 @@ if (php_sapi_name() === 'cli') {
             echo "\n🎯 Next steps:\n";
             echo "1. To rollback migrations: php artisan migrate:reset\n";
             echo "2. To re-run migrations: php artisan migrate\n";
-            echo "3. To restore backup: php database_backup.php restore " . basename($backupFile) . "\n";
+            echo "3. To restore backup: php database_backup.php restore " . $backupFile . "\n";
         }
     } catch (Exception $e) {
         echo "❌ Error: " . $e->getMessage() . "\n";

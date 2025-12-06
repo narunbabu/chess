@@ -69,6 +69,29 @@ php artisan config:cache
 php artisan route:cache
 php artisan view:cache
 
+log_info "Setting up log rotation..."
+# Ensure log rotation command exists
+if php artisan list | grep -q "logs:rotate"; then
+    log_info "Log rotation command available"
+
+    # Set up Laravel scheduler cron job if not exists
+    CRON_CMD="* * * * * cd $BACKEND_DIR && php artisan schedule:run >> /dev/null 2>&1"
+    (crontab -u www-data -l 2>/dev/null | grep -q "artisan schedule:run") || {
+        log_warn "Laravel scheduler cron job not found, adding it..."
+        (crontab -u www-data -l 2>/dev/null; echo "$CRON_CMD") | crontab -u www-data -
+        log_info "Laravel scheduler cron job installed"
+    }
+
+    # Verify scheduler is working
+    if crontab -u www-data -l | grep -q "artisan schedule:run"; then
+        log_info "Laravel scheduler configured correctly"
+    else
+        log_warn "Failed to configure Laravel scheduler - log rotation may not run automatically"
+    fi
+else
+    log_warn "Log rotation command not found - run: php artisan make:command LogRotation"
+fi
+
 # 3. Frontend deployment
 echo ""
 log_info "Deploying frontend..."
