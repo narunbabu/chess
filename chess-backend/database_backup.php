@@ -4,7 +4,7 @@
  * Database Backup Script for Chess Web Application
  *
  * This script creates a complete backup of the database including:
- * - Schema (structure)
+ * - Schema (structure) - via mysqldump for MySQL
  * - All data
  * - Stores in timestamped backup files
  *
@@ -25,12 +25,14 @@ $kernel->bootstrap();
 class DatabaseBackup
 {
     private string $backupPath;
-    private string $databasePath;
+    private string $dbType;
+    private array $dbConfig;
 
     public function __construct()
     {
         $this->backupPath = __DIR__ . '/database/backups';
-        $this->databasePath = config('database.connections.sqlite.database');
+        $this->dbType = config('database.default');
+        $this->dbConfig = config("database.connections.{$this->dbType}");
 
         // Ensure backup directory exists
         if (!is_dir($this->backupPath)) {
@@ -54,19 +56,26 @@ class DatabaseBackup
         // Include timestamp helper and use local timezone
         require_once __DIR__ . '/timestamp_helper.php';
         $timestamp = LocalTimestamp::backupTimestamp();
-        $backupFile = $this->backupPath . "/chess_web_backup_{$timestamp}.sqlite";
+
+        // Determine file extension based on database type
+        $extension = $this->dbType === 'mysql' ? 'sql' : 'sqlite';
+        $backupFile = $this->backupPath . "/chess_web_backup_{$timestamp}.{$extension}";
         $dataFile = $this->backupPath . "/chess_web_data_{$timestamp}.json";
 
         echo "🚀 Starting database backup...\n";
+        echo "🔧 Database type: {$this->dbType}\n";
         echo "📁 Backup location: {$backupFile}\n";
         echo "🕐 Local time: " . LocalTimestamp::displayDateTime() . "\n";
 
-        // 1. Copy the database file (schema + data)
-        if (!copy($this->databasePath, $backupFile)) {
-            throw new Exception("Failed to create database backup");
+        if ($this->dbType === 'mysql') {
+            // MySQL backup using mysqldump
+            $this->createMySQLBackup($backupFile);
+        } else {
+            // SQLite backup by copying file
+            $this->createSQLiteBackup($backupFile);
         }
 
-        echo "✅ Database file backed up successfully\n";
+        echo "✅ Database backup created successfully\n";
 
         // 2. Create JSON backup of all data for easy inspection
         $totalRecords = $this->createJsonBackup($dataFile);
@@ -85,16 +94,76 @@ class DatabaseBackup
     }
 
     /**
+     * Create MySQL backup using mysqldump
+     */
+    private function createMySQLBackup(string $backupFile): void
+    {
+        $host = $this->dbConfig['host'];
+        $port = $this->dbConfig['port'] ?? 3306;
+        $database = $this->dbConfig['database'];
+        $username = $this->dbConfig['username'];
+
+        // Get password from environment or prompt user
+        $password = $this->dbConfig['password'] ?? $this->getPassword();
+
+        // Build mysqldump command
+        $command = sprintf(
+            'mysqldump -h%s -P%s -u%s -p%s --single-transaction --routines --triggers %s > %s',
+            escapeshellarg($host),
+            escapeshellarg($port),
+            escapeshellarg($username),
+            escapeshellarg($password),
+            escapeshellarg($database),
+            escapeshellarg($backupFile)
+        );
+
+        echo "🔧 Executing MySQL backup command...\n";
+
+        // Execute command and capture output
+        $output = [];
+        $returnCode = 0;
+        exec($command, $output, $returnCode);
+
+        if ($returnCode !== 0) {
+            throw new Exception("MySQL backup failed. Return code: {$returnCode}. Output: " . implode("\n", $output));
+        }
+
+        if (!file_exists($backupFile) || filesize($backupFile) === 0) {
+            throw new Exception("MySQL backup file was not created or is empty");
+        }
+    }
+
+    /**
+     * Create SQLite backup by copying file
+     */
+    private function createSQLiteBackup(string $backupFile): void
+    {
+        $databasePath = $this->dbConfig['database'];
+        if (!copy($databasePath, $backupFile)) {
+            throw new Exception("Failed to create SQLite database backup");
+        }
+    }
+
+    /**
+     * Get password from user input if not in config
+     */
+    private function getPassword(): string
+    {
+        echo "🔐 Enter MySQL password for user '{$this->dbConfig['username']}': ";
+        $password = trim(fgets(STDIN));
+        return $password;
+    }
+
+    /**
      * Create JSON backup of all table data
      */
     private function createJsonBackup(string $dataFile): int
     {
-        $tables = DB::select("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'");
+        $tables = $this->getAllTables();
         $backupData = [];
         $totalRecords = 0;
 
-        foreach ($tables as $table) {
-            $tableName = $table->name;
+        foreach ($tables as $tableName) {
             $data = DB::table($tableName);
             $count = $data->count();
             $totalRecords += $count;
@@ -114,6 +183,21 @@ class DatabaseBackup
     }
 
     /**
+     * Get all tables based on database type
+     */
+    private function getAllTables(): array
+    {
+        if ($this->dbType === 'mysql') {
+            $tables = DB::select("SHOW TABLES");
+            $key = array_keys((array)$tables[0])[0];
+            return array_map(fn($table) => $table->$key, $tables);
+        } else {
+            $tables = DB::select("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'");
+            return array_map(fn($table) => $table->name, $tables);
+        }
+    }
+
+    /**
      * Create backup information file
      */
     private function createBackupInfo(string $infoFile, string $dbFile, string $dataFile): void
@@ -121,17 +205,18 @@ class DatabaseBackup
         $info = [
             'timestamp' => LocalTimestamp::displayDateTime(),
             'timezone' => LocalTimestamp::getTimezone(),
+            'database_type' => $this->dbType,
             'database_file' => basename($dbFile),
             'data_file' => basename($dataFile),
             'tables' => [],
             'total_records' => 0
         ];
 
-        $tables = DB::select("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'");
+        $tables = $this->getAllTables();
 
-        foreach ($tables as $table) {
-            $count = DB::table($table->name)->count();
-            $info['tables'][$table->name] = $count;
+        foreach ($tables as $tableName) {
+            $count = DB::table($tableName)->count();
+            $info['tables'][$tableName] = $count;
             $info['total_records'] += $count;
         }
 
@@ -144,12 +229,18 @@ class DatabaseBackup
     public function listBackups(): array
     {
         $backups = [];
-        $files = glob($this->backupPath . "/chess_web_backup_*.sqlite");
+
+        // Look for both SQLite and MySQL backups
+        $files = array_merge(
+            glob($this->backupPath . "/chess_web_backup_*.sqlite"),
+            glob($this->backupPath . "/chess_web_backup_*.sql")
+        );
 
         foreach ($files as $file) {
             $backups[] = [
                 'file' => basename($file),
                 'size' => filesize($file),
+                'type' => pathinfo($file, PATHINFO_EXTENSION) === 'sql' ? 'MySQL' : 'SQLite',
                 'created' => date('Y-m-d H:i:s', filemtime($file))
             ];
         }
@@ -163,7 +254,11 @@ class DatabaseBackup
      */
     private function cleanupOldBackups(): void
     {
-        $backupFiles = glob($this->backupPath . "/chess_web_backup_*.sqlite");
+        // Look for both SQLite and MySQL backup files
+        $backupFiles = array_merge(
+            glob($this->backupPath . "/chess_web_backup_*.sqlite"),
+            glob($this->backupPath . "/chess_web_backup_*.sql")
+        );
         $dataFiles = glob($this->backupPath . "/chess_web_data_*.json");
         $infoFiles = glob($this->backupPath . "/backup_info_*.json");
 
@@ -202,13 +297,83 @@ class DatabaseBackup
     }
 
     /**
-     * Restore from backup (uses JSON data for better compatibility)
+     * Restore from backup (handles both MySQL and SQLite)
      */
     public function restoreFromBackup(string $backupFile): bool
     {
         if (!file_exists($backupFile)) {
             throw new Exception("Backup file not found: {$backupFile}");
         }
+
+        $extension = strtolower(pathinfo($backupFile, PATHINFO_EXTENSION));
+
+        if ($extension === 'sql') {
+            // MySQL restore
+            return $this->restoreMySQLBackup($backupFile);
+        } elseif ($extension === 'sqlite') {
+            // SQLite restore
+            return $this->restoreSQLiteBackup($backupFile);
+        } else {
+            throw new Exception("Unsupported backup file type: {$extension}");
+        }
+    }
+
+    /**
+     * Restore MySQL backup
+     */
+    private function restoreMySQLBackup(string $backupFile): bool
+    {
+        echo "📥 Restoring MySQL database from: " . basename($backupFile) . "\n";
+
+        $host = $this->dbConfig['host'];
+        $port = $this->dbConfig['port'] ?? 3306;
+        $database = $this->dbConfig['database'];
+        $username = $this->dbConfig['username'];
+
+        // Get password from environment or prompt user
+        $password = $this->dbConfig['password'] ?? $this->getPassword();
+
+        // Build mysql command
+        $command = sprintf(
+            'mysql -h%s -P%s -u%s -p%s %s < %s',
+            escapeshellarg($host),
+            escapeshellarg($port),
+            escapeshellarg($username),
+            escapeshellarg($password),
+            escapeshellarg($database),
+            escapeshellarg($backupFile)
+        );
+
+        echo "🔧 Executing MySQL restore command...\n";
+
+        // Execute command and capture output
+        $output = [];
+        $returnCode = 0;
+        exec($command, $output, $returnCode);
+
+        if ($returnCode !== 0) {
+            throw new Exception("MySQL restore failed. Return code: {$returnCode}. Output: " . implode("\n", $output));
+        }
+
+        echo "✅ MySQL database restored successfully!\n";
+
+        // Optionally show any output from mysql
+        if (!empty($output)) {
+            echo "\n📋 MySQL output:\n";
+            foreach ($output as $line) {
+                echo $line . "\n";
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Restore SQLite backup
+     */
+    private function restoreSQLiteBackup(string $backupFile): bool
+    {
+        echo "📥 Restoring SQLite database from: " . basename($backupFile) . "\n";
 
         // Find corresponding JSON file
         $baseName = str_replace('.sqlite', '', basename($backupFile));
@@ -217,13 +382,11 @@ class DatabaseBackup
         if (!file_exists($jsonFile)) {
             echo "⚠️  JSON backup file not found, using SQLite backup directly\n";
             // Fallback to direct SQLite restore
-            return copy($backupFile, $this->databasePath);
+            $databasePath = $this->dbConfig['database'];
+            return copy($backupFile, $databasePath);
         }
 
-        echo "📥 Restoring from backup: " . basename($backupFile) . "\n";
-
         // Use the JSON restore functionality
-        // We need to call the restore script in a separate process to avoid bootstrap conflicts
         $jsonFileEscaped = escapeshellarg($jsonFile);
         $restoreScript = __DIR__ . '/restore_from_json.php';
         $command = "php {$restoreScript} {$jsonFileEscaped}";
