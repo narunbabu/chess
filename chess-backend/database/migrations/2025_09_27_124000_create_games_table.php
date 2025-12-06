@@ -147,8 +147,16 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('games');
-        Schema::dropIfExists('game_end_reasons');
-        Schema::dropIfExists('game_statuses');
+        // Disable foreign key constraints to handle dependencies
+        DB::statement('PRAGMA foreign_keys = OFF');
+
+        try {
+            Schema::dropIfExists('games');
+            Schema::dropIfExists('game_end_reasons');
+            Schema::dropIfExists('game_statuses');
+        } finally {
+            // Always re-enable foreign keys
+            DB::statement('PRAGMA foreign_keys = ON');
+        }
     }
 };

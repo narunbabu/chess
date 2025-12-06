@@ -21,3 +21,12 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+
+# Database files and backups
+/database/database.sqlite*
+/database/backups/
+/database/transfer_logs/
+/database_backup*/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal

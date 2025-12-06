@@ -23,8 +23,23 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('championships', function (Blueprint $table) {
-            $table->dropIndex(['is_test_tournament']);
-            $table->dropColumn('is_test_tournament');
+            // Try to drop index if it exists
+            try {
+                $table->dropIndex(['is_test_tournament']);
+            } catch (Exception $e) {
+                // Index might not exist or have different name
+                // Try dropping by specific name
+                try {
+                    $table->dropIndex('championships_is_test_tournament_index');
+                } catch (Exception $e2) {
+                    // Index doesn't exist, continue
+                }
+            }
+
+            // Drop column if it exists
+            if (Schema::hasColumn('championships', 'is_test_tournament')) {
+                $table->dropColumn('is_test_tournament');
+            }
         });
     }
 };

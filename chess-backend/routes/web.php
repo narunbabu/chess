@@ -48,6 +48,13 @@ Route::get('/storage/{path}', function ($path) {
 Route::get('/share/result/{uniqueId}', [\App\Http\Controllers\SharedResultController::class, 'showHtml'])
     ->name('share.result.html');
 
+// Protect the visualizer HTML page
+Route::middleware('admin.auth')->group(function () {
+    Route::get('/tournament_db_visualizer.html', function () {
+        return response()->file(public_path('tournament_db_visualizer.html'));
+    });
+});
+
 Route::group(['prefix' => 'auth'], function () {
     Route::get('{provider}/redirect', [SocialAuthController::class, 'redirect'])->name('auth.redirect');
     Route::get('{provider}/callback', [SocialAuthController::class, 'callback'])->name('auth.callback');

@@ -6,6 +6,9 @@ dist/
 build/
 public/build/
 
+assets/
+backup/
+
 # Ignore environment files
 .env
 .env.*

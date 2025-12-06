@@ -78,7 +78,7 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    'timezone' => 'Asia/Kolkata',
 
     /*
     |--------------------------------------------------------------------------
@@ -147,5 +147,17 @@ return [
         'driver' => env('APP_MAINTENANCE_DRIVER', 'file'),
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Admin Token
+    |--------------------------------------------------------------------------
+    |
+    | This token is used to authenticate admin operations like accessing
+    | the tournament visualizer and administrative API endpoints.
+    |
+    */
+
+    'admin_token' => env('ADMIN_TOKEN'),
 
 ];

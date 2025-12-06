@@ -27,7 +27,14 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Remove the PAUSED status from championship_statuses table
+        // First, update any championships using 'paused' status to a safe default
+        DB::table('championships')
+            ->where('status_id', function($query) {
+                $query->select('id')->from('championship_statuses')->where('code', 'paused');
+            })
+            ->update(['status_id' => 1]); // Move to 'upcoming' status
+
+        // Now safely remove the PAUSED status from championship_statuses table
         DB::table('championship_statuses')->where('code', 'paused')->delete();
     }
 };

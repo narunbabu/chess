@@ -839,6 +839,42 @@
         // ===================== CONFIGURATION =====================
         const API_BASE_URL = 'http://localhost:8000/api/visualizer';
 
+        // ===================== ADMIN AUTHENTICATION =====================
+        let ADMIN_TOKEN = null;
+
+        function getAdminToken() {
+            if (!ADMIN_TOKEN) {
+                // Check if running in production
+                const isProduction = !window.location.hostname.includes('localhost') &&
+                                    !window.location.hostname.includes('127.0.0.1');
+
+                if (isProduction) {
+                    ADMIN_TOKEN = sessionStorage.getItem('admin_token');
+                    if (!ADMIN_TOKEN) {
+                        ADMIN_TOKEN = prompt('🔒 Enter admin access token:');
+                        if (!ADMIN_TOKEN) {
+                            throw new Error('Admin token required');
+                        }
+                        sessionStorage.setItem('admin_token', ADMIN_TOKEN);
+                    }
+                }
+            }
+            return ADMIN_TOKEN;
+        }
+
+        // Helper function to add admin token to fetch headers
+        function getAuthHeaders() {
+            const token = getAdminToken();
+            const headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            };
+            if (token) {
+                headers['X-Admin-Token'] = token;
+            }
+            return headers;
+        }
+
         // ===================== STATE =====================
         let currentTournament = null;
         let currentStandings = [];
@@ -846,110 +882,218 @@
         // ===================== API CLIENT =====================
         class TournamentAPI {
             static async createTournament(playerCount) {
-                const response = await fetch(`${API_BASE_URL}/tournaments/create`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({ player_count: playerCount })
-                });
+                try {
+                    const response = await fetch(`${API_BASE_URL}/tournaments/create`, {
+                        method: 'POST',
+                        headers: getAuthHeaders(),
+                        body: JSON.stringify({ player_count: playerCount })
+                    });
 
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.message || 'Failed to create tournament');
+                    if (!response.ok) {
+                        if (response.status === 403) {
+                            sessionStorage.removeItem('admin_token');
+                            ADMIN_TOKEN = null;
+                            alert('Invalid admin token. Please refresh and try again.');
+                            throw new Error('Authentication failed');
+                        }
+                        const error = await response.json();
+                        throw new Error(error.message || 'Failed to create tournament');
+                    }
+
+                    return await response.json();
+                } catch (error) {
+                    if (error.message.includes('403') || error.message.includes('Authentication failed')) {
+                        sessionStorage.removeItem('admin_token');
+                        ADMIN_TOKEN = null;
+                        alert('Invalid admin token. Please refresh and try again.');
+                    }
+                    throw error;
                 }
-
-                return await response.json();
             }
 
             static async getTournament(id) {
-                const response = await fetch(`${API_BASE_URL}/tournaments/${id}`);
+                try {
+                    const response = await fetch(`${API_BASE_URL}/tournaments/${id}`, {
+                        headers: getAuthHeaders()
+                    });
 
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.message || 'Failed to fetch tournament');
+                    if (!response.ok) {
+                        if (response.status === 403) {
+                            sessionStorage.removeItem('admin_token');
+                            ADMIN_TOKEN = null;
+                            alert('Invalid admin token. Please refresh and try again.');
+                            throw new Error('Authentication failed');
+                        }
+                        const error = await response.json();
+                        throw new Error(error.message || 'Failed to fetch tournament');
+                    }
+
+                    return await response.json();
+                } catch (error) {
+                    if (error.message.includes('403') || error.message.includes('Authentication failed')) {
+                        sessionStorage.removeItem('admin_token');
+                        ADMIN_TOKEN = null;
+                        alert('Invalid admin token. Please refresh and try again.');
+                    }
+                    throw error;
                 }
-
-                return await response.json();
             }
 
             static async updateMatchResult(matchId, winnerId) {
-                const response = await fetch(`${API_BASE_URL}/matches/${matchId}/result`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({ winner_id: winnerId })
-                });
+                try {
+                    const response = await fetch(`${API_BASE_URL}/matches/${matchId}/result`, {
+                        method: 'PUT',
+                        headers: getAuthHeaders(),
+                        body: JSON.stringify({ winner_id: winnerId })
+                    });
 
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.message || 'Failed to update match result');
+                    if (!response.ok) {
+                        if (response.status === 403) {
+                            sessionStorage.removeItem('admin_token');
+                            ADMIN_TOKEN = null;
+                            alert('Invalid admin token. Please refresh and try again.');
+                            throw new Error('Authentication failed');
+                        }
+                        const error = await response.json();
+                        throw new Error(error.message || 'Failed to update match result');
+                    }
+
+                    return await response.json();
+                } catch (error) {
+                    if (error.message.includes('403') || error.message.includes('Authentication failed')) {
+                        sessionStorage.removeItem('admin_token');
+                        ADMIN_TOKEN = null;
+                        alert('Invalid admin token. Please refresh and try again.');
+                    }
+                    throw error;
                 }
-
-                return await response.json();
             }
 
             static async getStandings(tournamentId, roundNumber = null) {
-                const url = roundNumber
-                    ? `${API_BASE_URL}/tournaments/${tournamentId}/standings?round_number=${roundNumber}`
-                    : `${API_BASE_URL}/tournaments/${tournamentId}/standings`;
+                try {
+                    const url = roundNumber
+                        ? `${API_BASE_URL}/tournaments/${tournamentId}/standings?round_number=${roundNumber}`
+                        : `${API_BASE_URL}/tournaments/${tournamentId}/standings`;
 
-                const response = await fetch(url);
+                    const response = await fetch(url, {
+                        headers: getAuthHeaders()
+                    });
 
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.message || 'Failed to fetch standings');
+                    if (!response.ok) {
+                        if (response.status === 403) {
+                            sessionStorage.removeItem('admin_token');
+                            ADMIN_TOKEN = null;
+                            alert('Invalid admin token. Please refresh and try again.');
+                            throw new Error('Authentication failed');
+                        }
+                        const error = await response.json();
+                        throw new Error(error.message || 'Failed to fetch standings');
+                    }
+
+                    return await response.json();
+                } catch (error) {
+                    if (error.message.includes('403') || error.message.includes('Authentication failed')) {
+                        sessionStorage.removeItem('admin_token');
+                        ADMIN_TOKEN = null;
+                        alert('Invalid admin token. Please refresh and try again.');
+                    }
+                    throw error;
                 }
-
-                return await response.json();
             }
 
             static async exportTournament(id) {
-                const response = await fetch(`${API_BASE_URL}/tournaments/${id}/export`);
+                try {
+                    const response = await fetch(`${API_BASE_URL}/tournaments/${id}/export`, {
+                        headers: getAuthHeaders()
+                    });
 
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.message || 'Failed to export tournament');
+                    if (!response.ok) {
+                        if (response.status === 403) {
+                            sessionStorage.removeItem('admin_token');
+                            ADMIN_TOKEN = null;
+                            alert('Invalid admin token. Please refresh and try again.');
+                            throw new Error('Authentication failed');
+                        }
+                        const error = await response.json();
+                        throw new Error(error.message || 'Failed to export tournament');
+                    }
+
+                    const data = await response.json();
+                    const filename = `tournament_${id}_export_${new Date().toISOString()}.json`;
+
+                    // Trigger download
+                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                } catch (error) {
+                    if (error.message.includes('403') || error.message.includes('Authentication failed')) {
+                        sessionStorage.removeItem('admin_token');
+                        ADMIN_TOKEN = null;
+                        alert('Invalid admin token. Please refresh and try again.');
+                    }
+                    throw error;
                 }
-
-                const data = await response.json();
-                const filename = `tournament_${id}_export_${new Date().toISOString()}.json`;
-
-                // Trigger download
-                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = filename;
-                a.click();
-                window.URL.revokeObjectURL(url);
             }
 
             static async deleteTournament(id) {
-                const response = await fetch(`${API_BASE_URL}/tournaments/${id}`, {
-                    method: 'DELETE'
-                });
+                try {
+                    const response = await fetch(`${API_BASE_URL}/tournaments/${id}`, {
+                        method: 'DELETE',
+                        headers: getAuthHeaders()
+                    });
 
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.message || 'Failed to delete tournament');
+                    if (!response.ok) {
+                        if (response.status === 403) {
+                            sessionStorage.removeItem('admin_token');
+                            ADMIN_TOKEN = null;
+                            alert('Invalid admin token. Please refresh and try again.');
+                            throw new Error('Authentication failed');
+                        }
+                        const error = await response.json();
+                        throw new Error(error.message || 'Failed to delete tournament');
+                    }
+
+                    return await response.json();
+                } catch (error) {
+                    if (error.message.includes('403') || error.message.includes('Authentication failed')) {
+                        sessionStorage.removeItem('admin_token');
+                        ADMIN_TOKEN = null;
+                        alert('Invalid admin token. Please refresh and try again.');
+                    }
+                    throw error;
                 }
-
-                return await response.json();
             }
 
             static async listTournaments() {
-                const response = await fetch(`${API_BASE_URL}/tournaments/list`);
+                try {
+                    const response = await fetch(`${API_BASE_URL}/tournaments/list`, {
+                        headers: getAuthHeaders()
+                    });
 
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.message || 'Failed to list tournaments');
+                    if (!response.ok) {
+                        if (response.status === 403) {
+                            sessionStorage.removeItem('admin_token');
+                            ADMIN_TOKEN = null;
+                            alert('Invalid admin token. Please refresh and try again.');
+                            throw new Error('Authentication failed');
+                        }
+                        const error = await response.json();
+                        throw new Error(error.message || 'Failed to list tournaments');
+                    }
+
+                    return await response.json();
+                } catch (error) {
+                    if (error.message.includes('403') || error.message.includes('Authentication failed')) {
+                        sessionStorage.removeItem('admin_token');
+                        ADMIN_TOKEN = null;
+                        alert('Invalid admin token. Please refresh and try again.');
+                    }
+                    throw error;
                 }
-
-                return await response.json();
             }
         }
 
@@ -1120,9 +1264,17 @@
 
                 // Fetch tiebreaker data
                 const cacheBuster = new Date().getTime();
-                const response = await fetch(`${API_BASE_URL}/tournaments/${tournamentId}/tiebreaker?_=${cacheBuster}`);
+                const response = await fetch(`${API_BASE_URL}/tournaments/${tournamentId}/tiebreaker?_=${cacheBuster}`, {
+                    headers: getAuthHeaders()
+                });
 
                 if (!response.ok) {
+                    if (response.status === 403) {
+                        sessionStorage.removeItem('admin_token');
+                        ADMIN_TOKEN = null;
+                        alert('Invalid admin token. Please refresh and try again.');
+                        throw new Error('Authentication failed');
+                    }
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
@@ -1363,10 +1515,7 @@
             try {
                 const response = await fetch(`${API_BASE_URL}/matches/${matchId}/result`, {
                     method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
+                    headers: getAuthHeaders(),
                     body: JSON.stringify({ winner_id: playerId })
                 });
 
@@ -1676,8 +1825,18 @@
         async function loadChampionships() {
             console.log('🏆 [ASSIGNMENT] Loading championships...');
             try {
-                const response = await fetch(`${API_BASE_URL}/championships`);
-                if (!response.ok) throw new Error('Failed to load championships');
+                const response = await fetch(`${API_BASE_URL}/championships`, {
+                    headers: getAuthHeaders()
+                });
+                if (!response.ok) {
+                    if (response.status === 403) {
+                        sessionStorage.removeItem('admin_token');
+                        ADMIN_TOKEN = null;
+                        alert('Invalid admin token. Please refresh and try again.');
+                        throw new Error('Authentication failed');
+                    }
+                    throw new Error('Failed to load championships');
+                }
 
                 allChampionships = await response.json();
                 console.log('📋 [ASSIGNMENT] Loaded championships:', allChampionships.length);
@@ -1811,8 +1970,18 @@
         async function loadUsers() {
             console.log('👤 [ASSIGNMENT] Loading users...');
             try {
-                const response = await fetch(`${API_BASE_URL}/users`);
-                if (!response.ok) throw new Error('Failed to load users');
+                const response = await fetch(`${API_BASE_URL}/users`, {
+                    headers: getAuthHeaders()
+                });
+                if (!response.ok) {
+                    if (response.status === 403) {
+                        sessionStorage.removeItem('admin_token');
+                        ADMIN_TOKEN = null;
+                        alert('Invalid admin token. Please refresh and try again.');
+                        throw new Error('Authentication failed');
+                    }
+                    throw new Error('Failed to load users');
+                }
 
                 allUsers = await response.json();
                 console.log('👥 [ASSIGNMENT] Loaded users:', allUsers.length);
@@ -1948,18 +2117,24 @@
             });
 
             try {
+                const authHeaders = getAuthHeaders();
+                authHeaders['X-CSRF-TOKEN'] = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
                 const response = await fetch(`${API_BASE_URL}/championships/${championshipId}/assign-players`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-                    },
+                    headers: authHeaders,
                     body: JSON.stringify({
                         user_ids: Array.from(selectedUsers)
                     })
                 });
 
                 if (!response.ok) {
+                    if (response.status === 403) {
+                        sessionStorage.removeItem('admin_token');
+                        ADMIN_TOKEN = null;
+                        alert('Invalid admin token. Please refresh and try again.');
+                        throw new Error('Authentication failed');
+                    }
                     const errorData = await response.json();
                     throw new Error(errorData.message || 'Failed to assign players');
                 }

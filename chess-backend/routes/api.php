@@ -500,8 +500,8 @@ Route::post('/public/game-history', function (Illuminate\Http\Request $request) 
     }
 });
 
-// Tournament Visualizer API (internal testing only - disabled in production)
-Route::prefix('visualizer')->group(function () {
+// Tournament Visualizer API (admin only - protected in production)
+Route::middleware('admin.auth')->prefix('visualizer')->group(function () {
     Route::post('/tournaments/create', [\App\Http\Controllers\TournamentVisualizerController::class, 'createTournament']);
     Route::get('/tournaments/list', [\App\Http\Controllers\TournamentVisualizerController::class, 'listTournaments']);
     Route::get('/tournaments/{id}', [\App\Http\Controllers\TournamentVisualizerController::class, 'getTournament']);
