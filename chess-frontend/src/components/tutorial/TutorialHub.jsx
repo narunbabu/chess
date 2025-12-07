@@ -18,6 +18,7 @@ const TutorialHub = () => {
   const [loading, setLoading] = useState(true);
   const [selectedTier, setSelectedTier] = useState('beginner');
   const [showCompletionMessage, setShowCompletionMessage] = useState(false);
+  const [authError, setAuthError] = useState(false);
 
   useEffect(() => {
     // Check if we just completed a lesson
@@ -48,6 +49,7 @@ const TutorialHub = () => {
   const loadTutorialData = async (verifiedProgress = null) => {
     try {
       setLoading(true);
+      setAuthError(false); // Reset auth error on new attempt
 
       // Load modules with progress - add cache-busting parameter to ensure fresh data
       const timestamp = Date.now();
@@ -115,6 +117,16 @@ const TutorialHub = () => {
 
     } catch (error) {
       logger.error('Tutorial:load-error', error);
+
+      // Check if it's an authentication error
+      if (
+        error.response?.status === 401 ||
+        error.message?.includes('Network Error') ||
+        error.message?.includes('ERR_CONNECTION_REFUSED') ||
+        (error.code === 'ERR_NETWORK' && window.location.pathname.includes('/tutorial'))
+      ) {
+        setAuthError(true);
+      }
     } finally {
       setLoading(false);
     }
@@ -399,6 +411,42 @@ const TutorialHub = () => {
       </div>
     );
   };
+
+  // Show authentication error message if user is not authenticated
+  if (authError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
+        <div className="text-center bg-white rounded-lg shadow-lg p-8 max-w-md mx-4">
+          <div className="mb-4">
+            <div className="mx-auto w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center">
+              <svg className="w-10 h-10 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Login Required</h2>
+          <p className="text-gray-600 mb-6">Please login to access the chess tutorial modules and track your progress.</p>
+          <div className="space-y-3">
+            <Link
+              to="/login"
+              className="w-full inline-flex justify-center items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-200"
+            >
+              🚀 Login to Continue
+            </Link>
+            <Link
+              to="/register"
+              className="w-full inline-flex justify-center items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors duration-200"
+            >
+              📝 Create Account
+            </Link>
+          </div>
+          <p className="mt-4 text-sm text-gray-500">
+            Don't have an account yet? Sign up for free and start learning chess!
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
