@@ -333,7 +333,7 @@ export const GlobalInvitationProvider = ({ children }) => {
       console.log('[GlobalInvitation] ✅ Accepting invitation:', invitationId, 'with color:', colorChoice);
 
       // Check if this is a new game request (rematch challenge)
-      if (invitationId.startsWith('new_game_')) {
+      if (typeof invitationId === 'string' && invitationId.startsWith('new_game_')) {
         console.log('[GlobalInvitation] 🎯 This is a new game request, using WebSocket accept');
 
         // Get the current pending invitation to extract game data
