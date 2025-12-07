@@ -18,7 +18,6 @@ class WebSocketGameService {
     this._pollingBusy = false;
     this._pollTimer = null;
     this._lastETag = null;
-    this.pendingResumeRequest = null; // Track pending resume requests
     this.lastGameState = null;
     this.isPausing = false; // Prevent duplicate pause attempts
   }
@@ -572,6 +571,34 @@ class WebSocketGameService {
   }
 
   /**
+   * Check if there's a pending resume request
+   */
+  hasPendingResumeRequest() {
+    if (!this.pendingResumeRequest) {
+      return false;
+    }
+
+    // Check if the request has expired (default 1 minute)
+    const now = Date.now();
+    const isExpired = now > (this.pendingResumeRequest.expiresAt || (this.pendingResumeRequest.timestamp + 60000));
+
+    if (isExpired) {
+      // Clear expired request
+      this.pendingResumeRequest = null;
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Clear pending resume request
+   */
+  clearPendingResumeRequest() {
+    this.pendingResumeRequest = null;
+  }
+
+  /**
    * Request to resume a paused game
    */
   async requestResume() {
@@ -598,12 +625,29 @@ class WebSocketGameService {
       });
 
       const data = await response.json();
+
+      console.log('🔍 Resume request response:', {
+        ok: response.ok,
+        status: response.status,
+        data: data
+      });
+
       if (!response.ok) {
-        throw new Error(data.error || 'Resume request failed');
+        console.error('❌ Resume request HTTP error:', {
+          status: response.status,
+          error: data.error,
+          message: data.message,
+          fullData: data
+        });
+        throw new Error(data.error || data.message || 'Resume request failed');
       }
 
       // Check for backend success flag
       if (data.success === false) {
+        console.error('❌ Resume request rejected by backend:', {
+          message: data.message,
+          fullData: data
+        });
         throw new Error(data.message || 'Resume request could not be sent');
       }
 
@@ -625,33 +669,9 @@ class WebSocketGameService {
     }
   }
 
-  /**
-   * Check if there's a pending resume request
-   */
-  hasPendingResumeRequest() {
-    if (!this.pendingResumeRequest) {
-      return false;
-    }
+  
 
-    // Check if the request has expired (add 5 second buffer)
-    const now = Date.now();
-    const hasExpired = now > (this.pendingResumeRequest.expiresAt + 5000);
-
-    if (hasExpired) {
-      // Clear expired request
-      this.clearPendingResumeRequest();
-      return false;
-    }
-
-    return true;
-  }
-
-  /**
-   * Clear the pending resume request
-   */
-  clearPendingResumeRequest() {
-    this.pendingResumeRequest = null;
-  }
+  
 
   /**
    * Poll game state until it becomes active or timeout

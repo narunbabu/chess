@@ -1315,10 +1315,25 @@ class GameRoomService
     {
         $game = Game::findOrFail($gameId);
 
+        Log::info('🔍 Resume request received', [
+            'game_id' => $gameId,
+            'user_id' => $userId,
+            'game_status' => $game->status,
+            'resume_status' => $game->resume_status,
+            'resume_requested_by' => $game->resume_requested_by,
+            'white_player_id' => $game->white_player_id,
+            'black_player_id' => $game->black_player_id
+        ]);
+
         if ($game->status !== 'paused') {
+            Log::warning('❌ Resume request rejected - game not paused', [
+                'game_id' => $gameId,
+                'current_status' => $game->status,
+                'expected_status' => 'paused'
+            ]);
             return [
                 'success' => false,
-                'message' => 'Game is not paused'
+                'message' => 'Game is not paused (current status: ' . $game->status . ')'
             ];
         }
 
@@ -1380,7 +1395,7 @@ class GameRoomService
 
         // Check if this is a championship game
         $championshipContext = $game->getChampionshipContext();
-        $isChampionshipGame = $championshipContext['is_championship'];
+        $isChampionshipGame = $championshipContext && isset($championshipContext['is_championship']) ? $championshipContext['is_championship'] : false;
 
         // Broadcast resume request event to opponent
         Log::info('📨 Broadcasting resume request event', [
@@ -1397,7 +1412,7 @@ class GameRoomService
             'expires_at' => $game->resume_request_expires_at
         ]);
 
-        if ($isChampionshipGame) {
+        if ($isChampionshipGame && $championshipContext && isset($championshipContext['match_id'])) {
             // Create championship game resume request record
             $championshipResumeRequest = \App\Models\ChampionshipGameResumeRequest::create([
                 'championship_match_id' => $championshipContext['match_id'],
@@ -1527,7 +1542,7 @@ class GameRoomService
 
         // Check if this is a championship game
         $championshipContext = $game->getChampionshipContext();
-        $isChampionshipGame = $championshipContext['is_championship'];
+        $isChampionshipGame = $championshipContext && isset($championshipContext['is_championship']) ? $championshipContext['is_championship'] : false;
 
         if ($accepted) {
             // Resume the game

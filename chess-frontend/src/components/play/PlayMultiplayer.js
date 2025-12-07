@@ -2066,6 +2066,12 @@ const PlayMultiplayer = () => {
   const handleRequestResume = useCallback(async () => {
     if (!wsService.current) return;
 
+    // Double-check for pending request before sending
+    if (wsService.current.hasPendingResumeRequest && wsService.current.hasPendingResumeRequest()) {
+      console.log('[PlayMultiplayer] Skipping resume request - already pending');
+      return;
+    }
+
     try {
       setIsWaitingForResumeResponse(true);
       const result = await wsService.current.requestResume();
@@ -2207,6 +2213,13 @@ const PlayMultiplayer = () => {
 
         } catch (error) {
           console.error(`🎯 Resume request attempt ${retryCount + 1} failed:`, error);
+
+          // Don't retry if request is already pending
+          if (error.message && error.message.includes('already pending')) {
+            console.log('🎯 Stopping retries - request already pending');
+            setShouldAutoSendResume(false);
+            return false;
+          }
         }
 
         // Retry if we haven't exhausted attempts

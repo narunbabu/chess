@@ -27,7 +27,12 @@ const GlobalInvitationDialog = () => {
   // Handle initial accept click - show color choice
   const handleAcceptClick = () => {
     if (pendingInvitation) {
-      setShowColorChoice(true);
+      // For new game requests (rematch challenges), don't show color choice - game is already created
+      if (pendingInvitation.type === 'new_game_request') {
+        acceptInvitation(pendingInvitation.id, null); // Color doesn't matter for new game requests
+      } else {
+        setShowColorChoice(true);
+      }
     } else if (resumeRequest) {
       acceptResumeRequest(resumeRequest.gameId);
     } else if (championshipResumeRequest) {
@@ -80,7 +85,9 @@ const GlobalInvitationDialog = () => {
         {pendingInvitation && !showColorChoice && (
           <>
             <div className="dialog-header">
-              <h2>🎮 Game Invitation</h2>
+              <h2>
+                {pendingInvitation.type === 'new_game_request' ? '🎯 Rematch Challenge' : '🎮 Game Invitation'}
+              </h2>
             </div>
             <div className="dialog-body">
               <div className="invitation-info">
@@ -94,7 +101,18 @@ const GlobalInvitationDialog = () => {
                 />
                 <div className="invitation-text">
                   <p className="inviter-name">{pendingInvitation.inviter.name}</p>
-                  <p className="invitation-message">wants to play chess with you!</p>
+                  <p className="invitation-message">
+                    {pendingInvitation.type === 'new_game_request'
+                      ? 'has challenged you to a rematch! The game is ready to play.'
+                      : 'wants to play chess with you!'
+                    }
+                  </p>
+                  {pendingInvitation.type === 'new_game_request' && pendingInvitation.inviter_preferred_color && (
+                    <p className="invitation-meta">
+                      They want to play as {pendingInvitation.inviter_preferred_color === 'white' ? '♔ White' : '♚ Black'}
+                      {pendingInvitation.inviter_preferred_color === 'random' && ' (Random colors)'}
+                    </p>
+                  )}
                   <p className="invitation-meta">
                     {new Date(pendingInvitation.created_at).toLocaleTimeString()}
                   </p>
@@ -107,7 +125,12 @@ const GlobalInvitationDialog = () => {
                 onClick={handleAcceptClick}
                 disabled={isProcessing}
               >
-                {isProcessing ? '⏳ Accepting...' : '✅ Accept'}
+                {isProcessing
+                  ? '⏳ Accepting...'
+                  : pendingInvitation.type === 'new_game_request'
+                    ? '🚀 Play Now'
+                    : '✅ Accept'
+                }
               </button>
               <button
                 className="btn-decline"
@@ -121,7 +144,7 @@ const GlobalInvitationDialog = () => {
         )}
 
         {/* Color Choice Flow for Game Invitation */}
-        {pendingInvitation && showColorChoice && (
+        {pendingInvitation && showColorChoice && pendingInvitation.type !== 'new_game_request' && (
           <>
             <div className="dialog-header">
               <h2>🎯 Choose Your Color</h2>

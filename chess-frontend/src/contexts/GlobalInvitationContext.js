@@ -99,6 +99,38 @@ export const GlobalInvitationProvider = ({ children }) => {
       }
     });
 
+    // Listen for new game requests (rematch challenges from online players)
+    userChannel.listen('.new_game.request', (data) => {
+      console.log('[GlobalInvitation] 🎯 New game request received:', data);
+      console.log('[GlobalInvitation] 📍 Current location:', location.pathname);
+      console.log('[GlobalInvitation] 👤 User in active game?', isInActiveGame());
+
+      // Don't show dialog if user is in active game
+      if (isInActiveGame()) {
+        console.log('[GlobalInvitation] User in active game, skipping new game request dialog');
+        return;
+      }
+
+      // Convert the new game request to invitation format for dialog display
+      if (data.requesting_user && data.new_game) {
+        const invitationData = {
+          id: `new_game_${data.new_game_id}`, // Use a unique ID for new game requests
+          type: 'new_game_request',
+          inviter: data.requesting_user,
+          inviter_preferred_color: data.color_preference === 'random' ? 'random' : data.color_preference,
+          created_at: data.created_at,
+          new_game_id: data.new_game_id,
+          original_game_id: data.original_game_id,
+          message: data.message
+        };
+
+        console.log('[GlobalInvitation] ✅ Setting pending new game request:', invitationData.id);
+        setPendingInvitation(invitationData);
+      } else {
+        console.warn('[GlobalInvitation] ⚠️ New game request data missing:', data);
+      }
+    });
+
     // Listen for resume requests
     userChannel.listen('.resume.request.sent', (data) => {
       console.log('[GlobalInvitation] Resume request received:', data);
@@ -277,6 +309,7 @@ export const GlobalInvitationProvider = ({ children }) => {
     return () => {
       console.log('[GlobalInvitation] Cleaning up listeners');
       userChannel.stopListening('.invitation.sent');
+      userChannel.stopListening('.new_game.request');
       userChannel.stopListening('.resume.request.sent');
       userChannel.stopListening('.invitation.cancelled');
       userChannel.stopListening('.championship.game.resume.request');
@@ -299,6 +332,32 @@ export const GlobalInvitationProvider = ({ children }) => {
     try {
       console.log('[GlobalInvitation] ✅ Accepting invitation:', invitationId, 'with color:', colorChoice);
 
+      // Check if this is a new game request (rematch challenge)
+      if (invitationId.startsWith('new_game_')) {
+        console.log('[GlobalInvitation] 🎯 This is a new game request, using WebSocket accept');
+
+        // Get the current pending invitation to extract game data
+        const currentInvitation = pendingInvitationRef.current;
+        if (!currentInvitation || !currentInvitation.new_game_id) {
+          throw new Error('New game request data not found');
+        }
+
+        // For new game requests, the game is already created, just navigate to it
+        const gameId = currentInvitation.new_game_id;
+        console.log('[GlobalInvitation] 🚀 Navigating to new game:', gameId);
+
+        // Clear the dialog
+        setPendingInvitation(null);
+
+        sessionStorage.setItem('lastInvitationAction', 'new_game_accepted');
+        sessionStorage.setItem('lastInvitationTime', Date.now().toString());
+        sessionStorage.setItem('lastGameId', gameId.toString());
+
+        navigate(`/play/multiplayer/${gameId}`);
+        return;
+      }
+
+      // Handle regular invitation accept
       const requestData = {
         action: 'accept',
         desired_color: colorChoice,
@@ -347,6 +406,18 @@ export const GlobalInvitationProvider = ({ children }) => {
     try {
       console.log('[GlobalInvitation] Declining invitation:', invitationId);
 
+      // Check if this is a new game request (rematch challenge)
+      if (invitationId.startsWith('new_game_')) {
+        console.log('[GlobalInvitation] 🎯 This is a new game request, just dismissing dialog');
+
+        // For new game requests, we don't need to call any API since the game is already created
+        // The opponent will see the game in their active games if they don't accept
+        // Just clear the dialog and do nothing else
+        setPendingInvitation(null);
+        return;
+      }
+
+      // Handle regular invitation decline
       await api.post(`/invitations/${invitationId}/respond`, { action: 'decline' });
 
       // Clear the dialog
