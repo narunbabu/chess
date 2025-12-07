@@ -215,7 +215,7 @@ const TutorialHub = () => {
     return (
       <div
         key={module.id}
-        className={`bg-white rounded-2xl shadow-lg border-2 border-blue-100 hover:border-blue-300 hover:shadow-2xl transition-all p-6 relative ${isLocked ? 'opacity-75' : ''}`}
+        className={`tutorial-module-card bg-white rounded-2xl shadow-lg border-2 border-blue-100 hover:border-blue-300 hover:shadow-2xl transition-all p-6 relative ${isLocked ? 'opacity-75' : ''}`}
       >
         {/* Lock overlay */}
         {isLocked && (
@@ -308,7 +308,7 @@ const TutorialHub = () => {
   };
 
   const QuickStatsCard = () => (
-    <div className="bg-white rounded-2xl shadow-lg border-2 border-blue-100 p-6">
+    <div className="tutorial-stats-card bg-white rounded-2xl shadow-lg border-2 border-blue-100 p-6">
       <h3 className="text-2xl font-extrabold mb-5 text-gray-900">📊 Your Progress</h3>
 
       {/* XP and Level */}
@@ -371,7 +371,7 @@ const TutorialHub = () => {
     const isCompleted = dailyChallenge.user_completion?.completed;
 
     return (
-      <div className="bg-white rounded-2xl shadow-lg border-2 border-blue-100 p-6">
+      <div className="tutorial-stats-card bg-white rounded-2xl shadow-lg border-2 border-blue-100 p-6">
         <h3 className="text-2xl font-extrabold mb-5 text-gray-900">🏅 Daily Challenge</h3>
 
         <div className="flex items-center justify-between mb-5">
@@ -461,8 +461,8 @@ const TutorialHub = () => {
 
   return (
     <ErrorBoundary errorMessage="The tutorial hub encountered an error. Please try reloading.">
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
-      <div className="container mx-auto px-4 py-8">
+      <div className="tutorial-container flex-grow bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 min-h-[calc(100vh-120px)] md:min-h-[calc(100vh-140px)] overflow-y-auto -webkit-overflow-scrolling-touch">
+      <div className="container mx-auto px-4 py-6 sm:py-8">
         {/* Completion Message */}
         {showCompletionMessage && (
           <div className="mb-6 bg-green-50 border-l-4 border-green-500 p-4 rounded-lg shadow-md animate-fade-in">
@@ -537,7 +537,7 @@ const TutorialHub = () => {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Modules Grid */}
           <div className="lg:col-span-3">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="tutorial-modules-grid grid grid-cols-1 md:grid-cols-2 gap-6">
               {filteredModules.map((module) => (
                 <ModuleCard key={module.id} module={module} />
               ))}

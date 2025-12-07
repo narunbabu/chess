@@ -2601,3 +2601,334 @@
     -webkit-overflow-scrolling: touch;
   }
 }
+
+/* =========================================
+   Tutorial Page Mobile Scrolling Fixes
+   ========================================= */
+
+/* Ensure tutorial page can scroll properly on mobile */
+@media (max-width: 768px) {
+  /* Tutorial hub specific mobile fixes */
+  .tutorial-container {
+    min-height: calc(100vh - 120px) !important;
+    height: auto !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding-bottom: 2rem !important;
+  }
+
+  /* Ensure proper scrolling in Safari iOS */
+  .tutorial-container .container {
+    min-height: auto !important;
+    height: auto !important;
+  }
+
+  /* Fix grid layout on mobile */
+  .tutorial-container .grid-cols-1.md\\:grid-cols-2 {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+
+  .tutorial-container .lg\\:grid-cols-4 {
+    grid-template-columns: 1fr !important;
+  }
+
+  .tutorial-container .lg\\:col-span-3 {
+    grid-column: span 1 !important;
+  }
+
+  /* Make module cards stack vertically on mobile */
+  .tutorial-module-card {
+    width: 100% !important;
+    max-width: none !important;
+    margin-bottom: 1rem !important;
+  }
+
+  /* Ensure stats cards are properly sized */
+  .tutorial-stats-card {
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  /* Add bottom padding to account for footer */
+  .tutorial-container {
+    padding-bottom: 100px !important;
+  }
+}
+
+/* Mobile portrait tutorial fixes */
+@media (max-width: 768px) and (orientation: portrait) {
+  .tutorial-container {
+    min-height: calc(100vh - 100px) !important;
+    padding-bottom: 120px !important; /* Extra padding for footer */
+  }
+
+  /* Reduce header font sizes on mobile */
+  .tutorial-container h1 {
+    font-size: 2.5rem !important;
+  }
+
+  .tutorial-container h2 {
+    font-size: 1.5rem !important;
+  }
+
+  /* Make buttons more touch-friendly */
+  .tutorial-container button {
+    min-height: 44px !important;
+  }
+}
+
+/* Mobile landscape tutorial fixes */
+@media (max-width: 1024px) and (orientation: landscape) {
+  .tutorial-container {
+    min-height: calc(100vh - 80px) !important;
+    padding-bottom: 80px !important;
+  }
+
+  /* Allow horizontal scrolling for module cards in landscape if needed */
+  .tutorial-modules-grid {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding-bottom: 1rem !important;
+  }
+}
+
+/* Ensure footer is always visible on tutorial pages */
+@media (max-width: 768px) {
+  /* Make sure footer sticks to bottom on tutorial pages */
+  body:not(.mobile-landscape) footer {
+    position: relative !important;
+    margin-top: auto !important;
+    z-index: 10 !important;
+  }
+
+  /* Add extra bottom padding to tutorial container to ensure footer visibility */
+  .tutorial-container {
+    padding-bottom: 120px !important;
+    margin-bottom: 0 !important;
+  }
+}
+
+/* Safari iOS specific fixes for tutorial page */
+@supports (-webkit-touch-callout: none) {
+  .tutorial-container {
+    min-height: -webkit-fill-available !important;
+    padding-bottom: 120px !important;
+  }
+}
+
+/* =========================================
+   Tutorial Module Detail Page Mobile Fixes
+   ========================================= */
+
+/* Ensure module detail page can scroll properly on mobile */
+@media (max-width: 768px) {
+  /* Module detail specific mobile fixes */
+  .tutorial-module-container {
+    min-height: calc(100vh - 120px) !important;
+    height: auto !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding-bottom: 140px !important; /* Extra padding for footer visibility */
+  }
+
+  /* Ensure proper scrolling in Safari iOS */
+  .tutorial-module-container .container {
+    min-height: auto !important;
+    height: auto !important;
+  }
+
+  /* Fix module stats grid on mobile */
+  .tutorial-module-stats-grid.grid-cols-2.sm\\:grid-cols-4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.75rem !important;
+  }
+
+  /* Make stats cards more compact on mobile */
+  .tutorial-module-stats-grid > div {
+    padding: 0.75rem !important;
+  }
+
+  .tutorial-module-stats-grid .text-3xl {
+    font-size: 1.5rem !important;
+  }
+
+  .tutorial-module-stats-grid .text-sm {
+    font-size: 0.75rem !important;
+  }
+
+  /* Make lesson cards stack vertically on mobile */
+  .tutorial-lesson-card {
+    width: 100% !important;
+    max-width: none !important;
+    margin-bottom: 0.75rem !important;
+  }
+
+  /* Optimize lesson list spacing on mobile */
+  .tutorial-lessons-list.space-y-3.sm\\:space-y-4 {
+    gap: 0.75rem !important;
+  }
+
+  /* Reduce header font sizes on mobile */
+  .tutorial-module-container h1 {
+    font-size: 2rem !important;
+  }
+
+  .tutorial-module-container h2 {
+    font-size: 1.5rem !important;
+  }
+
+  /* Make buttons more touch-friendly */
+  .tutorial-module-container button,
+  .tutorial-module-container a.btn {
+    min-height: 44px !important;
+    font-size: 0.875rem !important;
+  }
+
+  /* Optimize progress bar for mobile */
+  .tutorial-module-container .h-4 {
+    height: 0.75rem !important;
+  }
+
+  /* Make module header more compact on mobile */
+  .tutorial-module-container .bg-white.rounded-2xl {
+    padding: 1rem !important;
+    margin-bottom: 1.5rem !important;
+  }
+
+  /* Fix module icon size on mobile */
+  .tutorial-module-container .w-20.h-20 {
+    width: 4rem !important;
+    height: 4rem !important;
+  }
+
+  .tutorial-module-container .text-3xl {
+    font-size: 1.5rem !important;
+  }
+}
+
+/* Mobile portrait module detail fixes */
+@media (max-width: 768px) and (orientation: portrait) {
+  .tutorial-module-container {
+    min-height: calc(100vh - 100px) !important;
+    padding-bottom: 140px !important; /* Extra padding for footer */
+  }
+
+  /* Make lesson cards more touch-friendly in portrait */
+  .tutorial-lesson-card {
+    padding: 1rem !important;
+    border-radius: 0.75rem !important;
+  }
+
+  /* Ensure lesson descriptions don't overflow */
+  .tutorial-lesson-card .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* Mobile landscape module detail fixes */
+@media (max-width: 1024px) and (orientation: landscape) {
+  .tutorial-module-container {
+    min-height: calc(100vh - 80px) !important;
+    padding-bottom: 100px !important;
+  }
+
+  /* Make lesson cards more compact in landscape */
+  .tutorial-lesson-card {
+    padding: 0.75rem !important;
+  }
+
+  /* Allow horizontal scrolling for long lesson titles in landscape */
+  .tutorial-lesson-card .truncate {
+    max-width: 200px !important;
+  }
+}
+
+/* Safari iOS specific fixes for module detail page */
+@supports (-webkit-touch-callout: none) {
+  .tutorial-module-container {
+    min-height: -webkit-fill-available !important;
+    padding-bottom: 140px !important;
+  }
+}
+
+/* =========================================
+   Tutorial Lesson Player Page Mobile Fixes
+   ========================================= */
+
+/* Ensure lesson player page can scroll properly on mobile */
+@media (max-width: 768px) {
+  /* Lesson player specific mobile fixes */
+  .tutorial-lesson-container {
+    min-height: calc(100vh - 120px) !important;
+    height: auto !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding-bottom: 140px !important; /* Extra padding for footer visibility */
+  }
+
+  /* Ensure proper scrolling in Safari iOS */
+  .tutorial-lesson-container .container {
+    min-height: auto !important;
+    height: auto !important;
+  }
+
+  /* Reduce header font sizes on mobile */
+  .tutorial-lesson-container h1 {
+    font-size: 2rem !important;
+  }
+
+  .tutorial-lesson-container h2 {
+    font-size: 1.5rem !important;
+  }
+
+  /* Make buttons more touch-friendly */
+  .tutorial-lesson-container button,
+  .tutorial-lesson-container a.btn {
+    min-height: 44px !important;
+    font-size: 0.875rem !important;
+  }
+
+  /* Make completion message more mobile-friendly */
+  .tutorial-lesson-container .text-6xl {
+    font-size: 3rem !important;
+  }
+
+  .tutorial-lesson-container .max-w-md {
+    max-width: 90% !important;
+  }
+
+  /* Optimize chess board for mobile */
+  .tutorial-lesson-container .chess-board {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+}
+
+/* Mobile portrait lesson player fixes */
+@media (max-width: 768px) and (orientation: portrait) {
+  .tutorial-lesson-container {
+    min-height: calc(100vh - 100px) !important;
+    padding-bottom: 140px !important; /* Extra padding for footer */
+  }
+}
+
+/* Mobile landscape lesson player fixes */
+@media (max-width: 1024px) and (orientation: landscape) {
+  .tutorial-lesson-container {
+    min-height: calc(100vh - 80px) !important;
+    padding-bottom: 100px !important;
+  }
+}
+
+/* Safari iOS specific fixes for lesson player page */
+@supports (-webkit-touch-callout: none) {
+  .tutorial-lesson-container {
+    min-height: -webkit-fill-available !important;
+    padding-bottom: 140px !important;
+  }
+}

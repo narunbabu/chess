@@ -753,7 +753,7 @@ const LessonPlayer = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="tutorial-lesson-container flex-grow min-h-[calc(100vh-120px)] md:min-h-[calc(100vh-140px)] flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <div className="text-lg font-medium">Loading lesson...</div>
@@ -764,7 +764,7 @@ const LessonPlayer = () => {
 
   if (!lesson) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="tutorial-lesson-container flex-grow min-h-[calc(100vh-120px)] md:min-h-[calc(100vh-140px)] flex items-center justify-center">
         <div className="text-center">
           <div className="text-xl font-medium mb-4">Lesson not found</div>
           <button
@@ -780,7 +780,7 @@ const LessonPlayer = () => {
 
   if (completed) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="tutorial-lesson-container flex-grow min-h-[calc(100vh-120px)] md:min-h-[calc(100vh-140px)] flex items-center justify-center">
         <div className="text-center bg-white rounded-lg p-8 shadow-lg max-w-md mx-4">
           <div className="text-6xl mb-4">🎉</div>
           <h2 className="text-2xl font-bold mb-4" style={{ color: 'var(--tutorial-green-dark)' }}>
@@ -842,8 +842,8 @@ const LessonPlayer = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
-      <div className="container mx-auto px-4 py-8">
+    <div className="tutorial-lesson-container flex-grow bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 min-h-[calc(100vh-120px)] md:min-h-[calc(100vh-140px)] overflow-y-auto -webkit-overflow-scrolling-touch pb-24">
+      <div className="container mx-auto px-4 py-6 sm:py-8">
         {/* Header */}
         <div className="mb-6">
         <button

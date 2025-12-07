@@ -68,7 +68,7 @@ const Footer = () => {
   return (
     <footer
       ref={footerRef}
-      className="bg-gray-800 text-white py-2 sm:py-4 md:py-6 mt-auto transition-all duration-300"
+      className="bg-gray-800 text-white py-2 sm:py-4 md:py-6 mt-auto transition-all duration-300 relative z-10"
     >
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center">

@@ -100,7 +100,7 @@ const ModuleDetail = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="tutorial-module-container flex-grow min-h-[calc(100vh-120px)] md:min-h-[calc(100vh-140px)] flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <div className="text-lg font-medium">Loading Module...</div>
@@ -111,7 +111,7 @@ const ModuleDetail = () => {
 
   if (!module) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="tutorial-module-container flex-grow min-h-[calc(100vh-120px)] md:min-h-[calc(100vh-140px)] flex items-center justify-center">
         <div className="text-center">
           <div className="text-4xl mb-4">❌</div>
           <div className="text-lg font-medium">Module not found</div>
@@ -140,8 +140,8 @@ const ModuleDetail = () => {
 
   return (
     <ErrorBoundary errorMessage="The module details encountered an error. Please try reloading.">
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
-      <div className="container mx-auto px-4 py-8">
+      <div className="tutorial-module-container flex-grow bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 min-h-[calc(100vh-120px)] md:min-h-[calc(100vh-140px)] overflow-y-auto -webkit-overflow-scrolling-touch pb-24">
+      <div className="container mx-auto px-4 py-6 sm:py-8">
         {/* Back Button */}
         <Link
           to="/tutorial"
@@ -186,7 +186,7 @@ const ModuleDetail = () => {
           </div>
 
           {/* Module Stats */}
-          <div className="grid grid-cols-4 gap-4 mt-6">
+          <div className="tutorial-module-stats-grid grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mt-6">
             <div className="text-center p-4 rounded-xl bg-gradient-to-br from-purple-100 to-indigo-100 border-2 border-purple-200 shadow-md hover:shadow-lg transition-shadow">
               <div className="text-3xl font-extrabold text-purple-700">
                 {progress.completed_lessons || 0}/{progress.total_lessons || 0}
@@ -215,8 +215,8 @@ const ModuleDetail = () => {
         </div>
 
         {/* Lessons List */}
-        <div className="space-y-4">
-          <h2 className="text-3xl font-bold text-gray-900 mb-6">📖 Lessons</h2>
+        <div className="tutorial-lessons-list space-y-3 sm:space-y-4">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4 sm:mb-6">📖 Lessons</h2>
           {finalLessons.map((lesson, index) => {
             const lessonProgress = lesson.progress || lesson.user_progress || {};
             const status = lessonProgress.status || 'not_started';
@@ -237,22 +237,22 @@ const ModuleDetail = () => {
             return (
               <div
                 key={lesson.id}
-                className={`bg-white rounded-xl shadow-md border-2 border-gray-100 hover:border-blue-200 hover:shadow-xl transition-all p-5 flex items-center justify-between ${isLocked ? 'opacity-60 bg-gray-50' : ''}`}
+                className={`tutorial-lesson-card bg-white rounded-xl shadow-md border-2 border-gray-100 hover:border-blue-200 hover:shadow-xl transition-all p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between ${isLocked ? 'opacity-60 bg-gray-50' : ''}`}
               >
                 {/* Lesson Number and Icon */}
-                <div className="flex items-center space-x-4 flex-1">
-                  <div className="text-4xl">{getStatusIcon(status)}</div>
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-2 flex-wrap">
-                      <h3 className="text-xl font-bold text-gray-900">
+                <div className="flex items-center space-x-3 sm:space-x-4 flex-1 w-full sm:w-auto">
+                  <div className="text-3xl sm:text-4xl flex-shrink-0">{getStatusIcon(status)}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center space-x-2 sm:space-x-3 mb-2 flex-wrap">
+                      <h3 className="text-lg sm:text-xl font-bold text-gray-900 truncate">
                         {index + 1}. {lesson.title}
                       </h3>
-                      <span className={`px-4 py-1.5 rounded-full text-sm font-bold border-2 ${getStatusColor(status)}`}>
+                      <span className={`px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-bold border-2 ${getStatusColor(status)} flex-shrink-0`}>
                         {getStatusText(status)}
                       </span>
                     </div>
-                    <p className="text-gray-700 text-base font-medium mb-3">{lesson.description}</p>
-                    <div className="flex items-center space-x-6 text-sm font-semibold text-gray-700">
+                    <p className="text-gray-700 text-sm sm:text-base font-medium mb-2 sm:mb-3 line-clamp-2">{lesson.description}</p>
+                    <div className="flex flex-wrap items-center gap-3 sm:gap-6 text-xs sm:text-sm font-semibold text-gray-700">
                       <span className="flex items-center gap-1">⏱️ {lesson.estimated_duration || '5'} min</span>
                       <span className="flex items-center gap-1">⭐ {lesson.xp_reward || 20} XP</span>
                       {lessonProgress.best_score !== undefined && lessonProgress.best_score > 0 && (
@@ -266,10 +266,10 @@ const ModuleDetail = () => {
                 </div>
 
                 {/* Action Button */}
-                <div className="ml-4">
+                <div className="mt-3 sm:mt-0 sm:ml-4 w-full sm:w-auto">
                   {isLocked ? (
                     <button
-                      className="px-6 py-3 rounded-xl font-bold bg-gray-300 text-gray-600 cursor-not-allowed border-2 border-gray-400"
+                      className="w-full sm:w-auto px-4 sm:px-6 py-3 rounded-xl font-bold bg-gray-300 text-gray-600 cursor-not-allowed border-2 border-gray-400 min-h-[44px]"
                       disabled
                     >
                       🔒 Locked
@@ -277,7 +277,7 @@ const ModuleDetail = () => {
                   ) : (
                     <Link
                       to={`/tutorial/lesson/${lesson.id}`}
-                      className="px-6 py-3 rounded-xl font-bold text-white transition-all hover:scale-105 hover:shadow-xl inline-block border-2"
+                      className="w-full sm:w-auto px-4 sm:px-6 py-3 rounded-xl font-bold text-white transition-all hover:scale-105 hover:shadow-xl inline-block border-2 text-center min-h-[44px]"
                       style={{
                         background: status === 'completed' || status === 'mastered'
                           ? 'linear-gradient(135deg, #3b82f6, #60a5fa)'
