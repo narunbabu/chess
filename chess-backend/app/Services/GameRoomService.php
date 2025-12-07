@@ -1337,31 +1337,76 @@ class GameRoomService
             ];
         }
 
-        // Check if there's a pending request
+        // Enhanced cleanup of stale resume requests
+        $shouldClearResumeRequest = false;
+        $clearReason = '';
+
         if ($game->resume_status === 'pending') {
             // Check if the pending request has expired
             if ($game->resume_request_expires_at && now()->isAfter($game->resume_request_expires_at)) {
-                // Auto-clear expired request
-                Log::info('Auto-clearing expired resume request', [
-                    'game_id' => $gameId,
-                    'expired_at' => $game->resume_request_expires_at
-                ]);
-
-                $game->update([
-                    'resume_status' => 'expired',
-                    'resume_requested_by' => null,
-                    'resume_requested_at' => null,
-                    'resume_request_expires_at' => null
-                ]);
-
-                // Allow new request to proceed
-            } else {
-                // Still pending and not expired
-                return [
-                    'success' => false,
-                    'message' => 'Resume request already pending'
-                ];
+                $shouldClearResumeRequest = true;
+                $clearReason = 'expired';
             }
+            // Check if request is very old (more than 10 minutes) - likely stale
+            elseif ($game->resume_requested_at && now()->diffInMinutes($game->resume_requested_at) > 10) {
+                $shouldClearResumeRequest = true;
+                $clearReason = 'stale_old';
+            }
+            // Check if the game is no longer in paused state
+            elseif ($game->status !== 'paused') {
+                $shouldClearResumeRequest = true;
+                $clearReason = 'game_not_paused';
+            }
+            // Check if the same user is trying to request again (likely duplicate click)
+            elseif ($game->resume_requested_by === $userId) {
+                $shouldClearResumeRequest = true;
+                $clearReason = 'duplicate_request';
+            }
+        }
+
+        if ($shouldClearResumeRequest) {
+            // Auto-clear stale/invalid resume request
+            Log::info('Auto-clearing stale resume request', [
+                'game_id' => $gameId,
+                'reason' => $clearReason,
+                'previous_status' => $game->resume_status,
+                'requested_by' => $game->resume_requested_by,
+                'requested_at' => $game->resume_requested_at,
+                'expires_at' => $game->resume_request_expires_at,
+                'current_user' => $userId,
+                'game_status' => $game->status
+            ]);
+
+            // Also clean up any related invitation records
+            \App\Models\Invitation::where('game_id', $gameId)
+                ->where('type', 'resume_request')
+                ->where('status', 'pending')
+                ->update(['status' => 'expired']);
+
+            $game->update([
+                'resume_status' => 'expired',
+                'resume_requested_by' => null,
+                'resume_requested_at' => null,
+                'resume_request_expires_at' => null
+            ]);
+
+            // Allow new request to proceed
+        } elseif ($game->resume_status === 'pending') {
+            // Still valid pending request
+            Log::info('Resume request still pending', [
+                'game_id' => $gameId,
+                'requested_by' => $game->resume_requested_by,
+                'current_user' => $userId,
+                'expires_at' => $game->resume_request_expires_at,
+                'time_remaining' => $game->resume_request_expires_at ? now()->diffInSeconds($game->resume_request_expires_at) : 'unknown'
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Resume request already pending',
+                'expires_at' => $game->resume_request_expires_at,
+                'requested_by' => $game->resume_requested_by
+            ];
         }
 
         // Verify user is a player in this game
@@ -1889,5 +1934,74 @@ class GameRoomService
 
         // Default to generic result
         return 'completed';
+    }
+
+    /**
+     * Clean up resume requests when games end or change status
+     * Call this method when games are finished, abandoned, or status changes
+     */
+    public function cleanupResumeRequests(int $gameId, string $reason = 'game_end'): void
+    {
+        try {
+            $game = Game::find($gameId);
+            if (!$game) {
+                Log::warning('Game not found for resume request cleanup', [
+                    'game_id' => $gameId,
+                    'reason' => $reason
+                ]);
+                return;
+            }
+
+            // Only cleanup if there's an active resume request
+            if ($game->resume_status === 'pending' || $game->resume_status === 'accepted') {
+                Log::info('Cleaning up resume request', [
+                    'game_id' => $gameId,
+                    'reason' => $reason,
+                    'previous_status' => $game->resume_status,
+                    'requested_by' => $game->resume_requested_by,
+                    'game_current_status' => $game->status
+                ]);
+
+                // Update invitation records
+                $newStatus = $reason === 'game_end' ? 'completed' : 'expired';
+                \App\Models\Invitation::where('game_id', $gameId)
+                    ->where('type', 'resume_request')
+                    ->where('status', 'pending')
+                    ->update([
+                        'status' => $newStatus,
+                        'responded_at' => now()
+                    ]);
+
+                // Clear resume request fields
+                $game->update([
+                    'resume_status' => $reason === 'game_end' ? 'completed' : 'expired',
+                    'resume_requested_by' => null,
+                    'resume_requested_at' => null,
+                    'resume_request_expires_at' => null
+                ]);
+
+                // Also clean up championship resume requests if they exist
+                \App\Models\ChampionshipGameResumeRequest::where('game_id', $gameId)
+                    ->where('status', 'pending')
+                    ->update([
+                        'status' => $newStatus,
+                        'responded_at' => now()
+                    ]);
+
+                Log::info('Resume request cleanup completed', [
+                    'game_id' => $gameId,
+                    'reason' => $reason,
+                    'new_status' => $newStatus
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Error during resume request cleanup', [
+                'game_id' => $gameId,
+                'reason' => $reason,
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ]);
+        }
     }
 }

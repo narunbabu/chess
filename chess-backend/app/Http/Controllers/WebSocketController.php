@@ -537,8 +537,8 @@ class WebSocketController extends Controller
             'move.white_player_score' => 'nullable|numeric',
             'move.black_player_score' => 'nullable|numeric',
             // Accept remaining clock times to persist across moves
-            'move.white_time_remaining_ms' => 'nullable|integer',
-            'move.black_time_remaining_ms' => 'nullable|integer',
+            'move.white_time_remaining_ms' => 'nullable|numeric',
+            'move.black_time_remaining_ms' => 'nullable|numeric',
             'socket_id' => 'required|string'
         ]);
 
@@ -849,9 +849,14 @@ class WebSocketController extends Controller
         ]);
 
         try {
+            Log::info('🎯 ABOUT TO CALL GAMEROOMSERVICE requestResume', [
+                'game_id' => $gameId,
+                'user_id' => Auth::id()
+            ]);
+
             $result = $this->gameRoomService->requestResume($gameId, Auth::id());
 
-            Log::info('Resume request sent', [
+            Log::info('✅ GAMEROOMSERVICE requestResume COMPLETED', [
                 'user_id' => Auth::id(),
                 'game_id' => $gameId,
                 'result' => $result
@@ -860,10 +865,13 @@ class WebSocketController extends Controller
             return response()->json($result);
 
         } catch (\Exception $e) {
-            Log::error('Failed to request resume', [
+            Log::error('🚨 EXCEPTION IN requestResume', [
                 'user_id' => Auth::id(),
                 'game_id' => $gameId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
             ]);
 
             return response()->json([
