@@ -101,12 +101,6 @@ export const GameNavigationProvider = ({ children }) => {
       return true;
     }
 
-    // If game is paused, allow navigation
-    if (gamePausedRef.current) {
-      console.log('[GameNavigation] Game is paused, allowing navigation to:', targetPath);
-      return true;
-    }
-
     // Allow navigation to essential game-related pages (resign, pause, etc.)
     const allowedPaths = [
       '/play/multiplayer/',
@@ -121,7 +115,8 @@ export const GameNavigationProvider = ({ children }) => {
       return true;
     }
 
-    // If game is active and trying to go to non-allowed page, show warning
+    // Always show warning for active games, regardless of paused status
+    // Users should confirm before leaving any game (paused or active)
     console.log('[GameNavigation] Active game detected, showing navigation warning for:', targetPath);
     setShowWarningDialog(true);
     setPendingNavigation(targetPath);

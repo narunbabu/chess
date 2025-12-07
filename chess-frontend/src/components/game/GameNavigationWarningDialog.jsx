@@ -27,7 +27,7 @@ const GameNavigationWarningDialog = ({
           </h3>
 
           <p className="text-gray-600 mb-4">
-            You have an active chess game that hasn't been paused. To navigate to other pages, you must first pause the game to avoid:
+            You have an active chess game in progress. To navigate to other pages, please pause the game first to avoid:
           </p>
 
           <ul className="text-left text-gray-600 mb-6 space-y-2">
