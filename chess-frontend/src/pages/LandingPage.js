@@ -35,11 +35,11 @@ const LandingPage = () => {
   }, []);
 
   const stats = [
-    { number: '12M+', label: 'Happy Kids', icon: '😊', colorClass: 'bg-orange' },
-    { number: '28,000+', label: 'Schools', icon: '🏫', colorClass: 'bg-blue' },
-    { number: '91M+', label: 'Games Played', icon: '♟️', colorClass: 'bg-green' },
-    { number: '113M+', label: 'Puzzles Solved', icon: '🧩', colorClass: 'bg-purple' },
-    { number: '16M+', label: 'Lessons Taken', icon: '📚', colorClass: 'bg-pink' }
+    { number: '12M+', label: 'Happy Young Learners', icon: '😊', colorClass: 'bg-orange' },
+    { number: '28,000+', label: 'Schools Inspired', icon: '🏫', colorClass: 'bg-blue' },
+    { number: '91M+', label: 'Safe Games Played', icon: '♟️', colorClass: 'bg-green' },
+    { number: '113M+', label: 'Puzzles Solved by Kids', icon: '🧩', colorClass: 'bg-purple' },
+    { number: '16M+', label: 'Lessons Completed', icon: '📚', colorClass: 'bg-pink' }
   ];
 
   return (
@@ -57,11 +57,8 @@ const LandingPage = () => {
           {/* Desktop Navigation - Hidden on small screens */}
           <nav className="hidden md:flex items-center space-x-3 lg:space-x-6">
             {/* <button onClick={() => navigate('/play')} className="hover:text-yellow-300 transition-colors text-sm lg:text-base font-medium">Play</button> */}
-            <Link to="/puzzles" className="hover:text-yellow-300 transition-colors text-sm lg:text-base font-medium">Puzzles</Link>
-            <Link to="/learn" className="hover:text-yellow-300 transition-colors text-sm lg:text-base font-medium">Learn</Link>
-            <Link to="/tutorial" className="hover:text-yellow-300 transition-colors text-sm lg:text-base font-medium">Tutorial</Link>
-            <button className="hover:text-yellow-300 transition-colors text-sm lg:text-base font-medium">Events</button>
-            <button className="hover:text-yellow-300 transition-colors text-sm lg:text-base font-medium">Resources</button>
+            <button onClick={() => navigate('/login?resource=tutorial')} className="hover:text-yellow-300 transition-colors text-sm lg:text-base font-medium">Tutorial</button>
+            <button onClick={() => navigate('/login?resource=tournaments')} className="hover:text-yellow-300 transition-colors text-sm lg:text-base font-medium">Tournaments</button>
           </nav>
 
           {/* Right Section - Auth Buttons & Menu */}
@@ -138,31 +135,17 @@ const LandingPage = () => {
               >
                 Play
               </button> */}
-              <Link
-                to="/puzzles"
-                onClick={() => setShowMobileMenu(false)}
-                className="text-left px-4 py-3 hover:bg-sky-700/50 rounded-lg transition-colors text-sm font-medium"
-              >
-                Puzzles
-              </Link>
-              <Link
-                to="/learn"
-                onClick={() => setShowMobileMenu(false)}
-                className="text-left px-4 py-3 hover:bg-sky-700/50 rounded-lg transition-colors text-sm font-medium"
-              >
-                Learn
-              </Link>
               <button
-                onClick={() => setShowMobileMenu(false)}
+                onClick={() => { navigate('/login?resource=tutorial'); setShowMobileMenu(false); }}
                 className="text-left px-4 py-3 hover:bg-sky-700/50 rounded-lg transition-colors text-sm font-medium"
               >
-                Events
+                Tutorial
               </button>
               <button
-                onClick={() => setShowMobileMenu(false)}
+                onClick={() => { navigate('/login?resource=tournaments'); setShowMobileMenu(false); }}
                 className="text-left px-4 py-3 hover:bg-sky-700/50 rounded-lg transition-colors text-sm font-medium"
               >
-                Resources
+                Tournaments
               </button>
             </nav>
           </div>
@@ -196,9 +179,9 @@ const LandingPage = () => {
             <div className="text-center text-white mb-6 sm:mb-8 lg:mb-12 w-full max-w-4xl mx-auto mt-4 sm:mt-0">
                <div className="inline-block rounded-2xl bg-black/30 backdrop-blur-sm px-4 sm:px-6 py-3 sm:py-4 mx-2 sm:mx-0">
                  <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold mb-2 sm:mb-3 lg:mb-4 px-2 sm:px-4">
-                   India's Best Chess Site for Kids
+                   India's #1 Online Chess Academy for Kids
                  </h1>
-                 <p className="text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl opacity-95 px-2 sm:px-4">Learn, Play, and Have Fun with Chess!</p>
+                 <p className="text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl opacity-95 px-2 sm:px-4">Trusted by Parents & Schools. Safe, Educational, and Designed for Ages 5-16.</p>
                </div>
             </div>
 
@@ -248,7 +231,7 @@ const LandingPage = () => {
                       className="unified-card-btn primary text-sm sm:text-base"
                     >
                       <span className="mr-2">🤖</span>
-                      Play with Computer
+                      Play with Computer (Free)
                     </button>
                     <button
                       onClick={() => {
@@ -258,38 +241,82 @@ const LandingPage = () => {
                       className="unified-card-btn secondary text-sm sm:text-base"
                     >
                       <span className="mr-2">👥</span>
-                      Play with Friends
+                      Play with Friends (Safe Online Play)
                     </button>
                   </div>
                 </div>
               ) : (
                 <div className="unified-card w-full max-w-sm sm:max-w-md mx-auto">
-                  <h3 className="unified-card-title centered text-xl sm:text-2xl">Start Your Adventure!</h3>
+                  <h3 className="unified-card-title centered text-xl sm:text-2xl">Start Your Chess Journey!</h3>
                   <div className="unified-card-actions vertical">
                     <button
                       onClick={() => navigate('/play')}
                       className="unified-card-btn primary text-sm sm:text-base"
                     >
                       <span className="mr-2">🤖</span>
-                      Play vs. Computer
+                      Play with Computer (Free)
                     </button>
                     <button
                       onClick={() => setShowAuthGate(true)}
                       className="unified-card-btn secondary text-sm sm:text-base"
                     >
                       <span className="mr-2">👥</span>
-                      Play with Friends
+                      Play with Friends (Safe Online Play)
                     </button>
                     <button
                       onClick={() => navigate('/learn')}
                       className="unified-card-btn neutral text-sm sm:text-base"
                     >
                       <span className="mr-2">📚</span>
-                      Learn Chess
+                      Start Learning (Beginner to Advanced)
                     </button>
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Trust Badges Section - Attractive Cards */}
+            <div className="mt-8 w-full max-w-5xl mx-auto">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+                {/* Safety Card */}
+                <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-lg border-2 border-green-100 hover:shadow-xl transition-shadow duration-300">
+                  <div className="flex items-center mb-3">
+                    <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mr-4">
+                      <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-lg font-bold text-green-800">100% Safe for Kids</h3>
+                  </div>
+                  <p className="text-gray-700 leading-relaxed">No Ads • No Chats • No Payments Needed to Start</p>
+                </div>
+
+                {/* Educational Platform Card */}
+                <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-lg border-2 border-blue-100 hover:shadow-xl transition-shadow duration-300">
+                  <div className="flex items-center mb-3">
+                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mr-4">
+                      <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                      </svg>
+                    </div>
+                    <h3 className="text-lg font-bold text-blue-800">Educational Platform</h3>
+                  </div>
+                  <p className="text-gray-700 leading-relaxed">Skill-Based Learning • Not Gambling • No Real-Money Gaming</p>
+                </div>
+
+                {/* Trusted Card */}
+                <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-lg border-2 border-purple-100 hover:shadow-xl transition-shadow duration-300">
+                  <div className="flex items-center mb-3">
+                    <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mr-4">
+                      <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-lg font-bold text-purple-800">Trusted by Millions</h3>
+                  </div>
+                  <p className="text-gray-700 leading-relaxed">12M+ Young Learners • 28,000+ Schools • Parent Approved</p>
+                </div>
+              </div>
             </div>
 
             {/* Game History Button - Only show for guest users */}
@@ -302,14 +329,14 @@ const LandingPage = () => {
                 >
                   <div className="unified-card-header">
                     <div className="unified-card-avatar">🔄</div>
-                    <h3 className="unified-card-title centered text-lg sm:text-xl">Your Games</h3>
+                    <h3 className="unified-card-title centered text-lg sm:text-xl">Your Chess Journey</h3>
                   </div>
                   <div className="unified-card-body text-center">
                     <p className="text-gray-600 mb-3">
-                      View your unfinished and completed games
+                      Continue your practice games and track your learning progress
                     </p>
                     <div className="inline-flex items-center text-orange-500 font-semibold">
-                      <span>View Game History</span>
+                      <span>View Progress</span>
                       <span className="ml-2">→</span>
                     </div>
                   </div>
@@ -336,6 +363,53 @@ const LandingPage = () => {
                 <div className="unified-card-subtitle">{stat.label}</div>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Why Parents Choose Chess99 Section */}
+      <section className="bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 xl:px-12 py-16 sm:py-20">
+          <div className="text-center mb-12 sm:mb-16">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-extrabold mb-4 sm:mb-6" style={{color: 'var(--ink)'}}>
+              Why Parents Choose Chess99
+            </h2>
+            <p className="text-base sm:text-lg lg:text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed px-3 sm:px-4">
+              A safe, structured and fun way for children to master chess.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+            <div className="unified-card light-theme h-full">
+              <div className="unified-card-avatar">👶</div>
+              <h3 className="unified-card-title centered text-lg sm:text-xl">Designed for Ages 5-16</h3>
+              <p className="unified-card-subtitle centered text-sm sm:text-base">Age-appropriate content and interface that grows with your child's learning level</p>
+            </div>
+            <div className="unified-card light-theme h-full">
+              <div className="unified-card-avatar">📈</div>
+              <h3 className="unified-card-title centered text-lg sm:text-xl">Step-by-Step Learning</h3>
+              <p className="unified-card-subtitle centered text-sm sm:text-base">From beginner basics to advanced strategies with interactive lessons and practice</p>
+            </div>
+            <div className="unified-card light-theme h-full">
+              <div className="unified-card-avatar">🧩</div>
+              <h3 className="unified-card-title centered text-lg sm:text-xl">Daily Puzzles</h3>
+              <p className="unified-card-subtitle centered text-sm sm:text-base">Build logic and critical thinking with fresh chess puzzles every day</p>
+            </div>
+            <div className="unified-card light-theme h-full">
+              <div className="unified-card-avatar">🛡️</div>
+              <h3 className="unified-card-title centered text-lg sm:text-xl">100% Safe Online Play</h3>
+              <p className="unified-card-subtitle centered text-sm sm:text-base">Strict child protection, no ads, no chats, monitored environment</p>
+            </div>
+            <div className="unified-card light-theme h-full">
+              <div className="unified-card-avatar">🚫</div>
+              <h3 className="unified-card-title centered text-lg sm:text-xl">No Distractions</h3>
+              <p className="unified-card-subtitle centered text-sm sm:text-base">No ads, no unsafe chats, no gambling - pure learning and safe fun</p>
+            </div>
+            <div className="unified-card light-theme h-full">
+              <div className="unified-card-avatar">⭐</div>
+              <h3 className="unified-card-title centered text-lg sm:text-xl">Teacher Approved</h3>
+              <p className="unified-card-subtitle centered text-sm sm:text-base">Recommended by teachers and chess coaches across India</p>
+            </div>
           </div>
         </div>
       </section>
@@ -396,10 +470,35 @@ const LandingPage = () => {
         </div>
       </section>
 
+      {/* SEO Keywords Section */}
+      <section className="bg-gray-50 py-8">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 xl:px-12">
+          <div className="text-center">
+            <h3 className="text-lg font-semibold text-gray-700 mb-4">Popular Searches We Support</h3>
+            <div className="flex flex-wrap justify-center gap-2 sm:gap-3 text-sm text-gray-600">
+              <span className="px-3 py-1 bg-white rounded-full border border-gray-200">Online Chess Academy for Kids</span>
+              <span className="px-3 py-1 bg-white rounded-full border border-gray-200">Safe Chess App for Children</span>
+              <span className="px-3 py-1 bg-white rounded-full border border-gray-200">Learn Chess Online</span>
+              <span className="px-3 py-1 bg-white rounded-full border border-gray-200">Chess Puzzles for Kids</span>
+              <span className="px-3 py-1 bg-white rounded-full border border-gray-200">School Chess Programs</span>
+              <span className="px-3 py-1 bg-white rounded-full border border-gray-200">Chess Academy Hyderabad</span>
+              <span className="px-3 py-1 bg-white rounded-full border border-gray-200">Chess Classes for Kids</span>
+              <span className="px-3 py-1 bg-white rounded-full border border-gray-200">Chess Lessons for Beginners</span>
+              <span className="px-3 py-1 bg-white rounded-full border border-gray-200">Fun Chess Lessons for Children</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="bg-gray-900 text-white py-8 sm:py-12">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 xl:px-12">
           <div className="text-center">
+            <div className="mb-4 sm:mb-6 p-4 bg-gray-800 rounded-lg">
+              <p className="text-gray-300 text-xs sm:text-sm leading-relaxed">
+                Chess99 is an educational, skill-based chess learning platform for kids. We do not offer real-money gaming, betting, or gambling in any form. All activities are designed for learning and safe competitive play.
+              </p>
+            </div>
             <p className="text-gray-400 text-xs sm:text-sm lg:text-base mb-4 sm:mb-6">© 2024 Chess99. Making Chess Fun for Kids!</p>
             <div className="flex flex-wrap justify-center gap-4 sm:gap-6 lg:gap-8">
               <Link to="/puzzles" className="text-gray-400 hover:text-white transition-colors text-xs sm:text-sm lg:text-base">Puzzles</Link>

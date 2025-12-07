@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { BASE_URL } from '../config';
 import api from '../services/api';
@@ -20,8 +20,18 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showSkillAssessment, setShowSkillAssessment] = useState(false);
   const [showManualAuth, setShowManualAuth] = useState(false);
+  const [requestedResource, setRequestedResource] = useState(null);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { login, isAuthenticated, loading } = useAuth();
+
+  // Handle URL parameters for educational resources
+  useEffect(() => {
+    const resource = searchParams.get('resource');
+    if (resource) {
+      setRequestedResource(resource);
+    }
+  }, [searchParams]);
 
   // Auto-redirect authenticated users to lobby
   React.useEffect(() => {
@@ -115,11 +125,54 @@ const LoginPage = () => {
       <div className="absolute bottom-0 right-0 w-1/2 h-1/2 bg-gradient-to-tl from-accent via-transparent to-transparent opacity-20 blur-3xl"></div>
 
       <div className="text-center z-10">
+        {/* Educational Resource Message */}
+        {requestedResource && (
+          <div className="mb-6 p-4 bg-blue-600/90 backdrop-blur-sm rounded-xl border border-blue-400/30 max-w-2xl mx-auto">
+            <div className="flex items-center justify-center mb-2">
+              <svg className="w-6 h-6 mr-2 text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h2 className="text-xl font-bold text-white">
+                {requestedResource === 'tutorial' ? 'Access Free Chess Tutorials' : 'Join Exciting Tournaments'}
+              </h2>
+            </div>
+            <p className="text-gray-100 text-sm">
+              Please Login or Register to access our free {requestedResource === 'tutorial' ? 'chess lessons and interactive tutorials' : 'tournaments and competitive events'}.
+            </p>
+          </div>
+        )}
+
+        {/* Navigation Buttons */}
+        <div className="flex flex-wrap justify-center gap-3 mb-6">
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center px-4 py-2 bg-gray-700/80 hover:bg-gray-600/80 text-white rounded-lg transition-colors duration-200"
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            </svg>
+            Home
+          </button>
+          <button
+            onClick={() => navigate('/play')}
+            className="flex items-center px-4 py-2 bg-orange-600/80 hover:bg-orange-500/80 text-white rounded-lg transition-colors duration-200"
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Play Computer
+          </button>
+        </div>
+
         <h1 className="text-5xl md:text-7xl font-extrabold mb-4 animate-[cardSlideIn_0.8s_ease-out] text-white">
           Master Chess at Your Own Pace
         </h1>
         <p className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto mb-8 animate-[cardSlideIn_0.9s_ease-out]">
-          Improve your chess skills through practice, puzzles, and guided learning - no registration required to start playing.
+          {requestedResource
+            ? `Join Chess99 to access ${requestedResource === 'tutorial' ? 'free chess lessons and tutorials' : 'exciting tournaments and competitions'}`
+            : "Improve your chess skills through practice, puzzles, and guided learning - no registration required to start playing."
+          }
         </p>
       </div>
 
@@ -164,19 +217,45 @@ const LoginPage = () => {
         ) : (
           /* Manual Authentication View */
           <div className="space-y-4">
-            {/* Back to Google Sign-in Button */}
-            <button
-              onClick={() => {
-                setShowManualAuth(false);
-                setError("");
-              }}
-              className="flex items-center text-gray-400 hover:text-gray-200 text-sm transition-colors duration-200 mb-4"
-            >
-              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              Back to Google Sign-In
-            </button>
+            {/* Navigation Buttons Row */}
+            <div className="flex flex-wrap gap-2 mb-4">
+              {/* Back to Google Sign-in Button */}
+              <button
+                onClick={() => {
+                  setShowManualAuth(false);
+                  setError("");
+                }}
+                className="flex items-center px-3 py-2 bg-gray-700/80 hover:bg-gray-600/80 text-gray-300 text-sm rounded-lg transition-colors duration-200"
+              >
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                Back to Sign-In Options
+              </button>
+
+              {/* Home Button */}
+              <button
+                onClick={() => navigate('/')}
+                className="flex items-center px-3 py-2 bg-gray-700/80 hover:bg-gray-600/80 text-gray-300 text-sm rounded-lg transition-colors duration-200"
+              >
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                </svg>
+                Home
+              </button>
+
+              {/* Play Computer Button */}
+              <button
+                onClick={() => navigate('/play')}
+                className="flex items-center px-3 py-2 bg-orange-600/80 hover:bg-orange-500/80 text-white text-sm rounded-lg transition-colors duration-200"
+              >
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Play Computer
+              </button>
+            </div>
 
             {/* Login/Register Toggle */}
             <div className="flex gap-2 mb-6">
