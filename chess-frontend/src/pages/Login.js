@@ -210,7 +210,7 @@ const LoginPage = () => {
             {/* Terms and Privacy */}
             <div className="text-center mt-6">
               <p className="text-xs text-gray-400">
-                By continuing, you agree to our <a href="/#" className="text-primary-500 hover:underline">Terms of Service</a> and <a href="/#" className="text-primary-500 hover:underline">Privacy Policy</a>.
+                By continuing, you agree to our <a href="/terms-of-service.html" target="_blank" rel="noopener noreferrer" className="text-primary-500 hover:underline">Terms of Service</a> and <a href="/privacy-policy.html" target="_blank" rel="noopener noreferrer" className="text-primary-500 hover:underline">Privacy Policy</a>.
               </p>
             </div>
           </div>
@@ -370,7 +370,7 @@ const LoginPage = () => {
             {/* Terms and Privacy for Manual Auth */}
             <div className="text-center mt-6">
               <p className="text-xs text-gray-400">
-                By continuing, you agree to our <a href="/#" className="text-primary-500 hover:underline">Terms of Service</a> and <a href="/#" className="text-primary-500 hover:underline">Privacy Policy</a>.
+                By continuing, you agree to our <a href="/terms-of-service.html" target="_blank" rel="noopener noreferrer" className="text-primary-500 hover:underline">Terms of Service</a> and <a href="/privacy-policy.html" target="_blank" rel="noopener noreferrer" className="text-primary-500 hover:underline">Privacy Policy</a>.
               </p>
             </div>
           </div>

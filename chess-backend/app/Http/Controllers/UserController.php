@@ -13,13 +13,17 @@ class UserController extends Controller
     {
         $query = $request->get('search');
 
-        $users = User::query();
+        // Define online threshold (5 minutes)
+        $onlineThreshold = now()->subMinutes(5);
+
+        $users = User::query()
+                    ->where('last_activity_at', '>=', $onlineThreshold);
 
         if ($query) {
             $users->where('name', 'like', '%' . $query . '%');
         }
 
-        // Return top 10 users ordered by rating (descending)
+        // Return top 10 online users ordered by rating (descending)
         return $users->orderBy('rating', 'desc')
                     ->limit(10)
                     ->get(['id', 'name', 'email', 'avatar_url', 'rating']);

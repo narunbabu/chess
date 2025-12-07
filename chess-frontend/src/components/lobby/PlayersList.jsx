@@ -67,8 +67,8 @@ const PlayersList = ({ players, sentInvitations, onChallenge, onComputerChalleng
           })
         ) : (
           <div className="unified-empty-state">
-            <p>🤖 No other players available right now.</p>
-            <p>Why not invite a friend to play?</p>
+            <p>🤖 No other players are online right now.</p>
+            <p>Why not invite a friend to play, or challenge the computer?</p>
           </div>
         )}
       </div>
