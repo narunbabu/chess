@@ -149,8 +149,14 @@ const LobbyPage = () => {
       userChannel.listen('.invitation.sent', (data) => {
         console.log('[Lobby] 📨 New invitation received:', data);
 
-        // Immediately add to pending invitations for instant UI update
+        // Immediately add to pending invitations for instant UI update (but not resume requests)
         if (data.invitation) {
+          // Skip resume requests - they are handled by GlobalInvitationContext popup
+          if (data.invitation.type === 'resume_request') {
+            console.log('[Lobby] Skipping resume request - handled by popup dialog');
+            return;
+          }
+
           setPendingInvitations(prev => {
             // Avoid duplicates
             const exists = prev.some(inv => inv.id === data.invitation.id);
@@ -366,7 +372,9 @@ const LobbyPage = () => {
       });
 
       setPlayers(allPlayers);
-      setPendingInvitations(pendingRes.data);
+      // Filter out resume requests from lobby list - they are handled by popup dialogs
+      const filteredPendingInvitations = pendingRes.data.filter(inv => inv.type !== 'resume_request');
+      setPendingInvitations(filteredPendingInvitations);
       setSentInvitations(activeSentInvitations);
       setActiveGames(activeGamesRes.data || []);
     } catch (error) {
@@ -596,7 +604,7 @@ const LobbyPage = () => {
         }
 
         const requestData = { response: action === 'accept' };
-        const response = await api.post(`/api/websocket/games/${invitation.game_id}/respond-resume-request`, requestData);
+        const response = await api.post(`/api/websocket/games/${invitation.game_id}/resume-response`, requestData);
         console.log('Resume request response successful:', response.data);
 
         // Remove from pending list

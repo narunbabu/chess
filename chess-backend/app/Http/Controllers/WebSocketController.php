@@ -840,6 +840,14 @@ class WebSocketController extends Controller
      */
     public function requestResume(Request $request, int $gameId): JsonResponse
     {
+        Log::info('🚀 DEBUG: Resume request API endpoint hit', [
+            'game_id' => $gameId,
+            'user_id' => Auth::id(),
+            'url' => $request->fullUrl(),
+            'method' => $request->method(),
+            'ip' => $request->ip()
+        ]);
+
         try {
             $result = $this->gameRoomService->requestResume($gameId, Auth::id());
 
