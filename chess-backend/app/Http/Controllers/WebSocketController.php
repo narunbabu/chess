@@ -882,6 +882,144 @@ class WebSocketController extends Controller
     }
 
     /**
+     * HTTP fallback for resume request when WebSocket fails
+     * This endpoint provides an idempotent way to create resume requests
+     */
+    public function requestResumeFallback(Request $request, int $gameId): JsonResponse
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json([
+                'message' => 'Unauthenticated',
+            ], 401);
+        }
+
+        try {
+            // Validate game exists and user is part of it
+            $game = Game::findOrFail($gameId);
+            if ($game->white_player_id !== $user->id && $game->black_player_id !== $user->id) {
+                return response()->json([
+                    'message' => 'You are not a participant in this game.',
+                ], 403);
+            }
+
+            // Game must be paused to request resume
+            if ($game->status !== 'paused') {
+                return response()->json([
+                    'message' => 'Game is not paused.',
+                ], 422);
+            }
+
+            $cooldownSeconds = 60;
+            $ttlSeconds = 60;
+
+            // Check if there is already a live pending request (idempotency)
+            $existing = null;
+            if ($game->resume_status === 'pending' && $game->resume_requested_by && $game->resume_request_expires_at) {
+                if (now()->lt($game->resume_request_expires_at)) {
+                    $existing = (object)[
+                        'id' => $game->id,
+                        'requesting_user_id' => $game->resume_requested_by,
+                        'expires_at' => $game->resume_request_expires_at
+                    ];
+                }
+            }
+
+            if ($existing) {
+                $secondsRemaining = max(0, now()->diffInSeconds($existing->expires_at, false));
+
+                return response()->json([
+                    'message' => 'Resume request already pending.',
+                    'pending' => true,
+                    'request_id' => $existing->id,
+                    'requested_by_id' => $existing->requesting_user_id,
+                    'requesting_user_name' => $user->name,
+                    'expires_at' => $existing->expires_at->toIso8601String(),
+                    'can_request_again_in_seconds' => $secondsRemaining,
+                    'can_request_again_at' => $existing->expires_at->toIso8601String(),
+                ], 409); // Conflict
+            }
+
+            // Enforce cooldown per user (optional but recommended)
+            $lastFromUser = null;
+            // You could implement cooldown tracking here using cache or a separate table
+            // For now, we'll skip cooldown to keep it simple
+
+            if ($lastFromUser && $lastFromUser->created_at->gt(now()->subSeconds($cooldownSeconds))) {
+                $retryAt = $lastFromUser->created_at->addSeconds($cooldownSeconds);
+
+                return response()->json([
+                    'message' => 'Resume request cooldown active.',
+                    'cooldown' => true,
+                    'can_request_again_at' => $retryAt->toIso8601String(),
+                    'can_request_again_in_seconds' => max(0, now()->diffInSeconds($retryAt, false)),
+                ], 429); // Too Many Requests
+            }
+
+            // Create new resume request using the existing service
+            $result = $this->gameRoomService->requestResume($gameId, $user->id);
+
+            Log::info('Resume request created via HTTP fallback', [
+                'user_id' => $user->id,
+                'game_id' => $gameId,
+                'source' => 'http_fallback',
+                'result' => $result
+            ]);
+
+            // Find opponent for broadcasting
+            $opponent = $game->white_player_id === $user->id ?
+                ($game->blackPlayer ?? ($game->black_player_id ? \App\Models\User::find($game->black_player_id) : null)) :
+                ($game->whitePlayer ?? ($game->white_player_id ? \App\Models\User::find($game->white_player_id) : null));
+
+            // Broadcast event to opponent if possible
+            if ($opponent) {
+                try {
+                    // Create the resume request sent event
+                    $event = new \App\Events\ResumeRequestSent($game, $user->id, $opponent->id);
+                    broadcast($event)->toOthers();
+                } catch (\Exception $broadcastEx) {
+                    Log::warning('Failed to broadcast resume request from HTTP fallback', [
+                        'game_id' => $gameId,
+                        'user_id' => $user->id,
+                        'opponent_id' => $opponent->id,
+                        'error' => $broadcastEx->getMessage()
+                    ]);
+                    // Don't fail the request if broadcast fails
+                }
+            }
+
+            // Success response matching what frontend expects
+            return response()->json([
+                'message' => 'Resume request created.',
+                'pending' => true,
+                'request_id' => $gameId,
+                'game_id' => $gameId,
+                'requesting_user_id' => $user->id,
+                'requesting_user_name' => $user->name,
+                'expires_in_seconds' => $ttlSeconds,
+                'resume_request_expires_at' => now()->addSeconds($ttlSeconds)->toIso8601String(),
+                'delivery_uncertainty' => true,
+                'fallback_note' => 'If opponent is offline or WebSocket fails, they will see this request in Lobby → Invitations.',
+                'source' => 'http_fallback'
+            ], 201); // Created
+
+        } catch (\Exception $e) {
+            Log::error('HTTP fallback resume request failed', [
+                'user_id' => $user->id,
+                'game_id' => $gameId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'message' => 'Failed to create resume request',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    
+    /**
      * Handle response to resume request
      */
     public function respondToResumeRequest(Request $request, int $gameId): JsonResponse
@@ -964,6 +1102,55 @@ class WebSocketController extends Controller
                 'expires_at' => null
             ];
 
+            // First check database (source of truth) for pending resume requests
+            if ($game->resume_status === 'pending' && $game->resume_requested_by && $game->resume_request_expires_at) {
+                // Check if the request is still valid (not expired)
+                if (now()->lt($game->resume_request_expires_at)) {
+                    $opponent = $game->white_player_id === $userId ? $game->blackPlayer : $game->whitePlayer;
+                    $requestingUser = $game->resume_requested_by === $userId ? $user :
+                        ($game->resume_requested_by === $game->white_player_id ? $game->whitePlayer : $game->blackPlayer);
+
+                    if ($game->resume_requested_by === $userId) {
+                        // I sent the request
+                        $status = [
+                            'pending' => true,
+                            'type' => 'sent',
+                            'requested_by_id' => $userId,
+                            'requesting_user' => [
+                                'id' => $user->id,
+                                'name' => $user->name
+                            ],
+                            'opponent_name' => $opponent->name,
+                            'expires_at' => $game->resume_request_expires_at->toISOString()
+                        ];
+                    } else {
+                        // Opponent sent the request
+                        $status = [
+                            'pending' => true,
+                            'type' => 'received',
+                            'requested_by_id' => $game->resume_requested_by,
+                            'requesting_user' => $requestingUser ? [
+                                'id' => $requestingUser->id,
+                                'name' => $requestingUser->name
+                            ] : null,
+                            'opponent_name' => $requestingUser ? $requestingUser->name : 'Unknown Player',
+                            'expires_at' => $game->resume_request_expires_at->toISOString()
+                        ];
+                    }
+
+                    Log::info('Resume status found in database', [
+                        'user_id' => $user->id,
+                        'game_id' => $gameId,
+                        'resume_status' => $game->resume_status,
+                        'requested_by' => $game->resume_requested_by,
+                        'expires_at' => $game->resume_request_expires_at
+                    ]);
+
+                    return response()->json($status);
+                }
+            }
+
+            // Fallback to cache check (for real-time updates that haven't hit the database yet)
             // Check if opponent has a pending request (received)
             if (\Illuminate\Support\Facades\Cache::has($opponentRequestKey)) {
                 $opponent = $game->white_player_id === $userId ? $game->blackPlayer : $game->whitePlayer;
@@ -980,7 +1167,7 @@ class WebSocketController extends Controller
                     'opponent_name' => $opponent->name,
                     'expires_at' => $expiresAt->toISOString()
                 ];
-            } 
+            }
             // Check if I have a pending request (sent)
             elseif (\Illuminate\Support\Facades\Cache::has($myRequestKey)) {
                 $opponent = $game->white_player_id === $userId ? $game->blackPlayer : $game->whitePlayer;

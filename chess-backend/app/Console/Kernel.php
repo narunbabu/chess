@@ -20,6 +20,11 @@ class Kernel extends ConsoleKernel
 
         // Optional: Run log rotation every 6 hours for high-traffic sites
         // $schedule->command('logs:rotate')->everySixHours();
+
+        // Clean up expired invitations every hour
+        $schedule->command('invitations:cleanup-expired')
+                 ->hourly()
+                 ->description('Clean up expired invitations and update their status');
     }
 
     /**

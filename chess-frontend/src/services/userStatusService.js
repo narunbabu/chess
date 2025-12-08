@@ -63,6 +63,10 @@ class UserStatusService {
       window.addEventListener('beforeunload', this.handleBeforeUnload.bind(this));
 
       this.isActive = true;
+
+      // Store global reference for cleanup
+      window.userStatusService = this;
+
       console.log('✅ [UserStatus] Service initialized successfully');
       return true;
 

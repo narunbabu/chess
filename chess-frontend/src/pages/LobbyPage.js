@@ -82,7 +82,8 @@ const LobbyPage = () => {
 
     return () => {
       if (webSocketService) {
-        webSocketService.disconnect();
+        // Only leave lobby channels, preserve Echo connection for PlayMultiplayer
+        webSocketService.leaveAllLobbyChannels();
       }
     };
   }, [user, webSocketService]);

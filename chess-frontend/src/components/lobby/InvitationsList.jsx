@@ -49,7 +49,7 @@ const InvitationsList = ({
                   </p>
                   <p className="unified-card-meta">
                     {new Date(invitation.created_at).toLocaleTimeString()}
-                    {invitation.type === 'resume_request' && invitation.expires_at && (
+                    {invitation.expires_at && (
                       <span> • Expires: {new Date(invitation.expires_at).toLocaleTimeString()}</span>
                     )}
                   </p>
@@ -107,7 +107,7 @@ const InvitationsList = ({
                   </p>
                   <p className="unified-card-meta">
                     Sent: {new Date(invitation.created_at).toLocaleTimeString()}
-                    {invitation.type === 'resume_request' && invitation.expires_at && (
+                    {invitation.expires_at && (
                       <span> • Expires: {new Date(invitation.expires_at).toLocaleTimeString()}</span>
                     )}
                   </p>

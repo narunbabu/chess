@@ -67,6 +67,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin.auth' => \App\Http\Middleware\AdminAuthMiddleware::class,
         ]);
 
+        // Exclude broadcasting/auth from CSRF verification for WebSocket authentication
+        $middleware->validateCsrfTokens(except: [
+            'broadcasting/auth',
+        ]);
+
         // API middleware is configured correctly in Kernel.php
         // Just ensure our custom CSRF middleware is excluded
 

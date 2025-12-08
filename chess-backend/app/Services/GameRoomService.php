@@ -1337,7 +1337,7 @@ class GameRoomService
             ];
         }
 
-        // Enhanced cleanup of stale resume requests
+        // Enhanced cleanup of stale resume requests with relaxed constraints
         $shouldClearResumeRequest = false;
         $clearReason = '';
 
@@ -1347,8 +1347,8 @@ class GameRoomService
                 $shouldClearResumeRequest = true;
                 $clearReason = 'expired';
             }
-            // Check if request is very old (more than 10 minutes) - likely stale
-            elseif ($game->resume_requested_at && now()->diffInMinutes($game->resume_requested_at) > 10) {
+            // RELAXED: Check if request is very old (more than 20 minutes instead of 10) - likely stale
+            elseif ($game->resume_requested_at && now()->diffInMinutes($game->resume_requested_at) > 20) {
                 $shouldClearResumeRequest = true;
                 $clearReason = 'stale_old';
             }
@@ -1357,10 +1357,19 @@ class GameRoomService
                 $shouldClearResumeRequest = true;
                 $clearReason = 'game_not_paused';
             }
-            // Check if the same user is trying to request again (likely duplicate click)
-            elseif ($game->resume_requested_by === $userId) {
+            // RELAXED: Allow same user to send new request after 5 minutes (instead of immediate)
+            elseif ($game->resume_requested_by === $userId &&
+                    $game->resume_requested_at &&
+                    now()->diffInMinutes($game->resume_requested_at) >= 5) {
                 $shouldClearResumeRequest = true;
-                $clearReason = 'duplicate_request';
+                $clearReason = 'same_user_retry_allowed';
+            }
+            // NEW: Allow either user to send a new request after 3 minutes if they haven't interacted
+            elseif ($game->resume_requested_at &&
+                    now()->diffInMinutes($game->resume_requested_at) >= 3 &&
+                    $game->resume_requested_by !== $userId) {
+                $shouldClearResumeRequest = true;
+                $clearReason = 'reasonable_timeout';
             }
         }
 
@@ -1392,20 +1401,20 @@ class GameRoomService
 
             // Allow new request to proceed
         } elseif ($game->resume_status === 'pending') {
-            // Still valid pending request
-            Log::info('Resume request still pending', [
+            // A pending request already exists. Frontend will handle cooldown/retry logic.
+            Log::info('Resume request already pending (backend blocking as per design)', [
                 'game_id' => $gameId,
                 'requested_by' => $game->resume_requested_by,
                 'current_user' => $userId,
                 'expires_at' => $game->resume_request_expires_at,
-                'time_remaining' => $game->resume_request_expires_at ? now()->diffInSeconds($game->resume_request_expires_at) : 'unknown'
             ]);
 
             return [
                 'success' => false,
-                'message' => 'Resume request already pending',
+                'message' => 'Resume request already pending. Please wait for the current request to expire or be responded to.',
                 'expires_at' => $game->resume_request_expires_at,
-                'requested_by' => $game->resume_requested_by
+                'expires_in_seconds' => $game->resume_request_expires_at ? now()->diffInSeconds($game->resume_request_expires_at) : 0,
+                'requested_by' => $game->resume_requested_by,
             ];
         }
 
@@ -1427,7 +1436,7 @@ class GameRoomService
             'status' => 'pending',
             'type' => 'resume_request',
             'game_id' => $gameId,
-            'expires_at' => now()->addMinutes(2) // 2 minute window for better UX
+            'expires_at' => now()->addSeconds(15) // 15 second window for consistency, as per new design
         ]);
 
         // Set resume request data
@@ -1486,6 +1495,36 @@ class GameRoomService
                 'event_class' => get_class($event),
                 'broadcast_channel' => 'App.Models.User.' . $opponentId
             ]);
+
+            // Also create a database notification as backup for delivery uncertainty
+            try {
+                \App\Models\Notification::create([
+                    'user_id' => $opponentId,
+                    'type' => 'resume_request',
+                    'title' => 'Game Resume Request',
+                    'message' => "{$game->whitePlayer->name} wants to resume the game",
+                    'data' => [
+                        'game_id' => $gameId,
+                        'requester_id' => $userId,
+                        'requester_name' => $game->whitePlayer->name,
+                        'expires_at' => $game->resume_request_expires_at->toISOString(),
+                        'invitation_id' => $resumeInvitation->id
+                    ],
+                    'read_at' => null,
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]);
+
+                Log::info('✅ Backup notification created for resume request', [
+                    'opponent_id' => $opponentId,
+                    'notification_type' => 'resume_request'
+                ]);
+            } catch (\Exception $e) {
+                Log::warning('Failed to create backup notification', [
+                    'opponent_id' => $opponentId,
+                    'error' => $e->getMessage()
+                ]);
+            }
         }
 
         Log::info('Resume request created', [
@@ -1493,16 +1532,22 @@ class GameRoomService
             'requested_by' => $userId,
             'opponent' => $opponentId,
             'expires_at' => $game->resume_request_expires_at,
-            'invitation_id' => $resumeInvitation->id
+            'invitation_id' => $resumeInvitation->id,
+            'note' => 'Request saved in database and WebSocket broadcast sent. If opponent is not online, they will see it in Lobby polling.'
         ]);
 
+        // Return enhanced response with delivery information
         return [
             'success' => true,
+            'message' => 'Resume request sent successfully',
             'resume_requested_by' => $userId,
             'resume_requested_at' => $game->resume_requested_at,
             'resume_request_expires_at' => $game->resume_request_expires_at,
             'opponent_id' => $opponentId,
-            'invitation_id' => $resumeInvitation->id
+            'invitation_id' => $resumeInvitation->id,
+            'delivery_method' => 'websocket_and_database',
+            'fallback_note' => 'If opponent is offline, they will see this request in Lobby → Invitations',
+            'delivery_uncertainty' => 'WebSocket delivery depends on opponent connection status'
         ];
     }
 

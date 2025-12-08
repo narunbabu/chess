@@ -133,7 +133,8 @@ export const GlobalInvitationProvider = ({ children }) => {
 
     // Listen for resume requests
     userChannel.listen('.resume.request.sent', (data) => {
-      console.log('[GlobalInvitation] Resume request received:', data);
+      console.log('[GlobalInvitation] 🎯 Resume request received via WebSocket:', data);
+      console.log('[GlobalInvitation] 🕐 Resume request timestamp:', new Date().toISOString());
 
       // Note: Always show resume requests, even when on game page, since resume requests
       // are specifically for reactivating paused games that the user is already viewing

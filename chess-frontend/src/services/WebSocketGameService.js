@@ -279,6 +279,13 @@ class WebSocketGameService {
         this.isConnected = true;
         this.socketId = this.echo.socketId();
         console.log('[WS] Echo already connected, reusing connection. Socket ID:', this.socketId);
+
+        // 🔑 IMPORTANT: Notify listeners (PlayMultiplayer) that we are connected
+        this.emit('connected', {
+          via: 'reuse',
+          socketId: this.socketId,
+        });
+
         resolve();
         return;
       }
@@ -648,7 +655,12 @@ class WebSocketGameService {
           message: data.message,
           fullData: data
         });
-        throw new Error(data.message || 'Resume request could not be sent');
+
+        // Create enhanced error with full backend data for UI
+        const error = new Error(data.message || 'Resume request could not be sent');
+        error.fullData = data; // Attach full backend response
+        error.backendResponse = data;
+        throw error;
       }
 
       console.log('✅ requestResume() - Resume request sent successfully:', data);
@@ -1431,6 +1443,33 @@ class WebSocketGameService {
     } catch (error) {
       console.error('❌ Failed to decline draw:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Leave all lobby channels without disconnecting the main Echo connection
+   */
+  leaveAllLobbyChannels() {
+    try {
+      console.log('[WS] Leaving lobby channels while preserving Echo connection');
+
+      if (this.echo && this.lobbyChannel) {
+        this.echo.leave(this.lobbyChannel.name);
+        this.lobbyChannel = null;
+        console.log('[WS] Left lobby channel');
+      }
+
+      if (this.echo && this.invitationChannel) {
+        this.echo.leave(this.invitationChannel.name);
+        this.invitationChannel = null;
+        console.log('[WS] Left invitation channel');
+      }
+
+      // Note: We DON'T disconnect the main Echo connection here
+      // This allows PlayMultiplayer to reuse the same connection
+
+    } catch (e) {
+      console.warn('[WS] Failed to leave lobby channels:', e);
     }
   }
 

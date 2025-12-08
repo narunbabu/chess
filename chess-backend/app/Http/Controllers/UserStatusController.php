@@ -23,8 +23,9 @@ class UserStatusController extends Controller
     /**
      * Time threshold (in minutes) to consider a user online
      * Users active within this window are considered online
+     * Reduced from 5 minutes to 2 minutes for better real-time experience
      */
-    private const ONLINE_THRESHOLD_MINUTES = 5;
+    private const ONLINE_THRESHOLD_MINUTES = 2;
 
     /**
      * Cache TTL for online status queries (in seconds)

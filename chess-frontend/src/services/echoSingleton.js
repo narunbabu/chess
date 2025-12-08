@@ -32,9 +32,9 @@ export function initEcho({ token, wsConfig }) {
     scheme: process.env.REACT_APP_REVERB_SCHEME || 'http',
   };
 
-  // Get API base URL with safe fallback (extract base URL from REACT_APP_BACKEND_URL)
+  // Use the API endpoint for broadcasting auth (token-aware WebSocketController)
   const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000/api';
-  const apiBaseUrl = backendUrl.replace(/\/api$/, ''); // Remove trailing /api if present
+  const apiBaseUrl = backendUrl; // Keep /api prefix for the API route
 
   try {
     echo = new Echo({
@@ -45,7 +45,7 @@ export function initEcho({ token, wsConfig }) {
       wssPort: config.wsPort,
       forceTLS: config.scheme === 'https',
       enabledTransports: ['ws', 'wss'],
-      authEndpoint: `${apiBaseUrl}/api/broadcasting/auth`,
+      authEndpoint: `${apiBaseUrl}/websocket/broadcasting/auth`,
       auth: {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -64,7 +64,7 @@ export function initEcho({ token, wsConfig }) {
       wsHost: config.wsHost,
       wsPort: config.wsPort,
       scheme: config.scheme,
-      authEndpoint: `${apiBaseUrl}/api/broadcasting/auth`,
+      authEndpoint: `${apiBaseUrl}/websocket/broadcasting/auth`,
     });
     console.log('[Echo] window.Echo set:', !!window.Echo);
 

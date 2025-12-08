@@ -90,7 +90,9 @@ class InvitationController extends Controller
             'inviter_id' => $inviterId,
             'invited_id' => $invitedId,
             'status' => 'pending',
-            'inviter_preferred_color' => $colorPreference
+            'inviter_preferred_color' => $colorPreference,
+            'type' => 'game_invitation',
+            'expires_at' => now()->addMinutes(15) // 15 minute expiration for game invitations
         ]);
 
         // Broadcast invitation sent event to recipient in real-time
@@ -115,16 +117,11 @@ class InvitationController extends Controller
             ['invited_id', Auth::id()],
             ['status', 'pending']
         ])->where(function ($query) {
-            // Include all game invitations
-            $query->where('type', 'game_invitation')
-                  // Only include non-expired resume requests
-                  ->orWhere(function ($subQuery) {
-                      $subQuery->where('type', 'resume_request')
-                               ->where(function ($expQuery) {
-                                   $expQuery->whereNull('expires_at')
-                                           ->orWhere('expires_at', '>', now());
-                               });
-                  });
+            // Only include non-expired invitations of all types
+            $query->where(function ($expQuery) {
+                $expQuery->whereNull('expires_at')
+                        ->orWhere('expires_at', '>', now());
+            });
         })->with(['inviter', 'game'])->get();
 
         return response()->json($invitations);
@@ -135,16 +132,11 @@ class InvitationController extends Controller
         $invitations = Invitation::where('inviter_id', Auth::id())
             ->whereIn('status', ['pending', 'accepted'])
             ->where(function ($query) {
-                // Include all game invitations
-                $query->where('type', 'game_invitation')
-                      // Only include non-expired resume requests
-                      ->orWhere(function ($subQuery) {
-                          $subQuery->where('type', 'resume_request')
-                                   ->where(function ($expQuery) {
-                                       $expQuery->whereNull('expires_at')
-                                               ->orWhere('expires_at', '>', now());
-                                   });
-                      });
+                // Only include non-expired invitations of all types
+                $query->where(function ($expQuery) {
+                    $expQuery->whereNull('expires_at')
+                            ->orWhere('expires_at', '>', now());
+                });
             })->with(['invited', 'game'])
             ->get();
 

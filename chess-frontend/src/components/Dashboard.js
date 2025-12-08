@@ -4,6 +4,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useAppData } from "../contexts/AppDataContext";
 import { getGameHistories } from "../services/gameHistoryService";
 import api from "../services/api";
+import userStatusService from "../services/userStatusService";
 import SkillAssessmentModal from "./auth/SkillAssessmentModal";
 import DetailedStatsModal from "./DetailedStatsModal";
 import { getPlayerAvatar } from "../utils/playerDisplayUtils";
@@ -64,6 +65,21 @@ const Dashboard = () => {
     // Component mount logging
     mountCountRef.current += 1;
     console.log(`[Dashboard] 🔄 Component mounted (mount #${mountCountRef.current})`);
+
+    // Initialize UserStatusService to maintain online status
+    const initializeStatusService = async () => {
+      try {
+        console.log('[Dashboard] 👤 Initializing user status service...');
+        // UserStatusService is a singleton - use the exported instance directly
+        await userStatusService.initialize();
+        console.log('[Dashboard] ✅ User status service initialized successfully');
+      } catch (error) {
+        console.error('[Dashboard] ❌ Failed to initialize user status service:', error);
+      }
+    };
+
+    // Initialize status service immediately
+    initializeStatusService();
 
     // Only log trace on first mount to reduce noise
     if (mountCountRef.current === 1) {
@@ -198,7 +214,19 @@ const Dashboard = () => {
 
     loadGameHistories();
 
-    // No cleanup function - keep the guard active to prevent duplicate fetches
+    // Cleanup function to properly stop UserStatusService
+    return () => {
+      console.log('[Dashboard] 🧹 Component unmounting, stopping user status service...');
+      // The UserStatusService will handle cleanup automatically when page unloads
+      // but we should stop the interval when the component unmounts
+      try {
+        if (userStatusService) {
+          userStatusService.stopHeartbeat();
+        }
+      } catch (error) {
+        console.error('[Dashboard] ⚠️ Error stopping user status service:', error);
+      }
+    };
   }, [getGameHistory, user?.id]);
 
   const handleReviewGame = (game) => {

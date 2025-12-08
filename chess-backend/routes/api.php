@@ -177,6 +177,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Resume request functionality
         Route::post('/games/{gameId}/resume-request', [WebSocketController::class, 'requestResume']);
+        Route::post('/games/{gameId}/request-resume', [WebSocketController::class, 'requestResumeFallback']); // HTTP fallback for WS failures
         Route::post('/games/{gameId}/resume-response', [WebSocketController::class, 'respondToResumeRequest']);
 
         // Resume status check
