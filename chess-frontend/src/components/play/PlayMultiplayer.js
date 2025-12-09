@@ -14,6 +14,7 @@ import { useGameNavigation } from '../../contexts/GameNavigationContext';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { BACKEND_URL } from '../../config';
 import WebSocketGameService from '../../services/WebSocketGameService';
+import globalWebSocketManager from '../../services/GlobalWebSocketManager';
 import { getEcho } from '../../services/echoSingleton';
 import { evaluateMove } from '../../utils/gameStateUtils';
 import { encodeGameHistory } from '../../utils/gameHistoryStringUtils';
@@ -110,6 +111,7 @@ const PlayMultiplayer = () => {
   const hasAutoRequestedResume = useRef(false); // Prevent duplicate auto-requests
   const hasReceivedResumeRequest = useRef(false); // Track if we received a resume request from opponent
   const isReadyForAutoSend = useRef(false); // Ensure listeners ready before auto-send
+  const isPausedForNavigationRef = useRef(false); // Track if game was paused for navigation
 
   // Refs to prevent stale closures in inactivity timer
   const turnRef = useRef(gameInfo.turn);
@@ -343,13 +345,23 @@ const PlayMultiplayer = () => {
 
     // Check if user has proper authorization to access this specific game
 
-    // Check if this is a lobby-initiated resume
-    const isLobbyResumeInitiated = lastInvitationAction === 'resume_game';
-    console.log('🎯 Lobby resume check:', {
+    // Check if this is a lobby-initiated resume OR accepting a resume request
+    const isLobbyResumeInitiated = lastInvitationAction === 'resume_game' || lastInvitationAction === 'resume_accepted';
+    console.log('🎯 Lobby/Accepted resume check:', {
       lastInvitationAction,
       isLobbyResumeInitiated,
       gameId: parseInt(gameId)
     });
+
+    // IMPORTANT: Clear session storage flags immediately after reading to prevent reuse
+    // This ensures that if the game is paused and the user refreshes/navigates,
+    // it won't incorrectly trigger auto-resume behavior
+    if (isLobbyResumeInitiated) {
+      console.log('🧹 Clearing session storage flags after consuming them');
+      sessionStorage.removeItem('lastInvitationAction');
+      sessionStorage.removeItem('lastInvitationTime');
+      sessionStorage.removeItem('lastGameId');
+    }
 
 
 
@@ -676,6 +688,23 @@ const PlayMultiplayer = () => {
       fetchChampionshipContext();
 
       // Initialize WebSocket connection
+      // If there's an existing wsService (e.g., from delayed disconnect), clean it up first
+      if (wsService.current) {
+        console.log('🧹 Cleaning up existing WebSocket before creating new one');
+        // Cancel any pending delayed disconnect
+        if (wsService.current.cancelDelayedDisconnect) {
+          wsService.current.cancelDelayedDisconnect();
+        }
+        // Force immediate disconnect to avoid conflicts
+        wsService.current.disconnect({ immediate: true });
+      }
+
+      // Cancel global manager's keep-alive if we're returning to a paused game
+      if (globalWebSocketManager.isGameAlive(gameId)) {
+        console.log('🌐 Canceling global WebSocket manager keep-alive for game:', gameId);
+        globalWebSocketManager.cancelKeepAlive(gameId);
+      }
+
       wsService.current = new WebSocketGameService();
 
       // Set up WebSocket event listeners
@@ -877,6 +906,11 @@ const PlayMultiplayer = () => {
     hasReceivedResumeRequest.current = false; // Reset received flag
     hasAutoRequestedResume.current = false; // Reset auto-request flag
 
+    // IMPORTANT: Clear cooldown on resume to allow fresh requests in future pauses
+    setLastManualResumeRequestTime(null);
+    setResumeCooldownRemaining(0);
+    console.log('[Resume] Cleared cooldown on game resume');
+
     // Reset inactivity timer to start fresh from resume
     lastActivityTimeRef.current = Date.now();
 
@@ -917,8 +951,24 @@ const PlayMultiplayer = () => {
     moveStartTimeRef.current = null;
     console.log('[MoveTimer] Reset move timer on pause to prevent stale values');
 
-    console.log('✅ Game paused - showing paused UI to both players, move timer reset');
-  }, []);
+    // IMPORTANT: Clear any existing resume request state and cooldown
+    // This ensures fresh state for each new pause event
+    setResumeRequestData(null);
+    setIsWaitingForResumeResponse(false);
+    setLastManualResumeRequestTime(null); // Reset cooldown
+    setResumeCooldownRemaining(0);
+    hasReceivedResumeRequest.current = false;
+
+    // Clear countdown timer if running
+    if (resumeRequestTimer.current) {
+      clearInterval(resumeRequestTimer.current);
+      resumeRequestTimer.current = null;
+    }
+
+    console.log('[Resume] Cleared resume request state and cooldown on new pause event');
+
+    console.log('✅ Game paused - showing paused UI to both players, move timer reset, resume state cleared');
+  }, [user, gameInfo?.id, gameId]);
 
   // Handle opponent ping notification
   const handleOpponentPing = useCallback((event) => {
@@ -1671,14 +1721,68 @@ const PlayMultiplayer = () => {
     console.log('🚀 Initializing game (first time)');
     initializeGame();
 
-    // Cleanup on unmount
+    // Cleanup on unmount - ONLY when component actually unmounts, not on status changes
     return () => {
-      console.log('🧹 Cleanup: disconnecting WebSocket');
+      console.log('🧹 Cleanup: disconnecting WebSocket (component unmounting)');
+
+      // Check if we're truly navigating away (not just re-rendering)
+      const isNavigatingAway = !window.location.pathname.includes('/play/multiplayer');
+
+      // Check if this was a pause-triggered navigation
+      const wasPausedForNavigation = isPausedForNavigationRef.current;
+
+      console.log('🧹 Navigation check:', {
+        currentPath: window.location.pathname,
+        isNavigatingAway,
+        wasPausedForNavigation,
+        gameStatus: gameInfo?.status
+      });
+
       if (wsService.current) {
         // Clear any pending resume request before disconnecting
         wsService.current.clearPendingResumeRequest();
-        wsService.current.disconnect();
+
+        // Delay disconnect if:
+        // 1. We're navigating away from the game page AND
+        // 2. Either:
+        //    a) The game status is 'paused' OR
+        //    b) We marked it as paused for navigation (even if status hasn't updated yet)
+        const shouldDelayDisconnect = isNavigatingAway && (
+          gameInfo?.status === 'paused' || wasPausedForNavigation
+        );
+
+        console.log('🧹 Disconnect decision:', {
+          shouldDelayDisconnect,
+          immediate: !shouldDelayDisconnect,
+          isPaused: gameInfo?.status === 'paused',
+          wasPausedForNavigation
+        });
+
+        // If we should delay disconnect (game is paused), use global manager
+        if (shouldDelayDisconnect) {
+          console.log('🌐 [PlayMultiplayer] Using global WebSocket manager to keep game alive');
+          // Keep the game alive in the global manager
+          globalWebSocketManager.keepGameAlive(gameId);
+
+          // Disconnect the local service but keep channel alive (local-only cleanup)
+          wsService.current.disconnect({
+            localOnly: true,
+            keepChannelAlive: true
+          });
+        } else {
+          // Normal immediate disconnect
+          wsService.current.disconnect({ immediate: true });
+
+          // Also cleanup from global manager if needed
+          if (globalWebSocketManager.isGameAlive(gameId)) {
+            globalWebSocketManager.cancelKeepAlive(gameId);
+          }
+        }
       }
+
+      // Reset the pause navigation flag
+      isPausedForNavigationRef.current = false;
+
       // Unregister from game navigation context
       if (gameRegisteredRef.current) {
         unregisterActiveGame();
@@ -1697,6 +1801,10 @@ const PlayMultiplayer = () => {
       console.log('[PlayMultiplayer] Received pause request:', event.detail);
 
       try {
+        // Mark that we're pausing for navigation
+        isPausedForNavigationRef.current = true;
+        console.log('[PlayMultiplayer] 🏷️ Marked as paused for navigation');
+
         // Trigger pause functionality and wait for it to complete
         if (wsService.current) {
           const timeData = getTimeData();
@@ -1712,6 +1820,8 @@ const PlayMultiplayer = () => {
         }, 200);
       } catch (error) {
         console.error('[PlayMultiplayer] Failed to pause game for navigation:', error);
+        // Still mark as paused for navigation even if pause fails
+        isPausedForNavigationRef.current = true;
         // If pause fails, still allow navigation but log the error
         if (event.detail.targetPath) {
           navigate(event.detail.targetPath);
@@ -1752,24 +1862,62 @@ const PlayMultiplayer = () => {
 
   // Set up user channel listeners for resume requests
   useEffect(() => {
-    if (!user) return;
+    console.log('[PlayMultiplayer] 🔄 Resume listener useEffect triggered', {
+      hasUser: !!user,
+      userId: user?.id,
+      gameId: gameId,
+      timestamp: new Date().toISOString()
+    });
 
-    const echo = getEcho();
-    if (!echo) {
-      console.warn('[PlayMultiplayer] Echo not available for resume request listeners');
+    if (!user) {
+      console.log('[PlayMultiplayer] ❌ No user, skipping resume listener setup');
       return;
     }
 
+    const echo = getEcho();
+    if (!echo) {
+      console.error('[PlayMultiplayer] ❌ Echo not available for resume request listeners');
+      return;
+    }
+
+    console.log('[PlayMultiplayer] ✅ Echo available, subscribing to user channel');
+
     const userChannel = echo.private(`App.Models.User.${user.id}`);
 
-    console.log('[PlayMultiplayer] Setting up resume request listeners for user:', user.id);
+    console.log('[PlayMultiplayer] 🎧 Setting up resume request listeners', {
+      userId: user.id,
+      channel: `App.Models.User.${user.id}`,
+      currentGameId: gameId,
+      hasUserChannel: !!userChannel
+    });
+
+    // Add subscription confirmation
+    userChannel.subscribed(() => {
+      console.log('[PlayMultiplayer] 🎉 Successfully subscribed to user channel:', `App.Models.User.${user.id}`);
+    });
+
+    userChannel.error((error) => {
+      console.error('[PlayMultiplayer] ❌ User channel subscription error:', error);
+    });
 
     // Listen for resume requests from opponent
     userChannel.listen('.resume.request.sent', (data) => {
       console.log('[PlayMultiplayer] 📨 Resume request received:', data);
+      console.log('[PlayMultiplayer] 🔍 Game ID match check:', {
+        receivedGameId: data.game_id,
+        receivedGameIdType: typeof data.game_id,
+        currentGameId: gameId,
+        currentGameIdType: typeof gameId,
+        parsedMatch: parseInt(data.game_id) === parseInt(gameId),
+        requestingUserId: data.requesting_user?.id,
+        requestingUserName: data.requesting_user?.name,
+        myUserId: user.id
+      });
 
       // Check if this is for the current game
       if (data.game_id && parseInt(data.game_id) === parseInt(gameId)) {
+        console.log('[PlayMultiplayer] ✅ Resume request for current game, showing notification');
+
         // Mark that we've received a resume request
         hasReceivedResumeRequest.current = true;
 
@@ -1781,8 +1929,8 @@ const PlayMultiplayer = () => {
           opponentName: data.requesting_user?.name || 'Rival',
           expires_at: data.expires_at
         });
-
-        console.log('[PlayMultiplayer] Resume request for current game, showing notification');
+      } else {
+        console.log('[PlayMultiplayer] ❌ Resume request for different game, ignoring');
       }
     });
 
@@ -1902,12 +2050,16 @@ const PlayMultiplayer = () => {
     console.log('[PlayMultiplayer] Resume listeners ready for auto-send');
 
     return () => {
-      console.log('[PlayMultiplayer] Cleaning up resume request listeners');
+      console.log('[PlayMultiplayer] Cleaning up resume request listeners', {
+        userId: user?.id,
+        gameId: gameId,
+        timestamp: new Date().toISOString()
+      });
       userChannel.stopListening('.resume.request.sent');
       userChannel.stopListening('.resume.request.response');
       userChannel.stopListening('.resume.request.expired');
     };
-  }, [user, gameId, isLobbyResume, navigate]); // Added navigate to deps
+  }, [user?.id, gameId]); // IMPORTANT: Only re-run when user ID or game ID changes, NOT on isLobbyResume or navigate changes
 
   // Effect to manage the resume request cooldown timer for display
   useEffect(() => {
@@ -2151,20 +2303,38 @@ const PlayMultiplayer = () => {
       if (error.fullData) {
         const backendData = error.fullData;
 
-        if (backendData.expires_at) {
-          const expiresTime = new Date(backendData.expires_at);
-          const formattedTime = expiresTime.toLocaleTimeString();
-          userMessage = `Resume request already pending (sent by ${backendData.requesting_user_name || 'Opponent'})`;
-          actionRequired = `Request expires at ${formattedTime}. Check Lobby → Invitations to respond.`;
+        // Use backend message directly
+        userMessage = backendData.message || 'Failed to send resume request';
+
+        // Show expiration countdown for pending requests
+        if (backendData.expires_in_seconds && backendData.expires_in_seconds > 0) {
+          countdownSeconds = backendData.expires_in_seconds;
+          const minutes = Math.floor(countdownSeconds / 60);
+          const seconds = countdownSeconds % 60;
+          const countdownText = `${minutes}m ${seconds}s`;
+
+          if (backendData.is_same_user) {
+            // User's own pending request
+            actionRequired = `Your request expires in ${countdownText}. Wait for opponent response.`;
+          } else {
+            // Opponent's pending request
+            actionRequired = `${backendData.requesting_user_name || 'Opponent'}'s request expires in ${countdownText}. You can accept it from the notification dialog.`;
+
+            // IMPORTANT: If opponent sent a request, show it to the user
+            console.log('[Resume] 🎯 Opponent has pending resume request, showing notification');
+            setResumeRequestData({
+              type: 'received',
+              requested_by: backendData.requested_by,
+              requesting_user: { name: backendData.requesting_user_name },
+              opponentName: backendData.requesting_user_name || 'Opponent',
+              expires_at: backendData.expires_at
+            });
+            setResumeRequestCountdown(countdownSeconds);
+            hasReceivedResumeRequest.current = true;
+          }
         }
 
-        if (backendData.can_request_again_at) {
-          requestAgainTime = new Date(backendData.can_request_again_at);
-          countdownSeconds = backendData.can_request_again_in_seconds || 0;
-          const formattedRequestTime = requestAgainTime.toLocaleTimeString();
-          actionRequired = `You can send another request at ${formattedRequestTime}. Check Lobby → Invitations to respond to current request.`;
-        }
-
+        // Use backend suggestion if provided
         if (backendData.suggestion) {
           actionRequired = backendData.suggestion;
         }
@@ -2516,7 +2686,11 @@ const PlayMultiplayer = () => {
     // 1. Game is paused (waiting for resume)
     // 2. WebSocket is actually not connected
     // 3. We haven't already received a request
-    if (gameInfo.status === 'paused' && !isActuallyConnected && !hasReceivedResumeRequest.current && !resumeRequestData) {
+    // 4. We're not accepting a resume request (resume_accepted action)
+    const lastInvitationAction = sessionStorage.getItem('lastInvitationAction');
+    const isAcceptingResume = lastInvitationAction === 'resume_accepted';
+
+    if (gameInfo.status === 'paused' && !isActuallyConnected && !hasReceivedResumeRequest.current && !resumeRequestData && !isAcceptingResume) {
       console.log('[PlayMultiplayer] Starting resume request polling (WebSocket actually disconnected)');
 
       pollTimer = setInterval(async () => {

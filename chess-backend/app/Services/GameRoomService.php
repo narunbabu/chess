@@ -1321,6 +1321,8 @@ class GameRoomService
             'game_status' => $game->status,
             'resume_status' => $game->resume_status,
             'resume_requested_by' => $game->resume_requested_by,
+            'resume_requested_at' => $game->resume_requested_at,
+            'resume_request_expires_at' => $game->resume_request_expires_at,
             'white_player_id' => $game->white_player_id,
             'black_player_id' => $game->black_player_id
         ]);
@@ -1357,16 +1359,29 @@ class GameRoomService
                 $shouldClearResumeRequest = true;
                 $clearReason = 'game_not_paused';
             }
-            // RELAXED: Allow same user to send new request after 5 minutes (instead of immediate)
+            // NEW: Fix for rapid pause/resume cycles - only clear if request is from SAME user within 10 seconds
+            elseif ($game->resume_requested_at && now()->diffInSeconds($game->resume_requested_at) < 10 &&
+                    $game->status === 'paused' && $game->resume_requested_by === $userId) {
+                $shouldClearResumeRequest = true;
+                $clearReason = 'rapid_pause_resume_cycle';
+                Log::info('🔧 Detected rapid pause/resume cycle - cleaning up stale resume request', [
+                    'game_id' => $gameId,
+                    'user_id' => $userId,
+                    'resume_requested_at' => $game->resume_requested_at,
+                    'seconds_since_request' => now()->diffInSeconds($game->resume_requested_at),
+                    'resume_status' => $game->resume_status
+                ]);
+            }
+            // RELAXED: Allow same user to send new request after 1 minute
             elseif ($game->resume_requested_by === $userId &&
                     $game->resume_requested_at &&
-                    now()->diffInMinutes($game->resume_requested_at) >= 5) {
+                    now()->diffInMinutes($game->resume_requested_at) >= 1) {
                 $shouldClearResumeRequest = true;
                 $clearReason = 'same_user_retry_allowed';
             }
-            // NEW: Allow either user to send a new request after 3 minutes if they haven't interacted
+            // NEW: Allow either user to send a new request after 1 minute
             elseif ($game->resume_requested_at &&
-                    now()->diffInMinutes($game->resume_requested_at) >= 3 &&
+                    now()->diffInMinutes($game->resume_requested_at) >= 1 &&
                     $game->resume_requested_by !== $userId) {
                 $shouldClearResumeRequest = true;
                 $clearReason = 'reasonable_timeout';
@@ -1402,20 +1417,67 @@ class GameRoomService
             // Allow new request to proceed
         } elseif ($game->resume_status === 'pending') {
             // A pending request already exists. Frontend will handle cooldown/retry logic.
-            Log::info('Resume request already pending (backend blocking as per design)', [
+            Log::info('❌ Resume request BLOCKED - pending request exists', [
                 'game_id' => $gameId,
                 'requested_by' => $game->resume_requested_by,
                 'current_user' => $userId,
                 'expires_at' => $game->resume_request_expires_at,
+                'seconds_since_request' => $game->resume_requested_at ? now()->diffInSeconds($game->resume_requested_at) : 'N/A',
+                'is_expired' => $game->resume_request_expires_at ? now()->isAfter($game->resume_request_expires_at) : 'N/A',
+                'cleanup_conditions' => [
+                    'rapid_cycle_10s' => $game->resume_requested_at && now()->diffInSeconds($game->resume_requested_at) < 10 && $game->resume_requested_by === $userId,
+                    'same_user_1min' => $game->resume_requested_by === $userId && now()->diffInMinutes($game->resume_requested_at) >= 1,
+                    'other_user_1min' => now()->diffInMinutes($game->resume_requested_at) >= 1 && $game->resume_requested_by !== $userId,
+                    'expired_check' => $game->resume_request_expires_at ? now()->isAfter($game->resume_request_expires_at) : false
+                ]
             ]);
 
-            return [
-                'success' => false,
-                'message' => 'Resume request already pending. Please wait for the current request to expire or be responded to.',
-                'expires_at' => $game->resume_request_expires_at,
-                'expires_in_seconds' => $game->resume_request_expires_at ? now()->diffInSeconds($game->resume_request_expires_at) : 0,
-                'requested_by' => $game->resume_requested_by,
-            ];
+            // Determine who sent the pending request and who's trying to send now
+            $requestingUserName = '';
+            $isSameUser = ($game->resume_requested_by === $userId);
+
+            if ($game->resume_requested_by === $game->white_player_id) {
+                $requestingUserName = $game->whitePlayer->name ?? 'White Player';
+            } else {
+                $requestingUserName = $game->blackPlayer->name ?? 'Black Player';
+            }
+
+            $expiresInSeconds = $game->resume_request_expires_at ? now()->diffInSeconds($game->resume_request_expires_at, false) : 0;
+
+            // If expired, allow cleanup to happen
+            if ($expiresInSeconds <= 0) {
+                Log::info('Pending request has expired, allowing new request', [
+                    'game_id' => $gameId,
+                    'old_request_by' => $game->resume_requested_by,
+                    'new_request_by' => $userId
+                ]);
+
+                // Clear the expired request
+                $game->update([
+                    'resume_status' => 'accepted',
+                    'resume_requested_by' => null,
+                    'resume_requested_at' => null,
+                    'resume_request_expires_at' => null,
+                ]);
+
+                // Allow new request to proceed
+            } else {
+                // Active pending request exists
+                return [
+                    'success' => false,
+                    'message' => $isSameUser
+                        ? 'Your resume request is still pending. Please wait for opponent response.'
+                        : "Resume request already pending (sent by {$requestingUserName}). Please wait for it to expire or be responded to.",
+                    'expires_at' => $game->resume_request_expires_at,
+                    'expires_in_seconds' => $expiresInSeconds,
+                    'requested_by' => $game->resume_requested_by,
+                    'requesting_user_name' => $requestingUserName,
+                    'is_same_user' => $isSameUser,
+                    'suggestion' => $isSameUser
+                        ? 'Wait for opponent response or check Lobby → Invitations.'
+                        : "The opponent ({$requestingUserName}) has already sent a resume request. You can accept it from the notification dialog or Lobby → Invitations.",
+                ];
+            }
         }
 
         // Verify user is a player in this game
@@ -1436,7 +1498,7 @@ class GameRoomService
             'status' => 'pending',
             'type' => 'resume_request',
             'game_id' => $gameId,
-            'expires_at' => now()->addSeconds(15) // 15 second window for consistency, as per new design
+            'expires_at' => now()->addSeconds(30) // 30 second window for better UX
         ]);
 
         // Set resume request data

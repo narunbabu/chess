@@ -118,15 +118,36 @@ const Dashboard = () => {
         activeGamesResponse = fetchedActiveGames;
         unfinishedGamesData = fetchedUnfinishedGames || [];
 
+        // Deduplicate unfinished games by gameId to prevent duplicate key errors
+        const uniqueUnfinishedGames = unfinishedGamesData.reduce((acc, game) => {
+          const existingIndex = acc.findIndex(g => g.gameId === game.gameId);
+          if (existingIndex === -1) {
+            acc.push(game);
+          } else {
+            // Keep the one with more recent lastMoveAt
+            const existing = acc[existingIndex];
+            const existingTime = existing.lastMoveAt ? new Date(existing.lastMoveAt).getTime() : 0;
+            const currentTime = game.lastMoveAt ? new Date(game.lastMoveAt).getTime() : 0;
+            if (currentTime > existingTime) {
+              acc[existingIndex] = game;
+            }
+          }
+          return acc;
+        }, []);
+
+        if (unfinishedGamesData.length !== uniqueUnfinishedGames.length) {
+          console.warn('[Dashboard] ⚠️ Found duplicate unfinished games. Before:', unfinishedGamesData.length, 'After:', uniqueUnfinishedGames.length);
+        }
+
         console.log('[Dashboard] ✅ Loaded', histories.length, 'game histories');
         console.log('[Dashboard] ✅ Loaded', activeGamesResponse.data.length, 'active games');
-        console.log('[Dashboard] ✅ Loaded', unfinishedGamesData.length, 'unfinished games');
+        console.log('[Dashboard] ✅ Loaded', uniqueUnfinishedGames.length, 'unfinished games');
 
         // Correct multiplayer history scores and results
         const correctedHistories = await correctMultiplayerHistories(histories);
         setGameHistories(correctedHistories);
         setActiveGames(activeGamesResponse.data || []);
-        setUnfinishedGames(unfinishedGamesData);
+        setUnfinishedGames(uniqueUnfinishedGames);
       } catch (error) {
         console.error("[Dashboard] ❌ Error loading data:", error);
         setGameHistories([]);
@@ -465,7 +486,7 @@ const Dashboard = () => {
                     : '';
 
                 return (
-                  <div key={game.id} className="unified-card horizontal">
+                  <div key={`active-${game.id}`} className="unified-card horizontal">
                     <img
                       src={
                         getPlayerAvatar(opponent) ||
@@ -546,7 +567,7 @@ const Dashboard = () => {
                 const lastMoveTime = game.lastMoveAt ? new Date(game.lastMoveAt).toLocaleString() : 'Unknown';
 
                 return (
-                  <div key={game.gameId || index} className="unified-card horizontal">
+                  <div key={`unfinished-${game.gameId}-${index}`} className="unified-card horizontal">
                     <div className="unified-card-content">
                       <h3 className="unified-card-title">{gameMode} - vs {opponent}</h3>
                       <p className="unified-card-subtitle">
@@ -594,7 +615,7 @@ const Dashboard = () => {
             <>
             <div className="unified-card-grid cols-1">
               {gameHistories.slice(0, visibleRecentGames).map((game) => (
-                <div key={game.id} className="unified-card horizontal">
+                <div key={`history-${game.id}`} className="unified-card horizontal">
                   <div className="unified-card-content">
                     <h3 className="unified-card-title">
                       {new Date(

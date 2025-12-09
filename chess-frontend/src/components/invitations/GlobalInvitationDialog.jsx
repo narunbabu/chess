@@ -9,6 +9,8 @@ import './GlobalInvitationDialog.css';
  * Appears across all pages except during active gameplay
  */
 const GlobalInvitationDialog = () => {
+  console.log('[GlobalInvitationDialog] 🏗️ Dialog component rendering');
+
   const {
     pendingInvitation,
     resumeRequest,
@@ -22,7 +24,33 @@ const GlobalInvitationDialog = () => {
     declineChampionshipResumeRequest,
   } = useGlobalInvitation();
 
+  console.log('[GlobalInvitationDialog] 🔍 Dialog render state:', {
+    hasPendingInvitation: !!pendingInvitation,
+    hasResumeRequest: !!resumeRequest,
+    hasChampionshipResumeRequest: !!championshipResumeRequest
+  });
+
   const [showColorChoice, setShowColorChoice] = useState(false);
+
+  // Debug logging
+  React.useEffect(() => {
+    console.log('[GlobalInvitationDialog] 🎨 State update:', {
+      hasPendingInvitation: !!pendingInvitation,
+      hasResumeRequest: !!resumeRequest,
+      hasChampionshipResumeRequest: !!championshipResumeRequest,
+      resumeRequest: resumeRequest,
+      shouldRender: !!(pendingInvitation || resumeRequest || championshipResumeRequest)
+    });
+
+    if (resumeRequest) {
+      console.log('[GlobalInvitationDialog] ✅ Resume request detected! Dialog should be visible now');
+      console.log('[GlobalInvitationDialog] 📋 Resume request details:', {
+        gameId: resumeRequest.gameId,
+        requester: resumeRequest.requestingUserName,
+        expiresAt: resumeRequest.expiresAt
+      });
+    }
+  }, [pendingInvitation, resumeRequest, championshipResumeRequest]);
 
   // Handle initial accept click - show color choice
   const handleAcceptClick = () => {

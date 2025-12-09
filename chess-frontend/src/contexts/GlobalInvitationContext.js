@@ -4,13 +4,29 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { getEcho } from '../services/echoSingleton';
 import api from '../services/api';
+import globalWebSocketManager from '../services/GlobalWebSocketManager';
 
 const GlobalInvitationContext = createContext(null);
 
 export const GlobalInvitationProvider = ({ children }) => {
+  // CRITICAL: This log should ALWAYS appear if the provider is rendering
+  console.log('[GlobalInvitation] 🏗️ Provider component rendering - ENTRY POINT', {
+    timestamp: new Date().toISOString(),
+    location: window.location.pathname
+  });
+
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  console.log('[GlobalInvitation] 🔍 Provider render state:', {
+    hasUser: !!user,
+    userId: user?.id,
+    userName: user?.username || user?.name,
+    userEmail: user?.email,
+    pathname: location.pathname,
+    hasAuthContext: !!useAuth
+  });
 
   // State for managing invitations and dialogs
   const [pendingInvitation, setPendingInvitation] = useState(null);
@@ -32,6 +48,9 @@ export const GlobalInvitationProvider = ({ children }) => {
   isProcessingRef.current = isProcessing;
 
   // Check if user is currently in an active game (should NOT show dialogs)
+  // Use ref to avoid stale closure in WebSocket listeners
+  const isInActiveGameRef = useRef(() => false);
+
   const isInActiveGame = useCallback(() => {
     const path = location.pathname;
     // Only block dialogs when user is in an active multiplayer game
@@ -39,19 +58,83 @@ export const GlobalInvitationProvider = ({ children }) => {
     return path.startsWith('/play/multiplayer/');
   }, [location.pathname]);
 
+  // Update ref whenever callback changes
+  isInActiveGameRef.current = isInActiveGame;
+
   // Listen to WebSocket events for invitations
   useEffect(() => {
-    if (!user) return;
+    console.log('[GlobalInvitation] 🔄 Provider useEffect triggered', {
+      hasUser: !!user,
+      userId: user?.id,
+      userName: user?.username,
+      pathname: location.pathname,
+      timestamp: new Date().toISOString()
+    });
 
-    const echo = getEcho();
-    if (!echo) {
-      console.warn('[GlobalInvitation] Echo not available, invitation dialogs will not work');
+    if (!user) {
+      console.log('[GlobalInvitation] ⏭️ No user yet, skipping listener setup');
       return;
     }
 
-    console.log('[GlobalInvitation] Setting up listeners for user:', user.id);
+    // Try to get Echo with retry logic
+    let echo = getEcho();
+    console.log('[GlobalInvitation] 🔍 Initial Echo check:', {
+      hasEcho: !!echo,
+      hasWindow: typeof window !== 'undefined',
+      windowEcho: !!window.Echo,
+      socketId: echo?.socketId?.()
+    });
+
+    if (!echo) {
+      console.warn('[GlobalInvitation] ⚠️ Echo not immediately available, will retry in 500ms...');
+
+      // Track cleanup state
+      let cleanupCalled = false;
+      let cleanupFunction = null;
+
+      // Retry after a short delay to allow Echo to initialize
+      const retryTimeout = setTimeout(() => {
+        if (cleanupCalled) {
+          console.log('[GlobalInvitation] ⏭️ Component unmounted, skipping retry');
+          return;
+        }
+
+        echo = getEcho();
+        console.log('[GlobalInvitation] 🔄 Retry Echo check:', {
+          hasEcho: !!echo,
+          socketId: echo?.socketId?.()
+        });
+
+        if (echo) {
+          console.log('[GlobalInvitation] ✅ Echo available after retry, setting up listeners');
+          cleanupFunction = setupListeners(echo);
+        } else {
+          console.error('[GlobalInvitation] ❌ Echo still not available after retry, invitation dialogs will not work');
+        }
+      }, 500);
+
+      return () => {
+        cleanupCalled = true;
+        clearTimeout(retryTimeout);
+        if (cleanupFunction) {
+          cleanupFunction();
+        }
+      };
+    }
+
+    // Echo is available immediately
+    return setupListeners(echo);
+
+    function setupListeners(echo) {
+      if (!echo || !user?.id) {
+        console.error('[GlobalInvitation] ❌ Cannot setup listeners - missing Echo or user ID');
+        return;
+      }
+
+    console.log('[GlobalInvitation] ✅ Setting up listeners for user:', user.id);
     console.log('[GlobalInvitation] 🔌 Echo available:', !!echo);
     console.log('[GlobalInvitation] 📍 Current location:', location.pathname);
+    console.log('[GlobalInvitation] 🕐 Setup timestamp:', new Date().toISOString());
 
     // Subscribe to user-specific channel (shared for all invitation types)
     const userChannel = echo.private(`App.Models.User.${user.id}`);
@@ -59,33 +142,64 @@ export const GlobalInvitationProvider = ({ children }) => {
     console.log('[GlobalInvitation] 🔌 Echo available:', !!echo);
     console.log('[GlobalInvitation] 📍 User location:', location.pathname);
     console.log('[GlobalInvitation] ℹ️ This channel handles ALL invitation types (regular + championship)');
+    console.log('[GlobalInvitation] ⏰ Timestamp:', new Date().toISOString());
+
+    // Check Pusher connection state
+    const pusherState = echo?.connector?.pusher?.connection?.state;
+    console.log('[GlobalInvitation] 🔗 Pusher connection state:', pusherState);
+    console.log('[GlobalInvitation] 🔗 Pusher socket ID:', echo.socketId?.());
 
     // Add subscription success confirmation
     if (userChannel) {
       console.log('[GlobalInvitation] ✅ Channel object created successfully');
 
-      // Listen for subscription success
-      userChannel.subscribed(() => {
-        console.log('[GlobalInvitation] 🎉 Successfully subscribed to user channel:', `App.Models.User.${user.id}`);
-      });
+      // CRITICAL FIX: Register event listeners IMMEDIATELY, before checking subscription state
+      // This ensures listeners are ready even if subscription completes instantly
+      console.log('[GlobalInvitation] 🎯 Registering event listeners IMMEDIATELY...');
 
-      // Listen for subscription errors
-      userChannel.error((error) => {
-        console.error('[GlobalInvitation] ❌ Channel subscription error:', error);
-      });
+      // Register all listeners first (before any state checks)
+      registerEventListeners(userChannel);
+
+      console.log('[GlobalInvitation] ✅ All event listeners registered');
+
+      // Now check subscription state for logging purposes only
+      const currentSubscriptionState = userChannel.subscription?.state;
+      console.log('[GlobalInvitation] 🔍 Current subscription state:', currentSubscriptionState);
+
+      if (currentSubscriptionState === 'subscribed') {
+        console.log('[GlobalInvitation] 🎉 Already subscribed to user channel:', `App.Models.User.${user.id}`);
+        console.log('[GlobalInvitation] ✅ Resume request listener is now ACTIVE and waiting for events');
+      } else {
+        console.log('[GlobalInvitation] ⏳ Subscription pending, waiting for confirmation...');
+
+        // Listen for subscription success
+        userChannel.subscribed(() => {
+          console.log('[GlobalInvitation] 🎉 Successfully subscribed to user channel:', `App.Models.User.${user.id}`);
+          console.log('[GlobalInvitation] ✅ Resume request listener is now ACTIVE and waiting for events');
+        });
+
+        // Listen for subscription errors
+        userChannel.error((error) => {
+          console.error('[GlobalInvitation] ❌ Channel subscription error:', error);
+        });
+      }
     } else {
       console.error('[GlobalInvitation] ❌ Failed to create user channel');
     }
+
+    // Function to register all event listeners
+    function registerEventListeners(userChannel) {
+      console.log('[GlobalInvitation] 📝 Starting event listener registration...');
 
     // Listen for new game invitations
     userChannel.listen('.invitation.sent', (data) => {
       console.log('[GlobalInvitation] 📨 New invitation received:', data);
       console.log('[GlobalInvitation] 🎯 Invitation type:', data.invitation?.type);
-      console.log('[GlobalInvitation] 📍 Current location:', location.pathname);
-      console.log('[GlobalInvitation] 👤 User in active game?', isInActiveGame());
+      console.log('[GlobalInvitation] 📍 Current location:', window.location.pathname);
+      console.log('[GlobalInvitation] 👤 User in active game?', isInActiveGameRef.current());
 
       // Don't show dialog if user is in active game
-      if (isInActiveGame()) {
+      if (isInActiveGameRef.current()) {
         console.log('[GlobalInvitation] User in active game, skipping dialog');
         return;
       }
@@ -102,11 +216,11 @@ export const GlobalInvitationProvider = ({ children }) => {
     // Listen for new game requests (rematch challenges from online players)
     userChannel.listen('.new_game.request', (data) => {
       console.log('[GlobalInvitation] 🎯 New game request received:', data);
-      console.log('[GlobalInvitation] 📍 Current location:', location.pathname);
-      console.log('[GlobalInvitation] 👤 User in active game?', isInActiveGame());
+      console.log('[GlobalInvitation] 📍 Current location:', window.location.pathname);
+      console.log('[GlobalInvitation] 👤 User in active game?', isInActiveGameRef.current());
 
       // Don't show dialog if user is in active game
-      if (isInActiveGame()) {
+      if (isInActiveGameRef.current()) {
         console.log('[GlobalInvitation] User in active game, skipping new game request dialog');
         return;
       }
@@ -134,20 +248,44 @@ export const GlobalInvitationProvider = ({ children }) => {
     // Listen for resume requests
     userChannel.listen('.resume.request.sent', (data) => {
       console.log('[GlobalInvitation] 🎯 Resume request received via WebSocket:', data);
+      console.log('[GlobalInvitation] 👤 My user ID:', user.id, 'Request from user:', data.requesting_user?.id, 'Game ID:', data.game_id);
       console.log('[GlobalInvitation] 🕐 Resume request timestamp:', new Date().toISOString());
+      console.log('[GlobalInvitation] 📋 Resume request details:', {
+        gameId: data.game_id,
+        requestingUserId: data.requesting_user?.id,
+        requestingUserName: data.requesting_user?.name,
+        myUserId: user?.id,
+        expiresAt: data.expires_at,
+        currentPath: window.location.pathname
+      });
 
       // Note: Always show resume requests, even when on game page, since resume requests
       // are specifically for reactivating paused games that the user is already viewing
 
       // Show resume request dialog
       if (data.game_id && data.requesting_user) {
-        setResumeRequest({
+        console.log('[GlobalInvitation] ✅ Setting resume request state');
+        const resumeRequestData = {
           gameId: data.game_id,
           requestingUserId: data.requesting_user.id,
           requestingUserName: data.requesting_user.name,
           expiresAt: data.expires_at,
           game: data.game,
           invitationId: data.invitation?.id, // Store invitation ID for removal
+        };
+        console.log('[GlobalInvitation] 📦 Resume request data being set:', resumeRequestData);
+        console.log('[GlobalInvitation] 🔍 Current resumeRequest state before update:', resumeRequestRef.current);
+        setResumeRequest(resumeRequestData);
+        console.log('[GlobalInvitation] 🔄 setResumeRequest() called - dialog should appear now');
+        console.log('[GlobalInvitation] 💡 If dialog does not appear:');
+        console.log('[GlobalInvitation] 1. Check GlobalInvitationDialog logs for state update');
+        console.log('[GlobalInvitation] 2. Verify GlobalInvitationDialog is mounted in React DevTools');
+        console.log('[GlobalInvitation] 3. Check if CSS is hiding the dialog');
+      } else {
+        console.warn('[GlobalInvitation] ❌ Missing required data in resume request:', {
+          hasGameId: !!data.game_id,
+          hasRequestingUser: !!data.requesting_user,
+          rawData: data
         });
       }
     });
@@ -212,7 +350,7 @@ export const GlobalInvitationProvider = ({ children }) => {
       console.log('[GlobalInvitation] 🏆 Championship game resume request received:', data);
 
       // Don't show dialog if user is in active multiplayer game
-      if (isInActiveGame()) {
+      if (isInActiveGameRef.current()) {
         console.log('[GlobalInvitation] User in active multiplayer game, skipping championship request dialog');
         return;
       }
@@ -307,19 +445,52 @@ export const GlobalInvitationProvider = ({ children }) => {
       }
     });
 
-    return () => {
-      console.log('[GlobalInvitation] Cleaning up listeners');
-      userChannel.stopListening('.invitation.sent');
-      userChannel.stopListening('.new_game.request');
-      userChannel.stopListening('.resume.request.sent');
-      userChannel.stopListening('.invitation.cancelled');
-      userChannel.stopListening('.championship.game.resume.request');
-      userChannel.stopListening('.championship.game.resume.accepted');
-      userChannel.stopListening('.championship.game.resume.declined');
-      userChannel.stopListening('.resume.request.expired');
-    };
-    // Only re-run when user changes, not on every route change
+      console.log('[GlobalInvitation] ✅ All 8 event listeners registered successfully');
+    } // End of registerEventListeners function
+
+      // Return cleanup function from setupListeners
+      return () => {
+        console.log('[GlobalInvitation] Cleaning up listeners for user:', user.id);
+        if (userChannel) {
+          userChannel.stopListening('.invitation.sent');
+          userChannel.stopListening('.new_game.request');
+          userChannel.stopListening('.resume.request.sent');
+          userChannel.stopListening('.invitation.cancelled');
+          userChannel.stopListening('.championship.game.resume.request');
+          userChannel.stopListening('.championship.game.resume.accepted');
+          userChannel.stopListening('.championship.game.resume.declined');
+          userChannel.stopListening('.resume.request.expired');
+        }
+      };
+    } // End of setupListeners function
+    // Re-run when user changes OR when navigating to ensure listeners are always active
+    // This fixes the issue where listeners weren't set up after navigation without refresh
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, location.pathname]);
+
+  // Listen to global WebSocket manager for game status changes
+  useEffect(() => {
+    if (!user?.id) return;
+
+    console.log('[GlobalInvitation] 🌐 Setting up global WebSocket manager listeners');
+
+    // Listen for game status changes
+    const handleGameStatusChanged = (event) => {
+      console.log('[GlobalInvitation] 🌐 Game status changed from global manager:', event);
+
+      // If game is no longer paused, clear any resume request
+      if (event.status && event.status !== 'paused') {
+        setResumeRequest(null);
+      }
+    };
+
+    // Subscribe to events
+    globalWebSocketManager.on('gameStatusChanged', handleGameStatusChanged);
+
+    // Cleanup
+    return () => {
+      globalWebSocketManager.off('gameStatusChanged', handleGameStatusChanged);
+    };
   }, [user?.id]);
 
   // Accept game invitation

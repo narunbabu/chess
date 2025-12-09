@@ -20,6 +20,7 @@ class WebSocketGameService {
     this._lastETag = null;
     this.lastGameState = null;
     this.isPausing = false; // Prevent duplicate pause attempts
+    this._delayedDisconnectTimeout = null; // For delayed disconnect on paused games
   }
 
   /**
@@ -49,6 +50,9 @@ class WebSocketGameService {
   async initialize(gameId, user) {
     this.gameId = gameId;
     this.user = user;
+
+    // Cancel any delayed disconnect if user is returning to game
+    this.cancelDelayedDisconnect();
 
     // Check if we should use polling fallback FIRST
     const usePolling = process.env.REACT_APP_USE_POLLING_FALLBACK === 'true';
@@ -1474,9 +1478,71 @@ class WebSocketGameService {
   }
 
   /**
-   * Disconnect and cleanup
+   * Disconnect and cleanup with optional delay for paused games
+   * @param {Object} options - Disconnect options
+   * @param {boolean} options.immediate - If true, disconnect immediately. If false, delay for paused games
+   * @param {boolean} options.isPaused - Explicitly indicate if game is paused (takes precedence over lastGameState)
    */
-  disconnect() {
+  disconnect(options = { immediate: false, isPaused: false, keepChannelAlive: false, localOnly: false }) {
+    const PAUSED_GAME_DELAY = 2 * 60 * 1000; // 2 minutes for paused games to allow resume requests
+
+    // Fast hotfix: if keepChannelAlive requested, never perform a global immediate disconnect
+    if (options.keepChannelAlive) {
+      console.log('[WebSocket] HOTFIX: keepChannelAlive requested -> performing localOnly cleanup');
+      this._performLocalCleanup();
+      return;
+    }
+
+    // Check if game is paused - use explicit parameter first, then fallback to lastGameState
+    const isPaused = options.isPaused ?? (this.lastGameState?.status === 'paused');
+
+    console.log('[WebSocket] 🔍 Disconnect called with options:', {
+      immediate: options.immediate,
+      isPausedParam: options.isPaused,
+      keepChannelAlive: options.keepChannelAlive,
+      localOnly: options.localOnly,
+      lastGameStateStatus: this.lastGameState?.status,
+      finalIsPaused: isPaused,
+      gameId: this.gameId
+    });
+
+    // If game is paused and not immediate disconnect, delay the disconnection
+    if (!options.immediate && isPaused) {
+      console.log('[WebSocket] ⏸️ Game is paused - delaying disconnection for 2 minutes to allow resume requests');
+
+      // Clear any existing delayed disconnect
+      if (this._delayedDisconnectTimeout) {
+        clearTimeout(this._delayedDisconnectTimeout);
+        console.log('[WebSocket] 🔄 Cleared existing delayed disconnect timer');
+      }
+
+      // Schedule delayed disconnect
+      this._delayedDisconnectTimeout = setTimeout(() => {
+        console.log('[WebSocket] ⏱️ 2 minutes elapsed - disconnecting paused game WebSocket');
+        this._performDisconnect();
+      }, PAUSED_GAME_DELAY);
+
+      console.log('[WebSocket] ✅ WebSocket will remain connected for 2 minutes to receive resume requests');
+      return;
+    }
+
+    // Immediate disconnect
+    console.log('[WebSocket] 🚀 Immediate disconnect requested or game not paused (isPaused:', isPaused, ')');
+    this._performDisconnect({ keepChannelAlive: options.keepChannelAlive });
+  }
+
+  /**
+   * Perform the actual disconnection (internal method)
+   * @param {Object} options - Disconnect options
+   * @param {boolean} options.keepChannelAlive - If true, don't leave the Echo channel
+   */
+  _performDisconnect(options = { keepChannelAlive: false }) {
+    // Clear any delayed disconnect timer
+    if (this._delayedDisconnectTimeout) {
+      clearTimeout(this._delayedDisconnectTimeout);
+      this._delayedDisconnectTimeout = null;
+    }
+
     // Clear smart polling timer
     if (this._pollTimer) {
       clearTimeout(this._pollTimer);
@@ -1505,9 +1571,14 @@ class WebSocketGameService {
       this.gameChannel.stopListening('GameStatusEvent');
       this.gameChannel.stopListening('.game.ended');
 
-      // Leave the channel using singleton
-      leaveChannel(`game.${this.gameId}`);
-      this.gameChannel = null;
+      // Leave the channel using singleton unless keepChannelAlive is true
+      if (!options.keepChannelAlive) {
+        console.log('[WebSocket] 📡 Leaving game channel:', `game.${this.gameId}`);
+        leaveChannel(`game.${this.gameId}`);
+        this.gameChannel = null;
+      } else {
+        console.log('[WebSocket] 🔄 Keeping game channel alive for global manager');
+      }
     }
 
     // Don't disconnect the singleton Echo - other services may use it
@@ -1519,6 +1590,63 @@ class WebSocketGameService {
     this.emit('disconnected');
 
     console.log('WebSocket disconnected and cleaned up');
+  }
+
+  /**
+   * Perform local-only cleanup (remove listeners & timers, but keep channel alive)
+   */
+  _performLocalCleanup() {
+    console.log('[WebSocket] 🧩 Local-only cleanup: removing local listeners & timers (no channel/Echo changes)');
+
+    // Clear delayed disconnect timer
+    if (this._delayedDisconnectTimeout) {
+      clearTimeout(this._delayedDisconnectTimeout);
+      this._delayedDisconnectTimeout = null;
+    }
+
+    // Stop any other timers
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+    }
+
+    // Reset smart polling state
+    this._pollingBusy = false;
+    this._lastETag = null;
+
+    // Stop listening to events on this local reference but do NOT leave the channel
+    if (this.gameChannel && this.gameId) {
+      try {
+        this.gameChannel.stopListening('GameConnectionEvent');
+        this.gameChannel.stopListening('GameMoveEvent');
+        this.gameChannel.stopListening('GameStatusEvent');
+        this.gameChannel.stopListening('.game.ended');
+        // IMPORTANT: DON'T leaveChannel() or disconnect Echo
+        console.log('[WebSocket] ✅ Stopped local listeners, channel remains active for global manager');
+      } catch (e) {
+        console.warn('[WebSocket] _performLocalCleanup: error stopping listeners', e);
+      }
+    }
+
+    // Clear local state but keep Echo connection alive
+    // IMPORTANT: Don't set this.echo = null because it's a singleton shared by all services
+    this.isConnected = false;
+    this.socketId = null;
+    this.listeners = {};
+    // Note: We don't emit 'disconnected' event here since we're keeping the connection alive
+    // The connection is still active for the global manager
+
+    console.log('[WebSocket] ✅ Local cleanup completed - WebSocket connection preserved');
+  }
+
+  /**
+   * Cancel delayed disconnect (e.g., when user returns to game)
+   */
+  cancelDelayedDisconnect() {
+    if (this._delayedDisconnectTimeout) {
+      clearTimeout(this._delayedDisconnectTimeout);
+      this._delayedDisconnectTimeout = null;
+      console.log('[WebSocket] ❌ Cancelled delayed disconnect - user returned to game');
+    }
   }
 }
 

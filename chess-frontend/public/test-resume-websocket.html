@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Request WebSocket Diagnostic</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+        .section {
+            background: #252526;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 3px solid #007acc;
+        }
+        .success { color: #4ec9b0; }
+        .error { color: #f48771; }
+        .warning { color: #dcdcaa; }
+        .info { color: #569cd6; }
+        button {
+            background: #007acc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+        button:hover {
+            background: #005a9e;
+        }
+        #logs {
+            background: #1e1e1e;
+            border: 1px solid #3e3e42;
+            padding: 10px;
+            margin-top: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-size: 12px;
+        }
+        .log-entry {
+            padding: 2px 0;
+            border-bottom: 1px solid #2d2d30;
+        }
+        input {
+            background: #3c3c3c;
+            border: 1px solid #3e3e42;
+            color: #d4d4d4;
+            padding: 8px;
+            margin: 5px;
+            border-radius: 3px;
+            width: 200px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Resume Request WebSocket Diagnostic Tool</h1>
+
+    <div class="section">
+        <h2>Step 1: Configuration</h2>
+        <label>User ID: <input type="number" id="userId" value="1" /></label>
+        <label>Game ID: <input type="number" id="gameId" value="5" /></label>
+        <label>Auth Token: <input type="text" id="authToken" placeholder="Get from localStorage" /></label>
+        <button onclick="loadAuthToken()">Load Token from localStorage</button>
+    </div>
+
+    <div class="section">
+        <h2>Step 2: Connection Tests</h2>
+        <button onclick="testEchoConnection()">Test Echo Connection</button>
+        <button onclick="testUserChannel()">Test User Channel</button>
+        <button onclick="testGameChannel()">Test Game Channel</button>
+        <button onclick="clearLogs()">Clear Logs</button>
+    </div>
+
+    <div class="section">
+        <h2>Step 3: Listener Tests</h2>
+        <button onclick="setupResumeListener()">Setup Resume Listener</button>
+        <button onclick="sendManualResumeRequest()">Send Manual Resume Request (API)</button>
+        <button onclick="checkReactComponents()">Check React Components</button>
+    </div>
+
+    <div class="section">
+        <h2>Diagnostic Logs</h2>
+        <div id="logs"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/pusher-js@8.3.0/dist/web/pusher.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/laravel-echo@1.15.3/dist/echo.iife.js"></script>
+    <script>
+        let echo = null;
+        let userChannel = null;
+        let gameChannel = null;
+
+        function log(message, type = 'info') {
+            const logsDiv = document.getElementById('logs');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.innerHTML = `<span class="${type}">[${timestamp}] ${message}</span>`;
+            logsDiv.appendChild(entry);
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+            console.log(`[${timestamp}] ${message}`);
+        }
+
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+            log('Logs cleared', 'info');
+        }
+
+        function loadAuthToken() {
+            const token = localStorage.getItem('token');
+            if (token) {
+                document.getElementById('authToken').value = token;
+                log('✅ Token loaded from localStorage', 'success');
+            } else {
+                log('❌ No token found in localStorage', 'error');
+            }
+        }
+
+        function testEchoConnection() {
+            log('🔍 Testing Echo connection...', 'info');
+
+            const authToken = document.getElementById('authToken').value;
+            if (!authToken) {
+                log('❌ Please provide auth token first', 'error');
+                return;
+            }
+
+            // Initialize Echo
+            window.Echo = new Echo({
+                broadcaster: 'reverb',
+                key: 'local-reverb-key',
+                wsHost: 'localhost',
+                wsPort: 8080,
+                wssPort: 8080,
+                forceTLS: false,
+                enabledTransports: ['ws'],
+                authEndpoint: 'http://localhost:8000/api/broadcasting/auth',
+                auth: {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Accept': 'application/json',
+                    }
+                }
+            });
+
+            echo = window.Echo;
+
+            // Check connection state
+            const pusher = echo.connector.pusher;
+
+            pusher.connection.bind('connected', () => {
+                log('✅ Pusher connected! Socket ID: ' + pusher.connection.socket_id, 'success');
+            });
+
+            pusher.connection.bind('error', (err) => {
+                log('❌ Pusher connection error: ' + JSON.stringify(err), 'error');
+            });
+
+            log('Pusher state: ' + pusher.connection.state, 'info');
+            log('Socket ID: ' + (pusher.connection.socket_id || 'Not connected yet'), 'info');
+        }
+
+        function testUserChannel() {
+            if (!echo) {
+                log('❌ Echo not initialized. Run "Test Echo Connection" first', 'error');
+                return;
+            }
+
+            const userId = document.getElementById('userId').value;
+            const channelName = `App.Models.User.${userId}`;
+
+            log(`🔍 Testing user channel: private-${channelName}`, 'info');
+
+            // Subscribe to user channel
+            userChannel = echo.private(channelName);
+
+            // Check subscription state
+            log('Subscription state: ' + (userChannel.subscription?.state || 'unknown'), 'info');
+
+            // Listen for subscription success
+            userChannel.subscribed(() => {
+                log(`✅ Successfully subscribed to: private-${channelName}`, 'success');
+            });
+
+            userChannel.error((error) => {
+                log(`❌ Subscription error: ${JSON.stringify(error)}`, 'error');
+            });
+        }
+
+        function testGameChannel() {
+            if (!echo) {
+                log('❌ Echo not initialized. Run "Test Echo Connection" first', 'error');
+                return;
+            }
+
+            const gameId = document.getElementById('gameId').value;
+            const channelName = `game.${gameId}`;
+
+            log(`🔍 Testing game channel: private-${channelName}`, 'info');
+
+            // Subscribe to game channel
+            gameChannel = echo.private(channelName);
+
+            // Check subscription state
+            log('Subscription state: ' + (gameChannel.subscription?.state || 'unknown'), 'info');
+
+            // Listen for subscription success
+            gameChannel.subscribed(() => {
+                log(`✅ Successfully subscribed to: private-${channelName}`, 'success');
+            });
+
+            gameChannel.error((error) => {
+                log(`❌ Subscription error: ${JSON.stringify(error)}`, 'error');
+            });
+        }
+
+        function setupResumeListener() {
+            if (!userChannel) {
+                log('❌ User channel not initialized. Run "Test User Channel" first', 'error');
+                return;
+            }
+
+            log('🎯 Setting up resume request listener on user channel...', 'info');
+
+            // Listen for resume requests
+            userChannel.listen('.resume.request.sent', (data) => {
+                log('🎉 ✅ RESUME REQUEST RECEIVED!', 'success');
+                log('Data: ' + JSON.stringify(data, null, 2), 'success');
+                alert('✅ RESUME REQUEST RECEIVED!\n\n' + JSON.stringify(data, null, 2));
+            });
+
+            log('✅ Resume request listener is now active and waiting...', 'success');
+            log('ℹ️ Now send a resume request from the other player', 'info');
+        }
+
+        async function sendManualResumeRequest() {
+            const authToken = document.getElementById('authToken').value;
+            const gameId = document.getElementById('gameId').value;
+
+            if (!authToken) {
+                log('❌ Please provide auth token first', 'error');
+                return;
+            }
+
+            log(`🚀 Sending resume request for game ${gameId}...`, 'info');
+
+            try {
+                const socketId = echo?.socketId?.() || '';
+                const response = await fetch(`http://localhost:8000/api/websocket/games/${gameId}/resume-request`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        socket_id: socketId
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    log('✅ Resume request sent successfully!', 'success');
+                    log('Response: ' + JSON.stringify(data, null, 2), 'success');
+                } else {
+                    log('❌ Resume request failed: ' + data.message, 'error');
+                }
+            } catch (error) {
+                log('❌ Error sending resume request: ' + error.message, 'error');
+            }
+        }
+
+        function checkReactComponents() {
+            log('🔍 Checking React components in main app...', 'info');
+
+            // Check if GlobalInvitationProvider is mounted
+            const hasProvider = document.querySelector('[data-testid="global-invitation-provider"]');
+            log('GlobalInvitationProvider mounted: ' + (hasProvider ? '✅ Yes' : '❌ No'), hasProvider ? 'success' : 'error');
+
+            // Check if GlobalInvitationDialog is mounted
+            const hasDialog = document.querySelector('[data-testid="global-invitation-dialog"]');
+            log('GlobalInvitationDialog mounted: ' + (hasDialog ? '✅ Yes' : '❌ No'), hasDialog ? 'success' : 'error');
+
+            // Check console for GlobalInvitation logs
+            log('ℹ️ Check the main app console for [GlobalInvitation] logs', 'info');
+            log('ℹ️ If you see no [GlobalInvitation] logs, the provider is not rendering!', 'warning');
+        }
+
+        // Auto-load token on page load
+        window.addEventListener('load', () => {
+            loadAuthToken();
+            log('🔧 Diagnostic tool loaded. Follow the steps above to test.', 'info');
+        });
+    </script>
+</body>
+</html>
