@@ -1812,6 +1812,9 @@ class GameRoomService
                     ]);
             }
 
+            // 🔥 CRITICAL: Save requester ID BEFORE clearing it from game
+            $requestingUserId = $game->resume_requested_by;
+
             // Request declined
             $game->update([
                 'resume_status' => 'none',
@@ -1824,11 +1827,11 @@ class GameRoomService
             Log::info('📨 Broadcasting resume declined event', [
                 'game_id' => $gameId,
                 'declined_by' => $userId,
-                'requested_by' => $game->resume_requested_by,
+                'requested_by' => $requestingUserId,
                 'is_championship_game' => $isChampionshipGame,
                 'championship_id' => $championshipContext['championship_id'] ?? null,
                 'match_id' => $championshipContext['match_id'] ?? null,
-                'channel' => "App.Models.User.{$game->resume_requested_by}",
+                'channel' => "App.Models.User.{$requestingUserId}",
                 'event' => $isChampionshipGame ? 'championship.game.resume.declined' : 'resume.request.response'
             ]);
 
@@ -1845,14 +1848,19 @@ class GameRoomService
                     'match_id' => $championshipContext['match_id']
                 ]);
             } else {
+                // 🔥 CRITICAL FIX: Create a temporary game object with the original requester ID
+                // This is necessary because we already cleared resume_requested_by in the database
+                $gameForBroadcast = clone $game;
+                $gameForBroadcast->resume_requested_by = $requestingUserId;
+
                 // Broadcast regular resume declined event
-                broadcast(new \App\Events\ResumeRequestResponse($game, 'declined', $userId));
+                broadcast(new \App\Events\ResumeRequestResponse($gameForBroadcast, 'declined', $userId));
             }
 
             Log::info('Resume request declined', [
                 'game_id' => $gameId,
                 'declined_by' => $userId,
-                'requested_by' => $game->resume_requested_by,
+                'requested_by' => $requestingUserId,
                 'is_championship' => $isChampionshipGame
             ]);
 

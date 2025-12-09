@@ -435,6 +435,47 @@ export const GlobalInvitationProvider = ({ children }) => {
       }
     });
 
+    // Listen for resume request response (handle accept/decline)
+    userChannel.listen('.resume.request.response', (data) => {
+      console.log('[GlobalInvitation] 📨 Resume request response received:', data);
+      console.log('[GlobalInvitation] 📊 Response type:', data.response);
+      console.log('[GlobalInvitation] 🎮 Game ID:', data.game_id);
+      console.log('[GlobalInvitation] 👤 Responding user:', data.responding_user?.name);
+
+      // Check if we have a pending resume request for this game
+      if (data.game_id && resumeRequestRef.current?.gameId === parseInt(data.game_id)) {
+        if (data.response === 'declined') {
+          console.log('[GlobalInvitation] ❌ Resume request was declined');
+
+          // Create a notification for the declined request
+          const declinedNotification = {
+            id: `resume-declined-${data.game_id}-${Date.now()}`,
+            type: 'resume_declined',
+            title: 'Resume Request Declined',
+            message: `${data.responding_user?.name || 'Opponent'} declined your resume request`,
+            timestamp: new Date(),
+            gameId: data.game_id,
+            read: false
+          };
+
+          // Add to notifications
+          setNotifications(prev => [declinedNotification, ...prev.slice(0, 49)]); // Keep max 50 notifications
+
+          // Close the waiting dialog
+          setResumeRequest(null);
+
+          console.log('[GlobalInvitation] ✅ Decline notification added and dialog closed');
+        } else if (data.response === 'accepted') {
+          console.log('[GlobalInvitation] ✅ Resume request was accepted');
+
+          // The game will be resumed automatically, just close the waiting dialog
+          setResumeRequest(null);
+
+          console.log('[GlobalInvitation] ✅ Resume request accepted, dialog closed');
+        }
+      }
+    });
+
     // Listen for invitation cancelled (for cleanup)
     userChannel.listen('.invitation.cancelled', (data) => {
       console.log('[GlobalInvitation] Invitation cancelled:', data);
@@ -460,6 +501,7 @@ export const GlobalInvitationProvider = ({ children }) => {
           userChannel.stopListening('.championship.game.resume.accepted');
           userChannel.stopListening('.championship.game.resume.declined');
           userChannel.stopListening('.resume.request.expired');
+          userChannel.stopListening('.resume.request.response');
         }
       };
     } // End of setupListeners function

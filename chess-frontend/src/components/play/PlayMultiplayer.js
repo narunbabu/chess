@@ -593,15 +593,30 @@ const PlayMultiplayer = () => {
 
       // Initialize timer state from database or calculate from move history
       try {
+        // IMPORTANT: Use consistent time control from game data for both players
         const timeControlMinutes = data.time_control_minutes || 10;
         const timeControlIncrement = data.time_control_increment || 0; // Backend provides in seconds
         const incrementMs = timeControlIncrement * 1000; // Convert to milliseconds
+
+        // Calculate initial time once to ensure consistency
+        const initialTimeMs = timeControlMinutes * 60 * 1000;
 
         // Check if we have stored time values from database (persisted across pauses/moves)
         const storedWhiteMs = data.white_time_paused_ms;
         const storedBlackMs = data.black_time_paused_ms;
 
         let calculatedWhiteMs, calculatedBlackMs;
+
+        console.log('[Timer] Game data analysis:', {
+          timeControlMinutes,
+          timeControlIncrement,
+          initialTimeMs,
+          incrementMs,
+          storedWhiteMs,
+          storedBlackMs,
+          gameStatus: data.status,
+          moveCount: data.move_count
+        });
 
         if (storedWhiteMs != null && storedBlackMs != null) {
           // Use stored times from database (includes time from moves + pause persistence)
@@ -616,6 +631,7 @@ const PlayMultiplayer = () => {
           });
         } else {
           // Fallback: Calculate from move history if database values not available
+          // For new games, this will return the full initial time
           const movesResponse = await fetch(`${BACKEND_URL}/websocket/games/${gameId}/moves`, {
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -623,32 +639,49 @@ const PlayMultiplayer = () => {
             }
           });
 
-          calculatedWhiteMs = timeControlMinutes * 60 * 1000;
-          calculatedBlackMs = timeControlMinutes * 60 * 1000;
-
           if (movesResponse.ok) {
             const movesData = await movesResponse.json();
-            const initialTimeMs = (movesData.time_control_minutes || 10) * 60 * 1000;
+
+            // Use time control from backend moves data (should match game data)
+            const backendTimeControlMinutes = movesData.time_control_minutes || timeControlMinutes;
+            const backendInitialTimeMs = backendTimeControlMinutes * 60 * 1000;
+
+            // Debug: Log the actual moves data structure
+            console.log('[Timer] DEBUG - Moves data from API:', {
+              movesType: typeof movesData.moves,
+              isArray: Array.isArray(movesData.moves),
+              movesCount: movesData.moves?.length || 0,
+              firstMove: movesData.moves?.[0],
+              secondMove: movesData.moves?.[1],
+              movesSample: movesData.moves?.slice(0, 3)
+            });
 
             // Calculate remaining time from move history with increment support
             const { whiteMs, blackMs } = calculateRemainingTime(
               movesData.moves || [],
-              initialTimeMs,
+              backendInitialTimeMs,
               incrementMs
             );
 
             calculatedWhiteMs = whiteMs;
             calculatedBlackMs = blackMs;
 
-            console.log('[Timer] Calculated from move history (fallback):', {
+            console.log('[Timer] Calculated from move history:', {
+              timeControlMinutes: backendTimeControlMinutes,
               whiteMs: Math.floor(whiteMs / 1000) + 's',
               blackMs: Math.floor(blackMs / 1000) + 's',
+              whiteTimeFormatted: `${Math.floor(whiteMs / 60000)}:${String(Math.floor((whiteMs % 60000) / 1000)).padStart(2, '0')}`,
+              blackTimeFormatted: `${Math.floor(blackMs / 60000)}:${String(Math.floor((blackMs % 60000) / 1000)).padStart(2, '0')}`,
               increment: incrementMs / 1000 + 's',
               totalMoves: movesData.moves?.length || 0,
-              source: 'move_history'
+              source: 'move_history',
+              movesCount: movesData.moves?.length || 0
             });
           } else {
-            console.warn('[Timer] Failed to fetch moves, using default 10min');
+            console.warn('[Timer] Failed to fetch moves, using default initial time');
+            // Use consistent initial time for both players
+            calculatedWhiteMs = initialTimeMs;
+            calculatedBlackMs = initialTimeMs;
           }
         }
 
@@ -688,9 +721,22 @@ const PlayMultiplayer = () => {
       fetchChampionshipContext();
 
       // Initialize WebSocket connection
-      // If there's an existing wsService (e.g., from delayed disconnect), clean it up first
-      if (wsService.current) {
+      // Check if there's an existing wsService that's already connected to the right game
+      if (wsService.current && wsService.current.isConnected && wsService.current.gameId === parseInt(gameId)) {
+        console.log('✅ WebSocket already connected to correct game, skipping reconnection');
+        console.log('📊 Existing WebSocket details:', {
+          gameId: wsService.current.gameId,
+          isConnected: wsService.current.isConnected,
+          playerColor: wsService.current.playerColor
+        });
+      } else if (wsService.current) {
         console.log('🧹 Cleaning up existing WebSocket before creating new one');
+        console.log('📊 Disconnect reason:', {
+          hasService: !!wsService.current,
+          isConnected: wsService.current.isConnected,
+          currentGameId: wsService.current.gameId,
+          targetGameId: gameId
+        });
         // Cancel any pending delayed disconnect
         if (wsService.current.cancelDelayedDisconnect) {
           wsService.current.cancelDelayedDisconnect();
@@ -846,8 +892,19 @@ const PlayMultiplayer = () => {
 
       if (movesResponse.ok) {
         const movesData = await movesResponse.json();
-        const initialTimeMs = (movesData.time_control_minutes || 10) * 60 * 1000;
+        const timeControlMinutes = movesData.time_control_minutes || 10;
+        const initialTimeMs = timeControlMinutes * 60 * 1000;
         const incrementMs = (movesData.time_control_increment || 0) * 1000; // Convert to ms
+
+        // Debug: Log the actual moves data structure on resume
+        console.log('[Timer] DEBUG - Resume - Moves data from API:', {
+          movesType: typeof movesData.moves,
+          isArray: Array.isArray(movesData.moves),
+          movesCount: movesData.moves?.length || 0,
+          firstMove: movesData.moves?.[0],
+          secondMove: movesData.moves?.[1],
+          movesSample: movesData.moves?.slice(0, 3)
+        });
 
         // Calculate base remaining time from move history with increment support
         const { whiteMs, blackMs } = calculateRemainingTime(
@@ -861,6 +918,9 @@ const PlayMultiplayer = () => {
         const blackTimeWithGrace = blackMs + (event.black_grace_time_ms || 0);
 
         console.log('[Timer] Resume calculated:', {
+          timeControlMinutes,
+          incrementMs: incrementMs / 1000 + 's',
+          movesCount: movesData.moves?.length || 0,
           whiteBase: Math.floor(whiteMs / 1000) + 's',
           blackBase: Math.floor(blackMs / 1000) + 's',
           whiteGrace: (event.white_grace_time_ms || 0) / 1000 + 's',
@@ -1712,13 +1772,27 @@ const PlayMultiplayer = () => {
   useEffect(() => {
     if (!gameId || !user) return;
 
+    // Prevent re-initialization if already initialized
     if (didInitRef.current) {
-      console.log('⚠️ Skipping duplicate initialization (React StrictMode)');
+      console.log('⚠️ SKIPPING DUPLICATE INITIALIZATION - Already initialized');
+      console.log('⚠️ Current state:', {
+        gameId,
+        userId: user?.id,
+        wsServiceExists: !!wsService.current,
+        timestamp: new Date().toISOString()
+      });
       return;
     }
+
     didInitRef.current = true;
 
-    console.log('🚀 Initializing game (first time)');
+    console.log('🚀 PlayMultiplayer component MOUNTED - FIRST TIME Initialization');
+    console.log('🚀 Component mount details:', {
+      gameId,
+      userId: user?.id,
+      timestamp: new Date().toISOString(),
+      didInitBefore: false
+    });
     initializeGame();
 
     // Cleanup on unmount - ONLY when component actually unmounts, not on status changes
@@ -1969,7 +2043,7 @@ const PlayMultiplayer = () => {
           // toast.success('Your resume request was accepted!');
         } else if (data.response === 'declined') {
           // Game was not resumed by opponent
-          console.log('[PlayMultiplayer] Resume request declined');
+          console.log('[PlayMultiplayer] ❌ Resume request was declined');
 
           // Clear pending resume request in WebSocket service
           if (wsService.current) {
@@ -1988,8 +2062,23 @@ const PlayMultiplayer = () => {
           hasReceivedResumeRequest.current = false; // Reset received flag
           hasAutoRequestedResume.current = false; // Reset auto-request flag
 
-          // Optionally show a toast message
-          // toast.error('Your resume request was declined');
+          // Close the paused game dialog
+          setShowPausedGame(false);
+
+          // Show notification to user about the decline
+          setNotificationMessage(
+            `${data.responding_user?.name || 'Opponent'} declined your resume request. You can try again from Lobby.`
+          );
+          setShowNotification(true);
+
+          // Auto-hide notification after 4 seconds and redirect to lobby
+          setTimeout(() => {
+            setShowNotification(false);
+            // Navigate to Lobby > Games tab
+            navigate('/lobby', { state: { activeTab: 'games' } });
+          }, 4000);
+
+          console.log('[PlayMultiplayer] ✅ Decline handled: notification shown, redirecting to Lobby');
         }
       }
     });
