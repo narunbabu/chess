@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
+use App\Models\Game;
+use App\Observers\GameObserver;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -37,6 +39,9 @@ class AppServiceProvider extends ServiceProvider
         }
 
         Log::info('=== APPLICATION READY ===');
+
+        // Register model observers
+        Game::observe(GameObserver::class);
 
         // Register custom validation rules
         $this->registerCustomValidationRules();

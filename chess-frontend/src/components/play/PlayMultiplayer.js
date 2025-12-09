@@ -2062,23 +2062,19 @@ const PlayMultiplayer = () => {
           hasReceivedResumeRequest.current = false; // Reset received flag
           hasAutoRequestedResume.current = false; // Reset auto-request flag
 
-          // Close the paused game dialog
+          // Close the paused game dialog immediately
           setShowPausedGame(false);
 
-          // Show notification to user about the decline
-          setNotificationMessage(
-            `${data.responding_user?.name || 'Opponent'} declined your resume request. You can try again from Lobby.`
-          );
-          setShowNotification(true);
+          // Navigate to Lobby > Games tab immediately
+          navigate('/lobby', { state: {
+            activeTab: 'games',
+            notification: {
+              message: `${data.responding_user?.name || 'Opponent'} declined your resume request.`,
+              duration: 2000
+            }
+          } });
 
-          // Auto-hide notification after 4 seconds and redirect to lobby
-          setTimeout(() => {
-            setShowNotification(false);
-            // Navigate to Lobby > Games tab
-            navigate('/lobby', { state: { activeTab: 'games' } });
-          }, 4000);
-
-          console.log('[PlayMultiplayer] ✅ Decline handled: notification shown, redirecting to Lobby');
+          console.log('[PlayMultiplayer] ✅ Decline handled: dialog closed, redirected to Lobby with notification');
         }
       }
     });

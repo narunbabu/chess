@@ -338,11 +338,13 @@ class GameController extends Controller
      * Get active/paused games for the current user
      * Used by Lobby and Dashboard to show "Resume Game" buttons
      */
-    public function activeGames()
+    public function activeGames(Request $request)
     {
         $user = Auth::user();
+        $limit = $request->get('limit', 10);
+        $page = $request->get('page', 1);
 
-        $games = Game::where(function($query) use ($user) {
+        $query = Game::where(function($query) use ($user) {
             $query->where('white_player_id', $user->id)
                   ->orWhere('black_player_id', $user->id);
         })
@@ -352,10 +354,21 @@ class GameController extends Controller
         })
         ->with(['whitePlayer', 'blackPlayer', 'statusRelation', 'endReasonRelation'])
         ->orderBy('last_move_at', 'desc')
-        ->orderBy('created_at', 'desc')
-        ->get();
+        ->orderBy('created_at', 'desc');
 
-        return response()->json($games);
+        $total = $query->count();
+        $games = $query->paginate($limit, ['*'], 'page', $page);
+
+        return response()->json([
+            'data' => $games->items(),
+            'pagination' => [
+                'current_page' => $games->currentPage(),
+                'last_page' => $games->lastPage(),
+                'per_page' => $games->perPage(),
+                'total' => $total,
+                'has_more' => $games->hasMorePages(),
+            ]
+        ]);
     }
 
     /**

@@ -111,9 +111,12 @@ class InvitationController extends Controller
         ]);
     }
 
-    public function pending()
+    public function pending(Request $request)
     {
-        $invitations = Invitation::where([
+        $limit = $request->get('limit', 10);
+        $page = $request->get('page', 1);
+
+        $query = Invitation::where([
             ['invited_id', Auth::id()],
             ['status', 'pending']
         ])->where(function ($query) {
@@ -122,14 +125,29 @@ class InvitationController extends Controller
                 $expQuery->whereNull('expires_at')
                         ->orWhere('expires_at', '>', now());
             });
-        })->with(['inviter', 'game'])->get();
+        })->with(['inviter', 'game']);
 
-        return response()->json($invitations);
+        $total = $query->count();
+        $invitations = $query->paginate($limit, ['*'], 'page', $page);
+
+        return response()->json([
+            'data' => $invitations->items(),
+            'pagination' => [
+                'current_page' => $invitations->currentPage(),
+                'last_page' => $invitations->lastPage(),
+                'per_page' => $invitations->perPage(),
+                'total' => $total,
+                'has_more' => $invitations->hasMorePages(),
+            ]
+        ]);
     }
 
-    public function sent()
+    public function sent(Request $request)
     {
-        $invitations = Invitation::where('inviter_id', Auth::id())
+        $limit = $request->get('limit', 10);
+        $page = $request->get('page', 1);
+
+        $query = Invitation::where('inviter_id', Auth::id())
             ->whereIn('status', ['pending', 'accepted'])
             ->where(function ($query) {
                 // Only include non-expired invitations of all types
@@ -137,21 +155,49 @@ class InvitationController extends Controller
                     $expQuery->whereNull('expires_at')
                             ->orWhere('expires_at', '>', now());
                 });
-            })->with(['invited', 'game'])
-            ->get();
+            })->with(['invited', 'game']);
 
-        return response()->json($invitations);
+        $total = $query->count();
+        $invitations = $query->paginate($limit, ['*'], 'page', $page);
+
+        return response()->json([
+            'data' => $invitations->items(),
+            'pagination' => [
+                'current_page' => $invitations->currentPage(),
+                'last_page' => $invitations->lastPage(),
+                'per_page' => $invitations->perPage(),
+                'total' => $total,
+                'has_more' => $invitations->hasMorePages(),
+            ]
+        ]);
     }
 
-    public function accepted()
+    public function accepted(Request $request)
     {
-        $invitations = Invitation::where('inviter_id', Auth::id())
+        $limit = $request->get('limit', 5); // Default to 5 most recent
+        $page = $request->get('page', 1);
+
+        $query = Invitation::where('inviter_id', Auth::id())
             ->acceptedActive()
             ->with(['invited', 'game'])
-            ->latest('updated_at')
-            ->get();
+            ->latest('updated_at');
 
-        return response()->json($invitations);
+        // Get total count for pagination
+        $total = $query->count();
+
+        // Apply pagination
+        $invitations = $query->paginate($limit, ['*'], 'page', $page);
+
+        return response()->json([
+            'data' => $invitations->items(),
+            'pagination' => [
+                'current_page' => $invitations->currentPage(),
+                'last_page' => $invitations->lastPage(),
+                'per_page' => $invitations->perPage(),
+                'total' => $total,
+                'has_more' => $invitations->hasMorePages(),
+            ]
+        ]);
     }
 
     public function cancel($id)
@@ -225,7 +271,17 @@ class InvitationController extends Controller
                     'responded_at' => now(),
                 ]);
 
-                // optional broadcast: broadcast(new InvitationDeclined($invitation->fresh()))->toOthers();
+                // Broadcast invitation declined event to inviter in real-time
+                $freshInvitation = $invitation->fresh();
+                Log::info('🚫 Broadcasting InvitationDeclined event', [
+                    'invitation_id' => $freshInvitation->id,
+                    'inviter_user_id' => $freshInvitation->inviter_id,
+                    'declined_by_user_id' => Auth::id(),
+                    'channel' => "App.Models.User.{$freshInvitation->inviter_id}",
+                    'event' => 'invitation.declined'
+                ]);
+                broadcast(new \App\Events\InvitationDeclined($freshInvitation));
+
                 return response()->json(['message' => 'Declined']);
             }
 

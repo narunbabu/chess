@@ -14,6 +14,7 @@ import PlayersList from '../components/lobby/PlayersList';
 import InvitationsList from '../components/lobby/InvitationsList';
 import ActiveGamesList from '../components/lobby/ActiveGamesList';
 import ChallengeModal from '../components/lobby/ChallengeModal';
+import LoadMoreButton from '../components/lobby/LoadMoreButton';
 
 const LobbyPage = () => {
   const { user, loading } = useAuth();
@@ -34,6 +35,12 @@ const LobbyPage = () => {
   const [processingInvitations, setProcessingInvitations] = useState(new Set()); // Track processing state
   const [activeTab, setActiveTab] = useState('players');
 
+  // Pagination state
+  const [pendingPagination, setPendingPagination] = useState({ page: 1, hasMore: true, total: 0, loading: false });
+  const [sentPagination, setSentPagination] = useState({ page: 1, hasMore: true, total: 0, loading: false });
+  const [acceptedPagination, setAcceptedPagination] = useState({ page: 1, hasMore: true, total: 0, loading: false });
+  const [gamesPagination, setGamesPagination] = useState({ page: 1, hasMore: true, total: 0, loading: false });
+
   // Polling control refs
   const pollTimerRef = React.useRef(null);
   const inFlightRef = React.useRef(false);
@@ -42,7 +49,20 @@ const LobbyPage = () => {
 
   // Handle redirect messages from paused game
   useEffect(() => {
-    if (location.state?.message) {
+    // Handle notification object from navigation state
+    if (location.state?.notification) {
+      const { message, duration = 2000 } = location.state.notification;
+      setRedirectMessage(message);
+      // Auto-clear after specified duration
+      const timer = setTimeout(() => setRedirectMessage(null), duration);
+
+      // Clear the location state to prevent message from reappearing on refresh
+      navigate(location.pathname, { replace: true, state: {} });
+
+      return () => clearTimeout(timer);
+    }
+    // Handle legacy message format
+    else if (location.state?.message) {
       setRedirectMessage(location.state.message);
       // Auto-clear after 8 seconds
       const timer = setTimeout(() => setRedirectMessage(null), 8000);
@@ -93,6 +113,143 @@ const LobbyPage = () => {
   // The lobby UI updates are handled through periodic polling to maintain consistency
   console.log('[Lobby] Using global invitation system via GlobalInvitationContext');
 
+  // Paginated data loading functions
+  const loadPendingInvitations = async (page = 1, append = false) => {
+    try {
+      setPendingPagination(prev => ({ ...prev, loading: true }));
+
+      const response = await api.get(`/invitations/pending?limit=10&page=${page}`);
+
+      if (append) {
+        setPendingInvitations(prev => [...prev, ...response.data.data]);
+      } else {
+        setPendingInvitations(response.data.data);
+      }
+
+      setPendingPagination({
+        page: response.data.pagination.current_page,
+        hasMore: response.data.pagination.has_more,
+        total: response.data.pagination.total,
+        loading: false
+      });
+    } catch (error) {
+      console.error('Error loading pending invitations:', error);
+      setPendingPagination(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  const loadSentInvitations = async (page = 1, append = false) => {
+    try {
+      setSentPagination(prev => ({ ...prev, loading: true }));
+
+      const response = await api.get(`/invitations/sent?limit=10&page=${page}`);
+
+      if (append) {
+        setSentInvitations(prev => [...prev, ...response.data.data]);
+      } else {
+        setSentInvitations(response.data.data);
+      }
+
+      setSentPagination({
+        page: response.data.pagination.current_page,
+        hasMore: response.data.pagination.has_more,
+        total: response.data.pagination.total,
+        loading: false
+      });
+    } catch (error) {
+      console.error('Error loading sent invitations:', error);
+      setSentPagination(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  const loadAcceptedInvitations = async (page = 1, append = false) => {
+    try {
+      setAcceptedPagination(prev => ({ ...prev, loading: true }));
+
+      const response = await api.get(`/invitations/accepted?limit=5&page=${page}`);
+
+      if (append) {
+        // For accepted invitations, we need to handle the navigation logic
+        // So we only append without navigation
+        setPendingInvitations(prev => [...prev, ...response.data.data]);
+      } else {
+        // Handle navigation for active games in accepted invitations
+        const acceptedData = response.data.data;
+        // Check if user intentionally visited the lobby
+        const intentionalVisit = sessionStorage.getItem('intentionalLobbyVisit') === 'true';
+        const intentionalVisitTime = parseInt(sessionStorage.getItem('intentionalLobbyVisitTime') || '0');
+        const timeSinceIntentionalVisit = Date.now() - intentionalVisitTime;
+
+        if (!intentionalVisit || timeSinceIntentionalVisit >= 5000) {
+          // Check for active games and navigate if needed
+          for (const acceptedItem of acceptedData) {
+            if (acceptedItem.game && ['active', 'waiting'].includes(acceptedItem.game.status)) {
+              // Navigate to active game
+              sessionStorage.setItem('lastInvitationAction', 'invitation_accepted_by_other');
+              sessionStorage.setItem('lastInvitationTime', Date.now().toString());
+              sessionStorage.setItem('lastGameId', acceptedItem.game.id.toString());
+              navigate(`/play/multiplayer/${acceptedItem.game.id}`);
+              return;
+            }
+          }
+        }
+      }
+
+      setAcceptedPagination({
+        page: response.data.pagination.current_page,
+        hasMore: response.data.pagination.has_more,
+        total: response.data.pagination.total,
+        loading: false
+      });
+    } catch (error) {
+      console.error('Error loading accepted invitations:', error);
+      setAcceptedPagination(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  const loadActiveGames = async (page = 1, append = false) => {
+    try {
+      setGamesPagination(prev => ({ ...prev, loading: true }));
+
+      const response = await api.get(`/games/active?limit=10&page=${page}`);
+
+      if (append) {
+        setActiveGames(prev => [...prev, ...response.data.data]);
+      } else {
+        setActiveGames(response.data.data);
+      }
+
+      setGamesPagination({
+        page: response.data.pagination.current_page,
+        hasMore: response.data.pagination.has_more,
+        total: response.data.pagination.total,
+        loading: false
+      });
+    } catch (error) {
+      console.error('Error loading active games:', error);
+      setGamesPagination(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  // Load more handlers
+  const loadMorePending = () => {
+    if (!pendingPagination.loading) {
+      loadPendingInvitations(pendingPagination.page + 1, true);
+    }
+  };
+
+  const loadMoreSent = () => {
+    if (!sentPagination.loading) {
+      loadSentInvitations(sentPagination.page + 1, true);
+    }
+  };
+
+  const loadMoreGames = () => {
+    if (!gamesPagination.loading) {
+      loadActiveGames(gamesPagination.page + 1, true);
+    }
+  };
+
   const fetchData = async (skipDebounce = false) => {
     // Global in-flight protection
     if (inFlightRef.current) {
@@ -104,141 +261,21 @@ const LobbyPage = () => {
       inFlightRef.current = true;
       console.log('[Lobby] 📊 Fetching lobby data for user:', user?.id);
 
-      const [usersRes, pendingRes, sentRes, acceptedRes, activeGamesRes] = await Promise.all([
-        api.get('/users'),
-        api.get('/invitations/pending'),
-        api.get('/invitations/sent'),
-        api.get('/invitations/accepted'),
-        api.get('/games/active')
+      // Load data using paginated functions (only first page for polling)
+      const [usersRes] = await Promise.all([
+        api.get('/users')
       ]);
 
-      console.log('Users response:', usersRes.data);
-      console.log('Pending invitations:', pendingRes.data);
-      console.log('Sent invitations:', sentRes.data);
-      console.log('Accepted invitations:', acceptedRes.data);
+      // Load paginated data without appending
+      await Promise.all([
+        loadPendingInvitations(1, false),
+        loadSentInvitations(1, false),
+        loadAcceptedInvitations(1, false),
+        loadActiveGames(1, false)
+      ]);
 
-      // Check if user intentionally visited the lobby (e.g., clicked "Go to Lobby" button)
-      const intentionalVisit = sessionStorage.getItem('intentionalLobbyVisit') === 'true';
-      const intentionalVisitTime = parseInt(sessionStorage.getItem('intentionalLobbyVisitTime') || '0');
-      const timeSinceIntentionalVisit = Date.now() - intentionalVisitTime;
-
-      // If user intentionally visited lobby within the last 5 seconds, don't auto-navigate
-      if (intentionalVisit && timeSinceIntentionalVisit < 5000) {
-        console.log('⚠️ Intentional lobby visit detected, skipping auto-navigation');
-
-        // Clear the flag after processing
-        sessionStorage.removeItem('intentionalLobbyVisit');
-        sessionStorage.removeItem('intentionalLobbyVisitTime');
-
-        // Mark any accepted games as processed to prevent future auto-navigation
-        if (acceptedRes.data && acceptedRes.data.length > 0) {
-          const processedGames = JSON.parse(sessionStorage.getItem('processedGames') || '[]');
-          acceptedRes.data.forEach(acceptedData => {
-            const gameId = acceptedData.game?.id;
-            if (gameId && !processedGames.includes(gameId)) {
-              processedGames.push(gameId);
-            }
-          });
-          sessionStorage.setItem('processedGames', JSON.stringify(processedGames));
-        }
-      } else {
-        // Handle accepted invitations - navigate to game if any
-        if (acceptedRes.data && acceptedRes.data.length > 0) {
-          // Get processed invitation IDs to prevent duplicate navigation
-          const processedInvitationIds = JSON.parse(sessionStorage.getItem('processedInvitationIds') || '[]');
-
-          // Sort by updated_at DESC (newest first) - backend already sorts, but ensure it
-          const sortedAccepted = [...acceptedRes.data].sort((a, b) =>
-            new Date(b.updated_at) - new Date(a.updated_at)
-          );
-
-          console.log('Found accepted invitations:', sortedAccepted.length);
-
-          // Loop through accepted invitations to find first active game
-          for (const acceptedData of sortedAccepted) {
-            const invitationId = acceptedData.id;
-            const gameId = acceptedData.game?.id;
-
-            // Skip already processed invitations
-            if (processedInvitationIds.includes(invitationId)) {
-              console.log('Skipping already processed invitation:', invitationId);
-              continue;
-            }
-
-            // Skip invitations without linked games
-            if (!gameId) {
-              console.log('Skipping invitation without game:', invitationId);
-              continue;
-            }
-
-            // Check actual game status from backend to determine if we should navigate
-            try {
-              const token = localStorage.getItem('auth_token');
-              const gameResponse = await fetch(`${BACKEND_URL}/games/${gameId}`, {
-                headers: {
-                  'Authorization': `Bearer ${token}`,
-                  'Content-Type': 'application/json'
-                }
-              });
-
-              if (gameResponse.ok) {
-                const gameData = await gameResponse.json();
-                const isGameActive = gameData.status === 'active' || gameData.status === 'waiting';
-                const isGameFinished = gameData.status === 'finished';
-
-                console.log('Game status check:', {
-                  invitationId,
-                  gameId,
-                  status: gameData.status,
-                  isGameActive,
-                  isGameFinished
-                });
-
-                // Skip finished games
-                if (isGameFinished) {
-                  console.log('Skipping finished game:', gameId);
-                  sessionStorage.setItem('gameFinished_' + gameId, 'true');
-
-                  // Mark invitation as processed
-                  if (!processedInvitationIds.includes(invitationId)) {
-                    processedInvitationIds.push(invitationId);
-                    sessionStorage.setItem('processedInvitationIds', JSON.stringify(processedInvitationIds));
-                  }
-                  continue; // Check next invitation
-                }
-
-                // Found active game - navigate to it
-                if (isGameActive) {
-                  // Set session markers for proper game access
-                  sessionStorage.setItem('lastInvitationAction', 'invitation_accepted_by_other');
-                  sessionStorage.setItem('lastInvitationTime', Date.now().toString());
-                  sessionStorage.setItem('lastGameId', gameId.toString());
-
-                  // Mark invitation as processed
-                  if (!processedInvitationIds.includes(invitationId)) {
-                    processedInvitationIds.push(invitationId);
-                    sessionStorage.setItem('processedInvitationIds', JSON.stringify(processedInvitationIds));
-                  }
-
-                  console.log('Navigating to ACTIVE game from accepted invitation:', { invitationId, gameId });
-                  navigate(`/play/multiplayer/${gameId}`);
-                  return; // Exit early to prevent further processing
-                }
-              }
-            } catch (error) {
-              console.error('Error checking game status for invitation:', invitationId, error);
-              continue; // Check next invitation
-            }
-          }
-
-          console.log('No active games found in accepted invitations');
-        }
-      }
-
-      // Filter out the current user from the list
+      // Handle users
       const otherUsers = usersRes.data.filter(p => p.id !== user.id);
-
-      // Add Computer as a special player option
       const computerPlayer = {
         id: 'computer',
         name: 'Computer',
@@ -246,34 +283,8 @@ const LobbyPage = () => {
         rating: 1200,
         isComputer: true
       };
-
-      // Add computer player at the beginning of the list
       const allPlayers = [computerPlayer, ...otherUsers];
-      console.log('Players after adding computer:', allPlayers.length);
-
-      // Get processed invitations from session storage to filter them out
-      const processedInvitations = JSON.parse(sessionStorage.getItem('processedInvitations') || '[]');
-
-      // Filter out accepted/processed invitations from sent list
-      const activeSentInvitations = sentRes.data.filter(invitation => {
-        // Remove invitations that have been accepted (status: 'accepted')
-        // OR have been marked as processed in sessionStorage
-        const isAccepted = invitation.status === 'accepted';
-        const isProcessed = processedInvitations.includes(invitation.id);
-
-        if (isAccepted || isProcessed) {
-          console.log('Filtering out processed/accepted invitation:', invitation.id, { isAccepted, isProcessed });
-          return false;
-        }
-        return true;
-      });
-
       setPlayers(allPlayers);
-      // Filter out resume requests from lobby list - they are handled by popup dialogs
-      const filteredPendingInvitations = pendingRes.data.filter(inv => inv.type !== 'resume_request');
-      setPendingInvitations(filteredPendingInvitations);
-      setSentInvitations(activeSentInvitations);
-      setActiveGames(activeGamesRes.data || []);
     } catch (error) {
       console.error('[Lobby] ❌ Failed to fetch data:', error);
       console.error('[Lobby] Error details:', error.response?.data);
@@ -336,8 +347,8 @@ const LobbyPage = () => {
       }
       const hidden = document.visibilityState === 'hidden';
       const delay = hidden
-        ? (wsOK ? 60000 : 30000)  // Hidden: 60s with WS, 30s without (reduced from 10s)
-        : (wsOK ? 30000 : 15000);  // Visible: 30s with WS, 15s without (increased from 5s)
+        ? (wsOK ? 180000 : 90000)  // Hidden: 3min with WS, 1.5min without (further optimized)
+        : (wsOK ? 120000 : 60000); // Visible: 2min with WS, 1min without (optimized for pagination)
 
       // Fetch data (in-flight protection is handled inside fetchData)
       console.log(`[Lobby] 🔄 Polling cycle (WS: ${wsOK ? '✅' : '❌'}, Hidden: ${hidden}, Delay: ${delay}ms)`);
@@ -734,31 +745,64 @@ const LobbyPage = () => {
 
       <div className="lobby-content">
         {activeTab === 'players' && (
-          <PlayersList
-            players={players}
-            sentInvitations={sentInvitations}
-            onChallenge={handleInvite}
-            onComputerChallenge={handleComputerChallenge}
-          />
+          <>
+            <PlayersList
+              players={players}
+              sentInvitations={sentInvitations}
+              onChallenge={handleInvite}
+              onComputerChallenge={handleComputerChallenge}
+            />
+          </>
         )}
 
         {activeTab === 'invitations' && (
-          <InvitationsList
-            pendingInvitations={pendingInvitations}
-            sentInvitations={sentInvitations}
-            processingInvitations={processingInvitations}
-            onAccept={(invitationId) => handleInvitationResponse(invitationId, 'accept')}
-            onDecline={(invitationId) => handleInvitationResponse(invitationId, 'decline')}
-            onCancel={handleCancelInvitation}
-          />
+          <>
+            <InvitationsList
+              pendingInvitations={pendingInvitations}
+              sentInvitations={sentInvitations}
+              processingInvitations={processingInvitations}
+              onAccept={(invitationId) => handleInvitationResponse(invitationId, 'accept')}
+              onDecline={(invitationId) => handleInvitationResponse(invitationId, 'decline')}
+              onCancel={handleCancelInvitation}
+            />
+            {/* Load More for Pending Invitations */}
+            <LoadMoreButton
+              hasMore={pendingPagination.hasMore}
+              loading={pendingPagination.loading}
+              onLoadMore={loadMorePending}
+              currentCount={pendingInvitations.length}
+              totalCount={pendingPagination.total}
+              buttonText="Load More Pending Invitations"
+            />
+            {/* Load More for Sent Invitations */}
+            <LoadMoreButton
+              hasMore={sentPagination.hasMore}
+              loading={sentPagination.loading}
+              onLoadMore={loadMoreSent}
+              currentCount={sentInvitations.length}
+              totalCount={sentPagination.total}
+              buttonText="Load More Sent Invitations"
+            />
+          </>
         )}
 
         {activeTab === 'games' && (
-          <ActiveGamesList
-            activeGames={activeGames}
-            currentUserId={user.id}
-            onResumeGame={handleResumeGame}
-          />
+          <>
+            <ActiveGamesList
+              activeGames={activeGames}
+              currentUserId={user.id}
+              onResumeGame={handleResumeGame}
+            />
+            {/* Load More for Active Games */}
+            <LoadMoreButton
+              hasMore={gamesPagination.hasMore}
+              loading={gamesPagination.loading}
+              onLoadMore={loadMoreGames}
+              currentCount={activeGames.length}
+              totalCount={gamesPagination.total}
+              buttonText="Load More Games"
+            />
+          </>
         )}
       </div>
 

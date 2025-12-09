@@ -317,6 +317,20 @@ export const GlobalInvitationProvider = ({ children }) => {
       }
     });
 
+    // Listen for invitation declined (for inviters)
+    userChannel.listen('.invitation.declined', (data) => {
+      console.log('[GlobalInvitation] 🚫 Invitation declined event received:', data);
+
+      // Remove any pending invitation (cleanup)
+      if (data.invitation && data.invitation.id) {
+        console.log('[GlobalInvitation] Removing declined invitation from pending:', data.invitation.id);
+        setPendingInvitation(null);
+      }
+
+      // Optional: Show notification in the future if needed
+      // For now, just closing the dialog is enough feedback
+    });
+
     // Listen for championship invitation accepted (for inviters - navigate to game)
     userChannel.listen('.championship.invitation.accepted', (data) => {
       console.log('[GlobalInvitation] 🏆 Championship invitation accepted event received:', data);
@@ -415,7 +429,16 @@ export const GlobalInvitationProvider = ({ children }) => {
         setChampionshipResumeRequest(null);
       }
 
-      // Note: Could show a notification here that the request was declined, but keeping it simple for now
+      // Emit a custom DOM event for championship pages to show notification
+      const declineEvent = new CustomEvent('championshipResumeDeclined', {
+        detail: {
+          matchId: data.match_id,
+          message: `${data.declining_user?.name || 'Opponent'} declined your resume request.`
+        }
+      });
+      window.dispatchEvent(declineEvent);
+
+      console.log('[GlobalInvitation] ✅ Championship decline notification event dispatched');
     });
 
     // Listen for resume request expired (auto-dismiss dialog for both regular and championship games)
@@ -447,24 +470,11 @@ export const GlobalInvitationProvider = ({ children }) => {
         if (data.response === 'declined') {
           console.log('[GlobalInvitation] ❌ Resume request was declined');
 
-          // Create a notification for the declined request
-          const declinedNotification = {
-            id: `resume-declined-${data.game_id}-${Date.now()}`,
-            type: 'resume_declined',
-            title: 'Resume Request Declined',
-            message: `${data.responding_user?.name || 'Opponent'} declined your resume request`,
-            timestamp: new Date(),
-            gameId: data.game_id,
-            read: false
-          };
-
-          // Add to notifications
-          setNotifications(prev => [declinedNotification, ...prev.slice(0, 49)]); // Keep max 50 notifications
-
           // Close the waiting dialog
           setResumeRequest(null);
 
-          console.log('[GlobalInvitation] ✅ Decline notification added and dialog closed');
+          // Note: Notification is now handled in PlayMultiplayer.js with redirect to lobby
+          console.log('[GlobalInvitation] ✅ Decline handled, dialog closed');
         } else if (data.response === 'accepted') {
           console.log('[GlobalInvitation] ✅ Resume request was accepted');
 
@@ -620,8 +630,11 @@ export const GlobalInvitationProvider = ({ children }) => {
     try {
       console.log('[GlobalInvitation] Declining invitation:', invitationId);
 
+      // Convert invitationId to string for consistent handling
+      const invitationIdStr = String(invitationId);
+
       // Check if this is a new game request (rematch challenge)
-      if (invitationId.startsWith('new_game_')) {
+      if (invitationIdStr.startsWith('new_game_')) {
         console.log('[GlobalInvitation] 🎯 This is a new game request, just dismissing dialog');
 
         // For new game requests, we don't need to call any API since the game is already created

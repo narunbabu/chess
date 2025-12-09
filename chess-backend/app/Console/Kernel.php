@@ -25,6 +25,12 @@ class Kernel extends ConsoleKernel
         $schedule->command('invitations:cleanup-expired')
                  ->hourly()
                  ->description('Clean up expired invitations and update their status');
+
+        // Clean up stale invitations from finished games daily
+        $schedule->command('invitations:cleanup')
+                 ->daily()
+                 ->at('02:00')
+                 ->description('Clean up stale invitations from finished games');
     }
 
     /**
