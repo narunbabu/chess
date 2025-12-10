@@ -388,7 +388,7 @@ const Header = () => {
 
       <div className="right-section">
         {/* Show stats in right section when on lobby page */}
-        {location.pathname.includes('/lobby') && (
+        {/* {location.pathname.includes('/lobby') && isAuthenticated && (
           <div className="stats-row compact">
             <div className="stat-item">
               <span>🟢</span>
@@ -399,7 +399,7 @@ const Header = () => {
               {onlineStats.availablePlayers}
             </div>
           </div>
-        )}
+        )} */}
 
         {isAuthenticated ? (
           <div className="user-compact" ref={userMenuRef}>

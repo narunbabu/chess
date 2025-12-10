@@ -9,24 +9,9 @@ import globalWebSocketManager from '../services/GlobalWebSocketManager';
 const GlobalInvitationContext = createContext(null);
 
 export const GlobalInvitationProvider = ({ children }) => {
-  // CRITICAL: This log should ALWAYS appear if the provider is rendering
-  console.log('[GlobalInvitation] 🏗️ Provider component rendering - ENTRY POINT', {
-    timestamp: new Date().toISOString(),
-    location: window.location.pathname
-  });
-
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-
-  console.log('[GlobalInvitation] 🔍 Provider render state:', {
-    hasUser: !!user,
-    userId: user?.id,
-    userName: user?.username || user?.name,
-    userEmail: user?.email,
-    pathname: location.pathname,
-    hasAuthContext: !!useAuth
-  });
 
   // State for managing invitations and dialogs
   const [pendingInvitation, setPendingInvitation] = useState(null);
@@ -63,30 +48,15 @@ export const GlobalInvitationProvider = ({ children }) => {
 
   // Listen to WebSocket events for invitations
   useEffect(() => {
-    console.log('[GlobalInvitation] 🔄 Provider useEffect triggered', {
-      hasUser: !!user,
-      userId: user?.id,
-      userName: user?.username,
-      pathname: location.pathname,
-      timestamp: new Date().toISOString()
-    });
-
     if (!user) {
-      console.log('[GlobalInvitation] ⏭️ No user yet, skipping listener setup');
       return;
     }
 
     // Try to get Echo with retry logic
     let echo = getEcho();
-    console.log('[GlobalInvitation] 🔍 Initial Echo check:', {
-      hasEcho: !!echo,
-      hasWindow: typeof window !== 'undefined',
-      windowEcho: !!window.Echo,
-      socketId: echo?.socketId?.()
-    });
 
     if (!echo) {
-      console.warn('[GlobalInvitation] ⚠️ Echo not immediately available, will retry in 500ms...');
+      console.warn('[GlobalInvitation] Echo not immediately available, will retry in 500ms...');
 
       // Track cleanup state
       let cleanupCalled = false;
@@ -95,21 +65,15 @@ export const GlobalInvitationProvider = ({ children }) => {
       // Retry after a short delay to allow Echo to initialize
       const retryTimeout = setTimeout(() => {
         if (cleanupCalled) {
-          console.log('[GlobalInvitation] ⏭️ Component unmounted, skipping retry');
           return;
         }
 
         echo = getEcho();
-        console.log('[GlobalInvitation] 🔄 Retry Echo check:', {
-          hasEcho: !!echo,
-          socketId: echo?.socketId?.()
-        });
 
         if (echo) {
-          console.log('[GlobalInvitation] ✅ Echo available after retry, setting up listeners');
           cleanupFunction = setupListeners(echo);
         } else {
-          console.error('[GlobalInvitation] ❌ Echo still not available after retry, invitation dialogs will not work');
+          console.error('[GlobalInvitation] Echo still not available after retry, invitation dialogs will not work');
         }
       }, 500);
 
@@ -127,101 +91,62 @@ export const GlobalInvitationProvider = ({ children }) => {
 
     function setupListeners(echo) {
       if (!echo || !user?.id) {
-        console.error('[GlobalInvitation] ❌ Cannot setup listeners - missing Echo or user ID');
+        console.error('[GlobalInvitation] Cannot setup listeners - missing Echo or user ID');
         return;
       }
 
-    console.log('[GlobalInvitation] ✅ Setting up listeners for user:', user.id);
-    console.log('[GlobalInvitation] 🔌 Echo available:', !!echo);
-    console.log('[GlobalInvitation] 📍 Current location:', location.pathname);
-    console.log('[GlobalInvitation] 🕐 Setup timestamp:', new Date().toISOString());
-
     // Subscribe to user-specific channel (shared for all invitation types)
     const userChannel = echo.private(`App.Models.User.${user.id}`);
-    console.log('[GlobalInvitation] 📡 Subscribing to channel:', `App.Models.User.${user.id}`);
-    console.log('[GlobalInvitation] 🔌 Echo available:', !!echo);
-    console.log('[GlobalInvitation] 📍 User location:', location.pathname);
-    console.log('[GlobalInvitation] ℹ️ This channel handles ALL invitation types (regular + championship)');
-    console.log('[GlobalInvitation] ⏰ Timestamp:', new Date().toISOString());
-
-    // Check Pusher connection state
-    const pusherState = echo?.connector?.pusher?.connection?.state;
-    console.log('[GlobalInvitation] 🔗 Pusher connection state:', pusherState);
-    console.log('[GlobalInvitation] 🔗 Pusher socket ID:', echo.socketId?.());
 
     // Add subscription success confirmation
     if (userChannel) {
-      console.log('[GlobalInvitation] ✅ Channel object created successfully');
-
       // CRITICAL FIX: Register event listeners IMMEDIATELY, before checking subscription state
       // This ensures listeners are ready even if subscription completes instantly
-      console.log('[GlobalInvitation] 🎯 Registering event listeners IMMEDIATELY...');
 
       // Register all listeners first (before any state checks)
       registerEventListeners(userChannel);
 
-      console.log('[GlobalInvitation] ✅ All event listeners registered');
-
       // Now check subscription state for logging purposes only
       const currentSubscriptionState = userChannel.subscription?.state;
-      console.log('[GlobalInvitation] 🔍 Current subscription state:', currentSubscriptionState);
 
       if (currentSubscriptionState === 'subscribed') {
-        console.log('[GlobalInvitation] 🎉 Already subscribed to user channel:', `App.Models.User.${user.id}`);
-        console.log('[GlobalInvitation] ✅ Resume request listener is now ACTIVE and waiting for events');
+        console.log('[GlobalInvitation] Successfully subscribed to user channel:', `App.Models.User.${user.id}`);
       } else {
-        console.log('[GlobalInvitation] ⏳ Subscription pending, waiting for confirmation...');
-
         // Listen for subscription success
         userChannel.subscribed(() => {
-          console.log('[GlobalInvitation] 🎉 Successfully subscribed to user channel:', `App.Models.User.${user.id}`);
-          console.log('[GlobalInvitation] ✅ Resume request listener is now ACTIVE and waiting for events');
+          console.log('[GlobalInvitation] Successfully subscribed to user channel:', `App.Models.User.${user.id}`);
         });
 
         // Listen for subscription errors
         userChannel.error((error) => {
-          console.error('[GlobalInvitation] ❌ Channel subscription error:', error);
+          console.error('[GlobalInvitation] Channel subscription error:', error);
         });
       }
     } else {
-      console.error('[GlobalInvitation] ❌ Failed to create user channel');
+      console.error('[GlobalInvitation] Failed to create user channel');
     }
 
     // Function to register all event listeners
     function registerEventListeners(userChannel) {
-      console.log('[GlobalInvitation] 📝 Starting event listener registration...');
-
     // Listen for new game invitations
     userChannel.listen('.invitation.sent', (data) => {
-      console.log('[GlobalInvitation] 📨 New invitation received:', data);
-      console.log('[GlobalInvitation] 🎯 Invitation type:', data.invitation?.type);
-      console.log('[GlobalInvitation] 📍 Current location:', window.location.pathname);
-      console.log('[GlobalInvitation] 👤 User in active game?', isInActiveGameRef.current());
-
       // Don't show dialog if user is in active game
       if (isInActiveGameRef.current()) {
-        console.log('[GlobalInvitation] User in active game, skipping dialog');
         return;
       }
 
       // Show invitation dialog for any invitation type (including championship matches)
       if (data.invitation) {
-        console.log('[GlobalInvitation] ✅ Setting pending invitation:', data.invitation.id, data.invitation.type);
         setPendingInvitation(data.invitation);
       } else {
-        console.warn('[GlobalInvitation] ⚠️ Invitation data missing:', data);
+        console.warn('[GlobalInvitation] Invitation data missing:', data);
       }
     });
 
     // Listen for new game requests (rematch challenges from online players)
     userChannel.listen('.new_game.request', (data) => {
-      console.log('[GlobalInvitation] 🎯 New game request received:', data);
-      console.log('[GlobalInvitation] 📍 Current location:', window.location.pathname);
-      console.log('[GlobalInvitation] 👤 User in active game?', isInActiveGameRef.current());
-
       // Don't show dialog if user is in active game
       if (isInActiveGameRef.current()) {
-        console.log('[GlobalInvitation] User in active game, skipping new game request dialog');
         return;
       }
 
@@ -238,33 +163,19 @@ export const GlobalInvitationProvider = ({ children }) => {
           message: data.message
         };
 
-        console.log('[GlobalInvitation] ✅ Setting pending new game request:', invitationData.id);
         setPendingInvitation(invitationData);
       } else {
-        console.warn('[GlobalInvitation] ⚠️ New game request data missing:', data);
+        console.warn('[GlobalInvitation] New game request data missing:', data);
       }
     });
 
     // Listen for resume requests
     userChannel.listen('.resume.request.sent', (data) => {
-      console.log('[GlobalInvitation] 🎯 Resume request received via WebSocket:', data);
-      console.log('[GlobalInvitation] 👤 My user ID:', user.id, 'Request from user:', data.requesting_user?.id, 'Game ID:', data.game_id);
-      console.log('[GlobalInvitation] 🕐 Resume request timestamp:', new Date().toISOString());
-      console.log('[GlobalInvitation] 📋 Resume request details:', {
-        gameId: data.game_id,
-        requestingUserId: data.requesting_user?.id,
-        requestingUserName: data.requesting_user?.name,
-        myUserId: user?.id,
-        expiresAt: data.expires_at,
-        currentPath: window.location.pathname
-      });
-
       // Note: Always show resume requests, even when on game page, since resume requests
       // are specifically for reactivating paused games that the user is already viewing
 
       // Show resume request dialog
       if (data.game_id && data.requesting_user) {
-        console.log('[GlobalInvitation] ✅ Setting resume request state');
         const resumeRequestData = {
           gameId: data.game_id,
           requestingUserId: data.requesting_user.id,
@@ -273,16 +184,9 @@ export const GlobalInvitationProvider = ({ children }) => {
           game: data.game,
           invitationId: data.invitation?.id, // Store invitation ID for removal
         };
-        console.log('[GlobalInvitation] 📦 Resume request data being set:', resumeRequestData);
-        console.log('[GlobalInvitation] 🔍 Current resumeRequest state before update:', resumeRequestRef.current);
         setResumeRequest(resumeRequestData);
-        console.log('[GlobalInvitation] 🔄 setResumeRequest() called - dialog should appear now');
-        console.log('[GlobalInvitation] 💡 If dialog does not appear:');
-        console.log('[GlobalInvitation] 1. Check GlobalInvitationDialog logs for state update');
-        console.log('[GlobalInvitation] 2. Verify GlobalInvitationDialog is mounted in React DevTools');
-        console.log('[GlobalInvitation] 3. Check if CSS is hiding the dialog');
       } else {
-        console.warn('[GlobalInvitation] ❌ Missing required data in resume request:', {
+        console.warn('[GlobalInvitation] Missing required data in resume request:', {
           hasGameId: !!data.game_id,
           hasRequestingUser: !!data.requesting_user,
           rawData: data
@@ -292,11 +196,8 @@ export const GlobalInvitationProvider = ({ children }) => {
 
     // Listen for invitation accepted (for inviters - navigate to game)
     userChannel.listen('.invitation.accepted', (data) => {
-      console.log('[GlobalInvitation] 🎉 Invitation accepted event received:', data);
-
       // Remove any pending invitation (cleanup)
       if (data.invitation && data.invitation.id) {
-        console.log('[GlobalInvitation] Removing accepted invitation from pending:', data.invitation.id);
         if (pendingInvitationRef.current?.id === data.invitation.id) {
           setPendingInvitation(null);
         }
@@ -304,8 +205,6 @@ export const GlobalInvitationProvider = ({ children }) => {
 
       // Navigate to the game if game data is provided
       if (data.game && data.game.id) {
-        console.log('[GlobalInvitation] 🎮 Navigating to game ID:', data.game.id);
-
         // Set session markers for proper game access (challenger perspective)
         sessionStorage.setItem('lastInvitationAction', 'invitation_accepted_by_other');
         sessionStorage.setItem('lastInvitationTime', Date.now().toString());
@@ -313,17 +212,14 @@ export const GlobalInvitationProvider = ({ children }) => {
 
         navigate(`/play/multiplayer/${data.game.id}`);
       } else {
-        console.warn('[GlobalInvitation] ⚠️ Invitation accepted but no game data in event:', data);
+        console.warn('[GlobalInvitation] Invitation accepted but no game data in event:', data);
       }
     });
 
     // Listen for invitation declined (for inviters)
     userChannel.listen('.invitation.declined', (data) => {
-      console.log('[GlobalInvitation] 🚫 Invitation declined event received:', data);
-
       // Remove any pending invitation (cleanup)
       if (data.invitation && data.invitation.id) {
-        console.log('[GlobalInvitation] Removing declined invitation from pending:', data.invitation.id);
         setPendingInvitation(null);
       }
 
@@ -333,11 +229,8 @@ export const GlobalInvitationProvider = ({ children }) => {
 
     // Listen for championship invitation accepted (for inviters - navigate to game)
     userChannel.listen('.championship.invitation.accepted', (data) => {
-      console.log('[GlobalInvitation] 🏆 Championship invitation accepted event received:', data);
-
       // Remove any pending invitation (cleanup)
       if (data.match) {
-        console.log('[GlobalInvitation] Removing championship match from pending');
         setPendingInvitation(null);
       }
 
@@ -346,8 +239,6 @@ export const GlobalInvitationProvider = ({ children }) => {
       const gameId = data.game?.id || data.match?.game_id;
 
       if (gameId) {
-        console.log('[GlobalInvitation] 🎮 Navigating to championship game ID:', gameId);
-
         // Set session markers for proper game access (challenger perspective)
         sessionStorage.setItem('lastInvitationAction', 'championship_invitation_accepted_by_other');
         sessionStorage.setItem('lastInvitationTime', Date.now().toString());
@@ -355,28 +246,19 @@ export const GlobalInvitationProvider = ({ children }) => {
 
         navigate(`/play/multiplayer/${gameId}`);
       } else {
-        console.warn('[GlobalInvitation] ⚠️ Championship invitation accepted but no game data in event:', data);
+        console.warn('[GlobalInvitation] Championship invitation accepted but no game data in event:', data);
       }
     });
 
     // Listen for championship game resume requests
     userChannel.listen('.championship.game.resume.request', (data) => {
-      console.log('[GlobalInvitation] 🏆 Championship game resume request received:', data);
-
       // Don't show dialog if user is in active multiplayer game
       if (isInActiveGameRef.current()) {
-        console.log('[GlobalInvitation] User in active multiplayer game, skipping championship request dialog');
         return;
       }
 
       // Show championship resume request dialog
       if (data.request_id && data.match_id && data.requester) {
-        // Extract championship ID from the match or game data if available
-        let championshipId = null;
-
-        // Try to get championship ID from match data or game data
-        // The backend might not include this directly, so we'll handle it in the API calls
-
         setChampionshipResumeRequest({
           requestId: data.request_id,
           matchId: data.match_id,
@@ -394,20 +276,13 @@ export const GlobalInvitationProvider = ({ children }) => {
 
     // Listen for championship game resume request accepted (for requesters - navigate to game)
     userChannel.listen('.championship.game.resume.accepted', (data) => {
-      console.log('[GlobalInvitation] 🏆 Championship resume request accepted event received:', data);
-      console.log('[GlobalInvitation] 👤 Current user ID:', user?.id);
-      console.log('[GlobalInvitation] 📍 Current location:', location.pathname);
-
       // Remove any pending championship request (cleanup)
       if (data.match_id) {
-        console.log('[GlobalInvitation] Removing championship match request from pending');
         setChampionshipResumeRequest(null);
       }
 
       // Navigate to the game if game data is provided
       if (data.game_id) {
-        console.log('[GlobalInvitation] 🎮 Navigating to championship game ID:', data.game_id);
-
         // Set session markers for proper game access
         sessionStorage.setItem('lastInvitationAction', 'championship_resume_accepted_by_other');
         sessionStorage.setItem('lastInvitationTime', Date.now().toString());
@@ -415,17 +290,14 @@ export const GlobalInvitationProvider = ({ children }) => {
 
         navigate(`/play/multiplayer/${data.game_id}`);
       } else {
-        console.warn('[GlobalInvitation] ⚠️ Championship resume request accepted but no game data in event:', data);
+        console.warn('[GlobalInvitation] Championship resume request accepted but no game data in event:', data);
       }
     });
 
     // Listen for championship game resume request declined (for requesters - notification)
     userChannel.listen('.championship.game.resume.declined', (data) => {
-      console.log('[GlobalInvitation] 🏆 Championship resume request declined event received:', data);
-
       // Remove any pending championship request (cleanup)
       if (data.match_id) {
-        console.log('[GlobalInvitation] Removing declined championship match request from pending');
         setChampionshipResumeRequest(null);
       }
 
@@ -437,71 +309,48 @@ export const GlobalInvitationProvider = ({ children }) => {
         }
       });
       window.dispatchEvent(declineEvent);
-
-      console.log('[GlobalInvitation] ✅ Championship decline notification event dispatched');
     });
 
     // Listen for resume request expired (auto-dismiss dialog for both regular and championship games)
     userChannel.listen('.resume.request.expired', (data) => {
-      console.log('[GlobalInvitation] ⏰ Resume request expired event received:', data);
-
       // Check if it's a regular resume request
       if (data.game_id && resumeRequestRef.current?.gameId === data.game_id) {
-        console.log('[GlobalInvitation] Auto-dismissing expired resume request');
         setResumeRequest(null);
       }
 
       // Check if it's a championship resume request (same game_id check)
       if (data.game_id && championshipResumeRequestRef.current?.gameId === data.game_id) {
-        console.log('[GlobalInvitation] Auto-dismissing expired championship resume request');
         setChampionshipResumeRequest(null);
       }
     });
 
     // Listen for resume request response (handle accept/decline)
     userChannel.listen('.resume.request.response', (data) => {
-      console.log('[GlobalInvitation] 📨 Resume request response received:', data);
-      console.log('[GlobalInvitation] 📊 Response type:', data.response);
-      console.log('[GlobalInvitation] 🎮 Game ID:', data.game_id);
-      console.log('[GlobalInvitation] 👤 Responding user:', data.responding_user?.name);
-
       // Check if we have a pending resume request for this game
       if (data.game_id && resumeRequestRef.current?.gameId === parseInt(data.game_id)) {
         if (data.response === 'declined') {
-          console.log('[GlobalInvitation] ❌ Resume request was declined');
-
           // Close the waiting dialog
           setResumeRequest(null);
 
           // Note: Notification is now handled in PlayMultiplayer.js with redirect to lobby
-          console.log('[GlobalInvitation] ✅ Decline handled, dialog closed');
         } else if (data.response === 'accepted') {
-          console.log('[GlobalInvitation] ✅ Resume request was accepted');
-
           // The game will be resumed automatically, just close the waiting dialog
           setResumeRequest(null);
-
-          console.log('[GlobalInvitation] ✅ Resume request accepted, dialog closed');
         }
       }
     });
 
     // Listen for invitation cancelled (for cleanup)
     userChannel.listen('.invitation.cancelled', (data) => {
-      console.log('[GlobalInvitation] Invitation cancelled:', data);
-
       // Use ref to check current pending invitation
       if (data.invitation && pendingInvitationRef.current?.id === data.invitation.id) {
         setPendingInvitation(null);
       }
     });
-
-      console.log('[GlobalInvitation] ✅ All 8 event listeners registered successfully');
     } // End of registerEventListeners function
 
       // Return cleanup function from setupListeners
       return () => {
-        console.log('[GlobalInvitation] Cleaning up listeners for user:', user.id);
         if (userChannel) {
           userChannel.stopListening('.invitation.sent');
           userChannel.stopListening('.new_game.request');
@@ -524,12 +373,8 @@ export const GlobalInvitationProvider = ({ children }) => {
   useEffect(() => {
     if (!user?.id) return;
 
-    console.log('[GlobalInvitation] 🌐 Setting up global WebSocket manager listeners');
-
     // Listen for game status changes
     const handleGameStatusChanged = (event) => {
-      console.log('[GlobalInvitation] 🌐 Game status changed from global manager:', event);
-
       // If game is no longer paused, clear any resume request
       if (event.status && event.status !== 'paused') {
         setResumeRequest(null);
@@ -548,18 +393,13 @@ export const GlobalInvitationProvider = ({ children }) => {
   // Accept game invitation
   const acceptInvitation = useCallback(async (invitationId, colorChoice) => {
     if (isProcessingRef.current) {
-      console.log('[GlobalInvitation] Already processing, preventing duplicate request');
       return;
     }
 
     setIsProcessing(true);
     try {
-      console.log('[GlobalInvitation] ✅ Accepting invitation:', invitationId, 'with color:', colorChoice);
-
       // Check if this is a new game request (rematch challenge)
       if (typeof invitationId === 'string' && invitationId.startsWith('new_game_')) {
-        console.log('[GlobalInvitation] 🎯 This is a new game request, using WebSocket accept');
-
         // Get the current pending invitation to extract game data
         const currentInvitation = pendingInvitationRef.current;
         if (!currentInvitation || !currentInvitation.new_game_id) {
@@ -568,7 +408,6 @@ export const GlobalInvitationProvider = ({ children }) => {
 
         // For new game requests, the game is already created, just navigate to it
         const gameId = currentInvitation.new_game_id;
-        console.log('[GlobalInvitation] 🚀 Navigating to new game:', gameId);
 
         // Clear the dialog
         setPendingInvitation(null);
@@ -587,11 +426,7 @@ export const GlobalInvitationProvider = ({ children }) => {
         desired_color: colorChoice,
       };
 
-      console.log('[GlobalInvitation] 📤 Sending POST request to /invitations/' + invitationId + '/respond');
       const response = await api.post(`/invitations/${invitationId}/respond`, requestData);
-
-      console.log('[GlobalInvitation] 🎉 Invitation accepted successfully:', response.data);
-      console.log('[GlobalInvitation] 🎮 Game created:', response.data.game);
 
       // Clear the dialog
       setPendingInvitation(null);
@@ -599,7 +434,6 @@ export const GlobalInvitationProvider = ({ children }) => {
       // Navigate to the game
       if (response.data.game?.id) {
         const gameId = response.data.game.id;
-        console.log('[GlobalInvitation] 🚀 Navigating to game:', gameId);
 
         sessionStorage.setItem('lastInvitationAction', 'accepted');
         sessionStorage.setItem('lastInvitationTime', Date.now().toString());
@@ -607,14 +441,11 @@ export const GlobalInvitationProvider = ({ children }) => {
 
         navigate(`/play/multiplayer/${gameId}`);
       } else {
-        console.error('[GlobalInvitation] ❌ No game ID in response!', response.data);
+        console.error('[GlobalInvitation] No game ID in response!', response.data);
         alert('Game was created but we could not navigate to it. Please check your active games.');
       }
     } catch (error) {
-      console.error('[GlobalInvitation] ❌ Failed to accept invitation:', error);
-      console.error('[GlobalInvitation] Error response:', error.response?.data);
-      console.error('[GlobalInvitation] Error status:', error.response?.status);
-
+      console.error('[GlobalInvitation] Failed to accept invitation:', error);
       const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message;
       alert(`Failed to accept invitation: ${errorMessage}`);
     } finally {
@@ -628,15 +459,11 @@ export const GlobalInvitationProvider = ({ children }) => {
 
     setIsProcessing(true);
     try {
-      console.log('[GlobalInvitation] Declining invitation:', invitationId);
-
       // Convert invitationId to string for consistent handling
       const invitationIdStr = String(invitationId);
 
       // Check if this is a new game request (rematch challenge)
       if (invitationIdStr.startsWith('new_game_')) {
-        console.log('[GlobalInvitation] 🎯 This is a new game request, just dismissing dialog');
-
         // For new game requests, we don't need to call any API since the game is already created
         // The opponent will see the game in their active games if they don't accept
         // Just clear the dialog and do nothing else
@@ -663,8 +490,6 @@ export const GlobalInvitationProvider = ({ children }) => {
 
     setIsProcessing(true);
     try {
-      console.log('[GlobalInvitation] Accepting resume request for game:', gameId);
-
       const echo = getEcho();
       const socketId = echo?.socketId();
 
@@ -682,8 +507,6 @@ export const GlobalInvitationProvider = ({ children }) => {
       if (!response.data.success) {
         throw new Error(response.data.message || 'Resume response failed');
       }
-
-      console.log('[GlobalInvitation] Resume request accepted, navigating to game');
 
       // Clear the dialog
       setResumeRequest(null);
@@ -707,8 +530,6 @@ export const GlobalInvitationProvider = ({ children }) => {
 
     setIsProcessing(true);
     try {
-      console.log('[GlobalInvitation] Declining resume request for game:', gameId);
-
       const echo = getEcho();
       const socketId = echo?.socketId();
 
@@ -739,8 +560,6 @@ export const GlobalInvitationProvider = ({ children }) => {
 
     setIsProcessing(true);
     try {
-      console.log('[GlobalInvitation] Accepting championship resume request for match:', matchId, 'game:', gameId);
-
       // Get championship ID from the current championship resume request state
       const championshipId = championshipResumeRequestRef.current?.championshipId;
 
@@ -756,8 +575,6 @@ export const GlobalInvitationProvider = ({ children }) => {
       if (!response.data.success) {
         throw new Error(response.data.message || 'Championship resume response failed');
       }
-
-      console.log('[GlobalInvitation] Championship resume request accepted, navigating to game');
 
       // Clear the dialog
       setChampionshipResumeRequest(null);
@@ -781,8 +598,6 @@ export const GlobalInvitationProvider = ({ children }) => {
 
     setIsProcessing(true);
     try {
-      console.log('[GlobalInvitation] Declining championship resume request for match:', matchId, 'game:', gameId);
-
       // Get championship ID from the current championship resume request state
       const championshipId = championshipResumeRequestRef.current?.championshipId;
 

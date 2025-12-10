@@ -41,7 +41,7 @@
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
   height: 32px;
   max-height: 32px;
   margin-left: auto;
@@ -294,6 +294,7 @@
   }
 
   .right-section {
+    gap: 0.6rem;
     margin-left: auto;
   }
 
@@ -354,7 +355,7 @@
 
   /* Adjust right section for mobile */
   .right-section {
-    gap: 0.5rem;
+    gap: 0.6rem;
     margin-left: auto;
   }
 
@@ -402,7 +403,7 @@
 
   /* Adjust right section for very small screens */
   .right-section {
-    gap: 0.3rem;
+    gap: 0.4rem;
     margin-left: auto;
   }
 

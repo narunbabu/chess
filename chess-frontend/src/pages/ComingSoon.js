@@ -5,7 +5,7 @@ import Footer from '../components/layout/Footer';
 
 const ComingSoon = () => {
   return (
-    <>
+
       <div className="min-h-screen bg-gradient-to-br from-sky-400 via-sky-300 to-sky-200 flex items-center justify-center px-4">
       <div className="max-w-2xl w-full">
         <div className="text-center mb-8">
@@ -67,8 +67,7 @@ const ComingSoon = () => {
 
       </div>
 
-      <Footer />
-    </>
+
   );
 };
 
