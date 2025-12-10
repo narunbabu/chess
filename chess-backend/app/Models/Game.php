@@ -35,6 +35,10 @@ class Game extends Model
         'paused_by_user_id',
         'last_heartbeat_at',
         'parent_game_id',
+        // Computer game fields
+        'computer_player_id',
+        'computer_level',
+        'player_color',
         // Pause time tracking
         'white_time_paused_ms',
         'black_time_paused_ms',
@@ -66,7 +70,10 @@ class Game extends Model
         'black_time_paused_ms' => 'integer',
         'white_grace_time_ms' => 'integer',
         'black_grace_time_ms' => 'integer',
-        'resume_requested_by' => 'integer'
+        'resume_requested_by' => 'integer',
+        // Computer game casts
+        'computer_player_id' => 'integer',
+        'computer_level' => 'integer'
     ];
 
     /**
@@ -86,6 +93,11 @@ class Game extends Model
     public function blackPlayer()
     {
         return $this->belongsTo(User::class, 'black_player_id');
+    }
+
+    public function computerPlayer()
+    {
+        return $this->belongsTo(ComputerPlayer::class, 'computer_player_id');
     }
 
     public function pausedByUser()
@@ -319,5 +331,57 @@ class Game extends Model
     public function getPausedSeconds(): int
     {
         return $this->paused_at ? now()->diffInSeconds($this->paused_at) : 0;
+    }
+
+    /**
+     * Check if this is a computer game
+     */
+    public function isComputerGame(): bool
+    {
+        return $this->computer_player_id !== null;
+    }
+
+    /**
+     * Get the computer opponent data
+     */
+    public function getComputerOpponent(): ?array
+    {
+        if (!$this->isComputerGame()) {
+            return null;
+        }
+
+        return [
+            'id' => $this->computer_player_id,
+            'level' => $this->computer_level,
+            'name' => $this->computerPlayer?->name ?? "Computer Level {$this->computer_level}",
+            'avatar' => $this->computerPlayer?->avatar ?? '🤖',
+            'rating' => $this->computerPlayer?->rating ?? (800 + ($this->computer_level * 100))
+        ];
+    }
+
+    /**
+     * Scope to get only computer games
+     */
+    public function scopeComputerGames($query)
+    {
+        return $query->whereNotNull('computer_player_id');
+    }
+
+    /**
+     * Get the opponent for a user (handles both human and computer)
+     */
+    public function getOpponentForUser($userId)
+    {
+        if ($this->isComputerGame()) {
+            // For computer games, return the computer opponent if user is the human player
+            if (($this->player_color === 'white' && $this->white_player_id === $userId) ||
+                ($this->player_color === 'black' && $this->black_player_id === $userId)) {
+                return (object) $this->getComputerOpponent();
+            }
+            return null;
+        }
+
+        // For human vs human games
+        return $this->getOpponent($userId);
     }
 }

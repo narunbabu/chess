@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Events\GameEndedEvent;
 use App\Models\Game;
 use App\Models\User;
+use App\Models\ComputerPlayer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -39,6 +40,74 @@ class GameController extends Controller
         return response()->json([
             'message' => 'Game created successfully',
             'game' => $game->load(['whitePlayer', 'blackPlayer', 'statusRelation', 'endReasonRelation'])
+        ]);
+    }
+
+    /**
+     * Create a new computer game
+     */
+    public function createComputerGame(Request $request)
+    {
+        $request->validate([
+            'player_color' => 'required|in:white,black',
+            'computer_level' => 'required|integer|min:1|max:20',
+            'time_control' => 'sometimes|integer|min:1|max:60', // minutes
+            'increment' => 'sometimes|integer|min:0|max:60' // seconds per move
+        ]);
+
+        $user = Auth::user();
+        $playerColor = $request->player_color;
+        $computerLevel = $request->computer_level;
+        $timeControl = $request->time_control ?? 10; // Default 10 minutes
+        $increment = $request->increment ?? 0; // Default no increment
+
+        // Get or create computer player
+        $computerPlayer = ComputerPlayer::getByLevel($computerLevel);
+
+        // Set player IDs based on color choice
+        if ($playerColor === 'white') {
+            $whitePlayerId = $user->id;
+            $blackPlayerId = null; // Computer plays black
+        } else {
+            $whitePlayerId = null; // Computer plays white
+            $blackPlayerId = $user->id;
+        }
+
+        // Create the game
+        $game = Game::create([
+            'white_player_id' => $whitePlayerId,
+            'black_player_id' => $blackPlayerId,
+            'computer_player_id' => $computerPlayer->id,
+            'computer_level' => $computerLevel,
+            'player_color' => $playerColor,
+            'status' => 'active',
+            'result' => 'ongoing',
+            'turn' => 'white', // White always starts
+            'fen' => 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+            'moves' => [],
+            'time_control_minutes' => $timeControl,
+            'increment_seconds' => $increment
+        ]);
+
+        // Load relationships for the response
+        $game->load([
+            'whitePlayer',
+            'blackPlayer',
+            'computerPlayer',
+            'statusRelation',
+            'endReasonRelation'
+        ]);
+
+        return response()->json([
+            'message' => 'Computer game created successfully',
+            'game' => $game,
+            'computer_opponent' => [
+                'id' => $computerPlayer->id,
+                'level' => $computerPlayer->level,
+                'name' => $computerPlayer->name,
+                'rating' => $computerPlayer->rating,
+                'avatar' => $computerPlayer->avatar
+            ]
         ]);
     }
 

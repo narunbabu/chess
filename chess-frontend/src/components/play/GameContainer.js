@@ -90,7 +90,10 @@ const GameContainer = ({
     timerButtonText,
     handleTimerButtonPress,
     gameOver,
-    isPortrait
+    isPortrait,
+    // Undo functionality props
+    handleUndo,
+    canUndo
   } = controlsData || {};
 
   
@@ -167,6 +170,9 @@ const GameContainer = ({
             moveCount={moveCount}
             playerColor={playerColor}
             replayTimerRef={replayTimerRef}
+            gameOver={gameOver}
+            handleUndo={handleUndo}
+            canUndo={canUndo}
           />
         )}
 

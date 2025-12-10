@@ -15,6 +15,7 @@ const ChessBoard = ({
   setRightClickedSquares,
   moveSquares,
   setMoveSquares,
+  lastMoveHighlights = {},
   playerColor,
   isReplayMode,
   allowAllMoves = false, // Prop to allow all moves regardless of turn (for interactive practice)
@@ -335,11 +336,13 @@ const ChessBoard = ({
   };
 
   // Combine all custom square styles
+  // Order matters: later styles override earlier ones
   const allCustomStyles = {
-    ...getLessonHighlightStyles(),
-    ...moveSquares,
-    ...rightClickedSquares,
-    ...checkSquares
+    ...lastMoveHighlights,      // Base layer: last move highlights
+    ...getLessonHighlightStyles(), // Lesson highlights
+    ...rightClickedSquares,     // User annotations
+    ...checkSquares,            // King in check
+    ...moveSquares,             // Top priority: legal moves when piece selected
   };
 
   return(

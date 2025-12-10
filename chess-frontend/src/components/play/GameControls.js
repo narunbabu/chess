@@ -21,6 +21,10 @@ const GameControls = ({
   loadGame,
   playerColor, // Pawn color prop
   onColorChange, // Handler for color change
+  // Undo functionality props
+  handleUndo,
+  canUndo,
+  gameOver,
 }) => {
   return (
     <div className="game-controls" style={{ marginTop: "20px", textAlign: "center" }}>
@@ -48,7 +52,7 @@ const GameControls = ({
         </button>
       )}
 
-      {/* In-Game Controls: Pause/Resume and Resign */}
+      {/* In-Game Controls: Pause/Resume, Undo, and Resign */}
       {!isReplayMode && gameStarted && (
         <>
           <button
@@ -65,6 +69,31 @@ const GameControls = ({
           >
             {isTimerRunning ? "Pause" : "Resume"}
           </button>
+
+          {/* Undo Last Move button */}
+          {handleUndo && (
+            <button
+              onClick={() => {
+                console.log('[GameControls] 🔧 Undo button clicked:', { canUndo, gameOver, gameStarted });
+                handleUndo();
+              }}
+              disabled={!canUndo || gameOver}
+              title={!canUndo ? (gameOver ? "Cannot undo - game is over" : "Cannot undo - not enough moves") : "Undo last move"}
+              style={{
+                marginLeft: '10px',
+                backgroundColor: canUndo && !gameOver ? '#059669' : '#9ca3af',
+                color: 'white',
+                padding: '8px 16px',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: canUndo && !gameOver ? 'pointer' : 'not-allowed',
+                opacity: canUndo && !gameOver ? 1 : 0.6
+              }}
+            >
+              ↩️ Undo
+            </button>
+          )}
+
           {handleResign && (
             <button
               onClick={handleResign}

@@ -153,7 +153,7 @@ const LandingPage = () => {
       </header>
 
       {/* Hero Section - Top Portion Only */}
-      <section className="relative overflow-hidden pt-20 sm:pt-24 bg-gradient-to-b from-sky-400 via-sky-300 to-sky-200 w-full">
+      <section className="relative overflow-hidden bg-gradient-to-b from-sky-400 via-sky-300 to-sky-200 w-full pt-16 z-10">
         {/* Decorative clouds */}
         <div className="absolute inset-0 z-0 pointer-events-none">
           <div className="absolute top-20 left-10 w-24 h-12 bg-white rounded-full opacity-70"></div>
@@ -162,21 +162,21 @@ const LandingPage = () => {
           <div className="absolute top-24 right-1/3 w-28 h-14 bg-white rounded-full opacity-65"></div>
         </div>
 
-        {/* Hero Content */}
-        <div className="relative w-full" style={{height: '60vh', minHeight: '500px', maxHeight: '700px'}}>
+        {/* Hero Content - Single container with background and content */}
+        <div className="relative w-full min-h-[600px] sm:min-h-[700px] lg:h-screen lg:min-h-[700px]" style={{zIndex: '1'}}>
           {/* Background image with overlay */}
           <img
             src={chessPlayingKids}
             alt="Kids playing chess"
-            className="absolute inset-0 w-full h-full object-cover object-center"
+            className="absolute inset-0 w-full h-full object-cover object-top"
           />
           <div className="hero-soft-glow" />
           <div className="absolute inset-0 bg-gradient-to-b from-sky-400/10 via-sky-300/5 to-sky-200/10"></div>
 
           {/* Content overlay */}
-          <div className="relative z-10 h-full flex flex-col items-center justify-center px-3 sm:px-4 lg:px-8 xl:px-12 py-6 sm:py-12 lg:py-16">
+          <div className="relative z-20 h-full flex flex-col items-center justify-start px-3 sm:px-4 lg:px-8 xl:px-12 pt-8 sm:pt-12 lg:pt-16 pb-8 sm:pb-12 lg:pb-16" style={{paddingTop: '16px'}}>
             {/* Headline with dark backdrop */}
-            <div className="text-center text-white mb-6 sm:mb-8 lg:mb-12 w-full max-w-4xl mx-auto mt-4 sm:mt-0">
+            <div className="text-center text-white mb-4 sm:mb-6 lg:mb-8 w-full max-w-4xl mx-auto mt-0">
                <div className="inline-block rounded-2xl bg-black/30 backdrop-blur-sm px-4 sm:px-6 py-3 sm:py-4 mx-2 sm:mx-0">
                  <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold mb-2 sm:mb-3 lg:mb-4 px-2 sm:px-4">
                    India's #1 Online Chess Academy for Kids
@@ -218,7 +218,7 @@ const LandingPage = () => {
             )} */}
 
             {/* Action Buttons - Mobile Optimized */}
-            <div className="flex flex-col items-center justify-center w-full px-3 sm:px-4 max-w-lg mx-auto">
+            <div className="flex flex-col items-center justify-center w-full px-3 sm:px-4 max-w-lg mx-auto relative z-25">
               {isAuthenticated ? (
                 <div className="unified-card w-full">
                   <h3 className="unified-card-title centered text-lg sm:text-xl lg:text-2xl">Choose Your Opponent</h3>
@@ -276,79 +276,82 @@ const LandingPage = () => {
             </div>
 
             {/* Trust Badges Section - Attractive Cards */}
-            <div className="mt-8 w-full max-w-5xl mx-auto">
+            <div className="mt-4 sm:mt-6 lg:mt-8 w-full max-w-5xl mx-auto relative z-20">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
                 {/* Safety Card */}
-                <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-lg border-2 border-green-100 hover:shadow-xl transition-shadow duration-300">
-                  <div className="flex items-center mb-3">
-                    <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mr-4">
-                      <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-lg border-2 border-green-100 hover:shadow-xl transition-all duration-300 h-auto">
+                  <div className="flex items-center mb-2 sm:mb-3">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 rounded-full flex items-center justify-center mr-3 sm:mr-4 flex-shrink-0">
+                      <svg className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </div>
-                    <h3 className="text-lg font-bold text-green-800">100% Safe for Kids</h3>
+                    <h3 className="text-base sm:text-lg font-bold text-green-800 leading-tight">100% Safe for Kids</h3>
                   </div>
-                  <p className="text-gray-700 leading-relaxed">No Ads • No Chats • No Payments Needed to Start</p>
+                  <p className="text-gray-700 text-sm sm:text-base leading-relaxed">No Ads • No Chats • No Payments Needed to Start</p>
                 </div>
 
                 {/* Educational Platform Card */}
-                <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-lg border-2 border-blue-100 hover:shadow-xl transition-shadow duration-300">
-                  <div className="flex items-center mb-3">
-                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mr-4">
-                      <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-lg border-2 border-blue-100 hover:shadow-xl transition-all duration-300 h-auto">
+                  <div className="flex items-center mb-2 sm:mb-3">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-full flex items-center justify-center mr-3 sm:mr-4 flex-shrink-0">
+                      <svg className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                       </svg>
                     </div>
-                    <h3 className="text-lg font-bold text-blue-800">Educational Platform</h3>
+                    <h3 className="text-base sm:text-lg font-bold text-blue-800 leading-tight">Educational Platform</h3>
                   </div>
-                  <p className="text-gray-700 leading-relaxed">Skill-Based Learning • Not Gambling • No Real-Money Gaming</p>
+                  <p className="text-gray-700 text-sm sm:text-base leading-relaxed">Skill-Based Learning • Not Gambling • No Real-Money Gaming</p>
                 </div>
 
                 {/* Trusted Card */}
-                <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-lg border-2 border-purple-100 hover:shadow-xl transition-shadow duration-300">
-                  <div className="flex items-center mb-3">
-                    <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mr-4">
-                      <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-lg border-2 border-purple-100 hover:shadow-xl transition-all duration-300 h-auto">
+                  <div className="flex items-center mb-2 sm:mb-3">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-100 rounded-full flex items-center justify-center mr-3 sm:mr-4 flex-shrink-0">
+                      <svg className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                       </svg>
                     </div>
-                    <h3 className="text-lg font-bold text-purple-800">Trusted by Millions</h3>
+                    <h3 className="text-base sm:text-lg font-bold text-purple-800 leading-tight">Trusted by Millions</h3>
                   </div>
-                  <p className="text-gray-700 leading-relaxed">12M+ Young Learners • 28,000+ Schools • Parent Approved</p>
+                  <p className="text-gray-700 text-sm sm:text-base leading-relaxed">12M+ Young Learners • 28,000+ Schools • Parent Approved</p>
                 </div>
               </div>
             </div>
-
-            {/* Game History Button - Only show for guest users */}
-            {!isAuthenticated && (
-              <div className="mt-6 w-full max-w-sm sm:max-w-md mx-auto">
-                <Link
-                  to="/game-history"
-                  onClick={() => trackUI('game_history', 'click', { button: 'view_games', location: 'landing_page' })}
-                  className="unified-card light-theme hover:shadow-lg transition-shadow cursor-pointer block"
-                >
-                  <div className="unified-card-header">
-                    <div className="unified-card-avatar">🔄</div>
-                    <h3 className="unified-card-title centered text-lg sm:text-xl">Your Chess Journey</h3>
-                  </div>
-                  <div className="unified-card-body text-center">
-                    <p className="text-gray-600 mb-3">
-                      Continue your practice games and track your learning progress
-                    </p>
-                    <div className="inline-flex items-center text-orange-500 font-semibold">
-                      <span>View Progress</span>
-                      <span className="ml-2">→</span>
-                    </div>
-                  </div>
-                </Link>
-              </div>
-            )}
           </div>
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="stats-band bg-sky-50 relative">
+      {/* Game History Section - Only show for guest users - Moved outside Hero */}
+      {!isAuthenticated && (
+        <section className="relative bg-gradient-to-b from-sky-200 to-white py-8 sm:py-12 z-20">
+          <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 xl:px-12">
+            <div className="w-full max-w-md mx-auto">
+              <Link
+                to="/game-history"
+                onClick={() => trackUI('game_history', 'click', { button: 'view_games', location: 'landing_page' })}
+                className="unified-card light-theme hover:shadow-xl transition-all duration-300 cursor-pointer block transform hover:scale-105"
+              >
+                <div className="unified-card-header">
+                  <div className="unified-card-avatar">🔄</div>
+                  <h3 className="unified-card-title centered text-xl sm:text-2xl">Your Chess Journey</h3>
+                </div>
+                <div className="unified-card-body text-center">
+                  <p className="text-gray-700 mb-4 text-base sm:text-lg">
+                    Practice games and track your progress
+                  </p>
+                  <div className="inline-flex items-center text-orange-500 font-bold text-base sm:text-lg">
+                    <span>View Progress</span>
+                    <span className="ml-2 text-xl">→</span>
+                  </div>
+                </div>
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Stats Section (Commented Out)
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 xl:px-12 py-12 sm:py-16">
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-center mb-6 sm:mb-8 lg:mb-12" style={{color: 'var(--ink)'}}>
             Our Impact in Numbers
@@ -365,11 +368,11 @@ const LandingPage = () => {
             ))}
           </div>
         </div>
-      </section>
+      */}
 
       {/* Why Parents Choose Chess99 Section */}
-      <section className="bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 xl:px-12 py-16 sm:py-20">
+      <section className="relative bg-gradient-to-br from-blue-50 to-indigo-100 z-0">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 xl:px-12 py-12 sm:py-16 lg:py-20">
           <div className="text-center mb-12 sm:mb-16">
             <h2 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-extrabold mb-4 sm:mb-6" style={{color: 'var(--ink)'}}>
               Why Parents Choose Chess99

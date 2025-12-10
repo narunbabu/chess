@@ -19,10 +19,12 @@ import { updateGameStatus, evaluateMove } from "../../utils/gameStateUtils"; // 
 import { encodeGameHistory, reconstructGameFromHistory } from "../../utils/gameHistoryStringUtils"; // Adjust paths if needed
 import { createResultFromComputerGame } from "../../utils/resultStandardization"; // Standardized result format
 import { monitorPerformance } from "../../utils/devLogger";
+import { getMovePath, createPathHighlights, mergeHighlights } from "../../utils/movePathUtils"; // Move path utilities
 
 // Import Services
 import { saveGameHistory, getGameHistories } from "../../services/gameHistoryService"; // Adjust paths if needed
 import { saveUnfinishedGame, clearUnfinishedGame, saveCompletedGame } from "../../services/unfinishedGameService"; // For saving, clearing paused games, and saving completed games
+import { gameService } from "../../services/gameService"; // Backend game service
 import { useAuth } from "../../contexts/AuthContext";
 import { useAppData } from "../../contexts/AppDataContext";
 
@@ -63,6 +65,7 @@ const PlayComputer = () => {
   const [moveFrom, setMoveFrom] = useState("");
   const [rightClickedSquares, setRightClickedSquares] = useState({});
   const [moveSquares, setMoveSquares] = useState({});
+  const [lastMoveHighlights, setLastMoveHighlights] = useState({});
   const [gameStarted, setGameStarted] = useState(false);
   const [countdownActive, setCountdownActive] = useState(false);
   const [moveCompleted, setMoveCompleted] = useState(false); // Tracks if player has dropped a piece this turn
@@ -95,6 +98,8 @@ const PlayComputer = () => {
   const [gameMode, setGameMode] = useState('computer'); // Default to computer mode for /play route
 
   const [currentGameId, setCurrentGameId] = useState(null);
+  const [backendGame, setBackendGame] = useState(null); // Store backend game data
+  const [canUndo, setCanUndo] = useState(false); // Track if undo is available
 
   // --- Custom timer hook ---
   const {
@@ -198,6 +203,7 @@ const PlayComputer = () => {
         setActiveTimer(null);
         setGameOver(true);
         setShowGameCompletion(true); // Show completion modal
+        setCanUndo(false); // Disable undo after game ends
         const now = new Date();
 
         // Ensure encodeGameHistory exists and is used, otherwise stringify
@@ -369,6 +375,47 @@ const PlayComputer = () => {
       document.body.classList.remove('mobile-landscape');
     };
   }, []); // setIsPortrait is stable
+
+  // Effect to highlight last two moves with full path visualization
+  useEffect(() => {
+    // Clear highlights if no history or game is over/in replay
+    if (gameHistory.length === 0 || gameOver || isReplayMode) {
+      setLastMoveHighlights({});
+      return;
+    }
+
+    let highlights = {};
+
+    // Previous move (pink) - second to last move
+    if (gameHistory.length >= 2) {
+      const prevMove = gameHistory[gameHistory.length - 2].move;
+      if (prevMove && prevMove.from && prevMove.to) {
+        // Get the full path for the previous move
+        const prevPath = getMovePath(prevMove);
+        const prevHighlights = createPathHighlights(
+          prevPath,
+          'rgba(225, 26, 236, 0.54)' // Pink with 40% opacity
+        );
+        highlights = mergeHighlights(highlights, prevHighlights);
+      }
+    }
+
+    // Last move (green) - most recent move (overwrites yellow if same square)
+    if (gameHistory.length >= 1) {
+      const lastMove = gameHistory[gameHistory.length - 1].move;
+      if (lastMove && lastMove.from && lastMove.to) {
+        // Get the full path for the last move
+        const lastPath = getMovePath(lastMove);
+        const lastHighlights = createPathHighlights(
+          lastPath,
+          'rgba(0, 255, 0, 0.4)' // Green with 40% opacity
+        );
+        highlights = mergeHighlights(highlights, lastHighlights);
+      }
+    }
+
+    setLastMoveHighlights(highlights);
+  }, [gameHistory, gameOver, isReplayMode]);
 
   // Effect for auto-saving game on page navigation/unload
   useEffect(() => {
@@ -800,7 +847,17 @@ const PlayComputer = () => {
                       evaluation: compEval, // Store evaluation result
                   };
                   // Use functional update to ensure we're using the latest history state
-                  setGameHistory(prevHistory => [...prevHistory, computerHistoryEntry]);
+                  setGameHistory(prevHistory => {
+                      const newHistory = [...prevHistory, computerHistoryEntry];
+                      // Update undo availability - can undo after complete turns
+                      const newCanUndo = newHistory.length >= 2;
+                      console.log('[PlayComputer] 🔄 Computer move completed, updating canUndo:', {
+                          newHistoryLength: newHistory.length,
+                          newCanUndo
+                      });
+                      setCanUndo(newCanUndo);
+                      return newHistory;
+                  });
               } else {
                   console.warn("Could not retrieve computer's move object from history to save.");
               }
@@ -960,6 +1017,10 @@ const PlayComputer = () => {
         setGameHistory(updatedHistory);
         setMoveCount((prev) => prev + 1); // Increment move count
 
+        // Update undo availability - don't enable until after computer responds
+        // This prevents confusing UX where button is enabled but undo fails
+        setCanUndo(false);
+
         // Update the main game state
         setGame(gameCopy);
         setMoveFrom(""); // Clear selection state
@@ -1049,11 +1110,36 @@ const PlayComputer = () => {
         if (!gameStarted && !countdownActive) setCountdownActive(true);
     }, [gameStarted, countdownActive]); // Correct dependencies
 
-   const onCountdownFinish = useCallback(() => {
+   const onCountdownFinish = useCallback(async () => {
         // Initializes game state when countdown finishes
         console.log("Starting game...");
-        setGameStarted(true);
         setCountdownActive(false);
+
+        // For authenticated users, create a backend game
+        if (user) {
+          try {
+            setGameStatus("Creating game on server...");
+            const gameData = {
+              player_color: playerColor === 'w' ? 'white' : 'black',
+              computer_level: computerDepth,
+              time_control: 10, // Default 10 minutes
+              increment: 0 // No increment by default
+            };
+
+            const response = await gameService.createComputerGame(gameData);
+            console.log('[PlayComputer] 🎮 Backend game created:', response);
+
+            setBackendGame(response.game);
+            setCurrentGameId(response.game.id);
+            setGameStatus(`Game created! Playing vs ${response.computer_opponent.name}`);
+          } catch (error) {
+            console.error('[PlayComputer] ❌ Failed to create backend game:', error);
+            setGameStatus("Failed to create game. Playing offline...");
+            // Continue with offline game if backend fails
+          }
+        }
+
+        setGameStarted(true);
         previousGameStateRef.current = new Chess(); // Initial state for history
         setGameHistory([]);
         setMoveCount(0);
@@ -1078,10 +1164,11 @@ const PlayComputer = () => {
         // - activeTimer will be 'w'
 
     }, [ // Dependencies for onCountdownFinish
-        playerColor, // Read
+        playerColor, computerDepth, user, // Read
         setActiveTimer, startTimerInterval, resetTimer, // Stable from hook
         setGameStarted, setCountdownActive, setGameHistory, setMoveCount, setGameOver, // Stable setters
-        setPlayerScore, setLastMoveEvaluation, setGame, setMoveCompleted // Stable setters
+        setPlayerScore, setLastMoveEvaluation, setGame, setMoveCompleted, setGameStatus, // Stable setters
+        setCurrentGameId, setBackendGame // Stable setters
     ]);
 
     const resetGame = useCallback(() => {
@@ -1111,10 +1198,13 @@ const PlayComputer = () => {
         setGameOver(false);
         setShowGameCompletion(false);
         setGameResult(null); // Reset standardized result
+        setBackendGame(null); // Reset backend game
+        setCurrentGameId(null); // Reset current game ID
+        setCanUndo(false); // Reset undo availability
         // Note: Does not reset playerColor or computerDepth, keeping user selections
     }, [resetTimer, timerRef, replayTimerRef]); // Dependencies: stable hook fn and refs accessed
 
-    const handleResign = useCallback(() => {
+    const handleResign = useCallback(async () => {
         // Handle player resignation
         if (gameOver || !gameStarted || isReplayMode) {
             return; // Can't resign if game is over, not started, or in replay mode
@@ -1131,6 +1221,18 @@ const PlayComputer = () => {
         setActiveTimer(null);
         setGameOver(true);
         setShowGameCompletion(true);
+        setCanUndo(false); // Disable undo after resignation
+
+        // Resign from backend game if we have one
+        if (backendGame && user) {
+          try {
+            await gameService.resign(backendGame.id);
+            console.log('[PlayComputer] 🏳️ Resigned from backend game:', backendGame.id);
+          } catch (error) {
+            console.error('[PlayComputer] ❌ Failed to resign from backend game:', error);
+            // Continue with local resignation even if backend fails
+          }
+        }
 
         const now = new Date();
 
@@ -1172,7 +1274,8 @@ const PlayComputer = () => {
         setGameStatus('You resigned. Game over.');
     }, [
         gameOver, gameStarted, isReplayMode, timerRef, gameHistory, playerColor,
-        playerScore, computerScore, computerDepth, user?.rating, invalidateGameHistory
+        playerScore, computerScore, computerDepth, user?.rating, invalidateGameHistory,
+        backendGame, user // Added backendGame and user for resignation API call
     ]);
 
      const resetCurrentGameSetup = useCallback(() => {
@@ -1232,6 +1335,143 @@ const PlayComputer = () => {
             resetGame(); // Reset back to clean state on failure
         }
     }, [resetGame, setActiveTimer, setIsTimerRunning, timerRef]); // Dependencies: stable callback and imported fn
+
+    // --- Undo Functionality ---
+    const handleUndo = useCallback(() => {
+        console.log('[PlayComputer] 🔧 Undo attempted:', {
+            gameStarted,
+            gameOver,
+            isReplayMode,
+            gameHistoryLength: gameHistory.length,
+            canUndo,
+            gameTurn: game.turn(),
+            playerColor,
+            computerMoveInProgress
+        });
+
+        // Undo the last move if game is active and not in replay mode
+        if (!gameStarted || gameOver || isReplayMode || gameHistory.length < 2) {
+            console.log('[PlayComputer] ❌ Undo blocked by initial checks');
+            return; // Can't undo if game hasn't started, is over, in replay, or not enough moves
+        }
+
+        // Can only undo if it's the player's turn and the computer hasn't moved yet
+        const playerColorChess = playerColor; // playerColor is already 'w' or 'b'
+
+        if (game.turn() !== playerColorChess) {
+            console.log('[PlayComputer] ❌ Undo blocked - not player turn');
+            setGameStatus("Can only undo on your turn!");
+            return;
+        }
+
+        if (computerMoveInProgress) {
+            console.log('[PlayComputer] ❌ Undo blocked - computer thinking');
+            setGameStatus("Cannot undo while computer is thinking...");
+            return;
+        }
+
+        try {
+            console.log('[PlayComputer] 🎯 Starting undo process...');
+
+            // Reconstruct the game from the full history to ensure we have proper move history
+            const gameCopy = new Chess();
+
+            // Replay all moves except the last two (player + computer) to get the proper game state
+            const movesToKeep = gameHistory.slice(0, -2); // Remove last 2 moves
+            console.log('[PlayComputer] 📝 Reconstructing game with moves:', {
+                totalHistory: gameHistory.length,
+                movesToKeep: movesToKeep.length,
+                movesToUndo: 2
+            });
+
+            // Apply all moves we want to keep
+            for (const historyEntry of movesToKeep) {
+                if (historyEntry.move && historyEntry.move.san) {
+                    try {
+                        gameCopy.move(historyEntry.move.san);
+                    } catch (moveError) {
+                        console.warn('[PlayComputer] ⚠️ Failed to apply move during reconstruction:', historyEntry.move.san, moveError);
+                    }
+                }
+            }
+
+            console.log('[PlayComputer] 📋 Game reconstructed:', {
+                fen: gameCopy.fen(),
+                historyLength: gameCopy.history().length,
+                turn: gameCopy.turn()
+            });
+
+            // Get the last computer move and player move from history
+            const lastComputerMove = gameHistory[gameHistory.length - 1];
+            const lastPlayerMove = gameHistory[gameHistory.length - 2];
+
+            console.log('[PlayComputer] 🔍 History analysis:', {
+                gameHistoryLength: gameHistory.length,
+                lastComputerMove: lastComputerMove ? {
+                    playerColor: lastComputerMove.playerColor,
+                    move: lastComputerMove.move?.san
+                } : null,
+                lastPlayerMove: lastPlayerMove ? {
+                    playerColor: lastPlayerMove.playerColor,
+                    move: lastPlayerMove.move?.san
+                } : null,
+                playerColorChess
+            });
+
+            if (!lastComputerMove || !lastPlayerMove || lastComputerMove.playerColor === playerColorChess) {
+                console.log('[PlayComputer] ❌ Undo blocked - invalid history structure');
+                setGameStatus("Cannot undo - no complete turn to undo!");
+                return;
+            }
+
+            // Remove last 2 moves from history (player + computer)
+            const newHistory = gameHistory.slice(0, -2);
+            setGameHistory(newHistory);
+            setMoveCount(Math.max(0, moveCount - 2));
+
+            // Reset scores by removing the last evaluations
+            if (lastPlayerMove.evaluation?.total) {
+                setPlayerScore(prev => Math.max(0, prev - lastPlayerMove.evaluation.total));
+            }
+            if (lastComputerMove.evaluation?.total) {
+                setComputerScore(prev => Math.max(0, prev - lastComputerMove.evaluation.total));
+            }
+
+            // Clear last move evaluations
+            setLastMoveEvaluation(null);
+            setLastComputerEvaluation(null);
+
+            // Update the main game state with the reconstructed game
+            console.log('[PlayComputer] ♻️ Updating game state with undone position');
+            setGame(gameCopy);
+
+            // Switch timer back to player
+            setActiveTimer(playerColorChess);
+            setIsTimerRunning(true);
+            startTimerInterval();
+            moveStartTimeRef.current = Date.now();
+
+            setMoveCompleted(false);
+            setGameStatus("Last turn undone - your turn!");
+            playSound(moveSoundEffect); // Play a sound to indicate undo
+
+            // Update undo availability
+            setCanUndo(newHistory.length >= 2);
+
+            console.log('[PlayComputer] ✅ Undo completed successfully');
+
+        } catch (error) {
+            console.error('[PlayComputer] ❌ Error during undo:', error);
+            setGameStatus("Failed to undo move. Please try again.");
+        }
+    }, [
+        gameStarted, gameOver, isReplayMode, gameHistory, game, moveCount, playerColor,
+        computerMoveInProgress, activeTimer, playerScore, computerScore,
+        setActiveTimer, setIsTimerRunning, startTimerInterval, setGame,
+        setGameHistory, setMoveCount, setMoveCompleted, setGameStatus,
+        setLastMoveEvaluation, setLastComputerEvaluation, setPlayerScore,
+        setComputerScore, setCanUndo
+    ]);
 
     // --- Replay Controls ---
      const startReplay = useCallback(() => {
@@ -1447,6 +1687,8 @@ const PlayComputer = () => {
         handleTimer: startTimerInterval,
         pauseTimer: handlePauseWithSave, // Enhanced pause with auto-save
         handleResign,
+        handleUndo,
+        canUndo,
         replayPaused,
         startReplay,
         pauseReplay,
@@ -1473,6 +1715,7 @@ const PlayComputer = () => {
         setRightClickedSquares={setRightClickedSquares}
         moveSquares={moveSquares}
         setMoveSquares={setMoveSquares}
+        lastMoveHighlights={lastMoveHighlights}
         playerColor={playerColor}
         isReplayMode={isReplayMode}
       />

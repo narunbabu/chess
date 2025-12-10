@@ -62,6 +62,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Game routes
     Route::post('/games', [GameController::class, 'create']);
+    Route::post('/games/computer', [GameController::class, 'createComputerGame']);
     Route::get('/games/active', [GameController::class, 'activeGames']);
     Route::get('/games/unfinished', [GameController::class, 'unfinishedGames']);
     Route::post('/games/create-from-unfinished', [GameController::class, 'createFromUnfinished']);
