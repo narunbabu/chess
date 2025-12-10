@@ -1,6 +1,7 @@
 // src/components/layout/Footer.js
-import React, { useEffect, useRef } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import AboutContactModal from '../AboutContactModal';
 
 /**
  * Footer component for consistent site-wide footer
@@ -10,6 +11,8 @@ import { Link, useLocation } from 'react-router-dom';
 const Footer = () => {
   const location = useLocation();
   const footerRef = useRef(null);
+  const [showAboutContact, setShowAboutContact] = useState(false);
+  const navigate = useNavigate();
   const isPlayPage = location.pathname === '/play' || location.pathname.startsWith('/play/');
 
   useEffect(() => {
@@ -60,41 +63,53 @@ const Footer = () => {
     };
   }, [isPlayPage, location.pathname]);
 
-  // Hide footer on landing page (has its own footer)
-  if (location.pathname === '/') {
-    return null;
-  }
+  // Footer is now shown on all pages including landing page
 
   return (
-    <footer
-      ref={footerRef}
-      className="bg-gray-800 text-white py-2 sm:py-4 md:py-6 mt-auto transition-all duration-300 relative z-10"
-    >
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center">
-          <p className="text-gray-400 text-xs sm:text-sm md:text-base">
-            © 2024 Chess99. Making Chess Fun for Everyone!
-          </p>
-          <div className="mt-1 sm:mt-2 flex flex-wrap justify-center gap-2 sm:gap-3 md:gap-4">
-            <Link to="/puzzles" className="text-gray-400 hover:text-white transition-colors text-xs sm:text-sm md:text-base">
-              Puzzles
-            </Link>
-            <Link to="/learn" className="text-gray-400 hover:text-white transition-colors text-xs sm:text-sm md:text-base">
-              Learn
-            </Link>
-            <Link to="/dashboard" className="text-gray-400 hover:text-white transition-colors text-xs sm:text-sm md:text-base">
-              Dashboard
-            </Link>
-            <button className="text-gray-400 hover:text-white transition-colors text-xs sm:text-sm md:text-base">
-              About
-            </button>
-            <button className="text-gray-400 hover:text-white transition-colors text-xs sm:text-sm md:text-base">
-              Contact
-            </button>
+    <>
+      <footer
+        ref={footerRef}
+        className="bg-gray-900 text-white py-8 sm:py-12 mt-auto transition-all duration-300 relative z-10"
+      >
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 xl:px-12">
+          <div className="text-center">
+            <div className="mb-4 sm:mb-6 p-4 bg-gray-800 rounded-lg">
+              <p className="text-gray-300 text-xs sm:text-sm leading-relaxed">
+                Chess99 is an educational, skill-based chess learning platform for kids. We do not offer real-money gaming, betting, or gambling in any form. All activities are designed for learning and safe competitive play.
+              </p>
+            </div>
+            <p className="text-gray-400 text-xs sm:text-sm lg:text-base mb-4 sm:mb-6">© 2024 Chess99. Making Chess Fun for Kids!</p>
+            <div className="flex flex-wrap justify-center gap-4 sm:gap-6 lg:gap-8">
+              <Link to="/coming-soon" className="text-gray-400 hover:text-white transition-colors text-xs sm:text-sm lg:text-base">Puzzles</Link>
+              <button
+                onClick={() => navigate('/login?resource=tutorial')}
+                className="text-gray-400 hover:text-white transition-colors text-xs sm:text-sm lg:text-base"
+              >
+                Learn
+              </button>
+              <button
+                onClick={() => setShowAboutContact(true)}
+                className="text-gray-400 hover:text-white transition-colors text-xs sm:text-sm lg:text-base"
+              >
+                About
+              </button>
+              <button
+                onClick={() => setShowAboutContact(true)}
+                className="text-gray-400 hover:text-white transition-colors text-xs sm:text-sm lg:text-base"
+              >
+                Contact
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-    </footer>
+      </footer>
+
+      {/* About & Contact Modal */}
+      <AboutContactModal
+        isOpen={showAboutContact}
+        onClose={() => setShowAboutContact(false)}
+      />
+    </>
   );
 };
 

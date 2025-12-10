@@ -22,6 +22,7 @@ import AuthCallback from "./components/auth/AuthCallback";
 import LandingPage from "./pages/LandingPage";
 import LobbyPage from "./pages/LobbyPage";
 import GameHistoryPage from "./pages/GameHistoryPage";
+import ComingSoon from "./pages/ComingSoon";
 import Puzzles from "./components/Puzzles";
 import Learn from "./components/Learn";
 import Profile from "./components/Profile";
@@ -105,6 +106,7 @@ const AppContent = () => {
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/puzzles" element={<Puzzles />} />
             <Route path="/learn" element={<Learn />} />
+            <Route path="/coming-soon" element={<ComingSoon />} />
             <Route path="/share/result/:uniqueId" element={<SharedResultPage />} />
 
             {/* Play computer - No auth required */}

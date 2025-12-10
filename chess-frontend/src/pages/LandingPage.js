@@ -43,7 +43,8 @@ const LandingPage = () => {
   ];
 
   return (
-    <div data-page="landing" className="bg-white w-full overflow-x-hidden">
+    <>
+    <div data-page="landing" className="bg-white w-full min-h-screen overflow-x-hidden flex flex-col">
       {/* Fixed Header - Dark Sky Blue */}
       <header className="fixed top-0 inset-x-0 z-30 h-16 bg-sky-600/95 text-white backdrop-blur-sm shadow">
         <div className="w-full h-full px-3 sm:px-4 lg:px-8 xl:px-12 flex items-center justify-between">
@@ -152,7 +153,9 @@ const LandingPage = () => {
         )}
       </header>
 
-      {/* Hero Section - Top Portion Only */}
+      {/* Main Content - Full Height Below Header */}
+      <main className="flex-grow pt-16">
+        {/* Hero Section - Top Portion Only */}
       <section className="relative overflow-hidden bg-gradient-to-b from-sky-400 via-sky-300 to-sky-200 w-full pt-16 z-10">
         {/* Decorative clouds */}
         <div className="absolute inset-0 z-0 pointer-events-none">
@@ -163,18 +166,17 @@ const LandingPage = () => {
         </div>
 
         {/* Hero Content - Single container with background and content */}
-        <div className="relative w-full min-h-[600px] sm:min-h-[700px] lg:h-screen lg:min-h-[700px]" style={{zIndex: '1'}}>
-          {/* Background image with overlay */}
-          <img
-            src={chessPlayingKids}
-            alt="Kids playing chess"
-            className="absolute inset-0 w-full h-full object-cover object-top"
-          />
-          <div className="hero-soft-glow" />
-          <div className="absolute inset-0 bg-gradient-to-b from-sky-400/10 via-sky-300/5 to-sky-200/10"></div>
-
-          {/* Content overlay */}
-          <div className="relative z-20 h-full flex flex-col items-center justify-start px-3 sm:px-4 lg:px-8 xl:px-12 pt-8 sm:pt-12 lg:pt-16 pb-8 sm:pb-12 lg:pb-16" style={{paddingTop: '16px'}}>
+        <div className="relative w-full" style={{zIndex: '1'}}>
+          {/* Content overlay with background image */}
+          <div className="relative z-20 flex flex-col items-center justify-start px-3 sm:px-4 lg:px-8 xl:px-12 pt-8 sm:pt-12 lg:pt-16 pb-8 sm:pb-12 lg:pb-16">
+            {/* Background image - positioned behind content */}
+            <img
+              src={chessPlayingKids}
+              alt="Kids playing chess"
+              className="absolute inset-0 w-full h-full object-cover object-top -z-10"
+            />
+            <div className="hero-soft-glow" />
+            <div className="absolute inset-0 bg-gradient-to-b from-sky-400/10 via-sky-300/5 to-sky-200/10 -z-10"></div>
             {/* Headline with dark backdrop */}
             <div className="text-center text-white mb-4 sm:mb-6 lg:mb-8 w-full max-w-4xl mx-auto mt-0">
                <div className="inline-block rounded-2xl bg-black/30 backdrop-blur-sm px-4 sm:px-6 py-3 sm:py-4 mx-2 sm:mx-0">
@@ -432,7 +434,7 @@ const LandingPage = () => {
           <div className="flex flex-wrap justify-center gap-6 sm:gap-8 lg:gap-10">
             <div className="flex-1 min-w-[280px] max-w-[350px] sm:min-w-[300px] sm:max-w-[380px] lg:min-w-[320px] lg:max-w-[400px]">
               <Link
-                to="/puzzles"
+                to="/coming-soon"
                 className="group"
                 onClick={() => trackUI('feature_card', 'click', { feature: 'puzzles', location: 'landing_features' })}
               >
@@ -445,7 +447,7 @@ const LandingPage = () => {
             </div>
             <div className="flex-1 min-w-[280px] max-w-[350px] sm:min-w-[300px] sm:max-w-[380px] lg:min-w-[320px] lg:max-w-[400px]">
               <Link
-                to="/learn"
+                to="/login?resource=tutorial"
                 className="group"
                 onClick={() => trackUI('feature_card', 'click', { feature: 'learn', location: 'landing_features' })}
               >
@@ -458,7 +460,7 @@ const LandingPage = () => {
             </div>
             <div className="flex-1 min-w-[280px] max-w-[350px] sm:min-w-[300px] sm:max-w-[380px] lg:min-w-[320px] lg:max-w-[400px]">
               <Link
-                to="/tournaments" // Or '/play', '/lobby', etc.
+                to="/login?resource=tournaments"
                 className="group"
                 onClick={() => trackUI('feature_card', 'click', { feature: 'tournaments', location: 'landing_features' })}
               >
@@ -492,26 +494,7 @@ const LandingPage = () => {
           </div>
         </div>
       </section>
-
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-8 sm:py-12">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 xl:px-12">
-          <div className="text-center">
-            <div className="mb-4 sm:mb-6 p-4 bg-gray-800 rounded-lg">
-              <p className="text-gray-300 text-xs sm:text-sm leading-relaxed">
-                Chess99 is an educational, skill-based chess learning platform for kids. We do not offer real-money gaming, betting, or gambling in any form. All activities are designed for learning and safe competitive play.
-              </p>
-            </div>
-            <p className="text-gray-400 text-xs sm:text-sm lg:text-base mb-4 sm:mb-6">© 2024 Chess99. Making Chess Fun for Kids!</p>
-            <div className="flex flex-wrap justify-center gap-4 sm:gap-6 lg:gap-8">
-              <Link to="/puzzles" className="text-gray-400 hover:text-white transition-colors text-xs sm:text-sm lg:text-base">Puzzles</Link>
-              <Link to="/learn" className="text-gray-400 hover:text-white transition-colors text-xs sm:text-sm lg:text-base">Learn</Link>
-              <button className="text-gray-400 hover:text-white transition-colors text-xs sm:text-sm lg:text-base">About</button>
-              <button className="text-gray-400 hover:text-white transition-colors text-xs sm:text-sm lg:text-base">Contact</button>
-            </div>
-          </div>
-        </div>
-      </footer>
+      </main>
 
       {/* Auth Gate Modal */}
       {showAuthGate && (
@@ -522,7 +505,10 @@ const LandingPage = () => {
         />
       )}
     </div>
+    </>
   );
 };
 
 export default LandingPage;
+
+

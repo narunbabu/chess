@@ -744,134 +744,136 @@ const LobbyPage = () => {
 
 
   return (
-    <div className="lobby-container" ref={lobbyContainerRef}>
-      <div className="lobby p-6 text-white">
-      {/* Resume requests and invitations are now handled by GlobalInvitationDialog */}
-      {/* Header now handled globally in Header.js */}
+    <>
+      <div className="lobby-container" ref={lobbyContainerRef}>
+        <div className="lobby p-6 text-white">
+        {/* Resume requests and invitations are now handled by GlobalInvitationDialog */}
+        {/* Header now handled globally in Header.js */}
 
-      {/* Show redirect message for paused games */}
-      {redirectMessage && (
-        <div style={{
-          backgroundColor: '#ffa726',
-          color: '#000',
-          padding: '16px',
-          borderRadius: '8px',
-          marginBottom: '20px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          fontWeight: 'bold',
-          boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
-        }}>
-          <span>⏸️ {redirectMessage}</span>
-          <button
-            onClick={() => setRedirectMessage(null)}
-            style={{
-              backgroundColor: 'transparent',
-              border: 'none',
-              color: '#000',
-              fontSize: '20px',
-              cursor: 'pointer',
-              padding: '0 8px'
-            }}
-          >
-            ✕
-          </button>
+        {/* Show redirect message for paused games */}
+        {redirectMessage && (
+          <div style={{
+            backgroundColor: '#ffa726',
+            color: '#000',
+            padding: '16px',
+            borderRadius: '8px',
+            marginBottom: '20px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            fontWeight: 'bold',
+            boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
+          }}>
+            <span>⏸️ {redirectMessage}</span>
+            <button
+              onClick={() => setRedirectMessage(null)}
+              style={{
+                backgroundColor: 'transparent',
+                border: 'none',
+                color: '#000',
+                fontSize: '20px',
+                cursor: 'pointer',
+                padding: '0 8px'
+              }}
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
+        <LobbyTabs
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          tabs={tabs}
+        />
+
+          <div className="lobby-content" ref={lobbyContentRef}>
+          {activeTab === 'players' && (
+            <>
+              <PlayersList
+                players={players}
+                sentInvitations={sentInvitations}
+                onChallenge={handleInvite}
+                onComputerChallenge={handleComputerChallenge}
+              />
+            </>
+          )}
+
+          {activeTab === 'invitations' && (
+            <>
+              <InvitationsList
+                pendingInvitations={pendingInvitations}
+                sentInvitations={sentInvitations}
+                processingInvitations={processingInvitations}
+                onAccept={(invitationId) => handleInvitationResponse(invitationId, 'accept')}
+                onDecline={(invitationId) => handleInvitationResponse(invitationId, 'decline')}
+                onCancel={handleCancelInvitation}
+              />
+              {/* Load More for Pending Invitations */}
+              <LoadMoreButton
+                hasMore={pendingPagination.hasMore}
+                loading={pendingPagination.loading}
+                onLoadMore={loadMorePending}
+                currentCount={pendingInvitations.length}
+                totalCount={pendingPagination.total}
+                buttonText="Load More Pending Invitations"
+              />
+              {/* Load More for Sent Invitations */}
+              <LoadMoreButton
+                hasMore={sentPagination.hasMore}
+                loading={sentPagination.loading}
+                onLoadMore={loadMoreSent}
+                currentCount={sentInvitations.length}
+                totalCount={sentPagination.total}
+                buttonText="Load More Sent Invitations"
+              />
+            </>
+          )}
+
+          {activeTab === 'games' && (
+            <>
+              <ActiveGamesList
+                activeGames={activeGames}
+                currentUserId={user.id}
+                onResumeGame={handleResumeGame}
+              />
+              {/* Load More for Active Games */}
+              <LoadMoreButton
+                hasMore={gamesPagination.hasMore}
+                loading={gamesPagination.loading}
+                onLoadMore={loadMoreGames}
+                currentCount={activeGames.length}
+                totalCount={gamesPagination.total}
+                buttonText="Load More Games"
+              />
+            </>
+          )}
         </div>
-      )}
 
-      <LobbyTabs
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        tabs={tabs}
-      />
-
-        <div className="lobby-content" ref={lobbyContentRef}>
-        {activeTab === 'players' && (
-          <>
-            <PlayersList
-              players={players}
-              sentInvitations={sentInvitations}
-              onChallenge={handleInvite}
-              onComputerChallenge={handleComputerChallenge}
-            />
-          </>
-        )}
-
-        {activeTab === 'invitations' && (
-          <>
-            <InvitationsList
-              pendingInvitations={pendingInvitations}
-              sentInvitations={sentInvitations}
-              processingInvitations={processingInvitations}
-              onAccept={(invitationId) => handleInvitationResponse(invitationId, 'accept')}
-              onDecline={(invitationId) => handleInvitationResponse(invitationId, 'decline')}
-              onCancel={handleCancelInvitation}
-            />
-            {/* Load More for Pending Invitations */}
-            <LoadMoreButton
-              hasMore={pendingPagination.hasMore}
-              loading={pendingPagination.loading}
-              onLoadMore={loadMorePending}
-              currentCount={pendingInvitations.length}
-              totalCount={pendingPagination.total}
-              buttonText="Load More Pending Invitations"
-            />
-            {/* Load More for Sent Invitations */}
-            <LoadMoreButton
-              hasMore={sentPagination.hasMore}
-              loading={sentPagination.loading}
-              onLoadMore={loadMoreSent}
-              currentCount={sentInvitations.length}
-              totalCount={sentPagination.total}
-              buttonText="Load More Sent Invitations"
-            />
-          </>
-        )}
-
-        {activeTab === 'games' && (
-          <>
-            <ActiveGamesList
-              activeGames={activeGames}
-              currentUserId={user.id}
-              onResumeGame={handleResumeGame}
-            />
-            {/* Load More for Active Games */}
-            <LoadMoreButton
-              hasMore={gamesPagination.hasMore}
-              loading={gamesPagination.loading}
-              onLoadMore={loadMoreGames}
-              currentCount={activeGames.length}
-              totalCount={gamesPagination.total}
-              buttonText="Load More Games"
-            />
-          </>
-        )}
+        <ChallengeModal
+          // Color Choice Modal props
+          showColorModal={showColorModal}
+          selectedPlayer={selectedPlayer}
+          onColorChoice={sendInvitation}
+          onCancelColorChoice={() => setShowColorModal(false)}
+          // Response Modal props
+          showResponseModal={showResponseModal}
+          selectedInvitation={selectedInvitation}
+          processingInvitations={processingInvitations}
+          onAcceptWithColor={(invitationId, colorChoice) =>
+            handleInvitationResponse(invitationId, 'accept', colorChoice)
+          }
+          onCancelResponse={() => setShowResponseModal(false)}
+          onDeclineInvitation={(invitationId) =>
+            handleInvitationResponse(invitationId, 'decline')
+          }
+          // Status Modal props
+          inviteStatus={inviteStatus}
+          invitedPlayer={invitedPlayer}
+        />
+        </div>
       </div>
-
-      <ChallengeModal
-        // Color Choice Modal props
-        showColorModal={showColorModal}
-        selectedPlayer={selectedPlayer}
-        onColorChoice={sendInvitation}
-        onCancelColorChoice={() => setShowColorModal(false)}
-        // Response Modal props
-        showResponseModal={showResponseModal}
-        selectedInvitation={selectedInvitation}
-        processingInvitations={processingInvitations}
-        onAcceptWithColor={(invitationId, colorChoice) =>
-          handleInvitationResponse(invitationId, 'accept', colorChoice)
-        }
-        onCancelResponse={() => setShowResponseModal(false)}
-        onDeclineInvitation={(invitationId) =>
-          handleInvitationResponse(invitationId, 'decline')
-        }
-        // Status Modal props
-        inviteStatus={inviteStatus}
-        invitedPlayer={invitedPlayer}
-      />
-      </div>
-    </div>
+    </>
   );
 };
 

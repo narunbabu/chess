@@ -9,6 +9,7 @@ import {
   getCompletedGames
 } from '../services/unfinishedGameService';
 import GamePreviewModal from '../components/GamePreviewModal';
+import Footer from '../components/layout/Footer';
 import '../styles/UnifiedCards.css';
 
 const GameHistoryPage = () => {
@@ -253,261 +254,265 @@ const GameHistoryPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 xl:px-12 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Link
-                to="/"
-                className="text-gray-600 hover:text-gray-900 transition-colors"
+    <>
+      <div className="min-h-screen bg-gray-50">
+        {/* Header */}
+        <header className="bg-white shadow-sm border-b">
+          <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 xl:px-12 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <Link
+                  to="/"
+                  className="text-gray-600 hover:text-gray-900 transition-colors"
+                >
+                  ← Back to Home
+                </Link>
+                <h1 className="text-2xl font-bold text-gray-900">Game History</h1>
+              </div>
+              <button
+                onClick={() => navigate('/play')}
+                className="bg-orange-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-orange-600 transition-colors shadow"
               >
-                ← Back to Home
-              </Link>
-              <h1 className="text-2xl font-bold text-gray-900">Game History</h1>
+                <span className="mr-2">🤖</span>
+                New Game
+              </button>
             </div>
-            <button
-              onClick={() => navigate('/play')}
-              className="bg-orange-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-orange-600 transition-colors shadow"
-            >
-              <span className="mr-2">🤖</span>
-              New Game
-            </button>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 xl:px-12 py-8">
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
-            <p className="mt-4 text-gray-600">Loading your games...</p>
-          </div>
-        ) : error ? (
-          <div className="text-center py-12">
-            <div className="text-red-500 mb-4">❌ {error}</div>
-            <button
-              onClick={loadGames}
-              className="bg-orange-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-orange-600 transition-colors"
-            >
-              Try Again
-            </button>
-          </div>
-        ) : (
-          <>
-            {/* Tab Navigation */}
-            <div className="mb-8">
-              <div className="border-b border-gray-200">
-                <nav className="-mb-px flex space-x-8">
-                  <button
-                    onClick={() => setActiveTab('unfinished')}
-                    className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                      activeTab === 'unfinished'
-                        ? 'border-orange-500 text-orange-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }`}
-                  >
-                    <span className="mr-2">🔄</span>
-                    Unfinished Games
-                    {unfinishedGames.length > 0 && (
-                      <span className="ml-2 bg-orange-100 text-orange-600 px-2 py-1 rounded-full text-xs">
-                        {unfinishedGames.length}
-                      </span>
-                    )}
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('completed')}
-                    className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                      activeTab === 'completed'
-                        ? 'border-orange-500 text-orange-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }`}
-                  >
-                    <span className="mr-2">✅</span>
-                    Completed Games
-                    {completedGames.length > 0 && (
-                      <span className="ml-2 bg-green-100 text-green-600 px-2 py-1 rounded-full text-xs">
-                        {completedGames.length}
-                      </span>
-                    )}
-                  </button>
-                </nav>
-              </div>
+        {/* Main Content */}
+        <main className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 xl:px-12 py-8">
+          {loading ? (
+            <div className="text-center py-12">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+              <p className="mt-4 text-gray-600">Loading your games...</p>
             </div>
-
-            {/* Unfinished Games Tab */}
-            {activeTab === 'unfinished' && (
-              <div>
-                {unfinishedGames.length === 0 ? (
-                  <div className="text-center py-12">
-                    <div className="text-gray-400 mb-4 text-6xl">♟️</div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No unfinished games</h3>
-                    <p className="text-gray-600 mb-6">Start playing to create games that you can resume later</p>
+          ) : error ? (
+            <div className="text-center py-12">
+              <div className="text-red-500 mb-4">❌ {error}</div>
+              <button
+                onClick={loadGames}
+                className="bg-orange-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-orange-600 transition-colors"
+              >
+                Try Again
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* Tab Navigation */}
+              <div className="mb-8">
+                <div className="border-b border-gray-200">
+                  <nav className="-mb-px flex space-x-8">
                     <button
-                      onClick={() => navigate('/play')}
-                      className="bg-orange-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-orange-600 transition-colors shadow"
+                      onClick={() => setActiveTab('unfinished')}
+                      className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                        activeTab === 'unfinished'
+                          ? 'border-orange-500 text-orange-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
                     >
-                      <span className="mr-2">🤖</span>
-                      Start New Game
+                      <span className="mr-2">🔄</span>
+                      Unfinished Games
+                      {unfinishedGames.length > 0 && (
+                        <span className="ml-2 bg-orange-100 text-orange-600 px-2 py-1 rounded-full text-xs">
+                          {unfinishedGames.length}
+                        </span>
+                      )}
                     </button>
-                  </div>
-                ) : (
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {unfinishedGames.map((game) => (
-                      <div key={game.id} className="unified-card light-theme accented">
-                        <div className="unified-card-header">
-                          <div className="unified-card-avatar">
-                            {game.playerColor === 'white' ? '♔' : '♚'}
-                          </div>
-                          <div>
-                            <div className="font-semibold text-gray-900">
-                              vs {game.opponentName || 'Computer'}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              {formatTimeAgo(game.timestamp)}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="unified-card-body">
-                          <div className="flex items-center justify-between text-sm text-gray-600 mb-3">
-                            <span>You play: {game.playerColor === 'white' ? 'White' : 'Black'}</span>
-                            <span>Difficulty: {game.difficulty || 'Medium'}</span>
-                          </div>
-                          {game.timerEnabled && (
-                            <div className="flex items-center justify-between text-sm text-gray-600 mb-3">
-                              <span>White: {Math.floor((game.whiteMs || 600000) / 1000 / 60)}min</span>
-                              <span>Black: {Math.floor((game.blackMs || 600000) / 1000 / 60)}min</span>
-                            </div>
-                          )}
-                          <div className="unified-card-actions vertical">
-                            <button
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                console.log('[GameHistoryPage] Resume button click event triggered:', e);
-                                handleResumeGame(game);
-                              }}
-                              className="unified-card-btn primary text-sm"
-                            >
-                              <span className="mr-2">▶️</span>
-                              Resume Game
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                console.log('[GameHistoryPage] Discard button click event triggered:', e);
-                                handleDiscardGame(game.id);
-                              }}
-                              className="unified-card-btn secondary text-sm"
-                            >
-                              <span className="mr-2">🗑️</span>
-                              Discard
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                    <button
+                      onClick={() => setActiveTab('completed')}
+                      className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                        activeTab === 'completed'
+                          ? 'border-orange-500 text-orange-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      <span className="mr-2">✅</span>
+                      Completed Games
+                      {completedGames.length > 0 && (
+                        <span className="ml-2 bg-green-100 text-green-600 px-2 py-1 rounded-full text-xs">
+                          {completedGames.length}
+                        </span>
+                      )}
+                    </button>
+                  </nav>
+                </div>
               </div>
-            )}
 
-            {/* Completed Games Tab */}
-            {activeTab === 'completed' && (
-              <div>
-                {completedGames.length === 0 ? (
-                  <div className="text-center py-12">
-                    <div className="text-gray-400 mb-4 text-6xl">🏆</div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No completed games</h3>
-                    <p className="text-gray-600 mb-6">Finish some games to see them here</p>
-                    <button
-                      onClick={() => navigate('/play')}
-                      className="bg-orange-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-orange-600 transition-colors shadow"
-                    >
-                      <span className="mr-2">🤖</span>
-                      Start New Game
-                    </button>
-                  </div>
-                ) : (
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {completedGames.map((game) => {
-                      const safeGame = {
-                        ...game,
-                        result: game.result || 'unknown',
-                        playerColor: (game.playerColor || 'white').toLowerCase(),
-                        opponentName: game.opponentName || 'Unknown',
-                        endTime: game.endTime || Date.now(),
-                        startTime: game.startTime || Date.now(),
-                        moves: Array.isArray(game.moves) ? game.moves : [],
-                        difficulty: game.difficulty || 'Medium'
-                      };
-                      const displayText = getResultDisplay(safeGame.result, safeGame.playerColor);
-                      const isVictory = displayText.includes('Victory');
-                      const isDraw = displayText.includes('Draw');
-                      const avatarIcon = isVictory ? '🏆' : (isDraw ? '🤝' : '❌');
-                      const normalizedPlayerColor = safeGame.playerColor;
-                      return (
-                        <div key={safeGame.id || 'unknown'} className="unified-card light-theme">
+              {/* Unfinished Games Tab */}
+              {activeTab === 'unfinished' && (
+                <div>
+                  {unfinishedGames.length === 0 ? (
+                    <div className="text-center py-12">
+                      <div className="text-gray-400 mb-4 text-6xl">♟️</div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No unfinished games</h3>
+                      <p className="text-gray-600 mb-6">Start playing to create games that you can resume later</p>
+                      <button
+                        onClick={() => navigate('/play')}
+                        className="bg-orange-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-orange-600 transition-colors shadow"
+                      >
+                        <span className="mr-2">🤖</span>
+                        Start New Game
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {unfinishedGames.map((game) => (
+                        <div key={game.id} className="unified-card light-theme accented">
                           <div className="unified-card-header">
                             <div className="unified-card-avatar">
-                              {avatarIcon}
+                              {game.playerColor === 'white' ? '♔' : '♚'}
                             </div>
                             <div>
                               <div className="font-semibold text-gray-900">
-                                vs {safeGame.opponentName}
+                                vs {game.opponentName || 'Computer'}
                               </div>
                               <div className="text-sm text-gray-500">
-                                {formatTimeAgo(safeGame.endTime)}
+                                {formatTimeAgo(game.timestamp)}
                               </div>
                             </div>
                           </div>
                           <div className="unified-card-body">
-                            <div className={`text-center font-semibold mb-3 ${getResultColor(safeGame.result, safeGame.playerColor)}`}>
-                              {getResultDisplay(safeGame.result, safeGame.playerColor)}
-                            </div>
                             <div className="flex items-center justify-between text-sm text-gray-600 mb-3">
-                              <span>You played: {normalizedPlayerColor === 'white' ? 'White' : 'Black'}</span>
-                              <span>Duration: {formatGameDuration(safeGame.startTime, safeGame.endTime)}</span>
+                              <span>You play: {game.playerColor === 'white' ? 'White' : 'Black'}</span>
+                              <span>Difficulty: {game.difficulty || 'Medium'}</span>
                             </div>
-                            <div className="flex items-center justify-between text-sm text-gray-600 mb-3">
-                              <span>Moves: {safeGame.moves.length}</span>
-                              <span>Difficulty: {safeGame.difficulty}</span>
-                            </div>
+                            {game.timerEnabled && (
+                              <div className="flex items-center justify-between text-sm text-gray-600 mb-3">
+                                <span>White: {Math.floor((game.whiteMs || 600000) / 1000 / 60)}min</span>
+                                <span>Black: {Math.floor((game.blackMs || 600000) / 1000 / 60)}min</span>
+                              </div>
+                            )}
                             <div className="unified-card-actions vertical">
                               <button
-                                onClick={() => handlePreviewGame(safeGame)}
-                                className="unified-card-btn neutral text-sm"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  console.log('[GameHistoryPage] Resume button click event triggered:', e);
+                                  handleResumeGame(game);
+                                }}
+                                className="unified-card-btn primary text-sm"
                               >
-                                <span className="mr-2">👁️</span>
-                                Preview Game
+                                <span className="mr-2">▶️</span>
+                                Resume Game
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  console.log('[GameHistoryPage] Discard button click event triggered:', e);
+                                  handleDiscardGame(game.id);
+                                }}
+                                className="unified-card-btn secondary text-sm"
+                              >
+                                <span className="mr-2">🗑️</span>
+                                Discard
                               </button>
                             </div>
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-          </>
-        )}
-      </main>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
-      {/* Game Preview Modal - Only for unfinished games */}
-      {showPreviewModal && selectedGame && selectedGame.status !== 'completed' && (
-        <GamePreviewModal
-          game={selectedGame}
-          onClose={() => {
-            setShowPreviewModal(false);
-            setSelectedGame(null);
-          }}
-        />
-      )}
-    </div>
+              {/* Completed Games Tab */}
+              {activeTab === 'completed' && (
+                <div>
+                  {completedGames.length === 0 ? (
+                    <div className="text-center py-12">
+                      <div className="text-gray-400 mb-4 text-6xl">🏆</div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No completed games</h3>
+                      <p className="text-gray-600 mb-6">Finish some games to see them here</p>
+                      <button
+                        onClick={() => navigate('/play')}
+                        className="bg-orange-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-orange-600 transition-colors shadow"
+                      >
+                        <span className="mr-2">🤖</span>
+                        Start New Game
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {completedGames.map((game) => {
+                        const safeGame = {
+                          ...game,
+                          result: game.result || 'unknown',
+                          playerColor: (game.playerColor || 'white').toLowerCase(),
+                          opponentName: game.opponentName || 'Unknown',
+                          endTime: game.endTime || Date.now(),
+                          startTime: game.startTime || Date.now(),
+                          moves: Array.isArray(game.moves) ? game.moves : [],
+                          difficulty: game.difficulty || 'Medium'
+                        };
+                        const displayText = getResultDisplay(safeGame.result, safeGame.playerColor);
+                        const isVictory = displayText.includes('Victory');
+                        const isDraw = displayText.includes('Draw');
+                        const avatarIcon = isVictory ? '🏆' : (isDraw ? '🤝' : '❌');
+                        const normalizedPlayerColor = safeGame.playerColor;
+                        return (
+                          <div key={safeGame.id || 'unknown'} className="unified-card light-theme">
+                            <div className="unified-card-header">
+                              <div className="unified-card-avatar">
+                                {avatarIcon}
+                              </div>
+                              <div>
+                                <div className="font-semibold text-gray-900">
+                                  vs {safeGame.opponentName}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                  {formatTimeAgo(safeGame.endTime)}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="unified-card-body">
+                              <div className={`text-center font-semibold mb-3 ${getResultColor(safeGame.result, safeGame.playerColor)}`}>
+                                {getResultDisplay(safeGame.result, safeGame.playerColor)}
+                              </div>
+                              <div className="flex items-center justify-between text-sm text-gray-600 mb-3">
+                                <span>You played: {normalizedPlayerColor === 'white' ? 'White' : 'Black'}</span>
+                                <span>Duration: {formatGameDuration(safeGame.startTime, safeGame.endTime)}</span>
+                              </div>
+                              <div className="flex items-center justify-between text-sm text-gray-600 mb-3">
+                                <span>Moves: {safeGame.moves.length}</span>
+                                <span>Difficulty: {safeGame.difficulty}</span>
+                              </div>
+                              <div className="unified-card-actions vertical">
+                                <button
+                                  onClick={() => handlePreviewGame(safeGame)}
+                                  className="unified-card-btn neutral text-sm"
+                                >
+                                  <span className="mr-2">👁️</span>
+                                  Preview Game
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </main>
+
+        {/* Game Preview Modal - Only for unfinished games */}
+        {showPreviewModal && selectedGame && selectedGame.status !== 'completed' && (
+          <GamePreviewModal
+            game={selectedGame}
+            onClose={() => {
+              setShowPreviewModal(false);
+              setSelectedGame(null);
+            }}
+          />
+        )}
+      </div>
+
+      <Footer />
+    </>
   );
 };
 
