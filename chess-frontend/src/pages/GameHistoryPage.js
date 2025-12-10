@@ -9,7 +9,6 @@ import {
   getCompletedGames
 } from '../services/unfinishedGameService';
 import GamePreviewModal from '../components/GamePreviewModal';
-import Footer from '../components/layout/Footer';
 import '../styles/UnifiedCards.css';
 
 const GameHistoryPage = () => {
@@ -510,8 +509,6 @@ const GameHistoryPage = () => {
           />
         )}
       </div>
-
-      <Footer />
     </>
   );
 };
