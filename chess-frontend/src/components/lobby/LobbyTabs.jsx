@@ -11,22 +11,23 @@ import React, { useEffect, useRef } from 'react';
 const LobbyTabs = ({ activeTab, onTabChange, tabs }) => {
   const tabsRef = useRef(null);
 
-  // Auto-center active tab when it changes or component mounts
-  useEffect(() => {
-    if (tabsRef.current) {
-      // Use requestAnimationFrame to ensure DOM is updated
-      requestAnimationFrame(() => {
-        const activeTabElement = tabsRef.current.querySelector('.tab-button.active');
-        if (activeTabElement) {
-          activeTabElement.scrollIntoView({
-            inline: 'center',
-            behavior: 'smooth',
-            block: 'nearest'
-          });
-        }
-      });
-    }
-  }, [activeTab]); // Re-run when activeTab changes
+  // DISABLED: Auto-center active tab was causing container shift
+  // TODO: Re-enable with proper containment if needed
+  // useEffect(() => {
+  //   if (tabsRef.current) {
+  //     // Use requestAnimationFrame to ensure DOM is updated
+  //     requestAnimationFrame(() => {
+  //       const activeTabElement = tabsRef.current.querySelector('.tab-button.active');
+  //       if (activeTabElement) {
+  //         activeTabElement.scrollIntoView({
+  //           inline: 'center',
+  //           behavior: 'smooth',
+  //           block: 'nearest'
+  //         });
+  //       }
+  //     });
+  //   }
+  // }, [activeTab]); // Re-run when activeTab changes
 
   const handleTabClick = (tabId) => {
     onTabChange(tabId);

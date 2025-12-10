@@ -23,6 +23,7 @@ import { createResultFromMultiplayerGame } from '../../utils/resultStandardizati
 import { useMultiplayerTimer } from '../../utils/timerUtils';
 import { calculateRemainingTime } from '../../utils/timerCalculator';
 import { saveUnfinishedGame } from '../../services/unfinishedGameService';
+import { getMovePath, createPathHighlights, mergeHighlights } from '../../utils/movePathUtils'; // Move path utilities
 
 // Import sounds
 import moveSound from '../../assets/sounds/move.mp3';
@@ -46,6 +47,7 @@ const PlayMultiplayer = () => {
   const [gameHistory, setGameHistory] = useState([]);
   const [selectedSquare, setSelectedSquare] = useState(null);
   const [boardOrientation, setBoardOrientation] = useState('white');
+  const [lastMoveHighlights, setLastMoveHighlights] = useState({}); // Move path highlighting
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
@@ -1768,6 +1770,114 @@ const PlayMultiplayer = () => {
       console.error('[Championship] Error restoring championship context from sessionStorage:', error);
     }
   }, [gameId]);
+
+  // Effect to highlight last two moves with full path visualization
+  useEffect(() => {
+    // Clear highlights if no history or game is over
+    if (gameHistory.length === 0 || gameComplete) {
+      setLastMoveHighlights({});
+      return;
+    }
+
+    let highlights = {};
+
+    // Helper function to extract move string from different formats
+    const extractMoveStr = (historyItem) => {
+      if (typeof historyItem === 'string') {
+        // Compact format: "move,time"
+        return historyItem.split(',')[0];
+      } else if (typeof historyItem === 'object' && historyItem.move) {
+        // Object format: { move: "e4", time: 3.45 }
+        return historyItem.move;
+      } else if (typeof historyItem === 'object' && historyItem.san) {
+        // Chess.js move object format: { san: "e4", ... }
+        return historyItem.san;
+      }
+      return null;
+    };
+
+    // Helper function to apply moves to temp game
+    const applyMovesToGame = (tempGame, moveHistory, upToIndex) => {
+      for (let i = 0; i < upToIndex; i++) {
+        const moveStr = extractMoveStr(moveHistory[i]);
+        if (moveStr) {
+          try {
+            tempGame.move(moveStr);
+          } catch (error) {
+            console.warn('Could not apply move during reconstruction:', moveStr, error);
+          }
+        }
+      }
+    };
+
+    // Previous move (pink) - second to last move
+    if (gameHistory.length >= 2) {
+      const prevMoveStr = extractMoveStr(gameHistory[gameHistory.length - 2]);
+
+      if (prevMoveStr) {
+        try {
+          const tempGame = new Chess();
+          // Reconstruct previous move by applying moves up to that point
+          applyMovesToGame(tempGame, gameHistory, gameHistory.length - 2);
+
+          const tempGameAfter = new Chess(tempGame.fen());
+          tempGameAfter.move(prevMoveStr);
+          const prevMove = tempGameAfter.history({ verbose: true }).slice(-1)[0];
+
+          if (prevMove && prevMove.from && prevMove.to) {
+            // Get the full path for the previous move
+            const prevPath = getMovePath(prevMove);
+            const prevHighlights = createPathHighlights(
+              prevPath,
+              'rgba(225, 26, 236, 0.5)' // Pink with 50% opacity
+            );
+            highlights = mergeHighlights(highlights, prevHighlights);
+          }
+        } catch (error) {
+          console.warn('Could not parse previous move for highlighting:', error, {
+            moveIndex: gameHistory.length - 2,
+            moveStr: prevMoveStr,
+            originalItem: gameHistory[gameHistory.length - 2]
+          });
+        }
+      }
+    }
+
+    // Last move (green) - most recent move
+    if (gameHistory.length >= 1) {
+      const lastMoveStr = extractMoveStr(gameHistory[gameHistory.length - 1]);
+
+      if (lastMoveStr) {
+        try {
+          const tempGame = new Chess();
+          // Reconstruct game by applying all moves except the last one
+          applyMovesToGame(tempGame, gameHistory, gameHistory.length - 1);
+
+          const tempGameAfter = new Chess(tempGame.fen());
+          tempGameAfter.move(lastMoveStr);
+          const lastMove = tempGameAfter.history({ verbose: true }).slice(-1)[0];
+
+          if (lastMove && lastMove.from && lastMove.to) {
+            // Get the full path for the last move
+            const lastPath = getMovePath(lastMove);
+            const lastHighlights = createPathHighlights(
+              lastPath,
+              'rgba(0, 255, 0, 0.4)' // Green with 40% opacity
+            );
+            highlights = mergeHighlights(highlights, lastHighlights);
+          }
+        } catch (error) {
+          console.warn('Could not parse last move for highlighting:', error, {
+            moveIndex: gameHistory.length - 1,
+            moveStr: lastMoveStr,
+            originalItem: gameHistory[gameHistory.length - 1]
+          });
+        }
+      }
+    }
+
+    setLastMoveHighlights(highlights);
+  }, [gameHistory, gameComplete]);
 
   useEffect(() => {
     if (!gameId || !user) return;
@@ -3591,6 +3701,7 @@ const PlayMultiplayer = () => {
           boardOrientation={boardOrientation}
           areArrowsAllowed={false}
           customSquareStyles={{
+            ...lastMoveHighlights, // Base layer: last move highlights
             [selectedSquare]: {
               backgroundColor: 'rgba(255, 255, 0, 0.4)'
             },

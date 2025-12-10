@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { trackSocial } from '../utils/analytics';
@@ -46,6 +46,11 @@ const LobbyPage = () => {
   const inFlightRef = React.useRef(false);
   const stopPollingRef = React.useRef(false);
   const didInitPollingRef = React.useRef(false);
+
+  // Debug refs to inspect layout when tabs change
+  const lobbyContainerRef = useRef(null);
+  const lobbyTabsRef = useRef(null);
+  const lobbyContentRef = useRef(null);
 
   // Handle redirect messages from paused game
   useEffect(() => {
@@ -393,6 +398,44 @@ const LobbyPage = () => {
   }, [user]); // Only user dependency - avoid restarting polling unnecessarily
   // Note: fetchData and webSocketService.echo are intentionally excluded to prevent polling restarts
 
+  // Debug layout measurements when activeTab changes
+  useEffect(() => {
+    // run a tick after render so layout has settled
+    const t = setTimeout(() => {
+      const c = lobbyContainerRef.current;
+      const tabs = lobbyTabsRef.current || document.querySelector('.lobby-tabs');
+      const content = lobbyContentRef.current;
+      try {
+        console.log('[LAYOUT DEBUG] activeTab =>', activeTab);
+        if (c) {
+          const r = c.getBoundingClientRect();
+          console.log('[LAYOUT DEBUG] container rect:', r);
+        }
+        if (tabs) {
+          const r = tabs.getBoundingClientRect();
+          console.log('[LAYOUT DEBUG] tabs rect:', r, 'scrollWidth:', tabs.scrollWidth, 'clientWidth:', tabs.clientWidth);
+        }
+        if (content) {
+          const r = content.getBoundingClientRect();
+          console.log('[LAYOUT DEBUG] content rect:', r, 'scrollWidth:', content.scrollWidth, 'clientWidth:', content.clientWidth);
+        }
+        // Also list any immediate children that exceed container width
+        if (content && c) {
+          Array.from(content.children).forEach((ch, i) => {
+            const b = ch.getBoundingClientRect();
+            if (b.right - b.left > c.getBoundingClientRect().width - 1) {
+              console.warn('[LAYOUT DEBUG] child too wide:', i, ch, 'rect:', b);
+            }
+          });
+        }
+      } catch (err) {
+        console.error('[LAYOUT DEBUG] error measuring layout', err);
+      }
+    }, 60);
+
+    return () => clearTimeout(t);
+  }, [activeTab]);
+
   const handleInvite = (player) => {
     // Check if there's already a pending invitation to this player
     const existingInvitation = sentInvitations.find(inv =>
@@ -701,7 +744,7 @@ const LobbyPage = () => {
 
 
   return (
-    <div className="lobby-container">
+    <div className="lobby-container" ref={lobbyContainerRef}>
       <div className="lobby p-6 text-white">
       {/* Resume requests and invitations are now handled by GlobalInvitationDialog */}
       {/* Header now handled globally in Header.js */}
@@ -743,7 +786,7 @@ const LobbyPage = () => {
         tabs={tabs}
       />
 
-      <div className="lobby-content">
+        <div className="lobby-content" ref={lobbyContentRef}>
         {activeTab === 'players' && (
           <>
             <PlayersList

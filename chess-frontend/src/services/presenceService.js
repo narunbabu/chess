@@ -169,7 +169,7 @@ class PresenceService {
       }
 
       const data = await response.json();
-      console.log('[Presence] Status updated successfully:', status);
+      // console.log('[Presence] Status updated successfully:', status);
       return data;
     } catch (error) {
       console.error('[Presence] Failed to update presence:', error.message);

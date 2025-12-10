@@ -394,7 +394,7 @@ const PlayComputer = () => {
         const prevPath = getMovePath(prevMove);
         const prevHighlights = createPathHighlights(
           prevPath,
-          'rgba(225, 26, 236, 0.54)' // Pink with 40% opacity
+          'rgba(225, 26, 236, 0.5)' // Pink with 40% opacity
         );
         highlights = mergeHighlights(highlights, prevHighlights);
       }
