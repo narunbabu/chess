@@ -93,7 +93,8 @@ const GameContainer = ({
     isPortrait,
     // Undo functionality props
     handleUndo,
-    canUndo
+    canUndo,
+    undoChancesRemaining
   } = controlsData || {};
 
   
@@ -173,6 +174,7 @@ const GameContainer = ({
             gameOver={gameOver}
             handleUndo={handleUndo}
             canUndo={canUndo}
+            undoChancesRemaining={undoChancesRemaining}
           />
         )}
 

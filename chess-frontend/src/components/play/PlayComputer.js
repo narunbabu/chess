@@ -47,6 +47,19 @@ const DEFAULT_DEPTH = 2;
 const MIN_PERCEIVED_COMPUTER_THINK_TIME = 1500; // e.g., 1.5 seconds
 const DEFAULT_RATING = 1200;
 
+// --- Undo Chances Configuration ---
+const getUndoChancesForLevel = (level) => {
+  if (level >= 1 && level <= 3) {
+    return 5; // Levels 1-3: 5 chances
+  } else if (level >= 4 && level <= 7) {
+    return 3; // Levels 4-7: 3 chances
+  } else if (level >= 8 && level <= 12) {
+    return 1; // Levels 8-12: 1 chance
+  } else {
+    return 0; // Level >12: No chances
+  }
+};
+
 const PlayComputer = () => {
   // --- State variables ---
   const [game, setGame] = useState(new Chess());
@@ -100,6 +113,8 @@ const PlayComputer = () => {
   const [currentGameId, setCurrentGameId] = useState(null);
   const [backendGame, setBackendGame] = useState(null); // Store backend game data
   const [canUndo, setCanUndo] = useState(false); // Track if undo is available
+  const [undoChancesRemaining, setUndoChancesRemaining] = useState(0); // Track remaining undo chances
+  const [showUndoDialog, setShowUndoDialog] = useState(false); // Track if undo confirmation dialog is showing
 
   // --- Custom timer hook ---
   const {
@@ -849,13 +864,10 @@ const PlayComputer = () => {
                   // Use functional update to ensure we're using the latest history state
                   setGameHistory(prevHistory => {
                       const newHistory = [...prevHistory, computerHistoryEntry];
-                      // Update undo availability - can undo after complete turns
-                      const newCanUndo = newHistory.length >= 2;
-                      console.log('[PlayComputer] 🔄 Computer move completed, updating canUndo:', {
+                      console.log('[PlayComputer] 🔄 Computer move completed, history updated:', {
                           newHistoryLength: newHistory.length,
-                          newCanUndo
+                          undoChancesRemaining
                       });
-                      setCanUndo(newCanUndo);
                       return newHistory;
                   });
               } else {
@@ -921,6 +933,36 @@ const PlayComputer = () => {
     setLastComputerEvaluation, setComputerScore // Stable Setters
     // Note: makeComputerMove, updateGameStatus, evaluateMove, DEFAULT_RATING are imports/constants (stable)
   ]);
+
+  // Effect to update undo availability based on game history and remaining chances
+  useEffect(() => {
+    const newCanUndo = gameHistory.length >= 2 && undoChancesRemaining > 0 && gameStarted && !gameOver;
+    setCanUndo(newCanUndo);
+    console.log('[PlayComputer] 🔧 Undo availability updated:', {
+      gameHistoryLength: gameHistory.length,
+      undoChancesRemaining,
+      gameStarted,
+      gameOver,
+      canUndo: newCanUndo
+    });
+  }, [gameHistory.length, undoChancesRemaining, gameStarted, gameOver]);
+
+  // Effect to update undo chances when computer difficulty changes (during game setup)
+  useEffect(() => {
+    if (!gameStarted) {
+      const newUndoChances = getUndoChancesForLevel(computerDepth);
+      setUndoChancesRemaining(newUndoChances);
+      console.log('[PlayComputer] 🎯 Computer level changed, undo chances updated:', {
+        computerLevel: computerDepth,
+        newChances: newUndoChances
+      });
+    }
+  }, [computerDepth, gameStarted]);
+
+  // Debug effect to monitor undo dialog state changes
+  useEffect(() => {
+    console.log('[PlayComputer] 🎭 Undo dialog state changed:', { showUndoDialog, undoChancesRemaining });
+  }, [showUndoDialog, undoChancesRemaining]);
 
 
   // --- Player Move Logic (onDrop on ChessBoard) ---
@@ -1147,6 +1189,15 @@ const PlayComputer = () => {
         setPlayerScore(0);
         setLastMoveEvaluation(null);
         setGame(new Chess()); // Reset board to starting position
+
+        // Initialize undo chances based on computer level
+        const initialUndoChances = getUndoChancesForLevel(computerDepth);
+        setUndoChancesRemaining(initialUndoChances);
+        console.log('[PlayComputer] 🎯 Game started - undo chances initialized:', {
+            computerLevel: computerDepth,
+            initialChances: initialUndoChances
+        });
+
         resetTimer(); // Reset timer values (ensure useGameTimer provides initial values)
         // White always starts in chess, so set active timer to white
         setActiveTimer("w"); // White always starts
@@ -1156,6 +1207,7 @@ const PlayComputer = () => {
             moveStartTimeRef.current = Date.now();
         }
         setMoveCompleted(false); // No move made yet
+        setCanUndo(false); // Undo not available until at least one complete turn
 
         // If player is black, computer (white) should move immediately
         // The computer turn useEffect will handle this automatically since:
@@ -1201,6 +1253,8 @@ const PlayComputer = () => {
         setBackendGame(null); // Reset backend game
         setCurrentGameId(null); // Reset current game ID
         setCanUndo(false); // Reset undo availability
+        setUndoChancesRemaining(0); // Reset undo chances
+        setShowUndoDialog(false); // Hide undo dialog
         // Note: Does not reset playerColor or computerDepth, keeping user selections
     }, [resetTimer, timerRef, replayTimerRef]); // Dependencies: stable hook fn and refs accessed
 
@@ -1338,25 +1392,38 @@ const PlayComputer = () => {
 
     // --- Undo Functionality ---
     const handleUndo = useCallback(() => {
-        console.log('[PlayComputer] 🔧 Undo attempted:', {
+        console.log('[PlayComputer] 🔧 Undo button clicked:', {
             gameStarted,
             gameOver,
             isReplayMode,
             gameHistoryLength: gameHistory.length,
             canUndo,
+            undoChancesRemaining,
             gameTurn: game.turn(),
             playerColor,
             computerMoveInProgress
         });
 
-        // Undo the last move if game is active and not in replay mode
-        if (!gameStarted || gameOver || isReplayMode || gameHistory.length < 2) {
-            console.log('[PlayComputer] ❌ Undo blocked by initial checks');
-            return; // Can't undo if game hasn't started, is over, in replay, or not enough moves
+        // Check if undo is possible (but don't show dialog if not)
+        if (!gameStarted || gameOver || isReplayMode || gameHistory.length < 1 || undoChancesRemaining <= 0) {
+            if (undoChancesRemaining <= 0 && gameStarted && !gameOver && gameHistory.length >= 1) {
+                setGameStatus("No undo chances remaining!");
+            } else if (gameHistory.length < 1) {
+                setGameStatus("No moves to undo!");
+            }
+            return;
         }
 
         // Can only undo if it's the player's turn and the computer hasn't moved yet
         const playerColorChess = playerColor; // playerColor is already 'w' or 'b'
+
+        console.log('[PlayComputer] 🔍 Turn check:', {
+            gameTurn: game.turn(),
+            playerColorChess,
+            computerMoveInProgress,
+            undoChancesRemaining,
+            'is player turn': game.turn() === playerColorChess
+        });
 
         if (game.turn() !== playerColorChess) {
             console.log('[PlayComputer] ❌ Undo blocked - not player turn');
@@ -1370,9 +1437,27 @@ const PlayComputer = () => {
             return;
         }
 
-        try {
-            console.log('[PlayComputer] 🎯 Starting undo process...');
+        // Show confirmation dialog
+        console.log('[PlayComputer] 🎯 All checks passed, showing undo dialog...');
+        setShowUndoDialog(true);
+        console.log('[PlayComputer] 🎨 Dialog state set to true:', { showUndoDialog });
+    }, [
+        gameStarted, gameOver, isReplayMode, gameHistory, game, playerColor,
+        computerMoveInProgress, undoChancesRemaining
+    ]);
 
+    // --- Execute Undo (after confirmation) ---
+    const executeUndo = useCallback(() => {
+        console.log('[PlayComputer] 🎯 Executing undo after confirmation...');
+        console.log('[PlayComputer] 🔍 executeUndo called with state:', {
+            gameHistoryLength: gameHistory.length,
+            undoChancesRemaining,
+            playerColor,
+            moveCount
+        });
+        setShowUndoDialog(false);
+
+        try {
             // Reconstruct the game from the full history to ensure we have proper move history
             const gameCopy = new Chess();
 
@@ -1415,10 +1500,10 @@ const PlayComputer = () => {
                     playerColor: lastPlayerMove.playerColor,
                     move: lastPlayerMove.move?.san
                 } : null,
-                playerColorChess
+                playerColor
             });
 
-            if (!lastComputerMove || !lastPlayerMove || lastComputerMove.playerColor === playerColorChess) {
+            if (!lastComputerMove || !lastPlayerMove || lastComputerMove.playerColor === playerColor) {
                 console.log('[PlayComputer] ❌ Undo blocked - invalid history structure');
                 setGameStatus("Cannot undo - no complete turn to undo!");
                 return;
@@ -1441,22 +1526,27 @@ const PlayComputer = () => {
             setLastMoveEvaluation(null);
             setLastComputerEvaluation(null);
 
+            // Decrement remaining undo chances
+            const newUndoChances = undoChancesRemaining - 1;
+            setUndoChancesRemaining(newUndoChances);
+            console.log('[PlayComputer] 🔢 Undo chances remaining:', newUndoChances);
+
             // Update the main game state with the reconstructed game
             console.log('[PlayComputer] ♻️ Updating game state with undone position');
             setGame(gameCopy);
 
+            // Update previousGameStateRef to match the new game state
+            previousGameStateRef.current = new Chess(gameCopy.fen());
+
             // Switch timer back to player
-            setActiveTimer(playerColorChess);
+            setActiveTimer(playerColor);
             setIsTimerRunning(true);
             startTimerInterval();
             moveStartTimeRef.current = Date.now();
 
             setMoveCompleted(false);
-            setGameStatus("Last turn undone - your turn!");
+            setGameStatus(`Last turn undone! ${newUndoChances} undo chance${newUndoChances !== 1 ? 's' : ''} remaining.`);
             playSound(moveSoundEffect); // Play a sound to indicate undo
-
-            // Update undo availability
-            setCanUndo(newHistory.length >= 2);
 
             console.log('[PlayComputer] ✅ Undo completed successfully');
 
@@ -1465,12 +1555,12 @@ const PlayComputer = () => {
             setGameStatus("Failed to undo move. Please try again.");
         }
     }, [
-        gameStarted, gameOver, isReplayMode, gameHistory, game, moveCount, playerColor,
-        computerMoveInProgress, activeTimer, playerScore, computerScore,
+        gameHistory, moveCount, playerColor, undoChancesRemaining, playerScore, computerScore,
         setActiveTimer, setIsTimerRunning, startTimerInterval, setGame,
         setGameHistory, setMoveCount, setMoveCompleted, setGameStatus,
         setLastMoveEvaluation, setLastComputerEvaluation, setPlayerScore,
-        setComputerScore, setCanUndo
+        setComputerScore, setUndoChancesRemaining, playSound, moveSoundEffect,
+        previousGameStateRef, moveStartTimeRef
     ]);
 
     // --- Replay Controls ---
@@ -1689,6 +1779,7 @@ const PlayComputer = () => {
         handleResign,
         handleUndo,
         canUndo,
+        undoChancesRemaining,
         replayPaused,
         startReplay,
         pauseReplay,
@@ -1913,6 +2004,98 @@ const PlayComputer = () => {
 
   const modalsSection = (
     <>
+        {/* Undo Confirmation Dialog */}
+        {showUndoDialog && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center"
+            style={{
+              zIndex: 9999,
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: 1,
+              visibility: 'visible'
+            }}
+            data-testid="undo-dialog-overlay"
+            onClick={(e) => {
+              console.log('[PlayComputer] 🎯 Overlay clicked, target:', e.target.className);
+              setShowUndoDialog(false);
+            }}
+          >
+            <div
+              className="bg-white rounded-lg p-6 max-w-sm mx-4 text-center shadow-xl"
+              style={{
+                backgroundColor: 'white',
+                borderRadius: '8px',
+                padding: '24px',
+                maxWidth: '400px',
+                width: '100%',
+                margin: '16px'
+              }}
+              onClick={(e) => {
+                console.log('[PlayComputer] 🎯 Dialog content clicked, stopping propagation');
+                e.stopPropagation();
+              }}
+            >
+              <h3 className="text-lg font-semibold mb-4 text-gray-800">
+                Use Undo Chance?
+              </h3>
+              <p className="text-gray-600 mb-6">
+                You have <span className="font-bold text-blue-600">{undoChancesRemaining}</span> undo chance{undoChancesRemaining !== 1 ? 's' : ''} remaining in this game.
+                <br /><br />
+                Using undo now will cost 1 chance, leaving you with <span className="font-bold text-orange-600">{undoChancesRemaining - 1}</span> chance{(undoChancesRemaining - 1) !== 1 ? 's' : ''} for the rest of this game.
+              </p>
+              <div className="flex justify-center gap-4">
+                <button
+                  onClick={() => {
+                    console.log('[PlayComputer] ❌ Undo dialog cancelled');
+                    setShowUndoDialog(false);
+                  }}
+                  className="px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400 transition-colors"
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#d1d5db',
+                    color: '#1f2937',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    console.log('[PlayComputer] ✅ Undo dialog confirmed, executing undo');
+                    console.log('[PlayComputer] 🔍 executeUndo function:', {
+                      type: typeof executeUndo,
+                      isFunction: typeof executeUndo === 'function',
+                      toString: executeUndo.toString().substring(0, 100) + '...'
+                    });
+                    executeUndo();
+                  }}
+                  className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#ef4444',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Use Undo (1 chance)
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {showGameCompletion && (
           <GameCompletionAnimation
             result={gameResult || gameStatus} // Use standardized result object if available, fallback to text
@@ -1951,6 +2134,8 @@ const PlayComputer = () => {
   // Fallback to original layout (backward compatibility)
   return (
     <>
+      {/* Render modals directly in fallback layout */}
+      {modalsSection}
       <div className="chess-game-container text-white pt-4 md:pt-6">
 
         {/* Pre-Game Setup Screen */}

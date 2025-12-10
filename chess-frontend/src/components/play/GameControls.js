@@ -25,6 +25,7 @@ const GameControls = ({
   handleUndo,
   canUndo,
   gameOver,
+  undoChancesRemaining, // Number of undo chances remaining
 }) => {
   return (
     <div className="game-controls" style={{ marginTop: "20px", textAlign: "center" }}>
@@ -74,23 +75,33 @@ const GameControls = ({
           {handleUndo && (
             <button
               onClick={() => {
-                console.log('[GameControls] 🔧 Undo button clicked:', { canUndo, gameOver, gameStarted });
+                console.log('[GameControls] 🔧 Undo button clicked:', { canUndo, gameOver, gameStarted, undoChancesRemaining });
                 handleUndo();
               }}
               disabled={!canUndo || gameOver}
-              title={!canUndo ? (gameOver ? "Cannot undo - game is over" : "Cannot undo - not enough moves") : "Undo last move"}
+              title={
+                !canUndo
+                  ? (gameOver
+                    ? "Cannot undo - game is over"
+                    : undoChancesRemaining <= 0
+                      ? "No undo chances remaining"
+                      : "Cannot undo - wait for your turn"
+                  )
+                  : `Undo last move (${undoChancesRemaining} chance${undoChancesRemaining !== 1 ? 's' : ''} remaining)`
+              }
               style={{
                 marginLeft: '10px',
-                backgroundColor: canUndo && !gameOver ? '#059669' : '#9ca3af',
+                backgroundColor: canUndo && !gameOver && undoChancesRemaining > 0 ? '#059669' : '#9ca3af',
                 color: 'white',
                 padding: '8px 16px',
                 border: 'none',
                 borderRadius: '4px',
-                cursor: canUndo && !gameOver ? 'pointer' : 'not-allowed',
-                opacity: canUndo && !gameOver ? 1 : 0.6
+                cursor: canUndo && !gameOver && undoChancesRemaining > 0 ? 'pointer' : 'not-allowed',
+                opacity: canUndo && !gameOver && undoChancesRemaining > 0 ? 1 : 0.6,
+                fontSize: undoChancesRemaining > 0 ? '14px' : '12px'
               }}
             >
-              ↩️ Undo
+              ↩️ Undo {undoChancesRemaining > 0 && `(${undoChancesRemaining})`}
             </button>
           )}
 
