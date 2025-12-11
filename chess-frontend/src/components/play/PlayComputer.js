@@ -15,6 +15,7 @@ import GameContainer from "./GameContainer"; // Unified game container
 // Import Utils & Hooks
 import { useGameTimer } from "../../utils/timerUtils"; // Adjust path if needed
 import { makeComputerMove } from "../../utils/computerMoveUtils"; // Adjust path if needed
+import { preloadStockfish } from "../../utils/lazyStockfishLoader";
 import { updateGameStatus, evaluateMove } from "../../utils/gameStateUtils"; // Adjust paths if needed (ensure evaluateMove exists)
 import { encodeGameHistory, reconstructGameFromHistory } from "../../utils/gameHistoryStringUtils"; // Adjust paths if needed
 import { createResultFromComputerGame } from "../../utils/resultStandardization"; // Standardized result format
@@ -755,6 +756,16 @@ const PlayComputer = () => {
     }
   }, [gameStarted, gameOver, activeTimer, playerColor, moveCompleted]);
 
+  // --- Preload Stockfish when component mounts (for better UX) ---
+  useEffect(() => {
+    // Preload Stockfish after component mounts to improve perceived performance
+    // This won't block UI and will load Stockfish in background
+    const timer = setTimeout(() => {
+      preloadStockfish();
+    }, 1000); // Delay 1s to prioritize initial UI rendering
+
+    return () => clearTimeout(timer);
+  }, []);
 
   // --- Computer Turn Logic ---
   useEffect(() => {

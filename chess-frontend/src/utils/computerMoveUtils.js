@@ -1,6 +1,7 @@
 // src/utils/computerMoveUtils.js
 
 import { Chess } from 'chess.js';
+import { loadStockfish } from './lazyStockfishLoader';
 
 const MAX_DEPTH_FOR_DIFFICULTY = 16; // Max difficulty level
 const NUM_TOP_MOVES_TO_REQUEST = 10; // How many moves to ask Stockfish for
@@ -37,9 +38,11 @@ const mapDepthToMoveTime = (depth) => {
  * @param {number} moveTimeMs - The time budget for Stockfish to search.
  * @returns {Promise<string[]>} A promise that resolves with an array of moves in UCI format, ordered best to worst. Rejects on error or timeout.
  */
-const getStockfishTopMoves = (fen, numMoves, moveTimeMs) =>
-  new Promise((resolve, reject) => {
-    const stockfish = new Worker('/stockfish.js');
+const getStockfishTopMoves = async (fen, numMoves, moveTimeMs) => {
+  try {
+    const stockfish = await loadStockfish();
+
+    return new Promise((resolve, reject) => {
     let bestMoveFromEngine = null;
     const topMoves = new Array(numMoves).fill(null);
   
@@ -152,11 +155,15 @@ const getStockfishTopMoves = (fen, numMoves, moveTimeMs) =>
     // --- Initialize Stockfish Communication ---
     stockfish.onmessage = readyHandler; // Start with the temporary ready handler
 
-    stockfish.postMessage('uci');
-    stockfish.postMessage('ucinewgame');
-    stockfish.postMessage(`setoption name MultiPV value ${numMoves}`);
-    stockfish.postMessage('isready'); // This command triggers the 'readyok' response
-  });
+        stockfish.postMessage('ucinewgame');
+      stockfish.postMessage(`setoption name MultiPV value ${numMoves}`);
+      stockfish.postMessage('isready'); // This command triggers the 'readyok' response
+    });
+  } catch (error) {
+    console.error('Failed to load Stockfish:', error);
+    throw new Error('Stockfish engine not available');
+  }
+};
 
 
 // selectMoveFromRankedList remains the same as the corrected version from previous response

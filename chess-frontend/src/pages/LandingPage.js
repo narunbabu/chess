@@ -316,7 +316,7 @@ const LandingPage = () => {
                     </div>
                     <h3 className="text-base sm:text-lg font-bold text-purple-800 leading-tight">Trusted by Millions</h3>
                   </div>
-                  <p className="text-gray-700 text-sm sm:text-base leading-relaxed">12M+ Young Learners • 28,000+ Schools • Parent Approved</p>
+                  <p className="text-gray-700 text-sm sm:text-base leading-relaxed">Numerous Young Learners • Schools • Parent Approved</p>
                 </div>
               </div>
             </div>

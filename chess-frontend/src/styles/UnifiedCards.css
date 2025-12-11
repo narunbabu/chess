@@ -596,7 +596,7 @@
 
 /* Hero Section Fix for Landing Page */
 .hero-section {
-  margin-top: -54px; /* Negative margin to compensate for fixed header height */
+  margin-top: -30px; /* Negative margin to compensate for fixed header height */
   padding-top: 16px; /* Padding to push content below header */
   min-height: calc(100vh - 64px); /* Ensure proper height accounting for header */
 }
@@ -615,7 +615,7 @@
 
 /* Hero content container with reduced gap */
 .hero-content-container {
-  padding-top: 2rem; /* Reduced from excessive 6-8rem */
+  padding-top: 0.5rem; /* Further reduced to minimize gap */
   padding-bottom: 2rem;
   min-height: calc(100vh - 64px); /* Full viewport height minus header */
   display: flex;
