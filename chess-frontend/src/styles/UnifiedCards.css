@@ -593,3 +593,21 @@
 .title-large {
   font-size: 2rem !important;
 }
+
+/* Hero Section Fix for Landing Page */
+.hero-section {
+  margin-top: -64px; /* Negative margin to compensate for fixed header height */
+  padding-top: 64px; /* Padding to push content below header */
+}
+
+/* Ensure background image extends to header */
+.hero-bg-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+}

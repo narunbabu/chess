@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import html2canvas from 'html2canvas';
-import chessPlayingKids from '../assets/images/chess-playing-kids-crop.png';
+import chessPlayingKids from '../assets/images/chess-playing-kids-crop.jpeg';
 import logo from '../assets/images/logo.png';
 import { shareGameWithFriends, shareGameNative } from '../utils/shareUtils';
 import { waitForImagesToLoad, convertImagesToDataURLs } from '../utils/imageUtils';

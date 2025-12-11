@@ -23,7 +23,7 @@ Created a comprehensive, branded Game End Card that serves dual purposes:
 
 #### 1. Professional Branding
 - **Chess99 Logo** at the top (50px desktop, 40px mobile)
-- **Subtle Background**: chess-playing-kids-crop.png with 95% white overlay
+- **Subtle Background**: chess-playing-kids-crop.jpeg with 95% white overlay
 - **Brand Colors**: Consistent with Chess99 identity
 - **Professional Layout**: Clean, modern design
 
@@ -81,7 +81,7 @@ Created a comprehensive, branded Game End Card that serves dual purposes:
 ### Assets Used
 
 1. **Logo**: `/chess-frontend/src/assets/images/logo.png`
-2. **Background**: `/chess-frontend/src/assets/images/chess-playing-kids-crop.png`
+2. **Background**: `/chess-frontend/src/assets/images/chess-playing-kids-crop.jpeg`
 
 ### Code Quality
 

@@ -15,7 +15,7 @@ Added professional branding elements to the Game End Card including the Chess99 
 - **Purpose**: Instant brand recognition when card is shared
 
 #### Background Image
-- **Asset**: `/chess-frontend/src/assets/images/chess-playing-kids-crop.png`
+- **Asset**: `/chess-frontend/src/assets/images/chess-playing-kids-crop.jpeg`
 - **Implementation**: Inline style with linear gradient overlay
 - **Opacity**: 95-98% white overlay for readability
 - **Effect**: Subtle, professional background that doesn't distract from content
@@ -35,7 +35,7 @@ Added professional branding elements to the Game End Card including the Chess99 
 **Imports Added**:
 ```javascript
 import logo from '../assets/images/logo.png';
-import backgroundImage from '../assets/images/chess-playing-kids-crop.png';
+import backgroundImage from '../assets/images/chess-playing-kids-crop.jpeg';
 ```
 
 **Header Addition**:
@@ -220,7 +220,7 @@ style={{
    - Used in: Card header
    - Display: 50px height (desktop), 40px (mobile)
 
-2. **Background**: `/chess-frontend/src/assets/images/chess-playing-kids-crop.png`
+2. **Background**: `/chess-frontend/src/assets/images/chess-playing-kids-crop.jpeg`
    - Used in: Card background with overlay
    - Display: Cover, centered, no repeat
    - Overlay: 95-98% white for readability
@@ -242,7 +242,7 @@ Consider implementing:
 - `/chess-frontend/src/components/GameEndCard.js` - Main component
 - `/chess-frontend/src/components/GameCompletionAnimation.css` - Styling
 - `/chess-frontend/src/assets/images/logo.png` - Logo asset
-- `/chess-frontend/src/assets/images/chess-playing-kids-crop.png` - Background asset
+- `/chess-frontend/src/assets/images/chess-playing-kids-crop.jpeg` - Background asset
 - `/chess-frontend/src/components/GameReview.js` - Integration point
 
 ### 12. Key Metrics to Track

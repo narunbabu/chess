@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { trackUI } from '../utils/analytics';
 import AuthGateModal from '../components/layout/AuthGateModal';
 import UnfinishedGamesSection from '../components/UnfinishedGamesSection';
-import chessPlayingKids from '../assets/images/chess-playing-kids-crop.png';
+import chessPlayingKids from '../assets/images/chess-playing-kids-crop.jpeg';
 import logo from '../assets/images/logo.png';
 import '../styles/UnifiedCards.css';
 
@@ -156,7 +156,7 @@ const LandingPage = () => {
       {/* Main Content - Full Height Below Header */}
       <main className="flex-grow pt-16">
         {/* Hero Section - Top Portion Only */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-sky-400 via-sky-300 to-sky-200 w-full pt-16 z-10">
+      <section className="hero-section relative overflow-hidden bg-gradient-to-b from-sky-400 via-sky-300 to-sky-200 w-full z-10">
         {/* Decorative clouds */}
         <div className="absolute inset-0 z-0 pointer-events-none">
           <div className="absolute top-20 left-10 w-24 h-12 bg-white rounded-full opacity-70"></div>
@@ -168,12 +168,12 @@ const LandingPage = () => {
         {/* Hero Content - Single container with background and content */}
         <div className="relative w-full" style={{zIndex: '1'}}>
           {/* Content overlay with background image */}
-          <div className="relative z-20 flex flex-col items-center justify-start px-3 sm:px-4 lg:px-8 xl:px-12 pt-8 sm:pt-12 lg:pt-16 pb-8 sm:pb-12 lg:pb-16">
+          <div className="relative z-20 flex flex-col items-center justify-start px-3 sm:px-4 lg:px-8 xl:px-12 pt-24 sm:pt-28 lg:pt-32 pb-8 sm:pb-12 lg:pb-16">
             {/* Background image - positioned behind content */}
             <img
               src={chessPlayingKids}
               alt="Kids playing chess"
-              className="absolute inset-0 w-full h-full object-cover object-top -z-10"
+              className="hero-bg-image -z-10"
             />
             <div className="hero-soft-glow" />
             <div className="absolute inset-0 bg-gradient-to-b from-sky-400/10 via-sky-300/5 to-sky-200/10 -z-10"></div>

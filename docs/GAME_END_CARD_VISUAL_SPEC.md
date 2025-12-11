@@ -258,7 +258,7 @@ Rating: 1200 (+13) → 1213
 ```css
 background-image:
   linear-gradient(rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.98)),
-  url(chess-playing-kids-crop.png);
+  url(chess-playing-kids-crop.jpeg);
 background-size: cover;
 background-position: center;
 ```
