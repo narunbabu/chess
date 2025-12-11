@@ -81,12 +81,9 @@ const Footer = () => {
             <p className="text-gray-400 text-xs sm:text-sm lg:text-base mb-4 sm:mb-6">© 2024 Chess99. Making Chess Fun for Kids!</p>
             <div className="flex flex-wrap justify-center gap-4 sm:gap-6 lg:gap-8">
               <Link to="/coming-soon" className="text-gray-400 hover:text-white transition-colors text-xs sm:text-sm lg:text-base">Puzzles</Link>
-              <button
-                onClick={() => navigate('/login?resource=tutorial')}
-                className="text-gray-400 hover:text-white transition-colors text-xs sm:text-sm lg:text-base"
-              >
+              <Link to="/tutorial" className="text-gray-400 hover:text-white transition-colors text-xs sm:text-sm lg:text-base">
                 Learn
-              </button>
+              </Link>
               <button
                 onClick={() => setShowAboutContact(true)}
                 className="text-gray-400 hover:text-white transition-colors text-xs sm:text-sm lg:text-base"
