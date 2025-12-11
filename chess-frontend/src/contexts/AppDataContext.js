@@ -2,6 +2,16 @@ import React, { createContext, useContext, useState, useRef, useCallback } from 
 import api from '../services/api';
 import { getGameHistories } from '../services/gameHistoryService';
 
+// Debug utility
+const DEBUG_MODE = process.env.REACT_APP_DEBUG === 'true' ||
+                  process.env.NODE_ENV === 'development' && localStorage.getItem('debug') === 'true';
+
+const debugLog = (component, message, ...args) => {
+  if (DEBUG_MODE || localStorage.getItem(`debug_${component}`) === 'true') {
+    console.log(`[${component}] ${message}`, ...args);
+  }
+};
+
 const AppDataContext = createContext();
 
 export function useAppData() {
@@ -27,26 +37,30 @@ export function AppDataProvider({ children }) {
    * @returns {Promise<Array>} Game history data
    */
   const getGameHistory = useCallback(async (forceRefresh = false) => {
-    console.log('[AppData] 🔄 getGameHistory called, forceRefresh:', forceRefresh);
-    console.trace('[AppData] 📍 getGameHistory call stack');
+    debugLog('AppData', `🔄 getGameHistory called, forceRefresh: ${forceRefresh}`);
+
+    // Only trace in deep debug mode
+    if (DEBUG_MODE && localStorage.getItem('debug_traces') === 'true') {
+      console.trace('[AppData] 📍 getGameHistory call stack');
+    }
 
     // Return cached if available and not forcing refresh
     if (gameHistory && !forceRefresh) {
-      console.log('[AppData] 📦 Returning cached game history');
+      debugLog('AppData', '📦 Returning cached game history');
       return gameHistory;
     }
 
     // If already fetching, wait for that request
     if (historyRequestRef.current) {
-      console.log('[AppData] ⏳ Game history fetch already in-flight, waiting...');
+      debugLog('AppData', '⏳ Game history fetch already in-flight, waiting...');
       return historyRequestRef.current;
     }
 
-    console.log('[AppData] 🚀 Fetching game history');
+    debugLog('AppData', '🚀 Fetching game history');
     historyRequestRef.current = getGameHistories()
       .then(data => {
         setGameHistory(data);
-        console.log('[AppData] Game history cached:', data?.length, 'games');
+        debugLog('AppData', `Game history cached: ${data?.length} games`);
         return data;
       })
       .catch(err => {
@@ -64,7 +78,7 @@ export function AppDataProvider({ children }) {
    * Invalidate cache for game history
    */
   const invalidateGameHistory = useCallback(() => {
-    console.log('[AppData] Invalidating game history cache');
+    debugLog('AppData', 'Invalidating game history cache');
     setGameHistory(null);
   }, []); // No dependencies needed
 

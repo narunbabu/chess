@@ -15,6 +15,11 @@ import { logger } from '../utils/logger';
  */
 class UserStatusService {
   constructor() {
+    // Prevent direct instantiation - use getInstance() instead
+    if (UserStatusService.instance) {
+      return UserStatusService.instance;
+    }
+
     this.heartbeatInterval = null;
     this.heartbeatIntervalMs = 60000; // 1 minute default
     this.statusCache = new Map();
@@ -33,6 +38,20 @@ class UserStatusService {
     // Bind methods
     this.sendHeartbeat = this.sendHeartbeat.bind(this);
     this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
+
+    // Store the instance
+    UserStatusService.instance = this;
+
+    // Initialization tracking
+    this.initializing = false;
+    this.initializingPromise = null;
+  }
+
+  static getInstance() {
+    if (!UserStatusService.instance) {
+      UserStatusService.instance = new UserStatusService();
+    }
+    return UserStatusService.instance;
   }
 
   /**
@@ -42,10 +61,30 @@ class UserStatusService {
     logger.info('UserStatus', 'Initializing status service');
 
     if (this.isActive) {
-      console.log('⚠️ [UserStatus] Service already active');
+      console.log('⚠️ [UserStatus] Service already active, skipping initialization');
       return true;
     }
 
+    // Prevent concurrent initialization attempts
+    if (this.initializing) {
+      console.log('⏳ [UserStatus] Initialization already in progress, waiting...');
+      return this.initializingPromise;
+    }
+
+    this.initializing = true;
+    this.initializingPromise = this._doInitialize();
+
+    try {
+      await this.initializingPromise;
+      return true;
+    } catch (error) {
+      this.initializing = false;
+      this.initializingPromise = null;
+      throw error;
+    }
+  }
+
+  async _doInitialize() {
     try {
       // Send initial heartbeat
       console.log('📡 [UserStatus] Sending initial heartbeat...');
@@ -63,6 +102,8 @@ class UserStatusService {
       window.addEventListener('beforeunload', this.handleBeforeUnload.bind(this));
 
       this.isActive = true;
+      this.initializing = false;
+      this.initializingPromise = null;
 
       // Store global reference for cleanup
       window.userStatusService = this;
@@ -77,6 +118,8 @@ class UserStatusService {
         message: error.message,
         stack: error.stack
       });
+      this.initializing = false;
+      this.initializingPromise = null;
       return false;
     }
   }

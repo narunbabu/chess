@@ -13,6 +13,26 @@ import { getUnfinishedGame, getUnfinishedGames, deleteUnfinishedGame } from "../
 import "./Dashboard.css";
 import "../styles/UnifiedCards.css"; // Import unified card styles
 
+// Simple debug utility - compatible with Create React App
+const DEBUG_MODE = process.env.REACT_APP_DEBUG === 'true' ||
+                  (process.env.NODE_ENV === 'development' && localStorage.getItem('debug') === 'true');
+
+const debugLog = (component, message, ...args) => {
+  if (DEBUG_MODE || localStorage.getItem(`debug_${component}`) === 'true') {
+    console.log(`[${component}] ${message}`, ...args);
+  }
+};
+
+const debugError = (component, message, ...args) => {
+  console.error(`[${component}] ${message}`, ...args);
+};
+
+const debugWarn = (component, message, ...args) => {
+  if (DEBUG_MODE || localStorage.getItem(`debug_${component}`) === 'true') {
+    console.warn(`[${component}] ${message}`, ...args);
+  }
+};
+
 const Dashboard = () => {
   const [gameHistories, setGameHistories] = useState([]);
   const [activeGames, setActiveGames] = useState([]);
@@ -64,31 +84,31 @@ const Dashboard = () => {
   useEffect(() => {
     // Component mount logging
     mountCountRef.current += 1;
-    console.log(`[Dashboard] 🔄 Component mounted (mount #${mountCountRef.current})`);
+    debugLog('Dashboard', `🔄 Component mounted (mount #${mountCountRef.current})`);
 
     // Initialize UserStatusService to maintain online status
     const initializeStatusService = async () => {
       try {
-        console.log('[Dashboard] 👤 Initializing user status service...');
+        debugLog('Dashboard', '👤 Initializing user status service...');
         // UserStatusService is a singleton - use the exported instance directly
         await userStatusService.initialize();
-        console.log('[Dashboard] ✅ User status service initialized successfully');
+        debugLog('Dashboard', '✅ User status service initialized successfully');
       } catch (error) {
-        console.error('[Dashboard] ❌ Failed to initialize user status service:', error);
+        debugError('Dashboard', '❌ Failed to initialize user status service', error);
       }
     };
 
     // Initialize status service immediately
     initializeStatusService();
 
-    // Only log trace on first mount to reduce noise
-    if (mountCountRef.current === 1) {
+    // Only log trace on first mount to reduce noise (conditional debug)
+    if (mountCountRef.current === 1 && DEBUG_MODE) {
       console.trace('[Dashboard] 📍 First mount call stack');
     }
 
     // Prevent duplicate fetches across mounts
     if (didFetchRef.current) {
-      console.log('[Dashboard] ⏭️ Already fetched data, skipping (mount #' + mountCountRef.current + ')');
+      debugLog('Dashboard', `⏭️ Already fetched data, skipping (mount #${mountCountRef.current})`);
       return;
     }
     didFetchRef.current = true;
@@ -99,7 +119,7 @@ const Dashboard = () => {
       let unfinishedGamesData = [];
 
       try {
-        console.log('[Dashboard] 📊 Loading game histories, active games, and unfinished games...');
+        debugLog('Dashboard', '📊 Loading game histories, active games, and unfinished games...');
         // Fetch game histories, active games, and unfinished games in parallel
         // Use AppDataContext's cached version first, only force refresh if it fails
         const [fetchedHistories, fetchedActiveGames, fetchedUnfinishedGames] = await Promise.all([
@@ -139,9 +159,9 @@ const Dashboard = () => {
           console.warn('[Dashboard] ⚠️ Found duplicate unfinished games. Before:', unfinishedGamesData.length, 'After:', uniqueUnfinishedGames.length);
         }
 
-        console.log('[Dashboard] ✅ Loaded', histories.length, 'game histories');
-        console.log('[Dashboard] ✅ Loaded', activeGamesResponse.data.length, 'active games');
-        console.log('[Dashboard] ✅ Loaded', uniqueUnfinishedGames.length, 'unfinished games');
+        debugLog('Dashboard', `✅ Loaded ${histories.length} game histories`);
+        debugLog('Dashboard', `✅ Loaded ${activeGamesResponse.data.length} active games`);
+        debugLog('Dashboard', `✅ Loaded ${uniqueUnfinishedGames.length} unfinished games`);
 
         // Correct multiplayer history scores and results
         const correctedHistories = await correctMultiplayerHistories(histories);
@@ -175,7 +195,7 @@ const Dashboard = () => {
         });
         const recentGames = gamesResponse.data || [];
 
-        console.log(`[Dashboard] 🔧 Correcting ${multiplayerHistories.length} multiplayer histories using ${recentGames.length} recent games`);
+        debugLog('Dashboard', `🔧 Correcting ${multiplayerHistories.length} multiplayer histories`);
 
         return histories.map(history => {
           if (history.game_mode !== 'multiplayer' || history.final_score !== history.opponent_score) {
@@ -228,7 +248,8 @@ const Dashboard = () => {
           return correctedHistory;
         });
       } catch (error) {
-        console.error('[Dashboard] ❌ Error correcting multiplayer histories:', error);
+        // Non-critical error - multiplayer history correction failed, but continue with original data
+        debugWarn('Dashboard', '⚠️ Could not correct multiplayer histories, using original data', error.message);
         return histories;
       }
     };
@@ -237,7 +258,7 @@ const Dashboard = () => {
 
     // Cleanup function to properly stop UserStatusService
     return () => {
-      console.log('[Dashboard] 🧹 Component unmounting, stopping user status service...');
+      debugLog('Dashboard', '🧹 Component unmounting, stopping user status service...');
       // The UserStatusService will handle cleanup automatically when page unloads
       // but we should stop the interval when the component unmounts
       try {
@@ -245,7 +266,7 @@ const Dashboard = () => {
           userStatusService.stopHeartbeat();
         }
       } catch (error) {
-        console.error('[Dashboard] ⚠️ Error stopping user status service:', error);
+        debugError('Dashboard', '⚠️ Error stopping user status service', error);
       }
     };
   }, [getGameHistory, user?.id]);
@@ -372,7 +393,7 @@ const Dashboard = () => {
     const avg = sum / totalGames;
     const averageScore = avg.toFixed(1);
 
-    console.log('📊 [Stats] Calculated once - Total games:', totalGames, 'Wins:', wins, 'Average:', averageScore);
+    debugLog('Stats', `Calculated once - Total games: ${totalGames}, Wins: ${wins}, Average: ${averageScore}`);
 
     return {
       totalGames,
