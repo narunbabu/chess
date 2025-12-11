@@ -589,15 +589,16 @@
   color: #00b0ff !important;
 }
 
-/* Title Font Size Utilities */
+/* Title Font S0ize Utilities */
 .title-large {
   font-size: 2rem !important;
 }
 
 /* Hero Section Fix for Landing Page */
 .hero-section {
-  margin-top: -64px; /* Negative margin to compensate for fixed header height */
-  padding-top: 64px; /* Padding to push content below header */
+  margin-top: -54px; /* Negative margin to compensate for fixed header height */
+  padding-top: 16px; /* Padding to push content below header */
+  min-height: calc(100vh - 64px); /* Ensure proper height accounting for header */
 }
 
 /* Ensure background image extends to header */
@@ -610,4 +611,54 @@
   height: 100%;
   object-fit: cover;
   object-position: center top;
+}
+
+/* Hero content container with reduced gap */
+.hero-content-container {
+  padding-top: 2rem; /* Reduced from excessive 6-8rem */
+  padding-bottom: 2rem;
+  min-height: calc(100vh - 64px); /* Full viewport height minus header */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+@media (min-width: 640px) {
+  .hero-content-container {
+    padding-top: 2.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .hero-content-container {
+    padding-top: 3rem;
+  }
+}
+
+/* Ensure consistency across browsers and environments */
+.hero-section * {
+  box-sizing: border-box;
+}
+
+/* Fix for server vs local inconsistencies */
+.hero-section {
+  -webkit-box-sizing: border-box;
+  -moz-box-sizing: border-box;
+  box-sizing: border-box;
+}
+
+/* Remove any default margins that might cause gaps */
+.hero-section h1, .hero-section h2, .hero-section h3 {
+  margin-top: 0;
+}
+
+/* Ensure proper positioning relative to fixed header */
+html, body {
+  scroll-behavior: smooth;
+}
+
+/* Remove any potential body padding/margin issues */
+body {
+  margin: 0;
+  padding: 0;
 }

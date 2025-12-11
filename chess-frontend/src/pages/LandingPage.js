@@ -166,9 +166,9 @@ const LandingPage = () => {
         </div>
 
         {/* Hero Content - Single container with background and content */}
-        <div className="relative w-full" style={{zIndex: '1'}}>
+        <div className="relative w-full hero-content-container" style={{zIndex: '1'}}>
           {/* Content overlay with background image */}
-          <div className="relative z-20 flex flex-col items-center justify-start px-3 sm:px-4 lg:px-8 xl:px-12 pt-24 sm:pt-28 lg:pt-32 pb-8 sm:pb-12 lg:pb-16">
+          <div className="relative z-20 flex flex-col items-center justify-start px-3 sm:px-4 lg:px-8 xl:px-12">
             {/* Background image - positioned behind content */}
             <img
               src={chessPlayingKids}
@@ -178,7 +178,7 @@ const LandingPage = () => {
             <div className="hero-soft-glow" />
             <div className="absolute inset-0 bg-gradient-to-b from-sky-400/10 via-sky-300/5 to-sky-200/10 -z-10"></div>
             {/* Headline with dark backdrop */}
-            <div className="text-center text-white mb-4 sm:mb-6 lg:mb-8 w-full max-w-4xl mx-auto mt-0">
+            <div className="text-center text-white mb-4 sm:mb-6 lg:mb-8 w-full max-w-4xl mx-auto mt-2 sm:mt-4">
                <div className="inline-block rounded-2xl bg-black/30 backdrop-blur-sm px-4 sm:px-6 py-3 sm:py-4 mx-2 sm:mx-0">
                  <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold mb-2 sm:mb-3 lg:mb-4 px-2 sm:px-4">
                    India's #1 Online Chess Academy for Kids
