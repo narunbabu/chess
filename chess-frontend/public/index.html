@@ -25,9 +25,17 @@
 
     <link rel="icon" href="/chess99.ico" />
 
+    <!-- Preconnect to font CDN for faster font loading -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Nunito:wght@400;700;800;900&display=swap" rel="stylesheet">
+
+    <!-- Preload critical font file -->
+    <link rel="preload" as="font" type="font/woff2" href="https://fonts.gstatic.com/s/roboto/v32/KFOmCnqEu92Fr1Mu4mxK.woff2" crossorigin>
+
+    <!-- Load fonts with display=swap for faster text rendering -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Nunito:wght@400;700;800;900&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Nunito:wght@400;700;800;900&display=swap" rel="stylesheet"></noscript>
+
     <title>Chess99 – India's #1 Online Chess Academy for Kids | Learn & Play Chess Safely</title>
   </head>
   <body>

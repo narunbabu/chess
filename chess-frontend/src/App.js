@@ -1,32 +1,14 @@
 
 // src/App.js
-import React, { useEffect } from "react";
+import React, { useEffect, lazy, Suspense } from "react";
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   useLocation,
 } from "react-router-dom";
-import PlayComputer from "./components/play/PlayComputer";
-import PlayMultiplayer from "./components/play/PlayMultiplayer";
-import TrainingHub from "./components/TrainingHub";
-import TrainingExercise from "./components/TrainingExercise";
-import TutorialHub from "./components/tutorial/TutorialHub";
-import ModuleDetail from "./components/tutorial/ModuleDetail";
-import LessonPlayer from "./components/tutorial/LessonPlayer";
-import GameHistory from "./components/GameHistory";
-import GameReview from "./components/GameReview";
-import Login from "./pages/Login";
-import Dashboard from "./components/Dashboard";
-import AuthCallback from "./components/auth/AuthCallback";
-import LandingPage from "./pages/LandingPage";
-import LobbyPage from "./pages/LobbyPage";
-import GameHistoryPage from "./pages/GameHistoryPage";
-import ComingSoon from "./pages/ComingSoon";
-import Puzzles from "./components/Puzzles";
-import Learn from "./components/Learn";
-import Profile from "./components/Profile";
-import SharedResultPage from "./pages/SharedResultPage";
+
+// Critical imports - loaded immediately (providers, layout, utilities)
 import { AuthProvider } from "./contexts/AuthContext";
 import { AppDataProvider } from "./contexts/AppDataContext";
 import { FeatureFlagsProvider } from "./contexts/FeatureFlagsContext";
@@ -41,13 +23,45 @@ import Footer from "./components/layout/Footer";
 import RouteGuard from "./components/routing/RouteGuard";
 import { requireAuth } from "./utils/guards";
 
-// Championship Components
-import ChampionshipList from "./components/championship/ChampionshipList";
-import ChampionshipDetails from "./components/championship/ChampionshipDetails";
-import TournamentAdminDashboard from "./components/championship/TournamentAdminDashboard";
-import ChampionshipInvitations from "./pages/ChampionshipInvitations";
-import ChampionshipMatchesEdit from "./components/championship/ChampionshipMatchesEdit";
-import ChampionshipVictoryTest from './tests/ChampionshipVictoryTest';
+// Loading fallback component
+const PageLoader = () => (
+  <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-sky-50 to-white">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-sky-600 mx-auto mb-4"></div>
+      <p className="text-gray-600 text-lg">Loading...</p>
+    </div>
+  </div>
+);
+
+// Lazy-loaded page components (loaded on-demand)
+const LandingPage = lazy(() => import("./pages/LandingPage"));
+const Login = lazy(() => import("./pages/Login"));
+const AuthCallback = lazy(() => import("./components/auth/AuthCallback"));
+const PlayComputer = lazy(() => import("./components/play/PlayComputer"));
+const PlayMultiplayer = lazy(() => import("./components/play/PlayMultiplayer"));
+const LobbyPage = lazy(() => import("./pages/LobbyPage"));
+const GameHistoryPage = lazy(() => import("./pages/GameHistoryPage"));
+const ComingSoon = lazy(() => import("./pages/ComingSoon"));
+const SharedResultPage = lazy(() => import("./pages/SharedResultPage"));
+const Puzzles = lazy(() => import("./components/Puzzles"));
+const Learn = lazy(() => import("./components/Learn"));
+const Profile = lazy(() => import("./components/Profile"));
+const Dashboard = lazy(() => import("./components/Dashboard"));
+const TrainingHub = lazy(() => import("./components/TrainingHub"));
+const TrainingExercise = lazy(() => import("./components/TrainingExercise"));
+const TutorialHub = lazy(() => import("./components/tutorial/TutorialHub"));
+const ModuleDetail = lazy(() => import("./components/tutorial/ModuleDetail"));
+const LessonPlayer = lazy(() => import("./components/tutorial/LessonPlayer"));
+const GameHistory = lazy(() => import("./components/GameHistory"));
+const GameReview = lazy(() => import("./components/GameReview"));
+
+// Championship Components (lazy-loaded)
+const ChampionshipList = lazy(() => import("./components/championship/ChampionshipList"));
+const ChampionshipDetails = lazy(() => import("./components/championship/ChampionshipDetails"));
+const TournamentAdminDashboard = lazy(() => import("./components/championship/TournamentAdminDashboard"));
+const ChampionshipInvitations = lazy(() => import("./pages/ChampionshipInvitations"));
+const ChampionshipMatchesEdit = lazy(() => import("./components/championship/ChampionshipMatchesEdit"));
+const ChampionshipVictoryTest = lazy(() => import("./tests/ChampionshipVictoryTest"));
 const App = () => {
   useEffect(()=> {
     const mq = window.matchMedia("(orientation:landscape)");
@@ -99,7 +113,8 @@ const AppContent = () => {
     <div className={`app-container ${isLandingPage ? 'full-bleed' : ''} flex flex-col min-h-screen`}>
       <div className="content-wrapper flex-grow">
         <main className="main-content">
-          <Routes>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
             {/* Public routes */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<Login />} />
@@ -247,6 +262,7 @@ const AppContent = () => {
               }
             />
           </Routes>
+          </Suspense>
         </main>
       </div>
       <Footer />

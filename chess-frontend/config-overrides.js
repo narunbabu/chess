@@ -1,5 +1,7 @@
 const { override, addWebpackPlugin, overrideDevServer } = require('customize-cra');
 const CompressionPlugin = require('compression-webpack-plugin');
+const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
 
 module.exports = override(
   // Enable compression for production builds - SAFE
@@ -47,6 +49,30 @@ module.exports = override(
           },
         },
       };
+
+      // CSS Optimization - CRITICAL
+      config.optimization.minimizer = [
+        ...config.optimization.minimizer,
+        new CssMinimizerPlugin({
+          minimizerOptions: {
+            preset: [
+              'default',
+              {
+                discardComments: { removeAll: true },
+                normalizeWhitespace: true,
+              },
+            ],
+          },
+        }),
+      ];
+
+      // Optimize CSS extraction
+      const miniCssExtractPlugin = config.plugins.find(
+        plugin => plugin instanceof MiniCssExtractPlugin
+      );
+      if (miniCssExtractPlugin) {
+        miniCssExtractPlugin.options.ignoreOrder = true;
+      }
 
       // Reduce bundle size - SAFE
       config.optimization.usedExports = true;

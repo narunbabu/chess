@@ -52,6 +52,7 @@
     "@testing-library/react": "^16.3.0",
     "autoprefixer": "^10.4.21",
     "compression-webpack-plugin": "^11.1.0",
+    "css-minimizer-webpack-plugin": "^7.0.4",
     "customize-cra": "^1.0.0",
     "eslint": "^8.57.0",
     "eslint-config-react-app": "^7.0.1",
