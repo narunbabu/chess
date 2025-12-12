@@ -1,6 +1,8 @@
 import React from 'react';
-// Optimized logo images
+// Optimized logo images (WebP + PNG fallback)
+import logo200wWebP from '../assets/images/optimized/logo-200w.webp';
 import logo200wPng from '../assets/images/optimized/logo-200w.png';
+import logo400wWebP from '../assets/images/optimized/logo-400w.webp';
 import logo400wPng from '../assets/images/optimized/logo-400w.png';
 
 const AboutContactModal = ({ isOpen, onClose }) => {
@@ -21,7 +23,8 @@ const AboutContactModal = ({ isOpen, onClose }) => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <picture>
-                <source srcSet={`${logo400wPng} 2x`} type="image/png" />
+                <source srcSet={`${logo200wWebP} 1x, ${logo400wWebP} 2x`} type="image/webp" />
+                <source srcSet={`${logo200wPng} 1x, ${logo400wPng} 2x`} type="image/png" />
                 <img src={logo200wPng} alt="Chess99 Logo" className="h-10 w-auto" width="200" height="67" />
               </picture>
               <h2 className="text-2xl font-bold">About Chess99</h2>

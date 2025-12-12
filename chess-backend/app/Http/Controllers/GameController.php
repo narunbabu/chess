@@ -371,15 +371,43 @@ class GameController extends Controller
         ]);
     }
 
-    public function userGames()
+    public function userGames(Request $request)
     {
-        $user = Auth::user();
+        // Allow admin to query any user's games, otherwise use current user
+        $userId = $request->get('user_id');
+        if ($userId) {
+            // Only allow admin to query other users or if it's the same user
+            if (!$request->user()->tokenCan('admin') && $userId != $request->user()->id) {
+                return response()->json(['error' => 'Unauthorized'], 403);
+            }
+            $user = User::find($userId);
+            if (!$user) {
+                return response()->json(['error' => 'User not found'], 404);
+            }
+        } else {
+            $user = Auth::user();
+        }
 
-        $games = Game::where(function($query) use ($user) {
+        $query = Game::where(function($query) use ($user) {
             $query->where('white_player_id', $user->id)
                   ->orWhere('black_player_id', $user->id);
-        })
-        ->with(['whitePlayer', 'blackPlayer', 'statusRelation', 'endReasonRelation'])
+        });
+
+        // Filter by status if provided
+        if ($request->has('status')) {
+            $status = $request->get('status');
+            if ($status === 'finished') {
+                $query->whereIn('status', ['white_wins', 'black_wins', 'draw', 'timeout']);
+            } else {
+                $query->where('status', $status);
+            }
+        }
+
+        // Apply limit
+        $limit = $request->get('limit', 50);
+        $query->limit(min($limit, 100)); // Cap at 100 for performance
+
+        $games = $query->with(['whitePlayer', 'blackPlayer', 'statusRelation', 'endReasonRelation'])
         ->orderBy('last_move_at', 'desc')
         ->orderBy('created_at', 'desc')
         ->get()

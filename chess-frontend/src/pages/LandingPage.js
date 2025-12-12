@@ -4,13 +4,16 @@ import { useAuth } from '../contexts/AuthContext';
 import { trackUI } from '../utils/analytics';
 import AuthGateModal from '../components/layout/AuthGateModal';
 import UnfinishedGamesSection from '../components/UnfinishedGamesSection';
-// Optimized hero images
+// Optimized hero images (WebP + JPEG fallback)
+import hero640wWebP from '../assets/images/optimized/hero-640w.webp';
 import hero640wJpg from '../assets/images/optimized/hero-640w.jpg';
-import hero1024wJpg from '../assets/images/optimized/hero-1024w.jpg';
-import hero1920wJpg from '../assets/images/optimized/hero-1920w.jpg';
+import hero1280wWebP from '../assets/images/optimized/hero-1280w.webp';
+import hero1280wJpg from '../assets/images/chess-playing-kids-crop.jpeg'; // Original as fallback
 
-// Optimized logo images
+// Optimized logo images (WebP + PNG fallback)
+import logo200wWebP from '../assets/images/optimized/logo-200w.webp';
 import logo200wPng from '../assets/images/optimized/logo-200w.png';
+import logo400wWebP from '../assets/images/optimized/logo-400w.webp';
 import logo400wPng from '../assets/images/optimized/logo-400w.png';
 import '../styles/UnifiedCards.css';
 
@@ -58,7 +61,8 @@ const LandingPage = () => {
           <div className="flex items-center">
             <Link to="/" className="flex items-center">
               <picture>
-                <source srcSet={`${logo400wPng} 2x`} type="image/png" />
+                <source srcSet={`${logo200wWebP} 1x, ${logo400wWebP} 2x`} type="image/webp" />
+                <source srcSet={`${logo200wPng} 1x, ${logo400wPng} 2x`} type="image/png" />
                 <img src={logo200wPng} alt="Chess99 Logo" className="h-8 w-auto" width="200" height="67" loading="eager" />
               </picture>
             </Link>
@@ -126,6 +130,8 @@ const LandingPage = () => {
               <button
                 onClick={() => setShowMobileMenu(!showMobileMenu)}
                 className="p-2 rounded-lg hover:bg-sky-700/50 transition-colors"
+                aria-label="Toggle navigation menu"
+                aria-expanded={showMobileMenu}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -180,16 +186,18 @@ const LandingPage = () => {
           <div className="relative z-20 flex flex-col items-center justify-start px-3 sm:px-4 lg:px-8 xl:px-12">
             {/* Background image - positioned behind content */}
             <picture>
+              <source media="(max-width: 639px)" srcSet={hero640wWebP} type="image/webp" />
+              <source media="(max-width: 1023px)" srcSet={hero1280wWebP} type="image/webp" />
+              <source srcSet={hero1280wWebP} type="image/webp" />
               <source media="(max-width: 639px)" srcSet={hero640wJpg} />
-              <source media="(max-width: 1023px)" srcSet={hero1024wJpg} />
-              <source srcSet={hero1920wJpg} />
+              <source media="(max-width: 1023px)" srcSet={hero1280wJpg} />
               <img
-                src={hero1024wJpg}
+                src={hero1280wJpg}
                 alt="Kids playing chess"
                 className="hero-bg-image -z-10"
                 fetchpriority="high"
-                width="1024"
-                height="534"
+                width="1280"
+                height="668"
                 loading="eager"
               />
             </picture>
