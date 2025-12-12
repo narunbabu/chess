@@ -23,6 +23,7 @@ import Layout from "./components/layout/Layout";
 import Footer from "./components/layout/Footer";
 import RouteGuard from "./components/routing/RouteGuard";
 import { requireAuth } from "./utils/guards";
+import LandingPage from "./pages/LandingPage";
 
 // Loading fallback component
 const PageLoader = () => (
@@ -33,9 +34,6 @@ const PageLoader = () => (
     </div>
   </div>
 );
-
-// CRITICAL: Landing page loaded eagerly (not lazy) for fast FCP
-import LandingPage from "./pages/LandingPage";
 
 // Lazy-loaded page components with error handling
 const Login = createLazyComponent(() => import("./pages/Login"), { componentName: "Login" });
