@@ -1,7 +1,6 @@
 // src/utils/computerMoveUtils.js
 
 import { Chess } from 'chess.js';
-import { loadStockfish } from './lazyStockfishLoader';
 
 const MAX_DEPTH_FOR_DIFFICULTY = 16; // Max difficulty level
 const NUM_TOP_MOVES_TO_REQUEST = 10; // How many moves to ask Stockfish for
@@ -40,19 +39,24 @@ const mapDepthToMoveTime = (depth) => {
  */
 const getStockfishTopMoves = async (fen, numMoves, moveTimeMs) => {
   try {
-    const stockfish = await loadStockfish();
+    // Create a fresh worker instance for each move to avoid state issues
+    const stockfish = new Worker('/workers/stockfish.js');
 
     return new Promise((resolve, reject) => {
     let bestMoveFromEngine = null;
     const topMoves = new Array(numMoves).fill(null);
-  
+
     let safetyTimer = null;
     const safetyMargin = 2000;
     const timeoutDuration = moveTimeMs + safetyMargin;
 
     const cleanup = () => {
         clearTimeout(safetyTimer);
-        try { stockfish.terminate(); } catch (e) { /* ignore */ }
+        try {
+          stockfish.terminate();
+        } catch (e) {
+          /* ignore worker already terminated */
+        }
     }
 
     stockfish.onerror = (err) => {
@@ -67,7 +71,6 @@ const getStockfishTopMoves = async (fen, numMoves, moveTimeMs) => {
     const mainMessageHandler = (e) => {
         // Define message within this handler's scope
         const message = typeof e.data === 'string' ? e.data : '';
-        // console.log("SF (main):", message); // Debugging line
 
         if (message.startsWith('info') && message.includes(' pv ')) {
             const multipvMatch = message.match(/ multipv (\d+)/);
@@ -111,7 +114,6 @@ const getStockfishTopMoves = async (fen, numMoves, moveTimeMs) => {
     const readyHandler = (e) => {
         // Define message within this handler's scope
         const message = typeof e.data === 'string' ? e.data : '';
-        // console.log("SF (ready):", message); // Debugging line
 
         if (message === 'readyok') { // Check specifically for 'readyok' string
             // *** FIX: Assign the MAIN handler now ***
@@ -155,9 +157,11 @@ const getStockfishTopMoves = async (fen, numMoves, moveTimeMs) => {
     // --- Initialize Stockfish Communication ---
     stockfish.onmessage = readyHandler; // Start with the temporary ready handler
 
-        stockfish.postMessage('ucinewgame');
-      stockfish.postMessage(`setoption name MultiPV value ${numMoves}`);
-      stockfish.postMessage('isready'); // This command triggers the 'readyok' response
+    // Initialize engine and set options
+    stockfish.postMessage('uci');
+    stockfish.postMessage('ucinewgame');
+    stockfish.postMessage(`setoption name MultiPV value ${numMoves}`);
+    stockfish.postMessage('isready'); // This command triggers the 'readyok' response
     });
   } catch (error) {
     console.error('Failed to load Stockfish:', error);
@@ -270,6 +274,14 @@ const selectMoveFromRankedList = (rankedMoves, depth) => {
 export const makeComputerMove = async (
   game, depth, computerColor, setTimerButtonColor
 ) => {
+  console.log('🎯 makeComputerMove called', {
+    turn: game.turn(),
+    computerColor,
+    depth,
+    gameOver: game.isGameOver(),
+    isDraw: game.isDraw()
+  });
+
   if (game.isGameOver() || game.isDraw() || game.turn() !== computerColor) return null;
 
   const allocatedTimeMs = mapDepthToMoveTime(depth);
@@ -282,8 +294,10 @@ export const makeComputerMove = async (
   let chosenMoveUci = null;
 
   try {
+    console.log('🔍 Calling getStockfishTopMoves...');
     rankedMoves = await getStockfishTopMoves(fen, NUM_TOP_MOVES_TO_REQUEST, allocatedTimeMs);
     actualThinkingTime = Date.now() - thinkingStartTime;
+    console.log('✅ Stockfish response received:', { movesCount: rankedMoves?.length, thinkingTime: actualThinkingTime });
     
 
     chosenMoveUci = selectMoveFromRankedList(rankedMoves, depth);

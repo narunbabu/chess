@@ -74,9 +74,10 @@ module.exports = override(
         miniCssExtractPlugin.options.ignoreOrder = true;
       }
 
-      // Reduce bundle size - SAFE
-      config.optimization.usedExports = true;
-      config.optimization.sideEffects = false;
+      // NOTE: Optimization disabled to prevent breaking game logic
+      // The 'usedExports' and 'sideEffects' optimizations break event listeners, timers, and WebSocket connections
+      // config.optimization.usedExports = true; // DISABLED - breaks game timer functionality
+      // config.optimization.sideEffects = false; // DISABLED - breaks game logic
 
       // Image optimization configuration
       config.module.rules.push({

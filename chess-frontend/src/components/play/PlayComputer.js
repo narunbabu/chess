@@ -774,6 +774,11 @@ const PlayComputer = () => {
     // Define the async function inside useEffect to perform the computer's turn
     const performComputerTurn = async () => {
         setComputerMoveInProgress(true); // Indicate computer is "thinking" (calculation + potential delay)
+        console.log('🤖 Starting computer move calculation...', {
+          turn: game.turn(),
+          computerColor,
+          historyLength: gameHistory.length
+        });
         // TimerButton useEffect will set color to yellow based on this flag
 
         try {
@@ -915,6 +920,7 @@ const PlayComputer = () => {
             }
         } finally {
           // This block always runs, ensuring we reset the progress flag
+          console.log('🔄 Resetting computerMoveInProgress to false');
           setComputerMoveInProgress(false);
           // The TimerButton useEffect will update color/text based on the new state
         }
@@ -922,7 +928,7 @@ const PlayComputer = () => {
 
     // --- Trigger Condition ---
     // Check if it's the computer's turn and ready to move
-    if (
+    const shouldComputerMove = (
       gameStarted &&
       !gameOver &&
       !isReplayMode &&
@@ -930,19 +936,42 @@ const PlayComputer = () => {
       !computerMoveInProgress && // Ensure previous move isn't still processing
       game.turn() === computerColor &&
       activeTimer === computerColor // Ensure the computer's timer is active
-    ) {
+    );
+
+    // Debug logging
+    if (game.turn() === computerColor) {
+      console.log('🤖 Computer turn detected!', {
+        gameStarted,
+        gameOver,
+        isReplayMode,
+        isOnlineGame,
+        computerMoveInProgress,
+        activeTimer,
+        computerColor,
+        shouldMove: shouldComputerMove
+      });
+    }
+
+    // Debug after move
+    if (game.turn() !== computerColor) {
+      console.log('✅ Player turn detected, move was successful');
+    }
+
+    if (shouldComputerMove) {
+      console.log('🚀 Triggering computer move!');
       performComputerTurn(); // Execute the computer's turn logic
     }
 
     // No cleanup function needed here because the async function checks state flags internally
 
   }, [ // Dependencies for the computer turn useEffect
-    gameStarted, gameOver, isReplayMode, computerMoveInProgress, activeTimer, playerColor, isOnlineGame,
+    gameStarted, gameOver, isReplayMode, activeTimer, playerColor, isOnlineGame,
     game, computerDepth, gameHistory, computerScore, playerScore, user?.rating, // State values read or passed along
     handleGameComplete, playSound, switchTimer, startTimerInterval, // Stable Callbacks/Timer functions
     setGame, setGameStatus, setMoveCount, setMoveCompleted, setComputerMoveInProgress, setTimerButtonColor, // Stable Setters
     setLastComputerEvaluation, setComputerScore // Stable Setters
     // Note: makeComputerMove, updateGameStatus, evaluateMove, DEFAULT_RATING are imports/constants (stable)
+    // IMPORTANT: computerMoveInProgress is NOT in dependencies to prevent infinite loop!
   ]);
 
   // Effect to update undo availability based on game history and remaining chances
