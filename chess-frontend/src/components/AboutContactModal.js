@@ -1,5 +1,7 @@
 import React from 'react';
-import logo from '../assets/images/logo.png';
+// Optimized logo images
+import logo200wPng from '../assets/images/optimized/logo-200w.png';
+import logo400wPng from '../assets/images/optimized/logo-400w.png';
 
 const AboutContactModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
@@ -18,7 +20,10 @@ const AboutContactModal = ({ isOpen, onClose }) => {
         <div className="sticky top-0 bg-gradient-to-r from-sky-600 to-sky-500 text-white p-6 rounded-t-2xl border-b border-sky-400">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <img src={logo} alt="Chess99 Logo" className="h-10 w-auto" />
+              <picture>
+                <source srcSet={`${logo400wPng} 2x`} type="image/png" />
+                <img src={logo200wPng} alt="Chess99 Logo" className="h-10 w-auto" width="200" height="67" />
+              </picture>
               <h2 className="text-2xl font-bold">About Chess99</h2>
             </div>
             <button

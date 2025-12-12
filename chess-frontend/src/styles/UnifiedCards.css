@@ -227,7 +227,8 @@
   gap: 0.25rem;
 }
 
-.unified-card-title {
+.unified-card-title,
+.unified-card h4.unified-card-title {
   font-size: 1.1rem;
   font-weight: 600;
   color: #ffffff;
@@ -239,7 +240,7 @@
 
 .unified-card-subtitle {
   font-size: 0.9rem;
-  color: #b9bbbe;
+  color: #d1d5db;
   margin: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -247,14 +248,16 @@
 }
 
 /* Light theme text colors */
-.unified-card.light-theme .unified-card-title {
+.unified-card.light-theme .unified-card-title,
+.unified-card.light-theme h4.unified-card-title {
   color: #1f2937;
   font-size: 1.75rem;
   font-weight: 700;
+  margin: 0;
 }
 
 .unified-card.light-theme .unified-card-subtitle {
-  color: #6b7280;
+  color: #4b5563;
   font-size: 0.875rem;
 }
 
@@ -659,6 +662,12 @@ html, body {
 
 /* Remove any potential body padding/margin issues */
 body {
+  margin: 0;
+  padding: 0;
+}
+
+/* Fix for h4 elements in unified cards - remove default margins */
+.unified-card h4 {
   margin: 0;
   padding: 0;
 }

@@ -77,6 +77,20 @@ module.exports = override(
       // Reduce bundle size - SAFE
       config.optimization.usedExports = true;
       config.optimization.sideEffects = false;
+
+      // Image optimization configuration
+      config.module.rules.push({
+        test: /\.(png|jpe?g|gif|svg|webp)$/i,
+        type: 'asset',
+        parser: {
+          dataUrlCondition: {
+            maxSize: 8 * 1024, // 8kb - inline small images
+          },
+        },
+        generator: {
+          filename: 'static/media/[name].[hash:8][ext]',
+        },
+      });
     }
 
     return config;
