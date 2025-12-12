@@ -18,54 +18,32 @@ module.exports = override(
         })
       );
 
-      // Optimize chunk splitting - OPTIMIZED
+      // Optimize chunk splitting - PERFORMANCE OPTIMIZED
       config.optimization.splitChunks = {
         chunks: 'all',
-        maxSize: 244000, // ~244KB chunks for better caching
+        maxInitialRequests: 5, // CRITICAL: Limit parallel CSS requests
+        maxAsyncRequests: 3,   // Reduce async chunk count
         cacheGroups: {
-          // React and core libraries
-          react: {
-            test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/,
-            name: 'react',
-            chunks: 'all',
-            priority: 30,
-          },
-          // Chess libraries
-          chess: {
-            test: /[\\/]node_modules[\\/](chess\.js|react-chessboard)[\\/]/,
-            name: 'chess',
-            chunks: 'all',
-            priority: 25,
-          },
-          // UI libraries (MUI)
-          mui: {
-            test: /[\\/]node_modules[\\/](@mui|@emotion)[\\/]/,
-            name: 'mui',
-            chunks: 'all',
-            priority: 20,
-          },
-          // Router and navigation
-          router: {
-            test: /[\\/]node_modules[\\/](react-router-dom)[\\/]/,
-            name: 'router',
-            chunks: 'all',
-            priority: 15,
-          },
-          // Other vendors
-          vendor: {
+          // CSS Optimization: Merge all CSS into fewer chunks
+          defaultVendors: false, // Disable default vendor splitting
+          default: false,        // Disable default splitting
+
+          // Single vendor bundle for all node_modules
+          vendors: {
             test: /[\\/]node_modules[\\/]/,
             name: 'vendors',
             chunks: 'all',
-            priority: 10,
-            minChunks: 1,
+            priority: 20,
+            enforce: true, // Force single vendor chunk
           },
-          // Common code across app
+          // Single common bundle for shared app code
           common: {
             minChunks: 2,
             name: 'common',
             chunks: 'all',
-            priority: 5,
+            priority: 10,
             reuseExistingChunk: true,
+            enforce: true, // Force single common chunk
           },
         },
       };

@@ -51,7 +51,7 @@ const LandingPage = () => {
           {/* Left Section - Logo */}
           <div className="flex items-center">
             <Link to="/" className="flex items-center">
-              <img src={logo} alt="Chess99 Logo" className="h-8 w-auto" />
+              <img src={logo} alt="Chess99 Logo" className="h-8 w-auto" width="167" height="56" />
             </Link>
           </div>
 
@@ -174,6 +174,9 @@ const LandingPage = () => {
               src={chessPlayingKids}
               alt="Kids playing chess"
               className="hero-bg-image -z-10"
+              fetchpriority="high"
+              width="1920"
+              height="1080"
             />
             <div className="hero-soft-glow" />
             <div className="absolute inset-0 bg-gradient-to-b from-sky-400/10 via-sky-300/5 to-sky-200/10 -z-10"></div>
