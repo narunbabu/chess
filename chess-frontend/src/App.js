@@ -1,12 +1,13 @@
 
 // src/App.js
-import React, { useEffect, lazy, Suspense } from "react";
+import React, { useEffect, lazy } from "react";
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   useLocation,
 } from "react-router-dom";
+import { createLazyComponent } from "./utils/lazyLoad";
 
 // Critical imports - loaded immediately (providers, layout, utilities)
 import { AuthProvider } from "./contexts/AuthContext";
@@ -33,35 +34,37 @@ const PageLoader = () => (
   </div>
 );
 
-// Lazy-loaded page components (loaded on-demand)
-const LandingPage = lazy(() => import("./pages/LandingPage"));
-const Login = lazy(() => import("./pages/Login"));
-const AuthCallback = lazy(() => import("./components/auth/AuthCallback"));
-const PlayComputer = lazy(() => import("./components/play/PlayComputer"));
-const PlayMultiplayer = lazy(() => import("./components/play/PlayMultiplayer"));
-const LobbyPage = lazy(() => import("./pages/LobbyPage"));
-const GameHistoryPage = lazy(() => import("./pages/GameHistoryPage"));
-const ComingSoon = lazy(() => import("./pages/ComingSoon"));
-const SharedResultPage = lazy(() => import("./pages/SharedResultPage"));
-const Puzzles = lazy(() => import("./components/Puzzles"));
-const Learn = lazy(() => import("./components/Learn"));
-const Profile = lazy(() => import("./components/Profile"));
-const Dashboard = lazy(() => import("./components/Dashboard"));
-const TrainingHub = lazy(() => import("./components/TrainingHub"));
-const TrainingExercise = lazy(() => import("./components/TrainingExercise"));
-const TutorialHub = lazy(() => import("./components/tutorial/TutorialHub"));
-const ModuleDetail = lazy(() => import("./components/tutorial/ModuleDetail"));
-const LessonPlayer = lazy(() => import("./components/tutorial/LessonPlayer"));
-const GameHistory = lazy(() => import("./components/GameHistory"));
-const GameReview = lazy(() => import("./components/GameReview"));
+// CRITICAL: Landing page loaded eagerly (not lazy) for fast FCP
+import LandingPage from "./pages/LandingPage";
 
-// Championship Components (lazy-loaded)
-const ChampionshipList = lazy(() => import("./components/championship/ChampionshipList"));
-const ChampionshipDetails = lazy(() => import("./components/championship/ChampionshipDetails"));
-const TournamentAdminDashboard = lazy(() => import("./components/championship/TournamentAdminDashboard"));
-const ChampionshipInvitations = lazy(() => import("./pages/ChampionshipInvitations"));
-const ChampionshipMatchesEdit = lazy(() => import("./components/championship/ChampionshipMatchesEdit"));
-const ChampionshipVictoryTest = lazy(() => import("./tests/ChampionshipVictoryTest"));
+// Lazy-loaded page components with error handling
+const Login = createLazyComponent(() => import("./pages/Login"), { componentName: "Login" });
+const AuthCallback = createLazyComponent(() => import("./components/auth/AuthCallback"), { componentName: "AuthCallback" });
+const PlayComputer = createLazyComponent(() => import("./components/play/PlayComputer"), { componentName: "PlayComputer" });
+const PlayMultiplayer = createLazyComponent(() => import("./components/play/PlayMultiplayer"), { componentName: "PlayMultiplayer" });
+const LobbyPage = createLazyComponent(() => import("./pages/LobbyPage"), { componentName: "LobbyPage" });
+const GameHistoryPage = createLazyComponent(() => import("./pages/GameHistoryPage"), { componentName: "GameHistoryPage" });
+const ComingSoon = createLazyComponent(() => import("./pages/ComingSoon"), { componentName: "ComingSoon" });
+const SharedResultPage = createLazyComponent(() => import("./pages/SharedResultPage"), { componentName: "SharedResultPage" });
+const Puzzles = createLazyComponent(() => import("./components/Puzzles"), { componentName: "Puzzles" });
+const Learn = createLazyComponent(() => import("./components/Learn"), { componentName: "Learn" });
+const Profile = createLazyComponent(() => import("./components/Profile"), { componentName: "Profile" });
+const Dashboard = createLazyComponent(() => import("./components/Dashboard"), { componentName: "Dashboard" });
+const TrainingHub = createLazyComponent(() => import("./components/TrainingHub"), { componentName: "TrainingHub" });
+const TrainingExercise = createLazyComponent(() => import("./components/TrainingExercise"), { componentName: "TrainingExercise" });
+const TutorialHub = createLazyComponent(() => import("./components/tutorial/TutorialHub"), { componentName: "TutorialHub" });
+const ModuleDetail = createLazyComponent(() => import("./components/tutorial/ModuleDetail"), { componentName: "ModuleDetail" });
+const LessonPlayer = createLazyComponent(() => import("./components/tutorial/LessonPlayer"), { componentName: "LessonPlayer" });
+const GameHistory = createLazyComponent(() => import("./components/GameHistory"), { componentName: "GameHistory" });
+const GameReview = createLazyComponent(() => import("./components/GameReview"), { componentName: "GameReview" });
+
+// Championship Components (lazy-loaded with error handling)
+const ChampionshipList = createLazyComponent(() => import("./components/championship/ChampionshipList"), { componentName: "ChampionshipList" });
+const ChampionshipDetails = createLazyComponent(() => import("./components/championship/ChampionshipDetails"), { componentName: "ChampionshipDetails" });
+const TournamentAdminDashboard = createLazyComponent(() => import("./components/championship/TournamentAdminDashboard"), { componentName: "TournamentAdminDashboard" });
+const ChampionshipInvitations = createLazyComponent(() => import("./pages/ChampionshipInvitations"), { componentName: "ChampionshipInvitations" });
+const ChampionshipMatchesEdit = createLazyComponent(() => import("./components/championship/ChampionshipMatchesEdit"), { componentName: "ChampionshipMatchesEdit" });
+const ChampionshipVictoryTest = createLazyComponent(() => import("./tests/ChampionshipVictoryTest"), { componentName: "ChampionshipVictoryTest" });
 const App = () => {
   useEffect(()=> {
     const mq = window.matchMedia("(orientation:landscape)");
@@ -113,8 +116,7 @@ const AppContent = () => {
     <div className={`app-container ${isLandingPage ? 'full-bleed' : ''} flex flex-col min-h-screen`}>
       <div className="content-wrapper flex-grow">
         <main className="main-content">
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
+          <Routes>
             {/* Public routes */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<Login />} />
@@ -262,7 +264,6 @@ const AppContent = () => {
               }
             />
           </Routes>
-          </Suspense>
         </main>
       </div>
       <Footer />

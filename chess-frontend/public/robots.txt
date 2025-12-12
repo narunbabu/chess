@@ -1,0 +1,61 @@
+# robots.txt for Chess99.com - India's #1 Online Chess Academy for Kids
+
+# Allow all search engines to crawl the site
+User-agent: *
+Allow: /
+
+# Disallow authentication and admin pages
+Disallow: /login
+Disallow: /signup
+Disallow: /auth/
+Disallow: /api/
+Disallow: /admin/
+Disallow: /dashboard/
+Disallow: /profile/
+
+# Disallow dynamic game sessions (contain user-specific data)
+Disallow: /play/multiplayer/
+Disallow: /play/review/
+
+# Allow important public pages for SEO
+Allow: /
+Allow: /play
+Allow: /puzzles
+Allow: /learn
+Allow: /tutorial
+Allow: /coming-soon
+
+# Crawl delay to be respectful (optional)
+Crawl-delay: 1
+
+# Sitemap location (you'll need to create this)
+Sitemap: https://chess99.com/sitemap.xml
+
+# Specific rules for major search engines
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Slurp
+Allow: /
+
+# Block bad bots (common scrapers and spam bots)
+User-agent: AhrefsBot
+Crawl-delay: 10
+
+User-agent: SemrushBot
+Crawl-delay: 10
+
+User-agent: DotBot
+Crawl-delay: 10
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: BLEXBot
+Disallow: /
+
+User-agent: Scrapy
+Disallow: /

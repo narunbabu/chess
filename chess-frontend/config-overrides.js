@@ -20,32 +20,32 @@ module.exports = override(
         })
       );
 
-      // Optimize chunk splitting - PERFORMANCE OPTIMIZED
+      // Optimize chunk splitting - PERFORMANCE OPTIMIZED FOR INITIAL LOAD
       config.optimization.splitChunks = {
         chunks: 'all',
-        maxInitialRequests: 5, // CRITICAL: Limit parallel CSS requests
-        maxAsyncRequests: 3,   // Reduce async chunk count
+        maxInitialRequests: 3, // CRITICAL: Minimize initial requests
+        maxAsyncRequests: 5,   // Allow more async chunks
         cacheGroups: {
-          // CSS Optimization: Merge all CSS into fewer chunks
           defaultVendors: false, // Disable default vendor splitting
           default: false,        // Disable default splitting
 
-          // Single vendor bundle for all node_modules
+          // Single vendor bundle for all node_modules JavaScript ONLY
           vendors: {
-            test: /[\\/]node_modules[\\/]/,
+            test: /[\\/]node_modules[\\/].*\.(js|jsx|ts|tsx)$/,
             name: 'vendors',
             chunks: 'all',
             priority: 20,
-            enforce: true, // Force single vendor chunk
+            enforce: true,
           },
-          // Single common bundle for shared app code
+          // DO NOT create common CSS bundle - let each route load its own CSS
+          // Only create common JS bundle for code used on multiple routes
           common: {
+            test: /\.(js|jsx|ts|tsx)$/, // JavaScript only, NOT CSS
             minChunks: 2,
             name: 'common',
-            chunks: 'all',
+            chunks: 'initial', // Only for initial load, not async
             priority: 10,
             reuseExistingChunk: true,
-            enforce: true, // Force single common chunk
           },
         },
       };

@@ -7,6 +7,8 @@ import { useActiveGame } from '../../hooks/useActiveGame';
 import { useGameNavigation } from '../../contexts/GameNavigationContext';
 import { trackAuth, trackNavigation } from '../../utils/analytics';
 import { BACKEND_URL } from '../../config';
+import { MdDashboard } from 'react-icons/md';
+import { IoGameController, IoSchool, IoTrophy } from 'react-icons/io5';
 import presenceService from '../../services/presenceService';
 import './Header.css';
 
@@ -319,72 +321,84 @@ const Header = () => {
       <div className="left-section">
         <Link to="/" className="logo">
         </Link>
-
-        {isAuthenticated && (
-          <>
-            <Link
-              to="/dashboard"
-              className="nav-link"
-              onClick={(e) => {
-                e.preventDefault();
-                handleNavItemClick(() => navigate('/dashboard'), '/dashboard');
-              }}
-            >
-              Dashboard
-            </Link>
-            <Link
-              to="/lobby"
-              className="nav-link"
-              onClick={(e) => {
-                e.preventDefault();
-                handleNavItemClick(() => navigate('/lobby'), '/lobby');
-              }}
-            >
-              Lobby
-            </Link>
-            <Link
-              to="/tutorial"
-              className="nav-link"
-              onClick={(e) => {
-                e.preventDefault();
-                handleNavItemClick(() => navigate('/tutorial'), '/tutorial');
-              }}
-            >
-              Learn
-            </Link>
-            <Link
-              to="/championships"
-              className="nav-link"
-              onClick={(e) => {
-                e.preventDefault();
-                handleNavItemClick(() => navigate('/championships'), '/championships');
-              }}
-            >
-              Championships
-            </Link>
-            {!loading && activeGame && (
-              <button
-                onClick={handleResumeGame}
-                className="nav-link resume-btn"
-                title={`Resume game #${activeGame.id}`}
-              >
-                ▶️ Resume
-              </button>
-            )}
-            {recentChampionship && (
-              <button
-                onClick={handleRecentChampionship}
-                className="nav-link championship-btn"
-                title={`Go to ${recentChampionship.name}`}
-              >
-                🏆 {recentChampionship.name.length > 15
-                  ? recentChampionship.name.substring(0, 15) + '...'
-                  : recentChampionship.name}
-              </button>
-            )}
-          </>
-        )}
       </div>
+
+      {isAuthenticated && (
+        <div className="center-section">
+          <Link
+            to="/dashboard"
+            className="nav-link nav-icon-link"
+            onClick={(e) => {
+              e.preventDefault();
+              handleNavItemClick(() => navigate('/dashboard'), '/dashboard');
+            }}
+            title="Dashboard"
+            aria-label="Dashboard"
+          >
+            <MdDashboard size={24} />
+            <span className="nav-text">Dashboard</span>
+          </Link>
+          <Link
+            to="/lobby"
+            className="nav-link nav-icon-link"
+            onClick={(e) => {
+              e.preventDefault();
+              handleNavItemClick(() => navigate('/lobby'), '/lobby');
+            }}
+            title="Lobby"
+            aria-label="Lobby"
+          >
+            <IoGameController size={24} />
+            <span className="nav-text">Lobby</span>
+          </Link>
+          <Link
+            to="/tutorial"
+            className="nav-link nav-icon-link"
+            onClick={(e) => {
+              e.preventDefault();
+              handleNavItemClick(() => navigate('/tutorial'), '/tutorial');
+            }}
+            title="Learn"
+            aria-label="Learn"
+          >
+            <IoSchool size={24} />
+            <span className="nav-text">Learn</span>
+          </Link>
+          <Link
+            to="/championships"
+            className="nav-link nav-icon-link"
+            onClick={(e) => {
+              e.preventDefault();
+              handleNavItemClick(() => navigate('/championships'), '/championships');
+            }}
+            title="Championships"
+            aria-label="Championships"
+          >
+            <IoTrophy size={24} />
+            <span className="nav-text">Championships</span>
+          </Link>
+          {!loading && activeGame && (
+            <button
+              onClick={handleResumeGame}
+              className="nav-link resume-btn"
+              title={`Resume game #${activeGame.id}`}
+            >
+              ▶️ Resume
+            </button>
+          )}
+          {recentChampionship && (
+            <button
+              onClick={handleRecentChampionship}
+              className="nav-link championship-btn"
+              title={`Go to ${recentChampionship.name}`}
+            >
+              🏆 {recentChampionship.name.length > 15
+                ? recentChampionship.name.substring(0, 15) + '...'
+                : recentChampionship.name}
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="right-section">
         {/* Show stats in right section when on lobby page */}
@@ -405,9 +419,8 @@ const Header = () => {
           <div className="user-compact" ref={userMenuRef}>
             <div className="user-name">
               <span>{user?.name}</span>
-              <small>{user?.rating || 1200}</small>
             </div>
-            <div className="user-avatar" onClick={handleUserMenuClick}>
+            <div className="user-avatar" onClick={handleUserMenuClick} title="User Menu" aria-label="User Menu">
               <img
                 src={user?.avatar_url || `https://i.pravatar.cc/150?u=${user?.email}`}
                 alt={user?.name}
@@ -457,6 +470,7 @@ const Header = () => {
                 />
                 <div className="nav-user-details">
                   <h3>{user?.name}</h3>
+                  <p className="nav-user-email">{user?.email}</p>
                   <p>Rating: {user?.rating || 1200}</p>
                 </div>
               </div>

@@ -20,10 +20,9 @@
   flex-shrink: 0 !important;
 }
 
-.left-section, .right-section {
+.left-section, .center-section, .right-section {
   display: flex;
   align-items: center;
-  gap: 1rem;
 }
 
 .left-section {
@@ -31,11 +30,19 @@
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 1rem;
   height: 32px;
   max-height: 32px;
 }
 
+.center-section {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  height: 32px;
+  max-height: 32px;
+}
 
 .right-section {
   flex: 0 0 auto;
@@ -44,7 +51,6 @@
   gap: 0.75rem;
   height: 32px;
   max-height: 32px;
-  margin-left: auto;
 }
 
 /* Logo styling - restore background image from index.css with proper overrides */
@@ -79,7 +85,7 @@
 .nav-link {
   color: #e5e7eb;
   text-decoration: none;
-  padding: 0.35rem 0.5rem;
+  padding: 0.35rem 0.75rem;
   border-radius: 6px;
   transition: all 0.2s;
   font-weight: 500;
@@ -87,11 +93,51 @@
   border: none;
   cursor: pointer;
   font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  white-space: nowrap;
 }
 
 .nav-link:hover {
   background: rgba(255,255,255,0.1);
   color: #ffffff;
+}
+
+/* Icon navigation links */
+.nav-icon-link {
+  padding: 0.4rem 0.75rem;
+  position: relative;
+}
+
+.nav-icon-link svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+/* Navigation text labels */
+.nav-text {
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+/* Tooltip styles */
+.nav-icon-link:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  z-index: 999999;
+  pointer-events: none;
 }
 
 .nav-link.resume-btn {
@@ -175,14 +221,7 @@
 
 .user-name span {
   font-weight: 600;
-  font-size: 0.85rem;
-  line-height: 1;
-}
-
-.user-name small {
-  color: #9ca3af;
-  font-size: 0.75rem;
-  font-weight: 500;
+  font-size: 0.9rem;
   line-height: 1;
 }
 
@@ -387,10 +426,6 @@
     padding: 0.25rem 0.5rem !important;
   }
 
-  .user-name {
-    display: none;
-  }
-
   .stats-row.compact {
     gap: 0.4rem;
   }
@@ -399,7 +434,64 @@
   .left-section {
     flex: 0 0 auto;
     justify-content: flex-start;
+    gap: 0.5rem;
   }
+
+  /* Icon navigation adjustments for mobile */
+  .nav-icon-link {
+    padding: 0.3rem;
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .nav-icon-link svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  /* Hide tooltips on mobile to avoid interference with touch */
+  .nav-icon-link:hover::after {
+    display: none;
+  }
+
+  /* Mobile layout adjustments */
+  .center-section {
+    gap: 0.5rem;
+  }
+
+  /* Hide text labels on mobile */
+  .nav-text {
+    display: none;
+  }
+
+  /* Hide user name on mobile */
+  .user-compact .user-name {
+    display: none !important;
+  }
+}
+
+/* Tablet styles */
+@media (max-width: 768px) and (min-width: 481px) {
+  /* Optional: Adjust spacing for tablets */
+  .center-section {
+    gap: 0.75rem;
+  }
+
+  /* Show text labels on tablets if space allows */
+  .nav-text {
+    display: inline;
+    font-size: 0.9rem;
+  }
+
+  /* Show user name on tablets */
+  .user-name {
+    display: flex;
+  }
+
+  .user-name span {
+    font-size: 0.85rem;
+  }
+}
 
   /* Adjust right section for very small screens */
   .right-section {
@@ -427,7 +519,6 @@
     padding-left: 26px !important;
     margin-right: 0.3rem;
   }
-}
 
 /* =========================================
    Slide-out Navigation Panel
@@ -488,6 +579,12 @@
   margin: 0;
   color: #9ca3af;
   font-size: 0.9rem;
+}
+
+.nav-user-details .nav-user-email {
+  font-size: 0.85rem;
+  color: #6b7280;
+  margin-bottom: 0.25rem;
 }
 
 .nav-close-btn {
