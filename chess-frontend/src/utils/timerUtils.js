@@ -107,17 +107,22 @@ export const useMultiplayerTimer = ({
 };
 
 // Single-player timer hook - LEGACY implementation for computer games
-export const useGameTimer = (playerColor, game, setGameStatus) => {
+export const useGameTimer = (playerColor, game, onFlag) => {
   const [playerTime, setPlayerTime] = useState(600);
   const [computerTime, setComputerTime] = useState(600);
   const [activeTimer, setActiveTimer] = useState(null);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const timerRef = useRef(null);
   const activeTimerRef = useRef(activeTimer);
+  const onFlagRef = useRef(onFlag);
 
   useEffect(() => {
     activeTimerRef.current = activeTimer;
   }, [activeTimer]);
+
+  useEffect(() => {
+    onFlagRef.current = onFlag;
+  }, [onFlag]);
 
   const handleTimer = useCallback(() => {
     if (timerRef.current) {
@@ -134,9 +139,9 @@ export const useGameTimer = (playerColor, game, setGameStatus) => {
         setPlayerTime((prevTime) => {
           if (prevTime <= 1) {
             clearInterval(timerRef.current);
-            setGameStatus(
-              `Time's up! ${playerColor === "w" ? "Black" : "White"} wins!`
-            );
+            if (onFlagRef.current) {
+              onFlagRef.current('player'); // Player's time ran out
+            }
             setIsTimerRunning(false);
             return 0;
           }
@@ -146,9 +151,9 @@ export const useGameTimer = (playerColor, game, setGameStatus) => {
         setComputerTime((prevTime) => {
           if (prevTime <= 1) {
             clearInterval(timerRef.current);
-            setGameStatus(
-              `Time's up! ${playerColor === "w" ? "White" : "Black"} wins!`
-            );
+            if (onFlagRef.current) {
+              onFlagRef.current('computer'); // Computer's time ran out
+            }
             setIsTimerRunning(false);
             return 0;
           }
@@ -156,7 +161,7 @@ export const useGameTimer = (playerColor, game, setGameStatus) => {
         });
       }
     }, 1000);
-  }, [game, playerColor, setGameStatus]);
+  }, [game, playerColor]);
 
   // New: Implement switchTimer function
   const switchTimer = useCallback((newActiveTimer) => {

@@ -649,4 +649,131 @@ class GameController extends Controller
 
         return response()->json(['message' => 'Game deleted successfully']);
     }
+
+    /**
+     * Set game mode (rated/casual) for a game
+     *
+     * POST /api/games/{id}/mode
+     *
+     * @param Request $request
+     * @param int $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function setGameMode(Request $request, $id)
+    {
+        $request->validate([
+            'game_mode' => 'required|in:rated,casual'
+        ]);
+
+        $game = Game::find($id);
+
+        if (!$game) {
+            return response()->json(['error' => 'Game not found'], 404);
+        }
+
+        $user = Auth::user();
+
+        // Check if user is part of this game
+        if ($game->white_player_id !== $user->id && $game->black_player_id !== $user->id) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        // Can only set mode for games that haven't started or are just starting
+        if (count($game->moves ?? []) > 0) {
+            return response()->json(['error' => 'Cannot change game mode after moves have been made'], 400);
+        }
+
+        $game->update([
+            'game_mode' => $request->input('game_mode')
+        ]);
+
+        return response()->json([
+            'message' => 'Game mode updated successfully',
+            'game' => $game->load(['whitePlayer', 'blackPlayer'])
+        ]);
+    }
+
+    /**
+     * Get game mode for a game
+     *
+     * GET /api/games/{id}/mode
+     *
+     * @param int $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getGameMode($id)
+    {
+        $game = Game::find($id);
+
+        if (!$game) {
+            return response()->json(['error' => 'Game not found'], 404);
+        }
+
+        $user = Auth::user();
+
+        // Check if user is part of this game
+        if ($game->white_player_id !== $user->id && $game->black_player_id !== $user->id) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        return response()->json([
+            'game_id' => $game->id,
+            'game_mode' => $game->game_mode ?? 'casual' // Default to casual if not set
+        ]);
+    }
+
+    /**
+     * Get rating change for a completed game
+     *
+     * GET /api/games/{id}/rating-change
+     *
+     * @param int $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getRatingChange($id)
+    {
+        $game = Game::find($id);
+
+        if (!$game) {
+            return response()->json(['error' => 'Game not found'], 404);
+        }
+
+        $user = Auth::user();
+
+        // Check if user is part of this game
+        if ($game->white_player_id !== $user->id && $game->black_player_id !== $user->id) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        // Get rating history for this game
+        $ratingHistory = \DB::table('ratings_history')
+            ->where('game_id', $game->id)
+            ->where('user_id', $user->id)
+            ->first();
+
+        if (!$ratingHistory) {
+            return response()->json([
+                'message' => 'Rating change not available',
+                'game_id' => $game->id,
+                'game_mode' => $game->game_mode
+            ], 404);
+        }
+
+        return response()->json([
+            'game_id' => $game->id,
+            'game_mode' => $game->game_mode,
+            'rating_change' => [
+                'old_rating' => $ratingHistory->old_rating,
+                'new_rating' => $ratingHistory->new_rating,
+                'rating_change' => $ratingHistory->rating_change,
+                'performance_score' => $ratingHistory->performance_score ?? null,
+                'performance_modifier' => $ratingHistory->performance_modifier ?? null,
+                'base_rating_change' => $ratingHistory->base_rating_change ?? null,
+                'result' => $ratingHistory->result,
+                'k_factor' => $ratingHistory->k_factor,
+                'expected_score' => $ratingHistory->expected_score,
+                'actual_score' => $ratingHistory->actual_score
+            ]
+        ]);
+    }
 }

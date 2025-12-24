@@ -24,6 +24,11 @@ import { useMultiplayerTimer } from '../../utils/timerUtils';
 import { calculateRemainingTime } from '../../utils/timerCalculator';
 import { saveUnfinishedGame } from '../../services/unfinishedGameService';
 import { getMovePath, createPathHighlights, mergeHighlights } from '../../utils/movePathUtils'; // Move path utilities
+import { getPreferredGameMode, setPreferredGameMode } from '../../utils/gamePreferences'; // Game preferences
+import DrawButton from '../game/DrawButton';
+import PerformanceDisplay from '../game/PerformanceDisplay';
+import RatingChangeDisplay from '../game/RatingChangeDisplay';
+import { performanceService } from '../../services/performanceService';
 
 // Import sounds
 import moveSound from '../../assets/sounds/move.mp3';
@@ -88,6 +93,16 @@ const PlayMultiplayer = () => {
   // Draw offer state
   const [drawOfferPending, setDrawOfferPending] = useState(false);
   const [drawOfferedByMe, setDrawOfferedByMe] = useState(false);
+  const [drawState, setDrawState] = useState({
+    offered: false,
+    pending: false,
+    byPlayer: null
+  });
+
+  // Performance and rating tracking
+  const [performanceData, setPerformanceData] = useState(null);
+  const [ratingChangeData, setRatingChangeData] = useState(null);
+  const [ratedMode, setRatedMode] = useState(() => getPreferredGameMode()); // Load from localStorage, defaults to 'rated'
 
   // Championship context state
   const [championshipContext, setChampionshipContext] = useState(null);
@@ -397,6 +412,11 @@ const PlayMultiplayer = () => {
       console.log('🎨 WHITE PLAYER ID:', data.white_player_id);
       console.log('🎨 BLACK PLAYER ID:', data.black_player_id);
       setGameData(data);
+
+      // Detect game mode (rated or casual)
+      const gameMode = data.game_mode || 'casual';
+      setRatedMode(gameMode);
+      console.log('🎮 Game Mode:', gameMode);
 
       // Reset registration flag for new game and register it
       gameRegisteredRef.current = false;
@@ -1650,6 +1670,13 @@ const PlayMultiplayer = () => {
       gameActive: gameActiveRef.current
     });
   }, [gameComplete, gameInfo.status, showPresenceDialog]);
+
+  // Effect to save game mode preference when it changes
+  useEffect(() => {
+    if (ratedMode) {
+      setPreferredGameMode(ratedMode);
+    }
+  }, [ratedMode]);
 
   // Keep turn and color refs fresh to prevent stale closures
   const playerColorRef = useRef(gameInfo.playerColor);
@@ -3082,6 +3109,51 @@ const PlayMultiplayer = () => {
     }
   }, [isMyTurn, game.fen(), myColor, game]);
 
+  // Fetch performance data after each move (for rated games only)
+  useEffect(() => {
+    if (!user || !gameId || ratedMode !== 'rated' || !gameHistory.length) return;
+
+    // Debounce performance fetching to avoid excessive API calls
+    const fetchPerformance = setTimeout(async () => {
+      try {
+        const result = await performanceService.getGamePerformance(gameId);
+        if (result.success) {
+          setPerformanceData(result.data);
+          console.log('📊 Performance data updated:', result.data);
+        }
+      } catch (error) {
+        console.warn('Failed to fetch performance data:', error);
+      }
+    }, 500);
+
+    return () => clearTimeout(fetchPerformance);
+  }, [gameHistory.length, gameId, ratedMode, user]);
+
+  // Fetch rating change data when game ends (for rated games only)
+  useEffect(() => {
+    if (!gameComplete || !user || !gameId || ratedMode !== 'rated') return;
+
+    const fetchRatingChange = async () => {
+      try {
+        const result = await performanceService.getGamePerformance(gameId);
+        if (result.success && result.data.rating_change !== undefined) {
+          setRatingChangeData({
+            ratingChange: result.data.rating_change,
+            performanceScore: result.data.performance_score || 0,
+            oldRating: result.data.old_rating || user.rating,
+            newRating: result.data.new_rating || user.rating,
+            ratingDetails: result.data.rating_details || {}
+          });
+          console.log('🎯 Rating change data fetched:', result.data);
+        }
+      } catch (error) {
+        console.warn('Failed to fetch rating change data:', error);
+      }
+    };
+
+    fetchRatingChange();
+  }, [gameComplete, gameId, ratedMode, user]);
+
   // Auto-save unfinished game on navigation/page close
   useEffect(() => {
     const handleBeforeUnload = async (event) => {
@@ -3690,7 +3762,9 @@ const PlayMultiplayer = () => {
         lastMoveEvaluation,
         lastOpponentEvaluation,
         opponent: gameInfo.opponentName,
-        isPortrait
+        isPortrait,
+        performanceData: ratedMode === 'rated' ? performanceData : null,
+        showPerformance: ratedMode === 'rated' && gameInfo.status === 'active'
       }}
     >
       <div className="chessboard-wrapper">
@@ -3721,14 +3795,23 @@ const PlayMultiplayer = () => {
             <button onClick={handleResign} className="resign-button">
               Resign
             </button>
-            <button
-              onClick={handleOfferDraw}
-              className="draw-button"
-              disabled={drawOfferedByMe}
-              style={{ marginLeft: '8px' }}
-            >
-              {drawOfferedByMe ? 'Draw Offered' : 'Offer Draw'}
-            </button>
+            <DrawButton
+              gameId={gameId}
+              gameMode={ratedMode}
+              isComputerGame={false}
+              onDrawOffered={() => {
+                setDrawState({ offered: true, pending: true, byPlayer: 'me' });
+                setDrawOfferedByMe(true);
+              }}
+              onDrawAccepted={(result) => {
+                console.log('✅ Draw accepted:', result);
+                setDrawState({ offered: false, pending: false, byPlayer: null });
+                setDrawOfferedByMe(false);
+                // The game will end via WebSocket event
+              }}
+              disabled={gameInfo.status !== 'active'}
+              drawStatus={drawOfferedByMe ? { status: 'pending' } : null}
+            />
           </>
         )}
         {/* Resume button removed - paused overlay handles resume requests */}
@@ -3824,8 +3907,30 @@ const PlayMultiplayer = () => {
 
       {/* Game Completion Modal */}
       {gameComplete && gameResult && (
-        <GameCompletionAnimation
-          result={gameResult}
+        <>
+          {/* RatingChangeDisplay - Overlay for rated games */}
+          {ratedMode === 'rated' && ratingChangeData && (
+            <div style={{
+              position: 'fixed',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              zIndex: 10001,
+              maxWidth: '500px',
+              width: '90%'
+            }}>
+              <RatingChangeDisplay
+                ratingChange={ratingChangeData.ratingChange}
+                performanceScore={ratingChangeData.performanceScore}
+                oldRating={ratingChangeData.oldRating}
+                newRating={ratingChangeData.newRating}
+                ratingDetails={ratingChangeData.ratingDetails}
+              />
+            </div>
+          )}
+
+          <GameCompletionAnimation
+            result={gameResult}
           score={Math.abs(parseFloat(
             gameInfo.playerColor === 'white'
               ? gameResult.white_player_score
@@ -3882,7 +3987,8 @@ const PlayMultiplayer = () => {
             console.log('🎬 Preview button: navigating to /play/review/' + gameId + '?mode=multiplayer');
             navigate(`/play/review/${gameId}?mode=multiplayer`);
           }}
-        />
+          />
+        </>
       )}
     </>
   );
@@ -4236,8 +4342,30 @@ const PlayMultiplayer = () => {
 
       {/* Game Completion Modal */}
       {gameComplete && gameResult && (
-        <GameCompletionAnimation
-          result={gameResult}
+        <>
+          {/* RatingChangeDisplay - Overlay for rated games */}
+          {ratedMode === 'rated' && ratingChangeData && (
+            <div style={{
+              position: 'fixed',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              zIndex: 10001,
+              maxWidth: '500px',
+              width: '90%'
+            }}>
+              <RatingChangeDisplay
+                ratingChange={ratingChangeData.ratingChange}
+                performanceScore={ratingChangeData.performanceScore}
+                oldRating={ratingChangeData.oldRating}
+                newRating={ratingChangeData.newRating}
+                ratingDetails={ratingChangeData.ratingDetails}
+              />
+            </div>
+          )}
+
+          <GameCompletionAnimation
+            result={gameResult}
           score={Math.abs(parseFloat(
             gameInfo.playerColor === 'white'
               ? gameResult.white_player_score
@@ -4295,7 +4423,8 @@ const PlayMultiplayer = () => {
             console.log('🎬 Preview button: navigating to /play/review/' + reviewId);
             navigate(`/play/review/${reviewId}`);
           }}
-        />
+          />
+        </>
       )}
 
       {/* New Game Request Dialog */}

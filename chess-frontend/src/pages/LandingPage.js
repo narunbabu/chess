@@ -4,17 +4,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { trackUI } from '../utils/analytics';
 import AuthGateModal from '../components/layout/AuthGateModal';
 import UnfinishedGamesSection from '../components/UnfinishedGamesSection';
-// Optimized hero images (WebP + JPEG fallback)
-import hero640wWebP from '../assets/images/optimized/hero-640w.webp';
-import hero640wJpg from '../assets/images/optimized/hero-640w.jpg';
-import hero1280wWebP from '../assets/images/optimized/hero-1280w.webp';
-import hero1280wJpg from '../assets/images/chess-playing-kids-crop.jpeg'; // Original as fallback
-
-// Optimized logo images (WebP + PNG fallback)
-import logo200wWebP from '../assets/images/optimized/logo-200w.webp';
-import logo200wPng from '../assets/images/optimized/logo-200w.png';
-import logo400wWebP from '../assets/images/optimized/logo-400w.webp';
-import logo400wPng from '../assets/images/optimized/logo-400w.png';
+import chessPlayingKids from '../assets/images/chess-playing-kids-crop.jpeg';
+import logo from '../assets/images/logo.png';
 import '../styles/UnifiedCards.css';
 
 const LandingPage = () => {
@@ -60,19 +51,15 @@ const LandingPage = () => {
           {/* Left Section - Logo */}
           <div className="flex items-center">
             <Link to="/" className="flex items-center">
-              <picture>
-                <source srcSet={`${logo200wWebP} 1x, ${logo400wWebP} 2x`} type="image/webp" />
-                <source srcSet={`${logo200wPng} 1x, ${logo400wPng} 2x`} type="image/png" />
-                <img src={logo200wPng} alt="Chess99 Logo" className="h-8 w-auto" width="200" height="67" loading="eager" />
-              </picture>
+              <img src={logo} alt="Chess99 Logo" className="h-8 w-auto" />
             </Link>
           </div>
 
           {/* Desktop Navigation - Hidden on small screens */}
           <nav className="hidden md:flex items-center space-x-3 lg:space-x-6">
             {/* <button onClick={() => navigate('/play')} className="hover:text-yellow-300 transition-colors text-sm lg:text-base font-medium">Play</button> */}
-            <button onClick={() => navigate('/login?resource=tutorial')} className="hover:text-yellow-100 transition-colors text-sm lg:text-base font-medium">Tutorial</button>
-            <button onClick={() => navigate('/login?resource=tournaments')} className="hover:text-yellow-100 transition-colors text-sm lg:text-base font-medium">Tournaments</button>
+            <button onClick={() => navigate('/login?resource=tutorial')} className="hover:text-yellow-300 transition-colors text-sm lg:text-base font-medium">Tutorial</button>
+            <button onClick={() => navigate('/login?resource=tournaments')} className="hover:text-yellow-300 transition-colors text-sm lg:text-base font-medium">Tournaments</button>
           </nav>
 
           {/* Right Section - Auth Buttons & Menu */}
@@ -90,7 +77,7 @@ const LandingPage = () => {
               <>
                 <button
                   onClick={() => navigate('/login')}
-                  className="hidden sm:block hover:text-yellow-100 transition-colors text-sm lg:text-base font-medium"
+                  className="hidden sm:block hover:text-yellow-300 transition-colors text-sm lg:text-base font-medium"
                 >
                   Login
                 </button>
@@ -130,8 +117,6 @@ const LandingPage = () => {
               <button
                 onClick={() => setShowMobileMenu(!showMobileMenu)}
                 className="p-2 rounded-lg hover:bg-sky-700/50 transition-colors"
-                aria-label="Toggle navigation menu"
-                aria-expanded={showMobileMenu}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -185,22 +170,11 @@ const LandingPage = () => {
           {/* Content overlay with background image */}
           <div className="relative z-20 flex flex-col items-center justify-start px-3 sm:px-4 lg:px-8 xl:px-12">
             {/* Background image - positioned behind content */}
-            <picture>
-              <source media="(max-width: 639px)" srcSet={hero640wWebP} type="image/webp" />
-              <source media="(max-width: 1023px)" srcSet={hero1280wWebP} type="image/webp" />
-              <source srcSet={hero1280wWebP} type="image/webp" />
-              <source media="(max-width: 639px)" srcSet={hero640wJpg} />
-              <source media="(max-width: 1023px)" srcSet={hero1280wJpg} />
-              <img
-                src={hero1280wJpg}
-                alt="Kids playing chess"
-                className="hero-bg-image -z-10"
-                fetchpriority="high"
-                width="1280"
-                height="668"
-                loading="eager"
-              />
-            </picture>
+            <img
+              src={chessPlayingKids}
+              alt="Kids playing chess"
+              className="hero-bg-image -z-10"
+            />
             <div className="hero-soft-glow" />
             <div className="absolute inset-0 bg-gradient-to-b from-sky-400/10 via-sky-300/5 to-sky-200/10 -z-10"></div>
             {/* Headline with dark backdrop */}
@@ -275,7 +249,7 @@ const LandingPage = () => {
                 </div>
               ) : (
                 <div className="unified-card w-full max-w-sm sm:max-w-md mx-auto">
-                  <h2 className="unified-card-title centered text-xl sm:text-2xl">Start Your Chess Journey!</h2>
+                  <h3 className="unified-card-title centered text-xl sm:text-2xl">Start Your Chess Journey!</h3>
                   <div className="unified-card-actions vertical">
                     <button
                       onClick={() => navigate('/play')}
@@ -340,7 +314,7 @@ const LandingPage = () => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                       </svg>
                     </div>
-                    <h3 className="text-base sm:text-lg font-bold text-purple-800 leading-tight">Trusted by Millions</h3>
+                    <h3 className="text-base sm:text-lg font-bold text-purple-800 leading-tight">Trusted by Neumerous people</h3>
                   </div>
                   <p className="text-gray-700 text-sm sm:text-base leading-relaxed">Numerous Young Learners • Schools • Parent Approved</p>
                 </div>
@@ -413,32 +387,32 @@ const LandingPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
             <div className="unified-card light-theme h-full">
               <div className="unified-card-avatar">👶</div>
-              <h4 className="unified-card-title centered text-lg sm:text-xl">Designed for Ages 5-16</h4>
+              <h3 className="unified-card-title centered text-lg sm:text-xl">Designed for Ages 5-16</h3>
               <p className="unified-card-subtitle centered text-sm sm:text-base">Age-appropriate content and interface that grows with your child's learning level</p>
             </div>
             <div className="unified-card light-theme h-full">
               <div className="unified-card-avatar">📈</div>
-              <h4 className="unified-card-title centered text-lg sm:text-xl">Step-by-Step Learning</h4>
+              <h3 className="unified-card-title centered text-lg sm:text-xl">Step-by-Step Learning</h3>
               <p className="unified-card-subtitle centered text-sm sm:text-base">From beginner basics to advanced strategies with interactive lessons and practice</p>
             </div>
             <div className="unified-card light-theme h-full">
               <div className="unified-card-avatar">🧩</div>
-              <h4 className="unified-card-title centered text-lg sm:text-xl">Daily Puzzles</h4>
+              <h3 className="unified-card-title centered text-lg sm:text-xl">Daily Puzzles</h3>
               <p className="unified-card-subtitle centered text-sm sm:text-base">Build logic and critical thinking with fresh chess puzzles every day</p>
             </div>
             <div className="unified-card light-theme h-full">
               <div className="unified-card-avatar">🛡️</div>
-              <h4 className="unified-card-title centered text-lg sm:text-xl">100% Safe Online Play</h4>
+              <h3 className="unified-card-title centered text-lg sm:text-xl">100% Safe Online Play</h3>
               <p className="unified-card-subtitle centered text-sm sm:text-base">Strict child protection, no ads, no chats, monitored environment</p>
             </div>
             <div className="unified-card light-theme h-full">
               <div className="unified-card-avatar">🚫</div>
-              <h4 className="unified-card-title centered text-lg sm:text-xl">No Distractions</h4>
+              <h3 className="unified-card-title centered text-lg sm:text-xl">No Distractions</h3>
               <p className="unified-card-subtitle centered text-sm sm:text-base">No ads, no unsafe chats, no gambling - pure learning and safe fun</p>
             </div>
             <div className="unified-card light-theme h-full">
               <div className="unified-card-avatar">⭐</div>
-              <h4 className="unified-card-title centered text-lg sm:text-xl">Teacher Approved</h4>
+              <h3 className="unified-card-title centered text-lg sm:text-xl">Teacher Approved</h3>
               <p className="unified-card-subtitle centered text-sm sm:text-base">Recommended by teachers and chess coaches across India</p>
             </div>
           </div>
@@ -466,7 +440,7 @@ const LandingPage = () => {
               >
                 <div className="unified-card light-theme accented h-full cursor-pointer">
                   <div className="unified-card-avatar">🧩</div>
-                  <h4 className="unified-card-title centered text-lg sm:text-xl">Solve Puzzles</h4>
+                  <h3 className="unified-card-title centered text-lg sm:text-xl">Solve Puzzles</h3>
                   <p className="unified-card-subtitle centered text-sm sm:text-base">Challenge yourself with thousands of chess puzzles</p>
                 </div>
               </Link>
@@ -479,7 +453,7 @@ const LandingPage = () => {
               >
                 <div className="unified-card light-theme accented h-full cursor-pointer">
                   <div className="unified-card-avatar">📚</div>
-                  <h4 className="unified-card-title centered text-lg sm:text-xl">Start Learning</h4>
+                  <h3 className="unified-card-title centered text-lg sm:text-xl">Start Learning</h3>
                   <p className="unified-card-subtitle centered text-sm sm:text-base">Watch fun videos and interactive lessons</p>
                 </div>
               </Link>
@@ -492,7 +466,7 @@ const LandingPage = () => {
               >
                 <div className="unified-card light-theme accented h-full cursor-pointer">
                   <div className="unified-card-avatar">🏆</div>
-                  <h4 className="unified-card-title centered text-lg sm:text-xl">Join Tournaments</h4>
+                  <h3 className="unified-card-title centered text-lg sm:text-xl">Join Tournaments</h3>
                   <p className="unified-card-subtitle centered text-sm sm:text-base">Compete with players from around the world</p>
                 </div>
               </Link>

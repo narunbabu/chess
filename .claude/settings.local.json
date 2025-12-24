@@ -5,7 +5,9 @@
       "Bash(find:*)",
       "Bash(file:*)",
       "Bash(wc:*)",
-      "Bash(identify:*)"
+      "Bash(identify:*)",
+      "Bash(grep:*)",
+      "Bash(Select-String -Pattern \"game_statuses|GameStatus\")"
     ],
     "deny": [],
     "ask": []

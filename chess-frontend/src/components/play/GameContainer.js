@@ -6,6 +6,7 @@ import ScoreDisplay from './ScoreDisplay';
 import TimerDisplay from './TimerDisplay';
 import GameControls from './GameControls';
 import TimerButton from './TimerButton';
+import PerformanceDisplay from '../game/PerformanceDisplay';
 
 /**
  * GameContainer - Unified game layout component
@@ -68,7 +69,9 @@ const GameContainer = ({
     lastComputerEvaluation,
     lastOpponentEvaluation,
     opponent,
-    isPortrait: sidebarIsPortrait
+    isPortrait: sidebarIsPortrait,
+    performanceData: sidebarPerformanceData,
+    showPerformance: sidebarShowPerformance
   } = sidebarData;
 
   // Extract controls data (computer mode only)
@@ -94,7 +97,17 @@ const GameContainer = ({
     // Undo functionality props
     handleUndo,
     canUndo,
-    undoChancesRemaining
+    undoChancesRemaining,
+    // Draw functionality props
+    handleDrawOffer,
+    handleDrawAccept,
+    handleDrawDecline,
+    handleDrawCancel,
+    drawState,
+    ratedMode,
+    currentGameId,
+    // Performance data
+    performanceData
   } = controlsData || {};
 
   
@@ -175,7 +188,33 @@ const GameContainer = ({
             handleUndo={handleUndo}
             canUndo={canUndo}
             undoChancesRemaining={undoChancesRemaining}
+            handleDrawOffer={handleDrawOffer}
+            handleDrawAccept={handleDrawAccept}
+            handleDrawDecline={handleDrawDecline}
+            handleDrawCancel={handleDrawCancel}
+            drawState={drawState}
+            ratedMode={ratedMode}
+            currentGameId={currentGameId}
           />
+        )}
+
+        {/* PerformanceDisplay - Rated games only (computer and multiplayer) */}
+        {mode === 'computer' && ratedMode === 'rated' && performanceData && gameStarted && !gameOver && !isReplayMode && (
+          <div style={{ marginTop: '20px' }}>
+            <PerformanceDisplay
+              performanceData={performanceData}
+              compact={true}
+            />
+          </div>
+        )}
+        {mode === 'multiplayer' && sidebarShowPerformance && sidebarPerformanceData && (
+          <div style={{ marginTop: '20px' }}>
+            <PerformanceDisplay
+              performanceData={sidebarPerformanceData}
+              compact={true}
+              showRealtime={true}
+            />
+          </div>
         )}
 
         {/* TimerButton - Computer mode only, conditional */}

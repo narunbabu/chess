@@ -38,9 +38,12 @@ const mapDepthToMoveTime = (depth) => {
  * @returns {Promise<string[]>} A promise that resolves with an array of moves in UCI format, ordered best to worst. Rejects on error or timeout.
  */
 const getStockfishTopMoves = async (fen, numMoves, moveTimeMs) => {
+  // Generate unique ID for this worker instance to avoid conflicts
+  const workerId = `stockfish_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
   try {
     // Create a fresh worker instance for each move to avoid state issues
-    const stockfish = new Worker('/workers/stockfish.js');
+    const stockfish = new Worker('/workers/stockfish.js', { name: workerId });
 
     return new Promise((resolve, reject) => {
     let bestMoveFromEngine = null;
@@ -157,11 +160,19 @@ const getStockfishTopMoves = async (fen, numMoves, moveTimeMs) => {
     // --- Initialize Stockfish Communication ---
     stockfish.onmessage = readyHandler; // Start with the temporary ready handler
 
-    // Initialize engine and set options
+    // Initialize engine and set options with proper sequencing
     stockfish.postMessage('uci');
-    stockfish.postMessage('ucinewgame');
-    stockfish.postMessage(`setoption name MultiPV value ${numMoves}`);
-    stockfish.postMessage('isready'); // This command triggers the 'readyok' response
+
+    // Wait a bit for UCI response before sending newgame
+    setTimeout(() => {
+      stockfish.postMessage('ucinewgame');
+
+      // Wait a bit before setting MultiPV
+      setTimeout(() => {
+        stockfish.postMessage(`setoption name MultiPV value ${numMoves}`);
+        stockfish.postMessage('isready'); // This command triggers the 'readyok' response
+      }, 50);
+    }, 50);
     });
   } catch (error) {
     console.error('Failed to load Stockfish:', error);

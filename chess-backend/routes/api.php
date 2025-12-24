@@ -10,6 +10,8 @@ use App\Http\Controllers\Api\GameHistoryController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\GameController;
+use App\Http\Controllers\DrawController;
+use App\Http\Controllers\PerformanceController;
 use App\Http\Controllers\UserPresenceController;
 use App\Http\Controllers\UserStatusController;
 use App\Http\Controllers\ContextualPresenceController;
@@ -73,6 +75,26 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/games/{id}/pause-navigation', [GameController::class, 'pauseNavigation']);
     Route::delete('/games/{id}/unfinished', [GameController::class, 'deleteUnfinished']);
     Route::get('/games', [GameController::class, 'userGames']);
+
+    // Game mode routes
+    Route::post('/games/{id}/mode', [GameController::class, 'setGameMode']);
+    Route::get('/games/{id}/mode', [GameController::class, 'getGameMode']);
+    Route::get('/games/{id}/rating-change', [GameController::class, 'getRatingChange']);
+
+    // Draw offer routes
+    Route::post('/games/{id}/draw/offer', [DrawController::class, 'offerDraw']);
+    Route::post('/games/{id}/draw/accept', [DrawController::class, 'acceptDraw']);
+    Route::post('/games/{id}/draw/decline', [DrawController::class, 'declineDraw']);
+    Route::post('/games/{id}/draw/cancel', [DrawController::class, 'cancelDraw']);
+    Route::get('/games/{id}/draw/status', [DrawController::class, 'getDrawStatus']);
+    Route::get('/games/{id}/draw/history', [DrawController::class, 'getDrawHistory']);
+    Route::get('/games/{id}/draw/validate', [DrawController::class, 'validateDrawOffer']);
+
+    // Performance routes
+    Route::get('/games/{id}/performance', [PerformanceController::class, 'getGamePerformance']);
+    Route::get('/games/{id}/analysis', [PerformanceController::class, 'getGameAnalysis']);
+    Route::get('/performance/history', [PerformanceController::class, 'getPerformanceHistory']);
+    Route::get('/performance/stats', [PerformanceController::class, 'getPerformanceStats']);
 
     // Contextual Presence routes (Smart, context-aware tracking) - MUST come before parameterized routes
     Route::get('/presence/friends', [ContextualPresenceController::class, 'getFriendsStatus']);

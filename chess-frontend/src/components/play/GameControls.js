@@ -1,6 +1,7 @@
 // src/components/play/GameControls.js
 import React from "react";
 import PawnColorSwitch from './PawnColorSwitch'; // Assuming this component exists or will be created
+import DrawButton from '../game/DrawButton'; // Draw offer button
 import { getResultDetails } from "../../utils/resultStandardization";
 
 const GameControls = ({
@@ -26,9 +27,63 @@ const GameControls = ({
   canUndo,
   gameOver,
   undoChancesRemaining, // Number of undo chances remaining
+  // Draw functionality props
+  handleDrawOffer,
+  handleDrawAccept,
+  handleDrawDecline,
+  handleDrawCancel,
+  drawState,
+  ratedMode,
+  currentGameId
 }) => {
+  const isRated = ratedMode === 'rated';
+
+  const handlePauseAttempt = () => {
+    if (isRated && !gameOver) {
+      const confirmed = window.confirm(
+        '⚠️ RATED GAME WARNING\n\n' +
+        'You cannot pause a rated game!\n\n' +
+        'If you pause or exit, you will FORFEIT this game and it will count as a LOSS.\n\n' +
+        'Do you want to resign and forfeit this game?'
+      );
+
+      if (confirmed && handleResign) {
+        console.log('[GameControls] 🏳️ Player resigned from rated game due to pause attempt');
+        handleResign();
+      }
+    } else {
+      // For casual games, allow pause/resume normally
+      if (isTimerRunning) {
+        pauseTimer();
+      } else {
+        handleTimer();
+      }
+    }
+  };
+
   return (
     <div className="game-controls" style={{ marginTop: "20px", textAlign: "center" }}>
+      {/* Rated Game Warning */}
+      {isRated && gameStarted && !gameOver && !isReplayMode && (
+        <div style={{
+          backgroundColor: '#fef3c7',
+          border: '2px solid #f59e0b',
+          borderRadius: '8px',
+          padding: '12px 16px',
+          marginBottom: '15px',
+          maxWidth: '600px',
+          margin: '0 auto 15px auto'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+            <span style={{ fontSize: '20px' }}>⚠️</span>
+            <strong style={{ color: '#92400e' }}>RATED GAME</strong>
+          </div>
+          <p style={{ margin: '8px 0 0 0', fontSize: '14px', color: '#78350f' }}>
+            You cannot pause or exit this game. Closing the browser or leaving will result in automatic forfeiture and count as a LOSS.
+          </p>
+        </div>
+      )}
+
       {/* Pawn Color Selection – only before game starts */}
       {!gameStarted && !isReplayMode && (
         <div style={{ marginBottom: '15px' }}>
@@ -56,23 +111,18 @@ const GameControls = ({
       {/* In-Game Controls: Pause/Resume, Undo, and Resign */}
       {!isReplayMode && gameStarted && (
         <>
-          <button
-            onClick={() => {
-              if (isTimerRunning) {
-                // Pause the timer by clearing the interval
-                pauseTimer();
-              } else {
-                // Resume the timer using the provided function
-                handleTimer();
-              }
-            }}
-            style={{ marginLeft: '10px' }}
-          >
-            {isTimerRunning ? "Pause" : "Resume"}
-          </button>
+          {/* Pause/Resume Button - Only show for casual games */}
+          {!isRated && (
+            <button
+              onClick={handlePauseAttempt}
+              style={{ marginLeft: '10px' }}
+            >
+              {isTimerRunning ? "Pause" : "Resume"}
+            </button>
+          )}
 
-          {/* Undo Last Move button */}
-          {handleUndo && (
+          {/* Undo Last Move button - Only for casual games */}
+          {handleUndo && !isRated && (
             <button
               onClick={() => {
                 console.log('[GameControls] 🔧 Undo button clicked:', { canUndo, gameOver, gameStarted, undoChancesRemaining });
@@ -103,6 +153,21 @@ const GameControls = ({
             >
               ↩️ Undo {undoChancesRemaining > 0 && `(${undoChancesRemaining})`}
             </button>
+          )}
+
+          {/* Draw Offer button */}
+          {handleDrawOffer && drawState && currentGameId && (
+            <div style={{ display: 'inline-block', marginLeft: '10px' }}>
+              <DrawButton
+                gameId={currentGameId}
+                gameMode={ratedMode ? 'rated' : 'casual'}
+                isComputerGame={true}
+                onDrawOffered={handleDrawOffer}
+                onDrawAccepted={handleDrawAccept}
+                disabled={gameOver}
+                drawStatus={drawState}
+              />
+            </div>
           )}
 
           {handleResign && (

@@ -97,6 +97,86 @@ export const gameService = {
   getUserGames: async (params = {}) => {
     const response = await api.get('/games', { params });
     return response.data;
+  },
+
+  /**
+   * Set game mode (rated/casual)
+   */
+  setGameMode: async (gameId, mode) => {
+    const response = await api.post(`/games/${gameId}/mode`, { mode });
+    return response.data;
+  },
+
+  /**
+   * Get game mode for a specific game
+   */
+  getGameMode: async (gameId) => {
+    const response = await api.get(`/games/${gameId}/mode`);
+    return response.data;
+  },
+
+  /**
+   * Get rating change details after game completion
+   */
+  getRatingChange: async (gameId) => {
+    const response = await api.get(`/games/${gameId}/rating-change`);
+    return response.data;
+  },
+
+  /**
+   * Offer a draw in a game
+   */
+  offerDraw: async (gameId) => {
+    const response = await api.post(`/games/${gameId}/draw/offer`);
+    return response.data;
+  },
+
+  /**
+   * Accept a draw offer
+   */
+  acceptDraw: async (gameId) => {
+    const response = await api.post(`/games/${gameId}/draw/accept`);
+    return response.data;
+  },
+
+  /**
+   * Decline a draw offer
+   */
+  declineDraw: async (gameId) => {
+    const response = await api.post(`/games/${gameId}/draw/decline`);
+    return response.data;
+  },
+
+  /**
+   * Cancel a draw offer
+   */
+  cancelDraw: async (gameId) => {
+    const response = await api.post(`/games/${gameId}/draw/cancel`);
+    return response.data;
+  },
+
+  /**
+   * Get current draw offer status
+   */
+  getDrawStatus: async (gameId) => {
+    const response = await api.get(`/games/${gameId}/draw/status`);
+    return response.data;
+  },
+
+  /**
+   * Get draw history for a game
+   */
+  getDrawHistory: async (gameId) => {
+    const response = await api.get(`/games/${gameId}/draw/history`);
+    return response.data;
+  },
+
+  /**
+   * Validate if a draw offer is allowed
+   */
+  validateDrawOffer: async (gameId) => {
+    const response = await api.get(`/games/${gameId}/draw/validate`);
+    return response.data;
   }
 };
 
