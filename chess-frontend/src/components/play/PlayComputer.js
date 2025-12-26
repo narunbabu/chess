@@ -11,6 +11,7 @@ import Countdown from "../Countdown"; // Adjust path if needed
 import GameCompletionAnimation from "../GameCompletionAnimation"; // Adjust path if needed
 import PlayShell from "./PlayShell"; // Layout wrapper (Phase 4)
 import GameContainer from "./GameContainer"; // Unified game container
+import GameModeSelector from "../game/GameModeSelector"; // Game mode selector
 
 // Import Utils & Hooks
 import { useGameTimer } from "../../utils/timerUtils"; // Adjust path if needed
@@ -46,6 +47,24 @@ const DEFAULT_DEPTH = 2;
 // Minimum duration the computer should *appear* to think (milliseconds)
 const MIN_PERCEIVED_COMPUTER_THINK_TIME = 1500; // e.g., 1.5 seconds
 const DEFAULT_RATING = 1200;
+
+// --- Utility Functions ---
+/**
+ * Calculate undo chances based on computer difficulty level
+ * Easy (1-4): 5 undos
+ * Medium (5-8): 3 undos
+ * Hard (9-12): 2 undos
+ * Expert (13-16): 1 undo
+ * Rated mode: 0 undos (always)
+ */
+const calculateUndoChances = (depth, isRated) => {
+  if (isRated) return 0; // No undos in rated mode
+
+  if (depth <= 4) return 5; // Easy
+  if (depth <= 8) return 3; // Medium
+  if (depth <= 12) return 2; // Hard
+  return 1; // Expert
+};
 
 const PlayComputer = () => {
   // --- State variables ---
@@ -96,10 +115,14 @@ const PlayComputer = () => {
   const [isOnlineGame, setIsOnlineGame] = useState(false);
   const [players, setPlayers] = useState(null);
   const [gameMode, setGameMode] = useState('computer'); // Default to computer mode for /play route
+  const [ratedMode, setRatedMode] = useState('casual'); // 'casual' or 'rated'
 
   const [currentGameId, setCurrentGameId] = useState(null);
   const [backendGame, setBackendGame] = useState(null); // Store backend game data
   const [canUndo, setCanUndo] = useState(false); // Track if undo is available
+  const [undoChancesRemaining, setUndoChancesRemaining] = useState(0); // Track remaining undo chances
+  const [pendingNavigation, setPendingNavigation] = useState(null); // Store navigation path when blocked
+  const [showNavigationWarning, setShowNavigationWarning] = useState(false); // Show navigation warning modal
 
   // --- Custom timer hook ---
   const {
@@ -423,6 +446,27 @@ const PlayComputer = () => {
       // Only save if game is active and has history
       if (gameStarted && !gameOver && gameHistory.length > 0) {
         try {
+          // RATED GAME: Auto-resign if user tries to close browser
+          if (ratedMode === 'rated') {
+            console.log('[PlayComputer] 🚨 RATED GAME FORFEITED - Browser close/refresh detected');
+
+            // Auto-resign the game (this will be processed even if page unloads)
+            if (backendGame && user) {
+              try {
+                gameService.resign(backendGame.id);
+                console.log('[PlayComputer] 🏳️ Auto-resigned from backend game:', backendGame.id);
+              } catch (error) {
+                console.error('[PlayComputer] ❌ Failed to auto-resign from backend:', error);
+              }
+            }
+
+            // Show warning message
+            event.preventDefault();
+            event.returnValue = '⚠️ RATED GAME FORFEITED!\n\nYou have forfeited this rated game by closing/leaving.\nThis counts as a LOSS and will affect your rating.';
+            return event.returnValue;
+          }
+
+          // CASUAL GAME: Save for later resumption
           const gameState = {
             fen: game.fen(),
             pgn: game.pgn(),
@@ -509,7 +553,70 @@ const PlayComputer = () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [gameStarted, gameOver, gameHistory, playerColor, computerDepth, playerTime, computerTime, game, saveUnfinishedGame, user, invalidateGameHistory, currentGameId]); // Dependencies for auto-save
+  }, [gameStarted, gameOver, gameHistory, playerColor, computerDepth, playerTime, computerTime, game, saveUnfinishedGame, user, invalidateGameHistory, currentGameId, ratedMode, backendGame]); // Dependencies for auto-save
+
+  // Effect for in-app navigation protection (rated games only)
+  useEffect(() => {
+    const handleNavigationClick = (event) => {
+      // Only block navigation for rated games that are in progress
+      if (ratedMode !== 'rated' || !gameStarted || gameOver || isReplayMode) {
+        return; // Allow navigation for casual games or when game is over
+      }
+
+      // Check if the click target or any parent is a navigation link
+      let target = event.target;
+      let isNavigationClick = false;
+      let navigationPath = null;
+
+      // Traverse up the DOM tree to find navigation elements
+      while (target && target !== document.documentElement) {
+        // Check for navigation buttons, links, or elements with navigation keywords
+        const elementText = target.textContent?.toLowerCase() || '';
+        const className = target.className?.toLowerCase() || '';
+        const href = target.href || target.getAttribute('href') || '';
+
+        // Navigation patterns to detect
+        const navPatterns = [
+          'dashboard', 'lobby', 'learn', 'championship', 'profile',
+          'settings', 'history', 'home', 'leaderboard'
+        ];
+
+        const isNavElement = navPatterns.some(pattern =>
+          elementText.includes(pattern) ||
+          className.includes(pattern) ||
+          href.includes(pattern)
+        );
+
+        if (isNavElement || target.tagName === 'A' || target.role === 'button') {
+          isNavigationClick = true;
+          navigationPath = href || elementText || 'page';
+          break;
+        }
+
+        target = target.parentElement;
+      }
+
+      if (isNavigationClick) {
+        console.log('[PlayComputer] 🚫 Navigation blocked for rated game:', navigationPath);
+        event.preventDefault();
+        event.stopPropagation();
+
+        // Store the navigation path and show warning modal
+        setPendingNavigation(navigationPath);
+        setShowNavigationWarning(true);
+      }
+    };
+
+    // Add event listener in capture phase to intercept before React Router
+    if (ratedMode === 'rated' && gameStarted && !gameOver && !isReplayMode) {
+      document.addEventListener('click', handleNavigationClick, true);
+      console.log('[PlayComputer] 🔒 Navigation protection enabled for rated game');
+    }
+
+    return () => {
+      document.removeEventListener('click', handleNavigationClick, true);
+    };
+  }, [ratedMode, gameStarted, gameOver, isReplayMode]);
 
   useEffect(() => {
     if (location.state?.gameMode === 'online') {
@@ -1106,9 +1213,26 @@ const PlayComputer = () => {
   // --- Game Start/Reset/Load/Replay Logic Callbacks ---
 
    const startGame = useCallback(() => {
+        // Show pre-game confirmation for rated mode
+        if (ratedMode === 'rated') {
+          const confirmed = window.confirm(
+            '⚠️ RATED GAME RULES\n\n' +
+            '1. You CANNOT pause the game\n' +
+            '2. You CANNOT undo moves\n' +
+            '3. Closing the browser will FORFEIT the game\n' +
+            '4. This game will affect your rating\n\n' +
+            'Do you want to start this rated game?'
+          );
+
+          if (!confirmed) {
+            console.log('[PlayComputer] 🚫 User canceled rated game start');
+            return; // User canceled, don't start the game
+          }
+        }
+
         // Starts the countdown if game not already started
         if (!gameStarted && !countdownActive) setCountdownActive(true);
-    }, [gameStarted, countdownActive]); // Correct dependencies
+    }, [gameStarted, countdownActive, ratedMode]); // Correct dependencies
 
    const onCountdownFinish = useCallback(async () => {
         // Initializes game state when countdown finishes
@@ -1148,6 +1272,12 @@ const PlayComputer = () => {
         setLastMoveEvaluation(null);
         setGame(new Chess()); // Reset board to starting position
         resetTimer(); // Reset timer values (ensure useGameTimer provides initial values)
+
+        // Initialize undo chances based on difficulty and mode
+        const initialUndoChances = calculateUndoChances(computerDepth, ratedMode === 'rated');
+        setUndoChancesRemaining(initialUndoChances);
+        console.log(`[PlayComputer] 🎮 Game started - Mode: ${ratedMode}, Difficulty: ${computerDepth}, Undo chances: ${initialUndoChances}`);
+
         // White always starts in chess, so set active timer to white
         setActiveTimer("w"); // White always starts
         startTimerInterval(); // Start the first timer (White's timer)
@@ -1164,11 +1294,11 @@ const PlayComputer = () => {
         // - activeTimer will be 'w'
 
     }, [ // Dependencies for onCountdownFinish
-        playerColor, computerDepth, user, // Read
+        playerColor, computerDepth, user, ratedMode, // Read
         setActiveTimer, startTimerInterval, resetTimer, // Stable from hook
         setGameStarted, setCountdownActive, setGameHistory, setMoveCount, setGameOver, // Stable setters
         setPlayerScore, setLastMoveEvaluation, setGame, setMoveCompleted, setGameStatus, // Stable setters
-        setCurrentGameId, setBackendGame // Stable setters
+        setCurrentGameId, setBackendGame, setUndoChancesRemaining // Stable setters
     ]);
 
     const resetGame = useCallback(() => {
@@ -1201,7 +1331,8 @@ const PlayComputer = () => {
         setBackendGame(null); // Reset backend game
         setCurrentGameId(null); // Reset current game ID
         setCanUndo(false); // Reset undo availability
-        // Note: Does not reset playerColor or computerDepth, keeping user selections
+        setUndoChancesRemaining(0); // Reset undo chances
+        // Note: Does not reset playerColor, computerDepth, or ratedMode, keeping user selections
     }, [resetTimer, timerRef, replayTimerRef]); // Dependencies: stable hook fn and refs accessed
 
     const handleResign = useCallback(async () => {
@@ -1346,13 +1477,29 @@ const PlayComputer = () => {
             canUndo,
             gameTurn: game.turn(),
             playerColor,
-            computerMoveInProgress
+            computerMoveInProgress,
+            undoChancesRemaining,
+            ratedMode
         });
 
         // Undo the last move if game is active and not in replay mode
         if (!gameStarted || gameOver || isReplayMode || gameHistory.length < 2) {
             console.log('[PlayComputer] ❌ Undo blocked by initial checks');
             return; // Can't undo if game hasn't started, is over, in replay, or not enough moves
+        }
+
+        // Check if undo is allowed in rated mode
+        if (ratedMode === 'rated') {
+            console.log('[PlayComputer] ❌ Undo blocked - rated game');
+            setGameStatus("Cannot undo in rated games!");
+            return;
+        }
+
+        // Check if player has undo chances remaining
+        if (undoChancesRemaining <= 0) {
+            console.log('[PlayComputer] ❌ Undo blocked - no chances remaining');
+            setGameStatus("No undo chances remaining!");
+            return;
         }
 
         // Can only undo if it's the player's turn and the computer hasn't moved yet
@@ -1452,11 +1599,17 @@ const PlayComputer = () => {
             moveStartTimeRef.current = Date.now();
 
             setMoveCompleted(false);
-            setGameStatus("Last turn undone - your turn!");
+
+            // Decrement undo chances
+            const newUndoChances = undoChancesRemaining - 1;
+            setUndoChancesRemaining(newUndoChances);
+            console.log(`[PlayComputer] 📉 Undo chances remaining: ${newUndoChances}`);
+
+            setGameStatus(`Last turn undone - your turn! (${newUndoChances} undo${newUndoChances !== 1 ? 's' : ''} remaining)`);
             playSound(moveSoundEffect); // Play a sound to indicate undo
 
             // Update undo availability
-            setCanUndo(newHistory.length >= 2);
+            setCanUndo(newHistory.length >= 2 && newUndoChances > 0);
 
             console.log('[PlayComputer] ✅ Undo completed successfully');
 
@@ -1466,11 +1619,11 @@ const PlayComputer = () => {
         }
     }, [
         gameStarted, gameOver, isReplayMode, gameHistory, game, moveCount, playerColor,
-        computerMoveInProgress, activeTimer, playerScore, computerScore,
+        computerMoveInProgress, activeTimer, playerScore, computerScore, undoChancesRemaining, ratedMode,
         setActiveTimer, setIsTimerRunning, startTimerInterval, setGame,
         setGameHistory, setMoveCount, setMoveCompleted, setGameStatus,
         setLastMoveEvaluation, setLastComputerEvaluation, setPlayerScore,
-        setComputerScore, setCanUndo
+        setComputerScore, setCanUndo, setUndoChancesRemaining, playSound
     ]);
 
     // --- Replay Controls ---
@@ -1577,6 +1730,51 @@ const PlayComputer = () => {
         localStorage.setItem('computerDepth', val);
     }, []);
 
+   const handleModeChange = useCallback((mode) => {
+        console.log(`[PlayComputer] 🎮 Game mode changed to: ${mode}`);
+        setRatedMode(mode);
+        localStorage.setItem('gameRatedMode', mode);
+    }, []);
+
+   // --- Draw Handlers (Placeholder for future implementation) ---
+   const handleDrawOffer = useCallback(() => {
+        console.log('[PlayComputer] 🤝 Draw offer not yet implemented for computer games');
+   }, []);
+
+   const handleDrawAccept = useCallback(() => {
+        console.log('[PlayComputer] ✅ Draw accept not yet implemented');
+   }, []);
+
+   const handleDrawDecline = useCallback(() => {
+        console.log('[PlayComputer] ❌ Draw decline not yet implemented');
+   }, []);
+
+   const handleDrawCancel = useCallback(() => {
+        console.log('[PlayComputer] 🚫 Draw cancel not yet implemented');
+   }, []);
+
+   const [drawState, setDrawState] = useState(null);
+
+   // --- Navigation Protection Handlers ---
+   const handleNavigationConfirm = useCallback(async () => {
+        console.log('[PlayComputer] 🏳️ User confirmed navigation - forfeiting rated game');
+
+        // Close the warning modal
+        setShowNavigationWarning(false);
+
+        // Resign the game
+        await handleResign();
+
+        // Navigation will proceed after game completion modal is dismissed
+        // The actual navigation happens in the game completion onClose handler
+   }, [handleResign]);
+
+   const handleNavigationCancel = useCallback(() => {
+        console.log('[PlayComputer] ✋ User canceled navigation - staying in game');
+        setShowNavigationWarning(false);
+        setPendingNavigation(null);
+   }, []);
+
   // --- RENDER ---
   // Check feature flag for PlayShell wrapper
   const usePlayShell = process.env.REACT_APP_USE_PLAY_SHELL === 'true';
@@ -1603,6 +1801,16 @@ const PlayComputer = () => {
       {gameMode === 'computer' && (
         <div className="pre-game-setup bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-6 text-center">
           <h2 className="text-3xl font-bold mb-2 text-vivid-yellow">Play Against Computer</h2>
+
+          {/* Game Mode Selector */}
+          <div className="mode-selection mb-4">
+            <GameModeSelector
+              selectedMode={ratedMode}
+              onModeChange={handleModeChange}
+              disabled={countdownActive}
+            />
+          </div>
+
           <div className="difficulty-selection mb-2">
             <DifficultyMeter
               value={computerDepth}
@@ -1689,6 +1897,14 @@ const PlayComputer = () => {
         handleResign,
         handleUndo,
         canUndo,
+        undoChancesRemaining,
+        handleDrawOffer,
+        handleDrawAccept,
+        handleDrawDecline,
+        handleDrawCancel,
+        drawState,
+        ratedMode,
+        currentGameId,
         replayPaused,
         startReplay,
         pauseReplay,
@@ -1913,6 +2129,166 @@ const PlayComputer = () => {
 
   const modalsSection = (
     <>
+        {/* Navigation Warning Modal - Rated Game */}
+        {showNavigationWarning && (
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 10000,
+              padding: '20px'
+            }}
+            onClick={(e) => {
+              // Close modal if clicking outside the content
+              if (e.target === e.currentTarget) {
+                handleNavigationCancel();
+              }
+            }}
+          >
+            <div
+              style={{
+                backgroundColor: '#1f2937',
+                borderRadius: '16px',
+                padding: '32px',
+                maxWidth: '500px',
+                width: '100%',
+                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
+                border: '2px solid #f59e0b'
+              }}
+            >
+              {/* Warning Icon */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                marginBottom: '24px'
+              }}>
+                <div style={{
+                  width: '80px',
+                  height: '80px',
+                  borderRadius: '50%',
+                  backgroundColor: '#fef3c7',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '48px'
+                }}>
+                  ⚠️
+                </div>
+              </div>
+
+              {/* Title */}
+              <h2 style={{
+                color: '#f59e0b',
+                fontSize: '28px',
+                fontWeight: 'bold',
+                textAlign: 'center',
+                marginBottom: '16px'
+              }}>
+                Leave Rated Game?
+              </h2>
+
+              {/* Warning Message */}
+              <div style={{
+                backgroundColor: '#fef3c7',
+                borderLeft: '4px solid #f59e0b',
+                padding: '16px',
+                borderRadius: '8px',
+                marginBottom: '24px'
+              }}>
+                <p style={{
+                  color: '#92400e',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  marginBottom: '12px'
+                }}>
+                  If you leave this rated game now:
+                </p>
+                <ul style={{
+                  color: '#78350f',
+                  fontSize: '14px',
+                  paddingLeft: '20px',
+                  margin: 0
+                }}>
+                  <li style={{ marginBottom: '8px' }}>The game will be marked as RESIGNED</li>
+                  <li style={{ marginBottom: '8px' }}>This will count as a LOSS</li>
+                  <li style={{ marginBottom: '8px' }}>Your rating will DECREASE</li>
+                  <li>The game cannot be resumed later</li>
+                </ul>
+              </div>
+
+              {/* Buttons */}
+              <div style={{
+                display: 'flex',
+                gap: '12px',
+                flexDirection: window.innerWidth <= 480 ? 'column' : 'row'
+              }}>
+                {/* Stay in Game Button */}
+                <button
+                  onClick={handleNavigationCancel}
+                  style={{
+                    flex: 1,
+                    padding: '14px 24px',
+                    fontSize: '16px',
+                    fontWeight: '600',
+                    borderRadius: '8px',
+                    border: 'none',
+                    backgroundColor: '#059669',
+                    color: 'white',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    boxShadow: '0 4px 12px rgba(5, 150, 105, 0.3)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.backgroundColor = '#047857';
+                    e.target.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = '#059669';
+                    e.target.style.transform = 'translateY(0)';
+                  }}
+                >
+                  ✋ Stay in Game
+                </button>
+
+                {/* Forfeit & Leave Button */}
+                <button
+                  onClick={handleNavigationConfirm}
+                  style={{
+                    flex: 1,
+                    padding: '14px 24px',
+                    fontSize: '16px',
+                    fontWeight: '600',
+                    borderRadius: '8px',
+                    border: 'none',
+                    backgroundColor: '#dc2626',
+                    color: 'white',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.backgroundColor = '#b91c1c';
+                    e.target.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = '#dc2626';
+                    e.target.style.transform = 'translateY(0)';
+                  }}
+                >
+                  🏳️ Forfeit & Leave
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {showGameCompletion && (
           <GameCompletionAnimation
             result={gameResult || gameStatus} // Use standardized result object if available, fallback to text
@@ -1925,7 +2301,31 @@ const PlayComputer = () => {
             isMultiplayer={false} // This is computer mode
             onClose={() => {
               setShowGameCompletion(false);
-              resetGame();
+
+              // If there's a pending navigation (user tried to leave during rated game),
+              // execute it now after showing the game result
+              if (pendingNavigation) {
+                console.log('[PlayComputer] 🚀 Executing pending navigation after game completion:', pendingNavigation);
+
+                // Extract path from navigation string if it's a URL
+                let navPath = pendingNavigation;
+                if (navPath.includes('dashboard')) navPath = '/dashboard';
+                else if (navPath.includes('lobby')) navPath = '/lobby';
+                else if (navPath.includes('learn')) navPath = '/learn';
+                else if (navPath.includes('championship')) navPath = '/championships';
+                else if (navPath.includes('profile')) navPath = '/profile';
+
+                // Clear pending navigation
+                setPendingNavigation(null);
+
+                // Navigate to the intended destination
+                setTimeout(() => {
+                  navigate(navPath);
+                }, 100);
+              } else {
+                // No pending navigation, just reset the game
+                resetGame();
+              }
             }}
           />
         )}
@@ -1971,6 +2371,15 @@ const PlayComputer = () => {
         {/* Pre-Game Setup Screen */}
         {!gameStarted && !isReplayMode && !isOnlineGame && gameMode === 'computer' && (
           <div className="pre-game-setup bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-6 text-center">
+
+            {/* Game Mode Selector */}
+            <div className="mode-selection mb-4">
+              <GameModeSelector
+                selectedMode={ratedMode}
+                onModeChange={handleModeChange}
+                disabled={countdownActive}
+              />
+            </div>
 
             <div className="difficulty-selection mb-2">
               <DifficultyMeter
@@ -2026,7 +2435,31 @@ const PlayComputer = () => {
             isMultiplayer={false} // This is computer mode
             onClose={() => {
               setShowGameCompletion(false); // Hide the animation
-              resetGame(); // Reset back to the pre-game setup
+
+              // If there's a pending navigation (user tried to leave during rated game),
+              // execute it now after showing the game result
+              if (pendingNavigation) {
+                console.log('[PlayComputer] 🚀 Executing pending navigation after game completion:', pendingNavigation);
+
+                // Extract path from navigation string if it's a URL
+                let navPath = pendingNavigation;
+                if (navPath.includes('dashboard')) navPath = '/dashboard';
+                else if (navPath.includes('lobby')) navPath = '/lobby';
+                else if (navPath.includes('learn')) navPath = '/learn';
+                else if (navPath.includes('championship')) navPath = '/championships';
+                else if (navPath.includes('profile')) navPath = '/profile';
+
+                // Clear pending navigation
+                setPendingNavigation(null);
+
+                // Navigate to the intended destination
+                setTimeout(() => {
+                  navigate(navPath);
+                }, 100);
+              } else {
+                // No pending navigation, just reset the game
+                resetGame(); // Reset back to the pre-game setup
+              }
             }}
           />
         )}
