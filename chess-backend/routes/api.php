@@ -214,6 +214,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/games/{gameId}/draw/accept', [WebSocketController::class, 'acceptDraw']);
         Route::post('/games/{gameId}/draw/decline', [WebSocketController::class, 'declineDraw']);
 
+        // Undo functionality
+        Route::post('/games/{gameId}/undo/request', [WebSocketController::class, 'requestUndo']);
+        Route::post('/games/{gameId}/undo/accept', [WebSocketController::class, 'acceptUndo']);
+        Route::post('/games/{gameId}/undo/decline', [WebSocketController::class, 'declineUndo']);
+
         // Get move history for timer calculation
         Route::get('/games/{gameId}/moves', [WebSocketController::class, 'getMoves']);
 

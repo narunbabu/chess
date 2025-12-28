@@ -107,6 +107,21 @@ const PlayMultiplayer = () => {
   // Championship context state
   const [championshipContext, setChampionshipContext] = useState(null);
 
+  // Undo functionality state (for casual mode)
+  const [canUndo, setCanUndo] = useState(false);
+  const [undoChancesRemaining, setUndoChancesRemaining] = useState(0);
+  const [maxUndoChances] = useState(3); // Fixed for multiplayer casual mode
+  const [undoRequestPending, setUndoRequestPending] = useState(false);
+  const [undoRequestFrom, setUndoRequestFrom] = useState(null);
+
+  // Navigation protection state (for rated mode)
+  const [showRatedNavigationWarning, setShowRatedNavigationWarning] = useState(false);
+  const [pendingRatedNavigation, setPendingRatedNavigation] = useState(null);
+
+  // Pre-game confirmation state (for rated mode)
+  const [showRatedGameConfirmation, setShowRatedGameConfirmation] = useState(false);
+  const [ratedGameConfirmed, setRatedGameConfirmed] = useState(false);
+
   // Initial timer state (calculated from move history)
   const [initialTimerState, setInitialTimerState] = useState({
     whiteMs: 10 * 60 * 1000,
@@ -143,6 +158,9 @@ const PlayMultiplayer = () => {
   // Track evaluated moves to prevent StrictMode double-evaluation
   const evaluatedMovesRef = useRef(new Set());
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
+
+  // Track if we've already re-initialized after rated game confirmation (prevent infinite loop)
+  const hasReinitializedAfterRatedConfirm = useRef(false);
 
   const { user } = useAuth();
   const { invalidateGameHistory } = useAppData();
@@ -417,6 +435,21 @@ const PlayMultiplayer = () => {
       const gameMode = data.game_mode || 'casual';
       setRatedMode(gameMode);
       console.log('🎮 Game Mode:', gameMode);
+
+      // Show pre-game confirmation for rated mode
+      if (gameMode === 'rated' && !ratedGameConfirmed) {
+        console.log('[PlayMultiplayer] ⚠️ Rated game detected - showing confirmation');
+        setLoading(false); // Stop loading so confirmation dialog can be shown
+        setShowRatedGameConfirmation(true);
+        // Don't proceed with initialization until confirmed
+        return;
+      }
+
+      // Initialize undo chances based on game mode
+      const undoChances = gameMode === 'rated' ? 0 : maxUndoChances;
+      setUndoChancesRemaining(undoChances);
+      setCanUndo(false); // Will be enabled after first complete turn
+      console.log(`[Undo] Initialized with ${undoChances} undo chances for ${gameMode} mode`);
 
       // Reset registration flag for new game and register it
       gameRegisteredRef.current = false;
@@ -822,6 +855,21 @@ const PlayMultiplayer = () => {
         handleOpponentPing(event);
       });
 
+      wsService.current.on('undoRequest', (event) => {
+        console.log('↶ Undo request event received:', event);
+        handleUndoRequestReceived(event);
+      });
+
+      wsService.current.on('undoAccepted', (event) => {
+        console.log('✅ Undo accepted event received:', event);
+        handleUndoAccepted(event);
+      });
+
+      wsService.current.on('undoDeclined', (event) => {
+        console.log('❌ Undo declined event received:', event);
+        handleUndoDeclined(event);
+      });
+
       wsService.current.on('gameConnection', (event) => {
         console.log('Player connection event:', event);
         handlePlayerConnection(event);
@@ -880,9 +928,10 @@ const PlayMultiplayer = () => {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameId, user]);
+  }, [gameId, user, ratedGameConfirmed]);
   // Note: Event handlers (handleRemoteMove, handleGameEnd, etc.) and navigate are intentionally excluded
   // to prevent circular dependencies. Event listeners are set up once and handlers are stable useCallback refs.
+  // ratedGameConfirmed is included to re-trigger initialization after user confirms rated game
 
   // Handle game activation
   const handleGameActivated = useCallback((event) => {
@@ -1074,6 +1123,95 @@ const PlayMultiplayer = () => {
     setDrawOfferedByMe(false);
     alert('Your draw offer was declined.');
   }, []);
+
+  // Handle undo request received from opponent
+  const handleUndoRequestReceived = useCallback((event) => {
+    console.log('↶ Handling undo request received:', event);
+
+    // Extract opponent name from event
+    const opponentName = event.from_user?.name || event.from_player || 'Your opponent';
+
+    setUndoRequestFrom(opponentName);
+    setUndoRequestPending(false); // Clear our own pending request if any
+  }, []);
+
+  // Handle undo accepted by opponent
+  const handleUndoAccepted = useCallback((event) => {
+    console.log('✅ Handling undo accepted:', event);
+
+    // Clear pending state
+    setUndoRequestPending(false);
+
+    // Decrement undo chances
+    setUndoChancesRemaining(prev => Math.max(0, prev - 1));
+
+    // Rollback game state - remove last two moves (our move and opponent's response)
+    if (event.fen && event.history) {
+      // Use backend-provided game state
+      setGameHistory(event.history || []);
+
+      // Update chess instance
+      if (chessInstance.current) {
+        chessInstance.current.load(event.fen);
+        setFen(event.fen);
+      }
+    } else {
+      // Fallback: rollback locally
+      setGameHistory(prev => {
+        const newHistory = prev.slice(0, -2); // Remove last 2 moves
+
+        // Update chess instance from history
+        if (chessInstance.current && newHistory.length > 0) {
+          const lastMove = newHistory[newHistory.length - 1];
+          if (lastMove?.fen) {
+            chessInstance.current.load(lastMove.fen);
+            setFen(lastMove.fen);
+          }
+        } else if (chessInstance.current) {
+          // Reset to initial position if no history
+          chessInstance.current.reset();
+          setFen(chessInstance.current.fen());
+        }
+
+        return newHistory;
+      });
+    }
+
+    console.log('[Undo] ✅ Move undone successfully');
+  }, []);
+
+  // Handle undo declined by opponent
+  const handleUndoDeclined = useCallback((event) => {
+    console.log('❌ Handling undo declined:', event);
+
+    setUndoRequestPending(false);
+    alert('Your undo request was declined.');
+  }, []);
+
+  // Handle rated game confirmation
+  const handleConfirmRatedGame = useCallback(() => {
+    console.log('[PlayMultiplayer] ✅ User confirmed rated game');
+    setRatedGameConfirmed(true);
+    setShowRatedGameConfirmation(false);
+    // Game initialization will continue on next render
+  }, []);
+
+  // Handle rated game cancellation
+  const handleCancelRatedGame = useCallback(() => {
+    console.log('[PlayMultiplayer] 🚫 User canceled rated game');
+    setShowRatedGameConfirmation(false);
+    // Redirect to lobby
+    navigate('/lobby');
+  }, [navigate]);
+
+  // Re-initialize game after rated game confirmation (one-time only)
+  useEffect(() => {
+    if (ratedGameConfirmed && showRatedGameConfirmation === false && !hasReinitializedAfterRatedConfirm.current) {
+      console.log('[PlayMultiplayer] 🔄 Re-initializing game after rated confirmation');
+      hasReinitializedAfterRatedConfirm.current = true; // Prevent infinite loop
+      initializeGame();
+    }
+  }, [ratedGameConfirmed, showRatedGameConfirmation, initializeGame]);
 
   // Handle offering a draw
   const handleOfferDraw = useCallback(async () => {
@@ -1604,6 +1742,111 @@ const PlayMultiplayer = () => {
     }
   }, [gameComplete]);
 
+  // Handle undo move request (for casual mode only)
+  const handleUndo = useCallback(async () => {
+    console.log('[Undo] Undo requested:', {
+      canUndo,
+      undoChancesRemaining,
+      ratedMode,
+      gameComplete,
+      isMyTurn,
+      gameHistoryLength: gameHistory.length
+    });
+
+    // Validation checks
+    if (!canUndo) {
+      console.log('[Undo] ❌ Undo not available');
+      return;
+    }
+
+    if (ratedMode === 'rated') {
+      console.log('[Undo] ❌ Undo blocked - rated game');
+      alert('⚠️ Cannot undo in rated games!');
+      return;
+    }
+
+    if (undoChancesRemaining <= 0) {
+      console.log('[Undo] ❌ No undo chances remaining');
+      alert('❌ No undo chances remaining!');
+      return;
+    }
+
+    if (!isMyTurn) {
+      console.log('[Undo] ❌ Not player turn');
+      alert('⚠️ Can only undo on your turn!');
+      return;
+    }
+
+    if (gameComplete) {
+      console.log('[Undo] ❌ Game is complete');
+      return;
+    }
+
+    if (gameHistory.length < 2) {
+      console.log('[Undo] ❌ Not enough moves to undo');
+      alert('❌ Not enough moves to undo!');
+      return;
+    }
+
+    try {
+      console.log('[Undo] 📤 Sending undo request to opponent');
+
+      // Send undo request via WebSocket
+      if (wsService.current && wsService.current.requestUndo) {
+        await wsService.current.requestUndo();
+        setUndoRequestPending(true);
+        console.log('[Undo] ✅ Undo request sent, waiting for opponent response');
+      } else {
+        console.error('[Undo] ❌ WebSocket service not available or requestUndo method missing');
+        alert('❌ Failed to send undo request');
+      }
+    } catch (error) {
+      console.error('[Undo] ❌ Failed to request undo:', error);
+      alert('❌ Failed to request undo: ' + error.message);
+    }
+  }, [canUndo, undoChancesRemaining, ratedMode, gameComplete, isMyTurn, gameHistory]);
+
+  // Handle accepting opponent's undo request
+  const handleAcceptUndo = useCallback(async () => {
+    console.log('[Undo] Accepting undo request');
+
+    try {
+      if (wsService.current && wsService.current.acceptUndo) {
+        await wsService.current.acceptUndo();
+        console.log('[Undo] ✅ Undo request accepted');
+      } else {
+        console.error('[Undo] ❌ WebSocket service not available');
+      }
+
+      // Clear undo request state
+      setUndoRequestPending(false);
+      setUndoRequestFrom(null);
+    } catch (error) {
+      console.error('[Undo] ❌ Failed to accept undo:', error);
+      alert('❌ Failed to accept undo: ' + error.message);
+    }
+  }, []);
+
+  // Handle declining opponent's undo request
+  const handleDeclineUndo = useCallback(async () => {
+    console.log('[Undo] Declining undo request');
+
+    try {
+      if (wsService.current && wsService.current.declineUndo) {
+        await wsService.current.declineUndo();
+        console.log('[Undo] ✅ Undo request declined');
+      } else {
+        console.error('[Undo] ❌ WebSocket service not available');
+      }
+
+      // Clear undo request state
+      setUndoRequestPending(false);
+      setUndoRequestFrom(null);
+    } catch (error) {
+      console.error('[Undo] ❌ Failed to decline undo:', error);
+    }
+  }, []);
+
   // Effect for handling screen orientation changes and mobile landscape detection
   useLayoutEffect(() => {
     const handleOrientationChange = () => {
@@ -1746,6 +1989,12 @@ const PlayMultiplayer = () => {
       }
 
       if (inactiveDuration >= 60 && !showPresenceDialogRef.current && !isPausingRef.current) {
+        // RATED GAMES: Do NOT show presence dialog - let clock run and player loses on time
+        if (ratedMode === 'rated') {
+          console.log('[Inactivity] RATED game - skipping presence dialog, player will lose on time if inactive');
+          return;
+        }
+
         console.log('[Inactivity] Opening presence dialog after', inactiveDuration.toFixed(1), 's (turn:', turnRef.current, 'myColor:', myColorRef.current, ')');
         setShowPresenceDialog(true);
         showPresenceDialogRef.current = true;
@@ -1765,7 +2014,7 @@ const PlayMultiplayer = () => {
         console.log('[InactivityInterval] cleanup');
       }
     };
-  }, [gameInfo.status, showPresenceDialog, showPausedGame, isWaitingForResumeResponse]); // Proper dependencies
+  }, [gameInfo.status, showPresenceDialog, showPausedGame, isWaitingForResumeResponse, ratedMode]); // Proper dependencies
 
   // Reset initialization flag and scores when gameId changes (for game navigation)
   useEffect(() => {
@@ -1797,6 +2046,38 @@ const PlayMultiplayer = () => {
       console.error('[Championship] Error restoring championship context from sessionStorage:', error);
     }
   }, [gameId]);
+
+  // Effect to manage undo availability (casual mode only)
+  useEffect(() => {
+    if (ratedMode === 'rated') {
+      // Never allow undo in rated games
+      setCanUndo(false);
+      return;
+    }
+
+    if (gameComplete || !gameInfo.status === 'active') {
+      // Cannot undo if game is over or not active
+      setCanUndo(false);
+      return;
+    }
+
+    // Enable undo after at least 2 moves (one complete turn)
+    // This ensures both players have moved
+    const hasCompleteTurn = gameHistory.length >= 2;
+    const hasUndoChances = undoChancesRemaining > 0;
+    const canUndoNow = hasCompleteTurn && hasUndoChances && isMyTurn;
+
+    setCanUndo(canUndoNow);
+
+    console.log('[Undo] Availability updated:', {
+      hasCompleteTurn,
+      hasUndoChances,
+      isMyTurn,
+      canUndoNow,
+      gameHistoryLength: gameHistory.length,
+      undoChancesRemaining
+    });
+  }, [gameHistory.length, undoChancesRemaining, isMyTurn, gameComplete, ratedMode, gameInfo.status]);
 
   // Effect to highlight last two moves with full path visualization
   useEffect(() => {
@@ -1909,6 +2190,9 @@ const PlayMultiplayer = () => {
   useEffect(() => {
     if (!gameId || !user) return;
 
+    // Reset re-initialization flag when game ID changes (new game)
+    hasReinitializedAfterRatedConfirm.current = false;
+
     // Prevent re-initialization if already initialized
     if (didInitRef.current) {
       console.log('⚠️ SKIPPING DUPLICATE INITIALIZATION - Already initialized');
@@ -2011,6 +2295,16 @@ const PlayMultiplayer = () => {
     const handlePauseRequest = async (event) => {
       console.log('[PlayMultiplayer] Received pause request:', event.detail);
 
+      // RATED GAME: Block pause and show forfeit warning
+      if (ratedMode === 'rated' && gameInfo.status === 'active' && !gameComplete) {
+        console.log('[PlayMultiplayer] 🚫 Pause blocked - rated game');
+
+        // Store pending navigation and show warning
+        setPendingRatedNavigation(event.detail.targetPath);
+        setShowRatedNavigationWarning(true);
+        return; // Don't proceed with pause
+      }
+
       try {
         // Mark that we're pausing for navigation
         isPausedForNavigationRef.current = true;
@@ -2045,7 +2339,7 @@ const PlayMultiplayer = () => {
     return () => {
       window.removeEventListener('requestGamePause', handlePauseRequest);
     };
-  }, [navigate]);
+  }, [navigate, ratedMode, gameInfo.status, gameComplete, getTimeData]);
 
   // Update game state when status changes
   useEffect(() => {
@@ -3795,6 +4089,36 @@ const PlayMultiplayer = () => {
             <button onClick={handleResign} className="resign-button">
               Resign
             </button>
+
+            {/* Undo Button - Casual Mode Only */}
+            {ratedMode === 'casual' && (
+              <button
+                onClick={handleUndo}
+                disabled={!canUndo || undoChancesRemaining <= 0 || undoRequestPending}
+                className="undo-button"
+                style={{
+                  opacity: (!canUndo || undoChancesRemaining <= 0) ? 0.5 : 1,
+                  cursor: (!canUndo || undoChancesRemaining <= 0) ? 'not-allowed' : 'pointer',
+                  backgroundColor: undoRequestPending ? '#fbbf24' : undefined
+                }}
+                title={
+                  undoRequestPending
+                    ? 'Waiting for opponent response...'
+                    : !canUndo
+                    ? 'Undo not available'
+                    : undoChancesRemaining <= 0
+                    ? 'No undo chances remaining'
+                    : `Undo last move (${undoChancesRemaining} remaining)`
+                }
+              >
+                {undoRequestPending ? (
+                  '↶ Undo Pending...'
+                ) : (
+                  `↶ Undo (${undoChancesRemaining})`
+                )}
+              </button>
+            )}
+
             <DrawButton
               gameId={gameId}
               gameMode={ratedMode}
@@ -4017,7 +4341,15 @@ const PlayMultiplayer = () => {
             lastActivityTimeRef.current = Date.now();
           }}
           onCloseTimeout={async () => {
-            console.log('[PresenceConfirmationDialogSimple] Timeout - pausing game');
+            console.log('[PresenceConfirmationDialogSimple] Timeout - attempting to pause game');
+
+            // RATED GAMES: NEVER pause - player should lose on time
+            if (ratedMode === 'rated') {
+              console.log('[PresenceConfirmationDialogSimple] 🚫 RATED game - cannot pause, closing dialog');
+              setShowPresenceDialog(false);
+              showPresenceDialogRef.current = false;
+              return;
+            }
 
             // Set presence lock to prevent dialog re-opening during pause attempt
             isPausingRef.current = true;
@@ -4436,6 +4768,72 @@ const PlayMultiplayer = () => {
         />
       )}
 
+      {/* Undo Request Dialog (Casual Mode Only) */}
+      {undoRequestFrom && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999
+        }}>
+          <div style={{
+            backgroundColor: '#fff',
+            borderRadius: '12px',
+            padding: '24px',
+            maxWidth: '400px',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
+          }}>
+            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+              <div style={{ fontSize: '40px', marginBottom: '12px' }}>↶</div>
+              <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: '#333', marginBottom: '8px' }}>
+                Undo Request
+              </h3>
+              <p style={{ fontSize: '14px', color: '#666' }}>
+                {undoRequestFrom} wants to undo their last move
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <button
+                onClick={handleAcceptUndo}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#10b981',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                ✅ Accept
+              </button>
+              <button
+                onClick={handleDeclineUndo}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#dc2626',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                ❌ Decline
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Toast Notification */}
       {showNotification && (
         <div style={{
@@ -4491,6 +4889,14 @@ const PlayMultiplayer = () => {
         onCloseTimeout={async () => {
           console.log('[PresenceConfirmationDialogSimple] Timeout - attempting to pause game');
 
+          // RATED GAMES: NEVER pause - player should lose on time
+          if (ratedMode === 'rated') {
+            console.log('[PresenceConfirmationDialogSimple] 🚫 RATED game - cannot pause, closing dialog');
+            setShowPresenceDialog(false);
+            showPresenceDialogRef.current = false;
+            return;
+          }
+
           // Set presence lock to prevent dialog re-opening during pause attempt
           isPausingRef.current = true;
           isPausingRef.current = true;
@@ -4521,6 +4927,222 @@ const PlayMultiplayer = () => {
           }
         }}
       />
+
+      {/* Rated Game Pre-Confirmation Dialog */}
+      {showRatedGameConfirmation && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.85)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000
+        }}>
+          <div style={{
+            backgroundColor: '#fff',
+            borderRadius: '16px',
+            padding: '40px',
+            maxWidth: '550px',
+            boxShadow: '0 12px 48px rgba(0, 0, 0, 0.4)'
+          }}>
+            <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+              <div style={{ fontSize: '64px', marginBottom: '20px' }}>⚠️</div>
+              <h2 style={{ fontSize: '28px', fontWeight: 'bold', color: '#dc2626', marginBottom: '16px' }}>
+                RATED GAME RULES
+              </h2>
+              <p style={{ fontSize: '16px', color: '#6b7280', marginBottom: '24px' }}>
+                This is a <strong style={{ color: '#dc2626' }}>RATED</strong> game. Please read the rules carefully:
+              </p>
+              <div style={{
+                backgroundColor: '#fef2f2',
+                border: '2px solid #fca5a5',
+                borderRadius: '12px',
+                padding: '24px',
+                textAlign: 'left',
+                marginBottom: '20px'
+              }}>
+                <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'start' }}>
+                  <span style={{ fontSize: '20px', marginRight: '12px' }}>🚫</span>
+                  <p style={{ fontSize: '15px', color: '#991b1b', fontWeight: '500', margin: 0 }}>
+                    You CANNOT pause the game
+                  </p>
+                </div>
+                <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'start' }}>
+                  <span style={{ fontSize: '20px', marginRight: '12px' }}>↶</span>
+                  <p style={{ fontSize: '15px', color: '#991b1b', fontWeight: '500', margin: 0 }}>
+                    You CANNOT undo moves
+                  </p>
+                </div>
+                <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'start' }}>
+                  <span style={{ fontSize: '20px', marginRight: '12px' }}>🏳️</span>
+                  <p style={{ fontSize: '15px', color: '#991b1b', fontWeight: '500', margin: 0 }}>
+                    Closing the browser will FORFEIT the game
+                  </p>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'start' }}>
+                  <span style={{ fontSize: '20px', marginRight: '12px' }}>📊</span>
+                  <p style={{ fontSize: '15px', color: '#991b1b', fontWeight: '500', margin: 0 }}>
+                    This game will affect your rating
+                  </p>
+                </div>
+              </div>
+              <p style={{ fontSize: '16px', color: '#374151', fontWeight: '600' }}>
+                Do you want to start this rated game?
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }}>
+              <button
+                onClick={handleCancelRatedGame}
+                style={{
+                  padding: '14px 32px',
+                  backgroundColor: '#6b7280',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#4b5563'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = '#6b7280'}
+              >
+                ❌ Cancel
+              </button>
+              <button
+                onClick={handleConfirmRatedGame}
+                style={{
+                  padding: '14px 32px',
+                  backgroundColor: '#10b981',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#059669'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = '#10b981'}
+              >
+                ✅ I Understand - Start Game
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rated Game Navigation Warning Dialog */}
+      {showRatedNavigationWarning && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000
+        }}>
+          <div style={{
+            backgroundColor: '#fff',
+            borderRadius: '12px',
+            padding: '32px',
+            maxWidth: '500px',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
+          }}>
+            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+              <div style={{ fontSize: '48px', marginBottom: '16px' }}>⚠️</div>
+              <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#dc2626', marginBottom: '12px' }}>
+                RATED GAME FORFEIT WARNING
+              </h2>
+              <p style={{ fontSize: '16px', color: '#4b5563', marginBottom: '16px' }}>
+                Leaving this page will FORFEIT the rated game!
+              </p>
+              <div style={{
+                backgroundColor: '#fef2f2',
+                border: '2px solid #fca5a5',
+                borderRadius: '8px',
+                padding: '16px',
+                marginBottom: '16px'
+              }}>
+                <p style={{ fontSize: '14px', color: '#991b1b', fontWeight: '500', marginBottom: '8px' }}>
+                  ⚠️ This will count as a LOSS
+                </p>
+                <p style={{ fontSize: '14px', color: '#991b1b', marginBottom: '8px' }}>
+                  📉 Your rating will be affected
+                </p>
+                <p style={{ fontSize: '14px', color: '#991b1b' }}>
+                  🏳️ You must RESIGN or complete the game
+                </p>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <button
+                onClick={() => {
+                  console.log('[PlayMultiplayer] User canceled navigation');
+                  setShowRatedNavigationWarning(false);
+                  setPendingRatedNavigation(null);
+                }}
+                style={{
+                  padding: '12px 24px',
+                  backgroundColor: '#10b981',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                ✅ Stay in Game
+              </button>
+              <button
+                onClick={async () => {
+                  console.log('[PlayMultiplayer] User confirmed forfeit and navigation');
+
+                  // Forfeit the game
+                  try {
+                    if (wsService.current) {
+                      await wsService.current.resignGame();
+                      console.log('[PlayMultiplayer] 🏳️ Game forfeited via resignation');
+                    }
+                  } catch (error) {
+                    console.error('[PlayMultiplayer] ❌ Failed to forfeit:', error);
+                  }
+
+                  // Close dialog
+                  setShowRatedNavigationWarning(false);
+
+                  // Navigate to pending path
+                  if (pendingRatedNavigation) {
+                    navigate(pendingRatedNavigation);
+                  }
+                  setPendingRatedNavigation(null);
+                }}
+                style={{
+                  padding: '12px 24px',
+                  backgroundColor: '#dc2626',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                🏳️ Forfeit & Leave
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

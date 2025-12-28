@@ -22,7 +22,8 @@ class InvitationController extends Controller
         try {
             $validated = $request->validate([
                 'invited_user_id' => 'required|exists:users,id',
-                'preferred_color' => 'nullable|in:white,black,random'
+                'preferred_color' => 'nullable|in:white,black,random',
+                'game_mode' => 'nullable|in:casual,rated'
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::error('❌ Invitation validation failed', [
@@ -34,11 +35,13 @@ class InvitationController extends Controller
 
         $inviterId = Auth::id();
         $invitedId = $validated['invited_user_id'];
+        $gameMode = $validated['game_mode'] ?? 'casual';
 
         Log::info('✅ Invitation data validated', [
             'inviter_id' => $inviterId,
             'invited_id' => $invitedId,
-            'preferred_color' => $validated['preferred_color'] ?? 'not specified'
+            'preferred_color' => $validated['preferred_color'] ?? 'not specified',
+            'game_mode' => $gameMode
         ]);
 
         if ($inviterId === (int) $invitedId) {
@@ -92,7 +95,10 @@ class InvitationController extends Controller
             'status' => 'pending',
             'inviter_preferred_color' => $colorPreference,
             'type' => 'game_invitation',
-            'expires_at' => now()->addMinutes(15) // 15 minute expiration for game invitations
+            'expires_at' => now()->addMinutes(15), // 15 minute expiration for game invitations
+            'metadata' => [
+                'game_mode' => $gameMode
+            ]
         ]);
 
         // Broadcast invitation sent event to recipient in real-time
@@ -303,6 +309,9 @@ class InvitationController extends Controller
                 $blackId = $acceptorId;
             }
 
+            // Get game mode from invitation metadata (default to casual if not set)
+            $gameMode = $invitation->metadata['game_mode'] ?? 'casual';
+
             Log::info('🎨 Final color assignment', [
                 'inviter_id'        => $inviterId,
                 'invited_id'        => $invitation->invited_id,
@@ -310,6 +319,7 @@ class InvitationController extends Controller
                 'acceptor_desired'  => $desired,
                 'white_player_id'   => $whiteId,
                 'black_player_id'   => $blackId,
+                'game_mode'         => $gameMode,
             ]);
 
             $game = Game::create([
@@ -317,6 +327,7 @@ class InvitationController extends Controller
                 'black_player_id' => $blackId,
                 'status'          => 'waiting',
                 'result'          => 'ongoing',
+                'game_mode'       => $gameMode,
             ]);
 
             Log::info('🎮 Game created:', [

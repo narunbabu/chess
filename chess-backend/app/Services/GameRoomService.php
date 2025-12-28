@@ -1150,6 +1150,15 @@ class GameRoomService
             ];
         }
 
+        // Check game mode - rated games CANNOT be paused under ANY circumstance
+        // Players who abandon rated games should lose on time, not pause
+        if ($game->game_mode === 'rated') {
+            return [
+                'success' => false,
+                'message' => 'Rated games cannot be paused. Players must complete the game or resign.'
+            ];
+        }
+
         // Use provided time data if available, otherwise fallback to existing values in DB
         $whiteTimeRemaining = $whiteTimeMs ?? $game->white_time_paused_ms ?? 600000; // Default 10 minutes
         $blackTimeRemaining = $blackTimeMs ?? $game->black_time_paused_ms ?? 600000; // Default 10 minutes
@@ -2118,5 +2127,215 @@ class GameRoomService
                 'line' => $e->getLine()
             ]);
         }
+    }
+
+    /**
+     * Request undo of last move
+     */
+    public function requestUndo(int $gameId, int $userId): array
+    {
+        $game = Game::findOrFail($gameId);
+
+        // Validate user is a player
+        if ($game->white_player_id !== $userId && $game->black_player_id !== $userId) {
+            return [
+                'success' => false,
+                'message' => 'User is not a player in this game'
+            ];
+        }
+
+        // Check game mode - only casual games allow undo
+        if ($game->game_mode === 'rated') {
+            return [
+                'success' => false,
+                'message' => 'Undo is not allowed in rated games'
+            ];
+        }
+
+        // Check game status
+        if ($game->status !== 'active') {
+            return [
+                'success' => false,
+                'message' => 'Undo is only allowed in active games'
+            ];
+        }
+
+        // Check if opponent has played (can only undo after opponent responds)
+        // For mutual undo: You play move X, opponent plays move Y, then you can undo both
+        // At this point, it's your turn again (opponent just played)
+        $requesterColor = $game->getPlayerColor($userId);
+        if ($game->turn !== $requesterColor) {
+            return [
+                'success' => false,
+                'message' => 'Wait for your opponent to move before requesting undo'
+            ];
+        }
+
+        // Check undo remaining for requester
+        $undoField = $requesterColor === 'white' ? 'undo_white_remaining' : 'undo_black_remaining';
+        $undoRemaining = $game->$undoField;
+
+        if ($undoRemaining <= 0) {
+            return [
+                'success' => false,
+                'message' => 'No undo chances remaining'
+            ];
+        }
+
+        // Check if there are moves to undo (need at least 2 moves - one from each player)
+        if (!$game->moves || count($game->moves) < 2) {
+            return [
+                'success' => false,
+                'message' => 'Not enough moves to undo'
+            ];
+        }
+
+        // Get requester user
+        $requester = User::findOrFail($userId);
+
+        // Broadcast undo request event
+        broadcast(new \App\Events\UndoRequestedEvent($game, $requester, $undoRemaining));
+
+        Log::info('Undo requested', [
+            'game_id' => $gameId,
+            'requested_by' => $userId,
+            'color' => $requesterColor,
+            'undo_remaining' => $undoRemaining
+        ]);
+
+        return [
+            'success' => true,
+            'message' => 'Undo request sent to opponent',
+            'undo_remaining' => $undoRemaining
+        ];
+    }
+
+    /**
+     * Accept undo request
+     */
+    public function acceptUndo(int $gameId, int $userId): array
+    {
+        return \DB::transaction(function () use ($gameId, $userId) {
+            $game = Game::lockForUpdate()->findOrFail($gameId);
+
+            // Validate user is a player
+            if ($game->white_player_id !== $userId && $game->black_player_id !== $userId) {
+                return [
+                    'success' => false,
+                    'message' => 'User is not a player in this game'
+                ];
+            }
+
+            // Check game mode
+            if ($game->game_mode === 'rated') {
+                return [
+                    'success' => false,
+                    'message' => 'Undo is not allowed in rated games'
+                ];
+            }
+
+            // Check game status
+            if ($game->status !== 'active') {
+                return [
+                    'success' => false,
+                    'message' => 'Undo is only allowed in active games'
+                ];
+            }
+
+            // Check if there are moves to undo
+            if (!$game->moves || count($game->moves) < 2) {
+                return [
+                    'success' => false,
+                    'message' => 'Not enough moves to undo'
+                ];
+            }
+
+            // Determine who requested the undo (opponent of accepter)
+            $accepterColor = $game->getPlayerColor($userId);
+            $requesterColor = $accepterColor === 'white' ? 'black' : 'white';
+            $undoField = $requesterColor === 'white' ? 'undo_white_remaining' : 'undo_black_remaining';
+
+            // Check if requester has undo chances
+            if ($game->$undoField <= 0) {
+                return [
+                    'success' => false,
+                    'message' => 'Requester has no undo chances remaining'
+                ];
+            }
+
+            // Remove last 2 moves (one from each player)
+            $moves = $game->moves;
+            array_pop($moves);
+            array_pop($moves);
+
+            // Update FEN to the state after the new last move
+            $newFen = count($moves) > 0 ? end($moves)['next_fen'] : 'rnbqkbnr/pqpppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+
+            // Determine new turn (opposite of requester)
+            $newTurn = $requesterColor;
+
+            // Decrement undo count for requester
+            $game->$undoField = $game->$undoField - 1;
+
+            // Update game
+            $game->moves = $moves;
+            $game->fen = $newFen;
+            $game->turn = $newTurn;
+            $game->move_count = count($moves);
+            $game->save();
+
+            // Get accepter user
+            $accepter = User::findOrFail($userId);
+
+            // Broadcast undo accepted event
+            broadcast(new \App\Events\UndoAcceptedEvent($game->fresh(), $accepter));
+
+            Log::info('Undo accepted', [
+                'game_id' => $gameId,
+                'accepted_by' => $userId,
+                'requester_color' => $requesterColor,
+                'new_undo_remaining' => $game->$undoField,
+                'moves_removed' => 2,
+                'new_move_count' => count($moves)
+            ]);
+
+            return [
+                'success' => true,
+                'message' => 'Undo accepted',
+                'game' => $game->fresh()
+            ];
+        });
+    }
+
+    /**
+     * Decline undo request
+     */
+    public function declineUndo(int $gameId, int $userId): array
+    {
+        $game = Game::findOrFail($gameId);
+
+        // Validate user is a player
+        if ($game->white_player_id !== $userId && $game->black_player_id !== $userId) {
+            return [
+                'success' => false,
+                'message' => 'User is not a player in this game'
+            ];
+        }
+
+        // Get decliner user
+        $decliner = User::findOrFail($userId);
+
+        // Broadcast undo declined event
+        broadcast(new \App\Events\UndoDeclinedEvent($game, $decliner));
+
+        Log::info('Undo declined', [
+            'game_id' => $gameId,
+            'declined_by' => $userId
+        ]);
+
+        return [
+            'success' => true,
+            'message' => 'Undo request declined'
+        ];
     }
 }

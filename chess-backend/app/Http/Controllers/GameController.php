@@ -640,9 +640,16 @@ class GameController extends Controller
         }
 
         // Only allow deletion of paused games
-        $status = $game->statusRelation;
-        if ($status && $status->code !== 'paused') {
-            return response()->json(['error' => 'Can only delete paused games'], 400);
+        // Use the status accessor which properly handles the statusRelation
+        if ($game->status !== 'paused') {
+            return response()->json([
+                'error' => 'Can only delete paused games',
+                'debug' => [
+                    'game_id' => $game->id,
+                    'status' => $game->status,
+                    'game_phase' => $game->game_phase
+                ]
+            ], 400);
         }
 
         $game->delete();

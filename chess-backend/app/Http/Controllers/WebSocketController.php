@@ -1568,4 +1568,88 @@ class WebSocketController extends Controller
             ], 400);
         }
     }
+
+    /**
+     * Request undo of last move
+     */
+    public function requestUndo(Request $request, int $gameId): JsonResponse
+    {
+        try {
+            $result = $this->gameRoomService->requestUndo($gameId, Auth::id());
+
+            if (!$result['success']) {
+                return response()->json($result, 400);
+            }
+
+            return response()->json($result);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to request undo', [
+                'user_id' => Auth::id(),
+                'game_id' => $gameId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to request undo',
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Accept undo request
+     */
+    public function acceptUndo(Request $request, int $gameId): JsonResponse
+    {
+        try {
+            $result = $this->gameRoomService->acceptUndo($gameId, Auth::id());
+
+            if (!$result['success']) {
+                return response()->json($result, 400);
+            }
+
+            return response()->json($result);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to accept undo', [
+                'user_id' => Auth::id(),
+                'game_id' => $gameId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to accept undo',
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Decline undo request
+     */
+    public function declineUndo(Request $request, int $gameId): JsonResponse
+    {
+        try {
+            $result = $this->gameRoomService->declineUndo($gameId, Auth::id());
+
+            if (!$result['success']) {
+                return response()->json($result, 400);
+            }
+
+            return response()->json($result);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to decline undo', [
+                'user_id' => Auth::id(),
+                'game_id' => $gameId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to decline undo',
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
 }

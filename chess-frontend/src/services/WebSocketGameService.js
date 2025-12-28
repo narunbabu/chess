@@ -228,6 +228,18 @@ class WebSocketGameService {
         .listen('.game.ended', (event) => {
             console.log('Game ended event received:', event);
             this.emit('gameEnded', event);
+        })
+        .listen('.undo.request', (event) => {
+            console.log('Undo request event received:', event);
+            this.emit('undoRequest', event);
+        })
+        .listen('.undo.accepted', (event) => {
+            console.log('Undo accepted event received:', event);
+            this.emit('undoAccepted', event);
+        })
+        .listen('.undo.declined', (event) => {
+            console.log('Undo declined event received:', event);
+            this.emit('undoDeclined', event);
         });
 
       // Wait for connection
@@ -1446,6 +1458,102 @@ class WebSocketGameService {
       return data;
     } catch (error) {
       console.error('❌ Failed to decline draw:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Request to undo the last move (casual mode only)
+   */
+  async requestUndo() {
+    if (!this.gameId || !this.user) {
+      throw new Error('Game ID or user not set');
+    }
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${BACKEND_URL}/websocket/games/${this.gameId}/undo/request`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        }
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to request undo');
+      }
+
+      console.log('✅ Undo request sent successfully:', data);
+      return data;
+    } catch (error) {
+      console.error('❌ Failed to request undo:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Accept an undo request from the opponent
+   */
+  async acceptUndo() {
+    if (!this.gameId || !this.user) {
+      throw new Error('Game ID or user not set');
+    }
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${BACKEND_URL}/websocket/games/${this.gameId}/undo/accept`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        }
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to accept undo');
+      }
+
+      console.log('✅ Undo request accepted successfully:', data);
+      return data;
+    } catch (error) {
+      console.error('❌ Failed to accept undo:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Decline an undo request from the opponent
+   */
+  async declineUndo() {
+    if (!this.gameId || !this.user) {
+      throw new Error('Game ID or user not set');
+    }
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${BACKEND_URL}/websocket/games/${this.gameId}/undo/decline`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        }
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to decline undo');
+      }
+
+      console.log('✅ Undo request declined successfully:', data);
+      return data;
+    } catch (error) {
+      console.error('❌ Failed to decline undo:', error);
       throw error;
     }
   }

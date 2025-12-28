@@ -39,6 +39,10 @@ class Game extends Model
         'computer_player_id',
         'computer_level',
         'player_color',
+        // Game mode and undo tracking
+        'game_mode',
+        'undo_white_remaining',
+        'undo_black_remaining',
         // Pause time tracking
         'white_time_paused_ms',
         'black_time_paused_ms',
@@ -71,6 +75,8 @@ class Game extends Model
         'white_grace_time_ms' => 'integer',
         'black_grace_time_ms' => 'integer',
         'resume_requested_by' => 'integer',
+        'undo_white_remaining' => 'integer',
+        'undo_black_remaining' => 'integer',
         // Computer game casts
         'computer_player_id' => 'integer',
         'computer_level' => 'integer'

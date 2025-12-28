@@ -5,6 +5,7 @@ import { trackSocial } from '../utils/analytics';
 import api from '../services/api';
 import WebSocketGameService from '../services/WebSocketGameService';
 import { getEcho } from '../services/echoSingleton';
+import userStatusService from '../services/userStatusService';
 import { BACKEND_URL } from '../config';
 import './LobbyPage.css';
 
@@ -31,6 +32,7 @@ const LobbyPage = () => {
   const [pendingInvitations, setPendingInvitations] = useState([]);
   const [sentInvitations, setSentInvitations] = useState([]);
   const [activeGames, setActiveGames] = useState([]);
+  const [opponentOnlineStatus, setOpponentOnlineStatus] = useState({}); // Map of userId -> isOnline
   const [webSocketService, setWebSocketService] = useState(null);
   const [processingInvitations, setProcessingInvitations] = useState(new Set()); // Track processing state
   const [activeTab, setActiveTab] = useState('players');
@@ -218,10 +220,90 @@ const LobbyPage = () => {
 
       const response = await api.get(`/games/active?limit=10&page=${page}`);
 
+      const games = response.data.data;
+
+      // Build opponent status map with both player_id and player.id as keys
+      const opponentStatusMap = {};
+      const opponentIdsToCheck = [];
+
+      games.forEach(game => {
+        const opponentId = game.white_player_id === user?.id ? game.black_player_id : game.white_player_id;
+        const opponentPlayer = game.white_player_id === user?.id ? game.black_player : game.white_player;
+        const opponentPlayerId = opponentPlayer?.id;
+
+        console.log('[Lobby] Game:', game.id, 'opponentId from player_id:', opponentId, 'opponentPlayer.id:', opponentPlayerId);
+
+        // Add to check list if not already added
+        if (opponentId && !opponentIdsToCheck.includes(opponentId)) {
+          opponentIdsToCheck.push(opponentId);
+        }
+      });
+
+      // Batch check opponent online statuses
+      if (opponentIdsToCheck.length > 0) {
+        try {
+          console.log('[Lobby] Checking online status for opponent IDs:', opponentIdsToCheck);
+          const statusResults = await userStatusService.batchCheckStatus(opponentIdsToCheck);
+          console.log('[Lobby] Status check results:', statusResults);
+
+          // Handle Map object (userStatusService returns a Map)
+          if (statusResults instanceof Map) {
+            console.log('[Lobby] Processing Map results');
+            statusResults.forEach((isOnline, userId) => {
+              // Map.forEach gives (value, key) - userId is already the key
+              const userIdNum = parseInt(userId);
+              opponentStatusMap[userIdNum] = isOnline;
+              console.log(`[Lobby] User ${userIdNum} online status:`, isOnline);
+            });
+          } else if (Array.isArray(statusResults)) {
+            console.log('[Lobby] Processing Array results');
+            // Handle array format (if API returns array)
+            statusResults.forEach((result, index) => {
+              const userId = parseInt(opponentIdsToCheck[index]);
+              opponentStatusMap[userId] = result.is_online;
+              console.log(`[Lobby] User ${userId} online status:`, result.is_online);
+            });
+          }
+
+          console.log('[Lobby] Final status map:', opponentStatusMap);
+
+          // Update online status state
+          setOpponentOnlineStatus(prev => {
+            const updated = {
+              ...prev,
+              ...opponentStatusMap
+            };
+            console.log('[Lobby] Updated opponent online status state:', updated);
+            return updated;
+          });
+
+          // Sort games: online opponents first, then by last move time
+          games.sort((a, b) => {
+            const opponentA = a.white_player_id === user?.id ? a.black_player_id : a.white_player_id;
+            const opponentB = b.white_player_id === user?.id ? b.black_player_id : b.white_player_id;
+
+            const isOnlineA = opponentStatusMap[parseInt(opponentA)] || false;
+            const isOnlineB = opponentStatusMap[parseInt(opponentB)] || false;
+
+            // Online opponents come first
+            if (isOnlineA && !isOnlineB) return -1;
+            if (!isOnlineA && isOnlineB) return 1;
+
+            // If same online status, sort by last move time (most recent first)
+            const timeA = a.last_move_at ? new Date(a.last_move_at).getTime() : 0;
+            const timeB = b.last_move_at ? new Date(b.last_move_at).getTime() : 0;
+            return timeB - timeA;
+          });
+        } catch (statusError) {
+          console.error('[Lobby] Error checking opponent online status:', statusError);
+          // Continue without online status if it fails
+        }
+      }
+
       if (append) {
-        setActiveGames(prev => [...prev, ...response.data.data]);
+        setActiveGames(prev => [...prev, ...games]);
       } else {
-        setActiveGames(response.data.data);
+        setActiveGames(games);
       }
 
       setGamesPagination({
@@ -455,7 +537,7 @@ const LobbyPage = () => {
     navigate('/play');
   };
 
-  const sendInvitation = async (colorChoice) => {
+  const sendInvitation = async (colorChoice, gameMode = 'casual') => {
     setShowColorModal(false);
 
     // Validate selectedPlayer before proceeding
@@ -472,12 +554,14 @@ const LobbyPage = () => {
       console.log('📤 Sending invitation with data:', {
         invited_user_id: selectedPlayer.id,
         preferred_color: colorChoice,
+        game_mode: gameMode,
         current_user_id: user?.id
       });
 
       const response = await api.post('/invitations/send', {
         invited_user_id: selectedPlayer.id,
-        preferred_color: colorChoice
+        preferred_color: colorChoice,
+        game_mode: gameMode
       });
 
       console.log('✅ Invitation sent successfully:', response.data);
@@ -735,11 +819,52 @@ const LobbyPage = () => {
   ];
 
   // Handler for resuming game (extracted for clarity)
-  const handleResumeGame = (gameId) => {
+  const handleResumeGame = (gameId, opponentId, opponentName, isOpponentOnline) => {
+    // Check if opponent is online - block navigation if offline
+    if (!isOpponentOnline) {
+      alert(
+        `⚠️ Opponent Offline\n\n` +
+        `${opponentName} is currently offline.\n\n` +
+        `You cannot resume the game until your opponent comes online.`
+      );
+      return; // Block navigation
+    }
+
+    // Opponent is online, proceed with resume
     sessionStorage.setItem('lastInvitationAction', 'resume_game');
     sessionStorage.setItem('lastInvitationTime', Date.now().toString());
     sessionStorage.setItem('lastGameId', gameId.toString());
     navigate(`/play/multiplayer/${gameId}`);
+  };
+
+  // Handler for deleting game
+  const handleDeleteGame = async (gameId, opponentName) => {
+    const confirmed = window.confirm(
+      `⚠️ Delete Game?\n\n` +
+      `Are you sure you want to delete this game vs ${opponentName}?\n\n` +
+      `This action cannot be undone.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      const response = await api.delete(`/games/${gameId}/unfinished`);
+
+      // Check for successful response (message indicates success)
+      if (response.data.message) {
+        // Remove from local state
+        setActiveGames(activeGames.filter(g => g.id !== gameId));
+
+        // Show success message
+        alert(`✅ ${response.data.message}`);
+      }
+    } catch (error) {
+      console.error('Failed to delete game:', error);
+      const message = error.response?.data?.message || error.response?.data?.error || 'Failed to delete game';
+      alert(`❌ Error: ${message}`);
+    }
   };
 
 
@@ -835,7 +960,9 @@ const LobbyPage = () => {
               <ActiveGamesList
                 activeGames={activeGames}
                 currentUserId={user.id}
+                opponentOnlineStatus={opponentOnlineStatus}
                 onResumeGame={handleResumeGame}
+                onDeleteGame={handleDeleteGame}
               />
               {/* Load More for Active Games */}
               <LoadMoreButton
