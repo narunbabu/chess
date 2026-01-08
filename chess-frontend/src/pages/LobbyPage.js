@@ -36,6 +36,7 @@ const LobbyPage = () => {
   const [webSocketService, setWebSocketService] = useState(null);
   const [processingInvitations, setProcessingInvitations] = useState(new Set()); // Track processing state
   const [activeTab, setActiveTab] = useState('players');
+  const [isRefreshing, setIsRefreshing] = useState(false); // Manual refresh state
 
   // Pagination state
   const [pendingPagination, setPendingPagination] = useState({ page: 1, hasMore: true, total: 0, loading: false });
@@ -100,6 +101,9 @@ const LobbyPage = () => {
       service.initialize(null, user).then(() => {
         console.log('[Lobby] WebSocket service initialized successfully');
         setWebSocketService(service);
+
+        // Set up real-time presence listeners for online players
+        setupPresenceListeners(echo);
       }).catch(err => {
         console.error('[Lobby] WebSocket initialization failed:', err);
         // Still set the service to allow polling mode as fallback
@@ -114,6 +118,65 @@ const LobbyPage = () => {
       }
     };
   }, [user, webSocketService]);
+
+  // Set up real-time presence listeners to replace polling
+  const setupPresenceListeners = (echo) => {
+    try {
+      // Join the presence.online channel
+      const presenceChannel = echo.join('presence.online');
+
+      // When someone comes online, add them to players list
+      presenceChannel.joining((user) => {
+        console.log('[Lobby] 🟢 User came online:', user.name);
+        setPlayers(prevPlayers => {
+          // Check if player already exists
+          const exists = prevPlayers.some(p => p.id === user.id);
+          if (exists) {
+            return prevPlayers; // Don't add duplicates
+          }
+          // Add new online player
+          return [...prevPlayers, user];
+        });
+      });
+
+      // When someone goes offline, remove them from players list
+      presenceChannel.leaving((user) => {
+        console.log('[Lobby] 🔴 User went offline:', user.name);
+        setPlayers(prevPlayers =>
+          prevPlayers.filter(p => p.id !== user.id)
+        );
+      });
+
+      console.log('[Lobby] ✅ Real-time presence listeners set up');
+    } catch (error) {
+      console.error('[Lobby] ❌ Failed to set up presence listeners:', error);
+    }
+  };
+
+  // Manual refresh handler
+  const handleRefresh = async () => {
+    if (isRefreshing) return; // Prevent double-refresh
+
+    console.log('[Lobby] 🔄 Manual refresh triggered');
+    setIsRefreshing(true);
+
+    try {
+      // Reset pagination to fetch fresh data
+      setPendingPagination({ page: 1, hasMore: true, total: 0, loading: false });
+      setSentPagination({ page: 1, hasMore: true, total: 0, loading: false });
+      setAcceptedPagination({ page: 1, hasMore: true, total: 0, loading: false });
+      setGamesPagination({ page: 1, hasMore: true, total: 0, loading: false });
+
+      // Fetch fresh data
+      await fetchData(false);
+
+      console.log('[Lobby] ✅ Manual refresh complete');
+    } catch (error) {
+      console.error('[Lobby] ❌ Manual refresh failed:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // NOTE: Real-time invitations and resume requests are now handled globally by GlobalInvitationContext
   // This prevents duplicate WebSocket subscriptions and conflicts with the global invitation system
@@ -191,11 +254,26 @@ const LobbyPage = () => {
           // Check for active games and navigate if needed
           for (const acceptedItem of acceptedData) {
             if (acceptedItem.game && ['active', 'waiting'].includes(acceptedItem.game.status)) {
+              const gameId = acceptedItem.game.id;
+
+              // Check if this game was just forfeited - don't auto-navigate back to it
+              const forfeitFlag = sessionStorage.getItem(`forfeitedGame_${gameId}`);
+              const lastForfeitedGameId = sessionStorage.getItem('lastForfeitedGameId');
+
+              if (forfeitFlag || lastForfeitedGameId === gameId.toString()) {
+                console.log('[Lobby] 🚫 Skipping auto-navigation to forfeited game:', gameId);
+                // Clear the forfeit flag after checking (it's served its purpose)
+                sessionStorage.removeItem(`forfeitedGame_${gameId}`);
+                sessionStorage.removeItem('lastForfeitedGameId');
+                continue; // Skip this game, check next one
+              }
+
               // Navigate to active game
+              console.log('[Lobby] 🎮 Auto-navigating to active game:', gameId);
               sessionStorage.setItem('lastInvitationAction', 'invitation_accepted_by_other');
               sessionStorage.setItem('lastInvitationTime', Date.now().toString());
-              sessionStorage.setItem('lastGameId', acceptedItem.game.id.toString());
-              navigate(`/play/multiplayer/${acceptedItem.game.id}`);
+              sessionStorage.setItem('lastGameId', gameId.toString());
+              navigate(`/play/multiplayer/${gameId}`);
               return;
             }
           }
@@ -433,9 +511,14 @@ const LobbyPage = () => {
         console.log(`[Lobby] WebSocket not connected. Current state: ${wsState}`);
       }
       const hidden = document.visibilityState === 'hidden';
+
+      // REDUCED POLLING: Use real-time WebSocket presence events for players
+      // Poll only for invitations, games, and other state changes (much less frequent)
       const delay = hidden
-        ? (wsOK ? 180000 : 90000)  // Hidden: 3min with WS, 1.5min without (further optimized)
-        : (wsOK ? 120000 : 60000); // Visible: 2min with WS, 1min without (optimized for pagination)
+        ? (wsOK ? 300000 : 180000)  // Hidden: 5min with WS, 3min without (was 3min/1.5min)
+        : (wsOK ? 180000 : 120000); // Visible: 3min with WS, 2min without (was 2min/1min!)
+
+      console.log('[Lobby] ⚡ Using real-time presence for players, polling only for state changes');
 
       // Fetch data (in-flight protection is handled inside fetchData)
       console.log(`[Lobby] 🔄 Polling cycle (WS: ${wsOK ? '✅' : '❌'}, Hidden: ${hidden}, Delay: ${delay}ms)`);
@@ -911,6 +994,57 @@ const LobbyPage = () => {
           onTabChange={setActiveTab}
           tabs={tabs}
         />
+
+        {/* Manual refresh button - only visible when WebSocket is connected */}
+        {webSocketService && (
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="refresh-button"
+            style={{
+              backgroundColor: isRefreshing ? '#666' : '#4CAF50',
+              color: 'white',
+              border: 'none',
+              borderRadius: '20px',
+              padding: '8px 16px',
+              marginBottom: '16px',
+              cursor: isRefreshing ? 'not-allowed' : 'pointer',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              opacity: isRefreshing ? 0.6 : 1,
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              if (!isRefreshing) {
+                e.target.style.backgroundColor = '#45a049';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isRefreshing) {
+                e.target.style.backgroundColor = '#4CAF50';
+              }
+            }}
+            title="Refresh all data"
+          >
+            {isRefreshing ? (
+              <>
+                <span className="spinner" style={{
+                  animation: 'spin 1s linear infinite',
+                  display: 'inline-block',
+                  fontSize: '12px'
+                }}>⟳</span>
+                Refreshing...
+              </>
+            ) : (
+              <>
+                🔄 Refresh
+              </>
+            )}
+          </button>
+        )}
 
           <div className="lobby-content" ref={lobbyContentRef}>
           {activeTab === 'players' && (

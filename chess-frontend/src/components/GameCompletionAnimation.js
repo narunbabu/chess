@@ -49,6 +49,7 @@ const GameCompletionAnimation = ({
   const navigate = useNavigate();
   const gameEndCardRef = useRef(null); // Ref for wrapper (used for layout)
   const gameEndCardContentRef = useRef(null); // Ref for actual GameEndCard component (used for sharing)
+  const fetchUserCalledRef = useRef(false); // Track if fetchUser has been called to prevent re-render loop
 
   // Determine win state for both single player and multiplayer
   const isPlayerWin = (() => {
@@ -147,9 +148,11 @@ const GameCompletionAnimation = ({
           setHasProcessedRating(true);
 
           // Refresh user data to sync the updated rating across the app
-          if (fetchUser) {
+          // Use ref to prevent re-render loop (fetchUser updates user object causing re-renders)
+          if (fetchUser && !fetchUserCalledRef.current) {
+            fetchUserCalledRef.current = true;
             await fetchUser();
-            console.log('✅ User rating refreshed in AuthContext');
+            console.log('✅ User rating refreshed in AuthContext (one-time only)');
           }
         } else {
           throw new Error('Rating update failed');

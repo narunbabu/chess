@@ -12,6 +12,7 @@ export const GameNavigationProvider = ({ children }) => {
   const [activeGame, setActiveGame] = useState(null);
   const [showWarningDialog, setShowWarningDialog] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState(null);
+  const [isRatedGame, setIsRatedGame] = useState(false);
 
   // Refs to track current game state
   const gameActiveRef = useRef(false);
@@ -49,17 +50,19 @@ export const GameNavigationProvider = ({ children }) => {
   }, [location.pathname]);
 
   // Register an active game
-  const registerActiveGame = useCallback((gameId, gameState = 'active') => {
-    console.log('[GameNavigation] Registering active game:', gameId, 'state:', gameState);
+  const registerActiveGame = useCallback((gameId, gameState = 'active', isRated = false) => {
+    console.log('[GameNavigation] Registering active game:', gameId, 'state:', gameState, 'isRated:', isRated);
     gameIdRef.current = gameId;
     gameActiveRef.current = true;
     gamePausedRef.current = gameState === 'paused';
+    setIsRatedGame(isRated);
 
     setActiveGame({
       id: gameId,
       isActive: true,
       isPaused: gameState === 'paused',
-      state: gameState
+      state: gameState,
+      isRated: isRated
     });
   }, []);
 
@@ -69,6 +72,7 @@ export const GameNavigationProvider = ({ children }) => {
     gameIdRef.current = null;
     gameActiveRef.current = false;
     gamePausedRef.current = false;
+    setIsRatedGame(false);
     setActiveGame(null);
   }, []);
 
@@ -115,13 +119,21 @@ export const GameNavigationProvider = ({ children }) => {
       return true;
     }
 
-    // Always show warning for active games, regardless of paused status
-    // Users should confirm before leaving any game (paused or active)
-    console.log('[GameNavigation] Active game detected, showing navigation warning for:', targetPath);
+    // For rated games, BLOCK navigation and show forfeit warning
+    // Rated games cannot be paused, only forfeited
+    if (isRatedGame && !gamePausedRef.current) {
+      console.log('[GameNavigation] 🚫 BLOCKING navigation from rated game - forfeit required');
+      setShowWarningDialog(true);
+      setPendingNavigation(targetPath);
+      return false;
+    }
+
+    // For casual games, show warning dialog
+    console.log('[GameNavigation] Active casual game detected, showing navigation warning for:', targetPath);
     setShowWarningDialog(true);
     setPendingNavigation(targetPath);
     return false;
-  }, []);
+  }, [isRatedGame]);
 
   // Navigate with game guard
   const navigateWithGuard = useCallback((targetPath, options = {}) => {
@@ -135,7 +147,7 @@ export const GameNavigationProvider = ({ children }) => {
     return false;
   }, [navigate, handleNavigationAttempt]);
 
-  // Pause game and allow navigation
+  // Pause game and allow navigation (for casual games)
   const pauseGameAndNavigate = useCallback(() => {
     if (pendingNavigation && gameIdRef.current) {
       console.log('[GameNavigation] Pausing game and navigating to:', pendingNavigation);
@@ -155,6 +167,26 @@ export const GameNavigationProvider = ({ children }) => {
     }
   }, [pendingNavigation]);
 
+  // Forfeit rated game and allow navigation (for rated games)
+  const forfeitGameAndNavigate = useCallback(() => {
+    if (pendingNavigation && gameIdRef.current) {
+      console.log('[GameNavigation] 🏳️ Forfeiting rated game and navigating to:', pendingNavigation);
+
+      // Trigger game forfeit via custom event
+      // PlayMultiplayer will handle the actual resignation
+      const forfeitEvent = new CustomEvent('requestGameForfeit', {
+        detail: {
+          gameId: gameIdRef.current,
+          targetPath: pendingNavigation
+        }
+      });
+      window.dispatchEvent(forfeitEvent);
+
+      setShowWarningDialog(false);
+      setPendingNavigation(null);
+    }
+  }, [pendingNavigation]);
+
   // Cancel navigation
   const cancelNavigation = useCallback(() => {
     setShowWarningDialog(false);
@@ -165,12 +197,14 @@ export const GameNavigationProvider = ({ children }) => {
     activeGame,
     showWarningDialog,
     pendingNavigation,
+    isRatedGame,
     registerActiveGame,
     unregisterActiveGame,
     updateGameState,
     navigateWithGuard,
     handleNavigationAttempt,
     pauseGameAndNavigate,
+    forfeitGameAndNavigate,
     cancelNavigation,
     isGamePage
   };

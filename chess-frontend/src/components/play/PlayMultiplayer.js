@@ -250,7 +250,8 @@ const PlayMultiplayer = () => {
     onFlag: handleTimerFlag,
     initialMyMs: myColor === 'w' ? initialTimerState.whiteMs : initialTimerState.blackMs,
     initialOppMs: myColor === 'w' ? initialTimerState.blackMs : initialTimerState.whiteMs,
-    incrementMs: initialTimerState.incrementMs
+    incrementMs: initialTimerState.incrementMs,
+    isRated: ratedMode === 'rated' // Pass rated mode to timer
   });
 
   // Helper to get current time data for both players
@@ -453,9 +454,10 @@ const PlayMultiplayer = () => {
 
       // Reset registration flag for new game and register it
       gameRegisteredRef.current = false;
-      registerActiveGame(data.id, data.status);
+      const isRated = ratedMode === 'rated';
+      registerActiveGame(data.id, data.status, isRated);
       gameRegisteredRef.current = true;
-      console.log('[PlayMultiplayer] Game registered with navigation context:', data.id);
+      console.log('[PlayMultiplayer] Game registered with navigation context:', data.id, 'isRated:', isRated);
 
       // Prevent rejoining a finished game (only allow active and waiting statuses, paused is not finished)
       const isGameFinished = data.status === 'finished' || data.status === 'aborted' || data.status === 'resigned';
@@ -1206,12 +1208,18 @@ const PlayMultiplayer = () => {
 
   // Re-initialize game after rated game confirmation (one-time only)
   useEffect(() => {
+    // IMPORTANT: Skip re-initialization if game is already complete to prevent re-render loops
+    if (gameComplete) {
+      console.log('[PlayMultiplayer] ⏭️ Skipping re-initialization - game is already complete');
+      return;
+    }
+
     if (ratedGameConfirmed && showRatedGameConfirmation === false && !hasReinitializedAfterRatedConfirm.current) {
       console.log('[PlayMultiplayer] 🔄 Re-initializing game after rated confirmation');
       hasReinitializedAfterRatedConfirm.current = true; // Prevent infinite loop
       initializeGame();
     }
-  }, [ratedGameConfirmed, showRatedGameConfirmation, initializeGame]);
+  }, [ratedGameConfirmed, showRatedGameConfirmation, initializeGame, gameComplete]);
 
   // Handle offering a draw
   const handleOfferDraw = useCallback(async () => {
@@ -2340,6 +2348,101 @@ const PlayMultiplayer = () => {
       window.removeEventListener('requestGamePause', handlePauseRequest);
     };
   }, [navigate, ratedMode, gameInfo.status, gameComplete, getTimeData]);
+
+  // Listen for forfeit requests from navigation guard (for rated games)
+  useEffect(() => {
+    const handleForfeitRequest = async (event) => {
+      console.log('[PlayMultiplayer] 🏳️ Received forfeit request:', event.detail);
+
+      // Only process forfeit for rated games
+      if (ratedMode !== 'rated') {
+        console.log('[PlayMultiplayer] ⚠️ Ignoring forfeit request - not a rated game');
+        return;
+      }
+
+      try {
+        const targetPath = event.detail.targetPath;
+
+        // Clear ALL session storage flags to prevent auto-navigation loops
+        console.log('[PlayMultiplayer] 🧹 Clearing session storage flags');
+        sessionStorage.removeItem('lastInvitationAction');
+        sessionStorage.removeItem('lastInvitationTime');
+        sessionStorage.removeItem('lastGameId');
+        sessionStorage.removeItem('intentionalLobbyVisit');
+        sessionStorage.removeItem('intentionalLobbyVisitTime');
+        sessionStorage.removeItem(`gameFinished_${gameId}`);
+
+        // Set a flag to prevent lobby from auto-navigating back to this game
+        console.log('[PlayMultiplayer] 🚫 Setting forfeit flag to prevent auto-navigation');
+        sessionStorage.setItem(`forfeitedGame_${gameId}`, Date.now().toString());
+        sessionStorage.setItem('lastForfeitedGameId', gameId.toString());
+
+        // Unregister the active game
+        console.log('[PlayMultiplayer] 🧹 Unregistering active game');
+        unregisterActiveGame();
+
+        // CRITICAL: Send forfeit to server and WAIT for confirmation
+        // This ensures the server receives the resignation before we navigate away
+        if (wsService.current) {
+          console.log('[PlayMultiplayer] 🏳️ Sending forfeit to server...');
+          try {
+            await wsService.current.resignGame();
+            console.log('[PlayMultiplayer] ✅ Forfeit confirmed by server');
+
+            // Navigate AFTER 5 seconds to allow player to see the game end card
+            // The game.end event will arrive shortly after server confirms, showing the end card
+            console.log('[PlayMultiplayer] ⏳ Will navigate to', targetPath, 'in 5 seconds after showing end card...');
+            setTimeout(() => {
+              if (targetPath) {
+                console.log('[PlayMultiplayer] 🚀 Navigating to:', targetPath);
+                window.location.href = targetPath; // Force navigation to break render cycle
+              }
+            }, 5000); // 5 seconds delay to show end card
+          } catch (error) {
+            console.error('[PlayMultiplayer] ❌ Forfeit request failed:', error);
+            // Navigate immediately on error
+            setTimeout(() => {
+              if (targetPath) {
+                window.location.href = targetPath;
+              }
+            }, 0);
+          }
+        } else {
+          // No WebSocket service, navigate immediately
+          setTimeout(() => {
+            if (targetPath) {
+              window.location.href = targetPath;
+            }
+          }, 0);
+        }
+      } catch (error) {
+        console.error('[PlayMultiplayer] ❌ Failed to process forfeit request:', error);
+        // Clear session storage even on error
+        sessionStorage.removeItem('lastInvitationAction');
+        sessionStorage.removeItem('lastInvitationTime');
+        sessionStorage.removeItem('lastGameId');
+        sessionStorage.removeItem('intentionalLobbyVisit');
+        sessionStorage.removeItem('intentionalLobbyVisitTime');
+
+        // Set forfeit flag even on error to prevent auto-navigation
+        sessionStorage.setItem(`forfeitedGame_${gameId}`, Date.now().toString());
+        sessionStorage.setItem('lastForfeitedGameId', gameId.toString());
+
+        // Force immediate navigation on outer catch (critical error)
+        setTimeout(() => {
+          if (event.detail.targetPath) {
+            window.location.href = event.detail.targetPath;
+          }
+        }, 0);
+      }
+    };
+
+    window.addEventListener('requestGameForfeit', handleForfeitRequest);
+
+    return () => {
+      window.removeEventListener('requestGameForfeit', handleForfeitRequest);
+    };
+  }, [ratedMode, unregisterActiveGame, gameId]);
 
   // Update game state when status changes
   useEffect(() => {

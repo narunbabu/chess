@@ -10,7 +10,8 @@ export const useMultiplayerTimer = ({
   onFlag,
   initialMyMs = 600000,
   initialOppMs = 600000,
-  incrementMs = 0
+  incrementMs = 0,
+  isRated = false // NEW: Track if this is a rated game
 }) => {
   const [myMs, setMyMs] = useState(initialMyMs);
   const [oppMs, setOppMs] = useState(initialOppMs);
@@ -50,12 +51,20 @@ export const useMultiplayerTimer = ({
 
   // Timer logic for multiplayer
   useEffect(() => {
-    if (gameStatus === 'finished' || gameStatus === 'paused') {
+    // For rated games, never stop the timer - keep counting even if status changes
+    // For casual games, stop timer when paused or finished
+    if (!isRated && (gameStatus === 'finished' || gameStatus === 'paused')) {
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
+        console.log('[Timer] ⏸️ Timer stopped (casual game finished/paused)');
       }
       return;
+    }
+
+    // Log that timer continues for rated games
+    if (isRated && (gameStatus === 'paused' || gameStatus === 'finished')) {
+      console.log('[Timer] ⏱️ Rated game - timer continues counting despite status:', gameStatus);
     }
 
     // Check if turn actually changed to prevent unnecessary timer restarts
@@ -101,7 +110,7 @@ export const useMultiplayerTimer = ({
         clearInterval(timerRef.current);
       }
     };
-  }, [gameStatus, serverTurn, myColor]); // Keep dependencies but add logic to prevent unnecessary restarts
+  }, [gameStatus, serverTurn, myColor, isRated]); // Add isRated to dependencies
 
   return { myMs, oppMs, setMyMs, setOppMs };
 };

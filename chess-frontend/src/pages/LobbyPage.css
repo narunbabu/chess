@@ -1103,3 +1103,17 @@
   max-width: 100%;
   margin-top: 1rem;
 }
+
+/* Refresh button spinner animation */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.refresh-button:hover:not(:disabled) {
+  transform: scale(1.05);
+}
+
+.refresh-button:disabled {
+  cursor: not-allowed;
+}
