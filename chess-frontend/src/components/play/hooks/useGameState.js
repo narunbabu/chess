@@ -73,6 +73,8 @@ export const useGameState = ({ user }) => {
   // Rated game confirmation
   const [showRatedGameConfirmation, setShowRatedGameConfirmation] = useState(false);
   const [ratedGameConfirmed, setRatedGameConfirmed] = useState(false);
+  const [showRatedNavigationWarning, setShowRatedNavigationWarning] = useState(false);
+  const [pendingRatedNavigation, setPendingRatedNavigation] = useState(null);
 
   // Performance and rating tracking
   const [performanceData, setPerformanceData] = useState(null);
@@ -267,6 +269,10 @@ export const useGameState = ({ user }) => {
     setShowRatedGameConfirmation,
     ratedGameConfirmed,
     setRatedGameConfirmed,
+    showRatedNavigationWarning,
+    setShowRatedNavigationWarning,
+    pendingRatedNavigation,
+    setPendingRatedNavigation,
 
     // Performance and ratings
     performanceData,

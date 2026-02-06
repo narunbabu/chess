@@ -30,14 +30,6 @@ import PerformanceDisplay from '../game/PerformanceDisplay';
 import RatingChangeDisplay from '../game/RatingChangeDisplay';
 import { performanceService } from '../../services/performanceService';
 
-// Import refactored hooks (Phase 1)
-import {
-  useGameState,
-  usePauseResume,
-  useWebSocketEvents,
-  useMoveValidation,
-} from './hooks';
-
 // Import sounds
 import moveSound from '../../assets/sounds/move.mp3';
 import checkSound from '../../assets/sounds/check.mp3';
@@ -49,175 +41,157 @@ const checkSoundEffect = new Audio(checkSound);
 const gameEndSoundEffect = new Audio(gameEndSound);
 
 const PlayMultiplayer = () => {
-  // ========================================
-  // REFACTORED: Using custom hooks (Phase 1)
-  // ========================================
+  const [game, setGame] = useState(new Chess());
+  const [gameData, setGameData] = useState(null);
+  const [gameInfo, setGameInfo] = useState({
+    playerColor: 'white',
+    turn: 'white',
+    status: 'active',
+    opponentName: 'Rival'
+  });
+  const [gameHistory, setGameHistory] = useState([]);
+  const [selectedSquare, setSelectedSquare] = useState(null);
+  const [boardOrientation, setBoardOrientation] = useState('white');
+  const [lastMoveHighlights, setLastMoveHighlights] = useState({}); // Move path highlighting
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [connectionStatus, setConnectionStatus] = useState('disconnected');
+  const [opponentOnline, setOpponentOnline] = useState(false);
+  const [gameComplete, setGameComplete] = useState(false);
+  const [gameResult, setGameResult] = useState(null);
+  const [showCheckmate, setShowCheckmate] = useState(false);
+  const [checkmateWinner, setCheckmateWinner] = useState(null);
+  const [kingInDangerSquare, setKingInDangerSquare] = useState(null);
+  const [savedGameHistoryId, setSavedGameHistoryId] = useState(null);
 
-  // Context and navigation hooks
+  // Inactivity detection state
+  const [showPresenceDialog, setShowPresenceDialog] = useState(false);
+  const [showPausedGame, setShowPausedGame] = useState(false);
+  const [pausedByUserName, setPausedByUserName] = useState(null); // Track who caused the pause
+
+  // Resume request state
+  const [resumeRequestData, setResumeRequestData] = useState(null);
+
+  // New game/rematch request state
+  const [newGameRequest, setNewGameRequest] = useState(null);
+  const [resumeRequestCountdown, setResumeRequestCountdown] = useState(0);
+  const [isWaitingForResumeResponse, setIsWaitingForResumeResponse] = useState(false);
+  const [isLobbyResume, setIsLobbyResume] = useState(false); // Track if this is a lobby-initiated resume
+  const [shouldAutoSendResume, setShouldAutoSendResume] = useState(false); // Trigger auto-send after initialization
+  const [lastManualResumeRequestTime, setLastManualResumeRequestTime] = useState(null); // Timestamp of last manual request
+  const [resumeCooldownRemaining, setResumeCooldownRemaining] = useState(0); // Seconds left in cooldown
+  const RESUME_COOLDOWN_SECONDS = 60; // 1 minute cooldown
+
+  // Notification system
+  const [notificationMessage, setNotificationMessage] = useState('');
+  const [showNotification, setShowNotification] = useState(false);
+
+  // Error notification state
+  const [errorMessage, setErrorMessage] = useState('');
+  const [showError, setShowError] = useState(false);
+
+  // Draw offer state
+  const [drawOfferPending, setDrawOfferPending] = useState(false);
+  const [drawOfferedByMe, setDrawOfferedByMe] = useState(false);
+  const [drawState, setDrawState] = useState({
+    offered: false,
+    pending: false,
+    byPlayer: null
+  });
+
+  // Performance and rating tracking
+  const [performanceData, setPerformanceData] = useState(null);
+  const [ratingChangeData, setRatingChangeData] = useState(null);
+  const [ratedMode, setRatedMode] = useState(() => getPreferredGameMode()); // Load from localStorage, defaults to 'rated'
+
+  // Championship context state
+  const [championshipContext, setChampionshipContext] = useState(null);
+
+  // Undo functionality state (for casual mode)
+  const [canUndo, setCanUndo] = useState(false);
+  const [undoChancesRemaining, setUndoChancesRemaining] = useState(0);
+  const [maxUndoChances] = useState(3); // Fixed for multiplayer casual mode
+  const [undoRequestPending, setUndoRequestPending] = useState(false);
+  const [undoRequestFrom, setUndoRequestFrom] = useState(null);
+
+  // Navigation protection state (for rated mode)
+  const [showRatedNavigationWarning, setShowRatedNavigationWarning] = useState(false);
+  const [pendingRatedNavigation, setPendingRatedNavigation] = useState(null);
+
+  // Pre-game confirmation state (for rated mode)
+  const [showRatedGameConfirmation, setShowRatedGameConfirmation] = useState(false);
+  const [ratedGameConfirmed, setRatedGameConfirmed] = useState(false);
+
+  // Initial timer state (calculated from move history)
+  const [initialTimerState, setInitialTimerState] = useState({
+    whiteMs: 10 * 60 * 1000,
+    blackMs: 10 * 60 * 1000,
+    incrementMs: 0
+  });
+
+  // Refs for stable inactivity detection and timers
+  const lastActivityTimeRef = useRef(Date.now());
+  const enabledRef = useRef(true);
+  const gameActiveRef = useRef(false);
+  const showPresenceDialogRef = useRef(false);
+  const inactivityCheckIntervalRef = useRef(null); // For setInterval (checking every 1s)
+  // Note: inactivityTimerRef removed - the PresenceConfirmationDialogSimple component
+  // now handles its own countdown timer internally via the onCloseTimeout callback
+  const isPausingRef = useRef(false);
+  const resumeRequestTimer = useRef(null); // Ref for countdown timer
+  const countdownRef = useRef(0); // Precise countdown tracking
+  const hasAutoRequestedResume = useRef(false); // Prevent duplicate auto-requests
+  const hasReceivedResumeRequest = useRef(false); // Track if we received a resume request from opponent
+  const isReadyForAutoSend = useRef(false); // Ensure listeners ready before auto-send
+  const isPausedForNavigationRef = useRef(false); // Track if game was paused for navigation
+
+  // Refs to prevent stale closures in inactivity timer
+  const turnRef = useRef(gameInfo.turn);
+  const myColorRef = useRef(gameInfo.playerColor);
+
+  // Score tracking states
+  const [playerScore, setPlayerScore] = useState(0);
+  const [opponentScore, setOpponentScore] = useState(0);
+  const [lastMoveEvaluation, setLastMoveEvaluation] = useState(null);
+  const [lastOpponentEvaluation, setLastOpponentEvaluation] = useState(null);
+
+  // Track evaluated moves to prevent StrictMode double-evaluation
+  const evaluatedMovesRef = useRef(new Set());
+  const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
+
+  // Track if we've already re-initialized after rated game confirmation (prevent infinite loop)
+  const hasReinitializedAfterRatedConfirm = useRef(false);
+
   const { user } = useAuth();
   const { invalidateGameHistory } = useAppData();
   const { registerActiveGame, unregisterActiveGame, updateGameState } = useGameNavigation();
   const { gameId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-
-  // Core game state hook (replaces 30+ useState calls)
-  const gameState = useGameState({ user });
-
-  // Pause/resume state hook
-  const pauseResume = usePauseResume();
-
-  // Additional refs not in hooks (specific to component logic)
   const wsService = useRef(null);
-  const moveStartTimeRef = useRef(null);
-  const gameRegisteredRef = useRef(false);
-  const evaluatedMovesRef = useRef(new Set());
-  const hasReinitializedAfterRatedConfirm = useRef(false);
-  const didInitRef = useRef(false);
-  const turnRef = useRef(gameState.gameInfo.turn);
-  const myColorRef = useRef(gameState.gameInfo.playerColor);
-  const playerColorRef = useRef(gameState.gameInfo.playerColor);
+  const moveStartTimeRef = useRef(null); // Tracks when current turn started for move timing
+  const gameRegisteredRef = useRef(false); // Track if game is already registered to prevent duplicates
 
-  // Destructure commonly used state for convenience
-  const {
-    game,
-    setGame,
-    gameData,
-    setGameData,
-    gameInfo,
-    setGameInfo,
-    updateGameInfo,
-    gameHistory,
-    setGameHistory,
-    selectedSquare,
-    setSelectedSquare,
-    boardOrientation,
-    setBoardOrientation,
-    lastMoveHighlights,
-    setLastMoveHighlights,
-    loading,
-    setLoading,
-    error,
-    setError,
-    connectionStatus,
-    setConnectionStatus,
-    opponentOnline,
-    setOpponentOnline,
-    gameComplete,
-    setGameComplete,
-    gameResult,
-    setGameResult,
-    showCheckmate,
-    setShowCheckmate,
-    checkmateWinner,
-    setCheckmateWinner,
-    kingInDangerSquare,
-    setKingInDangerSquare,
-    savedGameHistoryId,
-    setSavedGameHistoryId,
-    ratedMode,
-    setRatedMode,
-    championshipContext,
-    setChampionshipContext,
-    drawOfferPending,
-    setDrawOfferPending,
-    drawOfferedByMe,
-    setDrawOfferedByMe,
-    drawState,
-    setDrawState,
-    canUndo,
-    setCanUndo,
-    undoChancesRemaining,
-    setUndoChancesRemaining,
-    maxUndoChances,
-    undoRequestPending,
-    setUndoRequestPending,
-    undoRequestFrom,
-    setUndoRequestFrom,
-    showRatedGameConfirmation,
-    setShowRatedGameConfirmation,
-    ratedGameConfirmed,
-    setRatedGameConfirmed,
-    showRatedNavigationWarning,
-    setShowRatedNavigationWarning,
-    pendingRatedNavigation,
-    setPendingRatedNavigation,
-    performanceData,
-    setPerformanceData,
-    ratingChangeData,
-    setRatingChangeData,
-    playerScore,
-    setPlayerScore,
-    opponentScore,
-    setOpponentScore,
-    lastMoveEvaluation,
-    setLastMoveEvaluation,
-    lastOpponentEvaluation,
-    setLastOpponentEvaluation,
-    updateScores,
-    initialTimerState,
-    setInitialTimerState,
-    notificationMessage,
-    setNotificationMessage,
-    showNotification,
-    setShowNotification,
-    errorMessage,
-    setErrorMessage,
-    showError,
-    setShowError,
-    newGameRequest,
-    setNewGameRequest,
-    isPortrait,
-    setIsPortrait,
-    myColor,
-    serverTurn,
-    isMyTurn,
-  } = gameState;
+  // Derive player color from IDs (single source of truth)
+  // Don't store in state - compute every render to stay in sync
+  const myColor = React.useMemo(() => {
+    if (!user?.id || !gameData) return null;
+    const userId = parseInt(user.id);
+    const whiteId = parseInt(gameData.white_player_id);
+    const blackId = parseInt(gameData.black_player_id);
 
-  // Destructure pause/resume state
-  const {
-    showPresenceDialog,
-    setShowPresenceDialog,
-    showPausedGame,
-    setShowPausedGame,
-    pausedByUserName,
-    setPausedByUserName,
-    resumeRequestData,
-    setResumeRequestData,
-    resumeRequestCountdown,
-    setResumeRequestCountdown,
-    isWaitingForResumeResponse,
-    setIsWaitingForResumeResponse,
-    isLobbyResume,
-    setIsLobbyResume,
-    shouldAutoSendResume,
-    setShouldAutoSendResume,
-    lastManualResumeRequestTime,
-    setLastManualResumeRequestTime,
-    resumeCooldownRemaining,
-    setResumeCooldownRemaining,
-    RESUME_COOLDOWN_SECONDS,
-    lastActivityTimeRef,
-    enabledRef,
-    gameActiveRef,
-    showPresenceDialogRef,
-    inactivityCheckIntervalRef,
-    isPausingRef,
-    resumeRequestTimer,
-    countdownRef,
-    hasAutoRequestedResume,
-    hasReceivedResumeRequest,
-    isReadyForAutoSend,
-    isPausedForNavigationRef,
-    updateActivity,
-    startResumeCountdown,
-    clearResumeRequest,
-    clearCooldown,
-    isCooldownActive,
-    getRemainingCooldown,
-    handlePaused: pauseResumeHandlePaused,
-    handleResumed: pauseResumeHandleResumed,
-  } = pauseResume;
+    if (userId === whiteId) return 'w';
+    if (userId === blackId) return 'b';
+
+    console.error('🚨 User ID does not match any player:', { userId, whiteId, blackId });
+    return null;
+  }, [user?.id, gameData]);
+
+  // Server turn comes from game state
+  const serverTurn = gameInfo.turn === 'white' ? 'w' : gameInfo.turn === 'black' ? 'b' : null;
+
+  // Use the same truth for both UI and timer
+  const isMyTurn = (myColor && serverTurn) ? (myColor === serverTurn) : false;
 
   // Timer flag callback
   const handleTimerFlag = useCallback(async (who) => {
@@ -1918,7 +1892,7 @@ const PlayMultiplayer = () => {
   }, []); // setIsPortrait is stable
 
   // Prevent double initialization in React StrictMode
-  // NOTE: didInitRef is now declared at the top with other refs (line 76)
+  const didInitRef = useRef(false);
 
   // Handle user activity - only track actual moves, not mouse hover
   const handleMoveActivity = useCallback(() => {
@@ -1956,7 +1930,7 @@ const PlayMultiplayer = () => {
   }, [ratedMode]);
 
   // Keep turn and color refs fresh to prevent stale closures
-  // NOTE: playerColorRef is now declared at the top with other refs (line 79)
+  const playerColorRef = useRef(gameInfo.playerColor);
 
   useEffect(() => {
     turnRef.current = gameInfo.turn;
@@ -2801,7 +2775,46 @@ const PlayMultiplayer = () => {
     }
   }, [gameComplete, gameResult]);
 
-  // NOTE: startResumeCountdown is now provided by usePauseResume hook (destructured at line 209)
+  // Resume request handlers - wrapped in useCallback for stability
+  const startResumeCountdown = useCallback((seconds) => {
+    countdownRef.current = seconds;
+
+    if (resumeRequestTimer.current) {
+      clearInterval(resumeRequestTimer.current);
+    }
+
+    // Initial state set (async, but ref is sync)
+    setResumeRequestCountdown(seconds);
+
+    const timer = setInterval(() => {
+      countdownRef.current = Math.max(0, countdownRef.current - 1);
+      setResumeRequestCountdown(countdownRef.current);
+
+      if (countdownRef.current <= 0) {
+        clearInterval(timer);
+        resumeRequestTimer.current = null;
+        // Only update states if the paused dialog is still showing
+        // This prevents re-showing the dialog after successful resume
+        setResumeRequestData(prev => {
+          // If prev is null, it means the request was already handled (accepted/declined)
+          if (prev === null) return null;
+          console.log('[PlayMultiplayer] Resume request expired - fallback timer');
+          return null;
+        });
+        setIsWaitingForResumeResponse(false);
+      }
+    }, 1000);
+
+    resumeRequestTimer.current = timer;
+
+    // Cleanup on unmount or reset
+    return () => {
+      if (resumeRequestTimer.current) {
+        clearInterval(resumeRequestTimer.current);
+        resumeRequestTimer.current = null;
+      }
+    };
+  }, [setResumeRequestCountdown, setResumeRequestData, setIsWaitingForResumeResponse]);
 
   const cancelResumeRequest = useCallback(() => {
     setResumeRequestData(null);
