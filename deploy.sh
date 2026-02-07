@@ -50,10 +50,10 @@ log_info "Deploying backend..."
 cd "$BACKEND_DIR"
 
 log_info "Installing backend dependencies..."
-sudo -u www-data COMPOSER_HOME=/var/www composer install --no-dev --optimize-autoloader --classmap-authoritative
+COMPOSER_HOME=/var/www composer install --no-dev --optimize-autoloader --classmap-authoritative
 
 log_info "Running database migrations..."
-sudo -u www-data php artisan migrate --force
+php artisan migrate --force
 
 log_info "Restarting queue workers (if any)..."
 php artisan queue:restart 2>/dev/null || log_warn "No queue workers to restart"
@@ -167,7 +167,7 @@ else
 fi
 
 # Check if database connection works
-if sudo -u www-data php "$BACKEND_DIR/artisan" migrate:status >/dev/null 2>&1; then
+if php "$BACKEND_DIR/artisan" migrate:status >/dev/null 2>&1; then
     log_info "Database connection successful"
 else
     log_error "Cannot connect to database!"
