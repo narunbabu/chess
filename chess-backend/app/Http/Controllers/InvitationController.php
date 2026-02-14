@@ -75,7 +75,14 @@ class InvitationController extends Controller
                 'channel' => "App.Models.User.{$existingData->invited_id}",
                 'event' => 'invitation.cancelled'
             ]);
-            broadcast(new \App\Events\InvitationCancelled($existingData));
+            try {
+                broadcast(new \App\Events\InvitationCancelled($existingData));
+            } catch (\Throwable $e) {
+                Log::warning('Failed to broadcast InvitationCancelled event (replacement)', [
+                    'invitation_id' => $existingData->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
 
             // Delete the old invitation
             $existing->delete();
@@ -109,7 +116,14 @@ class InvitationController extends Controller
             'channel' => "App.Models.User.{$invitedId}",
             'event' => 'invitation.sent'
         ]);
-        broadcast(new \App\Events\InvitationSent($freshInvitation));
+        try {
+            broadcast(new \App\Events\InvitationSent($freshInvitation));
+        } catch (\Throwable $e) {
+            Log::warning('Failed to broadcast InvitationSent event', [
+                'invitation_id' => $freshInvitation->id,
+                'error' => $e->getMessage()
+            ]);
+        }
 
         return response()->json([
             'message' => 'Invitation sent successfully',
@@ -228,7 +242,14 @@ class InvitationController extends Controller
             'channel' => "App.Models.User.{$invitationData->invited_id}",
             'event' => 'invitation.cancelled'
         ]);
-        broadcast(new \App\Events\InvitationCancelled($invitationData));
+        try {
+            broadcast(new \App\Events\InvitationCancelled($invitationData));
+        } catch (\Throwable $e) {
+            Log::warning('Failed to broadcast InvitationCancelled event', [
+                'invitation_id' => $invitationData->id,
+                'error' => $e->getMessage()
+            ]);
+        }
 
         $invitation->delete();
 
@@ -286,7 +307,14 @@ class InvitationController extends Controller
                     'channel' => "App.Models.User.{$freshInvitation->inviter_id}",
                     'event' => 'invitation.declined'
                 ]);
-                broadcast(new \App\Events\InvitationDeclined($freshInvitation));
+                try {
+                    broadcast(new \App\Events\InvitationDeclined($freshInvitation));
+                } catch (\Throwable $e) {
+                    Log::warning('Failed to broadcast InvitationDeclined event', [
+                        'invitation_id' => $freshInvitation->id,
+                        'error' => $e->getMessage()
+                    ]);
+                }
 
                 return response()->json(['message' => 'Declined']);
             }
@@ -352,7 +380,15 @@ class InvitationController extends Controller
                 'channel' => "App.Models.User.{$inviterId}",
                 'event' => 'invitation.accepted'
             ]);
-            broadcast(new \App\Events\InvitationAccepted($game, $freshInvitation));
+            try {
+                broadcast(new \App\Events\InvitationAccepted($game, $freshInvitation));
+            } catch (\Throwable $e) {
+                Log::warning('Failed to broadcast InvitationAccepted event', [
+                    'invitation_id' => $freshInvitation->id,
+                    'game_id' => $game->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
 
             return response()->json([
                 'message'      => 'Accepted',
