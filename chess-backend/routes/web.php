@@ -3,6 +3,7 @@
 // routes/web.php
 
 use App\Http\Controllers\Auth\SocialAuthController;
+use App\Http\Controllers\EmailPreferenceController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -60,6 +61,16 @@ Route::group(['prefix' => 'auth'], function () {
     Route::get('{provider}/callback', [SocialAuthController::class, 'callback'])->name('auth.callback');
     // Handle POST requests from some OAuth providers
     Route::post('{provider}/callback', [SocialAuthController::class, 'callback']);
+});
+
+// ── Email Preference Routes (signed, no auth required for CAN-SPAM) ─────────
+Route::middleware('signed')->group(function () {
+    Route::get('/email/unsubscribe', [EmailPreferenceController::class, 'unsubscribe'])
+        ->name('email.unsubscribe');
+    Route::get('/email/preferences', [EmailPreferenceController::class, 'showPreferences'])
+        ->name('email.preferences');
+    Route::post('/email/preferences', [EmailPreferenceController::class, 'updatePreferences'])
+        ->name('email.preferences.update');
 });
 
 // Catch-all route for development tools and unwanted requests

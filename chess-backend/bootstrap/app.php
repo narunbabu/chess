@@ -4,6 +4,8 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Support\Facades\RateLimiter;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -12,6 +14,23 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         channels: __DIR__.'/../routes/channels.php',
         health: '/up',
+        then: function () {
+            // Rate limiters for mobile API
+            RateLimiter::for('mobile-api', function (Illuminate\Http\Request $request) {
+                return $request->user()
+                    ? Limit::perMinute(120)->by($request->user()->id)
+                    : Limit::perMinute(30)->by($request->ip());
+            });
+
+            RateLimiter::for('mobile-auth', function (Illuminate\Http\Request $request) {
+                return Limit::perMinute(10)->by($request->ip());
+            });
+
+            // API v1 routes for mobile apps (Android/iOS)
+            Illuminate\Support\Facades\Route::middleware(['api', 'throttle:mobile-api'])
+                ->prefix('api/v1')
+                ->group(base_path('routes/api_v1.php'));
+        },
     )
     ->withSchedule(function (Schedule $schedule) {
         // Monitor game inactivity every minute
@@ -52,6 +71,20 @@ return Application::configure(basePath: dirname(__DIR__))
             ->hourly()
             ->withoutOverlapping()
             ->description('Send reminders for upcoming matches');
+
+        // Send play reminder emails daily at 10:00 UTC
+        $schedule->command('emails:send-play-reminders --limit=500')
+            ->dailyAt('10:00')
+            ->withoutOverlapping()
+            ->runInBackground()
+            ->description('Send re-engagement emails to inactive users');
+
+        // Send weekly digest emails on Monday at 08:00 UTC
+        $schedule->command('emails:send-weekly-digest --limit=1000')
+            ->weeklyOn(1, '08:00')
+            ->withoutOverlapping()
+            ->runInBackground()
+            ->description('Send weekly stats digest to active players');
     })
     ->withMiddleware(function (Middleware $middleware) {
         // CORS is handled by \Fruitcake\Cors\HandleCors in Kernel.php (global middleware)

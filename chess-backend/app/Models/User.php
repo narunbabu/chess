@@ -34,6 +34,10 @@ class User extends Authenticatable
         'current_streak_days',
         'longest_streak_days',
         'last_activity_date',
+        'email_notifications_enabled',
+        'email_preferences',
+        'email_unsubscribed_at',
+        'last_email_sent_at',
     ];
 
     protected $hidden = [
@@ -51,7 +55,29 @@ class User extends Authenticatable
         'last_login_at' => 'datetime',
         'last_activity_at' => 'datetime',
         'last_activity_date' => 'date',
+        'email_notifications_enabled' => 'boolean',
+        'email_preferences' => 'array',
+        'email_unsubscribed_at' => 'datetime',
+        'last_email_sent_at' => 'datetime',
     ];
+
+    /**
+     * Check if user wants a specific email type.
+     */
+    public function wantsEmailType(string $type): bool
+    {
+        if (!$this->email_notifications_enabled) {
+            return false;
+        }
+
+        if ($this->email_unsubscribed_at) {
+            return false;
+        }
+
+        $preferences = $this->email_preferences ?? [];
+
+        return $preferences[$type] ?? true;
+    }
 
     /**
      * Get the avatar URL with fallback
