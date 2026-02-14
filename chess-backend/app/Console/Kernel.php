@@ -31,6 +31,11 @@ class Kernel extends ConsoleKernel
                  ->daily()
                  ->at('02:00')
                  ->description('Clean up stale invitations from finished games');
+
+        // Clean up abandoned games hourly (0-move after 1h, 1+ moves after 7d)
+        $schedule->command('games:cleanup-abandoned --skip-championship')
+                 ->hourly()
+                 ->description('Clean up abandoned games based on inactivity thresholds');
     }
 
     /**
