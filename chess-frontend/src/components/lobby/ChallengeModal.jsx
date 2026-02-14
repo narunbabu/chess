@@ -28,10 +28,10 @@ const ChallengeModal = ({
   inviteStatus,
   invitedPlayer,
 }) => {
+  const [gameMode, setGameMode] = React.useState('casual');
+
   // Color Choice Modal (when sending challenge)
   if (showColorModal && selectedPlayer) {
-    const [gameMode, setGameMode] = React.useState('casual');
-
     return (
       <div className="invitation-modal">
         <div className="modal-content">
