@@ -14,14 +14,15 @@
 }
 
 .new-game-request-dialog {
-  background: white;
+  background: #312e2b;
   border-radius: 16px;
   padding: 32px;
   max-width: 480px;
   width: 90%;
-  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
   animation: slideUp 0.3s ease-out;
   text-align: center;
+  border: 1px solid #3d3a37;
 }
 
 .new-game-request-icon {
@@ -33,13 +34,13 @@
 .new-game-request-title {
   font-size: 24px;
   font-weight: 600;
-  color: #1a1a1a;
+  color: #ffffff;
   margin-bottom: 12px;
 }
 
 .new-game-request-message {
   font-size: 16px;
-  color: #666;
+  color: #bababa;
   margin-bottom: 24px;
   line-height: 1.5;
 }
@@ -47,19 +48,20 @@
 .new-game-request-details {
   margin: 24px 0;
   padding: 20px;
-  background-color: #f5f5f5;
+  background-color: #262421;
   border-radius: 12px;
+  border: 1px solid #3d3a37;
 }
 
 .color-preference-note {
   font-size: 14px;
-  color: #3498db;
+  color: #e8a93e;
   font-weight: 600;
   margin-bottom: 16px;
   padding: 8px 12px;
-  background-color: rgba(52, 152, 219, 0.1);
+  background-color: rgba(232, 169, 62, 0.1);
   border-radius: 8px;
-  border-left: 3px solid #3498db;
+  border-left: 3px solid #e8a93e;
 }
 
 .player-matchup {
@@ -80,25 +82,25 @@
   width: 60px;
   height: 60px;
   border-radius: 50%;
-  border: 3px solid #3498db;
+  border: 3px solid #81b64c;
   object-fit: cover;
 }
 
 .player-name {
   font-size: 14px;
   font-weight: 600;
-  color: #1a1a1a;
+  color: #ffffff;
 }
 
 .player-rating {
   font-size: 12px;
-  color: #999;
+  color: #8b8987;
 }
 
 .vs {
   font-size: 20px;
   font-weight: 700;
-  color: #999;
+  color: #8b8987;
 }
 
 .new-game-request-actions {
@@ -120,14 +122,14 @@
 }
 
 .btn-accept {
-  background-color: #27ae60;
+  background-color: #81b64c;
   color: white;
 }
 
 .btn-accept:hover {
-  background-color: #229954;
+  background-color: #a3d160;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+  box-shadow: 0 4px 12px rgba(129, 182, 76, 0.3);
 }
 
 .btn-decline {
@@ -136,7 +138,7 @@
 }
 
 .btn-decline:hover {
-  background-color: #c0392b;
+  background-color: #fa6a5b;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
 }

@@ -914,15 +914,15 @@ const ChampionshipMatches = ({
               {/* Allowed Window Info */}
               <div style={{
                 padding: '12px',
-                backgroundColor: '#eff6ff',
-                border: '1px solid #3b82f6',
+                backgroundColor: '#262421',
+                border: '1px solid #81b64c',
                 borderRadius: '6px',
                 marginBottom: '16px'
               }}>
-                <h4 style={{ fontSize: '14px', fontWeight: 'bold', color: '#1e40af', marginBottom: '8px' }}>
+                <h4 style={{ fontSize: '14px', fontWeight: 'bold', color: '#81b64c', marginBottom: '8px' }}>
                   📅 Allowed Scheduling Window
                 </h4>
-                <div style={{ fontSize: '13px', color: '#1e3a8a' }}>
+                <div style={{ fontSize: '13px', color: '#bababa' }}>
                   <p style={{ margin: '4px 0' }}>
                     <strong>From:</strong> Now ({formatDateTime(now)})
                   </p>
@@ -930,7 +930,7 @@ const ChampionshipMatches = ({
                     <strong>To:</strong> {deadline ? formatDateTime(deadline) : 'No deadline set'}
                   </p>
                   {deadline && (
-                    <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: '#3b82f6' }}>
+                    <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: '#81b64c' }}>
                       ⏰ You have{' '}
                       {(() => {
                         const diffMs = deadline - now;
@@ -965,7 +965,7 @@ const ChampionshipMatches = ({
                   Your opponent can accept or propose an alternative time
                 </small>
                 {validationError && (
-                  <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
+                  <div style={{ color: '#fa6a5b', fontSize: '12px', marginTop: '4px' }}>
                     ⚠️ {validationError}
                   </div>
                 )}
@@ -1012,15 +1012,15 @@ const ChampionshipMatches = ({
       switch(deadlineInfo.urgency) {
         case 'danger':
         case 'critical':
-          return '#fee2e2'; // Light red
+          return 'rgba(231, 76, 60, 0.1)'; // Dark red tint
         case 'high':
-          return '#fed7aa'; // Light orange
+          return 'rgba(232, 169, 62, 0.1)'; // Dark orange tint
         case 'moderate':
-          return '#fef3c7'; // Light yellow
+          return 'rgba(232, 169, 62, 0.06)'; // Dark yellow tint
         case 'low':
-          return '#dbeafe'; // Light blue
+          return 'rgba(129, 182, 76, 0.06)'; // Dark green tint
         default:
-          return '#ffffff'; // White
+          return '#312e2b'; // Card surface
       }
     };
 
@@ -1032,7 +1032,7 @@ const ChampionshipMatches = ({
         <div className="match-header">
           <div className="match-meta" style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '12px', fontSize: '12px' }}>
             
-            <span className="round-info" style={{ color: '#6b7280' }}>
+            <span className="round-info" style={{ color: '#8b8987' }}>
               Round {match.round_number || match.round || 1}
               {match.board_number && `, Board ${match.board_number}`}
             </span>
@@ -1065,24 +1065,24 @@ const ChampionshipMatches = ({
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
                   maxWidth: '10ch',
-                  color: match.white_player_id === user?.id ? 'white' : '#1f2937'
+                  color: match.white_player_id === user?.id ? '#81b64c' : '#ffffff'
                 }}>
                   {match.white_player ? match.white_player.name : (match.result_type === 'bye' ? 'Bye' : 'Unknown Player')}
                   {match.white_player_id === user?.id && <span className="you-indicator" style={{ fontSize: '12px', marginLeft: '4px' }}>(You)</span>}
                 </div>
               </div>
               {match.white_player?.email && (
-                <div style={{ fontSize: '11px', color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginLeft: '14px', maxWidth: '10ch' }}>
+                <div style={{ fontSize: '11px', color: '#8b8987', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginLeft: '14px', maxWidth: '10ch' }}>
                   {match.white_player.email}
                 </div>
               )}
-              <div className="player-rating" style={{ fontSize: '12px', color: '#374151', marginTop: '2px', marginLeft: '14px' }}>
+              <div className="player-rating" style={{ fontSize: '12px', color: '#bababa', marginTop: '2px', marginLeft: '14px' }}>
                 Rating: {match.white_player?.rating || 'N/A'}
               </div>
             </div>
 
             {/* VS Separator */}
-            <div className="vs-separator" style={{ fontSize: '12px', fontWeight: '700', color: '#9ca3af' }}>VS</div>
+            <div className="vs-separator" style={{ fontSize: '12px', fontWeight: '700', color: '#5c5a57' }}>VS</div>
 
             {/* Black Player */}
             <div className="player-info" style={{ flex: '1', minWidth: '0' }}>
@@ -1108,18 +1108,18 @@ const ChampionshipMatches = ({
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
                   maxWidth: '10ch',
-                  color: match.black_player_id === user?.id ? 'white' : '#1f2937'
+                  color: match.black_player_id === user?.id ? '#81b64c' : '#ffffff'
                 }}>
                   {match.black_player ? match.black_player.name : (match.result_type === 'bye' ? 'Bye' : 'Unknown Player')}
                   {match.black_player_id === user?.id && <span className="you-indicator" style={{ fontSize: '12px', marginLeft: '4px' }}>(You)</span>}
                 </div>
               </div>
               {match.black_player?.email && (
-                <div style={{ fontSize: '11px', color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginLeft: '14px', maxWidth: '10ch' }}>
+                <div style={{ fontSize: '11px', color: '#8b8987', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginLeft: '14px', maxWidth: '10ch' }}>
                   {match.black_player.email}
                 </div>
               )}
-              <div className="player-rating" style={{ fontSize: '12px', color: '#374151', marginTop: '2px', marginLeft: '14px' }}>
+              <div className="player-rating" style={{ fontSize: '12px', color: '#bababa', marginTop: '2px', marginLeft: '14px' }}>
                 Rating: {match.black_player?.rating || 'N/A'}
               </div>
             </div>
@@ -1135,13 +1135,13 @@ const ChampionshipMatches = ({
             gap: '12px',
             alignItems: 'flex-start',
             padding: '8px 12px',
-            backgroundColor: '#f9fafb',
-            border: '1px solid #e5e7eb',
+            backgroundColor: '#262421',
+            border: '1px solid #3d3a37',
             borderRadius: '6px',
             fontSize: '12px'
           }}>
             <div style={{ flex: '1', minWidth: '0' }}>
-              <div style={{ fontWeight: '600', color: '#374151', marginBottom: '4px' }}>
+              <div style={{ fontWeight: '600', color: '#bababa', marginBottom: '4px' }}>
                 Complete by:
               </div>
               <div className={`schedule-time ${deadlineInfo.color}`} style={{ fontSize: '11px', padding: '2px 6px', borderRadius: '3px', display: 'inline-block' }}>
@@ -1150,14 +1150,14 @@ const ChampionshipMatches = ({
             </div>
 
             {match.deadline && (
-              <div style={{ flex: '1', minWidth: '0', borderLeft: '1px solid #e5e7eb', paddingLeft: '12px' }}>
-                <div style={{ fontWeight: '600', color: '#374151', marginBottom: '4px' }}>
+              <div style={{ flex: '1', minWidth: '0', borderLeft: '1px solid #4a4744', paddingLeft: '12px' }}>
+                <div style={{ fontWeight: '600', color: '#bababa', marginBottom: '4px' }}>
                   📅 Time Window
                 </div>
-                <div style={{ color: '#6b7280', fontSize: '11px' }}>
+                <div style={{ color: '#8b8987', fontSize: '11px' }}>
                   Now → {formatDateTime(new Date(match.deadline))}
                 </div>
-                <div style={{ color: '#3b82f6', fontSize: '11px', marginTop: '2px' }}>
+                <div style={{ color: '#81b64c', fontSize: '11px', marginTop: '2px' }}>
                   ⏰ {(() => {
                     const now = new Date();
                     const deadline = new Date(match.deadline);
@@ -1196,7 +1196,7 @@ const ChampionshipMatches = ({
         </div>
 
         <div className="match-actions" style={{
-          borderTop: '2px solid #e5e7eb',
+          borderTop: '2px solid #3d3a37',
           paddingTop: '12px',
           marginTop: '12px',
           display: 'flex',
@@ -1269,8 +1269,8 @@ const ChampionshipMatches = ({
             <div style={{
               padding: '8px 12px',
               borderRadius: '6px',
-              backgroundColor: pendingRequests[match.id].type === 'outgoing' ? '#fef3c7' : '#dbeafe',
-              border: `1px solid ${pendingRequests[match.id].type === 'outgoing' ? '#f59e0b' : '#3b82f6'}`,
+              backgroundColor: pendingRequests[match.id].type === 'outgoing' ? 'rgba(232, 169, 62, 0.1)' : 'rgba(129, 182, 76, 0.1)',
+              border: `1px solid ${pendingRequests[match.id].type === 'outgoing' ? '#e8a93e' : '#81b64c'}`,
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
@@ -1294,10 +1294,10 @@ const ChampionshipMatches = ({
                       padding: '2px 8px',
                       fontSize: '11px',
                       backgroundColor: 'transparent',
-                      border: '1px solid #f59e0b',
+                      border: '1px solid #e8a93e',
                       borderRadius: '4px',
                       cursor: 'pointer',
-                      color: '#f59e0b'
+                      color: '#e8a93e'
                     }}
                   >
                     Cancel
@@ -1318,7 +1318,7 @@ const ChampionshipMatches = ({
                       marginLeft: 'auto',
                       padding: '2px 8px',
                       fontSize: '11px',
-                      backgroundColor: '#3b82f6',
+                      backgroundColor: '#81b64c',
                       border: 'none',
                       borderRadius: '4px',
                       cursor: 'pointer',
@@ -1613,31 +1613,31 @@ const ChampionshipMatches = ({
         >
           <div
             style={{
-              backgroundColor: 'white',
+              backgroundColor: '#312e2b',
               borderRadius: '12px',
               padding: '24px',
               maxWidth: '500px',
               width: '90%',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
               animation: 'slideInUp 0.3s ease-out'
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '20px', fontWeight: '700', color: '#1f2937' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '20px', fontWeight: '700', color: '#ffffff' }}>
               🎮 Game Start Request
             </h3>
 
-            <p style={{ margin: '0 0 24px 0', fontSize: '15px', color: '#4b5563', lineHeight: '1.6' }}>
+            <p style={{ margin: '0 0 24px 0', fontSize: '15px', color: '#bababa', lineHeight: '1.6' }}>
               <strong>{showResumeDialog.request?.requester?.name || 'Your opponent'}</strong> wants to start the championship game now.
             </p>
 
             <div style={{
-              backgroundColor: '#f3f4f6',
+              backgroundColor: '#262421',
               padding: '12px',
               borderRadius: '8px',
               marginBottom: '24px',
               fontSize: '13px',
-              color: '#6b7280'
+              color: '#8b8987'
             }}>
               <div>⚠️ This request expires in 5 minutes</div>
             </div>
@@ -1682,14 +1682,14 @@ const ChampionshipMatches = ({
                   fontSize: '14px',
                   fontWeight: '600',
                   borderRadius: '8px',
-                  border: '1px solid #d1d5db',
-                  backgroundColor: 'white',
-                  color: '#374151',
+                  border: '1px solid #4a4744',
+                  backgroundColor: '#3d3a37',
+                  color: '#bababa',
                   cursor: 'pointer',
                   transition: 'all 0.2s'
                 }}
-                onMouseOver={(e) => e.target.style.backgroundColor = '#f9fafb'}
-                onMouseOut={(e) => e.target.style.backgroundColor = 'white'}
+                onMouseOver={(e) => e.target.style.backgroundColor = '#4a4744'}
+                onMouseOut={(e) => e.target.style.backgroundColor = '#3d3a37'}
               >
                 ❌ Decline
               </button>
@@ -1767,8 +1767,8 @@ const ChampionshipMatches = ({
             top: '80px',
             right: '20px',
             backgroundColor: notification.type === 'success' ? '#10b981' :
-                            notification.type === 'warning' ? '#f59e0b' :
-                            notification.type === 'info' ? '#3b82f6' : '#ef4444',
+                            notification.type === 'warning' ? '#e8a93e' :
+                            notification.type === 'info' ? '#81b64c' : '#ef4444',
             color: 'white',
             padding: '16px 24px',
             borderRadius: '8px',

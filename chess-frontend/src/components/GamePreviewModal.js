@@ -30,7 +30,7 @@ const GamePreviewModal = ({ game, onClose }) => {
   };
 
   const getResultColor = (result, playerColor) => {
-    if (!result) return 'text-gray-500';
+    if (!result) return 'text-[#8b8987]';
 
     let effectiveResult;
     if (typeof result === 'object' && result.end_reason) {
@@ -60,7 +60,7 @@ const GamePreviewModal = ({ game, onClose }) => {
       case 'draw':
         return 'text-yellow-600';
       default:
-        return 'text-gray-500';
+        return 'text-[#8b8987]';
     }
   };
 
@@ -111,7 +111,7 @@ const GamePreviewModal = ({ game, onClose }) => {
   };
 
   const getSquareColor = (row, col) => {
-    return (row + col) % 2 === 0 ? 'bg-amber-100' : 'bg-amber-700';
+    return (row + col) % 2 === 0 ? 'bg-[#ebecd0]' : 'bg-[#769656]';
   };
 
   const getFileLabel = (index) => {
@@ -138,14 +138,14 @@ const GamePreviewModal = ({ game, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-[#312e2b] rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border-2 border-[#3d3a37]">
         {/* Header */}
-        <div className="border-b border-gray-200 px-6 py-4">
+        <div className="border-b border-[#3d3a37] px-6 py-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-gray-900">Game Preview</h2>
+            <h2 className="text-xl font-bold text-white">Game Preview</h2>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors p-2"
+              className="text-[#8b8987] hover:text-white transition-colors p-2"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -155,40 +155,40 @@ const GamePreviewModal = ({ game, onClose }) => {
         </div>
 
         {/* Game Info */}
-        <div className="px-6 py-4 border-b border-gray-200">
+        <div className="px-6 py-4 border-b border-[#3d3a37]">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div>
-              <div className="text-gray-500">Opponent</div>
-              <div className="font-semibold text-gray-900">{game.opponentName || 'Computer'}</div>
+              <div className="text-[#8b8987]">Opponent</div>
+              <div className="font-semibold text-white">{game.opponentName || 'Computer'}</div>
             </div>
             <div>
-              <div className="text-gray-500">You Played</div>
-              <div className="font-semibold text-gray-900">
+              <div className="text-[#8b8987]">You Played</div>
+              <div className="font-semibold text-white">
                 {game.playerColor === 'white' ? 'White' : 'Black'}
               </div>
             </div>
             <div>
-              <div className="text-gray-500">Result</div>
+              <div className="text-[#8b8987]">Result</div>
               <div className={`font-semibold ${getResultColor(game.result, game.playerColor)}`}>
                 {getResultText(game.result, game.playerColor)}
               </div>
             </div>
             <div>
-              <div className="text-gray-500">Duration</div>
-              <div className="font-semibold text-gray-900">
+              <div className="text-[#8b8987]">Duration</div>
+              <div className="font-semibold text-white">
                 {getGameDuration(game.startTime, game.endTime)}
               </div>
             </div>
           </div>
           {game.difficulty && (
             <div className="mt-3 text-sm">
-              <div className="text-gray-500">Difficulty</div>
-              <div className="font-semibold text-gray-900">{game.difficulty}</div>
+              <div className="text-[#8b8987]">Difficulty</div>
+              <div className="font-semibold text-white">{game.difficulty}</div>
             </div>
           )}
           <div className="mt-3 text-sm">
-            <div className="text-gray-500">Date</div>
-            <div className="font-semibold text-gray-900">
+            <div className="text-[#8b8987]">Date</div>
+            <div className="font-semibold text-white">
               {formatTime(game.endTime || game.timestamp)}
             </div>
           </div>
@@ -199,7 +199,7 @@ const GamePreviewModal = ({ game, onClose }) => {
           <div className="flex flex-col lg:flex-row gap-6">
             {/* Board */}
             <div className="flex-shrink-0">
-              <div className="inline-block border-4 border-gray-800 rounded-lg overflow-hidden">
+              <div className="inline-block border-4 border-[#262421] rounded-lg overflow-hidden">
                 <div className="grid grid-cols-8 gap-0">
                   {/* Board squares */}
                   {board && board.map((row, rowIndex) => (
@@ -215,7 +215,7 @@ const GamePreviewModal = ({ game, onClose }) => {
                 </div>
 
                 {/* File labels */}
-                <div className="grid grid-cols-8 gap-0 bg-gray-800">
+                <div className="grid grid-cols-8 gap-0 bg-[#262421]">
                   {[0, 1, 2, 3, 4, 5, 6, 7].map(index => (
                     <div key={index} className="w-12 h-6 sm:w-14 sm:h-6 flex items-center justify-center text-white text-xs font-bold">
                       {getFileLabel(index)}
@@ -230,13 +230,13 @@ const GamePreviewModal = ({ game, onClose }) => {
               {/* Moves */}
               {game.moves && game.moves.length > 0 && (
                 <div>
-                  <h3 className="font-semibold text-gray-900 mb-2">Moves ({game.moves.length})</h3>
-                  <div className="bg-gray-50 rounded-lg p-3 max-h-48 overflow-y-auto">
+                  <h3 className="font-semibold text-white mb-2">Moves ({game.moves.length})</h3>
+                  <div className="bg-[#262421] rounded-lg p-3 border border-[#3d3a37] max-h-48 overflow-y-auto">
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 text-sm">
                       {game.moves.map((move, index) => {
                         const moveNotation = typeof move === 'object' && move.move && move.move.san ? move.move.san : (typeof move === 'string' ? move : 'Invalid move');
                         return (
-                          <div key={index} className="font-mono text-gray-700">
+                          <div key={index} className="font-mono text-[#bababa]">
                             {Math.floor(index / 2) + 1}. {index % 2 === 0 ? '' : '...'} {moveNotation}
                           </div>
                         );
@@ -249,17 +249,17 @@ const GamePreviewModal = ({ game, onClose }) => {
               {/* Timer Info */}
               {game.timerEnabled && (
                 <div>
-                  <h3 className="font-semibold text-gray-900 mb-2">Timer Settings</h3>
-                  <div className="bg-gray-50 rounded-lg p-3 text-sm">
+                  <h3 className="font-semibold text-white mb-2">Timer Settings</h3>
+                  <div className="bg-[#262421] rounded-lg p-3 border border-[#3d3a37] text-sm">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <span className="text-gray-500">White Time:</span>
+                        <span className="text-[#8b8987]">White Time:</span>
                         <span className="ml-2 font-semibold">
                           {Math.floor((game.whiteMs || 600000) / 1000 / 60)} minutes
                         </span>
                       </div>
                       <div>
-                        <span className="text-gray-500">Black Time:</span>
+                        <span className="text-[#8b8987]">Black Time:</span>
                         <span className="ml-2 font-semibold">
                           {Math.floor((game.blackMs || 600000) / 1000 / 60)} minutes
                         </span>
@@ -271,15 +271,15 @@ const GamePreviewModal = ({ game, onClose }) => {
 
               {/* Game Statistics */}
               <div>
-                <h3 className="font-semibold text-gray-900 mb-2">Statistics</h3>
-                <div className="bg-gray-50 rounded-lg p-3">
+                <h3 className="font-semibold text-white mb-2">Statistics</h3>
+                <div className="bg-[#262421] rounded-lg p-3 border border-[#3d3a37]">
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <span className="text-gray-500">Total Moves:</span>
+                      <span className="text-[#8b8987]">Total Moves:</span>
                       <span className="ml-2 font-semibold">{game.moves?.length || 0}</span>
                     </div>
                     <div>
-                      <span className="text-gray-500">Game Mode:</span>
+                      <span className="text-[#8b8987]">Game Mode:</span>
                       <span className="ml-2 font-semibold">
                         {game.opponentName ? 'vs Computer' : 'Computer vs Human'}
                       </span>
@@ -291,11 +291,11 @@ const GamePreviewModal = ({ game, onClose }) => {
               {/* Opening Info (if available) */}
               {game.opening && (
                 <div>
-                  <h3 className="font-semibold text-gray-900 mb-2">Opening</h3>
-                  <div className="bg-gray-50 rounded-lg p-3 text-sm">
+                  <h3 className="font-semibold text-white mb-2">Opening</h3>
+                  <div className="bg-[#262421] rounded-lg p-3 border border-[#3d3a37] text-sm">
                     <div className="font-semibold">{game.opening.name}</div>
                     {game.opening.eco && (
-                      <div className="text-gray-500">ECO Code: {game.opening.eco}</div>
+                      <div className="text-[#8b8987]">ECO Code: {game.opening.eco}</div>
                     )}
                   </div>
                 </div>
@@ -305,11 +305,11 @@ const GamePreviewModal = ({ game, onClose }) => {
         </div>
 
         {/* Footer */}
-        <div className="border-t border-gray-200 px-6 py-4 bg-gray-50">
+        <div className="border-t border-[#3d3a37] px-6 py-4 bg-[#262421]">
           <div className="flex justify-end space-x-3">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg font-medium hover:bg-gray-300 transition-colors"
+              className="px-4 py-2 text-[#bababa] bg-[#3d3a37] rounded-lg font-medium hover:bg-[#4a4744] transition-colors"
             >
               Close
             </button>

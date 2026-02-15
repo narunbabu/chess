@@ -318,7 +318,7 @@ const ChampionshipMatchesEdit = ({ championshipId }) => {
 
         <div className="match-cell scheduled-cell">
           <div className="scheduled-date">{formatDateTime(match.scheduled_at)}</div>
-          <div className="deadline-info" style={{ fontSize: '12px', color: '#666' }}>
+          <div className="deadline-info" style={{ fontSize: '12px', color: '#8b8987' }}>
             Deadline: {formatDateTime(match.deadline)}
           </div>
         </div>
@@ -515,7 +515,7 @@ const ChampionshipMatchesEdit = ({ championshipId }) => {
                       <span style={{
                         fontSize: '14px',
                         fontWeight: 'normal',
-                        color: '#666',
+                        color: '#8b8987',
                         marginLeft: '8px'
                       }}>
                         ({formatDateTime(matchesByRound[round][0].scheduled_at, false)})
@@ -568,7 +568,7 @@ const ChampionshipMatchesEdit = ({ championshipId }) => {
           zIndex: 1000
         }}>
           <div className="modal-content" style={{
-            backgroundColor: 'white',
+            backgroundColor: '#312e2b',
             padding: '24px',
             borderRadius: '8px',
             maxWidth: '500px',
@@ -576,18 +576,18 @@ const ChampionshipMatchesEdit = ({ championshipId }) => {
             maxHeight: '90vh',
             overflow: 'auto'
           }}>
-            <h3 style={{ margin: '0 0 16px 0', color: '#333' }}>
+            <h3 style={{ margin: '0 0 16px 0', color: '#ffffff' }}>
               ✏️ Edit Round {editingRound} Time
             </h3>
 
             <div style={{ marginBottom: '16px' }}>
-              <p style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#666' }}>
+              <p style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#8b8987' }}>
                 This will update the scheduled time and deadline for all {matchesByRound[editingRound]?.length || 0} matches in Round {editingRound}.
               </p>
             </div>
 
             <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold', color: '#333' }}>
+              <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold', color: '#bababa' }}>
                 Round Start Date & Time:
               </label>
               <input
@@ -597,15 +597,17 @@ const ChampionshipMatchesEdit = ({ championshipId }) => {
                 style={{
                   width: '100%',
                   padding: '8px',
-                  border: '1px solid #ddd',
+                  border: '1px solid #4a4744',
                   borderRadius: '4px',
-                  fontSize: '14px'
+                  fontSize: '14px',
+                  backgroundColor: '#262421',
+                  color: '#bababa'
                 }}
               />
             </div>
 
             <div style={{ marginBottom: '24px' }}>
-              <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold', color: '#333' }}>
+              <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold', color: '#bababa' }}>
                 Round Deadline Date & Time:
               </label>
               <input
@@ -615,12 +617,14 @@ const ChampionshipMatchesEdit = ({ championshipId }) => {
                 style={{
                   width: '100%',
                   padding: '8px',
-                  border: '1px solid #ddd',
+                  border: '1px solid #4a4744',
                   borderRadius: '4px',
-                  fontSize: '14px'
+                  fontSize: '14px',
+                  backgroundColor: '#262421',
+                  color: '#bababa'
                 }}
               />
-              <small style={{ display: 'block', marginTop: '4px', color: '#666' }}>
+              <small style={{ display: 'block', marginTop: '4px', color: '#8b8987' }}>
                 This is the deadline by which all matches in this round must be completed.
               </small>
             </div>
@@ -632,9 +636,10 @@ const ChampionshipMatchesEdit = ({ championshipId }) => {
                 className="btn btn-secondary"
                 style={{
                   padding: '8px 16px',
-                  border: '1px solid #ddd',
+                  border: '1px solid #4a4744',
                   borderRadius: '4px',
-                  backgroundColor: '#f8f9fa',
+                  backgroundColor: '#3d3a37',
+                  color: '#bababa',
                   cursor: 'pointer'
                 }}
               >
@@ -648,7 +653,7 @@ const ChampionshipMatchesEdit = ({ championshipId }) => {
                   padding: '8px 16px',
                   border: 'none',
                   borderRadius: '4px',
-                  backgroundColor: '#007bff',
+                  backgroundColor: '#81b64c',
                   color: 'white',
                   cursor: updatingRound === editingRound ? 'not-allowed' : 'pointer',
                   opacity: updatingRound === editingRound ? 0.6 : 1

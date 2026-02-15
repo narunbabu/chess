@@ -339,11 +339,11 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
     return (
       <div className="flex items-center space-x-1">
         <div
-          className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-gray-400'}`}
+          className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-[#4a4744]'}`}
           title={`${userName} is ${isOnline ? 'Online' : 'Offline'}`}
         ></div>
         <span
-          className={`text-xs ${isOnline ? 'text-green-600' : 'text-gray-500'} ${isCurrentUser ? 'font-medium' : ''}`}
+          className={`text-xs ${isOnline ? 'text-green-600' : 'text-[#8b8987]'} ${isCurrentUser ? 'font-medium' : ''}`}
         >
           {isOnline ? 'Online' : 'Offline'}
           {isCurrentUser && ' (You)'}
@@ -353,14 +353,14 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 mb-4">
+    <div className="bg-[#312e2b] rounded-lg shadow-md p-6 mb-4">
       {/* Match Header */}
       <div className="flex justify-between items-start mb-4">
         <div className="flex-1">
           <div className="flex items-center space-x-4 mb-2">
             {/* Player 1 */}
             <div className="flex items-center space-x-2">
-              <span className="text-lg font-semibold text-gray-900">
+              <span className="text-lg font-semibold text-white">
                 {match.player1?.name || 'Player 1'}
               </span>
               <OnlineStatusIndicator
@@ -370,11 +370,11 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
             </div>
 
             {/* VS */}
-            <span className="text-gray-400 text-sm">vs</span>
+            <span className="text-[#5c5a57] text-sm">vs</span>
 
             {/* Player 2 */}
             <div className="flex items-center space-x-2">
-              <span className="text-lg font-semibold text-gray-900">
+              <span className="text-lg font-semibold text-white">
                 {match.player2?.name || 'Player 2'}
               </span>
               <OnlineStatusIndicator
@@ -384,22 +384,22 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
             </div>
           </div>
 
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-[#8b8987]">
             Round {match.round_number} • {match.round_type}
           </p>
 
           {/* Enhanced Time Display */}
-          <div className="mt-2 p-3 bg-gray-50 rounded-lg border">
+          <div className="mt-2 p-3 bg-[#262421] rounded-lg border">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Deadline</p>
-                <p className="text-sm font-semibold text-gray-900">{formatDateTime(match.deadline)}</p>
+                <p className="text-xs font-medium text-[#8b8987] uppercase tracking-wide">Deadline</p>
+                <p className="text-sm font-semibold text-white">{formatDateTime(match.deadline)}</p>
               </div>
 
               {match.scheduled_time && (
                 <div className="text-center">
-                  <p className="text-xs font-medium text-blue-500 uppercase tracking-wide">Scheduled Time</p>
-                  <p className="text-sm font-semibold text-blue-900">{formatDateTime(match.scheduled_time)}</p>
+                  <p className="text-xs font-medium text-[#81b64c] uppercase tracking-wide">Scheduled Time</p>
+                  <p className="text-sm font-semibold text-[#81b64c]">{formatDateTime(match.scheduled_time)}</p>
                 </div>
               )}
 
@@ -414,7 +414,7 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
             {/* Time remaining indicator */}
             {match.deadline && (
               <div className="mt-2">
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-[#8b8987]">
                   {(() => {
                     const now = new Date();
                     const deadline = new Date(match.deadline);
@@ -439,7 +439,7 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
         <div className="ml-4">
           <button
             onClick={() => setShowInstructions(!showInstructions)}
-            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+            className="text-[#81b64c] hover:text-[#81b64c] text-sm font-medium"
           >
             ℹ️ Instructions
           </button>
@@ -448,34 +448,34 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
 
       {/* Error Display */}
       {error && (
-        <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+        <div className="mb-4 p-3 bg-[#262421] border border-[#fa6a5b] text-[#fa6a5b] rounded">
           {error}
         </div>
       )}
 
       {/* Championship Instructions */}
       {showInstructions && championshipInstructions && (
-        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <h4 className="font-semibold text-blue-900 mb-2">Championship Instructions</h4>
+        <div className="mb-4 p-4 bg-[#262421] border border-[#3d3a37] rounded-lg">
+          <h4 className="font-semibold text-[#81b64c] mb-2">Championship Instructions</h4>
 
           <div className="mb-3">
-            <h5 className="font-medium text-blue-800 mb-1">Scheduling Rules:</h5>
+            <h5 className="font-medium text-[#81b64c] mb-1">Scheduling Rules:</h5>
             <div
-              className="text-sm text-blue-700 prose prose-sm max-w-none"
+              className="text-sm text-[#bababa] prose prose-sm max-w-none"
               dangerouslySetInnerHTML={{ __html: championshipInstructions.scheduling_instructions }}
             />
           </div>
 
           <div>
-            <h5 className="font-medium text-blue-800 mb-1">Play Rules:</h5>
+            <h5 className="font-medium text-[#81b64c] mb-1">Play Rules:</h5>
             <div
-              className="text-sm text-blue-700 prose prose-sm max-w-none"
+              className="text-sm text-[#bababa] prose prose-sm max-w-none"
               dangerouslySetInnerHTML={{ __html: championshipInstructions.play_instructions }}
             />
           </div>
 
-          <div className="mt-3 pt-3 border-t border-blue-200">
-            <p className="text-xs text-blue-600">
+          <div className="mt-3 pt-3 border-t border-[#3d3a37]">
+            <p className="text-xs text-[#81b64c]">
               <strong>Grace Period:</strong> {championshipInstructions.default_grace_period_minutes} minutes
               {championshipInstructions.allow_early_play && ' • Early play allowed'}
             </p>
@@ -485,8 +485,8 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
 
       {/* Current Schedule Status */}
       {currentSchedule && (
-        <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <h4 className="font-semibold text-yellow-900 mb-2">Schedule Proposal</h4>
+        <div className="mb-4 p-4 bg-[#262421] border border-[#e8a93e] rounded-lg">
+          <h4 className="font-semibold text-[#e8a93e] mb-2">Schedule Proposal</h4>
 
           <div className="space-y-2">
             <p className="text-sm">
@@ -517,13 +517,13 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
             )}
 
             {currentSchedule.proposer_message && (
-              <p className="text-sm italic text-gray-600">
+              <p className="text-sm italic text-[#8b8987]">
                 "{currentSchedule.proposer_message}"
               </p>
             )}
 
             {currentSchedule.responder_message && (
-              <p className="text-sm italic text-gray-600">
+              <p className="text-sm italic text-[#8b8987]">
                 "{currentSchedule.responder_message}"
               </p>
             )}
@@ -551,7 +551,7 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
 
           {currentSchedule.status === 'alternative_proposed' && currentSchedule.responder_id !== user.id && (
             <div className="mt-4">
-              <p className="text-sm text-gray-600 mb-2">Alternative proposed. Please accept or propose another alternative.</p>
+              <p className="text-sm text-[#8b8987] mb-2">Alternative proposed. Please accept or propose another alternative.</p>
               <div className="flex space-x-2">
                 <button
                   onClick={() => handleAcceptSchedule(currentSchedule.id)}
@@ -581,17 +581,17 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
         const bothPlayersOnline = player1Online && player2Online;
 
         return (
-          <div className="space-y-4 border-2 border-blue-300 p-4 rounded-lg bg-blue-50">
+          <div className="space-y-4 border-2 border-[#81b64c] p-4 rounded-lg bg-[#262421]">
             {/* Online Status Summary */}
             {bothPlayersOnline && (
-              <div className="mb-3 p-2 bg-green-100 border border-green-300 rounded-lg">
-                <p className="text-sm text-green-700 font-medium text-center">
+              <div className="mb-3 p-2 bg-[#262421] border border-green-600 rounded-lg">
+                <p className="text-sm text-green-500 font-medium text-center">
                   🎉 Both players are online! Perfect time to play!
                 </p>
               </div>
             )}
 
-            <div className="mb-2 text-xs text-blue-600 font-medium">
+            <div className="mb-2 text-xs text-[#81b64c] font-medium">
               ✓ You are a player in this match - Actions available
             </div>
 
@@ -632,7 +632,7 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
                     className={`px-4 py-3 rounded-lg disabled:opacity-50 font-medium flex items-center justify-center ${
                       opponentIsOnline
                         ? 'bg-green-600 hover:bg-green-700 text-white'
-                        : 'bg-gray-500 hover:bg-gray-600 text-white'
+                        : 'bg-[#3d3a37] hover:bg-[#4a4744] text-white'
                     }`}
                   >
                     {creatingGame ? (
@@ -664,7 +664,7 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
                     disabled={proposingSchedule}
                     className={`px-4 py-3 rounded-lg disabled:opacity-50 font-medium flex items-center justify-center ${
                       opponentIsOnline
-                        ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                        ? 'bg-[#81b64c] hover:bg-[#4e7837] text-white'
                         : 'bg-orange-500 hover:bg-orange-600 text-white'
                     }`}
                   >
@@ -678,7 +678,7 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
 
           {/* Scheduling Actions */}
           <div className="border-t pt-4">
-            <h4 className="text-sm font-medium text-gray-700 mb-3">📅 Schedule Options</h4>
+            <h4 className="text-sm font-medium text-[#bababa] mb-3">📅 Schedule Options</h4>
 
             {/* Propose Time Button */}
             {canProposeTime() && (
@@ -687,16 +687,16 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
                   <button
                     onClick={() => setShowScheduleForm(true)}
                     disabled={proposingSchedule}
-                    className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
+                    className="w-full px-4 py-3 bg-[#81b64c] text-white rounded-lg hover:bg-[#4e7837] disabled:opacity-50 font-medium"
                   >
                     📅 Propose a Time
                   </button>
                 ) : (
-                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <h4 className="font-medium text-blue-900 mb-3">Propose Match Time</h4>
+                  <div className="p-4 bg-[#262421] border border-[#3d3a37] rounded-lg">
+                    <h4 className="font-medium text-[#81b64c] mb-3">Propose Match Time</h4>
                     <form onSubmit={handleProposeTime} className="space-y-3">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-[#bababa] mb-1">
                           Proposed Time
                         </label>
                         <input
@@ -706,15 +706,15 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
                           min={new Date().toISOString().slice(0, 16)}
                           max={match.deadline}
                           required
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                          className="w-full px-3 py-2 border border-[#4a4744] rounded-md focus:ring-[#81b64c] focus:border-[#81b64c] bg-[#262421] text-[#bababa]"
                         />
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-xs text-[#8b8987] mt-1">
                           Must be before deadline: {formatDateTimeShort(match.deadline)}
                         </p>
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-[#bababa] mb-1">
                           Message (Optional)
                         </label>
                         <textarea
@@ -722,7 +722,7 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
                           onChange={(e) => setScheduleData({...scheduleData, message: e.target.value})}
                           placeholder="Add a message for your opponent..."
                           rows="2"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                          className="w-full px-3 py-2 border border-[#4a4744] rounded-md focus:ring-[#81b64c] focus:border-[#81b64c] bg-[#262421] text-[#bababa]"
                         />
                       </div>
 
@@ -730,7 +730,7 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
                         <button
                           type="submit"
                           disabled={proposingSchedule}
-                          className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                          className="flex-1 px-4 py-2 bg-[#81b64c] text-white rounded-md hover:bg-[#4e7837] disabled:opacity-50"
                         >
                           {proposingSchedule ? '⏳ Sending...' : '📤 Send Proposal'}
                         </button>
@@ -740,7 +740,7 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
                             setShowScheduleForm(false);
                             setScheduleData({ proposed_time: '', message: '' });
                           }}
-                          className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+                          className="flex-1 px-4 py-2 bg-[#3d3a37] text-[#bababa] rounded-md hover:bg-[#4a4744]"
                         >
                           Cancel
                         </button>
@@ -799,7 +799,7 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
                       }
                     }}
                     disabled={proposingSchedule}
-                    className="px-3 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 disabled:opacity-50 text-sm"
+                    className="px-3 py-2 bg-[#3d3a37] text-[#bababa] rounded hover:bg-[#4a4744] disabled:opacity-50 text-sm"
                   >
                     ⚡ {slot.label}
                   </button>
@@ -810,13 +810,13 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
 
           {/* Game Link */}
           {match.game_id && (
-            <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+            <div className="p-4 bg-[#262421] border border-green-600 rounded-lg">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-green-800">
+                  <p className="text-sm font-medium text-green-500">
                     🎮 Game is ready!
                   </p>
-                  <p className="text-xs text-green-600">
+                  <p className="text-xs text-green-500">
                     Game ID: {match.game_id}
                   </p>
                 </div>
@@ -832,8 +832,8 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
 
           {/* Status Messages */}
           {!canProposeTime() && !match.game_id && (
-            <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
-              <p className="text-sm text-gray-600">
+            <div className="p-4 bg-[#262421] border border-[#3d3a37] rounded-lg">
+              <p className="text-sm text-[#8b8987]">
                 {match.scheduling_status === 'accepted' && '✅ Schedule accepted. Waiting for confirmation.'}
                 {match.scheduling_status === 'confirmed' && `📅 Match scheduled for ${formatDateTime(match.scheduled_time)}`}
                 {match.scheduling_status === 'forfeit' && '❌ Match has been forfeited.'}
@@ -847,16 +847,16 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
 
       {/* Non-Player View */}
       {!isUserPlayer() && (
-        <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
-          <p className="text-sm text-red-600 font-medium mb-2">
+        <div className="p-4 bg-[#262421] border border-[#3d3a37] rounded-lg">
+          <p className="text-sm text-[#fa6a5b] font-medium mb-2">
             ⓘ Debug: You are not a player in this match
           </p>
-          <p className="text-xs text-gray-500 mb-2">
+          <p className="text-xs text-[#8b8987] mb-2">
             User ID: {user?.id || 'Not logged in'} |
             Player 1 ID: {match.player1_id} |
             Player 2 ID: {match.player2_id}
           </p>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-[#8b8987]">
             This match is between {match.player1?.name} and {match.player2?.name}.
             {match.scheduling_status === 'pending' && ' Waiting for players to schedule their match.'}
             {match.scheduling_status === 'accepted' && ' Schedule has been proposed.'}

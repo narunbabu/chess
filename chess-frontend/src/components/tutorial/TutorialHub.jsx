@@ -148,12 +148,12 @@ const TutorialHub = () => {
 
     return (
       <div className="w-full">
-        <div className="flex justify-between text-sm mb-1 font-semibold text-gray-700">
+        <div className="flex justify-between text-sm mb-1 font-semibold text-[#bababa]">
           <span>🎖️ Level {level}</span>
           <span>⭐ {xp} XP</span>
         </div>
-        <div className="w-full bg-gray-200 rounded-full h-2.5 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-purple-200 via-yellow-100 to-orange-200 opacity-30"></div>
+        <div className="w-full bg-[#3d3a37] rounded-full h-2.5 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-r from-[#4e7837] via-[#e8a93e] to-[#e8a93e] opacity-30"></div>
           <div
             className="h-2.5 rounded-full transition-all duration-500 relative z-10"
             style={{
@@ -180,7 +180,7 @@ const TutorialHub = () => {
           height={size}
         >
           <circle
-            className="text-gray-200"
+            className="text-[#3d3a37]"
             stroke="currentColor"
             strokeWidth={strokeWidth}
             fill="transparent"
@@ -215,7 +215,7 @@ const TutorialHub = () => {
     return (
       <div
         key={module.id}
-        className={`tutorial-module-card bg-white rounded-2xl shadow-lg border-2 border-blue-100 hover:border-blue-300 hover:shadow-2xl transition-all p-6 relative ${isLocked ? 'opacity-75' : ''}`}
+        className={`tutorial-module-card bg-[#312e2b] rounded-2xl shadow-lg border-2 border-[#3d3a37] hover:border-[#81b64c] hover:shadow-2xl transition-all p-6 relative ${isLocked ? 'opacity-75' : ''}`}
       >
         {/* Lock overlay */}
         {isLocked && (
@@ -234,7 +234,7 @@ const TutorialHub = () => {
               {module.icon || getTierIcon(module.skill_tier)}
             </div>
             <div>
-              <h3 className="text-xl font-extrabold text-gray-900">{module.name}</h3>
+              <h3 className="text-xl font-extrabold text-white">{module.name}</h3>
               <span className={`inline-block px-3 py-1.5 rounded-lg text-xs font-bold text-white ${getTierColor(module.skill_tier)} shadow-md mt-1`}>
                 {getTierName(module.skill_tier)}
               </span>
@@ -246,38 +246,38 @@ const TutorialHub = () => {
         </div>
 
         {/* Module info */}
-        <p className="text-gray-700 mb-5 text-base font-semibold">{module.description}</p>
+        <p className="text-[#bababa] mb-5 text-base font-semibold">{module.description}</p>
 
         {/* Stats */}
         <div className="grid grid-cols-4 gap-2 mb-5">
-          <div className="text-center p-3 rounded-xl bg-gradient-to-br from-green-100 to-emerald-100 border-2 border-green-200 shadow-sm hover:shadow-md transition-shadow">
-            <div className="text-2xl font-extrabold text-green-700">
+          <div className="text-center p-3 rounded-xl bg-[#3d3a37] border-2 border-[#4a4744] shadow-sm hover:shadow-md transition-shadow">
+            <div className="text-2xl font-extrabold text-[#81b64c]">
               {progress.completed_lessons}
             </div>
-            <div className="text-xs font-bold text-gray-700 mt-1">✓ Done</div>
+            <div className="text-xs font-bold text-[#bababa] mt-1">✓ Done</div>
           </div>
-          <div className="text-center p-3 rounded-xl bg-gradient-to-br from-purple-100 to-indigo-100 border-2 border-purple-200 shadow-sm hover:shadow-md transition-shadow">
-            <div className="text-2xl font-extrabold text-purple-700">
+          <div className="text-center p-3 rounded-xl bg-[#3d3a37] border-2 border-[#4a4744] shadow-sm hover:shadow-md transition-shadow">
+            <div className="text-2xl font-extrabold text-[#bababa]">
               {progress.total_lessons}
             </div>
-            <div className="text-xs font-bold text-gray-700 mt-1">📚 Total</div>
+            <div className="text-xs font-bold text-[#bababa] mt-1">📚 Total</div>
           </div>
-          <div className="text-center p-3 rounded-xl bg-gradient-to-br from-yellow-100 to-amber-100 border-2 border-yellow-200 shadow-sm hover:shadow-md transition-shadow">
-            <div className="text-xl font-extrabold text-yellow-700">
+          <div className="text-center p-3 rounded-xl bg-[#3d3a37] border-2 border-[#4a4744] shadow-sm hover:shadow-md transition-shadow">
+            <div className="text-xl font-extrabold text-[#e8a93e]">
               {progress.earned_xp || 0}/{module.total_xp}
             </div>
-            <div className="text-xs font-bold text-gray-700 mt-1">⭐ XP</div>
+            <div className="text-xs font-bold text-[#bababa] mt-1">⭐ XP</div>
           </div>
-          <div className="text-center p-3 rounded-xl bg-gradient-to-br from-blue-100 to-sky-100 border-2 border-blue-200 shadow-sm hover:shadow-md transition-shadow">
-            <div className="text-2xl font-extrabold text-blue-700">
+          <div className="text-center p-3 rounded-xl bg-[#3d3a37] border-2 border-[#4a4744] shadow-sm hover:shadow-md transition-shadow">
+            <div className="text-2xl font-extrabold text-[#81b64c]">
               {progress.average_score ? `${Math.round(progress.average_score)}%` : '-'}
             </div>
-            <div className="text-xs font-bold text-gray-700 mt-1">📊 Score</div>
+            <div className="text-xs font-bold text-[#bababa] mt-1">📊 Score</div>
           </div>
         </div>
 
         {/* Duration */}
-        <div className="flex items-center text-base text-gray-800 font-bold mb-5 bg-gray-50 p-2 rounded-lg">
+        <div className="flex items-center text-base text-[#bababa] font-bold mb-5 bg-[#262421] p-2 rounded-lg">
           <span className="mr-2 text-xl">⏱️</span>
           <span>{module.formatted_duration}</span>
         </div>
@@ -285,7 +285,7 @@ const TutorialHub = () => {
         {/* Action button */}
         {isLocked ? (
           <button
-            className="w-full py-4 px-4 rounded-xl font-bold transition-colors text-center bg-gray-300 text-gray-700 cursor-not-allowed border-2 border-gray-400 text-lg"
+            className="w-full py-4 px-4 rounded-xl font-bold transition-colors text-center bg-[#3d3a37] text-[#5c5a57] cursor-not-allowed border-2 border-[#4a4744] text-lg"
             disabled
           >
             🔒 Locked
@@ -295,9 +295,9 @@ const TutorialHub = () => {
             onClick={() => handleModuleClick(module)}
             className="w-full py-4 px-4 rounded-xl font-bold transition-all text-center text-white hover:scale-105 hover:shadow-2xl text-lg border-2"
             style={{
-              background: progress.is_completed ? 'linear-gradient(135deg, #10b981, #34d399)' : 'linear-gradient(135deg, #8b5cf6, #a78bfa)',
-              borderColor: progress.is_completed ? '#10b981' : '#8b5cf6',
-              boxShadow: progress.is_completed ? '0 6px 20px rgba(34, 197, 94, 0.4)' : '0 6px 20px rgba(124, 58, 237, 0.4)'
+              background: progress.is_completed ? 'linear-gradient(135deg, #81b64c, #a3d160)' : 'linear-gradient(135deg, #81b64c, #769656)',
+              borderColor: progress.is_completed ? '#81b64c' : '#769656',
+              boxShadow: progress.is_completed ? '0 6px 20px rgba(129, 182, 76, 0.4)' : '0 6px 20px rgba(118, 150, 86, 0.4)'
             }}
           >
             {progress.is_completed ? '✅ Review Lessons' : progress.completed_lessons > 0 ? '🚀 Continue Learning' : '📖 View Lessons'}
@@ -308,14 +308,14 @@ const TutorialHub = () => {
   };
 
   const QuickStatsCard = () => (
-    <div className="tutorial-stats-card bg-white rounded-2xl shadow-lg border-2 border-blue-100 p-6">
-      <h3 className="text-2xl font-extrabold mb-5 text-gray-900">📊 Your Progress</h3>
+    <div className="tutorial-stats-card bg-[#312e2b] rounded-2xl shadow-lg border-2 border-[#3d3a37] p-6">
+      <h3 className="text-2xl font-extrabold mb-5 text-white">📊 Your Progress</h3>
 
       {/* XP and Level */}
-      <div className="mb-6 p-4 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl border-2 border-indigo-200 shadow-sm">
+      <div className="mb-6 p-4 bg-[#262421] rounded-xl border-2 border-[#3d3a37] shadow-sm">
         <XPProgressBar xp={stats?.earned_xp || stats?.xp || 0} level={stats?.level || 1} />
         {stats?.earned_xp !== stats?.xp && (
-          <div className="mt-2 text-xs text-gray-600 text-center">
+          <div className="mt-2 text-xs text-[#8b8987] text-center">
             <span className="font-semibold">Total XP (with bonuses): {stats?.xp || 0}</span>
           </div>
         )}
@@ -323,29 +323,29 @@ const TutorialHub = () => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 gap-3 mb-5">
-        <div className="text-center p-3 rounded-xl bg-gradient-to-br from-green-100 to-emerald-100 border-2 border-green-200 hover:shadow-lg hover:scale-105 transition-all">
-          <div className="text-3xl font-extrabold text-green-700">
+        <div className="text-center p-3 rounded-xl bg-[#3d3a37] border-2 border-[#4a4744] hover:shadow-lg hover:scale-105 transition-all">
+          <div className="text-3xl font-extrabold text-[#81b64c]">
             {stats?.completed_lessons || 0}
           </div>
-          <div className="text-xs font-bold text-gray-700 mt-1">✅ Lessons</div>
+          <div className="text-xs font-bold text-[#bababa] mt-1">✅ Lessons</div>
         </div>
-        <div className="text-center p-3 rounded-xl bg-gradient-to-br from-purple-100 to-indigo-100 border-2 border-purple-200 hover:shadow-lg hover:scale-105 transition-all">
-          <div className="text-3xl font-extrabold text-purple-700">
+        <div className="text-center p-3 rounded-xl bg-[#3d3a37] border-2 border-[#4a4744] hover:shadow-lg hover:scale-105 transition-all">
+          <div className="text-3xl font-extrabold text-[#e8a93e]">
             {stats?.achievements_count || 0}
           </div>
-          <div className="text-xs font-bold text-gray-700 mt-1">🏆 Achievements</div>
+          <div className="text-xs font-bold text-[#bababa] mt-1">🏆 Achievements</div>
         </div>
-        <div className="text-center p-3 rounded-xl bg-gradient-to-br from-orange-100 to-amber-100 border-2 border-orange-200 hover:shadow-lg hover:scale-105 transition-all">
-          <div className="text-3xl font-extrabold text-orange-700">
+        <div className="text-center p-3 rounded-xl bg-[#3d3a37] border-2 border-[#4a4744] hover:shadow-lg hover:scale-105 transition-all">
+          <div className="text-3xl font-extrabold text-[#e8a93e]">
             {stats?.current_streak || 0}
           </div>
-          <div className="text-xs font-bold text-gray-700 mt-1">🔥 Day Streak</div>
+          <div className="text-xs font-bold text-[#bababa] mt-1">🔥 Day Streak</div>
         </div>
-        <div className="text-center p-3 rounded-xl bg-gradient-to-br from-blue-100 to-sky-100 border-2 border-blue-200 hover:shadow-lg hover:scale-105 transition-all">
-          <div className="text-3xl font-extrabold text-blue-700">
+        <div className="text-center p-3 rounded-xl bg-[#3d3a37] border-2 border-[#4a4744] hover:shadow-lg hover:scale-105 transition-all">
+          <div className="text-3xl font-extrabold text-[#81b64c]">
             {stats?.completion_percentage || 0}%
           </div>
-          <div className="text-xs font-bold text-gray-700 mt-1">📊 Progress</div>
+          <div className="text-xs font-bold text-[#bababa] mt-1">📊 Progress</div>
         </div>
       </div>
 
@@ -353,10 +353,10 @@ const TutorialHub = () => {
       {nextLesson && (
         <Link
           to={`/tutorial/lesson/${nextLesson.id}`}
-          className="w-full text-white py-4 px-4 rounded-xl font-bold transition-all text-center block hover:scale-105 hover:shadow-2xl text-base border-2 border-green-600"
+          className="w-full text-white py-4 px-4 rounded-xl font-bold transition-all text-center block hover:scale-105 hover:shadow-2xl text-base border-2 border-[#81b64c]"
           style={{
-            background: 'linear-gradient(135deg, #10b981, #34d399)',
-            boxShadow: '0 6px 20px rgba(34, 197, 94, 0.4)'
+            background: 'linear-gradient(135deg, #81b64c, #a3d160)',
+            boxShadow: '0 6px 20px rgba(129, 182, 76, 0.4)'
           }}
         >
           🎯 Continue: {nextLesson.title}
@@ -371,28 +371,28 @@ const TutorialHub = () => {
     const isCompleted = dailyChallenge.user_completion?.completed;
 
     return (
-      <div className="tutorial-stats-card bg-white rounded-2xl shadow-lg border-2 border-blue-100 p-6">
-        <h3 className="text-2xl font-extrabold mb-5 text-gray-900">🏅 Daily Challenge</h3>
+      <div className="tutorial-stats-card bg-[#312e2b] rounded-2xl shadow-lg border-2 border-[#3d3a37] p-6">
+        <h3 className="text-2xl font-extrabold mb-5 text-white">🏅 Daily Challenge</h3>
 
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center space-x-3">
             <div className="text-4xl">{dailyChallenge.challenge_type_icon}</div>
             <div>
-              <div className="font-bold text-gray-900 text-base">{dailyChallenge.challenge_type_display}</div>
+              <div className="font-bold text-white text-base">{dailyChallenge.challenge_type_display}</div>
               <div className={`text-sm px-3 py-1.5 rounded-lg text-xs font-bold text-white ${dailyChallenge.tier_color_class} mt-1 inline-block shadow-md`}>
                 {getTierName(dailyChallenge.skill_tier)}
               </div>
             </div>
           </div>
-          <div className="text-right p-3 bg-gradient-to-br from-yellow-100 to-amber-100 rounded-xl border-2 border-yellow-200 shadow-sm">
-            <div className="text-2xl font-extrabold text-yellow-700">
+          <div className="text-right p-3 bg-[#3d3a37] rounded-xl border-2 border-[#4a4744] shadow-sm">
+            <div className="text-2xl font-extrabold text-[#e8a93e]">
               {dailyChallenge.xp_reward}
             </div>
-            <div className="text-xs text-gray-700 font-bold">XP</div>
+            <div className="text-xs text-[#bababa] font-bold">XP</div>
           </div>
         </div>
 
-        <div className="flex items-center text-base text-gray-800 font-bold mb-5 bg-gray-50 p-2 rounded-lg">
+        <div className="flex items-center text-base text-[#bababa] font-bold mb-5 bg-[#262421] p-2 rounded-lg">
           <span className="mr-2 text-xl">🏆</span>
           <span>{dailyChallenge.completion_count} players completed</span>
         </div>
@@ -401,9 +401,9 @@ const TutorialHub = () => {
           to={`/tutorial/daily`}
           className="w-full py-4 px-4 rounded-xl font-bold transition-all text-center block text-white hover:scale-105 hover:shadow-2xl text-base border-2"
           style={{
-            background: isCompleted ? 'linear-gradient(135deg, #10b981, #34d399)' : 'linear-gradient(135deg, #f97316, #fb923c)',
-            borderColor: isCompleted ? '#10b981' : '#f97316',
-            boxShadow: isCompleted ? '0 6px 20px rgba(34, 197, 94, 0.4)' : '0 6px 20px rgba(249, 115, 22, 0.5)'
+            background: isCompleted ? 'linear-gradient(135deg, #81b64c, #a3d160)' : 'linear-gradient(135deg, #e8a93e, #f4c66a)',
+            borderColor: isCompleted ? '#81b64c' : '#e8a93e',
+            boxShadow: isCompleted ? '0 6px 20px rgba(129, 182, 76, 0.4)' : '0 6px 20px rgba(232, 169, 62, 0.5)'
           }}
         >
           {isCompleted ? '✅ Completed Today!' : '⚡ Start Challenge'}
@@ -415,32 +415,32 @@ const TutorialHub = () => {
   // Show authentication error message if user is not authenticated
   if (authError) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
-        <div className="text-center bg-white rounded-lg shadow-lg p-8 max-w-md mx-4">
+      <div className="min-h-screen flex items-center justify-center bg-[#1a1a18]">
+        <div className="text-center bg-[#312e2b] rounded-lg shadow-lg p-8 max-w-md mx-4">
           <div className="mb-4">
-            <div className="mx-auto w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center">
-              <svg className="w-10 h-10 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="mx-auto w-20 h-20 bg-[#3d3a37] rounded-full flex items-center justify-center">
+              <svg className="w-10 h-10 text-[#e8a93e]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
             </div>
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Login Required</h2>
-          <p className="text-gray-600 mb-6">Please login to access the chess tutorial modules and track your progress.</p>
+          <h2 className="text-2xl font-bold text-white mb-2">Login Required</h2>
+          <p className="text-[#bababa] mb-6">Please login to access the chess tutorial modules and track your progress.</p>
           <div className="space-y-3">
             <Link
               to="/login"
-              className="w-full inline-flex justify-center items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-200"
+              className="w-full inline-flex justify-center items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-[#81b64c] hover:bg-[#a3d160] transition-colors duration-200"
             >
               🚀 Login to Continue
             </Link>
             <Link
               to="/register"
-              className="w-full inline-flex justify-center items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors duration-200"
+              className="w-full inline-flex justify-center items-center px-6 py-3 border border-[#4a4744] text-base font-medium rounded-md text-[#bababa] bg-[#3d3a37] hover:bg-[#4a4744] transition-colors duration-200"
             >
               📝 Create Account
             </Link>
           </div>
-          <p className="mt-4 text-sm text-gray-500">
+          <p className="mt-4 text-sm text-[#8b8987]">
             Don't have an account yet? Sign up for free and start learning chess!
           </p>
         </div>
@@ -452,8 +452,8 @@ const TutorialHub = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <div className="text-lg font-medium">Loading Tutorial...</div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#81b64c] mx-auto mb-4"></div>
+          <div className="text-lg font-medium text-[#bababa]">Loading Tutorial...</div>
         </div>
       </div>
     );
@@ -461,44 +461,44 @@ const TutorialHub = () => {
 
   return (
     <ErrorBoundary errorMessage="The tutorial hub encountered an error. Please try reloading.">
-      <div className="tutorial-container flex-grow bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 min-h-[calc(100vh-120px)] md:min-h-[calc(100vh-140px)] overflow-y-auto -webkit-overflow-scrolling-touch">
+      <div className="tutorial-container flex-grow bg-[#1a1a18] min-h-[calc(100vh-120px)] md:min-h-[calc(100vh-140px)] overflow-y-auto -webkit-overflow-scrolling-touch">
       <div className="container mx-auto px-4 py-6 sm:py-8">
         {/* Completion Message */}
         {showCompletionMessage && (
-          <div className="mb-6 bg-green-50 border-l-4 border-green-500 p-4 rounded-lg shadow-md animate-fade-in">
+          <div className="mb-6 bg-[#262421] border-l-4 border-[#81b64c] p-4 rounded-lg shadow-md animate-fade-in">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <svg className="h-8 w-8 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="h-8 w-8 text-[#81b64c]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
               <div className="ml-3">
-                <h3 className="text-lg font-semibold text-green-800">
+                <h3 className="text-lg font-semibold text-[#81b64c]">
                   🎉 Congratulations! Lesson Completed!
                 </h3>
-                <p className="mt-1 text-green-700">
+                <p className="mt-1 text-[#bababa]">
                   {location.state?.lessonTitle && `You've completed "${location.state.lessonTitle}"!`}
                   {location.state?.score !== undefined && (
                     <span className="ml-2 font-semibold">Score: {location.state.score}%</span>
                   )}
                 </p>
                 {location.state?.xpAwarded && (
-                  <p className="mt-1 font-semibold text-green-700">
+                  <p className="mt-1 font-semibold text-[#a3d160]">
                     ⭐ +{location.state.xpAwarded} XP earned!
                   </p>
                 )}
                 {location.state?.moduleCompleted && (
-                  <p className="mt-1 font-semibold text-green-700">
+                  <p className="mt-1 font-semibold text-[#a3d160]">
                     🏆 Module completed! Check your achievements.
                   </p>
                 )}
-                <p className="mt-1 text-sm text-green-600">
+                <p className="mt-1 text-sm text-[#8b8987]">
                   💡 Your progress has been automatically saved and your statistics updated.
                 </p>
               </div>
               <button
                 onClick={() => setShowCompletionMessage(false)}
-                className="ml-auto flex-shrink-0 text-green-500 hover:text-green-700"
+                className="ml-auto flex-shrink-0 text-[#8b8987] hover:text-white"
               >
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -510,21 +510,21 @@ const TutorialHub = () => {
 
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-5xl font-extrabold mb-4 text-gray-900">🎓 Learn Chess</h1>
-          <p className="text-xl text-gray-700 font-semibold">Master the game with our interactive tutorials</p>
+          <h1 className="text-5xl font-extrabold mb-4 text-white">🎓 Learn Chess</h1>
+          <p className="text-xl text-[#bababa] font-semibold">Master the game with our interactive tutorials</p>
         </div>
 
         {/* Tier Filter */}
         <div className="flex justify-center mb-8">
-          <div className="flex space-x-2 bg-white rounded-xl p-2 shadow-md border-2 border-gray-200">
+          <div className="flex space-x-2 bg-[#262421] rounded-xl p-2 shadow-md border-2 border-[#3d3a37]">
             {['beginner', 'intermediate', 'advanced'].map((tier) => (
               <button
                 key={tier}
                 onClick={() => setSelectedTier(tier)}
                 className={`px-6 py-3 rounded-lg font-bold transition-all ${
                   selectedTier === tier
-                    ? 'bg-gradient-to-r from-blue-500 to-purple-500 shadow-lg text-white transform scale-105'
-                    : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
+                    ? 'bg-[#81b64c] shadow-lg text-white transform scale-105'
+                    : 'text-[#bababa] hover:text-white hover:bg-[#3d3a37]'
                 }`}
               >
                 {getTierName(tier)}

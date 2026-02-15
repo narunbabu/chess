@@ -1,0 +1,98 @@
+/* =========================================
+   DESIGN TOKENS — Chess99 Premium Dark Theme
+   Single source of truth for all design values.
+   ========================================= */
+
+:root {
+  /* ── Surfaces ── */
+  --surface-deepest:  #1a1a18;
+  --surface-base:     #262421;
+  --surface-card:     #312e2b;
+  --surface-elevated: #3d3a37;
+  --surface-hover:    #4a4744;
+
+  /* ── Green Accent (Primary) ── */
+  --green-cta:        #81b64c;
+  --green-board:      #769656;
+  --green-pressed:    #4e7837;
+  --green-hover:      #a3d160;
+
+  /* ── Board Squares ── */
+  --board-light:      #eeeed2;
+  --board-dark:       #769656;
+
+  /* ── Text ── */
+  --text-primary:     #ffffff;
+  --text-body:        #bababa;
+  --text-muted:       #8b8987;
+  --text-disabled:    #5c5a57;
+
+  /* ── Gold / Premium ── */
+  --gold:             #e8a93e;
+  --gold-hover:       #f4c66a;
+  --gold-pressed:     #c48b28;
+
+  /* ── Semantic ── */
+  --danger:           #e74c3c;
+  --danger-light:     #fa6a5b;
+  --info:             #4a90d9;
+  --info-light:       #6aabef;
+  --success:          #81b64c;
+  --warning:          #e8a93e;
+
+  /* ── Borders ── */
+  --border-subtle:    #3d3a37;
+  --border-default:   #4a4744;
+  --border-strong:    #5c5a57;
+
+  /* ── Shadows ── */
+  --shadow-sm:        0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-md:        0 4px 12px rgba(0, 0, 0, 0.35);
+  --shadow-lg:        0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow-xl:        0 12px 36px rgba(0, 0, 0, 0.5);
+
+  /* ── Typography ── */
+  --font-sans:        'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono:        'JetBrains Mono', 'Fira Code', monospace;
+
+  --text-xs:          0.75rem;    /* 12px */
+  --text-sm:          0.875rem;   /* 14px */
+  --text-base:        1rem;       /* 16px */
+  --text-lg:          1.125rem;   /* 18px */
+  --text-xl:          1.25rem;    /* 20px */
+  --text-2xl:         1.5rem;     /* 24px */
+  --text-3xl:         1.875rem;   /* 30px */
+  --text-4xl:         2.25rem;    /* 36px */
+
+  /* ── Spacing ── */
+  --space-1:          0.25rem;
+  --space-2:          0.5rem;
+  --space-3:          0.75rem;
+  --space-4:          1rem;
+  --space-5:          1.25rem;
+  --space-6:          1.5rem;
+  --space-8:          2rem;
+  --space-10:         2.5rem;
+  --space-12:         3rem;
+  --space-16:         4rem;
+
+  /* ── Radii ── */
+  --radius-sm:        4px;
+  --radius-md:        8px;
+  --radius-lg:        12px;
+  --radius-xl:        16px;
+  --radius-full:      9999px;
+
+  /* ── Transitions ── */
+  --transition-fast:  150ms ease;
+  --transition-base:  250ms ease;
+  --transition-slow:  400ms ease;
+
+  /* ── Z-index scale ── */
+  --z-base:           1;
+  --z-dropdown:       10;
+  --z-sticky:         20;
+  --z-overlay:        30;
+  --z-modal:          40;
+  --z-toast:          50;
+}

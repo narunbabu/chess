@@ -17,46 +17,46 @@ const FeedbackCard = ({ feedback, onDismiss, autoDismiss = true }) => {
     switch (type) {
       case 'success':
         return {
-          bg: 'bg-green-50',
-          border: 'border-green-200',
-          text: 'text-green-800',
-          subtext: 'text-green-700',
+          bg: 'bg-[#4e7837]/20',
+          border: 'border-[#81b64c]',
+          text: 'text-[#a3d160]',
+          subtext: 'text-[#81b64c]',
           icon: '✅',
           title: 'Excellent!'
         };
       case 'error':
         return {
-          bg: 'bg-red-50',
-          border: 'border-red-200',
-          text: 'text-red-800',
-          subtext: 'text-red-700',
+          bg: 'bg-[#e74c3c]/15',
+          border: 'border-[#e74c3c]',
+          text: 'text-[#fa6a5b]',
+          subtext: 'text-[#fa6a5b]',
           icon: '❌',
           title: 'Try Again'
         };
       case 'partial':
         return {
-          bg: 'bg-yellow-50',
-          border: 'border-yellow-200',
-          text: 'text-yellow-800',
-          subtext: 'text-yellow-700',
+          bg: 'bg-[#e8a93e]/15',
+          border: 'border-[#e8a93e]',
+          text: 'text-[#f4c66a]',
+          subtext: 'text-[#e8a93e]',
           icon: '👍',
           title: 'Good Try!'
         };
       case 'hint':
         return {
-          bg: 'bg-blue-50',
-          border: 'border-blue-200',
-          text: 'text-blue-800',
-          subtext: 'text-blue-700',
+          bg: 'bg-[#81b64c]/15',
+          border: 'border-[#81b64c]',
+          text: 'text-[#a3d160]',
+          subtext: 'text-[#81b64c]',
           icon: '💡',
           title: 'Hint'
         };
       default:
         return {
-          bg: 'bg-gray-50',
-          border: 'border-gray-200',
-          text: 'text-gray-800',
-          subtext: 'text-gray-700',
+          bg: 'bg-[#3d3a37]',
+          border: 'border-[#4a4744]',
+          text: 'text-[#bababa]',
+          subtext: 'text-[#8b8987]',
           icon: 'ℹ️',
           title: 'Info'
         };

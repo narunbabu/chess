@@ -39,15 +39,15 @@ const ChallengeModal = ({
 
           {/* Game Mode Selection */}
           <div style={{ marginBottom: '20px', textAlign: 'left' }}>
-            <p style={{ marginBottom: '10px', fontWeight: 'bold' }}>Game Mode:</p>
+            <p style={{ marginBottom: '10px', fontWeight: 'bold', color: '#bababa' }}>Game Mode:</p>
             <div style={{ display: 'flex', gap: '10px' }}>
               <label style={{
                 flex: 1,
                 padding: '12px',
-                border: `2px solid ${gameMode === 'casual' ? '#4CAF50' : '#dee2e6'}`,
+                border: `2px solid ${gameMode === 'casual' ? '#81b64c' : '#4a4744'}`,
                 borderRadius: '8px',
                 cursor: 'pointer',
-                backgroundColor: gameMode === 'casual' ? '#e8f5e9' : 'transparent'
+                backgroundColor: gameMode === 'casual' ? 'rgba(129, 182, 76, 0.15)' : 'transparent'
               }}>
                 <input
                   type="radio"
@@ -56,18 +56,18 @@ const ChallengeModal = ({
                   onChange={(e) => setGameMode(e.target.value)}
                   style={{ marginRight: '8px' }}
                 />
-                <strong>Casual</strong>
-                <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+                <strong style={{ color: '#ffffff' }}>Casual</strong>
+                <div style={{ fontSize: '12px', color: '#8b8987', marginTop: '4px' }}>
                   Undo allowed • Can pause • No rating changes
                 </div>
               </label>
               <label style={{
                 flex: 1,
                 padding: '12px',
-                border: `2px solid ${gameMode === 'rated' ? '#ff9800' : '#dee2e6'}`,
+                border: `2px solid ${gameMode === 'rated' ? '#e8a93e' : '#4a4744'}`,
                 borderRadius: '8px',
                 cursor: 'pointer',
-                backgroundColor: gameMode === 'rated' ? '#fff3e0' : 'transparent'
+                backgroundColor: gameMode === 'rated' ? 'rgba(232, 169, 62, 0.15)' : 'transparent'
               }}>
                 <input
                   type="radio"
@@ -76,8 +76,8 @@ const ChallengeModal = ({
                   onChange={(e) => setGameMode(e.target.value)}
                   style={{ marginRight: '8px' }}
                 />
-                <strong>Rated</strong>
-                <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+                <strong style={{ color: '#ffffff' }}>Rated</strong>
+                <div style={{ fontSize: '12px', color: '#8b8987', marginTop: '4px' }}>
                   No undo • No pause • Rating changes
                 </div>
               </label>
@@ -90,9 +90,9 @@ const ChallengeModal = ({
               className="color-choice white"
               onClick={() => onColorChoice('white', gameMode)}
               style={{
-                backgroundColor: '#f8f9fa',
-                border: '2px solid #dee2e6',
-                color: '#212529'
+                backgroundColor: '#e0e0e0',
+                border: '2px solid #4a4744',
+                color: '#1a1a18'
               }}
             >
               <div style={{ fontSize: '24px', marginBottom: '4px' }}>♔ White</div>
@@ -103,9 +103,9 @@ const ChallengeModal = ({
               className="color-choice black"
               onClick={() => onColorChoice('black', gameMode)}
               style={{
-                backgroundColor: '#212529',
-                border: '2px solid #495057',
-                color: '#f8f9fa'
+                backgroundColor: '#1a1a18',
+                border: '2px solid #4a4744',
+                color: '#bababa'
               }}
             >
               <div style={{ fontSize: '24px', marginBottom: '4px' }}>♚ Black</div>
@@ -115,8 +115,8 @@ const ChallengeModal = ({
               className="color-choice random"
               onClick={() => onColorChoice('random', gameMode)}
               style={{
-                backgroundColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                border: '2px solid #5a67d8',
+                backgroundColor: '#81b64c',
+                border: '2px solid #769656',
                 color: '#ffffff'
               }}
             >

@@ -527,7 +527,7 @@ const CreateChampionshipModal = ({ isOpen, onClose, onSuccess, championship: edi
 
             <div className="form-group">
               <h4 style={{ marginTop: '20px', marginBottom: '10px' }}>Schedule Gaps</h4>
-              <small style={{ display: 'block', marginBottom: '15px', color: '#666' }}>
+              <small style={{ display: 'block', marginBottom: '15px', color: '#8b8987' }}>
                 Configure time intervals between different phases
               </small>
             </div>
@@ -644,22 +644,22 @@ const CreateChampionshipModal = ({ isOpen, onClose, onSuccess, championship: edi
             <h3>Schedule</h3>
 
             <div style={{
-              background: '#f0f7ff',
-              border: '1px solid #b3d9ff',
+              background: '#262421',
+              border: '1px solid #81b64c',
               borderRadius: '6px',
               padding: '12px 16px',
               marginBottom: '20px',
               fontSize: '14px'
             }}>
-              <div style={{ fontWeight: '600', marginBottom: '8px', color: '#0066cc' }}>
+              <div style={{ fontWeight: '600', marginBottom: '8px', color: '#81b64c' }}>
                 📅 Auto-Calculated Schedule
               </div>
-              <div style={{ color: '#333' }}>
+              <div style={{ color: '#bababa' }}>
                 • Registration Period: <strong>{formData.gaps.registration_duration_days} days</strong><br/>
                 • Preparation Time: <strong>{formData.gaps.preparation_days} days</strong><br/>
                 • Gap Between Rounds: <strong>{formData.gaps.round_gap_hours} hours</strong>
               </div>
-              <small style={{ display: 'block', marginTop: '8px', color: '#666' }}>
+              <small style={{ display: 'block', marginTop: '8px', color: '#8b8987' }}>
                 💡 Dates are calculated based on gaps set in Step 2. You can still manually adjust them below.
               </small>
             </div>

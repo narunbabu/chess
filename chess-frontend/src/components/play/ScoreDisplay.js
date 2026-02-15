@@ -81,17 +81,17 @@ const ScoreDisplay = ({
         gap: '6px',
         padding: '6px 10px',
         borderRadius: '6px',
-        backgroundColor: 'rgba(239, 68, 68, 0.1)',
-        border: '1px solid rgba(239, 68, 68, 0.3)',
+        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+        border: '1px solid rgba(231, 76, 60, 0.3)',
         flex: '1'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           {renderAvatar(opponentData, mode === 'computer')}
-          <span style={{ fontSize: '14px', color: '#ef4444', fontWeight: '500' }}>
+          <span style={{ fontSize: '14px', color: '#e74c3c', fontWeight: '500' }}>
             {getDisplayName(opponentData, mode === 'computer', 'Rival')}
           </span>
           {lastComputerEvaluation && (
-            <span style={{ fontSize: '12px', color: '#ef4444' }}>
+            <span style={{ fontSize: '12px', color: '#e74c3c' }}>
               {getMoveClassIcon(lastComputerEvaluation.moveClassification)}
             </span>
           )}
@@ -100,7 +100,7 @@ const ScoreDisplay = ({
           fontFamily: 'monospace',
           fontSize: '16px',
           fontWeight: 'bold',
-          color: '#ef4444',
+          color: '#e74c3c',
           marginLeft: 'auto'
         }}>
           {formatScore(computerScore)}
@@ -110,7 +110,7 @@ const ScoreDisplay = ({
       {/* VS separator */}
       <div style={{
         fontSize: '12px',
-        color: '#666',
+        color: '#8b8987',
         fontWeight: 'bold',
         padding: '0 4px'
       }}>
@@ -124,17 +124,17 @@ const ScoreDisplay = ({
         gap: '6px',
         padding: '6px 10px',
         borderRadius: '6px',
-        backgroundColor: 'rgba(34, 197, 94, 0.1)',
-        border: '1px solid rgba(34, 197, 94, 0.3)',
+        backgroundColor: 'rgba(129, 182, 76, 0.1)',
+        border: '1px solid rgba(129, 182, 76, 0.3)',
         flex: '1'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           {renderAvatar(playerData, false)}
-          <span style={{ fontSize: '14px', color: '#22c55e', fontWeight: '500' }}>
+          <span style={{ fontSize: '14px', color: '#81b64c', fontWeight: '500' }}>
             {getDisplayName(playerData, false, 'You')}
           </span>
           {lastMoveEvaluation && (
-            <span style={{ fontSize: '12px', color: '#22c55e' }}>
+            <span style={{ fontSize: '12px', color: '#81b64c' }}>
               {getMoveClassIcon(lastMoveEvaluation.moveClassification)}
             </span>
           )}
@@ -143,7 +143,7 @@ const ScoreDisplay = ({
           fontFamily: 'monospace',
           fontSize: '16px',
           fontWeight: 'bold',
-          color: '#22c55e',
+          color: '#81b64c',
           marginLeft: 'auto'
         }}>
           {formatScore(playerScore)}

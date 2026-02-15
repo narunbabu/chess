@@ -6,16 +6,16 @@
   width: 100%;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  background: #262421;
   color: white;
 }
 
 /* Header Section */
 .play-shell-header {
   padding: 1rem 2rem;
-  background: rgba(255, 255, 255, 0.05);
+  background: #1a1a18;
   backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   flex-shrink: 0;
 }
 
@@ -96,10 +96,10 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  background: rgba(255, 255, 255, 0.05);
+  background: #312e2b;
   backdrop-filter: blur(10px);
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   padding: 1.5rem;
   min-height: 500px;
   grid-column: 1;
@@ -111,10 +111,10 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  background: rgba(255, 255, 255, 0.05);
+  background: #312e2b;
   backdrop-filter: blur(10px);
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   padding: 1.5rem;
   overflow-y: auto;
   max-height: calc(100vh - 8rem);
@@ -396,7 +396,7 @@
   justify-content: center;
   align-items: center;
   min-height: 400px;
-  color: rgba(255, 255, 255, 0.7);
+  color: #bababa;
   font-size: 1.25rem;
 }
 
@@ -467,13 +467,13 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #81b64c 0%, #4e7837 100%);
   color: white;
   padding: 1px 4px;
   border-radius: 3px;
   margin: 0.25rem 0;
-  box-shadow: 0 1px 4px rgba(102, 126, 234, 0.3);
-  border: 1px solid rgba(102, 126, 234, 0.4);
+  box-shadow: 0 1px 4px rgba(129, 182, 76, 0.3);
+  border: 1px solid rgba(129, 182, 76, 0.4);
   animation: fadeIn 0.5s ease-in;
   width: 100%;
   max-width: 100%;
@@ -529,7 +529,7 @@
   width: 50%;
   padding-right: 1rem;
   font-size: 0.9rem;
-  color: #666;
+  color: #8b8987;
   box-sizing: border-box;
 }
 

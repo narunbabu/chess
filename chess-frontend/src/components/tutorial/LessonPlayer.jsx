@@ -274,8 +274,8 @@ const LessonPlayer = () => {
     const progress = ((currentStep + 1) / getTotalSteps()) * 100;
 
     return (
-      <div className="w-full bg-gray-200 rounded-full h-3 mb-4 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-100 via-blue-100 to-green-100 opacity-40"></div>
+      <div className="w-full bg-[#3d3a37] rounded-full h-3 mb-4 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-[#4e7837] via-[#81b64c] to-[#a3d160] opacity-20"></div>
         <div
           className="h-3 rounded-full transition-all duration-500 relative z-10"
           style={{
@@ -292,20 +292,20 @@ const LessonPlayer = () => {
     if (index !== currentStep) return null;
 
     return (
-      <div className="bg-white rounded-2xl p-8 shadow-xl border-2 border-blue-100">
+      <div className="bg-[#312e2b] rounded-2xl p-8 shadow-xl border-2 border-[#3d3a37]">
         {slide.title && (
-          <h2 className="text-3xl font-bold mb-6 text-gray-900">{slide.title}</h2>
+          <h2 className="text-3xl font-bold mb-6 text-white">{slide.title}</h2>
         )}
 
         {slide.content && (
-          <div className="prose max-w-none mb-8 text-gray-800 text-lg leading-relaxed">
+          <div className="prose max-w-none mb-8 text-[#bababa] text-lg leading-relaxed">
             <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(slide.content) }} />
           </div>
         )}
 
         {slide.diagram && chessGame && (
-          <div className="mb-8 bg-gradient-to-br from-blue-50 to-purple-50 p-6 rounded-xl border-2 border-blue-200">
-            <div className="text-center text-base font-bold text-gray-900 mb-4">
+          <div className="mb-8 bg-[#262421] p-6 rounded-xl border-2 border-[#3d3a37]">
+            <div className="text-center text-base font-bold text-white mb-4">
               📋 Board Position
             </div>
             <div className="flex justify-center items-center">
@@ -341,7 +341,7 @@ const LessonPlayer = () => {
               </div>
             </div>
             {slide.highlights && (
-              <div className="text-center text-sm text-gray-800 mt-4 font-semibold bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+              <div className="text-center text-sm text-[#e8a93e] mt-4 font-semibold bg-[#3d3a37] p-3 rounded-lg border border-[#4a4744]">
                 💡 Try moving the pieces on the board above!
               </div>
             )}
@@ -350,11 +350,11 @@ const LessonPlayer = () => {
 
         {slide.quiz && (
           <div className="rounded-lg p-5 border-2" style={{
-            background: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)',
-            borderColor: 'var(--tutorial-info)',
-            boxShadow: '0 4px 15px rgba(59, 130, 246, 0.2)'
+            background: '#262421',
+            borderColor: '#3d3a37',
+            boxShadow: '0 4px 15px rgba(0, 0, 0, 0.3)'
           }}>
-            <h3 className="font-bold text-lg mb-4" style={{ color: 'var(--tutorial-info-dark)' }}>🎯 Quiz Time!</h3>
+            <h3 className="font-bold text-lg mb-4" style={{ color: '#e8a93e' }}>🎯 Quiz Time!</h3>
             <div className="space-y-2">
               {slide.quiz.map((question, qIndex) => {
                 const answerKey = `${index}-${qIndex}`;
@@ -364,7 +364,7 @@ const LessonPlayer = () => {
 
                 return (
                   <div key={qIndex} className="mb-4">
-                    <p className="font-bold mb-3 text-gray-800">{question.question}</p>
+                    <p className="font-bold mb-3 text-white">{question.question}</p>
                     <div className="grid grid-cols-2 gap-3">
                       {question.options.map((option, oIndex) => {
                         const isSelected = selectedAnswer === oIndex;
@@ -374,16 +374,16 @@ const LessonPlayer = () => {
 
                         if (isSelected && isCorrectAnswer) {
                           // Correct answer selected
-                          buttonClass += "bg-green-100 border-green-500 text-green-800";
+                          buttonClass += "bg-[#4e7837]/30 border-[#81b64c] text-[#a3d160]";
                         } else if (isSelected && !isCorrectAnswer) {
                           // Wrong answer selected
-                          buttonClass += "bg-red-100 border-red-500 text-red-800";
+                          buttonClass += "bg-[#e74c3c]/20 border-[#e74c3c] text-[#fa6a5b]";
                         } else if (isAnswered && isCorrectAnswer) {
                           // Show correct answer after wrong selection
-                          buttonClass += "bg-green-50 border-green-400 text-green-700";
+                          buttonClass += "bg-[#4e7837]/20 border-[#81b64c] text-[#81b64c]";
                         } else {
                           // Not selected
-                          buttonClass += "bg-white border-blue-300 text-gray-800 hover:bg-blue-50 hover:border-blue-500 hover:scale-105 hover:shadow-md";
+                          buttonClass += "bg-[#3d3a37] border-[#4a4744] text-[#bababa] hover:bg-[#4a4744] hover:border-[#81b64c] hover:scale-105 hover:shadow-md";
                         }
 
                         return (
@@ -439,17 +439,17 @@ const LessonPlayer = () => {
                 return (
                   <div className="mt-6 p-4 rounded-lg text-center" style={{
                     background: correctAnswers === slide.quiz.length
-                      ? 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)'
-                      : 'linear-gradient(135deg, #fed7aa 0%, #fdba74 100%)',
-                    border: `2px solid ${correctAnswers === slide.quiz.length ? '#10b981' : '#f59e0b'}`
+                      ? 'rgba(78, 120, 55, 0.3)'
+                      : 'rgba(232, 169, 62, 0.2)',
+                    border: `2px solid ${correctAnswers === slide.quiz.length ? '#81b64c' : '#e8a93e'}`
                   }}>
-                    <div className="text-lg font-bold mb-2">
+                    <div className="text-lg font-bold mb-2 text-white">
                       {correctAnswers === slide.quiz.length ? '🎉 Perfect!' : '✅ Quiz Completed'}
                     </div>
-                    <div className="text-sm font-semibold">
+                    <div className="text-sm font-semibold text-[#bababa]">
                       You got {correctAnswers} out of {slide.quiz.length} correct!
                     </div>
-                    <div className="text-xs mt-2 text-gray-600">
+                    <div className="text-xs mt-2 text-[#8b8987]">
                       Click "Next" below to continue
                     </div>
                   </div>
@@ -462,7 +462,7 @@ const LessonPlayer = () => {
               }).length;
 
               return (
-                <div className="mt-4 text-center text-sm font-semibold text-gray-700">
+                <div className="mt-4 text-center text-sm font-semibold text-[#8b8987]">
                   📝 {remainingQuestions} question(s) remaining
                 </div>
               );
@@ -486,15 +486,15 @@ const LessonPlayer = () => {
 
   const renderPracticeGame = () => {
     return (
-      <div className="bg-white rounded-2xl p-8 shadow-xl border-2 border-blue-100">
-        <div className="mb-6 bg-gradient-to-r from-green-50 to-blue-50 p-6 rounded-xl border-2 border-green-200">
-          <h3 className="text-2xl font-bold mb-3 text-gray-900">🎮 Practice Game</h3>
-          <p className="text-gray-800 font-semibold text-lg">
+      <div className="bg-[#312e2b] rounded-2xl p-8 shadow-xl border-2 border-[#3d3a37]">
+        <div className="mb-6 bg-[#262421] p-6 rounded-xl border-2 border-[#3d3a37]">
+          <h3 className="text-2xl font-bold mb-3 text-white">🎮 Practice Game</h3>
+          <p className="text-[#bababa] font-semibold text-lg">
             Play against AI to practice what you've learned!
           </p>
         </div>
 
-        <div className="mb-6 bg-gradient-to-br from-blue-50 to-purple-50 p-6 rounded-xl border-2 border-blue-200">
+        <div className="mb-6 bg-[#262421] p-6 rounded-xl border-2 border-[#3d3a37]">
           {chessGame && (
             <div className="flex justify-center items-center">
               <div style={{ width: '500px', height: '500px' }}>
@@ -523,7 +523,7 @@ const LessonPlayer = () => {
         <div className="flex justify-between">
           <button
             onClick={() => setPlayerColor(playerColor === 'white' ? 'black' : 'white')}
-            className="px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors"
+            className="px-4 py-2 bg-[#81b64c] text-white rounded-lg hover:bg-[#a3d160] transition-colors"
           >
             Play as {playerColor === 'white' ? 'Black' : 'White'}
           </button>
@@ -571,8 +571,8 @@ const LessonPlayer = () => {
     return (
       <div className="tutorial-lesson-container flex-grow min-h-[calc(100vh-120px)] md:min-h-[calc(100vh-140px)] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <div className="text-lg font-medium">Loading lesson...</div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#81b64c] mx-auto mb-4"></div>
+          <div className="text-lg font-medium text-[#bababa]">Loading lesson...</div>
         </div>
       </div>
     );
@@ -582,10 +582,10 @@ const LessonPlayer = () => {
     return (
       <div className="tutorial-lesson-container flex-grow min-h-[calc(100vh-120px)] md:min-h-[calc(100vh-140px)] flex items-center justify-center">
         <div className="text-center">
-          <div className="text-xl font-medium mb-4">Lesson not found</div>
+          <div className="text-xl font-medium mb-4 text-[#bababa]">Lesson not found</div>
           <button
             onClick={() => navigate('/tutorial')}
-            className="px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors"
+            className="px-4 py-2 bg-[#81b64c] text-white rounded-lg hover:bg-[#a3d160] transition-colors"
           >
             Back to Tutorial
           </button>
@@ -597,22 +597,22 @@ const LessonPlayer = () => {
   if (completed) {
     return (
       <div className="tutorial-lesson-container flex-grow min-h-[calc(100vh-120px)] md:min-h-[calc(100vh-140px)] flex items-center justify-center">
-        <div className="text-center bg-white rounded-lg p-8 shadow-lg max-w-md mx-4">
+        <div className="text-center bg-[#312e2b] rounded-lg p-8 shadow-lg max-w-md mx-4">
           <div className="text-6xl mb-4">🎉</div>
           <h2 className="text-2xl font-bold mb-4" style={{ color: 'var(--tutorial-green-dark)' }}>
             Lesson Completed!
           </h2>
           <div className="mb-6">
-            <div className="text-lg font-semibold text-gray-800 mb-2">{lesson.title}</div>
-            <div className="text-gray-600">
+            <div className="text-lg font-semibold text-white mb-2">{lesson.title}</div>
+            <div className="text-[#bababa]">
               Great job! You've successfully completed this lesson.
             </div>
           </div>
 
           {/* Score Display */}
           <div className="mb-6 p-4 rounded-lg" style={{
-            background: 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)',
-            border: '2px solid #22c55e'
+            background: 'rgba(78, 120, 55, 0.3)',
+            border: '2px solid #81b64c'
           }}>
             <div className="text-2xl font-bold mb-2" style={{
               background: 'var(--tutorial-gradient-green)',
@@ -622,15 +622,15 @@ const LessonPlayer = () => {
             }}>
               {Math.round(score)}% Score
             </div>
-            <div className="text-sm font-semibold text-gray-700">
+            <div className="text-sm font-semibold text-[#bababa]">
               {score >= 90 ? 'Excellent!' : score >= 70 ? 'Good job!' : 'Keep practicing!'}
             </div>
           </div>
 
           {/* XP Reward */}
           <div className="mb-6 p-4 rounded-lg" style={{
-            background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
-            border: '2px solid #f59e0b'
+            background: 'rgba(232, 169, 62, 0.2)',
+            border: '2px solid #e8a93e'
           }}>
             <div className="text-xl font-bold mb-1" style={{
               background: 'var(--tutorial-xp-gradient)',
@@ -640,12 +640,12 @@ const LessonPlayer = () => {
             }}>
               +{lesson.xp_reward} XP
             </div>
-            <div className="text-sm font-semibold text-gray-700">Experience earned</div>
+            <div className="text-sm font-semibold text-[#bababa]">Experience earned</div>
           </div>
 
           <div className="animate-pulse">
             <div className="flex items-center justify-center space-x-2 text-gray-600">
-              <svg className="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <svg className="animate-spin h-5 w-5 text-[#81b64c]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
@@ -658,7 +658,7 @@ const LessonPlayer = () => {
   }
 
   return (
-    <div className="tutorial-lesson-container flex-grow bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 min-h-[calc(100vh-120px)] md:min-h-[calc(100vh-140px)] overflow-y-auto -webkit-overflow-scrolling-touch pb-24">
+    <div className="tutorial-lesson-container flex-grow bg-[#1a1a18] min-h-[calc(100vh-120px)] md:min-h-[calc(100vh-140px)] overflow-y-auto -webkit-overflow-scrolling-touch pb-24">
       <div className="container mx-auto px-4 py-6 sm:py-8">
         {/* Header */}
         <div className="mb-6">
@@ -674,22 +674,22 @@ const LessonPlayer = () => {
           ← Back to {lesson.module.name}
         </button>
 
-        <div className="bg-white rounded-2xl p-6 shadow-xl border-2 border-blue-100 flex items-center justify-between">
+        <div className="bg-[#312e2b] rounded-2xl p-6 shadow-xl border-2 border-[#3d3a37] flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold mb-3 text-gray-900">{lesson.title}</h1>
-            <div className="flex items-center space-x-6 text-gray-800 font-semibold text-base">
-              <span className="bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">⏱️ {lesson.formatted_duration}</span>
-              <span className="bg-purple-50 px-4 py-2 rounded-lg border border-purple-200">🎯 {lesson.difficulty_level}</span>
-              <span className="bg-yellow-50 px-4 py-2 rounded-lg border border-yellow-200">🏆 {lesson.xp_reward} XP</span>
+            <h1 className="text-4xl font-bold mb-3 text-white">{lesson.title}</h1>
+            <div className="flex items-center space-x-6 text-[#bababa] font-semibold text-base">
+              <span className="bg-[#262421] px-4 py-2 rounded-lg border border-[#3d3a37]">⏱️ {lesson.formatted_duration}</span>
+              <span className="bg-[#262421] px-4 py-2 rounded-lg border border-[#3d3a37]">🎯 {lesson.difficulty_level}</span>
+              <span className="bg-[#262421] px-4 py-2 rounded-lg border border-[#3d3a37]">🏆 {lesson.xp_reward} XP</span>
             </div>
           </div>
 
-          <div className="text-center p-6 rounded-xl border-2 border-green-300" style={{
-            background: 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)',
-            boxShadow: '0 4px 15px rgba(34, 197, 94, 0.3)'
+          <div className="text-center p-6 rounded-xl border-2 border-[#81b64c]" style={{
+            background: 'rgba(78, 120, 55, 0.3)',
+            boxShadow: '0 4px 15px rgba(129, 182, 76, 0.3)'
           }}>
-            <div className="text-sm font-bold text-gray-700 mb-2">Score</div>
-            <div className="text-4xl font-extrabold text-green-600">
+            <div className="text-sm font-bold text-[#bababa] mb-2">Score</div>
+            <div className="text-4xl font-extrabold text-[#81b64c]">
               {Math.round(score)}%
             </div>
           </div>
@@ -701,8 +701,8 @@ const LessonPlayer = () => {
 
       {/* Step Counter */}
       <div className="text-center mb-6">
-        <div className="inline-block bg-white px-8 py-4 rounded-xl shadow-lg border-2 border-purple-200">
-          <span className="text-gray-900 font-bold text-xl">
+        <div className="inline-block bg-[#312e2b] px-8 py-4 rounded-xl shadow-lg border-2 border-[#3d3a37]">
+          <span className="text-white font-bold text-xl">
             📍 Step {currentStep + 1} of {getTotalSteps()}
           </span>
         </div>

@@ -432,12 +432,12 @@ const TournamentAdminDashboard = () => {
 
         {/* Notice about feature availability */}
         <div className="info-notice" style={{
-          backgroundColor: '#e3f2fd',
-          border: '1px solid #2196f3',
+          backgroundColor: '#262421',
+          border: '1px solid #81b64c',
           borderRadius: '8px',
           padding: '12px 16px',
           margin: '16px 0',
-          color: '#1565c0',
+          color: '#81b64c',
           fontSize: '14px'
         }}>
           <span style={{ fontSize: '16px', marginRight: '8px' }}>ℹ️</span>
@@ -632,7 +632,7 @@ const TournamentAdminDashboard = () => {
                       })}
                     </tbody>
                   </table>
-                  <div className="placeholder-info" style={{marginTop: '10px', fontSize: '12px', color: '#666'}}>
+                  <div className="placeholder-info" style={{marginTop: '10px', fontSize: '12px', color: '#8b8987'}}>
                     <em>TBD matches will be resolved dynamically based on tournament standings</em>
                   </div>
                 </div>

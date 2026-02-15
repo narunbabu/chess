@@ -755,9 +755,9 @@ const GameHistory = () => {
   }
 
   return (
-    <div className="game-history-container p-3 sm:p-4 lg:p-6 xl:p-8 min-h-screen text-white">
+    <div className="game-history-container p-3 sm:p-4 lg:p-6 xl:p-8 min-h-screen text-white bg-[#262421]">
       <h2 className="text-2xl sm:text-3xl font-bold text-center mb-4 sm:mb-6">Game History</h2>
-      <div className="filters bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-3 lg:p-4 mb-4 lg:mb-6">
+      <div className="filters bg-[#312e2b] rounded-2xl border border-[#3d3a37] p-3 lg:p-4 mb-4 lg:mb-6">
         <h3 className="text-lg lg:text-xl font-semibold mb-3 lg:mb-4">Filters</h3>
         <div className="filter-controls grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
           <div className="filter-group">
@@ -766,7 +766,7 @@ const GameHistory = () => {
               name="playerColor"
               value={filters.playerColor}
               onChange={handleFilterChange}
-              className="w-full bg-gray-700/50 border-2 border-gray-600 rounded-lg focus:ring-primary-500 focus:border-primary-500 transition-all duration-300 text-white placeholder-gray-400 py-2 px-3 text-sm"
+              className="w-full bg-[#3d3a37] border-2 border-[#4a4744] rounded-lg focus:ring-[#81b64c] focus:border-[#81b64c] transition-all duration-300 text-white placeholder-[#8b8987] py-2 px-3 text-sm"
             >
               <option value="">All</option>
               <option value="w">White</option>
@@ -779,7 +779,7 @@ const GameHistory = () => {
               name="result"
               value={filters.result}
               onChange={handleFilterChange}
-              className="w-full bg-gray-700/50 border-2 border-gray-600 rounded-lg focus:ring-primary-500 focus:border-primary-500 transition-all duration-300 text-white placeholder-gray-400 py-2 px-3 text-sm"
+              className="w-full bg-[#3d3a37] border-2 border-[#4a4744] rounded-lg focus:ring-[#81b64c] focus:border-[#81b64c] transition-all duration-300 text-white placeholder-[#8b8987] py-2 px-3 text-sm"
             >
               <option value="">All</option>
               <option value="won">Won</option>
@@ -793,7 +793,7 @@ const GameHistory = () => {
               name="level"
               value={filters.level}
               onChange={handleFilterChange}
-              className="w-full bg-gray-700/50 border-2 border-gray-600 rounded-lg focus:ring-primary-500 focus:border-primary-500 transition-all duration-300 text-white placeholder-gray-400 py-2 px-3 text-sm"
+              className="w-full bg-[#3d3a37] border-2 border-[#4a4744] rounded-lg focus:ring-[#81b64c] focus:border-[#81b64c] transition-all duration-300 text-white placeholder-[#8b8987] py-2 px-3 text-sm"
             >
               <option value="">All</option>
               <option value="1">Easy</option>
@@ -801,15 +801,15 @@ const GameHistory = () => {
               <option value="3">Hard</option>
             </select>
           </div>
-          <button onClick={clearFilters} className="bg-gray-700 hover:bg-gray-600 transition-colors duration-300 px-4 py-2 rounded-lg self-end text-sm">Clear Filters</button>
+          <button onClick={clearFilters} className="bg-[#4a4744] hover:bg-[#5c5a57] transition-colors duration-300 px-4 py-2 rounded-lg self-end text-sm text-[#bababa]">Clear Filters</button>
         </div>
       </div>
 
       <div className="game-history-content flex flex-col lg:flex-row gap-4 lg:gap-6">
-        <div className="game-list-container lg:w-1/3 xl:w-1/4 bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-3 lg:p-4 overflow-y-auto max-h-96 lg:max-h-full">
+        <div className="game-list-container lg:w-1/3 xl:w-1/4 bg-[#312e2b] rounded-2xl border border-[#3d3a37] p-3 lg:p-4 overflow-y-auto max-h-96 lg:max-h-full">
           <h3 className="text-lg lg:text-xl font-semibold mb-3 lg:mb-4">Games ({filteredHistories.length})</h3>
           {filteredHistories.length === 0 ? (
-            <p className="text-center text-gray-400">No games found.</p>
+            <p className="text-center text-[#8b8987]">No games found.</p>
           ) : (
             <ul className="space-y-2">
               {filteredHistories.map((game, index) => {
@@ -817,15 +817,15 @@ const GameHistory = () => {
                 return (
                   <li
                     key={index}
-                    className={`p-2 lg:p-3 rounded-lg cursor-pointer transition-colors duration-200 ${selectedGame && selectedGame.id === game.id ? "bg-primary-600" : "bg-white/10 hover:bg-white/20"}`}
+                    className={`p-2 lg:p-3 rounded-lg cursor-pointer transition-colors duration-200 ${selectedGame && selectedGame.id === game.id ? "bg-[#4e7837] border border-[#81b64c]" : "bg-[#3d3a37] hover:bg-[#4a4744] border border-transparent"}`}
                     onClick={() => handleGameSelect(game)}
                   >
                     <div className="game-summary">
                       <div className="flex justify-between items-center mb-1">
-                        <div className="game-date text-xs lg:text-sm text-gray-300">{summary.date}</div>
+                        <div className="game-date text-xs lg:text-sm text-[#8b8987]">{summary.date}</div>
                         <div className={`game-result font-bold text-xs lg:text-sm ${summary.result === 'Won' ? 'text-success' : summary.result === 'Lost' ? 'text-error' : 'text-warning'}`}>{summary.result}</div>
                       </div>
-                      <div className="text-xs lg:text-sm text-gray-400">
+                      <div className="text-xs lg:text-sm text-[#8b8987]">
                         <div className="flex flex-wrap gap-1 lg:gap-2">
                           <span>{summary.playerColor}</span>
                           <span>Lvl: {summary.computerLevel}</span>
@@ -841,12 +841,12 @@ const GameHistory = () => {
           )}
         </div>
 
-        <div className="game-review-panel flex-1 bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-3 lg:p-4">
+        <div className="game-review-panel flex-1 bg-[#312e2b] rounded-2xl border border-[#3d3a37] p-3 lg:p-4">
           {selectedGame ? (
             <div className="flex flex-col h-full">
               <div className="review-top-section flex-1">
                 <div className="board-and-move-display-area w-full max-w-md mx-auto mb-4 lg:mb-0 lg:mx-auto lg:max-w-md">
-                  <div className="current-move-display bg-gray-900/50 rounded-lg p-2 mb-2 text-center">
+                  <div className="current-move-display bg-[#1a1a18] rounded-lg p-2 mb-2 text-center">
                     {/* Move display content here */}
                   </div>
                   <div className="board-container">
@@ -873,7 +873,7 @@ const GameHistory = () => {
                     )}
                   </div>
                 </div>
-                <div className="game-metadata-area bg-gray-900/50 rounded-lg p-3 lg:p-4 mt-4">
+                <div className="game-metadata-area bg-[#1a1a18] rounded-lg p-3 lg:p-4 mt-4">
                   <h4 className="text-base lg:text-lg font-bold mb-2 lg:mb-3">Game Info</h4>
                   <div className="grid grid-cols-1 gap-2 text-sm lg:text-base">
                     <p><strong>Date:</strong> {new Date(selectedGame.played_at).toLocaleString()}</p>
@@ -884,7 +884,7 @@ const GameHistory = () => {
                   </div>
                 </div>
               </div>
-              <div className="review-controls flex flex-wrap justify-center items-center gap-2 p-2 lg:p-3 bg-gray-900/50 rounded-lg mt-4">
+              <div className="review-controls flex flex-wrap justify-center items-center gap-2 p-2 lg:p-3 bg-[#1a1a18] rounded-lg mt-4">
                 <button onClick={goToStart} className="control-button text-base lg:text-lg px-2 py-1">⏮</button>
                 <button onClick={goToPrevMove} className="control-button text-base lg:text-lg px-2 py-1">⏪</button>
                 <button onClick={isPlaying ? pauseMoves : playMoves} className="control-button text-xl lg:text-2xl px-3 py-1">{isPlaying ? "❚❚" : "▶"}</button>
@@ -896,7 +896,7 @@ const GameHistory = () => {
               </div>
             </div>
           ) : (
-            <div className="no-selection flex justify-center items-center h-full text-gray-400">
+            <div className="no-selection flex justify-center items-center h-full text-[#8b8987]">
               <p>Select a game to review.</p>
             </div>
           )}

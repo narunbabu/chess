@@ -73,9 +73,9 @@ const ActiveGamesList = ({ activeGames, currentUserId, opponentOnlineStatus, onR
                         width: '12px',
                         height: '12px',
                         borderRadius: '50%',
-                        backgroundColor: '#00ff00',
-                        border: '2px solid white',
-                        boxShadow: '0 0 4px rgba(0, 255, 0, 0.6)'
+                        backgroundColor: '#81b64c',
+                        border: '2px solid #312e2b',
+                        boxShadow: '0 0 4px rgba(129, 182, 76, 0.6)'
                       }}
                       title="Online"
                     />
@@ -92,7 +92,7 @@ const ActiveGamesList = ({ activeGames, currentUserId, opponentOnlineStatus, onR
                     </span>
                     {' • '}
                     <span style={{
-                      color: isOpponentOnline ? '#00ff00' : '#ff6b6b',
+                      color: isOpponentOnline ? '#81b64c' : '#e74c3c',
                       fontWeight: 'bold'
                     }}>
                       {isOpponentOnline ? '🟢 Online' : '🔴 Offline'}

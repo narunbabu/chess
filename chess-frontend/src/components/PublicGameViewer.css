@@ -21,8 +21,8 @@
 }
 
 .spinner {
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #2980b9;
+  border: 4px solid #3d3a37;
+  border-top: 4px solid #81b64c;
   border-radius: 50%;
   width: 60px;
   height: 60px;
@@ -37,16 +37,17 @@
 
 .loading-spinner p {
   font-size: 1.1rem;
-  color: #7f8c8d;
+  color: #8b8987;
 }
 
 /* Error State */
 .error-message {
   text-align: center;
   padding: 40px;
-  background: white;
+  background: #312e2b;
   border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border: 2px solid #3d3a37;
 }
 
 .error-message h2 {
@@ -56,7 +57,7 @@
 }
 
 .error-message p {
-  color: #7f8c8d;
+  color: #8b8987;
   margin-bottom: 24px;
   font-size: 1.1rem;
 }
@@ -66,19 +67,19 @@
   text-align: center;
   margin-bottom: 30px;
   padding-bottom: 20px;
-  border-bottom: 2px solid #ecf0f1;
+  border-bottom: 2px solid #3d3a37;
 }
 
 .viewer-header h1 {
   font-size: 2.2rem;
-  color: #2c3e50;
+  color: #ffffff;
   margin-bottom: 12px;
   font-weight: 600;
 }
 
 .game-info {
   font-size: 1.1rem;
-  color: #7f8c8d;
+  color: #8b8987;
 }
 
 .game-info .result {
@@ -122,16 +123,17 @@
 .controls {
   width: 100%;
   max-width: 600px;
-  background: white;
+  background: #312e2b;
   padding: 20px;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  border: 2px solid #3d3a37;
 }
 
 .progress-info {
   text-align: center;
   font-size: 1rem;
-  color: #7f8c8d;
+  color: #8b8987;
   margin-bottom: 15px;
   font-weight: 500;
 }
@@ -165,7 +167,7 @@
 .current-move {
   text-align: center;
   padding: 12px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #81b64c 0%, #4e7837 100%);
   border-radius: 8px;
   color: white;
   font-size: 1.2rem;
@@ -191,17 +193,18 @@
 .details-card,
 .share-card,
 .cta-card {
-  background: white;
+  background: #312e2b;
   padding: 20px;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  border: 2px solid #3d3a37;
 }
 
 .details-card h3,
 .share-card h3,
 .cta-card h3 {
   font-size: 1.3rem;
-  color: #2c3e50;
+  color: #ffffff;
   margin-bottom: 16px;
   font-weight: 600;
 }
@@ -211,7 +214,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 10px 0;
-  border-bottom: 1px solid #ecf0f1;
+  border-bottom: 1px solid #3d3a37;
 }
 
 .detail-item:last-child {
@@ -220,12 +223,12 @@
 
 .detail-item .label {
   font-weight: 500;
-  color: #7f8c8d;
+  color: #8b8987;
 }
 
 .detail-item .value {
   font-weight: 600;
-  color: #2c3e50;
+  color: #bababa;
 }
 
 .detail-item .value.result {
@@ -250,14 +253,14 @@
 
 /* Share Card */
 .share-description {
-  color: #7f8c8d;
+  color: #8b8987;
   margin-bottom: 16px;
   font-size: 0.95rem;
 }
 
 /* CTA Card */
 .cta-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #81b64c 0%, #4e7837 100%);
   color: white;
 }
 
@@ -302,25 +305,25 @@
 }
 
 .btn-primary {
-  background-color: #2980b9;
+  background-color: #81b64c;
   color: white;
 }
 
 .btn-primary:hover {
-  background-color: #3498db;
+  background-color: #a3d160;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(41, 128, 185, 0.3);
+  box-shadow: 0 4px 12px rgba(129, 182, 76, 0.3);
 }
 
 .btn-secondary {
-  background-color: #95a5a6;
+  background-color: #4a4744;
   color: white;
 }
 
 .btn-secondary:hover {
-  background-color: #7f8c8d;
+  background-color: #3d3a37;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(127, 140, 141, 0.3);
+  box-shadow: 0 4px 12px rgba(74, 71, 68, 0.3);
 }
 
 .btn:active {

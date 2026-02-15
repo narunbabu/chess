@@ -118,7 +118,7 @@ const AuthGateModal = ({ reason = 'this feature', returnTo = '/dashboard', onClo
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm">
       {/* Modal Container */}
-      <div className="relative w-full max-w-md bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl border border-white/10 shadow-2xl animate-[fadeIn_0.3s_ease-out] overflow-hidden">
+      <div className="relative w-full max-w-md bg-gradient-to-br from-[#262421] to-[#312e2b] rounded-2xl border border-[#3d3a37] shadow-2xl animate-[fadeIn_0.3s_ease-out] overflow-hidden">
         {/* Decorative Background */}
         <div
           className="absolute inset-0 z-0 opacity-5"
@@ -147,7 +147,7 @@ const AuthGateModal = ({ reason = 'this feature', returnTo = '/dashboard', onClo
 
           {/* Error Display */}
           {error && (
-            <div className="bg-gradient-to-r from-red-500 to-orange-500 text-white p-3 rounded-lg mb-4 text-center text-sm font-medium animate-[fadeIn_0.3s_ease-out]">
+            <div className="bg-[#e74c3c] text-white p-3 rounded-lg mb-4 text-center text-sm font-medium animate-[fadeIn_0.3s_ease-out]">
               {error}
             </div>
           )}
@@ -159,7 +159,7 @@ const AuthGateModal = ({ reason = 'this feature', returnTo = '/dashboard', onClo
                 <a
                   href={`${BASE_URL}/auth/google/redirect`}
                   onClick={() => trackAuth('social_login_attempt', 'google', { reason, returnTo })}
-                  className="w-full flex items-center justify-center px-4 py-3 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 transition-colors duration-200"
+                  className="w-full flex items-center justify-center px-4 py-3 border border-[#3d3a37] rounded-lg shadow-sm text-sm font-medium text-white bg-[#3d3a37] hover:bg-[#4a4744] transition-colors duration-200"
                 >
                   <svg
                     className="w-5 h-5 mr-2"
@@ -202,7 +202,7 @@ const AuthGateModal = ({ reason = 'this feature', returnTo = '/dashboard', onClo
           ) : (
             <>
               {/* Toggle Buttons */}
-              <div className="flex gap-2 mb-6 bg-gray-800/50 p-1 rounded-lg">
+              <div className="flex gap-2 mb-6 bg-[#1a1a18] p-1 rounded-lg">
                 <button
                   onClick={() => {
                     setIsLogin(true);
@@ -242,7 +242,7 @@ const AuthGateModal = ({ reason = 'this feature', returnTo = '/dashboard', onClo
                       onChange={(e) => setName(e.target.value)}
                       required
                       disabled={isLoading}
-                      className="w-full px-4 py-3 bg-gray-700/50 border-2 border-gray-600 rounded-lg focus:ring-primary-500 focus:border-primary-500 transition-all duration-300 text-white placeholder-gray-400"
+                      className="w-full px-4 py-3 bg-[#262421] border-2 border-[#3d3a37] rounded-lg focus:ring-primary-500 focus:border-primary-500 transition-all duration-300 text-white placeholder-gray-400"
                     />
                   </div>
                 )}
@@ -258,7 +258,7 @@ const AuthGateModal = ({ reason = 'this feature', returnTo = '/dashboard', onClo
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     disabled={isLoading}
-                    className="w-full pl-10 pr-4 py-3 bg-gray-700/50 border-2 border-gray-600 rounded-lg focus:ring-primary-500 focus:border-primary-500 transition-all duration-300 text-white placeholder-gray-400"
+                    className="w-full pl-10 pr-4 py-3 bg-[#262421] border-2 border-[#3d3a37] rounded-lg focus:ring-primary-500 focus:border-primary-500 transition-all duration-300 text-white placeholder-gray-400"
                   />
                 </div>
 
@@ -273,7 +273,7 @@ const AuthGateModal = ({ reason = 'this feature', returnTo = '/dashboard', onClo
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     disabled={isLoading}
-                    className="w-full pl-10 pr-12 py-3 bg-gray-700/50 border-2 border-gray-600 rounded-lg focus:ring-primary-500 focus:border-primary-500 transition-all duration-300 text-white placeholder-gray-400"
+                    className="w-full pl-10 pr-12 py-3 bg-[#262421] border-2 border-[#3d3a37] rounded-lg focus:ring-primary-500 focus:border-primary-500 transition-all duration-300 text-white placeholder-gray-400"
                   />
                   <button
                     type="button"
@@ -296,7 +296,7 @@ const AuthGateModal = ({ reason = 'this feature', returnTo = '/dashboard', onClo
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       required
                       disabled={isLoading}
-                      className="w-full pl-10 pr-4 py-3 bg-gray-700/50 border-2 border-gray-600 rounded-lg focus:ring-primary-500 focus:border-primary-500 transition-all duration-300 text-white placeholder-gray-400"
+                      className="w-full pl-10 pr-4 py-3 bg-[#262421] border-2 border-[#3d3a37] rounded-lg focus:ring-primary-500 focus:border-primary-500 transition-all duration-300 text-white placeholder-gray-400"
                     />
                   </div>
                 )}

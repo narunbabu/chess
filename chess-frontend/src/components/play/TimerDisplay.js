@@ -62,14 +62,14 @@ const TimerDisplay = ({
       <div className={`rounded-lg p-3 transition-all duration-300 flex-1 ${
         isComputerActive
           ? "bg-error/30 border border-error/50 shadow-lg scale-105"
-          : "bg-white/10 border border-white/20"
+          : "bg-surface-elevated/50 border border-white/10"
       }`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {renderAvatar(opponentData, mode === 'computer')}
             <div className="flex flex-col">
               <span className={`text-xs font-medium ${
-                isComputerActive ? "text-error" : "text-white/70"
+                isComputerActive ? "text-error" : "text-[#bababa]"
               }`}>
                 {getDisplayName(opponentData, mode === 'computer', 'Rival')}
               </span>
@@ -92,14 +92,14 @@ const TimerDisplay = ({
       <div className={`rounded-lg p-3 transition-all duration-300 flex-1 ${
         isPlayerActive
           ? "bg-success/30 border border-success/50 shadow-lg scale-105"
-          : "bg-white/10 border border-white/20"
+          : "bg-surface-elevated/50 border border-white/10"
       }`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {renderAvatar(playerData, false)}
             <div className="flex flex-col">
               <span className={`text-xs font-medium ${
-                isPlayerActive ? "text-success" : "text-white/70"
+                isPlayerActive ? "text-success" : "text-[#bababa]"
               }`}>
                 {getDisplayName(playerData, false, 'You')}
               </span>

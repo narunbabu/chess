@@ -66,8 +66,8 @@ const GameControls = ({
       {/* Rated Game Warning */}
       {isRated && gameStarted && !gameOver && !isReplayMode && (
         <div style={{
-          backgroundColor: '#fef3c7',
-          border: '2px solid #f59e0b',
+          backgroundColor: '#3d3a37',
+          border: '2px solid #e8a93e',
           borderRadius: '8px',
           padding: '12px 16px',
           marginBottom: '15px',
@@ -76,9 +76,9 @@ const GameControls = ({
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
             <span style={{ fontSize: '20px' }}>⚠️</span>
-            <strong style={{ color: '#92400e' }}>RATED GAME</strong>
+            <strong style={{ color: '#e8a93e' }}>RATED GAME</strong>
           </div>
-          <p style={{ margin: '8px 0 0 0', fontSize: '14px', color: '#78350f' }}>
+          <p style={{ margin: '8px 0 0 0', fontSize: '14px', color: '#bababa' }}>
             You cannot pause or exit this game. Closing the browser or leaving will result in automatic forfeiture and count as a LOSS.
           </p>
         </div>
@@ -141,7 +141,7 @@ const GameControls = ({
               }
               style={{
                 marginLeft: '10px',
-                backgroundColor: canUndo && !gameOver && undoChancesRemaining > 0 ? '#059669' : '#9ca3af',
+                backgroundColor: canUndo && !gameOver && undoChancesRemaining > 0 ? '#81b64c' : '#4a4744',
                 color: 'white',
                 padding: '8px 16px',
                 border: 'none',
@@ -176,7 +176,7 @@ const GameControls = ({
               className="resign-button"
               style={{
                 marginLeft: '10px',
-                backgroundColor: '#dc2626',
+                backgroundColor: '#e74c3c',
                 color: 'white',
                 padding: '8px 16px',
                 border: 'none',

@@ -4,7 +4,7 @@
 /* Main chess board container */
 .chessboard-container {
   position: relative;
-  background: #f0d9b5;
+  background: #312e2b;
   border-radius: 8px;
   overflow: hidden;
 }
@@ -31,25 +31,25 @@
   transition: all 0.2s ease !important;
 }
 
-/* Light squares - cream color */
+/* Light squares - cream/tan */
 .css-1d6rdtq > div:nth-child(odd):nth-child(even),
 .css-1d6rdtq > div:nth-child(even):nth-child(odd) {
-  background-color: #f0d9b5 !important;
-  color: #b58863 !important;
+  background-color: #eeeed2 !important;
+  color: #769656 !important;
 }
 
-/* Dark squares - brown color */
+/* Dark squares - chess green */
 .css-1d6rdtq > div:nth-child(odd):nth-child(odd),
 .css-1d6rdtq > div:nth-child(even):nth-child(even) {
-  background-color: #b58863 !important;
-  color: #f0d9b5 !important;
+  background-color: #769656 !important;
+  color: #eeeed2 !important;
 }
 
 /* Remove any default solid black backgrounds */
 .css-1d6rdtq > div[style*="background: rgb(0, 0, 0)"],
 .css-1d6rdtq > div[style*="background:#000"],
 .css-1d6rdtq > div[style*="background: #000000"] {
-  background-color: #f0d9b5 !important;
+  background-color: #eeeed2 !important;
 }
 
 /* Chess piece styling */
@@ -179,18 +179,18 @@
 
 /* Dark theme overrides */
 @media (prefers-color-scheme: dark) {
-  /* Light squares - slightly darker for dark mode */
+  /* Light squares - chess light */
   .css-1d6rdtq > div:nth-child(odd):nth-child(even),
   .css-1d6rdtq > div:nth-child(even):nth-child(odd) {
-    background-color: #e6ccb2 !important;
-    color: #8b6914 !important;
+    background-color: #eeeed2 !important;
+    color: #769656 !important;
   }
 
-  /* Dark squares - darker brown for dark mode */
+  /* Dark squares - chess green */
   .css-1d6rdtq > div:nth-child(odd):nth-child(odd),
   .css-1d6rdtq > div:nth-child(even):nth-child(even) {
-    background-color: #8b6914 !important;
-    color: #e6ccb2 !important;
+    background-color: #769656 !important;
+    color: #eeeed2 !important;
   }
 
   .coordinate-label {

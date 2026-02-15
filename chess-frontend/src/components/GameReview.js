@@ -833,7 +833,7 @@ const GameReview = () => {
       <div className="game-review p-6 min-h-screen text-white flex flex-col items-center justify-center">
         <h3 className="text-2xl font-bold mb-4 text-vivid-yellow">Loading Game...</h3>
         <div className="loading-message">Please wait while we load your game data.</div>
-        <button onClick={() => navigate(-1)} className="mt-4 px-4 py-2 bg-blue-violet hover:bg-picton-blue rounded-lg">Back</button>
+        <button onClick={() => navigate(-1)} className="mt-4 px-4 py-2 bg-[#81b64c] hover:bg-[#a3d160] rounded-lg">Back</button>
       </div>
     );
   }
@@ -843,7 +843,7 @@ const GameReview = () => {
       <div className="game-review p-6 min-h-screen text-white flex flex-col items-center justify-center">
         <h3 className="text-2xl font-bold mb-4 text-red-500">Error Loading Game</h3>
         <div className="error-message">{error}</div>
-        <button onClick={() => navigate(-1)} className="mt-4 px-4 py-2 bg-blue-violet hover:bg-picton-blue rounded-lg">Back</button>
+        <button onClick={() => navigate(-1)} className="mt-4 px-4 py-2 bg-[#81b64c] hover:bg-[#a3d160] rounded-lg">Back</button>
       </div>
     );
   }

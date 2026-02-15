@@ -48,12 +48,12 @@ const GameInfo = ({
           alignItems: 'center',
           gap: '0.5rem',
           padding: '0.5rem',
-          backgroundColor: 'rgba(255, 255, 255, 0.1)',
+          backgroundColor: 'rgba(255, 255, 255, 0.05)',
           borderRadius: '0.375rem',
           fontSize: '0.875rem'
         }}>
           <span style={{ fontSize: '1rem' }}>{getStatusIcon()}</span>
-          <span style={{ color: '#fff', fontWeight: '500' }}>{gameStatus}</span>
+          <span style={{ color: '#bababa', fontWeight: '500' }}>{gameStatus}</span>
         </div>
       )}
 
@@ -67,13 +67,13 @@ const GameInfo = ({
             alignItems: 'center',
             gap: '0.5rem',
             padding: '0.5rem',
-            backgroundColor: 'rgba(34, 197, 94, 0.2)',
-            border: '1px solid rgba(34, 197, 94, 0.5)',
+            backgroundColor: 'rgba(129, 182, 76, 0.15)',
+            border: '1px solid rgba(129, 182, 76, 0.4)',
             borderRadius: '0.375rem',
             fontSize: '0.75rem'
           }}>
             <span style={{ fontSize: '1rem' }}>✅</span>
-            <span style={{ color: '#22c55e' }}>Tap timer to confirm</span>
+            <span style={{ color: '#81b64c' }}>Tap timer to confirm</span>
           </div>
         )}
 
@@ -84,14 +84,14 @@ const GameInfo = ({
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '0.5rem',
-          backgroundColor: 'rgba(59, 130, 246, 0.2)',
-          border: '1px solid rgba(59, 130, 246, 0.5)',
+          backgroundColor: 'rgba(232, 169, 62, 0.15)',
+          border: '1px solid rgba(232, 169, 62, 0.4)',
           borderRadius: '0.375rem',
           fontSize: '0.75rem'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <span style={{ fontSize: '1rem' }}>⏯️</span>
-            <span style={{ color: '#3b82f6' }}>Replay</span>
+            <span style={{ color: '#e8a93e' }}>Replay</span>
           </div>
           <span style={{ color: '#fff', fontSize: '0.875rem' }}>
             {currentReplayMove} / {totalMoves}

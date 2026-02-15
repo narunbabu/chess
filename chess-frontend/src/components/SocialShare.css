@@ -10,7 +10,7 @@
 .social-share-label {
   font-size: 14px;
   font-weight: 600;
-  color: #374151;
+  color: #bababa;
   margin-bottom: 4px;
 }
 
@@ -33,17 +33,17 @@
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .social-share-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
 }
 
 .social-share-btn:active {
   transform: translateY(0);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .social-share-btn .social-icon {
@@ -82,29 +82,29 @@
 }
 
 .copy-btn {
-  background-color: #6B7280 !important;
+  background-color: #4a4744 !important;
 }
 
 .copy-btn:hover {
-  background-color: #4B5563 !important;
+  background-color: #5c5a57 !important;
 }
 
 .copy-btn.copied {
-  background-color: #10B981 !important;
+  background-color: #81b64c !important;
 }
 
 .native-share:hover {
-  background-color: #0056d6 !important;
+  background-color: #81b64c !important;
 }
 
 /* Instagram message */
 .instagram-message {
   padding: 8px 12px;
-  background-color: #FEF3C7;
-  border: 1px solid #F59E0B;
+  background-color: rgba(232, 169, 62, 0.15);
+  border: 1px solid #e8a93e;
   border-radius: 6px;
   font-size: 13px;
-  color: #92400E;
+  color: #f4c66a;
   animation: slideDown 0.3s ease;
 }
 
@@ -151,15 +151,15 @@
   }
 }
 
-/* Dark mode support */
+/* Dark mode support - matches base styles (already dark) */
 @media (prefers-color-scheme: dark) {
   .social-share-label {
-    color: #E5E7EB;
+    color: #bababa;
   }
 
   .instagram-message {
-    background-color: #78350F;
-    border-color: #92400E;
-    color: #FEF3C7;
+    background-color: rgba(232, 169, 62, 0.15);
+    border-color: #e8a93e;
+    color: #f4c66a;
   }
 }

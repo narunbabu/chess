@@ -6,8 +6,8 @@
 }
 
 .championship-list-header {
-  /* Changed from Green to Deep Royal Blue/Purple */
-  background: linear-gradient(135deg, #1e1b4b 0%, #4c1d95 100%);
+  /* Dark theme header with green accent */
+  background: linear-gradient(135deg, #1a1a18 0%, #262421 100%);
   padding: 32px;
   border-radius: 16px;
   margin-bottom: 32px;
@@ -45,8 +45,8 @@
 }
 
 .create-btn {
-  /* Amber/Gold Gradient - High Contrast against Purple */
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  /* Gold CTA button */
+  background: linear-gradient(135deg, #e8a93e 0%, #c48b28 100%);
   color: white;
   border: none;
   padding: 14px 28px;
@@ -54,7 +54,7 @@
   font-weight: 700;
   font-size: 1rem;
   cursor: pointer;
-  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
+  box-shadow: 0 4px 15px rgba(232, 169, 62, 0.3);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -63,8 +63,8 @@
 
 .create-btn:hover {
   transform: translateY(-2px) scale(1.02);
-  box-shadow: 0 8px 25px rgba(245, 158, 11, 0.5);
-  background: linear-gradient(135deg, #fbbf24 0%, #b45309 100%);
+  box-shadow: 0 8px 25px rgba(232, 169, 62, 0.5);
+  background: linear-gradient(135deg, #f4c66a 0%, #c48b28 100%);
 }
 
 .create-btn:active {
@@ -73,11 +73,11 @@
 
 /* Filters */
 .championship-filters {
-  background: white;
+  background: #312e2b;
   padding: 20px;
   border-radius: 12px;
   margin-bottom: 30px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   display: flex;
   flex-wrap: wrap;
   gap: 20px;
@@ -93,16 +93,18 @@
 .filter-select {
   width: 100%;
   padding: 10px 12px;
-  border: 2px solid #e2e8f0;
+  border: 2px solid #3d3a37;
   border-radius: 6px;
   font-size: 14px;
   transition: border-color 0.2s ease;
+  background: #262421;
+  color: #bababa;
 }
 
 .filter-input:focus,
 .filter-select:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #81b64c;
 }
 
 .filter-checkboxes {
@@ -130,39 +132,38 @@
 }
 
 .championship-card {
-  background: #ffffff; /* Revert to white for readability */
+  background: #312e2b;
   border-radius: 12px;
   overflow: hidden;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  /* The "Top Accent" - A thick Gold bar at the top */
-  border-top: 4px solid #f59e0b;
-  border-right: 1px solid #e2e8f0;
-  border-bottom: 1px solid #e2e8f0;
-  border-left: 1px solid #e2e8f0;
+  /* Gold accent bar at top */
+  border-top: 4px solid #e8a93e;
+  border-right: 1px solid #3d3a37;
+  border-bottom: 1px solid #3d3a37;
+  border-left: 1px solid #3d3a37;
   display: flex;
   flex-direction: column;
   position: relative;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
 }
 
 /* Hover Effect: Lift and Glow */
 .championship-card:hover {
   transform: translateY(-8px);
-  /* A Gold Glow shadow */
-  box-shadow: 0 20px 25px -5px rgba(245, 158, 11, 0.15), 0 10px 10px -5px rgba(245, 158, 11, 0.1);
-  border-top-color: #d97706; /* Darker gold on hover */
+  box-shadow: 0 20px 25px -5px rgba(232, 169, 62, 0.15), 0 10px 10px -5px rgba(232, 169, 62, 0.1);
+  border-top-color: #f4c66a;
 }
 
 /* Card Header - Clean & Spacious */
 .championship-card .card-header {
-  padding: 24px 24px 16px 24px; /* More padding */
-  background: white;
+  padding: 24px 24px 16px 24px;
+  background: #312e2b;
 }
 
 .championship-name {
   font-size: 1.35rem;
   font-weight: 800;
-  color: #1e1b4b; /* Deep Indigo */
+  color: #ffffff;
   margin-bottom: 8px;
   letter-spacing: -0.5px;
 }
@@ -182,24 +183,24 @@
 
 /* Customize specific statuses */
 .championship-status.in_progress {
-  background: #ecfdf5;
-  color: #059669;
-  border: 1px solid #a7f3d0;
+  background: rgba(129, 182, 76, 0.15);
+  color: #a3d160;
+  border: 1px solid rgba(129, 182, 76, 0.3);
 }
 
 .championship-status.completed {
-  background: #f1f5f9;
-  color: #64748b;
-  border: 1px solid #e2e8f0;
+  background: rgba(139, 137, 135, 0.15);
+  color: #8b8987;
+  border: 1px solid #3d3a37;
 }
 
 /* STATS GRID - The replacement for the heavy footer */
 .card-stats-grid {
   padding: 16px 24px 24px 24px;
-  background: #ffffff;
-  border-top: 1px dashed #e2e8f0; /* Dashed line looks like a tear-off ticket */
+  background: #312e2b;
+  border-top: 1px dashed #3d3a37;
   display: grid;
-  grid-template-columns: repeat(3, 1fr); /* 3 Equal columns */
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
 }
 
@@ -209,7 +210,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: #f8fafc; /* Very light gray */
+  background: #262421;
   padding: 12px 8px;
   border-radius: 12px;
   text-align: center;
@@ -219,26 +220,26 @@
 
 /* Hovering a stat box makes it pop slightly */
 .championship-card:hover .stat-box {
-  background: #fff;
-  border-color: #e2e8f0;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  background: #3d3a37;
+  border-color: #4a4744;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
 .stat-icon {
   font-size: 1.25rem;
   margin-bottom: 6px;
-  color: #6366f1; /* Indigo Icon */
+  color: #81b64c;
 }
 
 .stat-value {
   font-size: 0.9rem;
   font-weight: 700;
-  color: #1e293b; /* Dark slate text */
+  color: #ffffff;
 }
 
 .stat-label {
   font-size: 0.7rem;
-  color: #64748b; /* Muted label */
+  color: #8b8987;
   text-transform: uppercase;
   margin-top: 2px;
   font-weight: 600;
@@ -246,9 +247,9 @@
 
 /* Prize Money - Make it Gold */
 .prize-badge {
-  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
-  color: #b45309;
-  border: 1px solid #fcd34d;
+  background: linear-gradient(135deg, rgba(232, 169, 62, 0.15) 0%, rgba(232, 169, 62, 0.1) 100%);
+  color: #e8a93e;
+  border: 1px solid rgba(232, 169, 62, 0.3);
   padding: 8px 12px;
   border-radius: 8px;
   font-weight: 700;
@@ -258,9 +259,9 @@
 
 /* Archived Championship Styles */
 .championship-card.archived {
-  background: #f7fafc;
+  background: #262421;
   opacity: 0.85;
-  border: 1px dashed #cbd5e0;
+  border: 1px dashed #4a4744;
 }
 
 .championship-card.archived:hover {
@@ -269,28 +270,28 @@
 }
 
 .championship-card.archived .championship-name {
-  color: #718096;
+  color: #8b8987;
 }
 
 .championship-card.archived .championship-status.archived {
-  background: #e2e8f0;
-  color: #4a5568;
+  background: #3d3a37;
+  color: #8b8987;
 }
 
 .championship-card.archived .detail-label,
 .championship-card.archived .detail-value {
-  color: #718096;
+  color: #8b8987;
 }
 
 .archived-toggle {
-  background: #fff3cd;
+  background: rgba(232, 169, 62, 0.15);
   padding: 6px 12px;
   border-radius: 6px;
-  border: 1px solid #ffc107;
+  border: 1px solid #e8a93e;
 }
 
 .archived-toggle input[type="checkbox"]:checked {
-  accent-color: #ffc107;
+  accent-color: #e8a93e;
 }
 
 .championship-header {
@@ -307,7 +308,7 @@
 .championship-name {
   font-size: 1.1rem;
   font-weight: 700;
-  color: #1a202c;
+  color: #ffffff;
   margin: 0 0 6px 0;
   line-height: 1.3;
 }
@@ -330,7 +331,7 @@
 }
 
 .championship-prize {
-  background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+  background: linear-gradient(135deg, #e8a93e 0%, #c48b28 100%);
   color: white;
   padding: 3px 8px;
   border-radius: 12px;
@@ -360,12 +361,12 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  background: #f8fafc;
+  background: #262421;
   padding: 4px 8px;
   border-radius: 6px;
   font-size: 0.75rem;
   white-space: nowrap;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #3d3a37;
 }
 
 .summary-icon {
@@ -375,21 +376,21 @@
 
 .summary-text {
   font-weight: 500;
-  color: #374151;
+  color: #bababa;
 }
 
 .championship-deadline {
-  background: #f0f9ff;
+  background: #262421;
   padding: 8px 12px;
   border-radius: 6px;
-  border-left: 3px solid #3b82f6;
+  border-left: 3px solid #81b64c;
   margin-bottom: 12px;
 }
 
 .deadline-label {
   font-size: 0.8rem;
   font-weight: 500;
-  color: #1f2937;
+  color: #bababa;
 }
 
 .urgency {
@@ -426,7 +427,7 @@
 
 /* Toggle Button */
 .actions-toggle {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #81b64c 0%, #4e7837 100%);
   border: none;
   border-radius: 50%;
   width: 40px;
@@ -435,7 +436,7 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 2px 8px rgba(129, 182, 76, 0.4);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   z-index: 12;
@@ -443,7 +444,7 @@
 
 .actions-toggle:hover {
   transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.6);
+  box-shadow: 0 4px 12px rgba(129, 182, 76, 0.6);
 }
 
 .toggle-icon {
@@ -461,9 +462,9 @@
   position: absolute;
   top: 48px;
   right: 0;
-  background: white;
+  background: #3d3a37;
   border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
   padding: 12px;
   width: max-content;
   max-width: min(300px, calc(100vw - 80px));
@@ -538,22 +539,22 @@
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #81b64c 0%, #4e7837 100%);
   color: white;
 }
 
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 8px rgba(129, 182, 76, 0.3);
 }
 
 .btn-secondary {
-  background: #e2e8f0;
-  color: #1a1a1a;
+  background: #3d3a37;
+  color: #bababa;
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: #cbd5e0;
+  background: #4a4744;
 }
 
 .btn-success {
@@ -577,8 +578,8 @@
 }
 
 .btn-warning {
-  background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
-  color: #1a1a1a;
+  background: linear-gradient(135deg, #e8a93e 0%, #c48b28 100%);
+  color: #1a1a18;
 }
 
 .btn-warning:hover:not(:disabled) {
@@ -592,16 +593,16 @@
 .empty-state {
   text-align: center;
   padding: 60px 20px;
-  background: white;
+  background: #312e2b;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .spinner {
   width: 40px;
   height: 40px;
-  border: 4px solid #e2e8f0;
-  border-top: 4px solid #667eea;
+  border: 4px solid #3d3a37;
+  border-top: 4px solid #81b64c;
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin: 0 auto 20px;
@@ -634,12 +635,12 @@
 }
 
 .empty-state h3 {
-  color: #4a5568;
+  color: #bababa;
   margin-bottom: 10px;
 }
 
 .empty-state p {
-  color: #718096;
+  color: #8b8987;
   margin-bottom: 20px;
 }
 
@@ -658,7 +659,7 @@
 }
 
 .modal {
-  background: white;
+  background: #312e2b;
   border-radius: 12px;
   max-width: 500px;
   width: 90%;
@@ -671,22 +672,22 @@
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  border-bottom: 1px solid #e2e8f0;
-  background: #ffffff;
+  border-bottom: 1px solid #3d3a37;
+  background: #262421;
 }
 
 .modal-header h2 {
   margin: 0;
-  color: #1a202c;
+  color: #ffffff;
   font-weight: 700;
 }
 
 .modal-close {
   background: none;
-  border: 2px solid #e5e7eb;
+  border: 2px solid #4a4744;
   font-size: 1.5rem;
   cursor: pointer;
-  color: #374151;
+  color: #bababa;
   padding: 0;
   width: 32px;
   height: 32px;
@@ -698,35 +699,35 @@
 }
 
 .modal-close:hover {
-  background: #f3f4f6;
-  color: #1a202c;
-  border-color: #9ca3af;
+  background: #3d3a37;
+  color: #ffffff;
+  border-color: #8b8987;
 }
 
 .modal-content {
   padding: 24px;
-  background: #ffffff;
-  color: #1a202c;
+  background: #312e2b;
+  color: #bababa;
 }
 
-/* Status Colors */
-.text-blue-600 { color: #3182ce; }
-.bg-blue-100 { background-color: #e6f3ff; }
+/* Status Colors - Dark Theme */
+.text-blue-600 { color: #60a5fa; }
+.bg-blue-100 { background-color: rgba(96, 165, 250, 0.15); }
 
-.text-yellow-600 { color: #d69e2e; }
-.bg-yellow-100 { background-color: #fffbeb; }
+.text-yellow-600 { color: #e8a93e; }
+.bg-yellow-100 { background-color: rgba(232, 169, 62, 0.15); }
 
-.text-green-600 { color: #38a169; }
-.bg-green-100 { background-color: #f0fff4; }
+.text-green-600 { color: #81b64c; }
+.bg-green-100 { background-color: rgba(129, 182, 76, 0.15); }
 
-.text-orange-600 { color: #dd6b20; }
-.bg-orange-100 { background-color: #fffdf7; }
+.text-orange-600 { color: #f4c66a; }
+.bg-orange-100 { background-color: rgba(244, 198, 106, 0.15); }
 
-.text-gray-600 { color: #4a5568; }
-.bg-gray-100 { background-color: #f7fafc; }
+.text-gray-600 { color: #8b8987; }
+.bg-gray-100 { background-color: #3d3a37; }
 
-.text-red-600 { color: #e53e3e; }
-.bg-red-100 { background-color: #fff5f5; }
+.text-red-600 { color: #fa6a5b; }
+.bg-red-100 { background-color: rgba(250, 106, 91, 0.15); }
 
 /* Create Championship Modal Styles */
 .create-championship-modal {
@@ -738,8 +739,8 @@
   display: flex;
   justify-content: space-between;
   padding: 20px 24px;
-  background: #f9fafb;
-  border-bottom: 1px solid #d1d5db;
+  background: #262421;
+  border-bottom: 1px solid #3d3a37;
 }
 
 .step {
@@ -753,18 +754,18 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: #d1d5db;
-  color: #374151;
+  background: #3d3a37;
+  color: #8b8987;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
   font-size: 0.875rem;
-  border: 2px solid #9ca3af;
+  border: 2px solid #4a4744;
 }
 
 .step.active .step-number {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #81b64c 0%, #4e7837 100%);
   color: white;
 }
 
@@ -775,28 +776,28 @@
 
 .step-label {
   font-size: 0.875rem;
-  color: #374151;
+  color: #8b8987;
   font-weight: 600;
 }
 
 .step.active .step-label {
-  color: #2d3748;
+  color: #ffffff;
   font-weight: 600;
 }
 
 .step.completed .step-label {
-  color: #2d3748;
+  color: #bababa;
 }
 
 .step-content {
   padding: 16px;
-  background: #ffffff;
-  color: #1a202c;
+  background: #312e2b;
+  color: #bababa;
 }
 
 .step-content h3 {
   margin: 0 0 16px 0;
-  color: #1a202c;
+  color: #ffffff;
   font-size: 1.25rem;
   font-weight: 600;
 }
@@ -809,28 +810,28 @@
   display: block;
   margin-bottom: 4px;
   font-weight: 600;
-  color: #1a202c;
+  color: #bababa;
   font-size: 0.875rem;
 }
 
 .form-input {
   width: 100%;
   padding: 8px 12px;
-  border: 2px solid #374151;
+  border: 2px solid #4a4744;
   border-radius: 6px;
   font-size: 0.875rem;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
-  background-color: #ffffff;
-  color: #1a202c;
+  background-color: #262421;
+  color: #ffffff;
   font-weight: 500;
 }
 
 .form-input:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
-  background-color: #ffffff;
-  color: #1a202c;
+  border-color: #81b64c;
+  box-shadow: 0 0 0 3px rgba(129, 182, 76, 0.2);
+  background-color: #262421;
+  color: #ffffff;
 }
 
 /* Improve contrast for datetime-local and other input types */
@@ -846,10 +847,10 @@
 .form-input[type="search"],
 textarea.form-input,
 select.form-input {
-  background-color: #ffffff !important;
-  color: #1a202c !important;
+  background-color: #262421 !important;
+  color: #ffffff !important;
   font-weight: 600 !important;
-  border-color: #374151 !important;
+  border-color: #4a4744 !important;
 }
 
 /* Select dropdown styling */
@@ -858,8 +859,8 @@ select.form-input {
 }
 
 select.form-input option {
-  background-color: #ffffff;
-  color: #1a202c;
+  background-color: #262421;
+  color: #ffffff;
   font-weight: 600;
   padding: 8px 12px;
 }
@@ -878,21 +879,21 @@ textarea.form-input {
 .form-input[type="datetime-local"]::-webkit-datetime-edit-year-field,
 .form-input[type="datetime-local"]::-webkit-datetime-edit-hour-field,
 .form-input[type="datetime-local"]::-webkit-datetime-edit-minute-field {
-  background-color: #ffffff !important;
-  color: #1a202c !important;
+  background-color: #262421 !important;
+  color: #ffffff !important;
   font-weight: 600 !important;
 }
 
 .form-input[type="datetime-local"]::-webkit-calendar-picker-indicator {
-  background-color: #f3f4f6;
-  border: 1px solid #d1d5db;
+  background-color: #3d3a37;
+  border: 1px solid #4a4744;
   border-radius: 4px;
   padding: 2px;
   cursor: pointer;
 }
 
 .form-input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
-  background-color: #e5e7eb;
+  background-color: #4a4744;
 }
 
 /* Firefox datetime-local styling */
@@ -902,8 +903,8 @@ textarea.form-input {
 .form-input[type="datetime-local"]::-moz-datetime-edit-year-field,
 .form-input[type="datetime-local"]::-moz-datetime-edit-hour-field,
 .form-input[type="datetime-local"]::-moz-datetime-edit-minute-field {
-  background-color: #ffffff !important;
-  color: #1a202c !important;
+  background-color: #262421 !important;
+  color: #ffffff !important;
   font-weight: 600 !important;
 }
 
@@ -916,14 +917,14 @@ textarea.form-input {
 
 .form-input[type="number"]::-moz-number-spin-up,
 .form-input[type="number"]::-moz-number-spin-down {
-  background-color: #f3f4f6;
-  border: 1px solid #d1d5db;
+  background-color: #3d3a37;
+  border: 1px solid #4a4744;
   border-radius: 4px;
 }
 
 /* Ensure placeholder text has good contrast */
 .form-input::placeholder {
-  color: #374151 !important;
+  color: #8b8987 !important;
   font-weight: 500 !important;
   opacity: 1 !important;
 }
@@ -931,15 +932,15 @@ textarea.form-input {
 /* High contrast mode support */
 @media (prefers-contrast: high) {
   .form-input {
-    background-color: #ffffff !important;
-    color: #000000 !important;
-    border-color: #000000 !important;
+    background-color: #1a1a18 !important;
+    color: #ffffff !important;
+    border-color: #ffffff !important;
     font-weight: 600 !important;
   }
 
   .form-input:focus {
-    border-color: #0066cc !important;
-    box-shadow: 0 0 0 2px #0066cc !important;
+    border-color: #81b64c !important;
+    box-shadow: 0 0 0 2px #81b64c !important;
   }
 }
 
@@ -958,21 +959,21 @@ textarea.form-input {
 }
 
 .error-message {
-  color: #b91c1c;
+  color: #fa6a5b;
   font-size: 0.75rem;
   margin-top: 2px;
   display: block;
   font-weight: 700;
-  background: #fef2f2;
+  background: rgba(231, 76, 60, 0.15);
   padding: 4px 8px;
   border-radius: 4px;
-  border-left: 3px solid #b91c1c;
+  border-left: 3px solid #e74c3c;
 }
 
 .error-message.global {
-  background: #fef2f2;
-  border: 2px solid #fecaca;
-  color: #dc2626;
+  background: rgba(231, 76, 60, 0.15);
+  border: 2px solid rgba(231, 76, 60, 0.3);
+  color: #fa6a5b;
   padding: 12px;
   border-radius: 6px;
   margin-bottom: 20px;
@@ -980,28 +981,28 @@ textarea.form-input {
 }
 
 .form-group small {
-  color: #1f2937;
+  color: #8b8987;
   font-size: 0.75rem;
   margin-top: 4px;
   display: block;
   font-weight: 600;
-  background: #f9fafb;
+  background: #262421;
   padding: 4px 8px;
   border-radius: 4px;
-  border-left: 2px solid #d1d5db;
+  border-left: 2px solid #4a4744;
 }
 
 .prizes-list {
-  border: 1px solid #e5e7eb;
+  border: 1px solid #3d3a37;
   border-radius: 6px;
   padding: 16px;
-  background: #f9fafb;
+  background: #262421;
 }
 
 .prize-item {
   margin-bottom: 16px;
   padding-bottom: 16px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #3d3a37;
 }
 
 .prize-item:last-child {
@@ -1023,7 +1024,7 @@ textarea.form-input {
   font-weight: 500 !important;
   cursor: pointer;
   margin-bottom: 0 !important;
-  color: #1f2937 !important;
+  color: #bababa !important;
 }
 
 .checkbox-label input[type="checkbox"] {
@@ -1033,8 +1034,8 @@ textarea.form-input {
 
 .modal-footer {
   padding: 20px 24px;
-  border-top: 1px solid #d1d5db;
-  background: #f9fafb;
+  border-top: 1px solid #3d3a37;
+  background: #262421;
 }
 
 .step-navigation {
@@ -1067,14 +1068,14 @@ textarea.form-input {
 
 /* Hero Header - Add a subtle pattern */
 .championship-header {
-  background-color: #ffffff;
-  /* Optional: A very subtle chess pattern overlay */
-  background-image: radial-gradient(#e2e8f0 1px, transparent 1px);
+  background-color: #312e2b;
+  /* Subtle chess pattern overlay */
+  background-image: radial-gradient(#3d3a37 1px, transparent 1px);
   background-size: 20px 20px;
   border-radius: 16px;
   padding: 32px;
-  border-bottom: 4px solid #1e1b4b; /* Indigo bottom border anchor */
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  border-bottom: 4px solid #81b64c;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
   display: flex;
   align-items: center;
   gap: 20px;
@@ -1086,8 +1087,8 @@ textarea.form-input {
 /* Sleek Back Button */
 .back-btn {
   background: transparent;
-  color: #64748b;
-  border: 1px solid #e2e8f0;
+  color: #8b8987;
+  border: 1px solid #3d3a37;
   padding: 8px 16px;
   border-radius: 8px;
   font-weight: 600;
@@ -1106,9 +1107,9 @@ textarea.form-input {
 }
 
 .back-btn:hover {
-  background: #f1f5f9;
-  color: #1e1b4b; /* Indigo on hover */
-  border-color: #cbd5e1;
+  background: #3d3a37;
+  color: #ffffff;
+  border-color: #4a4744;
   transform: translateX(-3px); /* Slide left slightly */
 }
 
@@ -1120,7 +1121,7 @@ textarea.form-input {
 .championship-title {
   font-size: 2rem;
   font-weight: 700;
-  color: #1a202c;
+  color: #ffffff;
   margin: 0 0 12px 0;
   line-height: 1.2;
   font-family: 'Georgia', 'Times New Roman', serif;
@@ -1134,8 +1135,8 @@ textarea.form-input {
 }
 
 .participant-count {
-  background: #f3f4f6;
-  color: #374151;
+  background: #3d3a37;
+  color: #bababa;
   padding: 4px 10px;
   border-radius: 20px;
   font-size: 0.75rem;
@@ -1149,9 +1150,9 @@ textarea.form-input {
 }
 
 .warning-message {
-  background: #fef3c7;
-  border: 1px solid #fde68a;
-  color: #d97706;
+  background: rgba(232, 169, 62, 0.15);
+  border: 1px solid rgba(232, 169, 62, 0.3);
+  color: #e8a93e;
   padding: 12px 16px;
   border-radius: 8px;
   margin-bottom: 20px;
@@ -1162,10 +1163,10 @@ textarea.form-input {
 .championship-tabs {
   display: flex;
   gap: 8px;
-  background: #f1f5f9; /* Light Slate Gray Background for the bar */
-  padding: 12px 12px 0 12px; /* Padding to frame the tabs */
+  background: #1a1a18;
+  padding: 12px 12px 0 12px;
   border-radius: 12px 12px 0 0;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid #3d3a37;
   overflow: hidden;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
   margin-bottom: 0;
@@ -1178,7 +1179,7 @@ textarea.form-input {
   border: none;
   font-size: 0.875rem;
   font-weight: 500;
-  color: #64748b; /* Medium Gray for inactive */
+  color: #8b8987;
   cursor: pointer;
   transition: all 0.2s ease;
   border-bottom: 3px solid transparent;
@@ -1198,17 +1199,17 @@ textarea.form-input {
 }
 
 .tab:hover:not(:disabled) {
-  color: #1e293b; /* Dark text on hover */
-  background: rgba(255, 255, 255, 0.5); /* Slight white tint */
+  color: #bababa;
+  background: rgba(255, 255, 255, 0.05);
   transform: translateY(-1px);
 }
 
 .tab.active {
-  background: #ffffff !important; /* Pure White Background */
-  color: #1e293b !important;      /* Dark Slate Text (High Contrast) */
-  font-weight: 700;               /* Bold Text */
-  border-bottom: 3px solid #7c3aed; /* Purple Underline to show selection */
-  box-shadow: 0 -2px 5px rgba(0,0,0,0.05); /* Subtle lift effect */
+  background: #312e2b !important;
+  color: #ffffff !important;
+  font-weight: 700;
+  border-bottom: 3px solid #81b64c;
+  box-shadow: 0 -2px 5px rgba(0,0,0,0.2);
   transform: translateY(-1px);
   z-index: 2;
 }
@@ -1219,9 +1220,9 @@ textarea.form-input {
 }
 
 .tab-content {
-  background: white;
+  background: #312e2b;
   border-radius: 0 0 12px 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
   min-height: 400px;
 }
 
@@ -1238,22 +1239,22 @@ textarea.form-input {
 }
 
 .overview-section {
-  background: #f8fafc;
+  background: #262421;
   padding: 20px;
   border-radius: 8px;
-  border-left: 4px solid #667eea;
+  border-left: 4px solid #81b64c;
 }
 
 .overview-section h3 {
   margin: 0 0 16px 0;
-  color: #1a202c;
+  color: #ffffff;
   font-size: 1.125rem;
   font-weight: 600;
 }
 
 .overview-section p {
   margin: 0;
-  color: #4b5563;
+  color: #bababa;
   line-height: 1.6;
 }
 
@@ -1275,13 +1276,13 @@ textarea.form-input {
   align-items: center;
   gap: 12px;
   padding: 12px;
-  background: white;
+  background: #312e2b;
   border-radius: 6px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #3d3a37;
 }
 
 .prize-position {
-  background: #667eea;
+  background: #e8a93e;
   color: white;
   padding: 4px 8px;
   border-radius: 4px;
@@ -1298,22 +1299,22 @@ textarea.form-input {
 }
 
 .prize-desc {
-  color: #6b7280;
+  color: #8b8987;
   font-size: 0.875rem;
 }
 
 .total-prize {
   padding: 12px;
-  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  background: linear-gradient(135deg, #3d3a37 0%, #262421 100%);
   border-radius: 6px;
   text-align: center;
   font-size: 1rem;
-  color: #1f2937;
+  color: #e8a93e;
 }
 
 /* Progress Section */
 .progress-section {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #262421 0%, #1a1a18 100%);
   padding: 24px;
   border-radius: 12px;
   color: white;
@@ -1371,7 +1372,7 @@ textarea.form-input {
 
 .matches-header h2 {
   margin: 0;
-  color: #1a202c;
+  color: #ffffff;
 }
 
 .header-left {
@@ -1406,11 +1407,11 @@ textarea.form-input {
 
 .round-title {
   margin: 0;
-  color: #374151;
+  color: #bababa;
   font-size: 1.25rem;
   font-weight: 600;
   padding-bottom: 8px;
-  border-bottom: 2px solid #e5e7eb;
+  border-bottom: 2px solid #3d3a37;
 }
 
 /* Round section header button styling */
@@ -1435,8 +1436,8 @@ textarea.form-input {
 }
 
 .match-card {
-  background: white;
-  border: 1px solid #e5e7eb;
+  background: #312e2b;
+  border: 1px solid #3d3a37;
   border-radius: 12px;
   padding: 20px;
   transition: all 0.2s ease;
@@ -1470,7 +1471,7 @@ textarea.form-input {
 }
 
 .match-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .match-header {
@@ -1503,22 +1504,22 @@ textarea.form-input {
 
 .player-name {
   font-weight: 600;
-  color: #1f2937;
+  color: #ffffff;
   margin-bottom: 4px;
 }
 
 .player-name.current-user {
-  color: #667eea;
+  color: #81b64c;
 }
 
 .player-rating {
   font-size: 0.875rem;
-  color: #6b7280;
+  color: #8b8987;
 }
 
 .you-indicator {
   font-size: 0.75rem;
-  color: #667eea;
+  color: #81b64c;
   font-weight: 500;
 }
 
@@ -1550,7 +1551,7 @@ textarea.form-input {
 
 .round-info {
   font-size: 0.75rem;
-  color: #6b7280;
+  color: #8b8987;
 }
 
 .match-details {
@@ -1559,7 +1560,7 @@ textarea.form-input {
   gap: 8px;
   margin-bottom: 16px;
   padding: 12px;
-  background: #f8fafc;
+  background: #262421;
   border-radius: 8px;
   width: 100%;
   max-width: 100%;
@@ -1570,14 +1571,14 @@ textarea.form-input {
 .schedule-label,
 .result-label {
   font-size: 0.75rem;
-  color: #6b7280;
+  color: #8b8987;
   font-weight: 500;
 }
 
 .schedule-time,
 .result-value {
   font-size: 0.875rem;
-  color: #1f2937;
+  color: #bababa;
   font-weight: 600;
 }
 
@@ -1596,7 +1597,7 @@ textarea.form-input {
 }
 
 .action-message {
-  color: #6b7280;
+  color: #8b8987;
   font-size: 0.875rem;
   font-style: italic;
 }
@@ -1617,7 +1618,7 @@ textarea.form-input {
 
 .standings-header h2 {
   margin: 0;
-  color: #1a202c;
+  color: #ffffff;
 }
 
 .standings-controls {
@@ -1634,7 +1635,7 @@ textarea.form-input {
 
 .sort-controls label {
   font-size: 0.875rem;
-  color: #374151;
+  color: #bababa;
   font-weight: 500;
 }
 
@@ -1645,7 +1646,7 @@ textarea.form-input {
 
 .standings-table {
   min-width: 800px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #3d3a37;
   border-radius: 12px;
   overflow: hidden;
 }
@@ -1655,28 +1656,28 @@ textarea.form-input {
   display: grid;
   grid-template-columns: 80px 1fr 100px 80px 100px 80px repeat(3, 100px);
   gap: 1px;
-  background: #f3f4f6;
+  background: #3d3a37;
 }
 
 .standings-header-row {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #1a1a18 0%, #262421 100%);
   color: white;
   font-weight: 600;
 }
 
 .standings-row {
-  background: white;
+  background: #312e2b;
   align-items: center;
   transition: background-color 0.2s ease;
 }
 
 .standings-row:hover {
-  background: #f8fafc;
+  background: #3d3a37;
 }
 
 .standings-row.current-user-row {
-  background: #f0f4ff;
-  border: 2px solid #667eea;
+  background: rgba(129, 182, 76, 0.1);
+  border: 2px solid #81b64c;
   margin: 0 -2px;
 }
 
@@ -1703,7 +1704,7 @@ textarea.form-input {
 .rank-number {
   font-weight: 700;
   font-size: 1.125rem;
-  color: #1f2937;
+  color: #ffffff;
 }
 
 .medal {
@@ -1724,13 +1725,13 @@ textarea.form-input {
 
 .player-name {
   font-weight: 600;
-  color: #1f2937;
+  color: #ffffff;
   margin-bottom: 2px;
 }
 
 .player-rating {
   font-size: 0.75rem;
-  color: #6b7280;
+  color: #8b8987;
 }
 
 .score-cell {
@@ -1746,12 +1747,12 @@ textarea.form-input {
 
 .score-breakdown {
   font-size: 0.75rem;
-  color: #6b7280;
+  color: #8b8987;
 }
 
 .performance-value {
   font-weight: 600;
-  color: #1f2937;
+  color: #ffffff;
 }
 
 .performance-value.perfect {
@@ -1760,7 +1761,7 @@ textarea.form-input {
 
 .streak-value {
   font-weight: 600;
-  color: #1f2937;
+  color: #ffffff;
 }
 
 .streak-value.hot-streak {
@@ -1772,7 +1773,7 @@ textarea.form-input {
 }
 
 .standings-legend {
-  background: #f8fafc;
+  background: #262421;
   padding: 20px;
   border-radius: 8px;
   margin-bottom: 24px;
@@ -1780,7 +1781,7 @@ textarea.form-input {
 
 .standings-legend h4 {
   margin: 0 0 12px 0;
-  color: #374151;
+  color: #bababa;
   font-size: 1rem;
 }
 
@@ -1798,17 +1799,17 @@ textarea.form-input {
 
 .legend-symbol {
   font-weight: 600;
-  color: #374151;
+  color: #bababa;
 }
 
 .legend-desc {
   font-size: 0.875rem;
-  color: #6b7280;
+  color: #8b8987;
 }
 
 .tiebreaker-rules {
-  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-  border: 1px solid #bae6fd;
+  background: linear-gradient(135deg, #262421 0%, #1a1a18 100%);
+  border: 1px solid #3d3a37;
   padding: 20px;
   border-radius: 8px;
   margin-bottom: 24px;
@@ -1816,13 +1817,13 @@ textarea.form-input {
 
 .tiebreaker-rules h4 {
   margin: 0 0 12px 0;
-  color: #0369a1;
+  color: #81b64c;
   font-size: 1rem;
 }
 
 .tiebreaker-rules > p {
   margin: 0 0 16px 0;
-  color: #374151;
+  color: #bababa;
   font-size: 0.875rem;
 }
 
@@ -1837,9 +1838,9 @@ textarea.form-input {
   align-items: flex-start;
   gap: 12px;
   padding: 12px;
-  background: white;
+  background: #312e2b;
   border-radius: 6px;
-  border: 1px solid #dbeafe;
+  border: 1px solid #3d3a37;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
@@ -1860,7 +1861,7 @@ textarea.form-input {
 }
 
 .tiebreaker-details strong {
-  color: #1e40af;
+  color: #81b64c;
   display: block;
   margin-bottom: 2px;
   font-size: 0.875rem;
@@ -1868,15 +1869,15 @@ textarea.form-input {
 
 .tiebreaker-desc {
   font-size: 0.8rem;
-  color: #64748b;
+  color: #8b8987;
   line-height: 1.4;
 }
 
 .tiebreaker-note {
   margin-top: 16px;
   padding: 12px;
-  background: #f8fafc;
-  border-left: 3px solid #3b82f6;
+  background: #262421;
+  border-left: 3px solid #81b64c;
   border-radius: 4px;
   font-size: 0.8rem;
   color: #475569;
@@ -1888,14 +1889,14 @@ textarea.form-input {
 }
 
 .standings-summary {
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  background: linear-gradient(135deg, #262421 0%, #1a1a18 100%);
   padding: 24px;
   border-radius: 12px;
 }
 
 .standings-summary h3 {
   margin: 0 0 16px 0;
-  color: #1a202c;
+  color: #ffffff;
   font-size: 1.125rem;
 }
 
@@ -1906,7 +1907,7 @@ textarea.form-input {
 }
 
 .stat-item {
-  background: white;
+  background: #312e2b;
   padding: 16px;
   border-radius: 8px;
   text-align: center;
@@ -1914,14 +1915,14 @@ textarea.form-input {
 
 .stat-label {
   font-size: 0.75rem;
-  color: #6b7280;
+  color: #8b8987;
   margin-bottom: 4px;
 }
 
 .stat-value {
   font-size: 1.5rem;
   font-weight: 700;
-  color: #1f2937;
+  color: #ffffff;
 }
 
 /* Championship Participants Styles */
@@ -1940,7 +1941,7 @@ textarea.form-input {
 
 .participants-header h2 {
   margin: 0;
-  color: #1a202c;
+  color: #ffffff;
 }
 
 .participants-filters {
@@ -1963,10 +1964,10 @@ textarea.form-input {
 }
 
 .stat-card {
-  background: white;
+  background: #312e2b;
   padding: 20px;
   border-radius: 12px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #3d3a37;
   display: flex;
   align-items: center;
   gap: 16px;
@@ -1984,13 +1985,13 @@ textarea.form-input {
 .stat-value {
   font-size: 1.5rem;
   font-weight: 700;
-  color: #1f2937;
+  color: #ffffff;
   line-height: 1;
 }
 
 .stat-label {
   font-size: 0.875rem;
-  color: #6b7280;
+  color: #8b8987;
   margin-top: 4px;
 }
 
@@ -2005,8 +2006,8 @@ textarea.form-input {
 }
 
 .participant-card {
-  background: white;
-  border: 1px solid #e5e7eb;
+  background: #312e2b;
+  border: 1px solid #3d3a37;
   border-radius: 12px;
   padding: 16px;
   transition: all 0.2s ease;
@@ -2018,8 +2019,8 @@ textarea.form-input {
 }
 
 .participant-card.current-user {
-  border-color: #667eea;
-  background: #f0f4ff;
+  border-color: #81b64c;
+  background: rgba(129, 182, 76, 0.1);
 }
 
 .participant-avatar {
@@ -2057,19 +2058,19 @@ textarea.form-input {
   margin: 0 0 4px 0;
   font-size: 1rem;
   font-weight: 600;
-  color: #1f2937;
+  color: #ffffff;
 }
 
 .participant-rating {
   font-size: 0.875rem;
-  color: #6b7280;
+  color: #8b8987;
 }
 
 .participant-meta {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  border-top: 1px solid #f3f4f6;
+  border-top: 1px solid #3d3a37;
   padding-top: 12px;
 }
 
@@ -2084,11 +2085,11 @@ textarea.form-input {
 
 .registration-label,
 .seed-label {
-  color: #6b7280;
+  color: #8b8987;
 }
 
 .registration-date {
-  color: #1f2937;
+  color: #ffffff;
   font-weight: 500;
 }
 
@@ -2127,7 +2128,7 @@ textarea.form-input {
 
 .seed-number {
   font-weight: 600;
-  color: #667eea;
+  color: #81b64c;
 }
 
 .participants-actions {
@@ -2159,7 +2160,7 @@ textarea.form-input {
 
 .admin-title-section h1 {
   margin: 0 0 12px 0;
-  color: #1a202c;
+  color: #ffffff;
   font-size: 2rem;
   font-weight: 700;
 }
@@ -2174,7 +2175,7 @@ textarea.form-input {
 .championship-name {
   font-size: 1.125rem;
   font-weight: 600;
-  color: #374151;
+  color: #bababa;
 }
 
 .status-badge {
@@ -2187,7 +2188,7 @@ textarea.form-input {
 
 .admin-tabs {
   display: flex;
-  background: white;
+  background: #312e2b;
   border-radius: 12px 12px 0 0;
   overflow: hidden;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
@@ -2201,7 +2202,7 @@ textarea.form-input {
   border: none;
   font-size: 0.875rem;
   font-weight: 500;
-  color: #6b7280;
+  color: #8b8987;
   cursor: pointer;
   transition: all 0.2s ease;
   border-bottom: 3px solid transparent;
@@ -2209,18 +2210,18 @@ textarea.form-input {
 }
 
 .admin-tab:hover {
-  background: #f9fafb;
-  color: #374151;
+  background: #262421;
+  color: #bababa;
 }
 
 .admin-tab.active {
-  color: #667eea;
-  background: #f0f4ff;
-  border-bottom-color: #667eea;
+  color: #81b64c;
+  background: rgba(129, 182, 76, 0.1);
+  border-bottom-color: #81b64c;
 }
 
 .admin-tab-content {
-  background: white;
+  background: #312e2b;
   border-radius: 0 0 12px 12px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
   min-height: 500px;
@@ -2241,20 +2242,20 @@ textarea.form-input {
 }
 
 .admin-stat-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #262421 0%, #1a1a18 100%);
   color: white;
   padding: 16px;
   border-radius: 10px;
   display: flex;
   align-items: center;
   gap: 12px;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   transition: transform 0.2s ease;
 }
 
 .admin-stat-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .admin-stat-card .stat-icon {
@@ -2292,8 +2293,8 @@ textarea.form-input {
 }
 
 .admin-action-card {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: #262421;
+  border: 1px solid #3d3a37;
   border-radius: 12px;
   padding: 24px;
   transition: all 0.2s ease;
@@ -2305,14 +2306,14 @@ textarea.form-input {
 
 .admin-action-card h3 {
   margin: 0 0 12px 0;
-  color: #1a202c;
+  color: #ffffff;
   font-size: 1.125rem;
   font-weight: 600;
 }
 
 .admin-action-card p {
   margin: 0 0 20px 0;
-  color: #6b7280;
+  color: #8b8987;
   line-height: 1.6;
 }
 
@@ -2330,7 +2331,7 @@ textarea.form-input {
 
 .admin-progress-section h3 {
   margin: 0 0 20px 0;
-  color: #1a202c;
+  color: #ffffff;
   font-size: 1.25rem;
   font-weight: 600;
 }
@@ -2350,13 +2351,13 @@ textarea.form-input {
 
 .progress-label {
   font-size: 0.875rem;
-  color: #6b7280;
+  color: #8b8987;
   font-weight: 500;
 }
 
 .progress-value {
   font-size: 1rem;
-  color: #1f2937;
+  color: #ffffff;
   font-weight: 600;
 }
 
@@ -2385,15 +2386,15 @@ textarea.form-input {
   align-items: flex-start;
   gap: 12px;
   padding: 16px;
-  border: 2px solid #e5e7eb;
+  border: 2px solid #3d3a37;
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .radio-label:hover {
-  border-color: #667eea;
-  background: #f0f4ff;
+  border-color: #81b64c;
+  background: rgba(129, 182, 76, 0.1);
 }
 
 .radio-label input[type="radio"] {
@@ -2407,13 +2408,13 @@ textarea.form-input {
 
 .radio-title {
   font-weight: 600;
-  color: #1f2937;
+  color: #ffffff;
   margin-bottom: 4px;
 }
 
 .radio-desc {
   font-size: 0.875rem;
-  color: #6b7280;
+  color: #8b8987;
 }
 
 .round-selection {
@@ -2424,7 +2425,7 @@ textarea.form-input {
 
 .round-selection h3 {
   margin: 0 0 16px 0;
-  color: #1a202c;
+  color: #ffffff;
 }
 
 .round-controls {
@@ -2435,7 +2436,7 @@ textarea.form-input {
 
 .round-controls label {
   font-weight: 500;
-  color: #374151;
+  color: #bababa;
 }
 
 .existing-pairings,
@@ -2446,7 +2447,7 @@ textarea.form-input {
 .existing-pairings h3,
 .generated-pairings h3 {
   margin: 0 0 16px 0;
-  color: #1a202c;
+  color: #ffffff;
 }
 
 .pairings-grid {
@@ -2456,8 +2457,8 @@ textarea.form-input {
 }
 
 .pairing-card {
-  background: white;
-  border: 1px solid #e5e7eb;
+  background: #312e2b;
+  border: 1px solid #3d3a37;
   border-radius: 12px;
   padding: 20px;
   transition: all 0.2s ease;
@@ -2480,7 +2481,7 @@ textarea.form-input {
 
 .board-number {
   font-weight: 600;
-  color: #1f2937;
+  color: #ffffff;
 }
 
 .bye-badge {
@@ -2556,7 +2557,7 @@ textarea.form-input {
 
 .player-rating {
   font-size: 0.75rem;
-  color: #6b7280;
+  color: #8b8987;
 }
 
 .player-slot.black .player-rating {
@@ -2575,7 +2576,7 @@ textarea.form-input {
 
 .vs-divider {
   font-weight: 600;
-  color: #6b7280;
+  color: #8b8987;
   font-size: 0.875rem;
 }
 
@@ -2593,7 +2594,7 @@ textarea.form-input {
 
 .bye-text {
   font-weight: 600;
-  color: #6b7280;
+  color: #8b8987;
   text-align: center;
 }
 
@@ -2609,7 +2610,7 @@ textarea.form-input {
 }
 
 .pairing-summary {
-  background: #f8fafc;
+  background: #262421;
   padding: 16px;
   border-radius: 8px;
   margin-top: 16px;
@@ -2625,7 +2626,7 @@ textarea.form-input {
 .no-pairings {
   text-align: center;
   padding: 60px 20px;
-  color: #6b7280;
+  color: #8b8987;
 }
 
 .no-pairings-icon {
@@ -2636,7 +2637,7 @@ textarea.form-input {
 
 .no-pairings h3 {
   margin: 0 0 8px 0;
-  color: #374151;
+  color: #bababa;
 }
 
 /* Tournament Settings Modal */
@@ -2648,7 +2649,7 @@ textarea.form-input {
 
 .settings-nav {
   display: flex;
-  background: #f8fafc;
+  background: #262421;
   padding: 4px;
   border-radius: 8px;
   margin-bottom: 24px;
@@ -2663,19 +2664,19 @@ textarea.form-input {
   border-radius: 6px;
   font-size: 0.875rem;
   font-weight: 500;
-  color: #6b7280;
+  color: #8b8987;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .settings-nav-btn:hover {
-  background: white;
-  color: #374151;
+  background: #312e2b;
+  color: #bababa;
 }
 
 .settings-nav-btn.active {
-  background: white;
-  color: #667eea;
+  background: #312e2b;
+  color: #81b64c;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
@@ -2689,11 +2690,11 @@ textarea.form-input {
 
 .settings-section h4 {
   margin: 0 0 20px 0;
-  color: #1a202c;
+  color: #ffffff;
   font-size: 1.125rem;
   font-weight: 600;
   padding-bottom: 8px;
-  border-bottom: 2px solid #e5e7eb;
+  border-bottom: 2px solid #3d3a37;
 }
 
 .tiebreak-options {
@@ -2834,12 +2835,12 @@ textarea.form-input {
   }
 
   .championship-actions::-webkit-scrollbar-track {
-    background: #f1f1f1;
+    background: #262421;
     border-radius: 2px;
   }
 
   .championship-actions::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
+    background: #4a4744;
     border-radius: 2px;
   }
 
@@ -2906,7 +2907,7 @@ textarea.form-input {
     display: inline-block !important;
     text-align: left !important;
     flex: 1 !important;
-    color: #1a1a1a !important;
+    color: #ffffff !important;
     order: 2 !important;
   }
 
@@ -3353,7 +3354,7 @@ textarea.form-input {
     display: inline-block !important;
     text-align: left !important;
     flex: 1 !important;
-    color: #1a1a1a !important;
+    color: #ffffff !important;
     order: 2 !important;
   }
 
@@ -3383,12 +3384,12 @@ textarea.form-input {
   }
 
   .championship-actions::-webkit-scrollbar-track {
-    background: #f1f1f1;
+    background: #262421;
     border-radius: 2px;
   }
 
   .championship-actions::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
+    background: #4a4744;
     border-radius: 2px;
   }
 
@@ -4083,13 +4084,13 @@ textarea.form-input {
     text-align: left !important;
     flex: 1 !important;
     white-space: nowrap !important;
-    color: #1a1a1a !important;
+    color: #ffffff !important;
     order: 2 !important;
   }
 }
 /* Payment Modal Styles */
 .payment-championship-info {
-  background: #f7fafc;
+  background: #262421;
   padding: 20px;
   border-radius: 8px;
   margin-bottom: 20px;
@@ -4097,7 +4098,7 @@ textarea.form-input {
 
 .payment-championship-info h3 {
   margin: 0 0 15px 0;
-  color: #2d3748;
+  color: #ffffff;
   font-size: 1.25rem;
 }
 
@@ -4112,7 +4113,7 @@ textarea.form-input {
   justify-content: space-between;
   align-items: center;
   padding: 8px 0;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid #3d3a37;
 }
 
 .payment-row:last-child {
@@ -4121,19 +4122,19 @@ textarea.form-input {
 
 .payment-label {
   font-weight: 600;
-  color: #4a5568;
+  color: #bababa;
 }
 
 .payment-value {
   font-weight: 700;
-  color: #2d3748;
+  color: #ffffff;
   font-size: 1.1rem;
 }
 
 .payment-value.mock-text {
   font-family: 'Courier New', monospace;
   font-size: 0.9rem;
-  background: #edf2f7;
+  background: #3d3a37;
   padding: 4px 8px;
   border-radius: 4px;
 }
@@ -4145,7 +4146,7 @@ textarea.form-input {
   align-items: center;
   justify-content: center;
   padding: 30px;
-  background: #f7fafc;
+  background: #262421;
   border-radius: 8px;
   margin-bottom: 20px;
 }
@@ -4157,21 +4158,21 @@ textarea.form-input {
 
 .payment-step p {
   margin: 10px 0;
-  color: #4a5568;
+  color: #bababa;
 }
 
 .payment-note {
   font-size: 0.9rem;
-  color: #718096;
+  color: #8b8987;
   font-style: italic;
 }
 
 .payment-success {
-  color: #22543d;
+  color: #81b64c;
 }
 
 .payment-error {
-  color: #742a2a;
+  color: #fa6a5b;
 }
 
 .success-icon,
@@ -4181,24 +4182,24 @@ textarea.form-input {
 }
 
 .payment-success h3 {
-  color: #22543d;
+  color: #81b64c;
   margin: 15px 0;
 }
 
 .payment-error h3 {
-  color: #742a2a;
+  color: #fa6a5b;
   margin: 15px 0;
 }
 
 .payment-error p {
-  color: #742a2a;
+  color: #fa6a5b;
   margin: 10px 0 20px 0;
 }
 
 /* Mock Payment Info */
 .mock-payment-info {
-  background: #fef5e7;
-  border-left: 4px solid #f39c12;
+  background: rgba(232, 169, 62, 0.1);
+  border-left: 4px solid #e8a93e;
   padding: 15px;
   border-radius: 4px;
   margin-top: 20px;
@@ -4207,7 +4208,7 @@ textarea.form-input {
 .mock-payment-info p {
   margin: 5px 0;
   font-size: 0.9rem;
-  color: #856404;
+  color: #e8a93e;
 }
 
 .mock-payment-info strong {

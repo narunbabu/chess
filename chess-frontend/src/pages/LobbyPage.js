@@ -961,8 +961,8 @@ const LobbyPage = () => {
         {/* Show redirect message for paused games */}
         {redirectMessage && (
           <div style={{
-            backgroundColor: '#ffa726',
-            color: '#000',
+            backgroundColor: '#e8a93e',
+            color: '#1a1a18',
             padding: '16px',
             borderRadius: '8px',
             marginBottom: '20px',
@@ -970,7 +970,7 @@ const LobbyPage = () => {
             justifyContent: 'space-between',
             alignItems: 'center',
             fontWeight: 'bold',
-            boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
+            boxShadow: '0 4px 6px rgba(0,0,0,0.4)'
           }}>
             <span>⏸️ {redirectMessage}</span>
             <button
@@ -978,7 +978,7 @@ const LobbyPage = () => {
               style={{
                 backgroundColor: 'transparent',
                 border: 'none',
-                color: '#000',
+                color: '#1a1a18',
                 fontSize: '20px',
                 cursor: 'pointer',
                 padding: '0 8px'
@@ -1002,7 +1002,7 @@ const LobbyPage = () => {
             disabled={isRefreshing}
             className="refresh-button"
             style={{
-              backgroundColor: isRefreshing ? '#666' : '#4CAF50',
+              backgroundColor: isRefreshing ? '#4a4744' : '#81b64c',
               color: 'white',
               border: 'none',
               borderRadius: '20px',
@@ -1019,12 +1019,12 @@ const LobbyPage = () => {
             }}
             onMouseEnter={(e) => {
               if (!isRefreshing) {
-                e.target.style.backgroundColor = '#45a049';
+                e.target.style.backgroundColor = '#a3d160';
               }
             }}
             onMouseLeave={(e) => {
               if (!isRefreshing) {
-                e.target.style.backgroundColor = '#4CAF50';
+                e.target.style.backgroundColor = '#81b64c';
               }
             }}
             title="Refresh all data"

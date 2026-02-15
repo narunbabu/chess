@@ -3,11 +3,12 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #312e2b 0%, #262421 100%);
   color: white;
   padding: 2rem 3rem;
   border-radius: 15px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+  border: 2px solid #e8a93e;
   z-index: 10000;
   animation: slideIn 0.5s ease-out;
   text-align: center;
@@ -21,12 +22,14 @@
   margin: 0 0 0.5rem 0;
   font-size: 2rem;
   font-weight: bold;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+  color: #e8a93e;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 .checkmate-content p {
   margin: 0;
   font-size: 1.3rem;
+  color: #bababa;
 }
 
 @keyframes slideIn {

@@ -8,8 +8,8 @@
 }
 
 .stat-card {
-  background: rgba(255, 255, 255, 0.08);
-  border: 2px solid transparent;
+  background: #3d3a37;
+  border: 2px solid #4a4744;
   border-radius: 16px;
   padding: 20px;
   text-align: center;
@@ -37,8 +37,9 @@
 
 .stat-card:hover {
   transform: translateY(-4px) scale(1.02);
-  box-shadow: 0 12px 30px rgba(124, 58, 237, 0.3);
-  background: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+  background: #4a4744;
+  border-color: #5c5a57;
 }
 
 .stat-card:hover::before {
@@ -47,7 +48,7 @@
 
 .stat-title {
   font-size: 0.875rem;
-  color: rgba(255, 255, 255, 0.8);
+  color: #bababa;
   margin-bottom: 8px;
   font-weight: 500;
 }
@@ -64,7 +65,7 @@
 
 .stat-subtitle {
   font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: #8b8987;
 }
 
 /* XP Progress Styles */
@@ -96,7 +97,7 @@
 .xp-bar {
   width: 100%;
   height: 8px;
-  background: rgba(255, 255, 255, 0.1);
+  background: #1a1a18;
   border-radius: 4px;
   overflow: hidden;
 }
@@ -222,8 +223,8 @@
 
 /* Dark mode adjustments */
 .profile-section {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #312e2b;
+  border: 1px solid #3d3a37;
   border-radius: 12px;
   padding: 20px;
   margin-bottom: 20px;

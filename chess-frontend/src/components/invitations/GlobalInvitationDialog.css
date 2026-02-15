@@ -24,7 +24,7 @@
 }
 
 .global-invitation-dialog {
-  background: linear-gradient(135deg, #2c2c2c 0%, #1a1a1a 100%);
+  background: linear-gradient(135deg, #312e2b 0%, #262421 100%);
   border-radius: 16px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
   max-width: 500px;
@@ -45,7 +45,7 @@
 }
 
 .dialog-header {
-  background: linear-gradient(135deg, #ffa726 0%, #ff6f00 100%);
+  background: linear-gradient(135deg, #e8a93e 0%, #c48b28 100%);
   padding: 20px;
   text-align: center;
 }
@@ -71,7 +71,7 @@
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  border: 3px solid #ffa726;
+  border: 3px solid #e8a93e;
   object-fit: cover;
 }
 
@@ -80,7 +80,7 @@
 }
 
 .inviter-name {
-  color: #ffa726;
+  color: #e8a93e;
   font-size: 20px;
   font-weight: bold;
   margin: 0 0 8px 0;
@@ -109,7 +109,7 @@
 }
 
 .resume-meta {
-  color: #ffa726;
+  color: #e8a93e;
   font-size: 14px;
   margin: 0;
 }
@@ -154,11 +154,11 @@
 }
 
 .color-choice-btn.opposite {
-  background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+  background: linear-gradient(135deg, #4a90d9 0%, #3672b8 100%);
 }
 
 .color-choice-btn.opposite:hover:not(:disabled) {
-  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
+  box-shadow: 0 4px 12px rgba(74, 144, 217, 0.4);
 }
 
 .color-choice-btn small {
@@ -199,7 +199,7 @@
 }
 
 .btn-accept.resume {
-  background: linear-gradient(135deg, #ffa726 0%, #ff6f00 100%);
+  background: linear-gradient(135deg, #e8a93e 0%, #c48b28 100%);
 }
 
 .btn-accept.resume:hover:not(:disabled) {

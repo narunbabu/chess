@@ -361,6 +361,8 @@ const ChessBoard = ({
               customSquareStyles={allCustomStyles}
               animationDuration={200}
               arePiecesDraggable={!isReplayMode && isPlayerTurn}
+              customDarkSquareStyle={{ backgroundColor: '#769656' }}
+              customLightSquareStyle={{ backgroundColor: '#eeeed2' }}
               customBoardStyle={{
                 borderRadius: '8px',
                 overflow: 'hidden'

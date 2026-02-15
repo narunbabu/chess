@@ -5,7 +5,7 @@
   display: flex !important;
   justify-content: flex-start !important;
   align-items: center !important;
-  background: rgba(32, 34, 37, 0.7) !important;
+  background: rgba(49, 46, 43, 0.95) !important;
   backdrop-filter: blur(10px) !important;
   padding: 0.4rem 0.75rem !important;
   height: 48px !important;
@@ -102,7 +102,7 @@
 }
 
 .nav-link:hover {
-  background: rgba(255,255,255,0.1);
+  background: rgba(129,182,76,0.15);
   color: #ffffff;
 }
 
@@ -239,14 +239,14 @@
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  border: 2px solid #7289da;
+  border: 2px solid #81b64c;
   cursor: pointer;
   transition: transform 0.2s, border-color 0.2s;
 }
 
 .user-avatar img:hover {
   transform: scale(1.05);
-  border-color: #8ba2e6;
+  border-color: #a3d160;
 }
 
 /* Dropdown menu */
@@ -255,7 +255,7 @@
   position: absolute;
   top: 120%;
   right: 0;
-  background: rgba(32,34,37,0.95);
+  background: rgba(49,46,43,0.98);
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 10px;
   overflow: hidden;
@@ -306,14 +306,14 @@
 }
 
 .auth-button.login-button {
-  background: rgba(114, 137, 218, 0.2);
-  border-color: rgba(114, 137, 218, 0.3);
-  color: #7289da;
+  background: rgba(129, 182, 76, 0.2);
+  border-color: rgba(129, 182, 76, 0.3);
+  color: #81b64c;
 }
 
 .auth-button.login-button:hover {
-  background: rgba(114, 137, 218, 0.3);
-  color: #8ba2e6;
+  background: rgba(129, 182, 76, 0.3);
+  color: #a3d160;
 }
 
 /* Mobile responsiveness */
@@ -538,9 +538,9 @@
   left: 0;
   width: 280px;
   height: 100vh;
-  background: rgba(32, 34, 37, 0.95);
+  background: rgba(38, 36, 33, 0.98);
   backdrop-filter: blur(20px);
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
   transform: translateX(-100%);
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 999999;
@@ -572,7 +572,7 @@
   width: 50px;
   height: 50px;
   border-radius: 50%;
-  border: 2px solid #7289da;
+  border: 2px solid #81b64c;
 }
 
 .nav-user-details h3 {
@@ -658,7 +658,7 @@
 .nav-item:hover {
   background: rgba(255, 255, 255, 0.1);
   color: #fff;
-  border-left-color: #7289da;
+  border-left-color: #81b64c;
 }
 
 .nav-item-resume {

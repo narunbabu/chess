@@ -1,12 +1,13 @@
 /* OnlineUsersLobby.css */
 
 .online-users-lobby {
-  background: white;
+  background: #312e2b;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   padding: 20px;
   max-width: 600px;
   margin: 0 auto;
+  border: 1px solid #3d3a37;
 }
 
 .lobby-header {
@@ -15,13 +16,13 @@
   align-items: center;
   margin-bottom: 20px;
   padding-bottom: 15px;
-  border-bottom: 2px solid #e5e7eb;
+  border-bottom: 2px solid #3d3a37;
 }
 
 .lobby-header h2 {
   margin: 0;
   font-size: 24px;
-  color: #1f2937;
+  color: #ffffff;
 }
 
 .lobby-stats {
@@ -31,7 +32,7 @@
 
 .online-count {
   font-size: 14px;
-  color: #10b981;
+  color: #81b64c;
   font-weight: 600;
 }
 
@@ -46,16 +47,18 @@
   flex: 1;
   min-width: 200px;
   padding: 10px 15px;
-  border: 1px solid #d1d5db;
+  border: 1px solid #4a4744;
   border-radius: 6px;
   font-size: 14px;
   transition: border-color 0.2s;
+  background: #262421;
+  color: #bababa;
 }
 
 .lobby-search:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: #81b64c;
+  box-shadow: 0 0 0 3px rgba(129, 182, 76, 0.15);
 }
 
 .lobby-checkbox {
@@ -65,13 +68,13 @@
   cursor: pointer;
   user-select: none;
   padding: 10px 15px;
-  background: #f9fafb;
+  background: #3d3a37;
   border-radius: 6px;
   transition: background 0.2s;
 }
 
 .lobby-checkbox:hover {
-  background: #f3f4f6;
+  background: #4a4744;
 }
 
 .lobby-checkbox input {
@@ -80,13 +83,13 @@
 
 .lobby-checkbox span {
   font-size: 14px;
-  color: #4b5563;
+  color: #bababa;
 }
 
 .lobby-error {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #dc2626;
+  background: rgba(231, 76, 60, 0.15);
+  border: 1px solid rgba(231, 76, 60, 0.3);
+  color: #fa6a5b;
   padding: 12px 15px;
   border-radius: 6px;
   margin-bottom: 15px;
@@ -104,17 +107,17 @@
 }
 
 .lobby-users-list::-webkit-scrollbar-track {
-  background: #f3f4f6;
+  background: #262421;
   border-radius: 4px;
 }
 
 .lobby-users-list::-webkit-scrollbar-thumb {
-  background: #d1d5db;
+  background: #4a4744;
   border-radius: 4px;
 }
 
 .lobby-users-list::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
+  background: #5c5a57;
 }
 
 .lobby-user-card {
@@ -122,18 +125,18 @@
   justify-content: space-between;
   align-items: center;
   padding: 15px;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
+  background: #262421;
+  border: 1px solid #3d3a37;
   border-radius: 8px;
   margin-bottom: 10px;
   transition: all 0.2s;
 }
 
 .lobby-user-card:hover {
-  background: #f3f4f6;
-  border-color: #d1d5db;
+  background: #3d3a37;
+  border-color: #4a4744;
   transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
 .user-info {
@@ -150,8 +153,8 @@
 }
 
 .user-status-dot.online {
-  background: #10b981;
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+  background: #81b64c;
+  box-shadow: 0 0 0 2px rgba(129, 182, 76, 0.2);
   animation: pulse 2s ease-in-out infinite;
 }
 
@@ -173,17 +176,17 @@
 .user-name {
   font-size: 16px;
   font-weight: 600;
-  color: #1f2937;
+  color: #ffffff;
 }
 
 .user-last-seen {
   font-size: 12px;
-  color: #6b7280;
+  color: #8b8987;
 }
 
 .btn-challenge {
   padding: 8px 20px;
-  background: #3b82f6;
+  background: #81b64c;
   color: white;
   border: none;
   border-radius: 6px;
@@ -194,9 +197,9 @@
 }
 
 .btn-challenge:hover {
-  background: #2563eb;
+  background: #a3d160;
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 4px 8px rgba(129, 182, 76, 0.3);
 }
 
 .btn-challenge:active {
@@ -206,7 +209,7 @@
 .lobby-empty {
   text-align: center;
   padding: 60px 20px;
-  color: #6b7280;
+  color: #8b8987;
 }
 
 .lobby-empty p {
@@ -216,31 +219,31 @@
 
 .btn-clear-search {
   padding: 8px 16px;
-  background: #f3f4f6;
-  border: 1px solid #d1d5db;
+  background: #3d3a37;
+  border: 1px solid #4a4744;
   border-radius: 6px;
   cursor: pointer;
   font-size: 14px;
-  color: #4b5563;
+  color: #bababa;
   transition: all 0.2s;
 }
 
 .btn-clear-search:hover {
-  background: #e5e7eb;
-  border-color: #9ca3af;
+  background: #4a4744;
+  border-color: #5c5a57;
 }
 
 .lobby-loading {
   text-align: center;
   padding: 40px 20px;
-  color: #6b7280;
+  color: #8b8987;
 }
 
 .loading-spinner {
   width: 40px;
   height: 40px;
-  border: 4px solid #e5e7eb;
-  border-top-color: #3b82f6;
+  border: 4px solid #3d3a37;
+  border-top-color: #81b64c;
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin: 0 auto 15px;
@@ -264,32 +267,32 @@
 
 .btn-load-more {
   padding: 10px 24px;
-  background: #f3f4f6;
-  border: 1px solid #d1d5db;
+  background: #3d3a37;
+  border: 1px solid #4a4744;
   border-radius: 6px;
   cursor: pointer;
   font-size: 14px;
   font-weight: 600;
-  color: #4b5563;
+  color: #bababa;
   transition: all 0.2s;
 }
 
 .btn-load-more:hover {
-  background: #e5e7eb;
-  border-color: #9ca3af;
+  background: #4a4744;
+  border-color: #5c5a57;
   transform: translateY(-1px);
 }
 
 .lobby-footer {
   margin-top: 20px;
   padding-top: 15px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid #3d3a37;
   text-align: center;
 }
 
 .pagination-info {
   font-size: 13px;
-  color: #6b7280;
+  color: #8b8987;
 }
 
 /* Responsive Design */

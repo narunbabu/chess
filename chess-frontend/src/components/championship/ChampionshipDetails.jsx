@@ -401,25 +401,25 @@ const ChampionshipDetails = () => {
           {/* Tournament Rounds Progress */}
           <div className="progress-bar-container">
             <div className="progress-info" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span style={{ fontWeight: '600', color: '#1e293b' }}>
+              <span style={{ fontWeight: '600', color: '#ffffff' }}>
                 Round {activeChampionship.current_round || 1}/{activeChampionship.total_rounds}
-                <span style={{ fontWeight: 'normal', color: '#64748b', marginLeft: '8px', fontSize: '0.9em' }}>
+                <span style={{ fontWeight: 'normal', color: '#8b8987', marginLeft: '8px', fontSize: '0.9em' }}>
                   ({activeChampionship.completed_rounds || 0} completed)
                 </span>
               </span>
-              <span style={{ fontWeight: '600', color: '#7c3aed' }}>
+              <span style={{ fontWeight: '600', color: '#81b64c' }}>
                 {Math.round(((activeChampionship.current_round || 1) / (activeChampionship.total_rounds || 1)) * 100)}%
               </span>
             </div>
 
-            <div className="progress-bar" style={{ height: '12px', background: '#e2e8f0', borderRadius: '6px', overflow: 'hidden' }}>
+            <div className="progress-bar" style={{ height: '12px', background: '#3d3a37', borderRadius: '6px', overflow: 'hidden' }}>
               <div
                 className="progress-fill"
                 style={{
                   /* Use current_round for visual width so users see where they ARE, not just what's done */
                   width: `${((activeChampionship.current_round || 1) / (activeChampionship.total_rounds || 1)) * 100}%`,
                   height: '100%',
-                  background: 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)',
+                  background: 'linear-gradient(135deg, #81b64c 0%, #4e7837 100%)',
                   transition: 'width 0.5s ease-in-out'
                 }}
               ></div>

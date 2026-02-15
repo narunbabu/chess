@@ -531,51 +531,51 @@ const EnhancedInteractiveLesson = ({ lesson, user, onLessonComplete }) => {
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <span className="ml-2">Loading interactive lesson...</span>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#81b64c]"></div>
+        <span className="ml-2 text-[#bababa]">Loading interactive lesson...</span>
       </div>
     );
   }
 
   if (!currentStage) {
     return (
-      <div className="bg-white rounded-lg p-6 shadow-sm">
+      <div className="bg-[#312e2b] rounded-lg p-6 shadow-sm border-2 border-[#3d3a37]">
         <div className="text-center">
-          <h3 className="text-xl font-bold mb-2 text-gray-800">🎮 Interactive Lesson</h3>
-          <p className="text-gray-700 font-medium">No stages available for this interactive lesson.</p>
+          <h3 className="text-xl font-bold mb-2 text-white">🎮 Interactive Lesson</h3>
+          <p className="text-[#bababa] font-medium">No stages available for this interactive lesson.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm">
+    <div className="bg-[#312e2b] rounded-lg shadow-sm border-2 border-[#3d3a37]">
       {/* Stage Header */}
-      <div className="border-b border-gray-200 p-6">
+      <div className="border-b border-[#3d3a37] p-6">
         <div className="flex justify-between items-start mb-4">
           <div className="flex-1">
-            <h3 className="text-2xl font-bold mb-2 text-gray-800">
+            <h3 className="text-2xl font-bold mb-2 text-white">
               {currentStage.title || `Stage ${currentStageIndex + 1}`}
             </h3>
-            <p className="text-gray-700 font-medium">
+            <p className="text-[#bababa] font-medium">
               {currentStage.instruction_text}
             </p>
           </div>
 
           <div className="text-right ml-6">
-            <div className="text-sm font-semibold text-gray-600 mb-1">Score</div>
-            <div className="text-2xl font-bold text-blue-600">{Math.round(progressPercentage)}%</div>
+            <div className="text-sm font-semibold text-[#8b8987] mb-1">Score</div>
+            <div className="text-2xl font-bold text-[#81b64c]">{Math.round(progressPercentage)}%</div>
           </div>
         </div>
 
         {/* Progress Bar */}
-        <div className="w-full bg-gray-200 rounded-full h-2">
+        <div className="w-full bg-[#3d3a37] rounded-full h-2">
           <div
-            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+            className="bg-[#81b64c] h-2 rounded-full transition-all duration-300"
             style={{ width: `${progressPercentage}%` }}
           />
         </div>
-        <div className="text-sm text-gray-600 mt-1">
+        <div className="text-sm text-[#8b8987] mt-1">
           Stage {currentStageIndex + 1} of {stages.length} • {Math.round(progressPercentage)}% Complete
         </div>
       </div>
@@ -614,7 +614,7 @@ const EnhancedInteractiveLesson = ({ lesson, user, onLessonComplete }) => {
 
                 {/* Visual aids hint */}
                 {visualAids.arrows && visualAids.arrows.length > 0 && (
-                  <div className="mt-2 text-sm text-gray-600 text-center">
+                  <div className="mt-2 text-sm text-[#8b8987] text-center">
                     💡 Follow the suggested arrows on the board
                   </div>
                 )}
@@ -648,15 +648,15 @@ const EnhancedInteractiveLesson = ({ lesson, user, onLessonComplete }) => {
 
             {/* Statistics */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-gray-50 p-3 rounded-lg">
-                <div className="text-sm text-gray-600">Stage Attempts</div>
-                <div className="text-xl font-bold text-gray-800">
+              <div className="bg-[#262421] p-3 rounded-lg border border-[#3d3a37]">
+                <div className="text-sm text-[#8b8987]">Stage Attempts</div>
+                <div className="text-xl font-bold text-white">
                   {stageProgress[currentStage.id]?.attempts || 0}
                 </div>
               </div>
-              <div className="bg-gray-50 p-3 rounded-lg">
-                <div className="text-sm text-gray-600">Stage Progress</div>
-                <div className="text-xl font-bold text-gray-800">
+              <div className="bg-[#262421] p-3 rounded-lg border border-[#3d3a37]">
+                <div className="text-sm text-[#8b8987]">Stage Progress</div>
+                <div className="text-xl font-bold text-white">
                   {currentStageIndex + 1}/{stages.length}
                 </div>
               </div>
@@ -667,7 +667,7 @@ const EnhancedInteractiveLesson = ({ lesson, user, onLessonComplete }) => {
               <button
                 onClick={requestHint}
                 disabled={!lesson.interactive_config?.enable_hints || processingMove || isRequestingHint}
-                className="w-full px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="w-full px-4 py-2 bg-[#e8a93e] text-white rounded-lg hover:bg-[#f4c66a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {isRequestingHint ? '⏳ Loading Hint...' : '💡 Get Hint (-2 points)'}
               </button>
@@ -675,7 +675,7 @@ const EnhancedInteractiveLesson = ({ lesson, user, onLessonComplete }) => {
               <button
                 onClick={resetStage}
                 disabled={processingMove || isResetting}
-                className="w-full px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="w-full px-4 py-2 bg-[#4a4744] text-white rounded-lg hover:bg-[#3d3a37] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {isResetting ? '⏳ Resetting...' : '🔄 Reset Stage'}
               </button>
@@ -686,7 +686,7 @@ const EnhancedInteractiveLesson = ({ lesson, user, onLessonComplete }) => {
               <button
                 onClick={moveToPreviousStage}
                 disabled={currentStageIndex === 0 || processingMove || isResetting}
-                className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="flex-1 px-4 py-2 bg-[#3d3a37] text-[#bababa] rounded-lg hover:bg-[#4a4744] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 ← Previous Stage
               </button>
@@ -699,7 +699,7 @@ const EnhancedInteractiveLesson = ({ lesson, user, onLessonComplete }) => {
                   processingMove ||
                   isCompletingLesson
                 }
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="flex-1 px-4 py-2 bg-[#81b64c] text-white rounded-lg hover:bg-[#a3d160] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {isCompletingLesson && currentStageIndex === stages.length - 1
                   ? '⏳ Completing...'

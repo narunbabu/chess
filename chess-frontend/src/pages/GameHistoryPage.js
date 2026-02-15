@@ -214,7 +214,7 @@ const GameHistoryPage = () => {
   };
 
   const getResultColor = (result, playerColor) => {
-    if (!result) return 'text-gray-500';
+    if (!result) return 'text-[#8b8987]';
 
     let effectiveResult;
     if (typeof result === 'object' && result.end_reason) {
@@ -238,13 +238,13 @@ const GameHistoryPage = () => {
 
     switch (effectiveResult) {
       case 'white':
-        return normalizedPlayerColor === 'white' ? 'text-green-600' : 'text-red-600';
+        return normalizedPlayerColor === 'white' ? 'text-[#81b64c]' : 'text-[#e74c3c]';
       case 'black':
-        return normalizedPlayerColor === 'black' ? 'text-green-600' : 'text-red-600';
+        return normalizedPlayerColor === 'black' ? 'text-[#81b64c]' : 'text-[#e74c3c]';
       case 'draw':
-        return 'text-yellow-600';
+        return 'text-[#e8a93e]';
       default:
-        return 'text-gray-500';
+        return 'text-[#8b8987]';
     }
   };
 
@@ -254,23 +254,23 @@ const GameHistoryPage = () => {
 
   return (
     <>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-[#1a1a18]">
         {/* Header */}
-        <header className="bg-white shadow-sm border-b">
+        <header className="bg-[#262421] border-b border-[#3d3a37]">
           <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 xl:px-12 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <Link
                   to="/"
-                  className="text-gray-600 hover:text-gray-900 transition-colors"
+                  className="text-[#8b8987] hover:text-white transition-colors"
                 >
                   ← Back to Home
                 </Link>
-                <h1 className="text-2xl font-bold text-gray-900">Game History</h1>
+                <h1 className="text-2xl font-bold text-white">Game History</h1>
               </div>
               <button
                 onClick={() => navigate('/play')}
-                className="bg-orange-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-orange-600 transition-colors shadow"
+                className="bg-[#81b64c] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#a3d160] transition-colors shadow"
               >
                 <span className="mr-2">🤖</span>
                 New Game
@@ -283,15 +283,15 @@ const GameHistoryPage = () => {
         <main className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 xl:px-12 py-8">
           {loading ? (
             <div className="text-center py-12">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
-              <p className="mt-4 text-gray-600">Loading your games...</p>
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#81b64c]"></div>
+              <p className="mt-4 text-[#8b8987]">Loading your games...</p>
             </div>
           ) : error ? (
             <div className="text-center py-12">
-              <div className="text-red-500 mb-4">❌ {error}</div>
+              <div className="text-[#fa6a5b] mb-4">{error}</div>
               <button
                 onClick={loadGames}
-                className="bg-orange-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-orange-600 transition-colors"
+                className="bg-[#81b64c] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#a3d160] transition-colors"
               >
                 Try Again
               </button>
@@ -300,20 +300,20 @@ const GameHistoryPage = () => {
             <>
               {/* Tab Navigation */}
               <div className="mb-8">
-                <div className="border-b border-gray-200">
+                <div className="border-b border-[#3d3a37]">
                   <nav className="-mb-px flex space-x-8">
                     <button
                       onClick={() => setActiveTab('unfinished')}
                       className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
                         activeTab === 'unfinished'
-                          ? 'border-orange-500 text-orange-600'
-                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                          ? 'border-[#81b64c] text-[#81b64c]'
+                          : 'border-transparent text-[#8b8987] hover:text-[#bababa] hover:border-[#4a4744]'
                       }`}
                     >
                       <span className="mr-2">🔄</span>
                       Unfinished Games
                       {unfinishedGames.length > 0 && (
-                        <span className="ml-2 bg-orange-100 text-orange-600 px-2 py-1 rounded-full text-xs">
+                        <span className="ml-2 bg-[#4e7837]/30 text-[#81b64c] px-2 py-1 rounded-full text-xs">
                           {unfinishedGames.length}
                         </span>
                       )}
@@ -322,14 +322,14 @@ const GameHistoryPage = () => {
                       onClick={() => setActiveTab('completed')}
                       className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
                         activeTab === 'completed'
-                          ? 'border-orange-500 text-orange-600'
-                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                          ? 'border-[#81b64c] text-[#81b64c]'
+                          : 'border-transparent text-[#8b8987] hover:text-[#bababa] hover:border-[#4a4744]'
                       }`}
                     >
                       <span className="mr-2">✅</span>
                       Completed Games
                       {completedGames.length > 0 && (
-                        <span className="ml-2 bg-green-100 text-green-600 px-2 py-1 rounded-full text-xs">
+                        <span className="ml-2 bg-[#4e7837]/30 text-[#81b64c] px-2 py-1 rounded-full text-xs">
                           {completedGames.length}
                         </span>
                       )}
@@ -343,12 +343,12 @@ const GameHistoryPage = () => {
                 <div>
                   {unfinishedGames.length === 0 ? (
                     <div className="text-center py-12">
-                      <div className="text-gray-400 mb-4 text-6xl">♟️</div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">No unfinished games</h3>
-                      <p className="text-gray-600 mb-6">Start playing to create games that you can resume later</p>
+                      <div className="text-[#8b8987] mb-4 text-6xl">♟️</div>
+                      <h3 className="text-lg font-medium text-white mb-2">No unfinished games</h3>
+                      <p className="text-[#8b8987] mb-6">Start playing to create games that you can resume later</p>
                       <button
                         onClick={() => navigate('/play')}
-                        className="bg-orange-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-orange-600 transition-colors shadow"
+                        className="bg-[#81b64c] text-white px-6 py-3 rounded-lg font-semibold hover:bg-[#a3d160] transition-colors shadow"
                       >
                         <span className="mr-2">🤖</span>
                         Start New Game
@@ -363,21 +363,21 @@ const GameHistoryPage = () => {
                               {game.playerColor === 'white' ? '♔' : '♚'}
                             </div>
                             <div>
-                              <div className="font-semibold text-gray-900">
+                              <div className="font-semibold text-white">
                                 vs {game.opponentName || 'Computer'}
                               </div>
-                              <div className="text-sm text-gray-500">
+                              <div className="text-sm text-[#8b8987]">
                                 {formatTimeAgo(game.timestamp)}
                               </div>
                             </div>
                           </div>
                           <div className="unified-card-body">
-                            <div className="flex items-center justify-between text-sm text-gray-600 mb-3">
+                            <div className="flex items-center justify-between text-sm text-[#bababa] mb-3">
                               <span>You play: {game.playerColor === 'white' ? 'White' : 'Black'}</span>
                               <span>Difficulty: {game.difficulty || 'Medium'}</span>
                             </div>
                             {game.timerEnabled && (
-                              <div className="flex items-center justify-between text-sm text-gray-600 mb-3">
+                              <div className="flex items-center justify-between text-sm text-[#bababa] mb-3">
                                 <span>White: {Math.floor((game.whiteMs || 600000) / 1000 / 60)}min</span>
                                 <span>Black: {Math.floor((game.blackMs || 600000) / 1000 / 60)}min</span>
                               </div>
@@ -421,12 +421,12 @@ const GameHistoryPage = () => {
                 <div>
                   {completedGames.length === 0 ? (
                     <div className="text-center py-12">
-                      <div className="text-gray-400 mb-4 text-6xl">🏆</div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">No completed games</h3>
-                      <p className="text-gray-600 mb-6">Finish some games to see them here</p>
+                      <div className="text-[#8b8987] mb-4 text-6xl">🏆</div>
+                      <h3 className="text-lg font-medium text-white mb-2">No completed games</h3>
+                      <p className="text-[#8b8987] mb-6">Finish some games to see them here</p>
                       <button
                         onClick={() => navigate('/play')}
-                        className="bg-orange-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-orange-600 transition-colors shadow"
+                        className="bg-[#81b64c] text-white px-6 py-3 rounded-lg font-semibold hover:bg-[#a3d160] transition-colors shadow"
                       >
                         <span className="mr-2">🤖</span>
                         Start New Game
@@ -457,10 +457,10 @@ const GameHistoryPage = () => {
                                 {avatarIcon}
                               </div>
                               <div>
-                                <div className="font-semibold text-gray-900">
+                                <div className="font-semibold text-white">
                                   vs {safeGame.opponentName}
                                 </div>
-                                <div className="text-sm text-gray-500">
+                                <div className="text-sm text-[#8b8987]">
                                   {formatTimeAgo(safeGame.endTime)}
                                 </div>
                               </div>
@@ -469,11 +469,11 @@ const GameHistoryPage = () => {
                               <div className={`text-center font-semibold mb-3 ${getResultColor(safeGame.result, safeGame.playerColor)}`}>
                                 {getResultDisplay(safeGame.result, safeGame.playerColor)}
                               </div>
-                              <div className="flex items-center justify-between text-sm text-gray-600 mb-3">
+                              <div className="flex items-center justify-between text-sm text-[#bababa] mb-3">
                                 <span>You played: {normalizedPlayerColor === 'white' ? 'White' : 'Black'}</span>
                                 <span>Duration: {formatGameDuration(safeGame.startTime, safeGame.endTime)}</span>
                               </div>
-                              <div className="flex items-center justify-between text-sm text-gray-600 mb-3">
+                              <div className="flex items-center justify-between text-sm text-[#bababa] mb-3">
                                 <span>Moves: {safeGame.moves.length}</span>
                                 <span>Difficulty: {safeGame.difficulty}</span>
                               </div>

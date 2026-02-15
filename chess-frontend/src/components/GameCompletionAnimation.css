@@ -1,21 +1,21 @@
 /* --- CSS Variables --- */
 :root {
-  --color-win-bg: rgba(46, 204, 113, 0.85); /* Slightly transparent green */
-  --color-loss-bg: rgba(231, 76, 60, 0.85); /* Slightly transparent red */
-  --color-win-accent: #27ae60;             /* Solid green */
-  --color-loss-accent: #c0392b;            /* Solid red */
-  --color-card-bg: #ffffff;               /* Solid white card for contrast */
-  --color-text-dark: #34495e;              /* Dark blue-grey for text */
-  --color-text-medium: #7f8c8d;            /* Medium grey for secondary text */
-  --color-text-light: #ffffff;             /* Light text (use carefully) */
-  --color-primary: #16213e;                /* Primary button color (dark blue) */
-  --color-secondary: #2980b9;             /* Secondary button color (blue) */
-  --color-tertiary: #8e44ad;              /* Tertiary button color (purple) */
+  --color-win-bg: rgba(129, 182, 76, 0.85); /* Chess green win overlay */
+  --color-loss-bg: rgba(231, 76, 60, 0.85); /* Danger red loss overlay */
+  --color-win-accent: #81b64c;             /* Chess green */
+  --color-loss-accent: #e74c3c;            /* Danger red */
+  --color-card-bg: #312e2b;               /* Dark surface card */
+  --color-text-dark: #ffffff;              /* Primary text on dark */
+  --color-text-medium: #bababa;            /* Body text */
+  --color-text-light: #ffffff;             /* Light text */
+  --color-primary: #81b64c;               /* Chess green CTA */
+  --color-secondary: #e8a93e;             /* Gold secondary */
+  --color-tertiary: #4e7837;              /* Pressed green */
   --border-radius-card: 16px;
   --border-radius-btn: 8px;
-  --box-shadow-card: 0 12px 35px rgba(0, 0, 0, 0.15);
-  --box-shadow-btn-hover: 0 6px 15px rgba(0, 0, 0, 0.15);
-  --font-family-sans: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; /* Example modern font stack */
+  --box-shadow-card: 0 12px 35px rgba(0, 0, 0, 0.4);
+  --box-shadow-btn-hover: 0 6px 15px rgba(0, 0, 0, 0.3);
+  --font-family-sans: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 }
 
 /* --- Overlay --- */
@@ -26,7 +26,7 @@
   justify-content: center;
   align-items: center;
   z-index: 1000;
-  background-color: rgba(0, 0, 0, 0.4); /* Default darker overlay */
+  background-color: rgba(26, 26, 24, 0.7); /* Dark overlay matching theme */
   opacity: 0;
   transition: opacity 0.4s ease-in-out, background-color 0.4s ease-in-out;
 }
@@ -90,8 +90,8 @@
 
 .result-details {
   margin: 20px 0;
-  border-top: 1px solid #eee; /* Separator */
-  border-bottom: 1px solid #eee; /* Separator */
+  border-top: 1px solid #4a4744; /* Separator */
+  border-bottom: 1px solid #4a4744; /* Separator */
   padding: 20px 0;
 }
 
@@ -131,7 +131,7 @@
   font-family: var(--font-family-sans);
   margin: 15px 0;
   padding: 12px;
-  background-color: rgba(0, 0, 0, 0.03);
+  background-color: rgba(255, 255, 255, 0.05);
   border-radius: 8px;
   display: flex;
   flex-direction: column;
@@ -143,14 +143,14 @@
   justify-content: space-between;
   align-items: center;
   padding: 8px 10px;
-  background-color: rgba(255, 255, 255, 0.7);
+  background-color: rgba(255, 255, 255, 0.08);
   border-radius: 6px;
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   transition: all 0.2s ease;
 }
 
 .player-score-row:hover {
-  background-color: rgba(255, 255, 255, 0.95);
+  background-color: rgba(255, 255, 255, 0.12);
   transform: translateY(-1px);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
@@ -182,7 +182,7 @@
 .rating-update-display {
   margin: 15px 0;
   padding: 12px;
-  background-color: rgba(0, 0, 0, 0.03);
+  background-color: rgba(255, 255, 255, 0.05);
   border-radius: 8px;
 }
 
@@ -328,7 +328,7 @@
   color: var(--color-text-light);
 }
 .btn-primary:hover {
-  background-color: #1a2b4e; /* Slightly lighter primary on hover */
+  background-color: #a3d160; /* Chess green hover */
 }
 
 .btn-secondary {
@@ -336,7 +336,7 @@
   color: var(--color-text-light);
 }
 .btn-secondary:hover {
-  background-color: #3498db; /* Slightly lighter secondary on hover */
+  background-color: #f4c66a; /* Gold hover */
 }
 
 .btn-tertiary {
@@ -344,7 +344,7 @@
   color: var(--color-text-light);
 }
 .btn-tertiary:hover {
-  background-color: #9b59b6; /* Slightly lighter tertiary on hover */
+  background-color: #81b64c; /* Chess green on hover */
 }
 
 
@@ -395,7 +395,7 @@
   width: 100%;
   margin-bottom: 15px;
   padding: 15px;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: linear-gradient(135deg, #3d3a37 0%, #312e2b 100%);
   border-radius: var(--border-radius-btn);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
@@ -428,19 +428,19 @@
   border-radius: var(--border-radius-btn);
   cursor: pointer;
   transition: all 0.3s ease;
-  background-color: rgba(255, 255, 255, 0.7);
+  background-color: rgba(255, 255, 255, 0.08);
 }
 
 .color-option:hover {
-  background-color: rgba(255, 255, 255, 0.95);
+  background-color: rgba(255, 255, 255, 0.15);
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .color-option.selected {
   border-color: var(--color-primary);
-  background-color: rgba(22, 33, 62, 0.1);
-  box-shadow: 0 4px 12px rgba(22, 33, 62, 0.2);
+  background-color: rgba(129, 182, 76, 0.15);
+  box-shadow: 0 4px 12px rgba(129, 182, 76, 0.2);
 }
 
 .color-option input[type="radio"] {
@@ -479,14 +479,14 @@
   margin: 0 auto;
   padding: 12px 24px;
   font-size: 1.05rem;
-  background: linear-gradient(135deg, var(--color-primary) 0%, #2c3e6b 100%);
-  box-shadow: 0 4px 12px rgba(22, 33, 62, 0.3);
+  background: linear-gradient(135deg, var(--color-primary) 0%, #4e7837 100%);
+  box-shadow: 0 4px 12px rgba(129, 182, 76, 0.3);
 }
 
 .challenge-btn:hover {
-  background: linear-gradient(135deg, #1a2b4e 0%, var(--color-primary) 100%);
+  background: linear-gradient(135deg, #a3d160 0%, var(--color-primary) 100%);
   transform: translateY(-3px);
-  box-shadow: 0 6px 16px rgba(22, 33, 62, 0.4);
+  box-shadow: 0 6px 16px rgba(129, 182, 76, 0.4);
 }
 
 @keyframes rotate-dice {

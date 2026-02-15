@@ -69,30 +69,30 @@ const Footer = () => {
     <>
       <footer
         ref={footerRef}
-        className="bg-gray-900 text-white py-8 sm:py-12 mt-auto transition-all duration-300 relative z-10"
+        className="bg-[#1a1a18] border-t border-[#3d3a37] text-white py-8 sm:py-12 mt-auto transition-all duration-300 relative z-10"
       >
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 xl:px-12">
           <div className="text-center">
-            <div className="mb-4 sm:mb-6 p-4 bg-gray-800 rounded-lg">
-              <p className="text-gray-300 text-xs sm:text-sm leading-relaxed">
+            <div className="mb-4 sm:mb-6 p-4 bg-[#262421] rounded-lg">
+              <p className="text-[#8b8987] text-xs sm:text-sm leading-relaxed">
                 Chess99 is an educational, skill-based chess learning platform for kids. We do not offer real-money gaming, betting, or gambling in any form. All activities are designed for learning and safe competitive play.
               </p>
             </div>
-            <p className="text-gray-300 text-xs sm:text-sm lg:text-base mb-4 sm:mb-6">© 2024 Chess99. Making Chess Fun for Kids!</p>
+            <p className="text-[#8b8987] text-xs sm:text-sm lg:text-base mb-4 sm:mb-6">© 2024 Chess99. Making Chess Fun for Kids!</p>
             <div className="flex flex-wrap justify-center gap-4 sm:gap-6 lg:gap-8">
-              <Link to="/coming-soon" className="text-gray-300 hover:text-white transition-colors text-xs sm:text-sm lg:text-base">Puzzles</Link>
-              <Link to="/tutorial" className="text-gray-300 hover:text-white transition-colors text-xs sm:text-sm lg:text-base">
+              <Link to="/coming-soon" className="text-[#8b8987] hover:text-[#81b64c] transition-colors text-xs sm:text-sm lg:text-base">Puzzles</Link>
+              <Link to="/tutorial" className="text-[#8b8987] hover:text-[#81b64c] transition-colors text-xs sm:text-sm lg:text-base">
                 Learn
               </Link>
               <button
                 onClick={() => setShowAboutContact(true)}
-                className="text-gray-300 hover:text-white transition-colors text-xs sm:text-sm lg:text-base"
+                className="text-[#8b8987] hover:text-[#81b64c] transition-colors text-xs sm:text-sm lg:text-base"
               >
                 About
               </button>
               <button
                 onClick={() => setShowAboutContact(true)}
-                className="text-gray-300 hover:text-white transition-colors text-xs sm:text-sm lg:text-base"
+                className="text-[#8b8987] hover:text-[#81b64c] transition-colors text-xs sm:text-sm lg:text-base"
               >
                 Contact
               </button>

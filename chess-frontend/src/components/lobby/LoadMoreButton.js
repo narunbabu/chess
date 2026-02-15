@@ -10,7 +10,7 @@ const LoadMoreButton = ({
 }) => {
   if (!hasMore && currentCount > 0) {
     return (
-      <div className="text-center py-3 text-gray-500 text-sm">
+      <div className="text-center py-3 text-[#8b8987] text-sm">
         Showing all {currentCount} items
       </div>
     );
@@ -18,7 +18,7 @@ const LoadMoreButton = ({
 
   if (!hasMore && currentCount === 0) {
     return (
-      <div className="text-center py-3 text-gray-500 text-sm">
+      <div className="text-center py-3 text-[#8b8987] text-sm">
         No items to display
       </div>
     );
@@ -29,7 +29,7 @@ const LoadMoreButton = ({
       <button
         onClick={onLoadMore}
         disabled={loading}
-        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 disabled:transform-none"
+        className="px-6 py-2 bg-[#81b64c] text-white rounded-lg hover:bg-[#a3d160] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 disabled:transform-none"
       >
         {loading ? (
           <span className="flex items-center gap-2">

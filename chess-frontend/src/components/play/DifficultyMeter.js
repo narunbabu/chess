@@ -116,7 +116,7 @@ export default function DifficultyMeter({
     // Background arc in a lighter shade.
     ctx.beginPath();
     ctx.lineWidth = strokeWidth;
-    ctx.strokeStyle = "#e0e0e0";
+    ctx.strokeStyle = "#4a4744";
     ctx.arc(
       drawCenter.x,
       drawCenter.y,

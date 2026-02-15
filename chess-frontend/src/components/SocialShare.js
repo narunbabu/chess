@@ -129,7 +129,7 @@ const SocialShare = ({
     telegram: {
       icon: '✈️',
       label: 'Telegram',
-      color: '#0088cc',
+      color: '#81b64c',
       url: getTelegramShareUrl(text, url),
       available: true,
       onClick: customImageShareHandler ? () => customImageShareHandler('telegram') : null,

@@ -437,7 +437,7 @@ const GameEndCard = React.forwardRef(({
     return (
       <div className={`flex items-center gap-2 p-2 rounded-xl shadow-md transition-all duration-300 ${
         isCurrentUser
-          ? 'bg-gradient-to-r from-sky-50 to-blue-50 border-2 border-sky-300'
+          ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-chess'
           : 'bg-white border-2 border-gray-200'
       }`}>
         <div className="relative flex-shrink-0">
@@ -466,7 +466,7 @@ const GameEndCard = React.forwardRef(({
       <div className="flex-grow">
         <div className="font-bold text-gray-800 text-base mb-0.5">
           {player.name}
-          {isCurrentUser && <span className="text-xs font-medium text-sky-600 ml-1">(You)</span>}
+          {isCurrentUser && <span className="text-xs font-medium text-chess-green ml-1">(You)</span>}
         </div>
         {player.email && (
           <div className="text-xs text-gray-500 font-normal mb-0.5">
@@ -478,7 +478,7 @@ const GameEndCard = React.forwardRef(({
           {player.is_provisional && <span className="text-yellow-500 font-bold ml-1">?</span>}
         </div>
         {isCurrentUser && (
-          <div className="text-xs text-sky-600 font-medium mt-0.5">
+          <div className="text-xs text-chess-green font-medium mt-0.5">
             {isPlayerWin ? '🏆 Winner' : isDraw ? '🤝 Draw' : '💪 Good Game'}
           </div>
         )}
@@ -702,7 +702,7 @@ const handleShare = async () => {
            maxWidth: window.innerWidth <= 480 ? '95vw' : '640px' // Responsive max-width
          }}>
       {/* Additional gradient overlay for better readability */}
-      <div className="absolute inset-0 bg-gradient-to-br from-sky-50/20 via-white/30 to-blue-50/20"></div>
+      <div className="absolute inset-0 bg-gradient-to-br from-green-50/20 via-white/30 to-emerald-50/20"></div>
 
       {/* Decorative chess board pattern */}
       <div className="absolute inset-0 opacity-5">
@@ -711,7 +711,7 @@ const handleShare = async () => {
             <div
               key={i}
               style={{
-                backgroundColor: (Math.floor(i / 8) + i) % 2 === 0 ? '#0284C7' : 'transparent'
+                backgroundColor: (Math.floor(i / 8) + i) % 2 === 0 ? '#769656' : 'transparent'
               }}
             />
           ))}
@@ -719,16 +719,16 @@ const handleShare = async () => {
       </div>
 
       {/* Floating chess pieces decoration */}
-      <div className="absolute top-2 left-2 text-sky-200 opacity-30">
+      <div className="absolute top-2 left-2 text-chess-green opacity-30">
         <ChessKing className="w-8 h-8" />
       </div>
-      <div className="absolute top-2 right-2 text-sky-200 opacity-30">
+      <div className="absolute top-2 right-2 text-chess-green opacity-30">
         <ChessQueen className="w-8 h-8" />
       </div>
-      <div className="absolute bottom-2 left-2 text-sky-200 opacity-30">
+      <div className="absolute bottom-2 left-2 text-chess-green opacity-30">
         <ChessKing className="w-6 h-6" />
       </div>
-      <div className="absolute bottom-2 right-2 text-sky-200 opacity-30">
+      <div className="absolute bottom-2 right-2 text-chess-green opacity-30">
         <ChessQueen className="w-6 h-6" />
       </div>
 
@@ -760,8 +760,8 @@ const handleShare = async () => {
       <div className="relative z-10 p-4">
         {/* Header with logo and championship info - blue background bar for visibility */}
         <div className="text-center mb-3">
-          <div className="inline-block bg-sky-600/90 px-6 py-2 rounded-full mb-2">
-            <div className="inline-block bg-sky-600 text-white px-4 py-1 rounded-full font-semibold text-xs">Chess99.com</div>
+          <div className="inline-block bg-chess-green/90 px-6 py-2 rounded-full mb-2">
+            <div className="inline-block bg-chess-green text-white px-4 py-1 rounded-full font-semibold text-xs">Chess99.com</div>
           </div>
 
           {/* Championship Badge - show if championship data available */}
@@ -775,7 +775,7 @@ const handleShare = async () => {
               </div>
             </div>
           ) : (
-            <div className="inline-block bg-sky-600 text-white px-4 py-1 rounded-full font-semibold text-xs">
+            <div className="inline-block bg-chess-green text-white px-4 py-1 rounded-full font-semibold text-xs">
               {isMultiplayer ? 'Multiplayer Match' : `Computer Level ${computerLevel || 8}`}
             </div>
           )}
@@ -784,7 +784,7 @@ const handleShare = async () => {
         {/* Result display */}
         <div className="text-center mb-4">
           <h1 className={`text-2xl md:text-3xl font-extrabold mb-2 ${
-            isPlayerWin ? "text-sky-600" : isDraw ? "text-gray-600" : "text-gray-500"
+            isPlayerWin ? "text-chess-green" : isDraw ? "text-gray-600" : "text-gray-500"
           }`}>
             CHESS GAME RESULT
           </h1>
@@ -792,7 +792,7 @@ const handleShare = async () => {
             {icon}
           </div>
           <h1 className={`text-2xl md:text-3xl font-extrabold mb-2 ${
-            isPlayerWin ? "text-sky-600" : isDraw ? "text-gray-600" : "text-gray-500"
+            isPlayerWin ? "text-chess-green" : isDraw ? "text-gray-600" : "text-gray-500"
           }`}>
             {title}
           </h1>
@@ -855,7 +855,7 @@ const handleShare = async () => {
                 />
 
                 <div className="text-center">
-                  <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-sky-100 text-sky-600 font-bold text-lg shadow-md">
+                  <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-green-100 text-chess-green font-bold text-lg shadow-md">
                     VS
                   </div>
                 </div>
@@ -909,7 +909,7 @@ const handleShare = async () => {
 
         {/* Call to action - different messages for championship vs regular games */}
         <div className="text-center mb-3">
-          <div className="bg-gradient-to-r from-sky-500 to-blue-600 text-white p-3 rounded-xl shadow-lg">
+          <div className="bg-gradient-to-r from-chess-green to-chess-pressed text-white p-3 rounded-xl shadow-lg">
             {championshipData ? (
               <>
                 <div className="text-lg font-bold mb-1">
@@ -1002,7 +1002,7 @@ const handleShare = async () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-              <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#0284C7', marginBottom: '10px' }}>
+              <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#81b64c', marginBottom: '10px' }}>
                 Share Your Game Result
               </h2>
               <p style={{ color: '#6B7280', fontSize: '14px' }}>
@@ -1042,7 +1042,7 @@ const handleShare = async () => {
                   padding: '18px',
                   borderRadius: '12px',
                   border: 'none',
-                  backgroundColor: '#0284C7',
+                  backgroundColor: '#81b64c',
                   color: 'white',
                   fontSize: '18px',
                   fontWeight: '700',
@@ -1053,17 +1053,17 @@ const handleShare = async () => {
                   justifyContent: 'center',
                   gap: '10px',
                   marginBottom: '15px',
-                  boxShadow: '0 4px 12px rgba(2, 132, 199, 0.3)'
+                  boxShadow: '0 4px 12px rgba(129, 182, 76, 0.3)'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#0369A1';
+                  e.currentTarget.style.backgroundColor = '#4e7837';
                   e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(2, 132, 199, 0.4)';
+                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(129, 182, 76, 0.4)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#0284C7';
+                  e.currentTarget.style.backgroundColor = '#81b64c';
                   e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(2, 132, 199, 0.3)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(129, 182, 76, 0.3)';
                 }}
               >
                 <span style={{ fontSize: '28px' }}>🔗</span>
@@ -1079,7 +1079,7 @@ const handleShare = async () => {
                     padding: '18px',
                     borderRadius: '12px',
                     border: 'none',
-                    backgroundColor: '#0284C7',
+                    backgroundColor: '#81b64c',
                     color: 'white',
                     fontSize: '18px',
                     fontWeight: '700',
@@ -1089,17 +1089,17 @@ const handleShare = async () => {
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '10px',
-                    boxShadow: '0 4px 12px rgba(2, 132, 199, 0.3)'
+                    boxShadow: '0 4px 12px rgba(129, 182, 76, 0.3)'
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#0369A1';
+                    e.currentTarget.style.backgroundColor = '#4e7837';
                     e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(2, 132, 199, 0.4)';
+                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(129, 182, 76, 0.4)';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = '#0284C7';
+                    e.currentTarget.style.backgroundColor = '#81b64c';
                     e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(2, 132, 199, 0.3)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(129, 182, 76, 0.3)';
                   }}
                 >
                   <span style={{ fontSize: '28px' }}>💾</span>

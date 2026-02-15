@@ -62,7 +62,7 @@ const SharedResultPage = () => {
           <p className="text-gray-300 mb-4">{error || 'This shared result may have been removed or the link is invalid.'}</p>
           <button
             onClick={() => navigate('/')}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
+            className="bg-[#81b64c] hover:bg-[#a3d160] text-white px-6 py-2 rounded-lg font-semibold transition-colors"
           >
             Go to Homepage
           </button>
@@ -90,7 +90,7 @@ const SharedResultPage = () => {
           </div>
 
           {/* Shared Result Image */}
-          <div className="bg-white rounded-2xl shadow-2xl p-4 mb-6">
+          <div className="bg-[#312e2b] rounded-2xl shadow-2xl p-4 mb-6 border-2 border-[#3d3a37]">
             <img
               src={sharedResult.image_url}
               alt="Chess game result"
@@ -100,7 +100,7 @@ const SharedResultPage = () => {
           </div>
 
           {/* Call to Action */}
-          <div className="bg-gradient-to-r from-sky-600 to-blue-700 rounded-xl p-6 text-center text-white shadow-xl">
+          <div className="rounded-xl p-6 text-center text-white shadow-xl border-2 border-[#81b64c]" style={{ background: 'linear-gradient(135deg, #4e7837, #81b64c)' }}>
             <h2 className="text-2xl font-bold mb-3">
               ♟️ Want to Play Chess Too?
             </h2>
@@ -109,7 +109,7 @@ const SharedResultPage = () => {
             </p>
             <button
               onClick={() => navigate('/')}
-              className="bg-white text-sky-600 px-8 py-3 rounded-lg font-bold text-lg hover:bg-gray-100 transition-colors shadow-lg"
+              className="bg-white text-[#4e7837] px-8 py-3 rounded-lg font-bold text-lg hover:bg-gray-100 transition-colors shadow-lg"
             >
               Play Now at Chess99.com
             </button>
@@ -151,7 +151,7 @@ const SharedResultPage = () => {
                   link.click();
                   document.body.removeChild(link);
                 }}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
+                className="bg-[#81b64c] hover:bg-[#a3d160] text-white px-6 py-2 rounded-lg font-semibold transition-colors"
               >
                 💾 Download Image
               </button>

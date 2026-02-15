@@ -52,13 +52,13 @@ const RoundLeaderboardModal = ({ isOpen, onClose, championshipId, round }) => {
           ) : error ? (
             <div style={{ color: 'red', padding: '20px' }}>{error}</div>
           ) : leaderboard.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
+            <div style={{ textAlign: 'center', padding: '20px', color: '#8b8987' }}>
               No completed matches yet for Round {round}
             </div>
           ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ backgroundColor: '#f3f4f6', borderBottom: '2px solid #e5e7eb' }}>
+                <tr style={{ backgroundColor: '#262421', borderBottom: '2px solid #3d3a37' }}>
                   <th style={{ padding: '12px 8px', textAlign: 'left' }}>Rank</th>
                   <th style={{ padding: '12px 8px', textAlign: 'left' }}>Player</th>
                   <th style={{ padding: '12px 8px', textAlign: 'center' }}>Played</th>
@@ -71,8 +71,8 @@ const RoundLeaderboardModal = ({ isOpen, onClose, championshipId, round }) => {
               <tbody>
                 {leaderboard.map((player, index) => (
                   <tr key={player.user.id} style={{
-                    borderBottom: '1px solid #e5e7eb',
-                    backgroundColor: index < 3 ? (index === 0 ? '#fef3c7' : index === 1 ? '#f3f4f6' : '#fef3e8') : 'white'
+                    borderBottom: '1px solid #3d3a37',
+                    backgroundColor: index < 3 ? (index === 0 ? 'rgba(232, 169, 62, 0.1)' : index === 1 ? 'rgba(186, 186, 186, 0.05)' : 'rgba(232, 169, 62, 0.06)') : '#312e2b'
                   }}>
                     <td style={{ padding: '12px 8px', fontWeight: 'bold' }}>
                       {player.rank === 1 ? '🥇' : player.rank === 2 ? '🥈' : player.rank === 3 ? '🥉' : player.rank}
@@ -90,10 +90,10 @@ const RoundLeaderboardModal = ({ isOpen, onClose, championshipId, round }) => {
                       </div>
                     </td>
                     <td style={{ padding: '12px 8px', textAlign: 'center' }}>{player.played}</td>
-                    <td style={{ padding: '12px 8px', textAlign: 'center', color: '#059669', fontWeight: 'bold' }}>{player.won}</td>
-                    <td style={{ padding: '12px 8px', textAlign: 'center', color: '#6b7280' }}>{player.draw}</td>
-                    <td style={{ padding: '12px 8px', textAlign: 'center', color: '#dc2626' }}>{player.lost}</td>
-                    <td style={{ padding: '12px 8px', textAlign: 'center', fontWeight: 'bold', fontSize: '16px', color: '#1f2937' }}>
+                    <td style={{ padding: '12px 8px', textAlign: 'center', color: '#81b64c', fontWeight: 'bold' }}>{player.won}</td>
+                    <td style={{ padding: '12px 8px', textAlign: 'center', color: '#8b8987' }}>{player.draw}</td>
+                    <td style={{ padding: '12px 8px', textAlign: 'center', color: '#fa6a5b' }}>{player.lost}</td>
+                    <td style={{ padding: '12px 8px', textAlign: 'center', fontWeight: 'bold', fontSize: '16px', color: '#ffffff' }}>
                       {player.points.toFixed(1)}
                     </td>
                   </tr>

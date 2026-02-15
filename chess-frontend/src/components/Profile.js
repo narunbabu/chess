@@ -356,7 +356,7 @@ const Profile = () => {
               </div>
             ))
           ) : (
-            <p style={{ color: '#ccc', fontStyle: 'italic' }}>No friends yet. Add some chess mates below!</p>
+            <p style={{ color: '#8b8987', fontStyle: 'italic' }}>No friends yet. Add some chess mates below!</p>
           )}
         </div>
 
@@ -396,7 +396,7 @@ const Profile = () => {
               </div>
             ))
           ) : (
-            <p style={{ color: '#ccc', fontStyle: 'italic' }}>No pending friend requests.</p>
+            <p style={{ color: '#8b8987', fontStyle: 'italic' }}>No pending friend requests.</p>
           )}
         </div>
       </section>
@@ -434,7 +434,7 @@ const Profile = () => {
                     cx="30"
                     cy="30"
                     r="25"
-                    stroke="#e0e0e0"
+                    stroke="#3d3a37"
                     strokeWidth="5"
                     fill="none"
                   />
@@ -442,7 +442,7 @@ const Profile = () => {
                     cx="30"
                     cy="30"
                     r="25"
-                    stroke="#4CAF50"
+                    stroke="#81b64c"
                     strokeWidth="5"
                     fill="none"
                     strokeDasharray={`${(tutorialStats.completion_percentage / 100) * 157} 157`}
@@ -512,7 +512,7 @@ const Profile = () => {
       {/* Invite Friends via Social Media */}
       <section className="profile-section">
         <h2>Invite Friends</h2>
-        <p style={{ color: '#ccc', marginBottom: '16px' }}>
+        <p style={{ color: '#bababa', marginBottom: '16px' }}>
           Share Chess Web with your friends and challenge them to a game!
         </p>
         <SocialShare

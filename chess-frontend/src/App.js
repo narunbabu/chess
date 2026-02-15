@@ -27,10 +27,10 @@ import LandingPage from "./pages/LandingPage";
 
 // Loading fallback component
 const PageLoader = () => (
-  <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-sky-50 to-white">
+  <div className="min-h-screen flex items-center justify-center bg-[#262421]">
     <div className="text-center">
-      <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-sky-600 mx-auto mb-4"></div>
-      <p className="text-gray-600 text-lg">Loading...</p>
+      <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-[#81b64c] mx-auto mb-4"></div>
+      <p className="text-[#bababa] text-lg">Loading...</p>
     </div>
   </div>
 );

@@ -4,9 +4,9 @@
   align-items: center;
   gap: 15px;
   padding: 8px 12px;
-  background: #f8f9fa;
+  background: #312e2b;
   border-radius: 8px;
-  border: 1px solid #e9ecef;
+  border: 1px solid #3d3a37;
   position: relative;
   font-size: 14px;
 }
@@ -32,7 +32,7 @@
 
 .status-text {
   font-weight: 500;
-  color: #495057;
+  color: #bababa;
 }
 
 .online-stats {
@@ -42,7 +42,7 @@
 .online-count-btn {
   background: none;
   border: none;
-  color: #007bff;
+  color: #81b64c;
   cursor: pointer;
   font-size: 14px;
   padding: 4px 8px;
@@ -51,11 +51,11 @@
 }
 
 .online-count-btn:hover {
-  background-color: #e7f3ff;
+  background-color: rgba(129, 182, 76, 0.1);
 }
 
 .in-game-count {
-  color: #28a745;
+  color: #81b64c;
   font-weight: 500;
 }
 
@@ -64,10 +64,10 @@
   top: 100%;
   right: 0;
   margin-top: 8px;
-  background: white;
-  border: 1px solid #dee2e6;
+  background: #312e2b;
+  border: 1px solid #3d3a37;
   border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   width: 280px;
   max-height: 400px;
   overflow: hidden;
@@ -79,14 +79,14 @@
   justify-content: space-between;
   align-items: center;
   padding: 12px 16px;
-  border-bottom: 1px solid #e9ecef;
-  background: #f8f9fa;
+  border-bottom: 1px solid #3d3a37;
+  background: #262421;
 }
 
 .dropdown-header h4 {
   margin: 0;
   font-size: 16px;
-  color: #495057;
+  color: #ffffff;
 }
 
 .close-btn {
@@ -94,7 +94,7 @@
   border: none;
   font-size: 20px;
   cursor: pointer;
-  color: #6c757d;
+  color: #8b8987;
   padding: 0;
   width: 24px;
   height: 24px;
@@ -104,7 +104,7 @@
 }
 
 .close-btn:hover {
-  color: #495057;
+  color: #bababa;
 }
 
 .users-list {
@@ -114,7 +114,7 @@
 
 .user-item {
   padding: 12px 16px;
-  border-bottom: 1px solid #f1f3f4;
+  border-bottom: 1px solid #3d3a37;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -125,7 +125,7 @@
 }
 
 .user-item:hover {
-  background-color: #f8f9fa;
+  background-color: #3d3a37;
 }
 
 .user-info {
@@ -134,7 +134,7 @@
 
 .user-name {
   font-weight: 500;
-  color: #495057;
+  color: #ffffff;
   margin-bottom: 2px;
 }
 
@@ -143,37 +143,37 @@
 }
 
 .status-playing {
-  color: #dc3545;
+  color: #e74c3c;
   font-weight: 500;
 }
 
 .status-waiting {
-  color: #ffc107;
+  color: #e8a93e;
   font-weight: 500;
 }
 
 .status-available {
-  color: #28a745;
+  color: #81b64c;
   font-weight: 500;
 }
 
 .no-users {
   padding: 20px 16px;
   text-align: center;
-  color: #6c757d;
+  color: #8b8987;
   font-style: italic;
 }
 
 .dropdown-footer {
   padding: 8px 16px;
-  border-top: 1px solid #e9ecef;
-  background: #f8f9fa;
+  border-top: 1px solid #3d3a37;
+  background: #262421;
 }
 
 .refresh-btn {
   background: none;
-  border: 1px solid #dee2e6;
-  color: #6c757d;
+  border: 1px solid #3d3a37;
+  color: #8b8987;
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 12px;
@@ -182,15 +182,15 @@
 }
 
 .refresh-btn:hover {
-  background-color: #e9ecef;
-  color: #495057;
+  background-color: #3d3a37;
+  color: #bababa;
 }
 
 .reconnecting-indicator {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #ffc107;
+  color: #e8a93e;
 }
 
 .reconnecting-text {
@@ -201,8 +201,8 @@
 .spinner {
   width: 12px;
   height: 12px;
-  border: 2px solid #f3f3f3;
-  border-top: 2px solid #ffc107;
+  border: 2px solid #3d3a37;
+  border-top: 2px solid #e8a93e;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -230,63 +230,63 @@
   }
 }
 
-/* Dark mode support */
+/* Dark mode support - matches base styles (already dark) */
 @media (prefers-color-scheme: dark) {
   .presence-indicator {
-    background: #2d3748;
-    border-color: #4a5568;
+    background: #312e2b;
+    border-color: #3d3a37;
   }
 
   .status-text {
-    color: #e2e8f0;
+    color: #bababa;
   }
 
   .online-count-btn {
-    color: #63b3ed;
+    color: #81b64c;
   }
 
   .online-count-btn:hover {
-    background-color: #2c5282;
+    background-color: rgba(129, 182, 76, 0.1);
   }
 
   .online-users-dropdown {
-    background: #2d3748;
-    border-color: #4a5568;
+    background: #312e2b;
+    border-color: #3d3a37;
   }
 
   .dropdown-header {
-    background: #1a202c;
-    border-color: #4a5568;
+    background: #262421;
+    border-color: #3d3a37;
   }
 
   .dropdown-header h4 {
-    color: #e2e8f0;
+    color: #ffffff;
   }
 
   .user-item {
-    border-color: #4a5568;
+    border-color: #3d3a37;
   }
 
   .user-item:hover {
-    background-color: #1a202c;
+    background-color: #3d3a37;
   }
 
   .user-name {
-    color: #e2e8f0;
+    color: #ffffff;
   }
 
   .dropdown-footer {
-    background: #1a202c;
-    border-color: #4a5568;
+    background: #262421;
+    border-color: #3d3a37;
   }
 
   .refresh-btn {
-    border-color: #4a5568;
-    color: #a0aec0;
+    border-color: #3d3a37;
+    color: #8b8987;
   }
 
   .refresh-btn:hover {
-    background-color: #4a5568;
-    color: #e2e8f0;
+    background-color: #3d3a37;
+    color: #bababa;
   }
 }

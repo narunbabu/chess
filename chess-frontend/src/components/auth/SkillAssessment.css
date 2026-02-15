@@ -5,18 +5,19 @@
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #1a1a18 0%, #262421 100%);
   padding: 20px;
 }
 
 .skill-assessment-card {
-  background: white;
+  background: #312e2b;
   border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   max-width: 600px;
   width: 100%;
   padding: 40px;
   animation: slideIn 0.3s ease-out;
+  border: 1px solid #3d3a37;
 }
 
 .skill-assessment-card.results {
@@ -42,19 +43,19 @@
 .assessment-header h2 {
   font-size: 28px;
   font-weight: 700;
-  color: #1a202c;
+  color: #ffffff;
   margin: 0 0 8px 0;
 }
 
 .assessment-subtitle {
-  color: #718096;
+  color: #8b8987;
   font-size: 15px;
   margin: 0 0 20px 0;
 }
 
 .progress-bar {
   height: 6px;
-  background: #e2e8f0;
+  background: #3d3a37;
   border-radius: 3px;
   overflow: hidden;
   margin-bottom: 8px;
@@ -62,13 +63,13 @@
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(90deg, #769656 0%, #81b64c 100%);
   transition: width 0.3s ease-out;
 }
 
 .progress-text {
   font-size: 13px;
-  color: #a0aec0;
+  color: #8b8987;
   margin: 0;
   text-align: right;
 }
@@ -80,7 +81,7 @@
 .question-text {
   font-size: 20px;
   font-weight: 600;
-  color: #2d3748;
+  color: #ffffff;
   margin: 0 0 24px 0;
   line-height: 1.4;
 }
@@ -92,13 +93,13 @@
 }
 
 .option-button {
-  background: #f7fafc;
-  border: 2px solid #e2e8f0;
+  background: #262421;
+  border: 2px solid #3d3a37;
   border-radius: 12px;
   padding: 16px 20px;
   font-size: 16px;
   font-weight: 500;
-  color: #2d3748;
+  color: #bababa;
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: left;
@@ -106,8 +107,8 @@
 }
 
 .option-button:hover {
-  background: #edf2f7;
-  border-color: #667eea;
+  background: #3d3a37;
+  border-color: #81b64c;
   transform: translateX(4px);
 }
 
@@ -122,14 +123,14 @@
 .assessment-footer {
   margin-top: 24px;
   padding-top: 24px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid #3d3a37;
   text-align: center;
 }
 
 .skip-button {
   background: transparent;
   border: none;
-  color: #718096;
+  color: #8b8987;
   font-size: 14px;
   cursor: pointer;
   text-decoration: underline;
@@ -137,7 +138,7 @@
 }
 
 .skip-button:hover {
-  color: #4a5568;
+  color: #bababa;
 }
 
 /* Results view */
@@ -149,14 +150,14 @@
 .results h2 {
   font-size: 24px;
   font-weight: 700;
-  color: #1a202c;
+  color: #ffffff;
   margin: 0 0 24px 0;
 }
 
 .rating-display {
   font-size: 72px;
   font-weight: 800;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #81b64c 0%, #e8a93e 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -166,18 +167,19 @@
 .rating-description {
   font-size: 18px;
   font-weight: 600;
-  color: #2d3748;
+  color: #bababa;
   margin: 0 0 16px 0;
 }
 
 .provisional-note {
   font-size: 14px;
-  color: #718096;
+  color: #8b8987;
   line-height: 1.6;
   margin: 0;
   padding: 16px;
-  background: #f7fafc;
+  background: #262421;
   border-radius: 8px;
+  border: 1px solid #3d3a37;
 }
 
 /* Mobile responsive */
@@ -232,15 +234,16 @@
 }
 
 .skill-modal {
-  background: white;
+  background: #312e2b;
   border-radius: 20px;
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.6);
   max-width: 650px;
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
   animation: modalSlideIn 0.3s ease-out;
   position: relative;
+  border: 1px solid #3d3a37;
 }
 
 @keyframes modalSlideIn {
@@ -256,20 +259,20 @@
 
 .skill-modal-header {
   padding: 32px 32px 24px 32px;
-  border-bottom: 2px solid #e2e8f0;
+  border-bottom: 2px solid #3d3a37;
   position: relative;
 }
 
 .skill-modal-header h2 {
   font-size: 28px;
   font-weight: 700;
-  color: #1a202c;
+  color: #ffffff;
   margin: 0 0 8px 0;
 }
 
 .skill-modal-header p {
   font-size: 15px;
-  color: #718096;
+  color: #8b8987;
   margin: 0;
 }
 
@@ -280,7 +283,7 @@
   background: transparent;
   border: none;
   font-size: 28px;
-  color: #a0aec0;
+  color: #8b8987;
   cursor: pointer;
   width: 40px;
   height: 40px;
@@ -292,8 +295,8 @@
 }
 
 .skill-modal-close:hover {
-  background: #f7fafc;
-  color: #4a5568;
+  background: #3d3a37;
+  color: #ffffff;
 }
 
 .skill-modal-close:disabled {
@@ -308,10 +311,10 @@
 
 .skill-progress-bar .skill-progress-fill {
   height: 8px;
-  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(90deg, #769656 0%, #81b64c 100%);
   border-radius: 4px;
   transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 2px 8px rgba(129, 182, 76, 0.3);
 }
 
 .skill-progress-bar::before {
@@ -321,14 +324,14 @@
   right: 32px;
   top: 0;
   height: 8px;
-  background: #e2e8f0;
+  background: #3d3a37;
   border-radius: 4px;
 }
 
 .skill-progress-text {
   display: block;
   font-size: 13px;
-  color: #a0aec0;
+  color: #8b8987;
   margin-top: 8px;
   text-align: center;
   font-weight: 500;
@@ -341,7 +344,7 @@
 .skill-question {
   font-size: 22px;
   font-weight: 600;
-  color: #2d3748;
+  color: #ffffff;
   margin: 0 0 24px 0;
   line-height: 1.4;
 }
@@ -353,8 +356,8 @@
 }
 
 .skill-option-btn {
-  background: #f7fafc;
-  border: 2px solid #e2e8f0;
+  background: #262421;
+  border: 2px solid #3d3a37;
   border-radius: 14px;
   padding: 18px 20px;
   cursor: pointer;
@@ -367,10 +370,10 @@
 }
 
 .skill-option-btn:hover {
-  background: #edf2f7;
-  border-color: #667eea;
+  background: #3d3a37;
+  border-color: #81b64c;
   transform: translateX(6px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+  box-shadow: 0 4px 12px rgba(129, 182, 76, 0.15);
 }
 
 .skill-option-btn:active {
@@ -389,7 +392,7 @@
   justify-content: center;
   width: 32px;
   height: 32px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #769656 0%, #81b64c 100%);
   color: white;
   border-radius: 50%;
   font-weight: 700;
@@ -401,14 +404,14 @@
   flex: 1;
   font-size: 16px;
   font-weight: 500;
-  color: #2d3748;
+  color: #bababa;
   line-height: 1.4;
 }
 
 .skill-option-rating {
   font-size: 14px;
   font-weight: 600;
-  color: #667eea;
+  color: #81b64c;
   flex-shrink: 0;
 }
 
@@ -417,13 +420,13 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-top: 2px solid #e2e8f0;
+  border-top: 2px solid #3d3a37;
 }
 
 .skill-back-btn {
   background: transparent;
-  border: 2px solid #e2e8f0;
-  color: #4a5568;
+  border: 2px solid #3d3a37;
+  color: #bababa;
   padding: 10px 20px;
   border-radius: 10px;
   font-size: 14px;
@@ -433,8 +436,8 @@
 }
 
 .skill-back-btn:hover:not(:disabled) {
-  background: #f7fafc;
-  border-color: #cbd5e0;
+  background: #3d3a37;
+  border-color: #4a4744;
 }
 
 .skill-back-btn:disabled {
@@ -445,7 +448,7 @@
 .skill-skip-btn {
   background: transparent;
   border: none;
-  color: #a0aec0;
+  color: #8b8987;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -455,7 +458,7 @@
 }
 
 .skill-skip-btn:hover:not(:disabled) {
-  color: #718096;
+  color: #bababa;
 }
 
 .skill-skip-btn:disabled {
@@ -469,7 +472,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(49, 46, 43, 0.95);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -481,8 +484,8 @@
 .skill-spinner {
   width: 48px;
   height: 48px;
-  border: 4px solid #e2e8f0;
-  border-top-color: #667eea;
+  border: 4px solid #3d3a37;
+  border-top-color: #81b64c;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin-bottom: 16px;
@@ -497,7 +500,7 @@
 .skill-submitting-overlay p {
   font-size: 16px;
   font-weight: 500;
-  color: #4a5568;
+  color: #bababa;
   margin: 0;
 }
 

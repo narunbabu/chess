@@ -5,7 +5,7 @@
 
 .tournament-admin-dashboard {
   padding: 24px;
-  background: #f8fafc;
+  background: #1a1a18;
   min-height: 100vh;
 }
 
@@ -20,15 +20,15 @@
   align-items: center;
   margin-bottom: 16px;
   padding: 16px;
-  background: white;
+  background: #312e2b;
   border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  border: 1px solid #3d3a37;
 }
 
 .matches-section-header h3 {
   margin: 0;
-  color: #1e293b;
+  color: #ffffff;
   font-size: 20px;
   font-weight: 600;
 }
@@ -59,7 +59,7 @@
 }
 
 .btn-danger:disabled {
-  background: #cbd5e1;
+  background: #3d3a37;
   cursor: not-allowed;
   box-shadow: none;
 }
@@ -79,24 +79,24 @@
 
 .tournament-admin-dashboard h2 {
   margin: 0 0 24px 0;
-  color: #1e293b;
+  color: #ffffff;
   font-size: 28px;
   font-weight: 700;
 }
 
 /* Championship Summary */
 .championship-summary {
-  background: white;
+  background: #312e2b;
   border-radius: 12px;
   padding: 24px;
   margin-bottom: 32px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  border: 1px solid #3d3a37;
 }
 
 .championship-summary h3 {
   margin: 0 0 20px 0;
-  color: #1e293b;
+  color: #ffffff;
   font-size: 20px;
   font-weight: 600;
 }
@@ -110,9 +110,9 @@
 .summary-item {
   text-align: center;
   padding: 16px;
-  background: #f8fafc;
+  background: #262421;
   border-radius: 8px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #3d3a37;
 }
 
 .summary-item.generated {
@@ -123,7 +123,7 @@
 .summary-item .label {
   display: block;
   font-size: 12px;
-  color: #64748b;
+  color: #8b8987;
   margin-bottom: 4px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -133,17 +133,17 @@
   display: block;
   font-size: 18px;
   font-weight: 600;
-  color: #1e293b;
+  color: #ffffff;
 }
 
 /* Tournament Generation Section */
 .tournament-generation-section {
-  background: white;
+  background: #312e2b;
   border-radius: 12px;
   padding: 24px;
   margin-bottom: 32px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  border: 1px solid #3d3a37;
 }
 
 .section-header {
@@ -155,18 +155,18 @@
 
 .section-header h3 {
   margin: 0;
-  color: #1e293b;
+  color: #ffffff;
   font-size: 18px;
   font-weight: 600;
 }
 
 .recommended-preset {
   font-size: 14px;
-  color: #64748b;
-  background: #f8fafc;
+  color: #8b8987;
+  background: #262421;
   padding: 8px 12px;
   border-radius: 6px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #3d3a37;
 }
 
 .tournament-actions-grid {
@@ -232,33 +232,33 @@
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  background: linear-gradient(135deg, #81b64c 0%, #4e7837 100%);
   color: white;
-  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.25);
+  box-shadow: 0 4px 12px rgba(129, 182, 76, 0.25);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: linear-gradient(135deg, #6d28d9 0%, #5b21b6 100%);
-  box-shadow: 0 6px 20px rgba(124, 58, 237, 0.35);
+  background: linear-gradient(135deg, #4e7837 0%, #3d5f2c 100%);
+  box-shadow: 0 6px 20px rgba(129, 182, 76, 0.35);
   transform: translateY(-1px);
 }
 
 .btn-secondary {
-  background: linear-gradient(135deg, #64748b 0%, #475569 100%);
-  color: white;
-  box-shadow: 0 4px 12px rgba(100, 116, 139, 0.25);
+  background: #3d3a37;
+  color: #bababa;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: linear-gradient(135deg, #475569 0%, #334155 100%);
-  box-shadow: 0 6px 20px rgba(100, 116, 139, 0.35);
+  background: #4a4744;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
   transform: translateY(-1px);
 }
 
 .btn-outline {
-  background: white;
-  color: #64748b;
-  border: 2px solid #e2e8f0;
+  background: #262421;
+  color: #bababa;
+  border: 2px solid #3d3a37;
   padding: 12px 20px;
   border-radius: 8px;
   flex-direction: row;
@@ -268,9 +268,9 @@
 }
 
 .btn-outline:hover:not(:disabled) {
-  border-color: #7c3aed;
-  color: #7c3aed;
-  background: #7c3aed08;
+  border-color: #81b64c;
+  color: #81b64c;
+  background: rgba(129, 182, 76, 0.08);
 }
 
 /* Tournament Status Messages */
@@ -283,15 +283,15 @@
 }
 
 .tournament-status.success {
-  background: linear-gradient(135deg, #10b98108 0%, #05966908 100%);
-  border: 1px solid #10b981;
-  color: #065f46;
+  background: rgba(129, 182, 76, 0.1);
+  border: 1px solid #81b64c;
+  color: #81b64c;
 }
 
 .tournament-status.warning {
-  background: linear-gradient(135deg, #f59e0b08 0%, #d9770608 100%);
-  border: 1px solid #f59e0b;
-  color: #92400e;
+  background: rgba(232, 169, 62, 0.1);
+  border: 1px solid #e8a93e;
+  color: #e8a93e;
 }
 
 .status-icon {
@@ -314,25 +314,25 @@
 
 /* Legacy Generation Section */
 .legacy-generation-section {
-  background: #f8fafc;
+  background: #262421;
   border-radius: 12px;
   padding: 20px;
   margin-bottom: 32px;
-  border: 2px dashed #cbd5e1;
+  border: 2px dashed #4a4744;
 }
 
 .legacy-generation-section h3 {
   margin: 0 0 16px 0;
-  color: #64748b;
+  color: #8b8987;
   font-size: 16px;
   font-weight: 500;
 }
 
 /* Error Messages */
 .error-message {
-  background: linear-gradient(135deg, #ef444408 0%, #dc262608 100%);
-  border: 1px solid #ef4444;
-  color: #991b1b;
+  background: rgba(231, 76, 60, 0.1);
+  border: 1px solid #e74c3c;
+  color: #fa6a5b;
   padding: 16px;
   border-radius: 8px;
   font-size: 14px;
@@ -354,19 +354,19 @@
 }
 
 .dialog-content {
-  background: white;
+  background: #312e2b;
   border-radius: 12px;
   width: 90%;
   max-width: 600px;
   max-height: 80vh;
   overflow-y: auto;
   padding: 24px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
 
 .dialog-content h3 {
   margin: 0 0 20px 0;
-  color: #1e293b;
+  color: #ffffff;
   font-size: 18px;
 }
 
@@ -376,7 +376,7 @@
 
 .config-section h4 {
   margin: 0 0 12px 0;
-  color: #374151;
+  color: #bababa;
   font-size: 16px;
 }
 
@@ -387,13 +387,13 @@
 
 .config-table td {
   padding: 8px 0;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid #3d3a37;
 }
 
 .config-table td:first-child {
   width: 40%;
   font-weight: 500;
-  color: #374151;
+  color: #bababa;
 }
 
 .pairings-table {
@@ -406,13 +406,13 @@
 .pairings-table td {
   padding: 8px;
   text-align: left;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #3d3a37;
 }
 
 .pairings-table th {
-  background: #f9fafb;
+  background: #262421;
   font-weight: 500;
-  color: #374151;
+  color: #bababa;
 }
 
 .dialog-actions {
@@ -484,8 +484,8 @@
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  border-bottom: 1px solid #e9ecef;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-bottom: 1px solid #3d3a37;
+  background: linear-gradient(135deg, #262421 0%, #1a1a18 100%);
   color: white;
 }
 
@@ -552,8 +552,8 @@
 
 .dashboard-tabs {
   display: flex;
-  background: #f8f9fa;
-  border-bottom: 1px solid #e9ecef;
+  background: #1a1a18;
+  border-bottom: 1px solid #3d3a37;
   overflow-x: auto;
 }
 
@@ -563,7 +563,7 @@
   padding: 16px 24px;
   font-size: 0.9rem;
   font-weight: 500;
-  color: #6c757d;
+  color: #8b8987;
   cursor: pointer;
   border-bottom: 3px solid transparent;
   transition: all 0.2s ease;
@@ -574,14 +574,14 @@
 }
 
 .tab-button:hover {
-  background: #e9ecef;
-  color: #495057;
+  background: #3d3a37;
+  color: #bababa;
 }
 
 .tab-button.active {
-  color: #667eea;
-  border-bottom-color: #667eea;
-  background: white;
+  color: #81b64c;
+  border-bottom-color: #81b64c;
+  background: #312e2b;
 }
 
 .tab-content {
@@ -603,8 +603,8 @@
 }
 
 .stat-card {
-  background: #f8f9fa;
-  border: 1px solid #e9ecef;
+  background: #312e2b;
+  border: 1px solid #3d3a37;
   border-radius: 12px;
   padding: 20px;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -612,12 +612,12 @@
 
 .stat-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
 }
 
 .stat-card h3 {
   margin: 0 0 16px 0;
-  color: #495057;
+  color: #ffffff;
   font-size: 1.1rem;
   font-weight: 600;
 }
@@ -635,13 +635,13 @@
 }
 
 .stat-item .label {
-  color: #6c757d;
+  color: #8b8987;
   font-size: 0.9rem;
 }
 
 .stat-item .value {
   font-weight: 600;
-  color: #495057;
+  color: #ffffff;
 }
 
 .action-buttons {
@@ -670,12 +670,12 @@
 }
 
 .btn-primary {
-  background: #667eea;
+  background: #81b64c;
   color: white;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #5a6fd8;
+  background: #4e7837;
   transform: translateY(-1px);
 }
 
@@ -690,30 +690,30 @@
 }
 
 .btn-secondary {
-  background: #6c757d;
-  color: white;
+  background: #3d3a37;
+  color: #bababa;
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: #5a6268;
+  background: #4a4744;
   transform: translateY(-1px);
 }
 
 .btn-warning {
-  background: #ffc107;
-  color: #212529;
+  background: #e8a93e;
+  color: #1a1a18;
 }
 
 .btn-warning:hover:not(:disabled) {
-  background: #e0a800;
+  background: #c48b28;
   transform: translateY(-1px);
 }
 
 /* Swiss-Elimination Button Special Styling */
 .swiss-elimination-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #81b64c 0%, #4e7837 100%);
   color: white;
-  border: 2px solid #5a67d8;
+  border: 2px solid #81b64c;
   position: relative;
   overflow: hidden;
 }
@@ -734,15 +734,15 @@
 }
 
 .swiss-elimination-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #5a67d8 0%, #667eea 100%);
+  background: linear-gradient(135deg, #4e7837 0%, #81b64c 100%);
   transform: translateY(-2px);
-  box-shadow: 0 4px 20px rgba(90, 103, 216, 0.4);
+  box-shadow: 0 4px 20px rgba(129, 182, 76, 0.4);
 }
 
 .swiss-elimination-btn:disabled {
-  background: #e9ecef;
-  color: #6c757d;
-  border-color: #dee2e6;
+  background: #3d3a37;
+  color: #5c5a57;
+  border-color: #4a4744;
   cursor: not-allowed;
   transform: none;
 }
@@ -784,15 +784,15 @@
 }
 
 .control-section {
-  background: #f8f9fa;
-  border: 1px solid #e9ecef;
+  background: #312e2b;
+  border: 1px solid #3d3a37;
   border-radius: 12px;
   padding: 24px;
 }
 
 .control-section h3 {
   margin: 0 0 16px 0;
-  color: #495057;
+  color: #ffffff;
   font-size: 1.2rem;
   font-weight: 600;
 }
@@ -800,14 +800,14 @@
 .round-info {
   margin-bottom: 2px;
   padding: 2px 6px;
-  background: white;
+  background: #262421;
   border-radius: 8px;
-  border: 1px solid #e9ecef;
+  border: 1px solid #3d3a37;
 }
 
 .round-info p {
   margin: 4px 0;
-  color: #495057;
+  color: #bababa;
 }
 
 .action-section,
@@ -818,7 +818,7 @@
 .action-section h4,
 .scheduling-section h4 {
   margin: 0 0 16px 0;
-  color: #6c757d;
+  color: #8b8987;
   font-size: 1rem;
   font-weight: 600;
 }
@@ -833,10 +833,12 @@
 
 .schedule-options input[type="datetime-local"] {
   padding: 10px 12px;
-  border: 1px solid #ced4da;
+  border: 1px solid #4a4744;
   border-radius: 8px;
   font-size: 0.9rem;
   min-width: 200px;
+  background: #262421;
+  color: #bababa;
 }
 
 /* Matches Tab */
@@ -849,13 +851,13 @@
 
 .matches-header h3 {
   margin: 0;
-  color: #495057;
+  color: #ffffff;
 }
 
 /* Statistics Tab */
 .statistics-tab h3 {
   margin: 0 0 20px 0;
-  color: #495057;
+  color: #ffffff;
 }
 
 .stats-grid {
@@ -872,15 +874,15 @@
 }
 
 .settings-section {
-  background: #f8f9fa;
-  border: 1px solid #e9ecef;
+  background: #312e2b;
+  border: 1px solid #3d3a37;
   border-radius: 12px;
   padding: 24px;
 }
 
 .settings-section h4 {
   margin: 0 0 16px 0;
-  color: #495057;
+  color: #ffffff;
   font-size: 1.1rem;
   font-weight: 600;
 }
@@ -894,28 +896,30 @@
 
 .setting-item label {
   font-weight: 500;
-  color: #495057;
+  color: #bababa;
 }
 
 .setting-item input[type="number"] {
   padding: 10px 12px;
-  border: 1px solid #ced4da;
+  border: 1px solid #4a4744;
   border-radius: 8px;
   font-size: 0.9rem;
   width: 200px;
+  background: #262421;
+  color: #bababa;
 }
 
 .danger-zone {
   padding: 20px;
-  background: #fff5f5;
-  border: 1px solid #fed7d7;
+  background: rgba(231, 76, 60, 0.1);
+  border: 1px solid rgba(231, 76, 60, 0.3);
   border-radius: 8px;
   margin-top: 16px;
 }
 
 .danger-zone p {
   margin: 0 0 16px 0;
-  color: #c53030;
+  color: #fa6a5b;
 }
 
 /* Loading States */
@@ -925,14 +929,14 @@
   justify-content: center;
   gap: 12px;
   padding: 40px;
-  color: #6c757d;
+  color: #8b8987;
 }
 
 .spinner {
   width: 24px;
   height: 24px;
-  border: 3px solid #f3f3f3;
-  border-top: 3px solid #667eea;
+  border: 3px solid #3d3a37;
+  border-top: 3px solid #81b64c;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -948,7 +952,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(26, 26, 24, 0.8);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -973,18 +977,18 @@
 
 .tournament-admin-dashboard h2 {
   margin: 0 0 24px 0;
-  color: #495057;
+  color: #ffffff;
   font-size: 1.8rem;
   font-weight: 700;
 }
 
 .championship-summary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #312e2b 0%, #262421 100%);
   border-radius: 12px;
   padding: 24px;
   margin-bottom: 24px;
   color: white;
-  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 }
 
 .championship-summary h3 {
@@ -1023,10 +1027,10 @@
 .error-message {
   margin-top: 16px;
   padding: 12px 16px;
-  background: #fff5f5;
-  border: 1px solid #fed7d7;
+  background: rgba(231, 76, 60, 0.1);
+  border: 1px solid rgba(231, 76, 60, 0.3);
   border-radius: 8px;
-  color: #c53030;
+  color: #fa6a5b;
   font-size: 0.9rem;
 }
 
@@ -1046,9 +1050,9 @@
 }
 
 .dialog-content {
-  background: white;
+  background: #312e2b;
   border-radius: 12px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
   width: 90%;
   max-width: 700px;
   max-height: 85vh;
@@ -1070,7 +1074,7 @@
 .dialog-content h3 {
   margin: 0;
   padding: 20px 24px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #262421 0%, #1a1a18 100%);
   color: white;
   border-radius: 12px 12px 0 0;
   font-size: 1.3rem;
@@ -1093,10 +1097,10 @@
 
 .config-section h4 {
   margin: 0 0 16px 0;
-  color: #495057;
+  color: #ffffff;
   font-size: 1.1rem;
   font-weight: 600;
-  border-bottom: 2px solid #e9ecef;
+  border-bottom: 2px solid #3d3a37;
   padding-bottom: 8px;
 }
 
@@ -1106,7 +1110,7 @@
 }
 
 .config-table tr {
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid #3d3a37;
 }
 
 .config-table tr:last-child {
@@ -1119,12 +1123,12 @@
 }
 
 .config-table td:first-child {
-  color: #6c757d;
+  color: #8b8987;
   width: 200px;
 }
 
 .config-table td:last-child {
-  color: #495057;
+  color: #ffffff;
   font-weight: 500;
 }
 
@@ -1135,23 +1139,23 @@
 }
 
 .pairings-table thead {
-  background: #f8f9fa;
+  background: #262421;
 }
 
 .pairings-table th {
   padding: 12px 16px;
   text-align: left;
   font-weight: 600;
-  color: #495057;
-  border-bottom: 2px solid #e9ecef;
+  color: #bababa;
+  border-bottom: 2px solid #3d3a37;
   font-size: 0.9rem;
 }
 
 .pairings-table td {
   padding: 10px 16px;
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid #3d3a37;
   font-size: 0.9rem;
-  color: #495057;
+  color: #bababa;
 }
 
 .pairings-table tbody tr:last-child td {
@@ -1159,7 +1163,7 @@
 }
 
 .pairings-table tbody tr:hover {
-  background: #f8f9fa;
+  background: #3d3a37;
 }
 
 .dialog-actions {
@@ -1167,8 +1171,8 @@
   justify-content: flex-end;
   gap: 12px;
   padding: 20px 24px;
-  border-top: 1px solid #e9ecef;
-  background: #f8f9fa;
+  border-top: 1px solid #3d3a37;
+  background: #262421;
   border-radius: 0 0 12px 12px;
 }
 
@@ -1243,14 +1247,14 @@
 
 /* FIX: Active Tab Visibility - Final Polish */
 
-/* 1. Ensure the container has a distinct background so the white tab pops */
+/* 1. Ensure the container has a distinct background so the active tab pops */
 .championship-tabs {
   display: flex;
   gap: 8px;
-  background: #f1f5f9; /* Light Slate Gray Background */
-  padding: 12px 12px 0 12px; /* Add padding to top/sides */
+  background: #1a1a18;
+  padding: 12px 12px 0 12px;
   border-radius: 12px 12px 0 0;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid #3d3a37;
   overflow-x: auto;
 }
 
@@ -1259,7 +1263,7 @@
   padding: 10px 20px;
   border: none;
   background: transparent;
-  color: #64748b; /* Medium Gray for inactive */
+  color: #8b8987;
   font-weight: 600;
   font-size: 14px;
   cursor: pointer;
@@ -1270,15 +1274,15 @@
 
 /* 3. Hover State */
 .championship-tabs .tab:hover {
-  color: #1e293b; /* Dark text on hover */
-  background: rgba(255, 255, 255, 0.5); /* Slight white tint */
+  color: #bababa;
+  background: rgba(129, 182, 76, 0.1);
 }
 
 /* 4. ACTIVE STATE - High Contrast "Card" Look */
 .championship-tabs .tab.active {
-  background: #ffffff !important; /* Pure White Background */
-  color: #1e293b !important;      /* Dark Slate Text (High Contrast) */
-  font-weight: 700;               /* Bold Text */
-  border-bottom: 3px solid #7c3aed; /* Purple Underline to show selection */
-  box-shadow: 0 -2px 5px rgba(0,0,0,0.05); /* Subtle lift effect */
+  background: #312e2b !important;
+  color: #ffffff !important;
+  font-weight: 700;
+  border-bottom: 3px solid #81b64c;
+  box-shadow: 0 -2px 5px rgba(0,0,0,0.2);
 }

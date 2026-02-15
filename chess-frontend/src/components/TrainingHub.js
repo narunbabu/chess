@@ -67,7 +67,7 @@ const TrainingHub = () => {
   return (
     <div className="training-hub p-6 min-h-screen text-white">
       <h2 className="text-4xl font-bold text-center mb-4 text-white">Training Exercises & Puzzles</h2>
-      <p className="text-lg text-center text-gray-300 mb-10">Select an exercise below to improve your chess skills:</p>
+      <p className="text-lg text-center text-[#bababa] mb-10">Select an exercise below to improve your chess skills:</p>
 
       <div className="space-y-12">
         {Object.entries(trainingData).map(([level, exercises]) => (
@@ -83,7 +83,7 @@ const TrainingHub = () => {
                   <div className="training-card bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-6 h-full flex flex-col">
                     <span className={`difficulty-tag ${level} self-start mb-2 text-accent`}>{exercise.difficulty}</span>
                     <h4 className="text-xl font-bold mb-2 text-secondary">{exercise.title}</h4>
-                    <p className="text-gray-300 flex-grow">{exercise.description}</p>
+                    <p className="text-[#bababa] flex-grow">{exercise.description}</p>
                   </div>
                 </Link>
               ))}

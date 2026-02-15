@@ -127,16 +127,16 @@ const LoginPage = () => {
       <div className="text-center z-10">
         {/* Educational Resource Message */}
         {requestedResource && (
-          <div className="mb-6 p-4 bg-blue-600/90 backdrop-blur-sm rounded-xl border border-blue-400/30 max-w-2xl mx-auto">
+          <div className="mb-6 p-4 bg-[#312e2b] backdrop-blur-sm rounded-xl border border-[#81b64c]/30 max-w-2xl mx-auto">
             <div className="flex items-center justify-center mb-2">
-              <svg className="w-6 h-6 mr-2 text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-6 h-6 mr-2 text-[#e8a93e]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <h2 className="text-xl font-bold text-white">
                 {requestedResource === 'tutorial' ? 'Access Free Chess Tutorials' : 'Join Exciting Tournaments'}
               </h2>
             </div>
-            <p className="text-gray-100 text-sm">
+            <p className="text-[#bababa] text-sm">
               Please Login or Register to access our free {requestedResource === 'tutorial' ? 'chess lessons and interactive tutorials' : 'tournaments and competitive events'}.
             </p>
           </div>
@@ -146,7 +146,7 @@ const LoginPage = () => {
         <div className="flex flex-wrap justify-center gap-3 mb-6">
           <button
             onClick={() => navigate('/')}
-            className="flex items-center px-4 py-2 bg-gray-700/80 hover:bg-gray-600/80 text-white rounded-lg transition-colors duration-200"
+            className="flex items-center px-4 py-2 bg-[#3d3a37] hover:bg-[#4a4744] text-white rounded-lg transition-colors duration-200"
           >
             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
@@ -155,7 +155,7 @@ const LoginPage = () => {
           </button>
           <button
             onClick={() => navigate('/play')}
-            className="flex items-center px-4 py-2 bg-orange-600/80 hover:bg-orange-500/80 text-white rounded-lg transition-colors duration-200"
+            className="flex items-center px-4 py-2 bg-[#81b64c]/80 hover:bg-[#a3d160]/80 text-white rounded-lg transition-colors duration-200"
           >
             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
@@ -168,7 +168,7 @@ const LoginPage = () => {
         <h1 className="text-5xl md:text-7xl font-extrabold mb-4 animate-[cardSlideIn_0.8s_ease-out] text-white">
           Master Chess at Your Own Pace
         </h1>
-        <p className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto mb-8 animate-[cardSlideIn_0.9s_ease-out]">
+        <p className="text-lg md:text-xl text-[#bababa] max-w-3xl mx-auto mb-8 animate-[cardSlideIn_0.9s_ease-out]">
           {requestedResource
             ? `Join Chess99 to access ${requestedResource === 'tutorial' ? 'free chess lessons and tutorials' : 'exciting tournaments and competitions'}`
             : "Improve your chess skills through practice, puzzles, and guided learning - no registration required to start playing."
@@ -177,8 +177,8 @@ const LoginPage = () => {
       </div>
 
       {/* The login form will be placed in a card-like structure below this header */}
-      <div className="w-full max-w-md bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 shadow-2xl p-6 sm:p-8 z-10 mt-10">
-        {error && <div className="bg-gradient-to-r from-red-500 to-orange-500 text-white p-3 rounded-lg mb-4 text-center text-sm font-medium animate-[errorShake_0.5s_ease-out]">{error}</div>}
+      <div className="w-full max-w-md bg-[#312e2b] backdrop-blur-lg rounded-2xl border border-[#3d3a37] shadow-2xl p-6 sm:p-8 z-10 mt-10">
+        {error && <div className="bg-[#e74c3c] text-white p-3 rounded-lg mb-4 text-center text-sm font-medium animate-[errorShake_0.5s_ease-out]">{error}</div>}
 
         {!showManualAuth ? (
           /* Google Sign-in Primary View */
@@ -186,7 +186,7 @@ const LoginPage = () => {
             {/* Google Sign-in Button - Primary */}
             <a
               href={`${BASE_URL}/auth/google/redirect`}
-              className="w-full flex items-center justify-center px-4 py-4 border-2 border-white/20 rounded-xl shadow-lg text-base font-semibold text-white bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 transform hover:scale-[1.02] transition-all duration-300 hover:shadow-red-500/50"
+              className="w-full flex items-center justify-center px-4 py-4 border-2 border-[#3d3a37] rounded-xl shadow-lg text-base font-semibold text-white bg-[#3d3a37] hover:bg-[#4a4744] transform hover:scale-[1.02] transition-all duration-300 hover:shadow-lg"
             >
               <svg className="w-6 h-6 mr-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48px" height="48px">
                 <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24s8.955,20,20,20s20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/>
@@ -225,7 +225,7 @@ const LoginPage = () => {
                   setShowManualAuth(false);
                   setError("");
                 }}
-                className="flex items-center px-3 py-2 bg-gray-700/80 hover:bg-gray-600/80 text-gray-300 text-sm rounded-lg transition-colors duration-200"
+                className="flex items-center px-3 py-2 bg-[#3d3a37] hover:bg-[#4a4744] text-gray-300 text-sm rounded-lg transition-colors duration-200"
               >
                 <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -236,7 +236,7 @@ const LoginPage = () => {
               {/* Home Button */}
               <button
                 onClick={() => navigate('/')}
-                className="flex items-center px-3 py-2 bg-gray-700/80 hover:bg-gray-600/80 text-gray-300 text-sm rounded-lg transition-colors duration-200"
+                className="flex items-center px-3 py-2 bg-[#3d3a37] hover:bg-[#4a4744] text-gray-300 text-sm rounded-lg transition-colors duration-200"
               >
                 <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
@@ -247,7 +247,7 @@ const LoginPage = () => {
               {/* Play Computer Button */}
               <button
                 onClick={() => navigate('/play')}
-                className="flex items-center px-3 py-2 bg-orange-600/80 hover:bg-orange-500/80 text-white text-sm rounded-lg transition-colors duration-200"
+                className="flex items-center px-3 py-2 bg-[#81b64c]/80 hover:bg-[#a3d160]/80 text-white text-sm rounded-lg transition-colors duration-200"
               >
                 <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
@@ -264,7 +264,7 @@ const LoginPage = () => {
                 className={`flex-1 py-2.5 px-4 rounded-lg font-semibold transition-all duration-300 ${
                   isLogin
                     ? 'bg-accent text-white shadow-lg'
-                    : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700'
+                    : 'bg-[#262421] text-[#8b8987] hover:bg-[#3d3a37]'
                 }`}
               >
                 Login
@@ -274,7 +274,7 @@ const LoginPage = () => {
                 className={`flex-1 py-2.5 px-4 rounded-lg font-semibold transition-all duration-300 ${
                   !isLogin
                     ? 'bg-accent text-white shadow-lg'
-                    : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700'
+                    : 'bg-[#262421] text-[#8b8987] hover:bg-[#3d3a37]'
                 }`}
               >
                 Register
@@ -292,7 +292,7 @@ const LoginPage = () => {
                     onChange={(e) => setName(e.target.value)}
                     required
                     disabled={isLoading}
-                    className="w-full px-4 py-3 bg-gray-700/50 border-2 border-gray-600 rounded-lg focus:ring-primary-500 focus:border-primary-500 transition-all duration-300 text-white placeholder-gray-400"
+                    className="w-full px-4 py-3 bg-[#262421] border-2 border-[#3d3a37] rounded-lg focus:ring-primary-500 focus:border-primary-500 transition-all duration-300 text-white placeholder-gray-400"
                   />
                 </div>
               )}
@@ -308,7 +308,7 @@ const LoginPage = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   disabled={isLoading}
-                  className="w-full pl-10 pr-4 py-3 bg-gray-700/50 border-2 border-gray-600 rounded-lg focus:ring-primary-500 focus:border-primary-500 transition-all duration-300 text-white placeholder-gray-400"
+                  className="w-full pl-10 pr-4 py-3 bg-[#262421] border-2 border-[#3d3a37] rounded-lg focus:ring-primary-500 focus:border-primary-500 transition-all duration-300 text-white placeholder-gray-400"
                 />
               </div>
 
@@ -323,7 +323,7 @@ const LoginPage = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   disabled={isLoading}
-                  className="w-full pl-10 pr-12 py-3 bg-gray-700/50 border-2 border-gray-600 rounded-lg focus:ring-primary-500 focus:border-primary-500 transition-all duration-300 text-white placeholder-gray-400"
+                  className="w-full pl-10 pr-12 py-3 bg-[#262421] border-2 border-[#3d3a37] rounded-lg focus:ring-primary-500 focus:border-primary-500 transition-all duration-300 text-white placeholder-gray-400"
                 />
                 <button
                   type="button"
@@ -346,7 +346,7 @@ const LoginPage = () => {
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     required
                     disabled={isLoading}
-                    className="w-full pl-10 pr-4 py-3 bg-gray-700/50 border-2 border-gray-600 rounded-lg focus:ring-primary-500 focus:border-primary-500 transition-all duration-300 text-white placeholder-gray-400"
+                    className="w-full pl-10 pr-4 py-3 bg-[#262421] border-2 border-[#3d3a37] rounded-lg focus:ring-primary-500 focus:border-primary-500 transition-all duration-300 text-white placeholder-gray-400"
                   />
                 </div>
               )}

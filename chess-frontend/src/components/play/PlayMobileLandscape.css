@@ -179,8 +179,8 @@
     overflow-y: auto !important;
     overflow-x: hidden !important;
     padding: 0.5rem !important;
-    background: rgba(0, 0, 0, 0.8) !important;
-    border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+    background: #1a1a18 !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
     border-radius: 8px !important;
     flex-shrink: 0 !important;
     order: 1 !important;
@@ -311,7 +311,7 @@
     position: fixed;
     top: 5px;
     right: 5px;
-    background: rgba(34, 197, 94, 0.9);
+    background: rgba(129, 182, 76, 0.9);
     color: white;
     padding: 4px 8px;
     border-radius: 4px;

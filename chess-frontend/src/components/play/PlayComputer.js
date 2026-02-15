@@ -1784,13 +1784,13 @@ const PlayComputer = () => {
     <>
       {/* Game Mode Selection */}
       {gameMode === null && (
-        <div className="pre-game-setup bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-6 text-center">
-          <h2 className="text-3xl font-bold mb-6 text-vivid-yellow">Choose Your Game Mode</h2>
+        <div className="pre-game-setup bg-surface-card backdrop-blur-lg rounded-2xl border border-white/10 p-6 text-center">
+          <h2 className="text-3xl font-bold mb-6 text-gold">Choose Your Game Mode</h2>
           <div className="flex flex-col gap-4">
-            <button className="start-button large green bg-ufo-green hover:bg-vivid-yellow text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300" onClick={() => setGameMode('computer')}>
+            <button className="start-button large green bg-chess-green hover:bg-chess-hover text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300" onClick={() => setGameMode('computer')}>
               Play Against Computer
             </button>
-            <button className="start-button large blue bg-blue-500 hover:bg-blue-400 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300" onClick={() => navigate('/lobby')}>
+            <button className="start-button large blue bg-gold hover:bg-gold-hover text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300" onClick={() => navigate('/lobby')}>
               Play Against a Friend
             </button>
           </div>
@@ -1799,8 +1799,8 @@ const PlayComputer = () => {
 
       {/* Difficulty and Color Selection */}
       {gameMode === 'computer' && (
-        <div className="pre-game-setup bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-6 text-center">
-          <h2 className="text-3xl font-bold mb-2 text-vivid-yellow">Play Against Computer</h2>
+        <div className="pre-game-setup bg-surface-card backdrop-blur-lg rounded-2xl border border-white/10 p-6 text-center">
+          <h2 className="text-3xl font-bold mb-2 text-gold">Play Against Computer</h2>
 
           {/* Game Mode Selector */}
           <div className="mode-selection mb-4">
@@ -1829,14 +1829,14 @@ const PlayComputer = () => {
                   checked={playerColor === 'b'}
                   onChange={handleColorToggle}
                   disabled={countdownActive} />
-                <div className="w-14 h-8 bg-gray-600 rounded-full"></div>
+                <div className="w-14 h-8 bg-surface-elevated rounded-full"></div>
                 <div className={`dot absolute top-1 bg-white w-6 h-6 rounded-full transition ${playerColor === 'b' ? 'left-7' : 'left-1'}`}></div>
               </div>
               <span className="ml-3">Black</span>
             </label>
           </div>
           {!countdownActive && (
-            <button className="start-button large green bg-ufo-green hover:bg-vivid-yellow text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300" onClick={startGame} disabled={countdownActive}>
+            <button className="start-button large green bg-chess-green hover:bg-chess-hover text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300" onClick={startGame} disabled={countdownActive}>
               Start Game
             </button>
           )}
@@ -2154,13 +2154,13 @@ const PlayComputer = () => {
           >
             <div
               style={{
-                backgroundColor: '#1f2937',
+                backgroundColor: '#312e2b',
                 borderRadius: '16px',
                 padding: '32px',
                 maxWidth: '500px',
                 width: '100%',
                 boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
-                border: '2px solid #f59e0b'
+                border: '2px solid #e8a93e'
               }}
             >
               {/* Warning Icon */}
@@ -2173,7 +2173,7 @@ const PlayComputer = () => {
                   width: '80px',
                   height: '80px',
                   borderRadius: '50%',
-                  backgroundColor: '#fef3c7',
+                  backgroundColor: '#3d3a37',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -2185,7 +2185,7 @@ const PlayComputer = () => {
 
               {/* Title */}
               <h2 style={{
-                color: '#f59e0b',
+                color: '#e8a93e',
                 fontSize: '28px',
                 fontWeight: 'bold',
                 textAlign: 'center',
@@ -2196,14 +2196,14 @@ const PlayComputer = () => {
 
               {/* Warning Message */}
               <div style={{
-                backgroundColor: '#fef3c7',
-                borderLeft: '4px solid #f59e0b',
+                backgroundColor: '#3d3a37',
+                borderLeft: '4px solid #e8a93e',
                 padding: '16px',
                 borderRadius: '8px',
                 marginBottom: '24px'
               }}>
                 <p style={{
-                  color: '#92400e',
+                  color: '#e8a93e',
                   fontSize: '16px',
                   fontWeight: '600',
                   marginBottom: '12px'
@@ -2211,7 +2211,7 @@ const PlayComputer = () => {
                   If you leave this rated game now:
                 </p>
                 <ul style={{
-                  color: '#78350f',
+                  color: '#bababa',
                   fontSize: '14px',
                   paddingLeft: '20px',
                   margin: 0
@@ -2239,18 +2239,18 @@ const PlayComputer = () => {
                     fontWeight: '600',
                     borderRadius: '8px',
                     border: 'none',
-                    backgroundColor: '#059669',
+                    backgroundColor: '#81b64c',
                     color: 'white',
                     cursor: 'pointer',
                     transition: 'all 0.2s',
-                    boxShadow: '0 4px 12px rgba(5, 150, 105, 0.3)'
+                    boxShadow: '0 4px 12px rgba(129, 182, 76, 0.3)'
                   }}
                   onMouseEnter={(e) => {
-                    e.target.style.backgroundColor = '#047857';
+                    e.target.style.backgroundColor = '#4e7837';
                     e.target.style.transform = 'translateY(-2px)';
                   }}
                   onMouseLeave={(e) => {
-                    e.target.style.backgroundColor = '#059669';
+                    e.target.style.backgroundColor = '#81b64c';
                     e.target.style.transform = 'translateY(0)';
                   }}
                 >
@@ -2267,18 +2267,18 @@ const PlayComputer = () => {
                     fontWeight: '600',
                     borderRadius: '8px',
                     border: 'none',
-                    backgroundColor: '#dc2626',
+                    backgroundColor: '#e74c3c',
                     color: 'white',
                     cursor: 'pointer',
                     transition: 'all 0.2s',
-                    boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)'
+                    boxShadow: '0 4px 12px rgba(231, 76, 60, 0.3)'
                   }}
                   onMouseEnter={(e) => {
-                    e.target.style.backgroundColor = '#b91c1c';
+                    e.target.style.backgroundColor = '#fa6a5b';
                     e.target.style.transform = 'translateY(-2px)';
                   }}
                   onMouseLeave={(e) => {
-                    e.target.style.backgroundColor = '#dc2626';
+                    e.target.style.backgroundColor = '#e74c3c';
                     e.target.style.transform = 'translateY(0)';
                   }}
                 >
@@ -2355,13 +2355,13 @@ const PlayComputer = () => {
 
         {/* Pre-Game Setup Screen */}
         {!gameStarted && !isReplayMode && !isOnlineGame && gameMode === null && (
-          <div className="pre-game-setup bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-6 text-center">
-            <h2 className="text-3xl font-bold mb-6 text-vivid-yellow">Choose Your Game Mode</h2>
+          <div className="pre-game-setup bg-surface-card backdrop-blur-lg rounded-2xl border border-white/10 p-6 text-center">
+            <h2 className="text-3xl font-bold mb-6 text-gold">Choose Your Game Mode</h2>
             <div className="flex flex-col gap-4">
-              <button className="start-button large green bg-ufo-green hover:bg-vivid-yellow text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300" onClick={() => setGameMode('computer')}>
+              <button className="start-button large green bg-chess-green hover:bg-chess-hover text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300" onClick={() => setGameMode('computer')}>
                 Play Against Computer
               </button>
-              <button className="start-button large blue bg-blue-500 hover:bg-blue-400 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300" onClick={() => navigate('/lobby')}>
+              <button className="start-button large blue bg-gold hover:bg-gold-hover text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300" onClick={() => navigate('/lobby')}>
                 Play Against a Friend
               </button>
             </div>
@@ -2370,7 +2370,7 @@ const PlayComputer = () => {
 
         {/* Pre-Game Setup Screen */}
         {!gameStarted && !isReplayMode && !isOnlineGame && gameMode === 'computer' && (
-          <div className="pre-game-setup bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-6 text-center">
+          <div className="pre-game-setup bg-surface-card backdrop-blur-lg rounded-2xl border border-white/10 p-6 text-center">
 
             {/* Game Mode Selector */}
             <div className="mode-selection mb-4">
@@ -2399,14 +2399,14 @@ const PlayComputer = () => {
                     checked={playerColor === 'b'}
                     onChange={handleColorToggle} // Stable callback
                     disabled={countdownActive} />
-                  <div className="w-14 h-8 bg-gray-600 rounded-full"></div>
+                  <div className="w-14 h-8 bg-surface-elevated rounded-full"></div>
                   <div className={`dot absolute top-1 bg-white w-6 h-6 rounded-full transition ${playerColor === 'b' ? 'left-7' : 'left-1'}`}></div>
                 </div>
                 <span className="ml-3">Black</span>
               </label>
             </div>
             {!countdownActive && (
-              <button className="start-button large green bg-ufo-green hover:bg-vivid-yellow text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300" onClick={startGame} disabled={countdownActive}>
+              <button className="start-button large green bg-chess-green hover:bg-chess-hover text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300" onClick={startGame} disabled={countdownActive}>
                 Start Game
               </button>
             )}

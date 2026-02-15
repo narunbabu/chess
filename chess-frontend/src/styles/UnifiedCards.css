@@ -3,23 +3,15 @@
    Used across Dashboard, Lobby, and all pages
    ========================================= */
 
-/* CSS Variables for brand palette */
-:root{
-  --brand: #0284c7;   /* sky-600 */
-  --brand-2: #0ea5e9; /* sky-500 */
-  --accent: #f59e0b;  /* amber-500 */
-  --success:#10b981;  /* emerald-500 */
-  --ink: #1f2937;     /* slate-800 */
-}
+/* Palette inherited from design-tokens.css + index.css :root */
 
 /* Base Card Container */
 .unified-card {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
+  background: #312e2b;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid #3d3a37;
   padding: 1.25rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
   transition: all 0.3s ease;
   overflow: hidden;
   display: flex;
@@ -29,22 +21,22 @@
 
 /* Light theme variant for cards on white/gray backgrounds */
 .unified-card.light-theme {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  background: #3d3a37;
+  border: 1px solid #4a4744;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
   transition: all 0.2s ease-in-out;
 }
 
 .unified-card.light-theme:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 16px rgba(0,0,0,0.1);
-  border-color: #d1d5db;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+  border-color: #5c5a57;
 }
 
 .unified-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
-  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  border-color: #4a4744;
 }
 
 /* Card with horizontal layout (avatar + content + action) */
@@ -59,7 +51,7 @@
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  border: 2px solid rgba(114, 137, 218, 0.5);
+  border: 2px solid rgba(129, 182, 76, 0.5);
   flex-shrink: 0;
   object-fit: cover;
   display: flex;
@@ -71,8 +63,8 @@
 /* Light theme avatar styling */
 .unified-card.light-theme .unified-card-avatar {
   border: none;
-  background: #f0f2f5;
-  color: #4b5563;
+  background: #4a4744;
+  color: #bababa;
 }
 
 /* Stat card variant */
@@ -110,16 +102,16 @@
 
 .unified-card.stat .unified-card-avatar{
   width:72px; height:72px; margin:0;
-  background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+  background: linear-gradient(135deg, #3d3a37, #4a4744);
   color: var(--brand);
   font-size: 1.75rem;
-  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.15);
+  box-shadow: 0 4px 12px rgba(129, 182, 76, 0.15);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .unified-card.stat:hover .unified-card-avatar {
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(2, 132, 199, 0.25);
+  box-shadow: 0 8px 20px rgba(129, 182, 76, 0.25);
 }
 
 .unified-card.stat .unified-card-title{
@@ -135,7 +127,7 @@
   font-size:0.875rem;
   text-transform:uppercase;
   letter-spacing:0.1em;
-  color: #64748b;
+  color: #8b8987;
   font-weight: 600;
   margin: 0;
 }
@@ -148,7 +140,7 @@
 /* Accent card variant */
 .unified-card.accented {
   border-top-width: 4px;
-  border-top-color: var(--brand, #0284c7);
+  border-top-color: var(--brand, #81b64c);
   position: relative;
   overflow: hidden;
 }
@@ -160,7 +152,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, rgba(2, 132, 199, 0.02) 0%, rgba(14, 165, 233, 0.01) 100%);
+  background: linear-gradient(135deg, rgba(129, 182, 76, 0.03) 0%, rgba(118, 150, 86, 0.02) 100%);
   opacity: 0;
   transition: opacity 0.3s ease;
   pointer-events: none;
@@ -173,44 +165,44 @@
 .unified-card.light-theme.accented .unified-card-avatar {
   background: linear-gradient(135deg, var(--brand), var(--brand-2));
   color: white;
-  box-shadow: 0 4px 16px rgba(2, 132, 199, 0.25);
+  box-shadow: 0 4px 16px rgba(129, 182, 76, 0.25);
   transition: all 0.3s ease;
 }
 
 .unified-card.light-theme.accented:hover .unified-card-avatar {
   transform: translateY(-4px) scale(1.05);
-  box-shadow: 0 8px 24px rgba(2, 132, 199, 0.35);
+  box-shadow: 0 8px 24px rgba(129, 182, 76, 0.35);
 }
 
 .unified-card.light-theme.accented:hover {
   transform: translateY(-8px) scale(1.02);
-  box-shadow: 0 20px 40px rgba(0,0,0,0.12);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
   border-top-color: var(--brand-2);
 }
 
 .unified-card-avatar.bg-blue {
-  background-color: #e0e7ff;
-  color: #3730a3;
+  background-color: rgba(74, 144, 217, 0.2);
+  color: #6aabef;
 }
 
 .unified-card-avatar.bg-green {
-  background-color: #d1fae5;
-  color: #047857;
+  background-color: rgba(129, 182, 76, 0.2);
+  color: #81b64c;
 }
 
 .unified-card-avatar.bg-orange {
-  background-color: #ffedd5;
-  color: #9a3412;
+  background-color: rgba(232, 169, 62, 0.2);
+  color: #e8a93e;
 }
 
 .unified-card-avatar.bg-purple {
-  background-color: #f3e8ff;
-  color: #6b21a8;
+  background-color: rgba(139, 92, 246, 0.2);
+  color: #a78bfa;
 }
 
 .unified-card-avatar.bg-pink {
-  background-color: #fce7f3;
-  color: #9d174d;
+  background-color: rgba(236, 72, 153, 0.2);
+  color: #f472b6;
 }
 
 .unified-card.horizontal .unified-card-avatar {
@@ -250,14 +242,14 @@
 /* Light theme text colors */
 .unified-card.light-theme .unified-card-title,
 .unified-card.light-theme h4.unified-card-title {
-  color: #1f2937;
+  color: #ffffff;
   font-size: 1.75rem;
   font-weight: 700;
   margin: 0;
 }
 
 .unified-card.light-theme .unified-card-subtitle {
-  color: #4b5563;
+  color: #bababa;
   font-size: 0.875rem;
 }
 
@@ -307,15 +299,15 @@
 }
 
 .unified-card-btn.primary {
-  background: linear-gradient(135deg, var(--brand), var(--brand-2));
+  background: #81b64c;
   color: white;
-  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3);
+  box-shadow: 0 2px 8px rgba(129, 182, 76, 0.3);
 }
 
 .unified-card-btn.primary:hover {
-  background: linear-gradient(135deg, var(--brand-2), #0284c7);
+  background: #a3d160;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4);
+  box-shadow: 0 4px 12px rgba(129, 182, 76, 0.4);
 }
 
 .unified-card-btn.secondary {
@@ -492,7 +484,7 @@
 .unified-section-header {
   font-size: 1.5rem;
   font-weight: 700;
-  color: #7289da;
+  color: #81b64c;
   margin-bottom: 1rem;
   display: flex;
   align-items: center;
@@ -557,8 +549,8 @@
 
 /* Gradient Card Backgrounds */
 .unified-card.gradient-primary {
-  background: linear-gradient(135deg, #7289da, #5f73bc);
-  border-color: rgba(114, 137, 218, 0.4);
+  background: linear-gradient(135deg, #4e7837, #81b64c);
+  border-color: rgba(129, 182, 76, 0.4);
 }
 
 .unified-card.gradient-accent {
@@ -573,7 +565,7 @@
 
 /* Title Color Utilities */
 .title-primary {
-  color: #7289da !important;
+  color: #81b64c !important;
 }
 
 .title-success {
@@ -597,68 +589,6 @@
   font-size: 2rem !important;
 }
 
-/* Hero Section Fix for Landing Page */
-.hero-section {
-  margin-top: -30px; /* Negative margin to compensate for fixed header height */
-  padding-top: 16px; /* Padding to push content below header */
-  min-height: calc(100vh - 64px); /* Ensure proper height accounting for header */
-}
-
-/* Ensure background image extends to header */
-.hero-bg-image {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center top;
-}
-
-/* Hero content container with reduced gap */
-.hero-content-container {
-  padding-top: 0.5rem; /* Further reduced to minimize gap */
-  padding-bottom: 2rem;
-  min-height: calc(100vh - 64px); /* Full viewport height minus header */
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-}
-
-@media (min-width: 640px) {
-  .hero-content-container {
-    padding-top: 2.5rem;
-  }
-}
-
-@media (min-width: 1024px) {
-  .hero-content-container {
-    padding-top: 3rem;
-  }
-}
-
-/* Ensure consistency across browsers and environments */
-.hero-section * {
-  box-sizing: border-box;
-}
-
-/* Fix for server vs local inconsistencies */
-.hero-section {
-  -webkit-box-sizing: border-box;
-  -moz-box-sizing: border-box;
-  box-sizing: border-box;
-}
-
-/* Remove any default margins that might cause gaps */
-.hero-section h1, .hero-section h2, .hero-section h3 {
-  margin-top: 0;
-}
-
-/* Ensure proper positioning relative to fixed header */
-html, body {
-  scroll-behavior: smooth;
-}
 
 /* Remove any potential body padding/margin issues */
 body {

@@ -20,7 +20,7 @@
 
 .header-left h2 {
   margin: 0;
-  color: #2d3748;
+  color: #ffffff;
 }
 
 .header-actions {
@@ -38,16 +38,17 @@
 
 .filter-select {
   padding: 0.5rem;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #4a4744;
   border-radius: 0.375rem;
-  background: white;
+  background: #262421;
+  color: #bababa;
   min-width: 150px;
 }
 
 .filter-select:focus {
   outline: none;
-  border-color: #4299e1;
-  box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+  border-color: #81b64c;
+  box-shadow: 0 0 0 3px rgba(129, 182, 76, 0.1);
 }
 
 .round-section {
@@ -57,38 +58,38 @@
 .round-title {
   font-size: 1.25rem;
   font-weight: 600;
-  color: #2d3748;
+  color: #ffffff;
   margin-bottom: 1rem;
   padding-bottom: 0.5rem;
-  border-bottom: 2px solid #e2e8f0;
+  border-bottom: 2px solid #3d3a37;
 }
 
 .matches-table {
-  background: white;
-  border: 1px solid #e2e8f0;
+  background: #312e2b;
+  border: 1px solid #3d3a37;
   border-radius: 0.5rem;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .matches-header-row {
   display: grid;
   grid-template-columns: 1fr auto 1fr auto auto auto auto auto;
-  background-color: #f7fafc;
-  border-bottom: 1px solid #e2e8f0;
+  background-color: #262421;
+  border-bottom: 1px solid #3d3a37;
   font-weight: 600;
-  color: #2d3748;
+  color: #ffffff;
 }
 
 .match-row {
   display: grid;
   grid-template-columns: 1fr auto 1fr auto auto auto auto auto;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid #3d3a37;
   transition: background-color 0.2s ease;
 }
 
 .match-row:hover {
-  background-color: #f7fafc;
+  background-color: #3d3a37;
 }
 
 .match-row:last-child {
@@ -99,7 +100,7 @@
   padding: 0.75rem;
   display: flex;
   align-items: center;
-  border-right: 1px solid #e2e8f0;
+  border-right: 1px solid #3d3a37;
   min-width: 0;
 }
 
@@ -108,10 +109,10 @@
 }
 
 .header-cell {
-  background-color: #f7fafc;
+  background-color: #262421;
   font-weight: 600;
   font-size: 0.875rem;
-  color: #2d3748;
+  color: #ffffff;
 }
 
 .white-player {
@@ -121,7 +122,7 @@
 .vs-cell {
   justify-content: center;
   font-weight: 600;
-  color: #718096;
+  color: #8b8987;
   font-size: 0.875rem;
   min-width: 40px;
 }
@@ -141,26 +142,26 @@
 
 .player-name {
   font-weight: 500;
-  color: #2d3748;
+  color: #ffffff;
   line-height: 1.2;
   word-break: break-word;
 }
 
 .player-name.current-user {
-  color: #4299e1;
+  color: #81b64c;
   font-weight: 600;
 }
 
 .you-indicator {
   font-size: 0.75rem;
-  color: #4299e1;
+  color: #81b64c;
   font-weight: 500;
   margin-left: 0.25rem;
 }
 
 .player-rating {
   font-size: 0.75rem;
-  color: #718096;
+  color: #8b8987;
   margin-top: 0.25rem;
 }
 
@@ -175,34 +176,34 @@
 }
 
 .match-status.scheduled {
-  background-color: #bee3f8;
-  color: #2c5282;
+  background-color: rgba(129, 182, 76, 0.15);
+  color: #81b64c;
 }
 
 .match-status.active {
-  background-color: #fbd38d;
-  color: #975a16;
+  background-color: rgba(232, 169, 62, 0.15);
+  color: #e8a93e;
 }
 
 .match-status.completed {
-  background-color: #c6f6d5;
-  color: #276749;
+  background-color: rgba(16, 185, 129, 0.15);
+  color: #10b981;
 }
 
 .match-status.expired {
-  background-color: #fed7d7;
-  color: #c53030;
+  background-color: rgba(231, 76, 60, 0.15);
+  color: #fa6a5b;
 }
 
 .scheduled-cell {
   font-size: 0.8rem;
-  color: #4a5568;
+  color: #8b8987;
   white-space: nowrap;
 }
 
 .result-cell {
   font-weight: 500;
-  color: #2d3748;
+  color: #ffffff;
 }
 
 .btn-small {
@@ -214,11 +215,11 @@
 .empty-state {
   text-align: center;
   padding: 3rem 1rem;
-  color: #718096;
+  color: #8b8987;
 }
 
 .empty-state h3 {
-  color: #4a5568;
+  color: #bababa;
   margin-bottom: 0.5rem;
 }
 
@@ -235,8 +236,8 @@
 .loading-state .spinner {
   width: 2rem;
   height: 2rem;
-  border: 2px solid #e2e8f0;
-  border-top: 2px solid #4299e1;
+  border: 2px solid #3d3a37;
+  border-top: 2px solid #81b64c;
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 1rem;
@@ -248,7 +249,7 @@
 }
 
 .error-state p {
-  color: #e53e3e;
+  color: #fa6a5b;
   margin-bottom: 1rem;
 }
 
@@ -276,7 +277,7 @@
 
   .match-cell {
     border-right: none;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid #3d3a37;
     padding: 0.5rem;
   }
 
@@ -295,7 +296,7 @@
   .match-cell::before {
     content: attr(data-label);
     font-weight: 600;
-    color: #2d3748;
+    color: #ffffff;
     margin-right: 0.5rem;
     min-width: 80px;
   }
