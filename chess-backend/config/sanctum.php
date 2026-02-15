@@ -46,7 +46,7 @@ return [
     |
     */
 
-    'expiration' => null,
+    'expiration' => env('SANCTUM_TOKEN_EXPIRATION', null), // Mobile tokens: set to 43200 (30 days in minutes) via env
 
     /*
     |--------------------------------------------------------------------------

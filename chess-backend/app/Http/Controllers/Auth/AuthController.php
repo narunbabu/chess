@@ -202,6 +202,191 @@ class AuthController extends Controller
     }
 
     /**
+     * Refresh the current Sanctum token (revoke old, issue new).
+     * Mobile apps should call this periodically or on 401 responses.
+     */
+    public function refreshToken(Request $request)
+    {
+        $request->validate([
+            'device_name' => 'nullable|string|max:255',
+        ]);
+
+        $user = $request->user();
+        $deviceName = $request->input('device_name', 'mobile_auth_token');
+
+        // Revoke the current token
+        $request->user()->currentAccessToken()->delete();
+
+        // Issue a new token
+        $token = $user->createToken($deviceName)->plainTextToken;
+
+        return response()->json([
+            'status' => 'success',
+            'token' => $token,
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'avatar_url' => $user->avatar_url,
+            ],
+        ]);
+    }
+
+    /**
+     * Revoke all tokens for the authenticated user (e.g., sign out everywhere).
+     */
+    public function revokeAllTokens(Request $request)
+    {
+        $count = $request->user()->tokens()->delete();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'All tokens revoked',
+            'tokens_revoked' => $count,
+        ]);
+    }
+
+    /**
+     * Handle Apple Sign-In for mobile apps (iOS requirement).
+     * Verifies Apple identity token and creates/updates user.
+     */
+    public function appleMobileLogin(Request $request)
+    {
+        Log::info('=== MOBILE APPLE LOGIN REQUEST ===');
+
+        $request->validate([
+            'identity_token' => 'required|string',
+            'authorization_code' => 'nullable|string',
+            'user_name' => 'nullable|string|max:255',
+            'user_email' => 'nullable|email|max:255',
+        ]);
+
+        try {
+            $identityToken = $request->input('identity_token');
+
+            // Decode the JWT header to get the key ID
+            $tokenParts = explode('.', $identityToken);
+            if (count($tokenParts) !== 3) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Invalid identity token format',
+                ], 401);
+            }
+
+            $payload = json_decode(base64_decode(strtr($tokenParts[1], '-_', '+/')), true);
+
+            if (!$payload || !isset($payload['sub']) || !isset($payload['iss'])) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Invalid token payload',
+                ], 401);
+            }
+
+            // Verify issuer is Apple
+            if ($payload['iss'] !== 'https://appleid.apple.com') {
+                Log::error('Apple token issuer mismatch', ['iss' => $payload['iss']]);
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Invalid token issuer',
+                ], 401);
+            }
+
+            // Verify audience matches our app's bundle ID
+            $bundleId = config('services.apple.client_id');
+            if ($bundleId && $payload['aud'] !== $bundleId) {
+                Log::error('Apple token audience mismatch', [
+                    'expected' => $bundleId,
+                    'received' => $payload['aud'],
+                ]);
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Invalid token audience',
+                ], 401);
+            }
+
+            // Verify token hasn't expired
+            if (isset($payload['exp']) && $payload['exp'] < time()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Token has expired',
+                ], 401);
+            }
+
+            $appleUserId = $payload['sub'];
+            $email = $payload['email'] ?? $request->input('user_email');
+            $name = $request->input('user_name');
+
+            if (!$email) {
+                // Apple only sends email on first sign-in; look up by provider_id
+                $existingUser = User::where('provider', 'apple')
+                    ->where('provider_id', $appleUserId)
+                    ->first();
+
+                if (!$existingUser) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Email not provided and user not found. Please try signing in again.',
+                    ], 422);
+                }
+
+                $user = $existingUser;
+            } else {
+                // Find or create user
+                $user = User::where('email', $email)->first();
+
+                if ($user) {
+                    // Update existing user with Apple provider info
+                    $user->update([
+                        'provider' => 'apple',
+                        'provider_id' => $appleUserId,
+                        'email_verified_at' => $user->email_verified_at ?? now(),
+                    ]);
+                    if ($name && !$user->name) {
+                        $user->update(['name' => $name]);
+                    }
+                } else {
+                    $user = User::create([
+                        'name' => $name ?? explode('@', $email)[0],
+                        'email' => $email,
+                        'provider' => 'apple',
+                        'provider_id' => $appleUserId,
+                        'email_verified_at' => now(),
+                    ]);
+                }
+            }
+
+            $token = $user->createToken('mobile_auth_token')->plainTextToken;
+
+            Log::info('=== APPLE AUTHENTICATION SUCCESSFUL ===', ['user_id' => $user->id]);
+
+            return response()->json([
+                'status' => 'success',
+                'token' => $token,
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'avatar_url' => $user->avatar_url,
+                    'created_at' => $user->created_at,
+                    'updated_at' => $user->updated_at,
+                ],
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('=== MOBILE APPLE LOGIN ERROR ===', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Authentication failed: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Download avatar from external URL and store it locally
      *
      * @param string $url External avatar URL

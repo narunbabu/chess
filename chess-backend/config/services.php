@@ -46,6 +46,19 @@ return [
         ],
     ],
 
+    'apple' => [
+        'client_id' => env('APPLE_CLIENT_ID'), // iOS app bundle ID (e.g., com.chess99.app)
+        'team_id' => env('APPLE_TEAM_ID'),
+        'key_id' => env('APPLE_KEY_ID'),
+        'private_key' => env('APPLE_PRIVATE_KEY'),
+    ],
+
+    'fcm' => [
+        'project_id' => env('FCM_PROJECT_ID'),
+        'server_key' => env('FCM_SERVER_KEY'),
+        'credentials_file' => env('FCM_CREDENTIALS_FILE'), // Path to service account JSON
+    ],
+
     'razorpay' => [
         'key_id' => env('RAZORPAY_KEY_ID'),
         'key_secret' => env('RAZORPAY_KEY_SECRET'),

@@ -12,7 +12,7 @@
     @endif
 
     <div style="text-align: center; margin: 24px 0;">
-        <a href="{{ config('app.frontend_url', config('app.url')) }}" class="btn">Play Now</a>
+        <a href="{{ config('app.frontend_url') }}" class="btn">Play Now</a>
     </div>
 
     <hr class="divider">

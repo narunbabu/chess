@@ -28,6 +28,6 @@
     @endif
 
     <div style="text-align: center; margin: 24px 0;">
-        <a href="{{ config('app.frontend_url', config('app.url')) }}/championships/{{ $tournament->id }}" class="btn">Register Now</a>
+        <a href="{{ config('app.frontend_url') }}/championships/{{ $tournament->id }}" class="btn">Register Now</a>
     </div>
 @endsection

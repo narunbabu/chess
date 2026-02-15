@@ -7,6 +7,7 @@ import ChessBoard from '../play/ChessBoard';
 import EnhancedInteractiveLesson from './EnhancedInteractiveLesson';
 import DOMPurify from 'dompurify';
 import ErrorBoundary from './ErrorBoundary';
+import PuzzlePlayer from './PuzzlePlayer';
 
 const LessonPlayer = () => {
   const { lessonId } = useParams();
@@ -21,10 +22,6 @@ const LessonPlayer = () => {
   const [completed, setCompleted] = useState(false);
   const [score, setScore] = useState(0);
   const [attempts, setAttempts] = useState(0);
-  const [showHint, setShowHint] = useState(false);
-  const [currentHint, setCurrentHint] = useState('');
-  const [solution, setSolution] = useState([]);
-  const [puzzlePosition, setPuzzlePosition] = useState('');
   const [playerColor, setPlayerColor] = useState('white');
   const [chessGame, setChessGame] = useState(null);
   const [quizAnswers, setQuizAnswers] = useState({}); // Track quiz answers: {questionIndex: selectedOptionIndex}
@@ -97,29 +94,6 @@ const LessonPlayer = () => {
       return;
     }
 
-    if (lesson.lesson_type === 'puzzle') {
-      const puzzles = lesson.content_data?.puzzles || [];
-      const currentPuzzle = puzzles[currentStep];
-
-      if (currentPuzzle) {
-        setPuzzlePosition(currentPuzzle.fen);
-        setSolution(currentPuzzle.solution || []);
-        setCurrentHint('');
-        setShowHint(false);
-
-        // Create Chess instance for puzzle
-        try {
-          const game = new Chess(currentPuzzle.fen);
-          setChessGame(game);
-        } catch (error) {
-          console.error('❌ Invalid FEN in puzzle:', error, 'FEN:', currentPuzzle.fen);
-          // Fall back to default starting position if FEN is invalid
-          console.log('🔄 Using default chess position due to invalid FEN');
-          setChessGame(new Chess());
-        }
-      }
-    }
-
     if (lesson.lesson_type === 'practice_game') {
       // Create new game for practice
       const game = new Chess();
@@ -167,7 +141,6 @@ const LessonPlayer = () => {
       completeLesson();
     } else {
       setCurrentStep(prev => prev + 1);
-      setShowHint(false);
       setQuizAnswers({}); // Reset quiz answers when moving to next step
     }
   };
@@ -175,7 +148,6 @@ const LessonPlayer = () => {
   const moveToPreviousStep = () => {
     if (currentStep > 0) {
       setCurrentStep(prev => prev - 1);
-      setShowHint(false);
       setQuizAnswers({}); // Reset quiz answers when moving to previous step
     }
   };
@@ -201,39 +173,8 @@ const LessonPlayer = () => {
       moveToNextStep();
     } else {
       setScore(prev => Math.max(0, prev - 10));
-      setShowHint(true);
     }
     setAttempts(prev => prev + 1);
-  };
-
-  const handleMove = (move) => {
-    if (lesson.lesson_type === 'puzzle') {
-      // Check if move matches solution
-      const currentSolution = solution[0];
-      console.log('🧩 Puzzle move attempted:', move, 'Expected:', currentSolution);
-
-      if (move === currentSolution) {
-        console.log('✅ Correct move!');
-        handlePuzzleSolve(true);
-      } else {
-        console.log('❌ Wrong move, showing hint');
-        handlePuzzleSolve(false);
-      }
-    }
-  };
-
-  const showHintHandler = () => {
-    if (lesson.lesson_type === 'puzzle') {
-      const puzzles = lesson.content_data?.puzzles || [];
-      const currentPuzzle = puzzles[currentStep];
-      const hints = currentPuzzle?.hints || [];
-
-      if (hints.length > 0) {
-        setCurrentHint(hints[0]);
-        setShowHint(true);
-        setScore(prev => Math.max(0, prev - 5)); // Small penalty for hints
-      }
-    }
   };
 
   const completeLesson = async () => {
@@ -532,141 +473,16 @@ const LessonPlayer = () => {
     );
   };
 
-  const renderPuzzle = () => {
-    const puzzles = lesson.content_data?.puzzles || [];
-    const currentPuzzle = puzzles[currentStep];
-
-    // Set the current puzzle reference for move validation
-    if (currentPuzzle && !currentPuzzle.fen) {
-      console.error('Invalid puzzle data:', currentPuzzle);
-      return null;
-    }
-
-    if (!currentPuzzle) return null;
-
-    return (
-      <div className="bg-white rounded-2xl p-8 shadow-xl border-2 border-blue-100">
-        <div className="mb-6 bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-xl border-2 border-purple-200">
-          <h3 className="text-2xl font-bold mb-3 text-gray-900">
-            🧩 Puzzle {currentStep + 1} of {puzzles.length}
-          </h3>
-          <p className="text-gray-800 font-semibold text-lg">{currentPuzzle.objective}</p>
-        </div>
-
-        <div className="mb-6 bg-gradient-to-br from-blue-50 to-purple-50 p-6 rounded-xl border-2 border-blue-200">
-          {chessGame && (
-            <div className="flex justify-center items-center">
-              <div style={{ width: '500px', height: '500px' }}>
-                <ChessBoard
-                  game={chessGame}
-                  boardOrientation={playerColor}
-                  playerColor={playerColor}
-                  isReplayMode={false}
-                  onDrop={(sourceSquare, targetSquare) => {
-                    // Format move as UCI notation (e.g., "e2e4")
-                    const move = `${sourceSquare}${targetSquare}`;
-
-                    // Try to make the move on the game object to validate it
-                    try {
-                      const moveResult = chessGame.move(move);
-                      if (moveResult) {
-                        // Move is valid, check if it matches solution
-                        handleMove(move);
-
-                        // If move is wrong, reset the position after a short delay
-                        setTimeout(() => {
-                          try {
-                            const newGame = new Chess(currentPuzzle.fen);
-                            setChessGame(newGame);
-                          } catch (error) {
-                            console.error('Error resetting puzzle:', error);
-                          }
-                        }, 1500);
-                      } else {
-                        console.log('Invalid move:', move);
-                        handleMove(move); // Let the puzzle handler show error
-                      }
-                    } catch (error) {
-                      console.error('Move error:', error);
-                    }
-
-                  return true;
-                }}
-                moveFrom=""
-                setMoveFrom={() => {}}
-                rightClickedSquares={{}}
-                setRightClickedSquares={() => {}}
-                moveSquares={{}}
-                setMoveSquares={() => {}}
-              />
-            </div>
-          </div>
-          )}
-        </div>
-
-        {showHint && currentHint && (
-          <div className="rounded-lg p-4 mb-4 border-2" style={{
-            background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
-            borderColor: 'var(--tutorial-warning)',
-            boxShadow: '0 4px 15px rgba(251, 191, 36, 0.3)'
-          }}>
-            <div className="flex items-start">
-              <span className="text-3xl mr-3">💡</span>
-              <div>
-                <div className="font-bold text-lg mb-1" style={{ color: 'var(--tutorial-warning-dark)' }}>Hint:</div>
-                <div className="font-medium" style={{ color: 'var(--tutorial-warning-dark)' }}>{currentHint}</div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Move feedback */}
-        {attempts > 0 && (
-          <div className="rounded-lg p-4 mb-4 border-2" style={{
-            background: score >= 90 ? 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)' :
-                       score >= 70 ? 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)' :
-                       'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)',
-            borderColor: score >= 90 ? '#10b981' : score >= 70 ? '#3b82f6' : '#ef4444',
-            boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)'
-          }}>
-            <div className="text-center">
-              <div className="font-bold text-lg mb-2" style={{
-                color: score >= 90 ? '#065f46' : score >= 70 ? '#1e3a8a' : '#991b1b'
-              }}>
-                {score >= 90 ? '🎯 Excellent!' : score >= 70 ? '👍 Good Try!' : '🎯 Keep Trying!'}
-              </div>
-              <div className="text-sm">
-                Attempts: {attempts} | Score: {Math.round(score)}%
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="flex space-x-4">
-          <button
-            onClick={showHintHandler}
-            className="px-6 py-3 text-white rounded-lg font-semibold transition-all hover:scale-105 hover:shadow-lg"
-            style={{
-              background: 'var(--tutorial-xp-gradient)',
-              boxShadow: '0 4px 15px rgba(251, 191, 36, 0.3)'
-            }}
-          >
-            💡 Show Hint (-5 XP)
-          </button>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-6 py-3 text-white rounded-lg font-semibold transition-all hover:scale-105 hover:shadow-lg"
-            style={{
-              background: 'linear-gradient(135deg, #64748b 0%, #475569 100%)',
-              boxShadow: '0 4px 15px rgba(100, 116, 139, 0.3)'
-            }}
-          >
-            🔄 Reset Position
-          </button>
-        </div>
-      </div>
-    );
-  };
+  const renderPuzzle = () => (
+    <PuzzlePlayer
+      puzzles={lesson.content_data?.puzzles || []}
+      currentStep={currentStep}
+      onSolved={handlePuzzleSolve}
+      onHintUsed={() => setScore(prev => Math.max(0, prev - 5))}
+      score={score}
+      attempts={attempts}
+    />
+  );
 
   const renderPracticeGame = () => {
     return (
