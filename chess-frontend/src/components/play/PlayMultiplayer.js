@@ -1179,26 +1179,24 @@ const PlayMultiplayer = () => {
       setGameHistory(event.history || []);
 
       // Update chess instance
-      if (chessInstance.current) {
-        chessInstance.current.load(event.fen);
-        setFen(event.fen);
-      }
+      const newGame = new Chess(event.fen);
+      setGame(newGame);
     } else {
       // Fallback: rollback locally
       setGameHistory(prev => {
         const newHistory = prev.slice(0, -2); // Remove last 2 moves
 
         // Update chess instance from history
-        if (chessInstance.current && newHistory.length > 0) {
+        if (newHistory.length > 0) {
           const lastMove = newHistory[newHistory.length - 1];
           if (lastMove?.fen) {
-            chessInstance.current.load(lastMove.fen);
-            setFen(lastMove.fen);
+            const restoredGame = new Chess(lastMove.fen);
+            setGame(restoredGame);
           }
-        } else if (chessInstance.current) {
+        } else {
           // Reset to initial position if no history
-          chessInstance.current.reset();
-          setFen(chessInstance.current.fen());
+          const freshGame = new Chess();
+          setGame(freshGame);
         }
 
         return newHistory;
