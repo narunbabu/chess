@@ -5,6 +5,7 @@ import { Chess } from 'chess.js';
 import { useAuth } from '../contexts/AuthContext';
 import { trackUI } from '../utils/analytics';
 import AuthGateModal from '../components/layout/AuthGateModal';
+import { pieces3dLanding } from '../assets/pieces/pieces3d';
 import logo from '../assets/images/logo.png';
 import chessPlayingKids from '../assets/images/chess-playing-kids-crop.jpeg';
 
@@ -79,9 +80,24 @@ const LandingPage = () => {
     setShowAuthGate(true);
   }, []);
 
-  // Memoize board styles
-  const darkSquareStyle = useMemo(() => ({ backgroundColor: '#769656' }), []);
-  const lightSquareStyle = useMemo(() => ({ backgroundColor: '#eeeed2' }), []);
+  // Responsive board size - smaller on mobile so it fits in viewport
+  const [boardSize, setBoardSize] = useState(() => {
+    const w = typeof window !== 'undefined' ? window.innerWidth : 400;
+    return w < 640 ? Math.min(260, w - 48) : 400;
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      const w = window.innerWidth;
+      setBoardSize(w < 640 ? Math.min(260, w - 48) : 400);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Dark oak wood board theme
+  const darkSquareStyle = useMemo(() => ({ backgroundColor: '#6B4226' }), []);
+  const lightSquareStyle = useMemo(() => ({ backgroundColor: '#C9A96E' }), []);
 
   return (
     <div data-page="landing" className="bg-[#1a1a18] w-full min-h-screen overflow-x-hidden flex flex-col">
@@ -105,7 +121,7 @@ const LandingPage = () => {
               <>
                 <button
                   onClick={() => navigate('/login')}
-                  className="text-[#bababa] px-3 py-1.5 text-sm font-medium hover:text-white transition-colors"
+                  className="text-[#bababa] bg-transparent border-0 px-3 py-1.5 text-sm font-medium hover:text-white transition-colors"
                 >
                   Log In
                 </button>
@@ -129,7 +145,7 @@ const LandingPage = () => {
             </button>
             <button
               onClick={() => setShowMobileMenu(!showMobileMenu)}
-              className="p-1.5 rounded hover:bg-[#3d3a37] transition-colors text-[#bababa]"
+              className="p-1.5 rounded bg-transparent border-0 hover:bg-[#3d3a37] transition-colors text-[#bababa]"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 {showMobileMenu ? (
@@ -150,13 +166,13 @@ const LandingPage = () => {
                 <>
                   <button
                     onClick={() => { navigate('/login'); setShowMobileMenu(false); }}
-                    className="text-left px-4 py-2.5 text-sm font-medium text-[#bababa] hover:text-white hover:bg-[#312e2b] rounded transition-colors"
+                    className="text-left px-4 py-2.5 text-sm font-medium text-[#bababa] bg-transparent border-0 hover:text-white hover:bg-[#312e2b] rounded transition-colors"
                   >
                     Log In
                   </button>
                   <button
                     onClick={() => { navigate('/signup'); setShowMobileMenu(false); }}
-                    className="text-left px-4 py-2.5 text-sm font-medium text-[#bababa] hover:text-white hover:bg-[#312e2b] rounded transition-colors"
+                    className="text-left px-4 py-2.5 text-sm font-medium text-[#bababa] bg-transparent border-0 hover:text-white hover:bg-[#312e2b] rounded transition-colors"
                   >
                     Sign Up
                   </button>
@@ -164,13 +180,13 @@ const LandingPage = () => {
               )}
               <button
                 onClick={() => { navigate('/login?resource=tutorial'); setShowMobileMenu(false); }}
-                className="text-left px-4 py-2.5 text-sm font-medium text-[#bababa] hover:text-white hover:bg-[#312e2b] rounded transition-colors"
+                className="text-left px-4 py-2.5 text-sm font-medium text-[#bababa] bg-transparent border-0 hover:text-white hover:bg-[#312e2b] rounded transition-colors"
               >
                 Learn Chess
               </button>
               <button
                 onClick={() => { navigate('/login?resource=tournaments'); setShowMobileMenu(false); }}
-                className="text-left px-4 py-2.5 text-sm font-medium text-[#bababa] hover:text-white hover:bg-[#312e2b] rounded transition-colors"
+                className="text-left px-4 py-2.5 text-sm font-medium text-[#bababa] bg-transparent border-0 hover:text-white hover:bg-[#312e2b] rounded transition-colors"
               >
                 Tournaments
               </button>
@@ -227,18 +243,26 @@ const LandingPage = () => {
 
               {/* Right: Animated Chessboard */}
               <div className="relative flex-shrink-0">
-                {/* Glow behind board */}
-                <div className="absolute -inset-4 bg-[#81b64c]/5 rounded-2xl blur-2xl" />
-                <div className="relative rounded-lg overflow-hidden shadow-2xl" style={{ width: 'min(400px, calc(100vw - 48px))', height: 'min(400px, calc(100vw - 48px))' }}>
+                {/* Warm glow behind board */}
+                <div className="absolute -inset-6 bg-[#C9A96E]/8 rounded-2xl blur-3xl" />
+                <div
+                  className="relative rounded-sm"
+                  style={{
+                    width: boardSize,
+                    height: boardSize,
+                    boxShadow: '0 0 0 4px #3d2b1a, 0 0 0 6px #2a1d10, 0 8px 32px rgba(0,0,0,0.6)',
+                  }}
+                >
                   <Chessboard
                     position={boardPosition}
-                    boardWidth={400}
+                    boardWidth={boardSize}
                     animationDuration={600}
                     arePiecesDraggable={false}
                     customDarkSquareStyle={darkSquareStyle}
                     customLightSquareStyle={lightSquareStyle}
+                    customPieces={pieces3dLanding}
                     customBoardStyle={{
-                      borderRadius: '4px',
+                      borderRadius: '2px',
                     }}
                   />
                 </div>
