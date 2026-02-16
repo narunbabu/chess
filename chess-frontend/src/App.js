@@ -105,13 +105,13 @@ const App = () => {
   );
 };
 
-// Component to add full-bleed class for landing page
+// Component to add full-bleed class for landing/login pages
 const AppContent = () => {
   const location = useLocation();
-  const isLandingPage = location.pathname === '/';
+  const isFullBleed = location.pathname === '/' || location.pathname === '/login';
 
   return (
-    <div className={`app-container ${isLandingPage ? 'full-bleed' : ''} flex flex-col min-h-screen`}>
+    <div className={`app-container ${isFullBleed ? 'full-bleed' : ''} flex flex-col min-h-screen`}>
       <div className="content-wrapper flex-grow">
         <main className="main-content">
           <Routes>

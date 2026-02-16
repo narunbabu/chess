@@ -6,6 +6,7 @@ import Background from './Background';
 const Layout = ({ children }) => {
   const location = useLocation();
   const isLandingPage = location.pathname === '/';
+  const isLoginPage = location.pathname === '/login';
   const isPlayPage = location.pathname === '/play' || location.pathname.startsWith('/play/');
   const headerRef = useRef(null);
 
@@ -57,7 +58,7 @@ const Layout = ({ children }) => {
     };
   }, [isPlayPage, isLandingPage, location.pathname]);
 
-  if (isLandingPage) {
+  if (isLandingPage || isLoginPage) {
     return <>{children}</>;
   }
 
