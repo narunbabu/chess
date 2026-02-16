@@ -1,0 +1,542 @@
+/* =========================================
+   SUBSCRIPTION & PRICING STYLES
+   Chess99 Premium Dark Theme
+   ========================================= */
+
+/* ── Pricing Page ── */
+.pricing-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1rem 4rem;
+}
+
+.pricing-page__header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.pricing-page__title {
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.pricing-page__subtitle {
+  font-size: 1.1rem;
+  color: var(--text-muted);
+}
+
+/* ── Interval Toggle ── */
+.pricing-page__toggle {
+  display: flex;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: 2.5rem;
+  background: var(--surface-card);
+  border-radius: 12px;
+  padding: 4px;
+  width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.pricing-page__toggle-btn {
+  padding: 0.6rem 1.5rem;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pricing-page__toggle-btn.active {
+  background: var(--surface-elevated);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.pricing-page__toggle-badge {
+  font-size: 0.7rem;
+  background: var(--green-cta);
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+/* ── Plan Cards Container ── */
+.pricing-page__cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 3rem;
+}
+
+@media (max-width: 900px) {
+  .pricing-page__cards {
+    grid-template-columns: 1fr;
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+/* ── Pricing Card ── */
+.pricing-card {
+  position: relative;
+  border-radius: 16px;
+  border: 1px solid var(--border-subtle);
+  padding: 2rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.pricing-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.pricing-card__popular-badge {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 16px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.pricing-card__current-badge {
+  position: absolute;
+  top: -12px;
+  right: 16px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--green-cta);
+  background: var(--surface-base);
+  border: 1px solid var(--green-cta);
+}
+
+.pricing-card__header {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.pricing-card__tier {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+.pricing-card__price {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 2px;
+}
+
+.pricing-card__currency {
+  font-size: 1.25rem;
+  color: var(--text-body);
+  font-weight: 500;
+}
+
+.pricing-card__amount {
+  font-size: 2.75rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.pricing-card__interval {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.pricing-card__savings {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--green-cta);
+  font-weight: 500;
+}
+
+/* ── Feature List ── */
+.pricing-card__features {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.5rem;
+  flex-grow: 1;
+}
+
+.pricing-card__feature {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+  font-size: 0.9rem;
+  color: var(--text-body);
+}
+
+.pricing-card__feature-check {
+  color: var(--green-cta);
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* ── Card Action Button ── */
+.pricing-card__action {
+  margin-top: auto;
+}
+
+.pricing-card__btn {
+  width: 100%;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pricing-card__btn--free {
+  background: var(--surface-elevated);
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.pricing-card__btn--current {
+  background: var(--surface-elevated);
+  color: var(--green-cta);
+  border: 1px solid var(--green-cta);
+  cursor: default;
+}
+
+.pricing-card__btn--subscribe {
+  color: #fff;
+}
+
+.pricing-card__btn--subscribe:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.pricing-card__btn--subscribe:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── Feature Comparison Table ── */
+.pricing-page__comparison {
+  margin-top: 2rem;
+}
+
+.pricing-page__comparison-title {
+  text-align: center;
+  font-size: 1.5rem;
+  color: var(--text-primary);
+  margin-bottom: 1.5rem;
+}
+
+.pricing-page__table-wrapper {
+  overflow-x: auto;
+}
+
+.pricing-page__table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface-card);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.pricing-page__table th,
+.pricing-page__table td {
+  padding: 0.75rem 1rem;
+  text-align: center;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 0.9rem;
+}
+
+.pricing-page__table th {
+  background: var(--surface-elevated);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.pricing-page__table th:first-child,
+.pricing-page__table td:first-child {
+  text-align: left;
+}
+
+.pricing-page__table td {
+  color: var(--text-body);
+}
+
+.pricing-page__table-highlight {
+  background: rgba(232, 169, 62, 0.1) !important;
+  color: var(--gold) !important;
+}
+
+.pricing-page__table tr:last-child td {
+  border-bottom: none;
+}
+
+/* ── Razorpay Checkout Modal ── */
+.razorpay-checkout-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.razorpay-checkout-modal {
+  background: var(--surface-card);
+  border-radius: 16px;
+  padding: 2.5rem;
+  min-width: 320px;
+  max-width: 420px;
+  text-align: center;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+}
+
+.razorpay-checkout__step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.razorpay-checkout__step p {
+  color: var(--text-body);
+  margin: 0;
+}
+
+.razorpay-checkout__spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid var(--surface-elevated);
+  border-top-color: var(--green-cta);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.razorpay-checkout__note {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.razorpay-checkout__checkmark {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--green-cta);
+  color: #fff;
+  font-size: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+.razorpay-checkout__step--success h3 {
+  color: var(--green-cta);
+  font-size: 1.25rem;
+}
+
+.razorpay-checkout__error-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--danger);
+  color: #fff;
+  font-size: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+.razorpay-checkout__step--error h3 {
+  color: var(--danger);
+  font-size: 1.25rem;
+}
+
+.razorpay-checkout__actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.razorpay-checkout__btn {
+  padding: 0.6rem 1.25rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.razorpay-checkout__btn--retry {
+  background: var(--green-cta);
+  color: #fff;
+}
+
+.razorpay-checkout__btn--cancel {
+  background: var(--surface-elevated);
+  color: var(--text-body);
+}
+
+/* ── Subscription Management ── */
+.subscription-mgmt {
+  background: var(--surface-card);
+  border-radius: 16px;
+  padding: 1.5rem;
+  max-width: 500px;
+}
+
+.subscription-mgmt__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+
+.subscription-mgmt__header h2 {
+  color: var(--text-primary);
+  font-size: 1.25rem;
+  margin: 0;
+}
+
+.subscription-mgmt__badge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.subscription-mgmt__details {
+  margin-bottom: 1.25rem;
+}
+
+.subscription-mgmt__row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.subscription-mgmt__row:last-child {
+  border-bottom: none;
+}
+
+.subscription-mgmt__label {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.subscription-mgmt__value {
+  color: var(--text-body);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.subscription-mgmt__value.active {
+  color: var(--green-cta);
+}
+
+.subscription-mgmt__value.expired {
+  color: var(--danger);
+}
+
+.subscription-mgmt__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.subscription-mgmt__btn {
+  width: 100%;
+  padding: 0.65rem;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.subscription-mgmt__btn--upgrade {
+  background: var(--green-cta);
+  color: #fff;
+}
+
+.subscription-mgmt__btn--upgrade:hover {
+  background: var(--green-hover);
+}
+
+.subscription-mgmt__btn--cancel {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border-default);
+}
+
+.subscription-mgmt__btn--cancel:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.subscription-mgmt__cancel-confirm {
+  background: var(--surface-elevated);
+  border-radius: 10px;
+  padding: 1rem;
+}
+
+.subscription-mgmt__cancel-confirm p {
+  color: var(--text-body);
+  font-size: 0.85rem;
+  margin: 0 0 0.75rem;
+}
+
+.subscription-mgmt__cancel-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.subscription-mgmt__btn--confirm-cancel {
+  background: var(--danger);
+  color: #fff;
+  flex: 1;
+}
+
+.subscription-mgmt__btn--keep {
+  background: var(--surface-card);
+  color: var(--text-body);
+  flex: 1;
+}

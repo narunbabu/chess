@@ -18,6 +18,7 @@ use App\Http\Controllers\ContextualPresenceController;
 use App\Http\Controllers\WebSocketController;
 use App\Http\Controllers\RatingController;
 use App\Http\Controllers\SharedResultController;
+use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\TutorialController;
 // use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
@@ -343,6 +344,21 @@ Route::prefix('championships')->group(function () {
 
 // Championship webhook route (public - no auth required)
 Route::post('/championships/payment/webhook', [\App\Http\Controllers\ChampionshipPaymentController::class, 'handleWebhook']);
+
+// Subscription routes
+Route::prefix('subscriptions')->group(function () {
+    // Public: list plans
+    Route::get('/plans', [SubscriptionController::class, 'plans']);
+    // Public: webhook
+    Route::post('/webhook', [SubscriptionController::class, 'webhook']);
+
+    // Authenticated subscription routes
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::get('/current', [SubscriptionController::class, 'current']);
+        Route::post('/checkout', [SubscriptionController::class, 'checkout']);
+        Route::post('/cancel', [SubscriptionController::class, 'cancel']);
+    });
+});
 
 // routes/api.php
 

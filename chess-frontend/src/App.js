@@ -16,6 +16,7 @@ import { FeatureFlagsProvider } from "./contexts/FeatureFlagsContext";
 import { GlobalInvitationProvider } from "./contexts/GlobalInvitationContext";
 import { ChampionshipProvider } from "./contexts/ChampionshipContext";
 import { ChampionshipInvitationProvider } from "./contexts/ChampionshipInvitationContext";
+import { SubscriptionProvider } from "./contexts/SubscriptionContext";
 import { GameNavigationProvider } from "./contexts/GameNavigationContext";
 import GlobalInvitationDialog from "./components/invitations/GlobalInvitationDialog";
 import { GameNavigationWarningDialogWrapper } from "./components/game/GameNavigationWarningDialog";
@@ -63,6 +64,8 @@ const TournamentAdminDashboard = createLazyComponent(() => import("./components/
 const ChampionshipInvitations = createLazyComponent(() => import("./pages/ChampionshipInvitations"), { componentName: "ChampionshipInvitations" });
 const ChampionshipMatchesEdit = createLazyComponent(() => import("./components/championship/ChampionshipMatchesEdit"), { componentName: "ChampionshipMatchesEdit" });
 const ChampionshipVictoryTest = createLazyComponent(() => import("./tests/ChampionshipVictoryTest"), { componentName: "ChampionshipVictoryTest" });
+const PricingPage = createLazyComponent(() => import("./pages/PricingPage"), { componentName: "PricingPage" });
+const SubscriptionManagement = createLazyComponent(() => import("./components/subscription/SubscriptionManagement"), { componentName: "SubscriptionManagement" });
 const App = () => {
   useEffect(()=> {
     const mq = window.matchMedia("(orientation:landscape)");
@@ -78,7 +81,7 @@ const App = () => {
   return (
     <AuthProvider>
       <AppDataProvider>
-         
+        <SubscriptionProvider>
         <FeatureFlagsProvider>
           <ChampionshipProvider>
             <ChampionshipInvitationProvider>
@@ -100,6 +103,7 @@ const App = () => {
           </ChampionshipProvider>
            
         </FeatureFlagsProvider>
+        </SubscriptionProvider>
       </AppDataProvider>
     </AuthProvider>
   );
@@ -122,6 +126,7 @@ const AppContent = () => {
             <Route path="/puzzles" element={<Puzzles />} />
             <Route path="/learn" element={<Learn />} />
             <Route path="/coming-soon" element={<ComingSoon />} />
+            <Route path="/pricing" element={<PricingPage />} />
             <Route path="/share/result/:uniqueId" element={<SharedResultPage />} />
 
             {/* Play computer - No auth required */}
@@ -220,6 +225,16 @@ const AppContent = () => {
                 </RouteGuard>
               }
             />
+            {/* Subscription Management - Auth required */}
+            <Route
+              path="/account/subscription"
+              element={
+                <RouteGuard>
+                  <SubscriptionManagement />
+                </RouteGuard>
+              }
+            />
+
             {/* Championship Routes - Auth required */}
             <Route
               path="/championships"

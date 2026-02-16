@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\SubscriptionTier;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -38,6 +39,11 @@ class User extends Authenticatable
         'email_preferences',
         'email_unsubscribed_at',
         'last_email_sent_at',
+        'subscription_tier',
+        'subscription_expires_at',
+        'razorpay_subscription_id',
+        'razorpay_customer_id',
+        'subscription_auto_renew',
     ];
 
     protected $hidden = [
@@ -59,6 +65,8 @@ class User extends Authenticatable
         'email_preferences' => 'array',
         'email_unsubscribed_at' => 'datetime',
         'last_email_sent_at' => 'datetime',
+        'subscription_expires_at' => 'datetime',
+        'subscription_auto_renew' => 'boolean',
     ];
 
     /**
@@ -428,6 +436,135 @@ class User extends Authenticatable
         return $this->roles()
                     ->orderByDesc('hierarchy_level')
                     ->first();
+    }
+
+    // -------------------------------------------------------------------------
+    // SUBSCRIPTION SYSTEM RELATIONSHIPS AND METHODS
+    // -------------------------------------------------------------------------
+
+    /**
+     * Get user's subscription payments
+     */
+    public function subscriptionPayments()
+    {
+        return $this->hasMany(SubscriptionPayment::class);
+    }
+
+    /**
+     * Get the user's current subscription tier as enum
+     */
+    public function getSubscriptionTierEnum(): SubscriptionTier
+    {
+        return SubscriptionTier::from($this->subscription_tier ?? 'free');
+    }
+
+    /**
+     * Check if user has an active (non-expired) paid subscription
+     */
+    public function hasActiveSubscription(): bool
+    {
+        if ($this->subscription_tier === 'free' || !$this->subscription_tier) {
+            return false;
+        }
+
+        // If no expiry set, subscription is not active
+        if (!$this->subscription_expires_at) {
+            return false;
+        }
+
+        // Active if expiry is in the future (with 3-day grace period)
+        return $this->subscription_expires_at->addDays(3)->isFuture();
+    }
+
+    /**
+     * Check if user has at least the given subscription tier
+     */
+    public function hasSubscriptionTier(string|SubscriptionTier $tier): bool
+    {
+        if ($tier instanceof SubscriptionTier) {
+            $requiredTier = $tier;
+        } else {
+            $requiredTier = SubscriptionTier::from($tier);
+        }
+
+        // Free tier is always accessible
+        if ($requiredTier === SubscriptionTier::FREE) {
+            return true;
+        }
+
+        // Must have active subscription for paid tiers
+        if (!$this->hasActiveSubscription()) {
+            return false;
+        }
+
+        return $this->getSubscriptionTierEnum()->isAtLeast($requiredTier);
+    }
+
+    /**
+     * Get days remaining on subscription
+     */
+    public function subscriptionDaysRemaining(): int
+    {
+        if (!$this->subscription_expires_at) {
+            return 0;
+        }
+
+        $days = now()->diffInDays($this->subscription_expires_at, false);
+
+        return max(0, (int) $days);
+    }
+
+    /**
+     * Activate a subscription for this user
+     */
+    public function activateSubscription(SubscriptionPlan $plan, ?string $razorpaySubscriptionId = null): void
+    {
+        $expiresAt = match($plan->interval) {
+            'monthly' => now()->addMonth(),
+            'yearly' => now()->addYear(),
+            'lifetime' => now()->addYears(100),
+            default => now()->addMonth(),
+        };
+
+        $this->update([
+            'subscription_tier' => $plan->tier,
+            'subscription_expires_at' => $expiresAt,
+            'razorpay_subscription_id' => $razorpaySubscriptionId ?? $this->razorpay_subscription_id,
+            'subscription_auto_renew' => true,
+        ]);
+    }
+
+    /**
+     * Extend subscription expiry (for renewals)
+     */
+    public function extendSubscription(string $interval): void
+    {
+        $baseDate = $this->subscription_expires_at && $this->subscription_expires_at->isFuture()
+            ? $this->subscription_expires_at
+            : now();
+
+        $newExpiry = match($interval) {
+            'monthly' => $baseDate->copy()->addMonth(),
+            'yearly' => $baseDate->copy()->addYear(),
+            default => $baseDate->copy()->addMonth(),
+        };
+
+        $this->update([
+            'subscription_expires_at' => $newExpiry,
+        ]);
+    }
+
+    /**
+     * Downgrade user to free tier
+     */
+    public function downgradeToFree(): void
+    {
+        $this->update([
+            'subscription_tier' => 'free',
+            'subscription_expires_at' => null,
+            'razorpay_subscription_id' => null,
+            'subscription_auto_renew' => false,
+        ]);
     }
 
     // -------------------------------------------------------------------------

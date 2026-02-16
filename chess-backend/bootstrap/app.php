@@ -85,6 +85,13 @@ return Application::configure(basePath: dirname(__DIR__))
             ->withoutOverlapping()
             ->runInBackground()
             ->description('Send weekly stats digest to active players');
+
+        // Expire stale subscriptions daily at 02:00 UTC
+        $schedule->command('subscriptions:sync-status')
+            ->dailyAt('02:00')
+            ->withoutOverlapping()
+            ->runInBackground()
+            ->description('Expire stale subscriptions and downgrade to free');
     })
     ->withMiddleware(function (Middleware $middleware) {
         // CORS is handled by \Fruitcake\Cors\HandleCors in Kernel.php (global middleware)
@@ -98,6 +105,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => \App\Http\Middleware\CheckRole::class,
             'permission' => \App\Http\Middleware\CheckPermission::class,
             'admin.auth' => \App\Http\Middleware\AdminAuthMiddleware::class,
+            'subscription' => \App\Http\Middleware\CheckSubscription::class,
         ]);
 
         // Exclude broadcasting/auth from CSRF verification for WebSocket authentication
