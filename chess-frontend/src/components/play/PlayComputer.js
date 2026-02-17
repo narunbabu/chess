@@ -34,6 +34,7 @@ import { useAppData } from "../../contexts/AppDataContext";
 import moveSound from '../../assets/sounds/move.mp3';
 import checkSound from '../../assets/sounds/check.mp3';
 import gameEndSound from '../../assets/sounds/game-end.mp3';
+import { isSoundMuted } from './SoundToggle';
 
 // Create audio objects
 const moveSoundEffect = new Audio(moveSound);
@@ -201,8 +202,9 @@ const PlayComputer = () => {
     }, []); // No external dependencies needed
 
    const playSound = useCallback((soundEffect) => {
-        // Play audio, catch errors if blocked by browser
-        soundEffect.play().catch(e => console.log("Audio play prevented:", e));
+        if (isSoundMuted()) return;
+        soundEffect.currentTime = 0;
+        soundEffect.play().catch(() => {});
     }, []); // No external dependencies needed
 
   // --- Game Completion Callback ---

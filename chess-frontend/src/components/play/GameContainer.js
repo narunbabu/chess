@@ -6,6 +6,7 @@ import ScoreDisplay from './ScoreDisplay';
 import TimerDisplay from './TimerDisplay';
 import GameControls from './GameControls';
 import TimerButton from './TimerButton';
+import SoundToggle from './SoundToggle';
 import PerformanceDisplay from '../game/PerformanceDisplay';
 
 /**
@@ -243,8 +244,10 @@ const GameContainer = ({
       {/* Main Content Area */}
       <div className={mode === 'computer' ? 'main-content-area' : 'board-section'}>
         <div className="board-container">
-          {/* Timer/Score Display Above Board */}
-          {/* {renderTimerScoreDisplay()} */}
+          {/* Sound toggle above board */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '4px' }}>
+            <SoundToggle />
+          </div>
 
           {/* Board and Controls (passed as children) */}
           {children}

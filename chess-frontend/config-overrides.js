@@ -2,13 +2,27 @@ const { override, addWebpackPlugin, overrideDevServer } = require('customize-cra
 const CompressionPlugin = require('compression-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
+const TerserPlugin = require('terser-webpack-plugin');
 
 module.exports = override(
   // Enable compression for production builds - SAFE
   (config) => {
     if (process.env.NODE_ENV === 'production') {
-      // Keep source maps for debugging (remove this line if not needed)
-      // config.devtool = false;
+      // Strip console.log and console.warn from production builds
+      // Keeps console.error for real error reporting
+      config.optimization.minimizer = config.optimization.minimizer.map((plugin) => {
+        if (plugin.constructor.name === 'TerserPlugin') {
+          return new TerserPlugin({
+            terserOptions: {
+              compress: {
+                drop_console: false,
+                pure_funcs: ['console.log', 'console.warn', 'console.info', 'console.debug'],
+              },
+            },
+          });
+        }
+        return plugin;
+      });
 
       // Add compression plugin - SAFE
       config.plugins.push(

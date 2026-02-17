@@ -24,6 +24,7 @@ import Layout from "./components/layout/Layout";
 import Footer from "./components/layout/Footer";
 import RouteGuard from "./components/routing/RouteGuard";
 import { requireAuth } from "./utils/guards";
+import GameErrorBoundary from "./components/play/GameErrorBoundary";
 import LandingPage from "./pages/LandingPage";
 
 // Loading fallback component
@@ -130,7 +131,7 @@ const AppContent = () => {
             <Route path="/share/result/:uniqueId" element={<SharedResultPage />} />
 
             {/* Play computer - No auth required */}
-            <Route path="/play" element={<PlayComputer />} />
+            <Route path="/play" element={<GameErrorBoundary><PlayComputer /></GameErrorBoundary>} />
             <Route path="/test/championship" element={<ChampionshipVictoryTest />} />
 
             {/* Game History - Guest users */}
@@ -139,11 +140,11 @@ const AppContent = () => {
             {/* Multiplayer game routes - Auth required */}
             <Route
               path="/play/:gameId"
-              element={requireAuth(<PlayMultiplayer />, 'multiplayer')}
+              element={requireAuth(<GameErrorBoundary><PlayMultiplayer /></GameErrorBoundary>, 'multiplayer')}
             />
             <Route
               path="/play/multiplayer/:gameId"
-              element={requireAuth(<PlayMultiplayer />, 'multiplayer')}
+              element={requireAuth(<GameErrorBoundary><PlayMultiplayer /></GameErrorBoundary>, 'multiplayer')}
             />
             {/* Tutorial System - Auth required */}
             <Route

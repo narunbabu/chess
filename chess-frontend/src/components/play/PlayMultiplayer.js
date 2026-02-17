@@ -43,6 +43,7 @@ import {
 import moveSound from '../../assets/sounds/move.mp3';
 import checkSound from '../../assets/sounds/check.mp3';
 import gameEndSound from '../../assets/sounds/game-end.mp3';
+import { isSoundMuted } from './SoundToggle';
 
 // Create audio objects
 const moveSoundEffect = new Audio(moveSound);
@@ -293,11 +294,12 @@ const PlayMultiplayer = () => {
 
   // Play sound helper
   const playSound = useCallback((soundEffect) => {
+    if (isSoundMuted()) return;
     try {
       soundEffect.currentTime = 0;
-      soundEffect.play().catch(err => console.warn('Audio play blocked:', err));
-    } catch (error) {
-      console.warn('Error playing sound:', error);
+      soundEffect.play().catch(() => {});
+    } catch {
+      // Silent fail — sound is non-critical
     }
   }, []);
 
