@@ -25,6 +25,7 @@ import { calculateRemainingTime } from '../../utils/timerCalculator';
 import { saveUnfinishedGame } from '../../services/unfinishedGameService';
 import { getMovePath, createPathHighlights, mergeHighlights } from '../../utils/movePathUtils'; // Move path utilities
 import { getPreferredGameMode, setPreferredGameMode } from '../../utils/gamePreferences'; // Game preferences
+import { getTheme } from '../../config/boardThemes';
 import DrawButton from '../game/DrawButton';
 import PerformanceDisplay from '../game/PerformanceDisplay';
 import RatingChangeDisplay from '../game/RatingChangeDisplay';
@@ -4156,6 +4157,8 @@ const PlayMultiplayer = () => {
           onSquareClick={handleSquareClick}
           boardOrientation={boardOrientation}
           areArrowsAllowed={false}
+          customDarkSquareStyle={{ backgroundColor: getTheme(user?.board_theme).dark }}
+          customLightSquareStyle={{ backgroundColor: getTheme(user?.board_theme).light }}
           customSquareStyles={{
             ...lastMoveHighlights, // Base layer: last move highlights
             [selectedSquare]: {

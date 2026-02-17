@@ -20,6 +20,9 @@ class MatchmakingEntry extends Model
         'queued_at',
         'matched_at',
         'expires_at',
+        'preferred_color',
+        'time_control_minutes',
+        'increment_seconds',
     ];
 
     protected $casts = [

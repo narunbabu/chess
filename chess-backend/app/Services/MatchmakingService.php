@@ -14,7 +14,7 @@ class MatchmakingService
     /**
      * Add a user to the matchmaking queue.
      */
-    public function joinQueue(User $user): MatchmakingEntry
+    public function joinQueue(User $user, array $preferences = []): MatchmakingEntry
     {
         // Cancel any existing searching entries for this user
         MatchmakingEntry::where('user_id', $user->id)
@@ -30,6 +30,9 @@ class MatchmakingService
             'status' => 'searching',
             'queued_at' => $now,
             'expires_at' => $now->copy()->addSeconds(20),
+            'preferred_color' => $preferences['preferred_color'] ?? 'random',
+            'time_control_minutes' => $preferences['time_control_minutes'] ?? 10,
+            'increment_seconds' => $preferences['increment_seconds'] ?? 0,
         ]);
     }
 
@@ -90,8 +93,15 @@ class MatchmakingService
                 return null;
             }
 
-            // Create a multiplayer game
-            $game = $this->createMultiplayerGame($lockedEntry->user_id, $opponent->user_id);
+            // Create a multiplayer game with color and time preferences
+            $game = $this->createMultiplayerGame(
+                $lockedEntry->user_id,
+                $opponent->user_id,
+                $lockedEntry->preferred_color ?? 'random',
+                $opponent->preferred_color ?? 'random',
+                $lockedEntry->time_control_minutes ?? 10,
+                $lockedEntry->increment_seconds ?? 0
+            );
 
             $matchedAt = now();
 
@@ -131,8 +141,13 @@ class MatchmakingService
         $user = $entry->user;
         $computerPlayer = $bot->getComputerPlayer();
 
-        // Random color assignment
-        $isUserWhite = rand(0, 1) === 1;
+        // Color assignment from user preference
+        $colorPref = $entry->preferred_color ?? 'random';
+        if ($colorPref === 'random') {
+            $isUserWhite = rand(0, 1) === 1;
+        } else {
+            $isUserWhite = $colorPref === 'white';
+        }
 
         $game = Game::create([
             'white_player_id' => $isUserWhite ? $user->id : null,
@@ -145,6 +160,8 @@ class MatchmakingService
             'turn' => 'white',
             'fen' => 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
             'moves' => [],
+            'time_control_minutes' => $entry->time_control_minutes ?? 10,
+            'increment_seconds' => $entry->increment_seconds ?? 0,
         ]);
 
         $entry->update([
@@ -163,18 +180,37 @@ class MatchmakingService
     /**
      * Create a multiplayer game between two users.
      */
-    private function createMultiplayerGame(int $userId1, int $userId2): Game
-    {
-        $isUser1White = rand(0, 1) === 1;
+    private function createMultiplayerGame(
+        int $userId1,
+        int $userId2,
+        string $color1 = 'random',
+        string $color2 = 'random',
+        int $timeControl = 10,
+        int $increment = 0
+    ): Game {
+        // Resolve colors: honor explicit preferences, randomize otherwise
+        if ($color1 === 'white' || $color2 === 'black') {
+            $whiteId = $userId1;
+            $blackId = $userId2;
+        } elseif ($color1 === 'black' || $color2 === 'white') {
+            $whiteId = $userId2;
+            $blackId = $userId1;
+        } else {
+            $isUser1White = rand(0, 1) === 1;
+            $whiteId = $isUser1White ? $userId1 : $userId2;
+            $blackId = $isUser1White ? $userId2 : $userId1;
+        }
 
         return Game::create([
-            'white_player_id' => $isUser1White ? $userId1 : $userId2,
-            'black_player_id' => $isUser1White ? $userId2 : $userId1,
+            'white_player_id' => $whiteId,
+            'black_player_id' => $blackId,
             'status' => 'active',
             'result' => 'ongoing',
             'turn' => 'white',
             'fen' => 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
             'moves' => [],
+            'time_control_minutes' => $timeControl,
+            'increment_seconds' => $increment,
         ]);
     }
 

@@ -406,7 +406,7 @@ const LobbyPage = () => {
     setShowColorModal(true);
   };
 
-  const sendInvitation = async (colorChoice, gameMode = 'casual') => {
+  const sendInvitation = async (colorChoice, gameMode = 'casual', timeControl = 10, increment = 0) => {
     setShowColorModal(false);
 
     // Validate selectedPlayer before proceeding
@@ -450,7 +450,9 @@ const LobbyPage = () => {
       const response = await api.post('/invitations/send', {
         invited_user_id: selectedPlayer.id,
         preferred_color: colorChoice,
-        game_mode: gameMode
+        game_mode: gameMode,
+        time_control_minutes: timeControl,
+        increment_seconds: increment,
       });
 
       // Track successful challenge sent

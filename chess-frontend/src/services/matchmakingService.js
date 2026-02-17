@@ -10,10 +10,10 @@ const matchmakingService = {
   },
 
   /**
-   * Join the matchmaking queue
+   * Join the matchmaking queue with optional preferences
    */
-  joinQueue: async () => {
-    const response = await api.post('/matchmaking/join');
+  joinQueue: async (preferences = {}) => {
+    const response = await api.post('/matchmaking/join', preferences);
     return response.data;
   },
 

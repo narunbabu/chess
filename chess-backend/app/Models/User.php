@@ -48,6 +48,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'profile_completed',
         'birthday',
         'class_of_study',
+        'board_theme',
     ];
 
     protected $hidden = [

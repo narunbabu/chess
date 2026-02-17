@@ -78,6 +78,7 @@ class UserController extends Controller
             'avatar_url' => 'sometimes|string|url|max:500',
             'birthday' => 'sometimes|nullable|date|before:today|after:1950-01-01',
             'class_of_study' => 'sometimes|nullable|integer|min:1|max:12',
+            'board_theme' => 'sometimes|string|max:30',
         ]);
 
         // Update name if provided
@@ -94,6 +95,11 @@ class UserController extends Controller
         // Update class of study if provided
         if (array_key_exists('class_of_study', $validated)) {
             $user->class_of_study = $validated['class_of_study'];
+        }
+
+        // Update board theme if provided
+        if (isset($validated['board_theme'])) {
+            $user->board_theme = $validated['board_theme'];
         }
 
         // Update avatar from DiceBear URL if provided (no file upload)

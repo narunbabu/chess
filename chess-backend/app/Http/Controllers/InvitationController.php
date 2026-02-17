@@ -23,7 +23,9 @@ class InvitationController extends Controller
             $validated = $request->validate([
                 'invited_user_id' => 'required|exists:users,id',
                 'preferred_color' => 'nullable|in:white,black,random',
-                'game_mode' => 'nullable|in:casual,rated'
+                'game_mode' => 'nullable|in:casual,rated',
+                'time_control_minutes' => 'nullable|integer|in:3,5,10,15,30',
+                'increment_seconds' => 'nullable|integer|in:0,2,3,5,10',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::error('❌ Invitation validation failed', [
@@ -104,7 +106,9 @@ class InvitationController extends Controller
             'type' => 'game_invitation',
             'expires_at' => now()->addMinutes(15), // 15 minute expiration for game invitations
             'metadata' => [
-                'game_mode' => $gameMode
+                'game_mode' => $gameMode,
+                'time_control_minutes' => $validated['time_control_minutes'] ?? 10,
+                'increment_seconds' => $validated['increment_seconds'] ?? 0,
             ]
         ]);
 
@@ -337,8 +341,10 @@ class InvitationController extends Controller
                 $blackId = $acceptorId;
             }
 
-            // Get game mode from invitation metadata (default to casual if not set)
+            // Get game mode and time control from invitation metadata
             $gameMode = $invitation->metadata['game_mode'] ?? 'casual';
+            $timeControl = $invitation->metadata['time_control_minutes'] ?? 10;
+            $increment = $invitation->metadata['increment_seconds'] ?? 0;
 
             Log::info('🎨 Final color assignment', [
                 'inviter_id'        => $inviterId,
@@ -348,6 +354,8 @@ class InvitationController extends Controller
                 'white_player_id'   => $whiteId,
                 'black_player_id'   => $blackId,
                 'game_mode'         => $gameMode,
+                'time_control_minutes' => $timeControl,
+                'increment_seconds'    => $increment,
             ]);
 
             $game = Game::create([
@@ -356,6 +364,8 @@ class InvitationController extends Controller
                 'status'          => 'waiting',
                 'result'          => 'ongoing',
                 'game_mode'       => $gameMode,
+                'time_control_minutes' => $timeControl,
+                'increment_seconds'    => $increment,
             ]);
 
             Log::info('🎮 Game created:', [

@@ -7,6 +7,9 @@ import ReactCrop from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import SocialShare from './SocialShare';
 import { getFriendInvitationMessage } from '../utils/socialShareUtils';
+import { BOARD_THEMES } from '../config/boardThemes';
+import { useSubscription } from '../contexts/SubscriptionContext';
+import UpgradePrompt from './common/UpgradePrompt';
 import './Profile.css';
 import './tutorial/ProfileTutorial.css';
 
@@ -29,6 +32,7 @@ const generateDiceBearAvatars = () => {
 
 const Profile = () => {
   const { user, fetchUser } = useAuth();
+  const { isPremium } = useSubscription();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isSetupMode = searchParams.get('setup') === 'true';
@@ -44,6 +48,7 @@ const Profile = () => {
   const [error, setError] = useState('');
   const [tutorialStats, setTutorialStats] = useState(null);
   const [xpProgress, setXpProgress] = useState(null);
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
 
   // DiceBear avatar picker state
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
@@ -637,6 +642,86 @@ const Profile = () => {
         )}
         {orgError && <p className="error" style={{ marginTop: '8px' }}>{orgError}</p>}
       </section>
+
+      {/* Board Theme Selector */}
+      <section className="profile-section">
+        <h2>Board Theme</h2>
+        <p style={{ color: '#bababa', marginBottom: '12px', fontSize: '14px' }}>
+          Choose your board colors. Premium themes require a subscription.
+        </p>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
+          gap: '12px',
+        }}>
+          {Object.entries(BOARD_THEMES).map(([key, theme]) => {
+            const isSelected = (user?.board_theme || 'classic') === key;
+            const isLocked = theme.tier === 'premium' && !isPremium;
+            return (
+              <button
+                key={key}
+                onClick={async () => {
+                  if (isLocked) {
+                    setShowUpgradePrompt(true);
+                    return;
+                  }
+                  try {
+                    await api.post('/profile', { board_theme: key });
+                    await fetchUser();
+                  } catch (err) {
+                    console.error('Error saving board theme:', err);
+                  }
+                }}
+                style={{
+                  position: 'relative',
+                  padding: '8px',
+                  borderRadius: '10px',
+                  border: `2px solid ${isSelected ? '#81b64c' : '#4a4744'}`,
+                  backgroundColor: isSelected ? 'rgba(129, 182, 76, 0.1)' : '#2b2927',
+                  cursor: isLocked ? 'pointer' : 'pointer',
+                  opacity: isLocked ? 0.7 : 1,
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {/* Mini board preview: 4x2 grid */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(4, 1fr)',
+                  width: '100%',
+                  aspectRatio: '2 / 1',
+                  borderRadius: '4px',
+                  overflow: 'hidden',
+                  marginBottom: '6px',
+                }}>
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        backgroundColor: (Math.floor(i / 4) + i % 4) % 2 === 0 ? theme.light : theme.dark,
+                      }}
+                    />
+                  ))}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                  {isLocked && <span style={{ fontSize: '12px' }}>🔒</span>}
+                  <span style={{ color: '#bababa', fontSize: '12px', fontWeight: isSelected ? 'bold' : 'normal' }}>
+                    {theme.name}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Upgrade Prompt for locked themes */}
+      {showUpgradePrompt && (
+        <UpgradePrompt
+          feature="Premium Board Theme"
+          requiredTier="Premium"
+          onDismiss={() => setShowUpgradePrompt(false)}
+        />
+      )}
 
       {/* Friends Management */}
       <section className="profile-section">

@@ -53,7 +53,10 @@ class Game extends Model
         'resume_requested_by',
         'resume_requested_at',
         'resume_request_expires_at',
-        'resume_status'
+        'resume_status',
+        // Time control
+        'time_control_minutes',
+        'increment_seconds'
     ];
 
     protected $casts = [

@@ -4,6 +4,7 @@ import { Chessboard } from "react-chessboard";
 import { Chess } from 'chess.js'; // Import the Chess class
 import './ChessBoard.css'; // Import custom chess board styling
 import { logBoardResize, logTurnChange, logPieceSelection, monitorPerformance } from '../../utils/devLogger';
+import { getTheme } from '../../config/boardThemes';
 
 const ChessBoard = ({
   game,
@@ -19,6 +20,7 @@ const ChessBoard = ({
   playerColor,
   isReplayMode,
   allowAllMoves = false, // Prop to allow all moves regardless of turn (for interactive practice)
+  boardTheme = 'classic', // Board color theme key
   // Interactive lesson props
   lessonArrows = [], // Array of arrows: [{from: 'e2', to: 'e4', color: 'red'}]
   lessonHighlights = [], // Array of highlighted squares: [{square: 'e2', type: 'move'|'target'}]
@@ -361,8 +363,8 @@ const ChessBoard = ({
               customSquareStyles={allCustomStyles}
               animationDuration={200}
               arePiecesDraggable={!isReplayMode && isPlayerTurn}
-              customDarkSquareStyle={{ backgroundColor: '#769656' }}
-              customLightSquareStyle={{ backgroundColor: '#eeeed2' }}
+              customDarkSquareStyle={{ backgroundColor: getTheme(boardTheme).dark }}
+              customLightSquareStyle={{ backgroundColor: getTheme(boardTheme).light }}
               customBoardStyle={{
                 borderRadius: '8px',
                 overflow: 'hidden'

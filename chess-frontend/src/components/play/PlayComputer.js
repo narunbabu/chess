@@ -1989,6 +1989,7 @@ const PlayComputer = () => {
         lastMoveHighlights={lastMoveHighlights}
         playerColor={playerColor}
         isReplayMode={isReplayMode}
+        boardTheme={user?.board_theme || 'classic'}
       />
     </GameContainer>
   );
