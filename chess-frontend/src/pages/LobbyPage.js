@@ -730,13 +730,15 @@ const LobbyPage = () => {
           invitedPlayer={invitedPlayer}
         />
 
-        {/* Matchmaking Queue Modal */}
-        <MatchmakingQueue
-          isOpen={showMatchmaking}
-          onClose={() => setShowMatchmaking(false)}
-        />
         </div>
       </div>
+
+      {/* Matchmaking Queue Modal — rendered outside lobby-container to avoid
+          backdrop-filter breaking position:fixed centering */}
+      <MatchmakingQueue
+        isOpen={showMatchmaking}
+        onClose={() => setShowMatchmaking(false)}
+      />
     </>
   );
 };

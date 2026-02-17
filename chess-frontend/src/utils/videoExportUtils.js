@@ -143,23 +143,33 @@ const C = {
 
 // ═══ Drawing Functions ═══
 
-const drawHeader = (ctx, w, h, playerNames, isPortrait) => {
+const drawHeader = (ctx, w, h, playerNames, isPortrait, gameResult) => {
   ctx.fillStyle = C.headerBg;
   ctx.fillRect(0, 0, w, h);
   ctx.fillStyle = C.accent;
   ctx.fillRect(0, h - 2, w, 2);
 
-  const fs = isPortrait ? 28 : 22;
-  ctx.font = `bold ${fs}px "Segoe UI", Arial, sans-serif`;
-  ctx.textAlign = 'left';
+  // Row 1: Chess99.com brand (centered, prominent)
+  const brandFs = isPortrait ? 30 : 24;
+  ctx.font = `bold ${brandFs}px "Segoe UI", Arial, sans-serif`;
+  ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = C.accent;
-  ctx.fillText('\u265B CHESS99', 20, h / 2);
+  ctx.fillText('\u265B Chess99.com', w / 2, h * 0.32);
 
-  ctx.textAlign = 'right';
-  ctx.fillStyle = C.textDim;
-  ctx.font = `${isPortrait ? 18 : 16}px "Segoe UI", Arial, sans-serif`;
-  ctx.fillText(`${playerNames.white} vs ${playerNames.black}`, w - 20, h / 2);
+  // Row 2: Result (Won / Lost / Draw)
+  if (gameResult) {
+    const resultColor = gameResult === 'Won' ? '#4CAF50' : (gameResult === 'Draw' ? '#FFD700' : '#FF6B6B');
+    const resultFs = isPortrait ? 20 : 17;
+    ctx.font = `bold ${resultFs}px "Segoe UI", Arial, sans-serif`;
+    ctx.fillStyle = resultColor;
+    ctx.fillText(`${playerNames.white} vs ${playerNames.black}  •  ${gameResult}`, w / 2, h * 0.72);
+  } else {
+    const subFs = isPortrait ? 18 : 16;
+    ctx.font = `${subFs}px "Segoe UI", Arial, sans-serif`;
+    ctx.fillStyle = C.textDim;
+    ctx.fillText(`${playerNames.white} vs ${playerNames.black}`, w / 2, h * 0.72);
+  }
 };
 
 const drawPlayerBar = (ctx, y, w, h, name, isBlackSide, isActive) => {
@@ -426,11 +436,14 @@ export const generateGameVideo = async (gameData, options = {}) => {
 
   const wait = (ms) => new Promise(r => setTimeout(r, ms));
 
+  // Determine game result text for header
+  const gameResult = gameData.isWin ? 'Won' : (gameData.isDraw ? 'Draw' : 'Lost');
+
   // Full frame drawer
   const frame = (fen, lastMove, flash, moveInfo) => {
     ctx.fillStyle = C.bg;
     ctx.fillRect(0, 0, W, H);
-    drawHeader(ctx, W, headerH, pNames, isPortrait);
+    drawHeader(ctx, W, headerH, pNames, isPortrait, gameResult);
 
     if (isPortrait) {
       const topName = orient === 'white' ? pNames.black : pNames.white;
