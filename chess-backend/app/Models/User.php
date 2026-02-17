@@ -4,11 +4,12 @@ namespace App\Models;
 
 use App\Enums\SubscriptionTier;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
     use HasApiTokens, HasFactory, Notifiable;
 
@@ -44,6 +45,9 @@ class User extends Authenticatable
         'razorpay_subscription_id',
         'razorpay_customer_id',
         'subscription_auto_renew',
+        'profile_completed',
+        'birthday',
+        'class_of_study',
     ];
 
     protected $hidden = [
@@ -67,6 +71,9 @@ class User extends Authenticatable
         'last_email_sent_at' => 'datetime',
         'subscription_expires_at' => 'datetime',
         'subscription_auto_renew' => 'boolean',
+        'profile_completed' => 'boolean',
+        'birthday' => 'date',
+        'class_of_study' => 'integer',
     ];
 
     /**

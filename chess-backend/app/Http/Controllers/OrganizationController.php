@@ -450,6 +450,110 @@ class OrganizationController extends Controller
     }
 
     /**
+     * Search for active organizations (public, for users to find & join)
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function searchSchools(Request $request): JsonResponse
+    {
+        $search = $request->input('q', '');
+
+        $query = Organization::query()
+            ->where('is_active', true)
+            ->select('id', 'name', 'type', 'logo_url', 'slug')
+            ->withCount('users');
+
+        if ($request->has('type')) {
+            $query->where('type', $request->input('type'));
+        }
+
+        if (strlen($search) >= 2) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'LIKE', "%{$search}%")
+                  ->orWhere('slug', 'LIKE', "%{$search}%");
+            });
+        }
+
+        $organizations = $query->orderBy('name', 'asc')
+            ->limit(10)
+            ->get();
+
+        return response()->json($organizations);
+    }
+
+    /**
+     * Join an organization (user self-service)
+     *
+     * @param Request $request
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function joinSchool(Request $request, int $id): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $organization = Organization::where('is_active', true)->findOrFail($id);
+
+            if ($user->organization_id) {
+                return response()->json([
+                    'error' => 'You are already affiliated with an organization. Leave it first.',
+                ], 422);
+            }
+
+            $user->organization_id = $organization->id;
+            $user->save();
+
+            Log::info('User joined organization', [
+                'user_id' => $user->id,
+                'organization_id' => $organization->id,
+            ]);
+
+            return response()->json([
+                'message' => 'Successfully joined ' . $organization->name,
+                'organization' => $organization->only(['id', 'name', 'type', 'logo_url']),
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['error' => 'Organization not found'], 404);
+        }
+    }
+
+    /**
+     * Leave current organization (user self-service)
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function leaveSchool(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (!$user->organization_id) {
+            return response()->json(['error' => 'You are not affiliated with any organization'], 422);
+        }
+
+        $orgName = $user->organization?->name ?? 'organization';
+
+        // Don't allow creator to leave their own org
+        $org = Organization::find($user->organization_id);
+        if ($org && $org->created_by === $user->id) {
+            return response()->json([
+                'error' => 'Organization creators cannot leave. Transfer ownership or delete the organization.',
+            ], 422);
+        }
+
+        $user->organization_id = null;
+        $user->save();
+
+        Log::info('User left organization', [
+            'user_id' => $user->id,
+            'organization' => $orgName,
+        ]);
+
+        return response()->json(['message' => 'Successfully left ' . $orgName]);
+    }
+
+    /**
      * Remove user from organization
      *
      * @param int $organizationId

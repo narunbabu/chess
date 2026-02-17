@@ -3,6 +3,7 @@
 
 import { uploadGameResultImage } from '../services/sharedResultService';
 import { waitForImagesToLoad, convertImagesToDataURLs } from './imageUtils';
+import { generateGameGIF, downloadBlob as downloadBlobGif } from './gifExportUtils';
 
 /**
  * Generate share message based on game type and result
@@ -120,10 +121,6 @@ export const shareGameWithFriends = async ({
     // Remove share-mode class after capture
     cardElement.classList.remove('share-mode');
 
-    // Convert canvas to data URL (base64)
-    const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
-    console.log('✅ Image data URL created, length:', imageDataUrl.length);
-
     // Prepare share data
     const {
       gameId,
@@ -137,8 +134,73 @@ export const shareGameWithFriends = async ({
       championshipData
     } = gameData;
 
-    // Upload to server
+    // Generate share message early (needed for both native and fallback)
+    const shareMessage = generateShareMessage({
+      gameType,
+      isWin,
+      isDraw,
+      opponentName,
+      championshipData
+    });
+
+    // Convert canvas to blob for native share (do this BEFORE async upload to preserve user gesture)
+    const blob = await new Promise((resolve) => {
+      canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.8);
+    });
+    console.log('✅ Image blob created, size:', blob?.size);
+
+    if (!blob) {
+      throw new Error('Failed to create image from canvas');
+    }
+
+    const file = new File([blob], 'chess-game-result.jpg', { type: 'image/jpeg' });
+
+    // Try native share FIRST (shows OS share dialog with all available apps)
+    // Must happen immediately after user gesture, before any async server calls
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        console.log('📱 Trying native share with file...');
+        const shareText = `${shareMessage}\n\nPlay at chess99.com`;
+        await navigator.share({
+          title: 'Chess Game Result',
+          text: shareText,
+          files: [file]
+        });
+        console.log('✅ Native share completed successfully');
+
+        // Also upload to server in background for link sharing
+        try {
+          const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+          uploadGameResultImage(imageDataUrl, {
+            game_id: gameId,
+            user_id: userId,
+            winner: isWin ? 'player' : (isDraw ? 'draw' : 'opponent'),
+            playerName: userName || 'Player',
+            opponentName: opponentName,
+            result: result,
+            gameMode: gameType,
+            championshipData: championshipData
+          }).catch(err => console.log('Background upload failed (non-critical):', err));
+        } catch (bgErr) {
+          // Non-critical
+        }
+
+        return; // Native share succeeded, exit
+      } catch (shareError) {
+        if (shareError.name === 'AbortError') {
+          console.log('User cancelled native share');
+          return; // User cancelled, exit
+        }
+        console.warn('Native share failed, falling back to server upload:', shareError);
+        // Fall through to upload+link approach
+      }
+    }
+
+    // Fallback: Upload to server and create shareable link
     console.log('📤 Uploading to server...');
+    const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+    console.log('✅ Image data URL created, length:', imageDataUrl.length);
+
     const response = await uploadGameResultImage(imageDataUrl, {
       game_id: gameId,
       user_id: userId,
@@ -147,23 +209,12 @@ export const shareGameWithFriends = async ({
       opponentName: opponentName,
       result: result,
       gameMode: gameType,
-      championshipData: championshipData // Include championship context
+      championshipData: championshipData
     });
     console.log('✅ Server response:', response);
 
     if (response.success && response.share_url) {
       const shareUrl = response.share_url;
-
-      // Generate personalized share message
-      const shareMessage = generateShareMessage({
-        gameType,
-        isWin,
-        isDraw,
-        opponentName,
-        championshipData
-      });
-
-      // Add share URL to message
       const fullShareMessage = `${shareMessage}\n\n${shareUrl}`;
 
       // Copy share URL to clipboard
@@ -174,27 +225,29 @@ export const shareGameWithFriends = async ({
         console.log('Could not copy to clipboard:', clipboardError);
       }
 
-      // Try native share with URL (works great on WhatsApp)
+      // Try native share with link (no file, just text + URL)
       if (navigator.share) {
         try {
           await navigator.share({
-            title: gameType === 'championship'
-              ? `Chess Championship Result - ${championshipData?.tournamentName || 'Tournament'}`
-              : 'Chess Game Result',
+            title: 'Chess Game Result',
             text: fullShareMessage,
             url: shareUrl
           });
-        } catch (shareError) {
-          if (shareError.name !== 'AbortError') {
-            console.error('Error sharing:', shareError);
-            // Fallback: show share URL
-            alert(`Share URL copied!\n\n${shareUrl}\n\nPaste this link on WhatsApp to share with preview!`);
-          }
+          return;
+        } catch (shareErr) {
+          if (shareErr.name === 'AbortError') return;
+          // Fall through to WhatsApp
         }
-      } else {
-        // Desktop fallback: show share URL and instructions
-        alert(`Share URL copied!\n\n${shareUrl}\n\nPaste this link on WhatsApp to share with preview!`);
       }
+
+      // Final fallback: Open WhatsApp with share message
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      const whatsappUrl = isMobile
+        ? `whatsapp://send?text=${encodeURIComponent(fullShareMessage)}`
+        : `https://wa.me/?text=${encodeURIComponent(fullShareMessage)}`;
+
+      window.open(whatsappUrl, '_blank');
+      alert(`Share link created!\n\n${shareUrl}\n\nLink copied to clipboard.`);
     } else {
       throw new Error('Failed to upload image');
     }
@@ -295,29 +348,16 @@ export const shareGameNative = async ({
       console.log('Could not copy to clipboard:', clipboardError);
     }
 
-    // Check if Web Share API is supported
-    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-      try {
-        await navigator.share({
-          title: gameType === 'championship'
-            ? `Chess Championship Result - ${championshipData?.tournamentName || 'Tournament'}`
-            : 'Chess Game Result',
-          text: shareMessage,
-          files: [file]
-        });
-      } catch (shareError) {
-        if (shareError.name !== 'AbortError') {
-          console.error('Error sharing:', shareError);
-          // Fallback to download
-          downloadBlob(blob, 'chess-game-result.jpg');
-          alert('Failed to share image. Image has been downloaded instead.');
-        }
-      }
-    } else {
-      // Fallback: download the image
-      downloadBlob(blob, 'chess-game-result.jpg');
-      alert('Sharing not supported on this device. Image has been downloaded instead.');
-    }
+    // Download the image and open WhatsApp with the message
+    // navigator.share() with files fails after async operations (gesture context expires)
+    downloadBlob(blob, 'chess-game-result.jpg');
+
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const whatsappUrl = isMobile
+      ? `whatsapp://send?text=${encodeURIComponent(shareMessage)}`
+      : `https://wa.me/?text=${encodeURIComponent(shareMessage)}`;
+
+    window.open(whatsappUrl, '_blank');
   } catch (error) {
     console.error('Error sharing image:', error);
     alert('Failed to share image. Please try again.');
@@ -341,4 +381,110 @@ const downloadBlob = (blob, filename) => {
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
+};
+
+/**
+ * Share animated game replay as GIF
+ * Generates GIF from move data, downloads it, and opens share dialog
+ * @param {Object} params - Share parameters
+ * @param {Object} params.gameData - Game data for GIF generation and share message
+ * @param {Function} params.setIsGenerating - State setter for loading indicator
+ * @param {Function} params.setProgress - State setter for progress (0-100)
+ * @returns {Promise<void>}
+ */
+export const shareGameReplay = async ({
+  gameData,
+  setIsGenerating,
+  setProgress
+}) => {
+  console.log('🎬 Share Replay started');
+
+  try {
+    setIsGenerating(true);
+    setProgress(0);
+
+    const {
+      moves,
+      playerColor,
+      playerName,
+      opponentName,
+      isWin,
+      isDraw,
+      gameType,
+      championshipData
+    } = gameData;
+
+    // Determine result text
+    let resultText;
+    if (isDraw) {
+      resultText = 'Draw!';
+    } else if (isWin) {
+      resultText = playerColor === 'w' ? 'White wins!' : 'Black wins!';
+    } else {
+      resultText = playerColor === 'w' ? 'Black wins!' : 'White wins!';
+    }
+
+    // Generate GIF
+    console.log('🎬 Generating GIF...');
+    const gifBlob = await generateGameGIF(
+      {
+        moves,
+        playerColor,
+        playerName: playerName || 'Player',
+        opponentName: opponentName || 'Opponent',
+        resultText,
+        isWin,
+        isDraw
+      },
+      {
+        boardSize: 400,
+        quality: 10,
+        autoSpeed: true,
+        onProgress: (p) => {
+          setProgress(Math.round(p * 100));
+        }
+      }
+    );
+
+    console.log('✅ GIF generated, size:', (gifBlob.size / 1024).toFixed(1), 'KB');
+
+    // Download the GIF
+    const filename = `chess99-replay-${Date.now()}.gif`;
+    downloadBlobGif(gifBlob, filename);
+
+    // Generate share message
+    const shareMessage = generateShareMessage({
+      gameType: gameType || 'computer',
+      isWin,
+      isDraw,
+      opponentName: opponentName || 'Opponent',
+      championshipData
+    });
+
+    const fullMessage = `${shareMessage}\n\nWatch the full game replay!`;
+
+    // Copy message to clipboard
+    try {
+      await navigator.clipboard.writeText(fullMessage);
+    } catch (clipboardError) {
+      console.log('Could not copy to clipboard:', clipboardError);
+    }
+
+    // Open WhatsApp with message
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const whatsappUrl = isMobile
+      ? `whatsapp://send?text=${encodeURIComponent(fullMessage)}`
+      : `https://wa.me/?text=${encodeURIComponent(fullMessage)}`;
+
+    window.open(whatsappUrl, '_blank');
+
+    alert(`Game replay GIF downloaded!\n\nShare message copied to clipboard.\nAttach the downloaded GIF to your message.`);
+
+  } catch (error) {
+    console.error('Error generating game replay:', error);
+    alert(`Failed to generate game replay.\n\nError: ${error.message}`);
+  } finally {
+    setIsGenerating(false);
+    setProgress(0);
+  }
 };

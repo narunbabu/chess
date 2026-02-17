@@ -6,9 +6,8 @@ import { updateRating } from "../services/ratingService";
 import { getRatingFromLevel } from "../utils/eloUtils";
 import { useAuth } from "../contexts/AuthContext";
 import { isWin, isDraw as isDrawResult, getResultDisplayText } from "../utils/resultStandardization";
-import { shareGameWithFriends } from "../utils/shareUtils";
+import { shareGameWithFriends, shareGameReplay } from "../utils/shareUtils";
 import { encodeGameHistory } from "../utils/gameHistoryStringUtils"; // Import for encoding moves
-import GIF from 'gif.js';
 import GameEndCard from "./GameEndCard";
 import "./GameCompletionAnimation.css";
 
@@ -45,6 +44,8 @@ const GameCompletionAnimation = ({
   });
   const [hasProcessedRating, setHasProcessedRating] = useState(false);
   const [isTestSharing, setIsTestSharing] = useState(false); // Test Share state
+  const [isGeneratingGif, setIsGeneratingGif] = useState(false); // GIF generation state
+  const [gifProgress, setGifProgress] = useState(0); // GIF progress 0-100
   const { isAuthenticated, user, fetchUser } = useAuth();
   const navigate = useNavigate();
   const gameEndCardRef = useRef(null); // Ref for wrapper (used for layout)
@@ -120,7 +121,9 @@ const GameCompletionAnimation = ({
             setRatingUpdate(prev => ({ ...prev, isLoading: false }));
             return;
           }
-          const computerRating = getRatingFromLevel(computerLevel);
+          // Use synthetic player's actual rating when available (from result object),
+          // otherwise fall back to the generic level-based rating mapping
+          const computerRating = result?.opponent_rating || getRatingFromLevel(computerLevel);
           ratingData = {
             ...ratingData,
             opponent_rating: computerRating,
@@ -173,30 +176,44 @@ const GameCompletionAnimation = ({
     handleRatingUpdate();
   }, [isAuthenticated, user, fetchUser, isPlayerWin, isDraw, isMultiplayer, computerLevel, opponentRating, opponentId, gameId, hasProcessedRating]);
 
-  // UNUSED - Commented out to remove ESLint warning
-  // const exportAsGIF = async () => {
-  //   const canvas = document.createElement('canvas');
-  //   // Setup canvas and capture frames here
-  //
-  //   const gif = new GIF({
-  //     workerScript: process.env.PUBLIC_URL + '/gif.worker.js',
-  //     quality: 10,
-  //     width: canvas.width,
-  //     height: canvas.height
-  //   });
-  //
-  //   // Add frames to gif
-  //   // gif.addFrame(...);
-  //
-  //   gif.on('finished', (blob) => {
-  //     const link = document.createElement('a');
-  //     link.download = 'chess-game.gif';
-  //     link.href = URL.createObjectURL(blob);
-  //     link.click();
-  //   });
-  //
-  //   gif.render();
-  // };
+  // Handle Share Replay — generates animated GIF of the game
+  const handleShareReplay = async () => {
+    // Build moves string from gameHistory or moves prop
+    let movesString;
+    if (Array.isArray(gameHistory) && gameHistory.length > 0) {
+      movesString = encodeGameHistory(gameHistory);
+    } else if (typeof moves === 'string' && moves) {
+      movesString = moves;
+    } else {
+      alert('No move data available for replay.');
+      return;
+    }
+
+    const opponentName = isMultiplayer
+      ? (playerColor === 'w' ? result?.black_player?.name : result?.white_player?.name)
+      : (championshipData
+          ? (playerColor === 'w' ? result?.black_player?.name : result?.white_player?.name)
+          : (result?.opponent_name || `Computer Lv.${computerLevel || '?'}`));
+
+    let gameType = 'computer';
+    if (championshipData) gameType = 'championship';
+    else if (isMultiplayer) gameType = 'multiplayer';
+
+    await shareGameReplay({
+      gameData: {
+        moves: movesString,
+        playerColor,
+        playerName: user?.name || 'Player',
+        opponentName: opponentName || 'Opponent',
+        isWin: isPlayerWin,
+        isDraw,
+        gameType,
+        championshipData
+      },
+      setIsGenerating: setIsGeneratingGif,
+      setProgress: setGifProgress
+    });
+  };
 
   const handleContinue = async () => {
     if (isAuthenticated) {
@@ -300,7 +317,7 @@ const GameCompletionAnimation = ({
       ? (playerColor === 'w' ? result?.black_player?.name : result?.white_player?.name)
       : (championshipData
           ? (playerColor === 'w' ? result?.black_player?.name : result?.white_player?.name)
-          : 'Computer');
+          : (result?.opponent_name || 'Computer'));
 
     const gameData = {
       gameId,
@@ -332,19 +349,18 @@ const GameCompletionAnimation = ({
 
   return (
     <div className={overlayClass}>
-      {/* Main GameEndCard - now visible and centered with extra bottom padding for action buttons */}
+      {/* Main GameEndCard - centered with room for action buttons */}
       <div ref={gameEndCardRef} style={{
         display: 'flex',
         justifyContent: 'center',
-        alignItems: 'flex-start',
+        alignItems: 'center',
         minHeight: '100vh',
         height: '100vh',
         padding: window.innerWidth <= 480 ? '10px' : '20px',
-        paddingTop: window.innerWidth <= 480 ? '50px' : '80px', // Extra top padding for close button
-        paddingBottom: window.innerWidth <= 480 ? '120px' : '140px', // Extra bottom padding for action buttons and share button
-        overflowY: 'auto', // Allow scrolling
-        overflowX: 'hidden', // Prevent horizontal scroll
-        WebkitOverflowScrolling: 'touch' // Smooth scrolling on iOS
+        paddingBottom: window.innerWidth <= 480 ? '80px' : '80px',
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        WebkitOverflowScrolling: 'touch'
       }}>
         <GameEndCard
           ref={gameEndCardContentRef}
@@ -370,72 +386,114 @@ const GameCompletionAnimation = ({
           aria-label="Close"
           style={{
             position: 'fixed',
-            top: '20px',
-            right: '20px',
-            background: 'rgba(255, 255, 255, 0.95)',
-            border: 'none',
+            top: '16px',
+            right: '16px',
+            background: 'rgba(255, 255, 255, 0.1)',
+            border: '1px solid rgba(255,255,255,0.15)',
             borderRadius: '50%',
-            width: '45px',
-            height: '45px',
-            fontSize: '28px',
+            width: '36px',
+            height: '36px',
+            fontSize: '20px',
             cursor: 'pointer',
             zIndex: 10000,
-            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
             transition: 'all 0.2s',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: '#333',
+            color: '#bababa',
             fontWeight: 'bold'
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(255, 255, 255, 1)';
-            e.currentTarget.style.transform = 'scale(1.1)';
-            e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.4)';
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+            e.currentTarget.style.color = '#fff';
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.95)';
-            e.currentTarget.style.transform = 'scale(1)';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+            e.currentTarget.style.color = '#bababa';
           }}
         >
           &times;
         </button>
       )}
 
-      {/* Action buttons container - positioned at top for single player */}
+      {/* Action buttons container - single player */}
       {!isMultiplayer && (
         <div style={{
           position: 'fixed',
-          bottom: '20px',
+          bottom: window.innerWidth <= 480 ? '12px' : '16px',
           left: '50%',
           transform: 'translateX(-50%)',
           display: 'flex',
-          gap: '10px',
-          flexWrap: 'wrap',
+          gap: '8px',
+          flexWrap: 'nowrap',
           justifyContent: 'center',
           zIndex: 1000,
-          maxWidth: '90%'
+          maxWidth: window.innerWidth <= 480 ? '95%' : '500px',
+          width: '100%',
+          padding: '0 12px'
         }}>
           {isAuthenticated ? (
             <>
-              <button onClick={handleContinue} className="btn btn-primary">
-                Continue to Dashboard
+              <button onClick={handleShareWithFriends} disabled={isTestSharing} style={{
+                background: isTestSharing ? '#555' : 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                color: 'white', padding: '8px 14px', borderRadius: '8px',
+                border: 'none', fontSize: '0.8rem', fontWeight: '700', cursor: isTestSharing ? 'not-allowed' : 'pointer',
+                flex: '1 1 auto', whiteSpace: 'nowrap', transition: 'all 0.2s ease',
+                opacity: isTestSharing ? 0.6 : 1,
+                boxShadow: '0 3px 10px rgba(16, 185, 129, 0.4)'
+              }}>
+                Share
               </button>
-              <button onClick={handleViewInHistory} className="btn btn-secondary">
-                View in History
+              <button onClick={handleShareReplay} disabled={isGeneratingGif} style={{
+                background: isGeneratingGif ? '#555' : 'linear-gradient(135deg, #F97316 0%, #DC2626 100%)',
+                color: 'white', padding: '8px 14px', borderRadius: '8px',
+                border: 'none', fontSize: '0.8rem', fontWeight: '600',
+                cursor: isGeneratingGif ? 'not-allowed' : 'pointer',
+                flex: '1 1 auto', whiteSpace: 'nowrap', transition: 'all 0.2s ease',
+                opacity: isGeneratingGif ? 0.6 : 1
+              }}>
+                {isGeneratingGif ? `${gifProgress}%` : '🎬 GIF'}
               </button>
-              <button onClick={handlePlayAgain} className="btn btn-secondary">
+              <button onClick={handleViewInHistory} style={{
+                backgroundColor: '#3d3a37', color: '#bababa', padding: '8px 14px', borderRadius: '8px',
+                border: '1px solid #4a4744', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer',
+                flex: '1 1 auto', whiteSpace: 'nowrap', transition: 'all 0.2s ease'
+              }}>
+                History
+              </button>
+              <button onClick={handlePlayAgain} style={{
+                backgroundColor: '#3d3a37', color: '#bababa', padding: '8px 14px', borderRadius: '8px',
+                border: '1px solid #4a4744', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer',
+                flex: '1 1 auto', whiteSpace: 'nowrap', transition: 'all 0.2s ease'
+              }}>
                 Play Again
               </button>
             </>
           ) : (
             <>
-              <button onClick={handleLoginRedirect} className="btn btn-primary">
+              <button onClick={handleLoginRedirect} style={{
+                backgroundColor: '#81b64c', color: 'white', padding: '8px 14px', borderRadius: '8px',
+                border: 'none', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer',
+                flex: '1 1 auto', whiteSpace: 'nowrap', transition: 'all 0.2s ease'
+              }}>
                 Login to Save
               </button>
-              <button onClick={handlePlayAgain} className="btn btn-secondary">
+              <button onClick={handlePlayAgain} style={{
+                backgroundColor: '#3d3a37', color: '#bababa', padding: '8px 14px', borderRadius: '8px',
+                border: '1px solid #4a4744', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer',
+                flex: '1 1 auto', whiteSpace: 'nowrap', transition: 'all 0.2s ease'
+              }}>
                 Play Again
+              </button>
+              <button onClick={handleShareReplay} disabled={isGeneratingGif} style={{
+                background: isGeneratingGif ? '#555' : 'linear-gradient(135deg, #F97316 0%, #DC2626 100%)',
+                color: 'white', padding: '8px 14px', borderRadius: '8px',
+                border: 'none', fontSize: '0.8rem', fontWeight: '600',
+                cursor: isGeneratingGif ? 'not-allowed' : 'pointer',
+                flex: '1 1 auto', whiteSpace: 'nowrap', transition: 'all 0.2s ease',
+                opacity: isGeneratingGif ? 0.6 : 1
+              }}>
+                {isGeneratingGif ? `${gifProgress}%` : '🎬 GIF'}
               </button>
             </>
           )}
@@ -446,260 +504,143 @@ const GameCompletionAnimation = ({
       {isMultiplayer && (
         <div style={{
           position: 'fixed',
-          bottom: window.innerWidth <= 480 ? '12px' : '20px',
+          bottom: window.innerWidth <= 480 ? '12px' : '16px',
           left: '50%',
           transform: 'translateX(-50%)',
           display: 'flex',
-          gap: window.innerWidth <= 480 ? '6px' : '10px',
-          flexWrap: 'wrap',
+          gap: '8px',
+          flexWrap: 'nowrap',
           justifyContent: 'center',
           zIndex: 1000,
-          maxWidth: '95%'
+          maxWidth: window.innerWidth <= 480 ? '95%' : '500px',
+          width: '100%',
+          padding: '0 12px'
         }}>
-          {/* Prominent Share button with bright green color */}
-          {/* <button
-            onClick={handleShareWithImage}
-            style={{
-              backgroundColor: '#10B981',
-              color: 'white',
-              padding: window.innerWidth <= 480 ? '9px 16px' : '12px 24px',
-              borderRadius: '10px',
-              border: 'none',
-              fontSize: window.innerWidth <= 480 ? '0.85rem' : '1rem',
-              fontWeight: '700',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              display: 'flex',
-              alignItems: 'center',
-              gap: window.innerWidth <= 480 ? '6px' : '8px',
-              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.4)',
-              transform: window.innerWidth <= 480 ? 'scale(1.02)' : 'scale(1.05)'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#059669';
-              e.currentTarget.style.transform = 'scale(1.1) translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.5)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = '#10B981';
-              e.currentTarget.style.transform = 'scale(1.05) translateY(0)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.4)';
-            }}
-          >
-            <svg
-              style={{ width: window.innerWidth <= 480 ? '16px' : '20px', height: window.innerWidth <= 480 ? '16px' : '20px' }}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2.5}
-                d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
-              />
-            </svg>
-            Share Game Result
-          </button> */}
-          {/* 🎉 Share with Friends button - prominent and attractive */}
+          {/* Share with Friends button — vibrant green */}
           <button
             onClick={handleShareWithFriends}
             disabled={isTestSharing}
             style={{
-              backgroundColor: isTestSharing ? '#6B7280' : '#EC4899',
+              background: isTestSharing ? '#555' : 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
               color: 'white',
-              padding: window.innerWidth <= 480 ? '12px 20px' : '16px 32px',
+              padding: '10px 16px',
               borderRadius: '12px',
               border: 'none',
-              fontSize: window.innerWidth <= 480 ? '1rem' : '1.15rem',
-              fontWeight: '800',
+              fontSize: '0.82rem',
+              fontWeight: '700',
               cursor: isTestSharing ? 'not-allowed' : 'pointer',
               transition: 'all 0.2s ease',
               display: 'flex',
               alignItems: 'center',
-              gap: window.innerWidth <= 480 ? '8px' : '10px',
-              boxShadow: '0 6px 20px rgba(236, 72, 153, 0.5)',
+              gap: '5px',
               opacity: isTestSharing ? 0.6 : 1,
-              transform: 'scale(1.08)'
-            }}
-            onMouseEnter={(e) => {
-              if (!isTestSharing) {
-                e.currentTarget.style.backgroundColor = '#DB2777';
-                e.currentTarget.style.transform = 'scale(1.12) translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 8px 24px rgba(236, 72, 153, 0.6)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!isTestSharing) {
-                e.currentTarget.style.backgroundColor = '#EC4899';
-                e.currentTarget.style.transform = 'scale(1.08) translateY(0)';
-                e.currentTarget.style.boxShadow = '0 6px 20px rgba(236, 72, 153, 0.5)';
-              }
+              flex: '1 1 auto',
+              justifyContent: 'center',
+              whiteSpace: 'nowrap',
+              boxShadow: '0 3px 10px rgba(16, 185, 129, 0.4)'
             }}
           >
-            {isTestSharing ? (
-              <>
-                <svg
-                  className="animate-spin"
-                  style={{ width: window.innerWidth <= 480 ? '18px' : '22px', height: window.innerWidth <= 480 ? '18px' : '22px' }}
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span>Creating Link...</span>
-              </>
-            ) : (
-              <>
-                <svg
-                  style={{ width: window.innerWidth <= 480 ? '18px' : '22px', height: window.innerWidth <= 480 ? '18px' : '22px' }}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2.5}
-                    d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
-                  />
-                </svg>
-                🎉 Share with Friends
-              </>
-            )}
+            {isTestSharing ? '⏳' : '🔗'} {isTestSharing ? 'Sharing...' : 'Share'}
+          </button>
+          {/* Share Replay GIF button — orange/red gradient */}
+          <button
+            onClick={handleShareReplay}
+            disabled={isGeneratingGif}
+            style={{
+              background: isGeneratingGif ? '#555' : 'linear-gradient(135deg, #F97316 0%, #DC2626 100%)',
+              color: 'white',
+              padding: '10px 16px',
+              borderRadius: '12px',
+              border: 'none',
+              fontSize: '0.82rem',
+              fontWeight: '700',
+              cursor: isGeneratingGif ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s ease',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              opacity: isGeneratingGif ? 0.6 : 1,
+              flex: '1 1 auto',
+              justifyContent: 'center',
+              whiteSpace: 'nowrap',
+              boxShadow: '0 3px 10px rgba(249, 115, 22, 0.4)'
+            }}
+          >
+            {isGeneratingGif ? `${gifProgress}%` : '🎬'} {isGeneratingGif ? '' : 'GIF'}
           </button>
           {onNewGame && (
             <button
               onClick={() => onNewGame('random')}
               style={{
-                backgroundColor: '#6B7280',
+                background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
                 color: 'white',
-                padding: window.innerWidth <= 480 ? '6px 10px' : '8px 14px',
-                borderRadius: '6px',
+                padding: '10px 16px',
+                borderRadius: '12px',
                 border: 'none',
-                fontSize: window.innerWidth <= 480 ? '0.7rem' : '0.8rem',
-                fontWeight: '500',
+                fontSize: '0.82rem',
+                fontWeight: '700',
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '4px',
-                boxShadow: '0 1px 4px rgba(107, 114, 128, 0.2)',
-                opacity: 0.9
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#4B5563';
-                e.currentTarget.style.opacity = '1';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#6B7280';
-                e.currentTarget.style.opacity = '0.9';
+                flex: '1 1 auto',
+                justifyContent: 'center',
+                whiteSpace: 'nowrap',
+                boxShadow: '0 3px 10px rgba(59, 130, 246, 0.3)'
               }}
             >
-              <span style={{ fontSize: '0.9rem' }}>🎮</span>
-              New Game
+              🎮 New
             </button>
           )}
           {onPreview && (
             <button
               onClick={onPreview}
               style={{
-                backgroundColor: '#6B7280',
+                background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
                 color: 'white',
-                padding: window.innerWidth <= 480 ? '6px 10px' : '8px 14px',
-                borderRadius: '6px',
+                padding: '10px 16px',
+                borderRadius: '12px',
                 border: 'none',
-                fontSize: window.innerWidth <= 480 ? '0.7rem' : '0.8rem',
-                fontWeight: '500',
+                fontSize: '0.82rem',
+                fontWeight: '700',
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '4px',
-                boxShadow: '0 1px 4px rgba(107, 114, 128, 0.2)',
-                opacity: 0.9
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#4B5563';
-                e.currentTarget.style.opacity = '1';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#6B7280';
-                e.currentTarget.style.opacity = '0.9';
+                flex: '1 1 auto',
+                justifyContent: 'center',
+                whiteSpace: 'nowrap',
+                boxShadow: '0 3px 10px rgba(139, 92, 246, 0.3)'
               }}
             >
-              <span style={{ fontSize: '0.9rem' }}>👁️</span>
-              Preview
+              👁️ Review
             </button>
           )}
-
-          {onBackToLobby && (
-            <button
-              onClick={onBackToLobby}
-              style={{
-                backgroundColor: '#6B7280',
-                color: 'white',
-                padding: window.innerWidth <= 480 ? '6px 10px' : '8px 14px',
-                borderRadius: '6px',
-                border: 'none',
-                fontSize: window.innerWidth <= 480 ? '0.7rem' : '0.8rem',
-                fontWeight: '500',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                boxShadow: '0 1px 4px rgba(107, 114, 128, 0.2)',
-                opacity: 0.9
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#4B5563';
-                e.currentTarget.style.opacity = '1';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#6B7280';
-                e.currentTarget.style.opacity = '0.9';
-              }}
-            >
-              <span style={{ fontSize: '0.9rem' }}>🏠</span>
-              Lobby
-            </button>
-          )}
-
           {championshipData && championshipData.championshipId && (
             <button
               onClick={() => navigate(`/championships/${championshipData.championshipId}`)}
               style={{
-                backgroundColor: '#8B5CF6',
+                background: 'linear-gradient(135deg, #EC4899 0%, #DB2777 100%)',
                 color: 'white',
-                padding: window.innerWidth <= 480 ? '6px 10px' : '8px 14px',
-                borderRadius: '6px',
+                padding: '10px 16px',
+                borderRadius: '12px',
                 border: 'none',
-                fontSize: window.innerWidth <= 480 ? '0.7rem' : '0.8rem',
-                fontWeight: '500',
+                fontSize: '0.82rem',
+                fontWeight: '700',
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '4px',
-                boxShadow: '0 1px 4px rgba(139, 92, 246, 0.2)',
-                opacity: 0.9
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#7C3AED';
-                e.currentTarget.style.opacity = '1';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#8B5CF6';
-                e.currentTarget.style.opacity = '0.9';
+                flex: '1 1 auto',
+                justifyContent: 'center',
+                whiteSpace: 'nowrap',
+                boxShadow: '0 3px 10px rgba(236, 72, 153, 0.3)'
               }}
             >
-              <span style={{ fontSize: '0.9rem' }}>🏆</span>
-              Championship
+              🏆 Champ
             </button>
           )}
         </div>

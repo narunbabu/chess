@@ -1,0 +1,997 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chess99.com/schemas/websocket-events.json",
+  "title": "Chess99 WebSocket Event Schema",
+  "description": "JSON Schema describing all WebSocket events used in the Chess99 platform. Both Android (Pusher Java Client) and iOS (PusherSwift) apps consume these events via Laravel Reverb (Pusher-compatible protocol).",
+  "type": "object",
+  "properties": {
+    "connection": {
+      "type": "object",
+      "title": "Connection Configuration",
+      "description": "Pusher-compatible connection parameters for Laravel Reverb WebSocket server.",
+      "properties": {
+        "pusher_key": {
+          "type": "string",
+          "description": "Pusher application key. Read from REVERB_APP_KEY environment variable on the backend."
+        },
+        "host": {
+          "type": "string",
+          "description": "WebSocket server hostname. Read from REVERB_HOST environment variable."
+        },
+        "port": {
+          "type": "integer",
+          "description": "WebSocket server port. Read from REVERB_PORT environment variable.",
+          "default": 8080
+        },
+        "auth_endpoint": {
+          "type": "string",
+          "description": "Private/presence channel authorization endpoint.",
+          "pattern": "^https?://.+/api/v1/websocket/broadcasting/auth$",
+          "examples": [
+            "https://api.chess99.com/api/v1/websocket/broadcasting/auth"
+          ]
+        },
+        "auth_headers": {
+          "type": "object",
+          "description": "HTTP headers sent with every auth endpoint request.",
+          "properties": {
+            "Authorization": {
+              "type": "string",
+              "description": "Laravel Sanctum bearer token.",
+              "pattern": "^Bearer .+$",
+              "examples": ["Bearer 1|abc123def456"]
+            },
+            "Accept": {
+              "type": "string",
+              "const": "application/json"
+            }
+          },
+          "required": ["Authorization", "Accept"]
+        },
+        "activity_timeout_ms": {
+          "type": "integer",
+          "description": "Milliseconds of inactivity before the client sends a ping to keep the connection alive.",
+          "const": 120000
+        },
+        "pong_timeout_ms": {
+          "type": "integer",
+          "description": "Milliseconds to wait for a pong response before considering the connection dead.",
+          "const": 30000
+        }
+      },
+      "required": ["pusher_key", "host", "port", "auth_endpoint", "auth_headers", "activity_timeout_ms", "pong_timeout_ms"]
+    },
+    "reconnection": {
+      "type": "object",
+      "title": "Reconnection Strategy",
+      "description": "Exponential backoff reconnection with HTTP polling fallback.",
+      "properties": {
+        "strategy": {
+          "type": "string",
+          "const": "exponential_backoff",
+          "description": "Reconnection algorithm."
+        },
+        "backoff_delays_seconds": {
+          "type": "array",
+          "description": "Delay before each successive reconnection attempt, in seconds.",
+          "items": { "type": "number" },
+          "const": [0, 1, 2, 4, 8]
+        },
+        "max_attempts": {
+          "type": "integer",
+          "description": "Maximum WebSocket reconnection attempts before switching to HTTP polling fallback.",
+          "const": 5
+        },
+        "fallback": {
+          "type": "object",
+          "description": "HTTP polling fallback configuration when WebSocket reconnection is exhausted.",
+          "properties": {
+            "mode": {
+              "type": "string",
+              "const": "http_polling"
+            },
+            "cadence_ms": {
+              "type": "object",
+              "description": "Polling interval depends on whose turn it is and app state.",
+              "properties": {
+                "your_turn": {
+                  "type": "integer",
+                  "description": "Polling interval when it is the local player's turn.",
+                  "const": 1000
+                },
+                "opponent_turn": {
+                  "type": "integer",
+                  "description": "Polling interval when it is the opponent's turn.",
+                  "const": 3000
+                },
+                "backgrounded": {
+                  "type": "integer",
+                  "description": "Polling interval when the app is in the background.",
+                  "const": 8000
+                }
+              },
+              "required": ["your_turn", "opponent_turn", "backgrounded"]
+            }
+          },
+          "required": ["mode", "cadence_ms"]
+        }
+      },
+      "required": ["strategy", "backoff_delays_seconds", "max_attempts", "fallback"]
+    },
+    "channels": {
+      "type": "object",
+      "title": "Channel Definitions",
+      "description": "All WebSocket channels used by the Chess99 platform.",
+      "properties": {
+        "private-game.{gameId}": {
+          "type": "object",
+          "title": "Game Channel",
+          "description": "Private channel for real-time game events. Requires authentication. Only the two players in a game are authorized to join.",
+          "properties": {
+            "channel_type": { "type": "string", "const": "private" },
+            "channel_pattern": { "type": "string", "const": "private-game.{gameId}" },
+            "auth_required": { "type": "boolean", "const": true },
+            "authorization_rule": {
+              "type": "string",
+              "const": "User must be white_player_id or black_player_id of the game"
+            },
+            "events": {
+              "type": "object",
+              "properties": {
+                ".game.move": {
+                  "type": "object",
+                  "title": "Game Move",
+                  "description": "Fired when a player makes a chess move. The move object contains from/to squares and optional promotion piece.",
+                  "properties": {
+                    "event_name": { "type": "string", "const": ".game.move" },
+                    "laravel_event_class": { "type": "string", "const": "App\\Events\\GameMoveEvent" },
+                    "broadcast_immediately": { "type": "boolean", "const": true },
+                    "payload": {
+                      "type": "object",
+                      "properties": {
+                        "move": {
+                          "type": "object",
+                          "description": "Chess move object with from/to squares. FEN fields (prev_fen, next_fen) are stripped before broadcast.",
+                          "properties": {
+                            "from": { "type": "string", "description": "Source square in algebraic notation.", "examples": ["e2"] },
+                            "to": { "type": "string", "description": "Destination square in algebraic notation.", "examples": ["e4"] },
+                            "promotion": { "type": ["string", "null"], "description": "Promotion piece type if pawn promotion (q, r, b, n), null otherwise.", "examples": ["q", null] }
+                          },
+                          "required": ["from", "to"]
+                        },
+                        "fen": { "type": "string", "description": "FEN string representing board state after the move.", "examples": ["rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"] },
+                        "turn": { "type": "string", "enum": ["w", "b"], "description": "Whose turn it is after the move." },
+                        "user_id": { "type": "integer", "description": "ID of the player who made the move." },
+                        "user_name": { "type": "string", "description": "Display name of the player who made the move." },
+                        "game_id": { "type": "integer", "description": "ID of the game." },
+                        "move_number": { "type": "integer", "description": "Sequential move number in the game." },
+                        "timestamp": { "type": "string", "format": "date-time", "description": "ISO 8601 timestamp of when the move was made." }
+                      },
+                      "required": ["move", "fen", "turn", "user_id", "user_name", "game_id", "move_number", "timestamp"]
+                    }
+                  }
+                },
+                ".game.ended": {
+                  "type": "object",
+                  "title": "Game Ended",
+                  "description": "Fired when a game concludes by any means (checkmate, stalemate, resignation, draw, timeout, abandonment).",
+                  "properties": {
+                    "event_name": { "type": "string", "const": ".game.ended" },
+                    "laravel_event_class": { "type": "string", "const": "App\\Events\\GameEndedEvent" },
+                    "broadcast_immediately": { "type": "boolean", "const": true },
+                    "payload": {
+                      "type": "object",
+                      "properties": {
+                        "game_id": { "type": "integer", "description": "ID of the game." },
+                        "game_over": { "type": "boolean", "description": "Always true when this event fires.", "const": true },
+                        "result": { "type": ["string", "null"], "description": "Game result string.", "examples": ["white_wins", "black_wins", "draw", "1-0", "0-1", "1/2-1/2"] },
+                        "end_reason": { "type": ["string", "null"], "description": "Reason the game ended.", "examples": ["checkmate", "stalemate", "resignation", "draw_agreement", "timeout", "abandonment", "insufficient_material", "threefold_repetition", "fifty_move_rule"] },
+                        "winner_user_id": { "type": ["integer", "null"], "description": "User ID of the winner, or null for a draw." },
+                        "winner_player": { "type": ["string", "null"], "enum": ["white", "black", null], "description": "Color of the winning player, or null for a draw." },
+                        "fen_final": { "type": ["string", "null"], "description": "Final board position as FEN string." },
+                        "move_count": { "type": "integer", "description": "Total number of moves played in the game.", "minimum": 0 },
+                        "ended_at": { "type": ["string", "null"], "format": "date-time", "description": "ISO 8601 timestamp of when the game ended." },
+                        "white_player": {
+                          "type": ["object", "null"],
+                          "description": "White player summary.",
+                          "properties": {
+                            "id": { "type": "integer" },
+                            "name": { "type": "string" },
+                            "rating": { "type": "integer" }
+                          }
+                        },
+                        "black_player": {
+                          "type": ["object", "null"],
+                          "description": "Black player summary.",
+                          "properties": {
+                            "id": { "type": "integer" },
+                            "name": { "type": "string" },
+                            "rating": { "type": "integer" }
+                          }
+                        },
+                        "timestamp": { "type": "string", "format": "date-time", "description": "Server-side broadcast timestamp." }
+                      },
+                      "required": ["game_id", "game_over", "result", "end_reason", "winner_user_id", "winner_player", "fen_final", "move_count", "ended_at", "white_player", "black_player", "timestamp"]
+                    }
+                  }
+                },
+                ".game.activated": {
+                  "type": "object",
+                  "title": "Game Activated",
+                  "description": "Fired when a game transitions to 'active' status (both players are connected and ready).",
+                  "properties": {
+                    "event_name": { "type": "string", "const": ".game.activated" },
+                    "laravel_event_class": { "type": "string", "const": "App\\Events\\GameActivatedEvent" },
+                    "broadcast_immediately": { "type": "boolean", "const": true },
+                    "payload": {
+                      "type": "object",
+                      "properties": {
+                        "game_id": { "type": "integer", "description": "ID of the game." },
+                        "status": { "type": "string", "const": "active", "description": "New game status." },
+                        "activated_at": { "type": "string", "format": "date-time", "description": "ISO 8601 timestamp of activation." }
+                      },
+                      "required": ["game_id", "status", "activated_at"]
+                    }
+                  }
+                },
+                ".game.paused": {
+                  "type": "object",
+                  "title": "Game Paused",
+                  "description": "Fired when a game is paused due to player inactivity or explicit pause request. Includes timer state at time of pause.",
+                  "properties": {
+                    "event_name": { "type": "string", "const": ".game.paused" },
+                    "laravel_event_class": { "type": "string", "const": "App\\Events\\GamePausedEvent" },
+                    "broadcast_immediately": { "type": "boolean", "const": true },
+                    "payload": {
+                      "type": "object",
+                      "properties": {
+                        "game_id": { "type": "integer", "description": "ID of the game." },
+                        "status": { "type": "string", "const": "paused", "description": "New game status." },
+                        "paused_at": { "type": ["string", "null"], "format": "date-time", "description": "ISO 8601 timestamp of when the game was paused." },
+                        "paused_by_user_id": { "type": ["integer", "null"], "description": "User ID of the player whose inactivity caused the pause, or null for system-initiated pause." },
+                        "paused_by_user_name": { "type": ["string", "null"], "description": "Display name of the player who caused the pause." },
+                        "reason": { "type": "string", "description": "Reason for the pause.", "examples": ["inactivity", "player_request", "connection_lost"] },
+                        "white_time_paused_ms": { "type": ["integer", "null"], "description": "White player's remaining time in milliseconds at the moment of pause." },
+                        "black_time_paused_ms": { "type": ["integer", "null"], "description": "Black player's remaining time in milliseconds at the moment of pause." },
+                        "turn_at_pause": { "type": ["string", "null"], "enum": ["w", "b", null], "description": "Whose turn it was when the game was paused." },
+                        "grace_time_player": { "type": ["string", "null"], "description": "Which player color gets grace time, if any.", "examples": ["white", "black", null] },
+                        "grace_time_ms": { "type": ["integer", "null"], "description": "Amount of grace time in milliseconds, if applicable." }
+                      },
+                      "required": ["game_id", "status", "paused_at", "paused_by_user_id", "paused_by_user_name", "reason", "white_time_paused_ms", "black_time_paused_ms", "turn_at_pause", "grace_time_player", "grace_time_ms"]
+                    }
+                  }
+                },
+                ".game.resumed": {
+                  "type": "object",
+                  "title": "Game Resumed",
+                  "description": "Fired when a paused game is resumed. Includes updated timer state and any grace time adjustments.",
+                  "properties": {
+                    "event_name": { "type": "string", "const": ".game.resumed" },
+                    "laravel_event_class": { "type": "string", "const": "App\\Events\\GameResumedEvent" },
+                    "broadcast_immediately": { "type": "boolean", "const": true },
+                    "payload": {
+                      "type": "object",
+                      "properties": {
+                        "game_id": { "type": "integer", "description": "ID of the game." },
+                        "status": { "type": "string", "const": "active", "description": "New game status after resume." },
+                        "resumed_by": { "type": "integer", "description": "User ID of the player who resumed the game." },
+                        "resumed_at": { "type": "string", "format": "date-time", "description": "ISO 8601 timestamp of when the game was resumed." },
+                        "white_time_remaining_ms": { "type": ["integer", "null"], "description": "White player's remaining time in milliseconds after resume adjustments." },
+                        "black_time_remaining_ms": { "type": ["integer", "null"], "description": "Black player's remaining time in milliseconds after resume adjustments." },
+                        "turn": { "type": "string", "enum": ["w", "b"], "description": "Whose turn it is when the game resumes." },
+                        "grace_time_applied": { "type": "array", "description": "List of grace time adjustments applied during the resume.", "items": { "type": "object" } }
+                      },
+                      "required": ["game_id", "status", "resumed_by", "resumed_at", "white_time_remaining_ms", "black_time_remaining_ms", "turn", "grace_time_applied"]
+                    }
+                  }
+                },
+                ".game.status": {
+                  "type": "object",
+                  "title": "Game Status Update",
+                  "description": "Generic game status change notification. Used by the handshake protocol during connection setup.",
+                  "properties": {
+                    "event_name": { "type": "string", "const": ".game.status" },
+                    "laravel_event_class": { "type": "string", "const": "inline (HandshakeProtocol)" },
+                    "broadcast_immediately": { "type": "boolean", "const": true },
+                    "payload": {
+                      "type": "object",
+                      "properties": {
+                        "status": { "type": "string", "description": "Current game status.", "examples": ["waiting", "active", "paused", "completed", "abandoned"] },
+                        "result": { "type": ["string", "null"], "description": "Game result, present only when status is 'completed'." },
+                        "reason": { "type": ["string", "null"], "description": "Reason for the status change." }
+                      },
+                      "required": ["status"]
+                    }
+                  }
+                },
+                ".game.connection": {
+                  "type": "object",
+                  "title": "Game Connection",
+                  "description": "Fired when a player connects to, disconnects from, or reconnects to a game room.",
+                  "properties": {
+                    "event_name": { "type": "string", "const": ".game.connection" },
+                    "laravel_event_class": { "type": "string", "const": "App\\Events\\GameConnectionEvent" },
+                    "broadcast_immediately": { "type": "boolean", "const": true },
+                    "payload": {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "enum": ["join", "leave", "reconnect", "disconnect"], "description": "Connection event type." },
+                        "user": {
+                          "type": "object",
+                          "description": "User who triggered the connection event.",
+                          "properties": {
+                            "id": { "type": "integer" },
+                            "name": { "type": "string" },
+                            "avatar": { "type": ["string", "null"], "description": "URL to user avatar image." },
+                            "color": { "type": ["string", "null"], "enum": ["white", "black", null], "description": "Player's color in this game." }
+                          },
+                          "required": ["id", "name", "avatar", "color"]
+                        },
+                        "game": {
+                          "type": "object",
+                          "description": "Current game state summary.",
+                          "properties": {
+                            "id": { "type": "integer" },
+                            "status": { "type": "string" },
+                            "turn": { "type": "string", "enum": ["w", "b"] },
+                            "players_online": { "type": "integer", "description": "Number of players currently connected." }
+                          },
+                          "required": ["id", "status", "turn", "players_online"]
+                        },
+                        "data": {
+                          "type": "object",
+                          "description": "Additional connection metadata.",
+                          "properties": {
+                            "timestamp": { "type": "string", "format": "date-time" },
+                            "user_id": { "type": "integer" },
+                            "game_id": { "type": "integer" },
+                            "connection_id": { "type": "string", "description": "Unique connection identifier." }
+                          },
+                          "required": ["timestamp", "user_id", "game_id", "connection_id"]
+                        },
+                        "timestamp": { "type": "string", "format": "date-time" }
+                      },
+                      "required": ["type", "user", "game", "data", "timestamp"]
+                    }
+                  }
+                },
+                ".opponent.pinged": {
+                  "type": "object",
+                  "title": "Opponent Pinged",
+                  "description": "Fired when a player pings their opponent to prompt them to make a move.",
+                  "properties": {
+                    "event_name": { "type": "string", "const": ".opponent.pinged" },
+                    "laravel_event_class": { "type": "string", "const": "App\\Events\\OpponentPingedEvent" },
+                    "broadcast_immediately": { "type": "boolean", "const": true },
+                    "payload": {
+                      "type": "object",
+                      "properties": {
+                        "game_id": { "type": "integer", "description": "ID of the game." },
+                        "pinged_by_user_id": { "type": "integer", "description": "User ID of the player who sent the ping." },
+                        "pinged_by_user_name": { "type": "string", "description": "Display name of the player who sent the ping." },
+                        "pinged_at": { "type": "string", "format": "date-time", "description": "ISO 8601 timestamp of the ping." },
+                        "message": { "type": "string", "description": "Human-readable ping message.", "examples": ["John is waiting for your move!"] }
+                      },
+                      "required": ["game_id", "pinged_by_user_id", "pinged_by_user_name", "pinged_at", "message"]
+                    }
+                  }
+                },
+                ".game.undo.request": {
+                  "type": "object",
+                  "title": "Undo Requested",
+                  "description": "Fired when a player requests to undo their last move.",
+                  "properties": {
+                    "event_name": { "type": "string", "const": ".game.undo.request" },
+                    "laravel_event_class": { "type": "string", "const": "App\\Events\\UndoRequestedEvent" },
+                    "broadcast_immediately": { "type": "boolean", "const": true },
+                    "payload": {
+                      "type": "object",
+                      "properties": {
+                        "game_id": { "type": "integer", "description": "ID of the game." },
+                        "requested_by_user_id": { "type": "integer", "description": "User ID of the player requesting the undo." },
+                        "requested_by_user_name": { "type": "string", "description": "Display name of the requesting player." },
+                        "undo_remaining": { "type": "integer", "description": "Number of undo chances remaining for the requester.", "minimum": 0 }
+                      },
+                      "required": ["game_id", "requested_by_user_id", "requested_by_user_name", "undo_remaining"]
+                    }
+                  }
+                },
+                ".game.undo.accepted": {
+                  "type": "object",
+                  "title": "Undo Accepted",
+                  "description": "Fired when the opponent accepts an undo request. The board state is rolled back and both clients must update their game state.",
+                  "properties": {
+                    "event_name": { "type": "string", "const": ".game.undo.accepted" },
+                    "laravel_event_class": { "type": "string", "const": "App\\Events\\UndoAcceptedEvent" },
+                    "broadcast_immediately": { "type": "boolean", "const": true },
+                    "payload": {
+                      "type": "object",
+                      "properties": {
+                        "game_id": { "type": "integer", "description": "ID of the game." },
+                        "accepted_by_user_id": { "type": "integer", "description": "User ID of the player who accepted the undo." },
+                        "accepted_by_user_name": { "type": "string", "description": "Display name of the player who accepted." },
+                        "fen": { "type": "string", "description": "New FEN string after the undo (board state rolled back)." },
+                        "moves": { "type": "array", "description": "Updated move list after the undo.", "items": { "type": "object" } },
+                        "turn": { "type": "string", "enum": ["w", "b"], "description": "Whose turn it is after the undo." },
+                        "move_count": { "type": "integer", "description": "Updated total move count after the undo.", "minimum": 0 },
+                        "undo_white_remaining": { "type": "integer", "description": "White player's remaining undo chances.", "minimum": 0 },
+                        "undo_black_remaining": { "type": "integer", "description": "Black player's remaining undo chances.", "minimum": 0 }
+                      },
+                      "required": ["game_id", "accepted_by_user_id", "accepted_by_user_name", "fen", "moves", "turn", "move_count", "undo_white_remaining", "undo_black_remaining"]
+                    }
+                  }
+                },
+                ".game.undo.declined": {
+                  "type": "object",
+                  "title": "Undo Declined",
+                  "description": "Fired when the opponent declines an undo request.",
+                  "properties": {
+                    "event_name": { "type": "string", "const": ".game.undo.declined" },
+                    "laravel_event_class": { "type": "string", "const": "App\\Events\\UndoDeclinedEvent" },
+                    "broadcast_immediately": { "type": "boolean", "const": true },
+                    "payload": {
+                      "type": "object",
+                      "properties": {
+                        "game_id": { "type": "integer", "description": "ID of the game." },
+                        "declined_by_user_id": { "type": "integer", "description": "User ID of the player who declined the undo." },
+                        "declined_by_user_name": { "type": "string", "description": "Display name of the player who declined." }
+                      },
+                      "required": ["game_id", "declined_by_user_id", "declined_by_user_name"]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "private-App.Models.User.{userId}": {
+          "type": "object",
+          "title": "User Channel",
+          "description": "Private channel for user-specific notifications (draw offers, invitations, resume requests, new game challenges). Each user subscribes to their own channel only.",
+          "properties": {
+            "channel_type": { "type": "string", "const": "private" },
+            "channel_pattern": { "type": "string", "const": "private-App.Models.User.{userId}" },
+            "auth_required": { "type": "boolean", "const": true },
+            "authorization_rule": {
+              "type": "string",
+              "const": "Authenticated user ID must match the {userId} in the channel name"
+            },
+            "events": {
+              "type": "object",
+              "properties": {
+                ".draw.offer.sent": {
+                  "type": "object",
+                  "title": "Draw Offer Sent",
+                  "description": "Fired when an opponent offers a draw. Sent to the user channel of the player receiving the offer.",
+                  "properties": {
+                    "event_name": { "type": "string", "const": ".draw.offer.sent" },
+                    "laravel_event_class": { "type": "string", "const": "App\\Events\\DrawOfferSentEvent" },
+                    "broadcast_immediately": { "type": "boolean", "const": true },
+                    "payload": {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "draw_offer", "description": "Event type discriminator." },
+                        "game_id": { "type": "integer", "description": "ID of the game." },
+                        "game": {
+                          "type": "object",
+                          "description": "Game context for the draw offer.",
+                          "properties": {
+                            "id": { "type": "integer" },
+                            "white_player_id": { "type": "integer" },
+                            "black_player_id": { "type": "integer" },
+                            "status": { "type": "string" },
+                            "whitePlayer": {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "integer" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["id", "name"]
+                            },
+                            "blackPlayer": {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "integer" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["id", "name"]
+                            }
+                          },
+                          "required": ["id", "white_player_id", "black_player_id", "status", "whitePlayer", "blackPlayer"]
+                        },
+                        "offerer": {
+                          "type": "object",
+                          "description": "The player who offered the draw.",
+                          "properties": {
+                            "id": { "type": "integer" },
+                            "name": { "type": "string" }
+                          },
+                          "required": ["id", "name"]
+                        },
+                        "opponent_id": { "type": "integer", "description": "User ID of the player receiving the draw offer (the subscriber)." }
+                      },
+                      "required": ["type", "game_id", "game", "offerer", "opponent_id"]
+                    }
+                  }
+                },
+                ".draw.offer.declined": {
+                  "type": "object",
+                  "title": "Draw Offer Declined",
+                  "description": "Fired when a player declines a draw offer. Sent to the user channel of the original offerer.",
+                  "properties": {
+                    "event_name": { "type": "string", "const": ".draw.offer.declined" },
+                    "laravel_event_class": { "type": "string", "const": "App\\Events\\DrawOfferDeclinedEvent" },
+                    "broadcast_immediately": { "type": "boolean", "const": true },
+                    "payload": {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "draw_declined", "description": "Event type discriminator." },
+                        "game_id": { "type": "integer", "description": "ID of the game." },
+                        "game": {
+                          "type": "object",
+                          "description": "Game context for the decline.",
+                          "properties": {
+                            "id": { "type": "integer" },
+                            "white_player_id": { "type": "integer" },
+                            "black_player_id": { "type": "integer" },
+                            "status": { "type": "string" },
+                            "whitePlayer": {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "integer" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["id", "name"]
+                            },
+                            "blackPlayer": {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "integer" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["id", "name"]
+                            }
+                          },
+                          "required": ["id", "white_player_id", "black_player_id", "status", "whitePlayer", "blackPlayer"]
+                        },
+                        "decliner": {
+                          "type": "object",
+                          "description": "The player who declined the draw.",
+                          "properties": {
+                            "id": { "type": "integer" },
+                            "name": { "type": "string" }
+                          },
+                          "required": ["id", "name"]
+                        },
+                        "offerer_id": { "type": "integer", "description": "User ID of the original draw offerer (the subscriber)." }
+                      },
+                      "required": ["type", "game_id", "game", "decliner", "offerer_id"]
+                    }
+                  }
+                },
+                ".invitation.sent": {
+                  "type": "object",
+                  "title": "Invitation Sent",
+                  "description": "Fired when a player sends a game invitation. Sent to the user channel of the invited player. The invitation object includes the full Invitation model with inviter and invited user relations loaded.",
+                  "properties": {
+                    "event_name": { "type": "string", "const": ".invitation.sent" },
+                    "laravel_event_class": { "type": "string", "const": "App\\Events\\InvitationSent" },
+                    "broadcast_immediately": { "type": "boolean", "const": true },
+                    "payload": {
+                      "type": "object",
+                      "properties": {
+                        "invitation": {
+                          "type": "object",
+                          "description": "Full Invitation model with relations.",
+                          "properties": {
+                            "id": { "type": "integer", "description": "Invitation ID." },
+                            "inviter_id": { "type": "integer", "description": "User ID of the player who sent the invitation." },
+                            "invited_id": { "type": "integer", "description": "User ID of the player being invited." },
+                            "status": { "type": "string", "description": "Invitation status.", "examples": ["pending", "accepted", "declined", "expired"] },
+                            "game_type": { "type": "string", "description": "Type of game being proposed.", "examples": ["casual", "rated"] },
+                            "inviter": {
+                              "type": "object",
+                              "description": "User who sent the invitation.",
+                              "properties": {
+                                "id": { "type": "integer" },
+                                "name": { "type": "string" },
+                                "avatar": { "type": ["string", "null"] },
+                                "rating": { "type": "integer" }
+                              },
+                              "required": ["id", "name"]
+                            },
+                            "invited": {
+                              "type": "object",
+                              "description": "User being invited.",
+                              "properties": {
+                                "id": { "type": "integer" },
+                                "name": { "type": "string" },
+                                "avatar": { "type": ["string", "null"] },
+                                "rating": { "type": "integer" }
+                              },
+                              "required": ["id", "name"]
+                            },
+                            "created_at": { "type": "string", "format": "date-time" },
+                            "updated_at": { "type": "string", "format": "date-time" }
+                          },
+                          "required": ["id", "inviter_id", "invited_id", "status", "inviter", "invited"]
+                        }
+                      },
+                      "required": ["invitation"]
+                    }
+                  }
+                },
+                ".invitation.accepted": {
+                  "type": "object",
+                  "title": "Invitation Accepted",
+                  "description": "Fired when an invited player accepts a game invitation. Sent to the user channel of the original inviter. Includes the created game object.",
+                  "properties": {
+                    "event_name": { "type": "string", "const": ".invitation.accepted" },
+                    "laravel_event_class": { "type": "string", "const": "App\\Events\\InvitationAccepted" },
+                    "broadcast_immediately": { "type": "boolean", "const": true },
+                    "payload": {
+                      "type": "object",
+                      "properties": {
+                        "game": {
+                          "type": "object",
+                          "description": "The newly created Game model with whitePlayer and blackPlayer relations loaded.",
+                          "properties": {
+                            "id": { "type": "integer", "description": "Game ID to navigate to." },
+                            "status": { "type": "string" },
+                            "white_player_id": { "type": "integer" },
+                            "black_player_id": { "type": "integer" },
+                            "whitePlayer": {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "integer" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["id", "name"]
+                            },
+                            "blackPlayer": {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "integer" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["id", "name"]
+                            },
+                            "created_at": { "type": "string", "format": "date-time" }
+                          },
+                          "required": ["id", "status", "white_player_id", "black_player_id", "whitePlayer", "blackPlayer"]
+                        },
+                        "invitation": {
+                          "type": "object",
+                          "description": "The accepted Invitation model with inviter and invited relations loaded.",
+                          "properties": {
+                            "id": { "type": "integer" },
+                            "inviter_id": { "type": "integer" },
+                            "invited_id": { "type": "integer" },
+                            "status": { "type": "string", "const": "accepted" },
+                            "inviter": {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "integer" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["id", "name"]
+                            },
+                            "invited": {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "integer" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["id", "name"]
+                            }
+                          },
+                          "required": ["id", "inviter_id", "invited_id", "status", "inviter", "invited"]
+                        }
+                      },
+                      "required": ["game", "invitation"]
+                    }
+                  }
+                },
+                ".resume.request.sent": {
+                  "type": "object",
+                  "title": "Resume Request Sent",
+                  "description": "Fired when a player requests to resume a paused game. Sent to the user channel of the opponent.",
+                  "properties": {
+                    "event_name": { "type": "string", "const": ".resume.request.sent" },
+                    "laravel_event_class": { "type": "string", "const": "App\\Events\\ResumeRequestSent" },
+                    "broadcast_immediately": { "type": "boolean", "const": true },
+                    "payload": {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "resume_request", "description": "Event type discriminator." },
+                        "game_id": { "type": "integer", "description": "ID of the game to resume." },
+                        "game": {
+                          "type": "object",
+                          "description": "Game context for the resume request.",
+                          "properties": {
+                            "id": { "type": "integer" },
+                            "white_player_id": { "type": "integer" },
+                            "black_player_id": { "type": "integer" },
+                            "resume_requested_by": { "type": "integer", "description": "User ID of the player requesting the resume." },
+                            "resume_requested_at": { "type": ["string", "null"], "format": "date-time" },
+                            "resume_request_expires_at": { "type": ["string", "null"], "format": "date-time" },
+                            "resume_status": { "type": ["string", "null"], "description": "Current resume request status." },
+                            "whitePlayer": {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "integer" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["id", "name"]
+                            },
+                            "blackPlayer": {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "integer" },
+                                "name": { "type": "string" }
+                              },
+                              "required": ["id", "name"]
+                            }
+                          },
+                          "required": ["id", "white_player_id", "black_player_id", "resume_requested_by", "whitePlayer", "blackPlayer"]
+                        },
+                        "requesting_user": {
+                          "type": "object",
+                          "description": "The player who requested the resume.",
+                          "properties": {
+                            "id": { "type": "integer" },
+                            "name": { "type": "string" }
+                          },
+                          "required": ["id", "name"]
+                        },
+                        "opponent_id": { "type": "integer", "description": "User ID of the opponent receiving this request." },
+                        "expires_at": { "type": ["string", "null"], "format": "date-time", "description": "When the resume request expires if not acted upon." }
+                      },
+                      "required": ["type", "game_id", "game", "requesting_user", "opponent_id", "expires_at"]
+                    }
+                  }
+                },
+                ".new_game.request": {
+                  "type": "object",
+                  "title": "New Game Request",
+                  "description": "Fired when a player challenges their opponent to a new game (rematch). Sent to the user channel of the opponent from the original game.",
+                  "properties": {
+                    "event_name": { "type": "string", "const": ".new_game.request" },
+                    "laravel_event_class": { "type": "string", "const": "App\\Events\\NewGameRequestEvent" },
+                    "broadcast_immediately": { "type": "boolean", "const": true },
+                    "payload": {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "new_game_challenge", "description": "Event type discriminator." },
+                        "original_game_id": { "type": "integer", "description": "ID of the game that just ended." },
+                        "new_game_id": { "type": "integer", "description": "ID of the newly created game for the rematch." },
+                        "color_preference": { "type": "string", "enum": ["white", "black", "random"], "description": "Color preference of the challenger." },
+                        "requester_id": { "type": "integer", "description": "User ID of the player requesting the new game." },
+                        "requesting_user": {
+                          "type": "object",
+                          "description": "The player who sent the challenge.",
+                          "properties": {
+                            "id": { "type": "integer" },
+                            "name": { "type": "string" },
+                            "avatar": { "type": ["string", "null"] }
+                          },
+                          "required": ["id", "name", "avatar"]
+                        },
+                        "opponent_id": { "type": "integer", "description": "User ID of the opponent receiving the challenge." },
+                        "new_game": {
+                          "type": "object",
+                          "description": "The newly created game details.",
+                          "properties": {
+                            "id": { "type": "integer" },
+                            "status": { "type": "string" },
+                            "white_player": {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "integer" },
+                                "name": { "type": "string" },
+                                "avatar": { "type": ["string", "null"] },
+                                "rating": { "type": "integer" }
+                              },
+                              "required": ["id", "name", "avatar", "rating"]
+                            },
+                            "black_player": {
+                              "type": "object",
+                              "properties": {
+                                "id": { "type": "integer" },
+                                "name": { "type": "string" },
+                                "avatar": { "type": ["string", "null"] },
+                                "rating": { "type": "integer" }
+                              },
+                              "required": ["id", "name", "avatar", "rating"]
+                            }
+                          },
+                          "required": ["id", "status", "white_player", "black_player"]
+                        },
+                        "message": { "type": "string", "description": "Human-readable challenge message.", "examples": ["John challenges you to a new game (random colors)!"] },
+                        "created_at": { "type": "string", "format": "date-time" }
+                      },
+                      "required": ["type", "original_game_id", "new_game_id", "color_preference", "requester_id", "requesting_user", "opponent_id", "new_game", "message", "created_at"]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "presence-presence.online": {
+          "type": "object",
+          "title": "Online Users Presence Channel",
+          "description": "Presence channel tracking all online users across the platform. Clients receive pusher:subscription_succeeded, pusher:member_added, and pusher:member_removed events automatically.",
+          "properties": {
+            "channel_type": { "type": "string", "const": "presence" },
+            "channel_pattern": { "type": "string", "const": "presence-presence.online" },
+            "auth_required": { "type": "boolean", "const": true },
+            "authorization_rule": {
+              "type": "string",
+              "const": "Any authenticated user can join"
+            },
+            "member_info": {
+              "type": "object",
+              "title": "Member Info Schema",
+              "description": "Data returned for each member when joining the presence channel. Delivered via pusher:subscription_succeeded (all members) and pusher:member_added (new member).",
+              "properties": {
+                "id": { "type": "integer", "description": "User ID." },
+                "name": { "type": "string", "description": "Display name." },
+                "avatar": { "type": ["string", "null"], "description": "URL to user avatar image." },
+                "status": { "type": "string", "const": "online", "description": "Presence status." },
+                "joined_at": { "type": "string", "format": "date-time", "description": "Timestamp when the user came online." }
+              },
+              "required": ["id", "name", "avatar", "status", "joined_at"]
+            },
+            "pusher_events": {
+              "type": "object",
+              "description": "Standard Pusher presence channel events (handled by the Pusher client library).",
+              "properties": {
+                "pusher:subscription_succeeded": {
+                  "type": "string",
+                  "const": "Received after successful subscription. Contains the full member list."
+                },
+                "pusher:member_added": {
+                  "type": "string",
+                  "const": "Received when a new user comes online. Contains the new member's info."
+                },
+                "pusher:member_removed": {
+                  "type": "string",
+                  "const": "Received when a user goes offline. Contains the departed member's info."
+                }
+              }
+            }
+          }
+        },
+        "presence-presence.lobby": {
+          "type": "object",
+          "title": "Game Lobby Presence Channel",
+          "description": "Presence channel for users actively looking for a game in the lobby.",
+          "properties": {
+            "channel_type": { "type": "string", "const": "presence" },
+            "channel_pattern": { "type": "string", "const": "presence-presence.lobby" },
+            "auth_required": { "type": "boolean", "const": true },
+            "authorization_rule": {
+              "type": "string",
+              "const": "Any authenticated user can join"
+            },
+            "member_info": {
+              "type": "object",
+              "title": "Member Info Schema",
+              "description": "Data returned for each member in the lobby.",
+              "properties": {
+                "id": { "type": "integer", "description": "User ID." },
+                "name": { "type": "string", "description": "Display name." },
+                "avatar": { "type": ["string", "null"], "description": "URL to user avatar image." },
+                "looking_for_game": { "type": "boolean", "description": "Whether the user is actively seeking a game.", "const": true },
+                "rating": { "type": "integer", "description": "User's Elo rating.", "default": 1200 },
+                "joined_lobby_at": { "type": "string", "format": "date-time", "description": "Timestamp when the user entered the lobby." }
+              },
+              "required": ["id", "name", "avatar", "looking_for_game", "rating", "joined_lobby_at"]
+            },
+            "pusher_events": {
+              "type": "object",
+              "description": "Standard Pusher presence channel events.",
+              "properties": {
+                "pusher:subscription_succeeded": {
+                  "type": "string",
+                  "const": "Received after successful subscription. Contains the full member list in the lobby."
+                },
+                "pusher:member_added": {
+                  "type": "string",
+                  "const": "Received when a new user enters the lobby."
+                },
+                "pusher:member_removed": {
+                  "type": "string",
+                  "const": "Received when a user leaves the lobby."
+                }
+              }
+            }
+          }
+        },
+        "presence-presence.game.{gameId}": {
+          "type": "object",
+          "title": "Game Room Presence Channel",
+          "description": "Presence channel for a specific game room. Tracks players and spectators currently watching the game.",
+          "properties": {
+            "channel_type": { "type": "string", "const": "presence" },
+            "channel_pattern": { "type": "string", "const": "presence-presence.game.{gameId}" },
+            "auth_required": { "type": "boolean", "const": true },
+            "authorization_rule": {
+              "type": "string",
+              "const": "Any authenticated user can join. Game must exist. Players get role 'player', others get role 'spectator'."
+            },
+            "member_info": {
+              "type": "object",
+              "title": "Member Info Schema",
+              "description": "Data returned for each member in the game room.",
+              "properties": {
+                "id": { "type": "integer", "description": "User ID." },
+                "name": { "type": "string", "description": "Display name." },
+                "avatar": { "type": ["string", "null"], "description": "URL to user avatar image." },
+                "role": { "type": "string", "enum": ["player", "spectator"], "description": "Whether this user is a player in the game or a spectator." },
+                "joined_at": { "type": "string", "format": "date-time", "description": "Timestamp when the user joined the game room." }
+              },
+              "required": ["id", "name", "avatar", "role", "joined_at"]
+            },
+            "pusher_events": {
+              "type": "object",
+              "description": "Standard Pusher presence channel events.",
+              "properties": {
+                "pusher:subscription_succeeded": {
+                  "type": "string",
+                  "const": "Received after successful subscription. Contains the full member list in the game room."
+                },
+                "pusher:member_added": {
+                  "type": "string",
+                  "const": "Received when a new user (player or spectator) joins the game room."
+                },
+                "pusher:member_removed": {
+                  "type": "string",
+                  "const": "Received when a user leaves the game room."
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "required": ["connection", "reconnection", "channels"],
+  "$defs": {
+    "player_summary": {
+      "type": "object",
+      "description": "Reusable player summary object.",
+      "properties": {
+        "id": { "type": "integer", "description": "User ID." },
+        "name": { "type": "string", "description": "Display name." },
+        "avatar": { "type": ["string", "null"], "description": "URL to user avatar image." },
+        "rating": { "type": "integer", "description": "Elo rating.", "default": 1200 }
+      },
+      "required": ["id", "name"]
+    },
+    "game_summary": {
+      "type": "object",
+      "description": "Reusable game summary object.",
+      "properties": {
+        "id": { "type": "integer", "description": "Game ID." },
+        "status": { "type": "string", "description": "Current game status.", "examples": ["waiting", "active", "paused", "completed", "abandoned"] },
+        "white_player_id": { "type": "integer" },
+        "black_player_id": { "type": "integer" }
+      },
+      "required": ["id", "status", "white_player_id", "black_player_id"]
+    },
+    "fen_string": {
+      "type": "string",
+      "description": "Forsyth-Edwards Notation string representing a chess board position.",
+      "pattern": "^[rnbqkpRNBQKP1-8/]+ [wb] [KQkq-]+ [a-h1-8-]+ \\d+ \\d+$",
+      "examples": ["rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"]
+    },
+    "iso8601_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 formatted date-time string.",
+      "examples": ["2025-12-05T14:30:00.000000Z"]
+    }
+  }
+}

@@ -1,0 +1,4702 @@
+openapi: "3.0.3"
+
+info:
+  title: Chess99 API
+  description: |
+    REST API for the Chess99 real-time multiplayer chess platform.
+
+    Covers authentication, game management, ratings, tournaments,
+    tutorials, social features, WebSocket lifecycle endpoints, and
+    push-notification device registration.
+
+    All authenticated endpoints require a Bearer token obtained from
+    the `/auth/login`, `/auth/register`, or OAuth endpoints.
+    Tokens are Laravel Sanctum personal-access tokens.
+  version: "1.0.0"
+  contact:
+    name: Chess99 Engineering
+    url: https://chess99.com
+  license:
+    name: Proprietary
+
+servers:
+  - url: https://api.chess99.com/api/v1
+    description: Production
+  - url: http://localhost:8000/api/v1
+    description: Local development
+
+tags:
+  - name: Health
+    description: Server health and feature-flag checks
+  - name: Auth
+    description: Authentication, OAuth, and token management
+  - name: User
+    description: Current user profile and public user listing
+  - name: Friends
+    description: Friend requests and friend list management
+  - name: Devices
+    description: Push-notification device-token management
+  - name: Games
+    description: Game creation, moves, resignation, and listing
+  - name: Draw
+    description: Draw offer lifecycle within a game
+  - name: Ratings
+    description: Elo rating queries and updates
+  - name: Game History
+    description: Completed-game archive and rankings
+  - name: Invitations
+    description: Game invitations between players
+  - name: Tutorials
+    description: Learning hub - modules, lessons, progress, achievements
+  - name: Championships
+    description: Tournament CRUD, registration, matches, standings
+  - name: Championship Matches
+    description: Tournament match management, pairings, brackets
+  - name: Championship Admin
+    description: Tournament administration (organizer/admin only)
+  - name: WebSocket
+    description: WebSocket lifecycle and real-time game endpoints
+  - name: Shared Results
+    description: Public game-result sharing and OG metadata
+  - name: Organizations
+    description: Organization management
+  - name: Performance
+    description: Game performance analysis and statistics
+
+# ---------------------------------------------------------------------------
+# Security
+# ---------------------------------------------------------------------------
+security: []
+
+components:
+
+  # ── Security Schemes ──────────────────────────────────────────────────────
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Sanctum
+      description: Laravel Sanctum personal-access token
+
+  # ── Reusable Parameters ───────────────────────────────────────────────────
+  parameters:
+    GameId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+      description: Game ID
+    ChampionshipId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+      description: Championship ID
+    MatchId:
+      name: match
+      in: path
+      required: true
+      schema:
+        type: integer
+      description: Championship match ID
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        default: 1
+      description: Page number for paginated results
+    PerPageParam:
+      name: per_page
+      in: query
+      schema:
+        type: integer
+        default: 15
+      description: Items per page
+
+  # ── Schemas ───────────────────────────────────────────────────────────────
+  schemas:
+
+    # ── Core domain objects ─────────────────────────────────────────────────
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "Magnus"
+        email:
+          type: string
+          format: email
+          example: "magnus@chess99.com"
+        avatar_url:
+          type: string
+          format: uri
+          nullable: true
+          example: "https://api.chess99.com/storage/avatars/1_1700000000.jpg"
+        rating:
+          type: integer
+          example: 1500
+        is_provisional:
+          type: boolean
+          example: true
+        games_played:
+          type: integer
+          example: 12
+        peak_rating:
+          type: integer
+          example: 1520
+        tutorial_xp:
+          type: integer
+          example: 350
+        tutorial_level:
+          type: integer
+          example: 3
+        current_skill_tier:
+          type: string
+          enum: [beginner, intermediate, advanced]
+          nullable: true
+          example: "beginner"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    UserWithRoles:
+      allOf:
+        - $ref: "#/components/schemas/User"
+        - type: object
+          properties:
+            roles:
+              type: array
+              items:
+                $ref: "#/components/schemas/Role"
+
+    Role:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          example: "tournament_organizer"
+        display_name:
+          type: string
+          example: "Tournament Organizer"
+
+    UserSummary:
+      type: object
+      description: Lightweight user reference used inside game objects
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        avatar_url:
+          type: string
+          format: uri
+          nullable: true
+        rating:
+          type: integer
+
+    Game:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 42
+        white_player_id:
+          type: integer
+          nullable: true
+        black_player_id:
+          type: integer
+          nullable: true
+        status:
+          type: string
+          enum: [waiting, active, paused, finished, aborted]
+          example: "active"
+        result:
+          type: string
+          nullable: true
+          example: "white"
+          description: "Winner color or draw indicator"
+        end_reason:
+          type: string
+          nullable: true
+          enum:
+            - checkmate
+            - resignation
+            - timeout
+            - stalemate
+            - insufficient_material
+            - threefold_repetition
+            - fifty_move_rule
+            - agreement
+            - abandonment
+            - forfeit
+            - abort
+          example: "checkmate"
+        fen:
+          type: string
+          nullable: true
+          example: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"
+        pgn:
+          type: string
+          nullable: true
+          example: "1. e4 e5 2. Nf3 Nc6"
+        turn:
+          type: string
+          nullable: true
+          enum: [w, b]
+          example: "b"
+        move_count:
+          type: integer
+          example: 4
+        game_mode:
+          type: string
+          enum: [casual, rated, championship]
+          example: "rated"
+        computer_player_id:
+          type: integer
+          nullable: true
+          description: Non-null for games against AI
+        computer_level:
+          type: integer
+          nullable: true
+        player_color:
+          type: string
+          nullable: true
+          enum: [white, black]
+          description: Human player's color in computer games
+        white_player:
+          $ref: "#/components/schemas/UserSummary"
+        black_player:
+          $ref: "#/components/schemas/UserSummary"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    GameWithMoves:
+      allOf:
+        - $ref: "#/components/schemas/Game"
+        - type: object
+          properties:
+            moves:
+              type: array
+              items:
+                $ref: "#/components/schemas/Move"
+
+    Move:
+      type: object
+      properties:
+        id:
+          type: integer
+        game_id:
+          type: integer
+        player_id:
+          type: integer
+          nullable: true
+        move:
+          type: string
+          example: "e2e4"
+        fen:
+          type: string
+        san:
+          type: string
+          example: "e4"
+        move_number:
+          type: integer
+        color:
+          type: string
+          enum: [w, b]
+        time_taken_ms:
+          type: integer
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    StandardizedResult:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [won, lost, draw]
+          example: "won"
+        details:
+          type: string
+          example: "Checkmate"
+        end_reason:
+          type: string
+          enum:
+            - checkmate
+            - resignation
+            - timeout
+            - stalemate
+            - insufficient_material
+            - threefold_repetition
+            - fifty_move_rule
+            - agreement
+          example: "checkmate"
+        winner:
+          type: string
+          nullable: true
+          enum: [player, opponent, null]
+          example: "player"
+
+    RatingChange:
+      type: object
+      properties:
+        old_rating:
+          type: integer
+          example: 1500
+        new_rating:
+          type: integer
+          example: 1516
+        rating_change:
+          type: integer
+          example: 16
+        expected_score:
+          type: number
+          format: float
+          example: 0.5
+        k_factor:
+          type: integer
+          example: 32
+        is_provisional:
+          type: boolean
+
+    RatingInfo:
+      type: object
+      properties:
+        rating:
+          type: integer
+          example: 1500
+        is_provisional:
+          type: boolean
+        games_played:
+          type: integer
+
+    RatingHistory:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+        old_rating:
+          type: integer
+        new_rating:
+          type: integer
+        change:
+          type: integer
+        game_id:
+          type: integer
+          nullable: true
+        reason:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    DrawStatus:
+      type: object
+      properties:
+        has_pending_offer:
+          type: boolean
+        offered_by:
+          type: integer
+          nullable: true
+        offered_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    DrawEvent:
+      type: object
+      properties:
+        id:
+          type: integer
+        game_id:
+          type: integer
+        offered_by:
+          type: integer
+        action:
+          type: string
+          enum: [offered, accepted, declined, cancelled]
+        created_at:
+          type: string
+          format: date-time
+
+    DeviceToken:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+        device_token:
+          type: string
+        platform:
+          type: string
+          enum: [android, ios]
+        device_name:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    SharedResult:
+      type: object
+      properties:
+        id:
+          type: integer
+        unique_id:
+          type: string
+          example: "abc123def456"
+        game_id:
+          type: integer
+          nullable: true
+        result_data:
+          type: object
+        og_title:
+          type: string
+          nullable: true
+        og_description:
+          type: string
+          nullable: true
+        og_image_url:
+          type: string
+          format: uri
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    GameHistory:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+          nullable: true
+        opponent_id:
+          type: integer
+          nullable: true
+        result:
+          type: string
+        game_mode:
+          type: string
+        game_data:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+
+    # ── Invitation ──────────────────────────────────────────────────────────
+
+    Invitation:
+      type: object
+      properties:
+        id:
+          type: integer
+        sender_id:
+          type: integer
+        receiver_id:
+          type: integer
+        game_id:
+          type: integer
+          nullable: true
+        status:
+          type: string
+          enum: [pending, accepted, declined, cancelled, expired]
+        created_at:
+          type: string
+          format: date-time
+
+    # ── Championship / Tournament ───────────────────────────────────────────
+
+    Championship:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          example: "Weekend Blitz Open"
+        description:
+          type: string
+          nullable: true
+        format:
+          type: string
+          enum: [swiss_only, elimination_only, hybrid]
+          example: "swiss_only"
+        status:
+          type: string
+          enum: [upcoming, registration_open, in_progress, completed, cancelled]
+        max_participants:
+          type: integer
+        current_round:
+          type: integer
+        total_rounds:
+          type: integer
+        time_control:
+          type: object
+          properties:
+            minutes:
+              type: integer
+            increment:
+              type: integer
+        prizes:
+          type: object
+          nullable: true
+        settings:
+          type: object
+          nullable: true
+        registration_start_at:
+          type: string
+          format: date-time
+          nullable: true
+        registration_end_at:
+          type: string
+          format: date-time
+          nullable: true
+        starts_at:
+          type: string
+          format: date-time
+          nullable: true
+        ends_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_by:
+          type: integer
+        organization_id:
+          type: integer
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ChampionshipParticipant:
+      type: object
+      properties:
+        id:
+          type: integer
+        championship_id:
+          type: integer
+        user_id:
+          type: integer
+        seed:
+          type: integer
+          nullable: true
+        initial_rating:
+          type: integer
+          nullable: true
+        payment_status_id:
+          type: integer
+          nullable: true
+        payment_amount:
+          type: number
+          format: float
+          nullable: true
+        registered_at:
+          type: string
+          format: date-time
+        user:
+          $ref: "#/components/schemas/UserSummary"
+
+    ChampionshipMatch:
+      type: object
+      properties:
+        id:
+          type: integer
+        championship_id:
+          type: integer
+        round_number:
+          type: integer
+        board_number:
+          type: integer
+          nullable: true
+        white_player_id:
+          type: integer
+          nullable: true
+        black_player_id:
+          type: integer
+          nullable: true
+        game_id:
+          type: integer
+          nullable: true
+        winner_id:
+          type: integer
+          nullable: true
+        status:
+          type: string
+          enum: [scheduled, active, completed, cancelled, bye]
+        result:
+          type: string
+          nullable: true
+        round_type:
+          type: string
+          nullable: true
+          enum: [swiss, elimination, semi_final, final]
+        scheduled_at:
+          type: string
+          format: date-time
+          nullable: true
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        time_window_hours:
+          type: integer
+          nullable: true
+        white_player:
+          $ref: "#/components/schemas/UserSummary"
+        black_player:
+          $ref: "#/components/schemas/UserSummary"
+
+    ChampionshipStanding:
+      type: object
+      properties:
+        id:
+          type: integer
+        championship_id:
+          type: integer
+        user_id:
+          type: integer
+        rank:
+          type: integer
+        points:
+          type: number
+          format: float
+        wins:
+          type: integer
+        losses:
+          type: integer
+        draws:
+          type: integer
+        games_played:
+          type: integer
+        buchholz_score:
+          type: number
+          format: float
+          nullable: true
+        sonneborn_berger_score:
+          type: number
+          format: float
+          nullable: true
+        performance_rating:
+          type: integer
+          nullable: true
+        user:
+          $ref: "#/components/schemas/UserSummary"
+
+    # ── Tutorial / Learning Hub ─────────────────────────────────────────────
+
+    TutorialModule:
+      type: object
+      properties:
+        id:
+          type: integer
+        slug:
+          type: string
+          example: "beginner-fundamentals"
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        tier:
+          type: string
+          enum: [beginner, intermediate, advanced]
+        order:
+          type: integer
+        is_active:
+          type: boolean
+        lessons_count:
+          type: integer
+        completed_lessons_count:
+          type: integer
+          description: Per-user count (when authenticated)
+
+    TutorialLesson:
+      type: object
+      properties:
+        id:
+          type: integer
+        module_id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        content:
+          type: object
+          nullable: true
+        order:
+          type: integer
+        xp_reward:
+          type: integer
+        is_active:
+          type: boolean
+
+    TutorialProgress:
+      type: object
+      properties:
+        lesson_id:
+          type: integer
+        status:
+          type: string
+          enum: [not_started, in_progress, completed, mastered]
+        best_score:
+          type: integer
+          nullable: true
+        attempts:
+          type: integer
+        time_spent_seconds:
+          type: integer
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    TutorialAchievement:
+      type: object
+      properties:
+        id:
+          type: integer
+        code:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        icon:
+          type: string
+          nullable: true
+        xp_reward:
+          type: integer
+        earned_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Set when the achievement has been earned by the user
+
+    TutorialStats:
+      type: object
+      properties:
+        total_lessons:
+          type: integer
+        completed_lessons:
+          type: integer
+        mastered_lessons:
+          type: integer
+        completion_percentage:
+          type: number
+          format: float
+        total_modules:
+          type: integer
+        completed_modules:
+          type: integer
+        average_score:
+          type: number
+          format: float
+        total_time_spent:
+          type: integer
+        formatted_time_spent:
+          type: string
+          example: "2h 15m"
+        achievements_count:
+          type: integer
+        current_streak:
+          type: integer
+        xp:
+          type: integer
+        level:
+          type: integer
+        skill_tier:
+          type: string
+          nullable: true
+
+    DailyChallenge:
+      type: object
+      properties:
+        id:
+          type: integer
+        date:
+          type: string
+          format: date
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        puzzle_data:
+          type: object
+        xp_reward:
+          type: integer
+        completed:
+          type: boolean
+          description: Whether the current user has completed this challenge
+
+    # ── Organization ────────────────────────────────────────────────────────
+
+    Organization:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    # ── Presence / Status ───────────────────────────────────────────────────
+
+    PresenceInfo:
+      type: object
+      properties:
+        user_id:
+          type: integer
+        status:
+          type: string
+          enum: [online, in_game, idle, offline]
+        last_seen:
+          type: string
+          format: date-time
+          nullable: true
+
+    # ── Performance / Analysis ──────────────────────────────────────────────
+
+    GamePerformance:
+      type: object
+      properties:
+        game_id:
+          type: integer
+        accuracy:
+          type: number
+          format: float
+          nullable: true
+        blunders:
+          type: integer
+        mistakes:
+          type: integer
+        inaccuracies:
+          type: integer
+        average_move_time_ms:
+          type: integer
+          nullable: true
+
+    # ── Pagination wrapper ──────────────────────────────────────────────────
+
+    PaginationMeta:
+      type: object
+      properties:
+        current_page:
+          type: integer
+        last_page:
+          type: integer
+        per_page:
+          type: integer
+        total:
+          type: integer
+        from:
+          type: integer
+          nullable: true
+        to:
+          type: integer
+          nullable: true
+
+    PaginationLinks:
+      type: object
+      properties:
+        first:
+          type: string
+          format: uri
+          nullable: true
+        last:
+          type: string
+          format: uri
+          nullable: true
+        prev:
+          type: string
+          format: uri
+          nullable: true
+        next:
+          type: string
+          format: uri
+          nullable: true
+
+    # ── Standard envelopes & errors ─────────────────────────────────────────
+
+    SuccessMessage:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "success"
+        message:
+          type: string
+
+    ValidationError:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "The given data was invalid."
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          example:
+            email: ["The email field is required."]
+
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Unauthenticated."
+        status:
+          type: string
+          example: "error"
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "ok"
+        api_version:
+          type: string
+          example: "1.0.0"
+        min_supported_app_version:
+          type: string
+          example: "1.0.0"
+        features:
+          type: object
+          additionalProperties:
+            type: boolean
+          example:
+            tournaments: true
+            tutorials: true
+            rated_games: true
+        server_time:
+          type: string
+          format: date-time
+
+  # ── Reusable Responses ────────────────────────────────────────────────────
+  responses:
+    Unauthorized:
+      description: Authentication required or token invalid
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            message: "Unauthenticated."
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            message: "This action is unauthorized."
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            message: "Resource not found."
+    UnprocessableEntity:
+      description: Validation failed
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ValidationError"
+    TooManyRequests:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            message: "Too Many Attempts."
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds until the rate limit resets
+        X-RateLimit-Limit:
+          schema:
+            type: integer
+        X-RateLimit-Remaining:
+          schema:
+            type: integer
+    ServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            message: "Server Error"
+
+# ===========================================================================
+# Paths
+# ===========================================================================
+paths:
+
+  # ── Health ────────────────────────────────────────────────────────────────
+  /health:
+    get:
+      operationId: getHealth
+      tags: [Health]
+      summary: Health check and feature flags
+      description: Returns API status, minimum supported app version, and enabled features. Public endpoint.
+      responses:
+        "200":
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  # ── Auth ──────────────────────────────────────────────────────────────────
+  /auth/login:
+    post:
+      operationId: login
+      tags: [Auth]
+      summary: Email/password login
+      description: Rate limited to 10 requests per minute.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  token:
+                    type: string
+                    example: "1|abc123..."
+                  user:
+                    $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /auth/register:
+    post:
+      operationId: register
+      tags: [Auth]
+      summary: Create a new account
+      description: Rate limited to 10 requests per minute.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password, password_confirmation]
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+                  minLength: 8
+                password_confirmation:
+                  type: string
+                  format: password
+      responses:
+        "201":
+          description: Account created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  token:
+                    type: string
+                  user:
+                    $ref: "#/components/schemas/User"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [Auth]
+      summary: Revoke current token
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /auth/google/mobile:
+    post:
+      operationId: googleMobileLogin
+      tags: [Auth]
+      summary: Google Sign-In for mobile apps
+      description: |
+        Accepts the `idToken` returned by the Google Sign-In SDK on
+        Android/iOS. Creates an account on first login.
+        Rate limited to 10 requests per minute.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [idToken]
+              properties:
+                idToken:
+                  type: string
+                  description: Google ID token from mobile SDK
+      responses:
+        "200":
+          description: Authenticated via Google
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  token:
+                    type: string
+                  user:
+                    $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /auth/apple/mobile:
+    post:
+      operationId: appleMobileLogin
+      tags: [Auth]
+      summary: Sign in with Apple for mobile apps
+      description: |
+        Accepts the identity token from Apple Sign-In SDK.
+        Creates an account on first login. Name and email are only
+        provided on the first authorization.
+        Rate limited to 10 requests per minute.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [identity_token]
+              properties:
+                identity_token:
+                  type: string
+                authorization_code:
+                  type: string
+                  nullable: true
+                user_name:
+                  type: string
+                  nullable: true
+                  description: Only available on first authorization
+                user_email:
+                  type: string
+                  format: email
+                  nullable: true
+                  description: Only available on first authorization
+      responses:
+        "200":
+          description: Authenticated via Apple
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  token:
+                    type: string
+                  user:
+                    $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /auth/refresh:
+    post:
+      operationId: refreshToken
+      tags: [Auth]
+      summary: Refresh authentication token
+      description: |
+        Revokes the current token and issues a new one.
+        Rate limited to 10 requests per minute.
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                device_name:
+                  type: string
+                  nullable: true
+                  description: Optional label for the new token
+      responses:
+        "200":
+          description: Token refreshed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  token:
+                    type: string
+                  user:
+                    $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /auth/revoke-all:
+    post:
+      operationId: revokeAllTokens
+      tags: [Auth]
+      summary: Revoke all tokens for current user
+      description: Signs the user out of all devices.
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: All tokens revoked
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                  tokens_revoked:
+                    type: integer
+                    example: 3
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  # ── User / Profile ───────────────────────────────────────────────────────
+  /user:
+    get:
+      operationId: getCurrentUser
+      tags: [User]
+      summary: Get current authenticated user with roles
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserWithRoles"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /users:
+    get:
+      operationId: listUsers
+      tags: [User]
+      summary: List all users (public)
+      responses:
+        "200":
+          description: User list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserSummary"
+
+  /profile:
+    post:
+      operationId: updateProfile
+      tags: [User]
+      summary: Update user profile
+      description: Supports multipart form data for avatar uploads.
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                avatar:
+                  type: string
+                  format: binary
+                  description: Avatar image file (JPEG, PNG, max 2MB)
+      responses:
+        "200":
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  # ── Friends ──────────────────────────────────────────────────────────────
+  /friends:
+    get:
+      operationId: getFriends
+      tags: [Friends]
+      summary: List accepted friends
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Friend list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /friends/pending:
+    get:
+      operationId: getPendingFriendRequests
+      tags: [Friends]
+      summary: List pending incoming friend requests
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Pending requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /friends/{friendId}:
+    post:
+      operationId: addFriend
+      tags: [Friends]
+      summary: Send a friend request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: friendId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Friend request sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: removeFriend
+      tags: [Friends]
+      summary: Remove a friend
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: friendId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Friend removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /friends/{requesterId}/accept:
+    post:
+      operationId: acceptFriendRequest
+      tags: [Friends]
+      summary: Accept a pending friend request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: requesterId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Request accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /friends/{requesterId}/reject:
+    delete:
+      operationId: rejectFriendRequest
+      tags: [Friends]
+      summary: Reject a pending friend request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: requesterId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Request rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ── Devices (Push Notifications) ─────────────────────────────────────────
+  /devices/register:
+    post:
+      operationId: registerDevice
+      tags: [Devices]
+      summary: Register a device token for push notifications
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [device_token, platform]
+              properties:
+                device_token:
+                  type: string
+                platform:
+                  type: string
+                  enum: [android, ios]
+                device_name:
+                  type: string
+                  nullable: true
+      responses:
+        "200":
+          description: Device registered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  device_token:
+                    $ref: "#/components/schemas/DeviceToken"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /devices/{token}:
+    delete:
+      operationId: deleteDevice
+      tags: [Devices]
+      summary: Unregister a device token
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Device unregistered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /devices:
+    get:
+      operationId: listDevices
+      tags: [Devices]
+      summary: List registered devices for current user
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Device list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  devices:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DeviceToken"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ── Games ─────────────────────────────────────────────────────────────────
+  /games:
+    post:
+      operationId: createGame
+      tags: [Games]
+      summary: Create a new multiplayer game
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                opponent_id:
+                  type: integer
+                  description: ID of the opponent player
+      responses:
+        "201":
+          description: Game created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Game"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+    get:
+      operationId: getUserGames
+      tags: [Games]
+      summary: List games for the current user (paginated)
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/PerPageParam"
+      responses:
+        "200":
+          description: Paginated game list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Game"
+                  meta:
+                    $ref: "#/components/schemas/PaginationMeta"
+                  links:
+                    $ref: "#/components/schemas/PaginationLinks"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /games/computer:
+    post:
+      operationId: createComputerGame
+      tags: [Games]
+      summary: Create a game against the computer
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                gameData:
+                  type: object
+                  description: Computer game configuration (level, color, etc.)
+                  properties:
+                    computer_level:
+                      type: integer
+                      minimum: 1
+                      maximum: 10
+                    player_color:
+                      type: string
+                      enum: [white, black]
+      responses:
+        "201":
+          description: Computer game created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Game"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /games/active:
+    get:
+      operationId: getActiveGames
+      tags: [Games]
+      summary: List active games for the current user
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Active games
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Game"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /games/unfinished:
+    get:
+      operationId: getUnfinishedGames
+      tags: [Games]
+      summary: List unfinished (paused/interrupted) games
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Unfinished games
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Game"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /games/create-from-unfinished:
+    post:
+      operationId: createFromUnfinished
+      tags: [Games]
+      summary: Resume an unfinished game by creating a continuation
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Game resumed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Game"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /games/{id}:
+    get:
+      operationId: getGame
+      tags: [Games]
+      summary: Get a single game with moves
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GameId"
+      responses:
+        "200":
+          description: Game details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GameWithMoves"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /games/{id}/moves:
+    get:
+      operationId: getGameMoves
+      tags: [Games]
+      summary: Get move list for a game (compact format)
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GameId"
+      responses:
+        "200":
+          description: Move list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Move"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /games/{id}/move:
+    post:
+      operationId: makeMove
+      tags: [Games]
+      summary: Make a move in a game
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GameId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [move]
+              properties:
+                move:
+                  type: string
+                  description: Move in UCI or SAN notation
+                  example: "e2e4"
+      responses:
+        "200":
+          description: Move accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  game:
+                    $ref: "#/components/schemas/Game"
+                  move:
+                    $ref: "#/components/schemas/Move"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /games/{id}/resign:
+    post:
+      operationId: resignGame
+      tags: [Games]
+      summary: Resign from a game
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GameId"
+      responses:
+        "200":
+          description: Resigned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  game:
+                    $ref: "#/components/schemas/Game"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /games/{id}/pause-navigation:
+    post:
+      operationId: pauseNavigation
+      tags: [Games]
+      summary: Record that the user navigated away from a game
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GameId"
+      responses:
+        "200":
+          description: Pause navigation recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /games/{id}/unfinished:
+    delete:
+      operationId: deleteUnfinishedGame
+      tags: [Games]
+      summary: Delete an unfinished game
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GameId"
+      responses:
+        "200":
+          description: Unfinished game deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /games/{id}/mode:
+    post:
+      operationId: setGameMode
+      tags: [Games]
+      summary: Set the game mode (casual/rated)
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GameId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mode]
+              properties:
+                mode:
+                  type: string
+                  enum: [casual, rated]
+      responses:
+        "200":
+          description: Mode set
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+    get:
+      operationId: getGameMode
+      tags: [Games]
+      summary: Get the current game mode
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GameId"
+      responses:
+        "200":
+          description: Current mode
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mode:
+                    type: string
+                    enum: [casual, rated, championship]
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /games/{id}/rating-change:
+    get:
+      operationId: getGameRatingChange
+      tags: [Games]
+      summary: Get the rating change resulting from a completed game
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GameId"
+      responses:
+        "200":
+          description: Rating change data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RatingChange"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Draw Offers ──────────────────────────────────────────────────────────
+  /games/{id}/draw/offer:
+    post:
+      operationId: offerDraw
+      tags: [Draw]
+      summary: Offer a draw to the opponent
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GameId"
+      responses:
+        "200":
+          description: Draw offered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /games/{id}/draw/accept:
+    post:
+      operationId: acceptDraw
+      tags: [Draw]
+      summary: Accept a pending draw offer
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GameId"
+      responses:
+        "200":
+          description: Draw accepted, game ended
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  game:
+                    $ref: "#/components/schemas/Game"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /games/{id}/draw/decline:
+    post:
+      operationId: declineDraw
+      tags: [Draw]
+      summary: Decline a pending draw offer
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GameId"
+      responses:
+        "200":
+          description: Draw declined
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /games/{id}/draw/cancel:
+    post:
+      operationId: cancelDraw
+      tags: [Draw]
+      summary: Cancel an outgoing draw offer
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GameId"
+      responses:
+        "200":
+          description: Draw offer cancelled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /games/{id}/draw/status:
+    get:
+      operationId: getDrawStatus
+      tags: [Draw]
+      summary: Get current draw-offer status
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GameId"
+      responses:
+        "200":
+          description: Draw status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DrawStatus"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /games/{id}/draw/history:
+    get:
+      operationId: getDrawHistory
+      tags: [Draw]
+      summary: Get all draw events for a game
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GameId"
+      responses:
+        "200":
+          description: Draw event history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DrawEvent"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /games/{id}/draw/validate:
+    get:
+      operationId: validateDrawOffer
+      tags: [Draw]
+      summary: Check if the current user can offer a draw
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GameId"
+      responses:
+        "200":
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  can_offer:
+                    type: boolean
+                  reason:
+                    type: string
+                    nullable: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ── Ratings ──────────────────────────────────────────────────────────────
+  /rating:
+    get:
+      operationId: getRating
+      tags: [Ratings]
+      summary: Get the current user's rating
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Rating info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RatingInfo"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /rating/initial:
+    post:
+      operationId: setInitialRating
+      tags: [Ratings]
+      summary: Set an initial rating for the current user
+      description: Can only be called once before any rated games are played.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rating]
+              properties:
+                rating:
+                  type: integer
+                  minimum: 400
+                  maximum: 2800
+      responses:
+        "200":
+          description: Initial rating set
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /rating/update:
+    post:
+      operationId: updateRating
+      tags: [Ratings]
+      summary: Update rating after a completed game
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [game_id]
+              properties:
+                game_id:
+                  type: integer
+      responses:
+        "200":
+          description: Rating updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  new_rating:
+                    type: integer
+                  rating_change:
+                    $ref: "#/components/schemas/RatingChange"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /rating/leaderboard:
+    get:
+      operationId: getLeaderboard
+      tags: [Ratings]
+      summary: Get the global rating leaderboard
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Leaderboard
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /rating/history:
+    get:
+      operationId: getRatingHistory
+      tags: [Ratings]
+      summary: Get the current user's rating history
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Rating history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RatingHistory"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ── Game History ─────────────────────────────────────────────────────────
+  /game-history:
+    get:
+      operationId: getGameHistory
+      tags: [Game History]
+      summary: List completed games (paginated)
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/PerPageParam"
+      responses:
+        "200":
+          description: Paginated game history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/GameHistory"
+                  meta:
+                    $ref: "#/components/schemas/PaginationMeta"
+                  links:
+                    $ref: "#/components/schemas/PaginationLinks"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: storeGameHistory
+      tags: [Game History]
+      summary: Store a game history record
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                game_id:
+                  type: integer
+                  nullable: true
+                result:
+                  type: string
+                game_mode:
+                  type: string
+                game_data:
+                  type: object
+      responses:
+        "201":
+          description: Game history stored
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GameHistory"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /game-history/{id}:
+    get:
+      operationId: getGameHistoryDetail
+      tags: [Game History]
+      summary: Get a single game history record with moves
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Game history detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GameHistory"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /rankings:
+    get:
+      operationId: getRankings
+      tags: [Game History]
+      summary: Get user rankings by game history statistics
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: User rankings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    user:
+                      $ref: "#/components/schemas/UserSummary"
+                    wins:
+                      type: integer
+                    losses:
+                      type: integer
+                    draws:
+                      type: integer
+                    total_games:
+                      type: integer
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ── Invitations ──────────────────────────────────────────────────────────
+  /invitations/send:
+    post:
+      operationId: sendInvitation
+      tags: [Invitations]
+      summary: Send a game invitation to another player
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [receiver_id]
+              properties:
+                receiver_id:
+                  type: integer
+      responses:
+        "200":
+          description: Invitation sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invitation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /invitations/{id}/respond:
+    post:
+      operationId: respondToInvitation
+      tags: [Invitations]
+      summary: Accept or decline an invitation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [response]
+              properties:
+                response:
+                  type: string
+                  enum: [accept, decline]
+      responses:
+        "200":
+          description: Response recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invitation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /invitations/pending:
+    get:
+      operationId: getPendingInvitations
+      tags: [Invitations]
+      summary: List pending incoming invitations
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Pending invitations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Invitation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /invitations/sent:
+    get:
+      operationId: getSentInvitations
+      tags: [Invitations]
+      summary: List invitations sent by the current user
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Sent invitations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Invitation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /invitations/accepted:
+    get:
+      operationId: getAcceptedInvitations
+      tags: [Invitations]
+      summary: List accepted invitations
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Accepted invitations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Invitation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /invitations/{id}:
+    delete:
+      operationId: cancelInvitation
+      tags: [Invitations]
+      summary: Cancel a sent invitation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Invitation cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Performance / Analysis ───────────────────────────────────────────────
+  /games/{id}/performance:
+    get:
+      operationId: getGamePerformance
+      tags: [Performance]
+      summary: Get performance metrics for a specific game
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GameId"
+      responses:
+        "200":
+          description: Game performance data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GamePerformance"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /games/{id}/analysis:
+    get:
+      operationId: getGameAnalysis
+      tags: [Performance]
+      summary: Get detailed move-by-move analysis for a game
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GameId"
+      responses:
+        "200":
+          description: Game analysis
+          content:
+            application/json:
+              schema:
+                type: object
+                description: Analysis data including move evaluations
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /performance/history:
+    get:
+      operationId: getPerformanceHistory
+      tags: [Performance]
+      summary: Get historical performance data for the current user
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Performance history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GamePerformance"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /performance/stats:
+    get:
+      operationId: getPerformanceStats
+      tags: [Performance]
+      summary: Get aggregated performance statistics
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Aggregated stats
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  average_accuracy:
+                    type: number
+                    format: float
+                    nullable: true
+                  total_games_analyzed:
+                    type: integer
+                  blunder_rate:
+                    type: number
+                    format: float
+                    nullable: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ── Tutorials ────────────────────────────────────────────────────────────
+  /tutorial/modules:
+    get:
+      operationId: getTutorialModules
+      tags: [Tutorials]
+      summary: List all tutorial modules with per-user progress
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Module list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TutorialModule"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /tutorial/modules/{slug}:
+    get:
+      operationId: getTutorialModule
+      tags: [Tutorials]
+      summary: Get a single tutorial module with its lessons
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "beginner-fundamentals"
+      responses:
+        "200":
+          description: Module with lessons
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/TutorialModule"
+                  - type: object
+                    properties:
+                      lessons:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/TutorialLesson"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /tutorial/lessons/{id}:
+    get:
+      operationId: getTutorialLesson
+      tags: [Tutorials]
+      summary: Get a single tutorial lesson
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Lesson detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TutorialLesson"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /tutorial/lessons/{id}/start:
+    post:
+      operationId: startTutorialLesson
+      tags: [Tutorials]
+      summary: Mark a lesson as started
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Lesson started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TutorialProgress"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /tutorial/lessons/{id}/complete:
+    post:
+      operationId: completeTutorialLesson
+      tags: [Tutorials]
+      summary: Mark a lesson as completed with score
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                score:
+                  type: integer
+                  minimum: 0
+                  maximum: 100
+                time_spent_seconds:
+                  type: integer
+      responses:
+        "200":
+          description: Lesson completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  progress:
+                    $ref: "#/components/schemas/TutorialProgress"
+                  xp_earned:
+                    type: integer
+                  achievements_earned:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/TutorialAchievement"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /tutorial/progress:
+    get:
+      operationId: getTutorialProgress
+      tags: [Tutorials]
+      summary: Get all tutorial progress for the current user
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Progress list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TutorialProgress"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /tutorial/progress/stats:
+    get:
+      operationId: getTutorialStats
+      tags: [Tutorials]
+      summary: Get aggregated tutorial statistics
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Tutorial stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TutorialStats"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /tutorial/achievements:
+    get:
+      operationId: getAllAchievements
+      tags: [Tutorials]
+      summary: List all available achievements
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: All achievements
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TutorialAchievement"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /tutorial/achievements/user:
+    get:
+      operationId: getUserAchievements
+      tags: [Tutorials]
+      summary: List achievements earned by the current user
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: User achievements
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TutorialAchievement"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /tutorial/daily-challenge:
+    get:
+      operationId: getDailyChallenge
+      tags: [Tutorials]
+      summary: Get today's daily challenge
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Daily challenge
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailyChallenge"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /tutorial/daily-challenge/submit:
+    post:
+      operationId: submitDailyChallenge
+      tags: [Tutorials]
+      summary: Submit a daily challenge solution
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                moves:
+                  type: array
+                  items:
+                    type: string
+                time_spent_seconds:
+                  type: integer
+      responses:
+        "200":
+          description: Challenge result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  correct:
+                    type: boolean
+                  xp_earned:
+                    type: integer
+                  streak:
+                    type: integer
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /tutorial/practice-game/create:
+    post:
+      operationId: createPracticeGame
+      tags: [Tutorials]
+      summary: Create a tutorial practice game
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                lesson_id:
+                  type: integer
+                difficulty:
+                  type: string
+                  enum: [easy, medium, hard]
+      responses:
+        "201":
+          description: Practice game created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  lesson_id:
+                    type: integer
+                  initial_fen:
+                    type: string
+                    nullable: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /tutorial/practice-game/{id}/complete:
+    post:
+      operationId: completePracticeGame
+      tags: [Tutorials]
+      summary: Complete a tutorial practice game
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                result:
+                  type: string
+                  enum: [win, loss, draw]
+                moves_played:
+                  type: integer
+      responses:
+        "200":
+          description: Practice game completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  xp_earned:
+                    type: integer
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /tutorial/skill-assessment:
+    post:
+      operationId: createSkillAssessment
+      tags: [Tutorials]
+      summary: Start or submit a skill assessment
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tier:
+                  type: string
+                  enum: [beginner, intermediate, advanced]
+                answers:
+                  type: array
+                  items:
+                    type: object
+      responses:
+        "200":
+          description: Assessment result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  score:
+                    type: integer
+                  passed:
+                    type: boolean
+                  recommended_tier:
+                    type: string
+                  xp_earned:
+                    type: integer
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /tutorial/lessons/{id}/interactive:
+    get:
+      operationId: getInteractiveLesson
+      tags: [Tutorials]
+      summary: Get interactive lesson data (stages, positions)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Interactive lesson data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  lesson:
+                    $ref: "#/components/schemas/TutorialLesson"
+                  stages:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        stage_number:
+                          type: integer
+                        instruction:
+                          type: string
+                        fen:
+                          type: string
+                        expected_move:
+                          type: string
+                          nullable: true
+                        hints:
+                          type: array
+                          items:
+                            type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /tutorial/lessons/{id}/validate-move:
+    post:
+      operationId: validateInteractiveMove
+      tags: [Tutorials]
+      summary: Validate a move in an interactive lesson stage
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [stage_id, move]
+              properties:
+                stage_id:
+                  type: integer
+                move:
+                  type: string
+      responses:
+        "200":
+          description: Move validation result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  correct:
+                    type: boolean
+                  feedback:
+                    type: string
+                    nullable: true
+                  next_stage:
+                    type: integer
+                    nullable: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /tutorial/lessons/{id}/hint:
+    post:
+      operationId: getInteractiveHint
+      tags: [Tutorials]
+      summary: Request a hint for the current interactive lesson stage
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                stage_id:
+                  type: integer
+      responses:
+        "200":
+          description: Hint provided
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  hint:
+                    type: string
+                  hints_remaining:
+                    type: integer
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /tutorial/lessons/{id}/reset-stage:
+    post:
+      operationId: resetInteractiveStage
+      tags: [Tutorials]
+      summary: Reset progress on an interactive lesson stage
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Stage reset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /tutorial/lessons/{id}/interactive-progress:
+    get:
+      operationId: getInteractiveProgress
+      tags: [Tutorials]
+      summary: Get user progress for an interactive lesson
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Interactive progress
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  current_stage:
+                    type: integer
+                  completed_stages:
+                    type: array
+                    items:
+                      type: integer
+                  total_stages:
+                    type: integer
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ── Championships (public) ───────────────────────────────────────────────
+  /championships:
+    get:
+      operationId: listChampionships
+      tags: [Championships]
+      summary: List championships (public)
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/PerPageParam"
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [upcoming, registration_open, in_progress, completed]
+      responses:
+        "200":
+          description: Paginated championship list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Championship"
+                  meta:
+                    $ref: "#/components/schemas/PaginationMeta"
+                  links:
+                    $ref: "#/components/schemas/PaginationLinks"
+    post:
+      operationId: createChampionship
+      tags: [Championships]
+      summary: Create a championship (organizer)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, format]
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                format:
+                  type: string
+                  enum: [swiss_only, elimination_only, hybrid]
+                max_participants:
+                  type: integer
+                total_rounds:
+                  type: integer
+                time_control:
+                  type: object
+                  properties:
+                    minutes:
+                      type: integer
+                    increment:
+                      type: integer
+                prizes:
+                  type: object
+                registration_start_at:
+                  type: string
+                  format: date-time
+                registration_end_at:
+                  type: string
+                  format: date-time
+                starts_at:
+                  type: string
+                  format: date-time
+      responses:
+        "201":
+          description: Championship created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Championship"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /championships/{id}:
+    get:
+      operationId: getChampionship
+      tags: [Championships]
+      summary: Get championship details (public)
+      parameters:
+        - $ref: "#/components/parameters/ChampionshipId"
+      responses:
+        "200":
+          description: Championship details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Championship"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      operationId: updateChampionship
+      tags: [Championships]
+      summary: Update a championship (organizer)
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ChampionshipId"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                max_participants:
+                  type: integer
+                starts_at:
+                  type: string
+                  format: date-time
+      responses:
+        "200":
+          description: Championship updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Championship"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+    delete:
+      operationId: archiveChampionship
+      tags: [Championships]
+      summary: Archive (soft-delete) a championship
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ChampionshipId"
+      responses:
+        "200":
+          description: Championship archived
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /championships/{id}/register:
+    post:
+      operationId: registerForChampionship
+      tags: [Championships]
+      summary: Register the current user for a championship
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ChampionshipId"
+      responses:
+        "200":
+          description: Registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /championships/{id}/participants:
+    get:
+      operationId: getChampionshipParticipants
+      tags: [Championships]
+      summary: List championship participants
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ChampionshipId"
+      responses:
+        "200":
+          description: Participant list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChampionshipParticipant"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /championships/{id}/matches:
+    get:
+      operationId: getChampionshipMatches
+      tags: [Championships]
+      summary: List all matches in a championship
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ChampionshipId"
+        - name: round
+          in: query
+          schema:
+            type: integer
+          description: Filter by round number
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [scheduled, active, completed]
+      responses:
+        "200":
+          description: Match list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChampionshipMatch"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /championships/{id}/standings:
+    get:
+      operationId: getChampionshipStandings
+      tags: [Championships]
+      summary: Get championship standings with tiebreaks
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ChampionshipId"
+      responses:
+        "200":
+          description: Standings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChampionshipStanding"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /championships/{id}/my-matches:
+    get:
+      operationId: getMyChampionshipMatches
+      tags: [Championships]
+      summary: Get the current user's matches in a championship
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ChampionshipId"
+      responses:
+        "200":
+          description: User's matches
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChampionshipMatch"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /championships/{id}/stats:
+    get:
+      operationId: getChampionshipStats
+      tags: [Championships]
+      summary: Get championship statistics
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ChampionshipId"
+      responses:
+        "200":
+          description: Championship stats
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_participants:
+                    type: integer
+                  total_matches:
+                    type: integer
+                  completed_matches:
+                    type: integer
+                  current_round:
+                    type: integer
+                  total_rounds:
+                    type: integer
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ── Championship Match Operations ────────────────────────────────────────
+  /championships/{championship}/matches/{match}:
+    get:
+      operationId: getChampionshipMatch
+      tags: [Championship Matches]
+      summary: Get a single championship match
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: championship
+          in: path
+          required: true
+          schema:
+            type: integer
+        - $ref: "#/components/parameters/MatchId"
+      responses:
+        "200":
+          description: Match detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChampionshipMatch"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /championships/{championship}/matches/{match}/game:
+    post:
+      operationId: createGameFromMatch
+      tags: [Championship Matches]
+      summary: Create a game from a championship match
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: championship
+          in: path
+          required: true
+          schema:
+            type: integer
+        - $ref: "#/components/parameters/MatchId"
+      responses:
+        "201":
+          description: Game created from match
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Game"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /championships/{championship}/matches/{match}/result:
+    post:
+      operationId: reportMatchResult
+      tags: [Championship Matches]
+      summary: Report a match result
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: championship
+          in: path
+          required: true
+          schema:
+            type: integer
+        - $ref: "#/components/parameters/MatchId"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                winner_id:
+                  type: integer
+                  nullable: true
+                result:
+                  type: string
+                  enum: [white_win, black_win, draw]
+      responses:
+        "200":
+          description: Result reported
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /championships/{championship}/matches/{match}/can-play:
+    get:
+      operationId: canPlayMatch
+      tags: [Championship Matches]
+      summary: Check if the current user can start this match
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: championship
+          in: path
+          required: true
+          schema:
+            type: integer
+        - $ref: "#/components/parameters/MatchId"
+      responses:
+        "200":
+          description: Play eligibility
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  can_play:
+                    type: boolean
+                  reason:
+                    type: string
+                    nullable: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /championships/{championship}/matches/bracket:
+    get:
+      operationId: getChampionshipBracket
+      tags: [Championship Matches]
+      summary: Get elimination bracket data
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: championship
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Bracket data
+          content:
+            application/json:
+              schema:
+                type: object
+                description: Nested bracket structure
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /championships/{championship}/matches/schedule-next:
+    post:
+      operationId: scheduleNextRound
+      tags: [Championship Admin]
+      summary: Generate pairings for the next round (organizer)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: championship
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Next round scheduled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  round:
+                    type: integer
+                  matches:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ChampionshipMatch"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  # ── WebSocket Lifecycle Endpoints ────────────────────────────────────────
+  /websocket/broadcasting/auth:
+    post:
+      operationId: broadcastingAuth
+      tags: [WebSocket]
+      summary: Authenticate a WebSocket broadcasting channel
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                socket_id:
+                  type: string
+                channel_name:
+                  type: string
+      responses:
+        "200":
+          description: Channel authorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /websocket/handshake:
+    post:
+      operationId: websocketHandshake
+      tags: [WebSocket]
+      summary: Perform the game handshake to receive player color
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [game_id]
+              properties:
+                game_id:
+                  type: integer
+      responses:
+        "200":
+          description: Handshake result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  player_color:
+                    type: string
+                    enum: [white, black]
+                  game:
+                    $ref: "#/components/schemas/Game"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    get:
+      operationId: getHandshakeState
+      tags: [WebSocket]
+      summary: Get current handshake state for a game
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: game_id
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Current handshake state
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /websocket/games/{gameId}/move:
+    post:
+      operationId: broadcastMove
+      tags: [WebSocket]
+      summary: Broadcast a move via WebSocket channel
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [move]
+              properties:
+                move:
+                  type: string
+                fen:
+                  type: string
+                pgn:
+                  type: string
+      responses:
+        "200":
+          description: Move broadcast
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  move:
+                    $ref: "#/components/schemas/Move"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /websocket/games/{gameId}/resign:
+    post:
+      operationId: websocketResign
+      tags: [WebSocket]
+      summary: Resign via WebSocket channel
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Resignation broadcast
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  game:
+                    $ref: "#/components/schemas/Game"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /websocket/games/{gameId}/state:
+    get:
+      operationId: getGameRoomState
+      tags: [WebSocket]
+      summary: Get the current room state for a game
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Room state
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  game:
+                    $ref: "#/components/schemas/Game"
+                  players:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        user_id:
+                          type: integer
+                        color:
+                          type: string
+                          enum: [white, black]
+                        connected:
+                          type: boolean
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /websocket/games/{gameId}/pause:
+    post:
+      operationId: pauseGame
+      tags: [WebSocket]
+      summary: Pause an active game
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Game paused
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /websocket/games/{gameId}/resume-request:
+    post:
+      operationId: requestResume
+      tags: [WebSocket]
+      summary: Request to resume a paused game
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Resume request sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /websocket/games/{gameId}/resume-response:
+    post:
+      operationId: respondToResume
+      tags: [WebSocket]
+      summary: Accept or decline a resume request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [accept]
+              properties:
+                accept:
+                  type: boolean
+      responses:
+        "200":
+          description: Response recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /websocket/games/{gameId}/resume-status:
+    get:
+      operationId: getResumeStatus
+      tags: [WebSocket]
+      summary: Check resume request status
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Resume status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  resume_requested_by:
+                    type: integer
+                    nullable: true
+                  resume_status:
+                    type: string
+                    nullable: true
+                  expires_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /websocket/games/{gameId}/draw/offer:
+    post:
+      operationId: websocketOfferDraw
+      tags: [WebSocket]
+      summary: Offer a draw via WebSocket channel
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Draw offered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /websocket/games/{gameId}/draw/accept:
+    post:
+      operationId: websocketAcceptDraw
+      tags: [WebSocket]
+      summary: Accept draw via WebSocket channel
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Draw accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  game:
+                    $ref: "#/components/schemas/Game"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /websocket/games/{gameId}/draw/decline:
+    post:
+      operationId: websocketDeclineDraw
+      tags: [WebSocket]
+      summary: Decline draw via WebSocket channel
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Draw declined
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /websocket/games/{gameId}/forfeit:
+    post:
+      operationId: forfeitGame
+      tags: [WebSocket]
+      summary: Forfeit a game (inactivity or voluntary)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Game forfeited
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  game:
+                    $ref: "#/components/schemas/Game"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /websocket/games/{gameId}/abort/request:
+    post:
+      operationId: requestAbort
+      tags: [WebSocket]
+      summary: Request a mutual game abort
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Abort requested
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /websocket/games/{gameId}/abort/respond:
+    post:
+      operationId: respondToAbort
+      tags: [WebSocket]
+      summary: Accept or decline a mutual abort request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [accept]
+              properties:
+                accept:
+                  type: boolean
+      responses:
+        "200":
+          description: Response recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /websocket/games/{gameId}/heartbeat:
+    post:
+      operationId: gameHeartbeat
+      tags: [WebSocket]
+      summary: Send a heartbeat for a specific game
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Heartbeat acknowledged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /websocket/games/{gameId}/ping-opponent:
+    post:
+      operationId: pingOpponent
+      tags: [WebSocket]
+      summary: Send a nudge/ping to the opponent
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Opponent pinged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /websocket/games/{gameId}/undo/request:
+    post:
+      operationId: requestUndo
+      tags: [WebSocket]
+      summary: Request to undo the last move
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Undo requested
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /websocket/games/{gameId}/undo/accept:
+    post:
+      operationId: acceptUndo
+      tags: [WebSocket]
+      summary: Accept an undo request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Undo accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  game:
+                    $ref: "#/components/schemas/Game"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /websocket/games/{gameId}/undo/decline:
+    post:
+      operationId: declineUndo
+      tags: [WebSocket]
+      summary: Decline an undo request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Undo declined
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /websocket/games/{gameId}/moves:
+    get:
+      operationId: getWebsocketGameMoves
+      tags: [WebSocket]
+      summary: Get move history for timer calculation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Move list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Move"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /websocket/games/{gameId}/championship-context:
+    get:
+      operationId: getChampionshipContext
+      tags: [WebSocket]
+      summary: Get championship context for a game (if part of a tournament)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Championship context
+          content:
+            application/json:
+              schema:
+                type: object
+                nullable: true
+                properties:
+                  is_championship:
+                    type: boolean
+                  championship_id:
+                    type: integer
+                  match_id:
+                    type: integer
+                  round_number:
+                    type: integer
+                  board_number:
+                    type: integer
+                    nullable: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ── Shared Results (public) ──────────────────────────────────────────────
+  /shared-results:
+    post:
+      operationId: storeSharedResult
+      tags: [Shared Results]
+      summary: Store a shared game result
+      description: Public endpoint, no authentication required.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                game_id:
+                  type: integer
+                  nullable: true
+                result_data:
+                  type: object
+                  description: Full result payload to share
+      responses:
+        "201":
+          description: Shared result created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SharedResult"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /shared-results/{uniqueId}:
+    get:
+      operationId: getSharedResult
+      tags: [Shared Results]
+      summary: Get a shared game result
+      parameters:
+        - name: uniqueId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Shared result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SharedResult"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /shared-results/{uniqueId}/og-data:
+    get:
+      operationId: getSharedResultOgData
+      tags: [Shared Results]
+      summary: Get Open Graph metadata for a shared result
+      description: Used by social media crawlers for rich link previews.
+      parameters:
+        - name: uniqueId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OG metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  title:
+                    type: string
+                  description:
+                    type: string
+                  image:
+                    type: string
+                    format: uri
+                  url:
+                    type: string
+                    format: uri
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Organizations ────────────────────────────────────────────────────────
+  /organizations:
+    get:
+      operationId: listOrganizations
+      tags: [Organizations]
+      summary: List organizations
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Organization list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Organization"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createOrganization
+      tags: [Organizations]
+      summary: Create an organization
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        "201":
+          description: Organization created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Organization"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /organizations/{id}:
+    get:
+      operationId: getOrganization
+      tags: [Organizations]
+      summary: Get organization details
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Organization details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Organization"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      operationId: updateOrganization
+      tags: [Organizations]
+      summary: Update an organization
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        "200":
+          description: Organization updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Organization"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    delete:
+      operationId: deleteOrganization
+      tags: [Organizations]
+      summary: Delete an organization
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Organization deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /organizations/{id}/members:
+    get:
+      operationId: getOrganizationMembers
+      tags: [Organizations]
+      summary: List organization members
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Member list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: addOrganizationMember
+      tags: [Organizations]
+      summary: Add a member to an organization
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id]
+              properties:
+                user_id:
+                  type: integer
+      responses:
+        "200":
+          description: Member added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /organizations/{organizationId}/members/{userId}:
+    delete:
+      operationId: removeOrganizationMember
+      tags: [Organizations]
+      summary: Remove a member from an organization
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organizationId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Member removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"

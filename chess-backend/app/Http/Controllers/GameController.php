@@ -318,6 +318,7 @@ class GameController extends Controller
         $userColor = $game->getPlayerColor($user->id);
         $winnerColor = $userColor === 'white' ? 'black' : 'white';
         $winnerId = $winnerColor === 'white' ? $game->white_player_id : $game->black_player_id;
+        $isComputerGame = !is_null($game->computer_player_id);
 
         // Update game with all resignation details
         $game->update([
@@ -330,40 +331,55 @@ class GameController extends Controller
         ]);
 
         // Reload relationships
-        $game->load(['whitePlayer', 'blackPlayer']);
+        $game->load(['whitePlayer', 'blackPlayer', 'computerPlayer']);
 
-        // Broadcast game ended event
-        \Log::info('Broadcasting GameEndedEvent for resignation', [
-            'game_id' => $game->id,
-            'result' => $game->result,
-            'winner_user_id' => $game->winner_user_id,
-            'end_reason' => 'resignation'
-        ]);
+        // Build player data, handling computer games where one side has no User
+        $computerData = $isComputerGame && $game->computerPlayer ? [
+            'id' => 'computer_' . $game->computerPlayer->id,
+            'name' => $game->computerPlayer->name,
+            'email' => null,
+            'avatar' => null,
+            'rating' => $game->computerPlayer->rating
+        ] : null;
 
-        broadcast(new GameEndedEvent($game->id, [
-            'game_over' => true,
-            'result' => $game->result,
-            'end_reason' => 'resignation',
-            'winner_user_id' => $winnerId,
-            'winner_player' => $winnerColor,
-            'fen_final' => $game->fen,
-            'move_count' => count($game->moves ?? []),
-            'ended_at' => $game->ended_at->toISOString(),
-            'white_player' => [
-                'id' => $game->whitePlayer->id,
-                'name' => $game->whitePlayer->name,
-                'email' => $game->whitePlayer->email,
-                'avatar' => $game->whitePlayer->avatar_url,
-                'rating' => $game->whitePlayer->rating
-            ],
-            'black_player' => [
-                'id' => $game->blackPlayer->id,
-                'name' => $game->blackPlayer->name,
-                'email' => $game->blackPlayer->email,
-                'avatar' => $game->blackPlayer->avatar_url,
-                'rating' => $game->blackPlayer->rating
-            ]
-        ]));
+        $whitePlayerData = $game->whitePlayer ? [
+            'id' => $game->whitePlayer->id,
+            'name' => $game->whitePlayer->name,
+            'email' => $game->whitePlayer->email,
+            'avatar' => $game->whitePlayer->avatar_url,
+            'rating' => $game->whitePlayer->rating
+        ] : $computerData;
+
+        $blackPlayerData = $game->blackPlayer ? [
+            'id' => $game->blackPlayer->id,
+            'name' => $game->blackPlayer->name,
+            'email' => $game->blackPlayer->email,
+            'avatar' => $game->blackPlayer->avatar_url,
+            'rating' => $game->blackPlayer->rating
+        ] : $computerData;
+
+        // Broadcast game ended event (skip for computer games — no remote opponent)
+        if (!$isComputerGame) {
+            \Log::info('Broadcasting GameEndedEvent for resignation', [
+                'game_id' => $game->id,
+                'result' => $game->result,
+                'winner_user_id' => $game->winner_user_id,
+                'end_reason' => 'resignation'
+            ]);
+
+            broadcast(new GameEndedEvent($game->id, [
+                'game_over' => true,
+                'result' => $game->result,
+                'end_reason' => 'resignation',
+                'winner_user_id' => $winnerId,
+                'winner_player' => $winnerColor,
+                'fen_final' => $game->fen,
+                'move_count' => count($game->moves ?? []),
+                'ended_at' => $game->ended_at->toISOString(),
+                'white_player' => $whitePlayerData,
+                'black_player' => $blackPlayerData
+            ]));
+        }
 
         return response()->json([
             'message' => 'Game resigned successfully',

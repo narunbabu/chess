@@ -622,11 +622,11 @@
     }
   }
 
-  /* Mobile Portrait - Maximize available space */
+  /* Mobile Portrait - Account for header (48px) + sidebar above board */
   @media (orientation: portrait) and (max-width: 768px) {
     .board-container {
-      width: min(75vh, 95vw);
-      height: min(75vh, 95vw);
+      width: min(calc(100vh - 18rem), 95vw);
+      height: min(calc(100vh - 18rem), 95vw);
     }
   }
 
@@ -2163,15 +2163,18 @@
   @media (orientation: portrait) {
     .play-computer-layout {
       flex-direction: column !important;
-      overflow-y: auto;
+      height: calc(100vh - 48px); /* Subtract sticky header height */
+      overflow: hidden; /* No scroll — everything must fit in viewport */
     }
 
     .main-content-area {
       width: 100%;
-      flex-shrink: 0;
-      align-items: flex-start;
-      padding-top: 0.25rem;
-      padding-bottom: 0.25rem;
+      flex: 1; /* Fill remaining space after sidebar */
+      min-height: 0; /* Critical: allow flexbox to shrink content */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.25rem;
       order: 2 !important; /* Board comes after sidebar in portrait */
     }
 
@@ -2179,13 +2182,22 @@
       width: 100%;
       max-width: 100%;
       order: 1 !important; /* Sidebar comes first in portrait */
-      padding: 0.5rem;
-      gap: 0.5rem;
-      flex-shrink: 0; /* Prevent sidebar from shrinking */
+      padding: 0.25rem;
+      gap: 0.25rem;
+      flex-shrink: 0;
+    }
+
+    /* Compact sidebar elements for more board space */
+    .sidebar > * {
+      font-size: 0.85em;
+      margin-top: 0;
+      margin-bottom: 0;
     }
 
     .chess-game-container {
       padding: 0.125rem;
+      padding-top: 0.25rem !important; /* Override Tailwind pt-4 on mobile */
+      height: calc(100vh - 48px); /* Account for sticky header */
     }
   }
 
@@ -2252,6 +2264,19 @@
   .chess-game-container {
     padding: 0.125rem;
   }
+
+  /* Compact game controls for mobile - minimize vertical space */
+  .game-controls {
+    margin-top: 4px !important;
+  }
+
+  .game-controls button {
+    min-height: 36px;
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 6px;
+    margin-left: 4px !important;
+  }
 }
 
 /* Very small mobile devices */
@@ -2259,21 +2284,32 @@
   /* Small screens - portrait */
   @media (orientation: portrait) {
     .main-content-area {
-      padding-top: 0.25rem; /* Reduced padding for portrait */
-      padding-bottom: 0.125rem;
+      padding: 0.125rem;
     }
 
     .chess-game-container {
       padding: 0.0625rem;
+      padding-top: 0.125rem !important;
     }
 
-    /* Ensure sidebar appears before board in portrait */
     .sidebar {
       order: 1 !important;
+      padding: 0.2rem;
+      gap: 0.2rem;
+    }
+
+    .sidebar > * {
+      font-size: 0.8em;
     }
 
     .main-content-area {
       order: 2 !important;
+    }
+
+    /* Even smaller board to account for sidebar */
+    .board-container {
+      width: min(calc(100vh - 19rem), 95vw) !important;
+      height: min(calc(100vh - 19rem), 95vw) !important;
     }
   }
 

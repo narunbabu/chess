@@ -12,6 +12,7 @@ const TimerDisplay = ({
   playerData = null, // player object with avatar_url
   opponentData = null, // opponent/computer data
 }) => {
+  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
   // Format time as mm:ss (integer seconds only)
   const formatTime = (seconds) => {
     const totalSeconds = Math.floor(seconds); // Round down to whole seconds
@@ -27,8 +28,18 @@ const TimerDisplay = ({
 
   // Helper function to render avatar or icon
   const renderAvatar = (data, isComputer = false) => {
+    // For computer/synthetic: show avatar if available, fall back to robot emoji
     if (isComputer) {
-      // Show computer icon for computer side only
+      const avatarUrl = data?.avatar_url || getPlayerAvatar(data);
+      if (avatarUrl) {
+        return (
+          <img
+            src={avatarUrl}
+            alt={data?.name || 'Opponent'}
+            className="w-6 h-6 rounded-full object-cover"
+          />
+        );
+      }
       return <span className="text-lg">🤖</span>;
     }
 
@@ -51,35 +62,36 @@ const TimerDisplay = ({
   // Helper function to get display name
   const getDisplayName = (data, isComputer = false, fallback = 'Player') => {
     if (isComputer) {
-      return 'CPU';
+      // Show synthetic player's name if available, fall back to CPU
+      return truncatePlayerName(data?.name || 'CPU');
     }
     return truncatePlayerName(data?.name || fallback);
   };
 
   return (
-    <div className="flex gap-2">
+    <div className={`flex ${isMobile ? 'gap-1' : 'gap-2'}`}>
       {/* Opponent/Computer Timer */}
-      <div className={`rounded-lg p-3 transition-all duration-300 flex-1 ${
+      <div className={`rounded-lg ${isMobile ? 'p-1.5' : 'p-3'} transition-all duration-300 flex-1 ${
         isComputerActive
           ? "bg-error/30 border border-error/50 shadow-lg scale-105"
           : "bg-surface-elevated/50 border border-white/10"
       }`}>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className={`flex items-center ${isMobile ? 'gap-1' : 'gap-2'}`}>
             {renderAvatar(opponentData, mode === 'computer')}
             <div className="flex flex-col">
-              <span className={`text-xs font-medium ${
+              <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} font-medium ${
                 isComputerActive ? "text-error" : "text-[#bababa]"
               }`}>
                 {getDisplayName(opponentData, mode === 'computer', 'Rival')}
               </span>
               {isComputerActive && (
-                <div className="w-2 h-2 bg-error rounded-full animate-pulse"></div>
+                <div className="w-1.5 h-1.5 bg-error rounded-full animate-pulse"></div>
               )}
             </div>
           </div>
           <div className="text-right">
-            <div className={`font-mono text-lg font-bold ${
+            <div className={`font-mono ${isMobile ? 'text-sm' : 'text-lg'} font-bold ${
               isComputerActive ? "text-error" : "text-white"
             }`}>
               {formatTime(computerTime)}
@@ -89,27 +101,27 @@ const TimerDisplay = ({
       </div>
 
       {/* Player Timer */}
-      <div className={`rounded-lg p-3 transition-all duration-300 flex-1 ${
+      <div className={`rounded-lg ${isMobile ? 'p-1.5' : 'p-3'} transition-all duration-300 flex-1 ${
         isPlayerActive
           ? "bg-success/30 border border-success/50 shadow-lg scale-105"
           : "bg-surface-elevated/50 border border-white/10"
       }`}>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className={`flex items-center ${isMobile ? 'gap-1' : 'gap-2'}`}>
             {renderAvatar(playerData, false)}
             <div className="flex flex-col">
-              <span className={`text-xs font-medium ${
+              <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} font-medium ${
                 isPlayerActive ? "text-success" : "text-[#bababa]"
               }`}>
                 {getDisplayName(playerData, false, 'You')}
               </span>
               {isPlayerActive && (
-                <div className="w-2 h-2 bg-success rounded-full animate-pulse"></div>
+                <div className="w-1.5 h-1.5 bg-success rounded-full animate-pulse"></div>
               )}
             </div>
           </div>
           <div className="text-right">
-            <div className={`font-mono text-lg font-bold ${
+            <div className={`font-mono ${isMobile ? 'text-sm' : 'text-lg'} font-bold ${
               isPlayerActive ? "text-success" : "text-white"
             }`}>
               {formatTime(playerTime)}

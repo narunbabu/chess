@@ -66,4 +66,9 @@ return [
         'mock_mode' => env('RAZORPAY_MOCK_MODE', true), // Enable mock mode for testing by default
     ],
 
+    'recaptcha' => [
+        'site_key' => env('RECAPTCHA_SITE_KEY'),
+        'secret_key' => env('RECAPTCHA_SECRET_KEY'),
+    ],
+
 ];

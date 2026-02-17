@@ -1,8 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import html2canvas from 'html2canvas';
-import chessPlayingKids from '../assets/images/chess-playing-kids-crop.jpeg';
-import logo from '../assets/images/logo.png';
-import { shareGameWithFriends, shareGameNative } from '../utils/shareUtils';
+import { shareGameWithFriends } from '../utils/shareUtils';
 import { waitForImagesToLoad, convertImagesToDataURLs } from '../utils/imageUtils';
 import { isWin as isWinUtil, isDraw as isDrawUtil } from '../utils/resultStandardization';
 import './GameEndCard.css';
@@ -18,18 +16,6 @@ const SHARE_URLS = {
   linkedin: (text) => `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent('https://chess99.com')}`
 };
 
-// SVG Chess Piece Components (similar to Background.js)
-const ChessKing = ({ className = "" }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M12 2C11.45 2 11 2.45 11 3V4H10C9.45 4 9 4.45 9 5S9.45 6 10 6H11V7C10.45 7 10 7.45 10 8S10.45 9 11 9H13C13.55 9 14 8.55 14 8S13.55 7 13 7V6H14C14.55 6 15 5.55 15 5S14.55 4 14 4H13V3C13 2.45 12.55 2 12 2M7.5 10C6.67 10 6 10.67 6 11.5V12.5C6 13.33 6.67 14 7.5 14H8.5L9 20H15L15.5 14H16.5C17.33 14 18 13.33 18 12.5V11.5C18 10.67 17.33 10 16.5 10H7.5Z"/>
-  </svg>
-);
-
-const ChessQueen = ({ className = "" }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M4 14L3 15V16L4 17H20L21 16V15L20 14L18.5 7L17 6H16L14.5 7.5L12 5L9.5 7.5L8 6H7L5.5 7L4 14M6 16L7 10H8L9.5 11.5L12 9L14.5 11.5L16 10H17L18 16H6Z"/>
-  </svg>
-);
 
 const GameEndCard = React.forwardRef(({
   result,
@@ -129,37 +115,45 @@ const GameEndCard = React.forwardRef(({
       opponentName: result.opponent_name
     });
 
+    // Determine opponent name and avatar for computer games
+    // Use synthetic opponent data if available, otherwise fall back to generic labels
+    const computerOpponentName = result.opponent_name || `Computer Level ${effectiveComputerLevel || 8}`;
+    const computerOpponentRating = result.opponent_rating || (effectiveComputerLevel ? 1000 + (effectiveComputerLevel * 100) : 1800);
+    const computerOpponentAvatar = result.opponent_avatar_url || null;
+    // If synthetic opponent has an avatar URL, don't mark as isComputer so we show the image
+    const hasSyntheticAvatar = !!result.opponent_avatar_url;
+
     // If result already has player objects from backend, use them with merged data
     const white_player = result.white_player ? {
       ...result.white_player, // Preserve all backend data including email
       name: sharePlayerName && playerIsWhite ? sharePlayerName : result.white_player.name, // Override with sharePlayerName if sharing
-      isComputer: playerIsWhite ? false : isComputerGame
+      isComputer: playerIsWhite ? false : (isComputerGame && !hasSyntheticAvatar)
     } : {
       id: playerIsWhite ? result.user_id : null,
-      name: playerIsWhite ? effectiveUserName : (isComputerGame ? `Computer Level ${effectiveComputerLevel || 8}` : (result.opponent_name || 'Opponent')),
+      name: playerIsWhite ? effectiveUserName : (isComputerGame ? computerOpponentName : (result.opponent_name || 'Opponent')),
       email: playerIsWhite ? (user?.email || null) : null,
-      rating: playerIsWhite ? (user?.rating || 1200) : (isComputerGame ? (effectiveComputerLevel ? 1000 + (effectiveComputerLevel * 100) : 1800) : 1200),
+      rating: playerIsWhite ? (user?.rating || 1200) : (isComputerGame ? computerOpponentRating : 1200),
       is_provisional: playerIsWhite ? (user?.is_provisional || false) : false,
       // Check multiple avatar field names from backend
-      avatar_url: playerIsWhite ? (user?.avatar_url || user?.avatar) : (isComputerGame ? '🤖' : null),
-      avatar: playerIsWhite ? (user?.avatar || user?.avatar_url) : (isComputerGame ? '🤖' : null),
-      isComputer: playerIsWhite ? false : isComputerGame
+      avatar_url: playerIsWhite ? (user?.avatar_url || user?.avatar) : (isComputerGame ? (computerOpponentAvatar || '🤖') : null),
+      avatar: playerIsWhite ? (user?.avatar || user?.avatar_url) : (isComputerGame ? (computerOpponentAvatar || '🤖') : null),
+      isComputer: playerIsWhite ? false : (isComputerGame && !hasSyntheticAvatar)
     };
 
     const black_player = result.black_player ? {
       ...result.black_player, // Preserve all backend data including email
       name: sharePlayerName && !playerIsWhite ? sharePlayerName : result.black_player.name, // Override with sharePlayerName if sharing
-      isComputer: !playerIsWhite ? false : isComputerGame
+      isComputer: !playerIsWhite ? false : (isComputerGame && !hasSyntheticAvatar)
     } : {
       id: !playerIsWhite ? result.user_id : null,
-      name: !playerIsWhite ? effectiveUserName : (isComputerGame ? `Computer Level ${effectiveComputerLevel || 8}` : (result.opponent_name || 'Opponent')),
+      name: !playerIsWhite ? effectiveUserName : (isComputerGame ? computerOpponentName : (result.opponent_name || 'Opponent')),
       email: !playerIsWhite ? (user?.email || null) : null,
-      rating: !playerIsWhite ? (user?.rating || 1200) : (isComputerGame ? (effectiveComputerLevel ? 1000 + (effectiveComputerLevel * 100) : 1800) : 1200),
+      rating: !playerIsWhite ? (user?.rating || 1200) : (isComputerGame ? computerOpponentRating : 1200),
       is_provisional: !playerIsWhite ? (user?.is_provisional || false) : false,
       // Check multiple avatar field names from backend
-      avatar_url: !playerIsWhite ? (user?.avatar_url || user?.avatar) : (isComputerGame ? '🤖' : null),
-      avatar: !playerIsWhite ? (user?.avatar || user?.avatar_url) : (isComputerGame ? '🤖' : null),
-      isComputer: !playerIsWhite ? false : isComputerGame
+      avatar_url: !playerIsWhite ? (user?.avatar_url || user?.avatar) : (isComputerGame ? (computerOpponentAvatar || '🤖') : null),
+      avatar: !playerIsWhite ? (user?.avatar || user?.avatar_url) : (isComputerGame ? (computerOpponentAvatar || '🤖') : null),
+      isComputer: !playerIsWhite ? false : (isComputerGame && !hasSyntheticAvatar)
     };
 
     const isUserWhite = playerIsWhite;
@@ -359,8 +353,8 @@ const GameEndCard = React.forwardRef(({
     // Priority: avatar_url > avatar > profile_image > photo_url
     const avatarUrl = player.avatar_url || player.avatar || player.profile_image || player.photo_url;
 
-    // Check if avatar URL is valid (not empty, not null, not just whitespace)
-    if (avatarUrl && typeof avatarUrl === 'string' && avatarUrl.trim() !== '') {
+    // Check if avatar URL is valid (not empty, not null, not just whitespace, not emoji)
+    if (avatarUrl && typeof avatarUrl === 'string' && avatarUrl.trim() !== '' && !avatarUrl.match(/^\p{Emoji}/u)) {
       // If it's a relative path, make it absolute
       if (avatarUrl.startsWith('/')) {
         return `${window.location.origin}${avatarUrl}`;
@@ -435,59 +429,49 @@ const GameEndCard = React.forwardRef(({
     }
 
     return (
-      <div className={`flex items-center gap-2 p-2 rounded-xl shadow-md transition-all duration-300 ${
-        isCurrentUser
-          ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-chess'
-          : 'bg-white border-2 border-gray-200'
-      }`}>
+      <div className="flex items-center gap-2.5 p-2.5 rounded-xl transition-all duration-300"
+      style={{
+        backgroundColor: isCurrentUser ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.08)',
+        border: isCurrentUser ? '2px solid rgba(255,255,255,0.3)' : '1px solid rgba(255,255,255,0.1)',
+        backdropFilter: 'blur(4px)'
+      }}>
         <div className="relative flex-shrink-0">
           {player.isComputer ? (
-            // Computer avatar - show emoji with modern styling
-            <div className="w-12 h-12 rounded-full border-2 flex items-center justify-center text-2xl bg-gradient-to-br from-gray-100 to-gray-200 shadow-lg"
-                 style={{ borderColor: color === 'white' ? '#E5E7EB' : '#4B5563' }}>
+            <div className="w-11 h-11 rounded-full flex items-center justify-center text-xl shadow-lg"
+                 style={{ backgroundColor: 'rgba(255,255,255,0.15)', border: '2px solid rgba(255,255,255,0.3)' }}>
               🤖
             </div>
           ) : (
-            // Human avatar - show image with better styling
             <img
               src={avatarUrl}
               alt={player.name}
-              className="w-12 h-12 rounded-full border-2 object-cover shadow-lg"
-              style={{ borderColor: color === 'white' ? '#E5E7EB' : '#4B5563' }}
+              className="w-11 h-11 rounded-full object-cover shadow-lg"
+              style={{ border: '2px solid rgba(255,255,255,0.3)' }}
               onError={(e) => handleAvatarError(e, player.name, color === 'white' ? '4f46e5' : '1f2937')}
             />
           )}
-          <div className={`absolute -bottom-0.5 -right-0.5 text-xl shadow-md ${
-            color === 'white' ? 'text-gray-700' : 'text-gray-900'
-          }`}>
-            {color === 'white' ? <ChessKing className="w-5 h-5" /> : <ChessKing className="w-5 h-5" />}
-          </div>
+          {isCurrentUser && (
+            <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] shadow-md"
+                 style={{ backgroundColor: cardTheme.accent, color: cardTheme.badgeText }}>
+              ★
+            </div>
+          )}
         </div>
-      <div className="flex-grow">
-        <div className="font-bold text-gray-800 text-base mb-0.5">
+      <div className="flex-grow min-w-0">
+        <div className="font-bold text-white text-sm truncate">
           {player.name}
-          {isCurrentUser && <span className="text-xs font-medium text-chess-green ml-1">(You)</span>}
+          {isCurrentUser && <span className="text-xs font-semibold ml-1" style={{ color: cardTheme.accent }}>(You)</span>}
         </div>
-        {player.email && (
-          <div className="text-xs text-gray-500 font-normal mb-0.5">
-            {player.email}
-          </div>
-        )}
-        <div className="text-sm text-gray-600 font-medium">
+        <div className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.6)' }}>
           Rating: {player.rating}
-          {player.is_provisional && <span className="text-yellow-500 font-bold ml-1">?</span>}
+          {player.is_provisional && <span className="text-yellow-300 font-bold ml-1">?</span>}
         </div>
-        {isCurrentUser && (
-          <div className="text-xs text-chess-green font-medium mt-0.5">
-            {isPlayerWin ? '🏆 Winner' : isDraw ? '🤝 Draw' : '💪 Good Game'}
-          </div>
-        )}
       </div>
-      <div className="text-center">
-        <div className="text-xl font-bold text-gray-800">
+      <div className="text-center flex-shrink-0">
+        <div className="text-xl font-extrabold text-white" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.3)' }}>
           {typeof displayScore === 'number' ? displayScore.toFixed(1) : '0.0'}
         </div>
-        <div className="text-xs text-gray-500 uppercase tracking-wide">Score</div>
+        <div className="text-[10px] uppercase tracking-wider font-bold" style={{ color: 'rgba(255,255,255,0.5)' }}>Score</div>
       </div>
     </div>
     );
@@ -514,7 +498,7 @@ const handleShare = async () => {
 
     // Capture the card as canvas with improved configuration
     const canvas = await html2canvas(cardElement, {
-      backgroundColor: '#ffffff',
+      backgroundColor: null, // Use the card's own gradient background
       scale: 2, // Higher quality
       useCORS: true, // Enable CORS for cross-origin images
       allowTaint: false, // Don't allow tainted canvas (required for CORS)
@@ -690,119 +674,84 @@ const handleShare = async () => {
     }
   };
 
+  // Vibrant color themes based on result
+  const cardTheme = isPlayerWin
+    ? { bg: 'linear-gradient(145deg, #1a5c1a 0%, #2d8a2d 40%, #3da53d 100%)', accent: '#FFD700', text: '#fff', sub: 'rgba(255,255,255,0.8)', badge: '#FFD700', badgeText: '#1a5c1a' }
+    : isDraw
+    ? { bg: 'linear-gradient(145deg, #7a5a00 0%, #b8860b 40%, #d4a017 100%)', accent: '#FFF8DC', text: '#fff', sub: 'rgba(255,255,255,0.8)', badge: '#FFF8DC', badgeText: '#7a5a00' }
+    : { bg: 'linear-gradient(145deg, #2d1b69 0%, #4a2d8a 40%, #6b3fa0 100%)', accent: '#E0B0FF', text: '#fff', sub: 'rgba(255,255,255,0.8)', badge: '#E0B0FF', badgeText: '#2d1b69' };
+
   return (
     <div
          ref={cardRef}
-         className={`game-end-card w-full mx-auto rounded-3xl shadow-2xl overflow-hidden relative bg-white ${className}`}
+         className={`game-end-card w-full mx-auto rounded-3xl shadow-2xl overflow-hidden relative ${className}`}
          style={{
-           backgroundImage: `linear-gradient(rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.6)), url(${chessPlayingKids})`,
-           backgroundSize: 'cover',
-           backgroundPosition: 'center',
-           backgroundRepeat: 'no-repeat',
-           maxWidth: window.innerWidth <= 480 ? '95vw' : '640px' // Responsive max-width
+           background: cardTheme.bg,
+           maxWidth: window.innerWidth <= 480 ? '95vw' : '480px',
+           border: '2px solid rgba(255,255,255,0.15)'
          }}>
-      {/* Additional gradient overlay for better readability */}
-      <div className="absolute inset-0 bg-gradient-to-br from-green-50/20 via-white/30 to-emerald-50/20"></div>
 
-      {/* Decorative chess board pattern */}
-      <div className="absolute inset-0 opacity-5">
-        <div className="grid grid-cols-8 grid-rows-8 h-full">
-          {Array.from({ length: 64 }, (_, i) => (
-            <div
-              key={i}
-              style={{
-                backgroundColor: (Math.floor(i / 8) + i) % 2 === 0 ? '#769656' : 'transparent'
-              }}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* Floating chess pieces decoration */}
-      <div className="absolute top-2 left-2 text-chess-green opacity-30">
-        <ChessKing className="w-8 h-8" />
-      </div>
-      <div className="absolute top-2 right-2 text-chess-green opacity-30">
-        <ChessQueen className="w-8 h-8" />
-      </div>
-      <div className="absolute bottom-2 left-2 text-chess-green opacity-30">
-        <ChessKing className="w-6 h-6" />
-      </div>
-      <div className="absolute bottom-2 right-2 text-chess-green opacity-30">
-        <ChessQueen className="w-6 h-6" />
+      {/* Decorative floating shapes */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }}></div>
+        <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full" style={{ background: 'rgba(255,255,255,0.04)' }}></div>
+        <div className="absolute top-1/2 right-4 w-16 h-16 rounded-full" style={{ background: 'rgba(255,255,255,0.03)' }}></div>
       </div>
 
       {/* Close button */}
       {onClose && (
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-20 bg-white/95 hover:bg-white text-gray-700 hover:text-gray-900 rounded-full w-10 h-10 flex items-center justify-center shadow-lg transition-all duration-200 hover:scale-110 border border-gray-200"
+          className="absolute top-3 right-3 z-20 rounded-full w-8 h-8 flex items-center justify-center transition-all duration-200 hover:scale-110"
           aria-label="Close game end card"
           style={{
-            backdropFilter: 'blur(4px)'
+            backgroundColor: 'rgba(255,255,255,0.15)',
+            color: 'rgba(255,255,255,0.8)',
+            border: '1px solid rgba(255,255,255,0.2)'
           }}
         >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2.5"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
+          <svg className="w-4 h-4" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" viewBox="0 0 24 24" stroke="currentColor">
             <path d="M6 18L18 6M6 6l12 12"></path>
           </svg>
         </button>
       )}
 
       {/* Main content */}
-      <div className="relative z-10 p-4">
-        {/* Header with logo and championship info - blue background bar for visibility */}
-        <div className="text-center mb-3">
-          <div className="inline-block bg-chess-green/90 px-6 py-2 rounded-full mb-2">
-            <div className="inline-block bg-chess-green text-white px-4 py-1 rounded-full font-semibold text-xs">Chess99.com</div>
-          </div>
-
-          {/* Championship Badge - show if championship data available */}
+      <div className="relative z-10 p-4 pb-3">
+        {/* Header badge */}
+        <div className="text-center mb-2">
           {championshipData ? (
             <div className="space-y-1">
-              <div className="inline-block bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-6 py-2 rounded-full font-bold text-sm shadow-lg">
+              <div className="inline-block bg-gradient-to-r from-yellow-400 to-orange-400 text-gray-900 px-5 py-1.5 rounded-full font-bold text-xs shadow-lg">
                 🏆 {championshipData.tournamentName}
               </div>
-              <div className="text-gray-700 font-semibold text-xs">
+              <div style={{ color: cardTheme.sub }} className="font-semibold text-xs">
                 Round {championshipData.round} {championshipData.matchId ? `• Match #${championshipData.matchId}` : ''}
               </div>
             </div>
           ) : (
-            <div className="inline-block bg-chess-green text-white px-4 py-1 rounded-full font-semibold text-xs">
-              {isMultiplayer ? 'Multiplayer Match' : `Computer Level ${computerLevel || 8}`}
+            <div className="inline-block px-4 py-1 rounded-full font-bold text-xs shadow-sm"
+                 style={{ backgroundColor: cardTheme.badge, color: cardTheme.badgeText }}>
+              {isMultiplayer ? '⚔️ Multiplayer Match' : (result.opponent_name ? `♟️ vs ${result.opponent_name}` : `🤖 Computer Level ${computerLevel || 8}`)}
             </div>
           )}
         </div>
 
-        {/* Result display */}
-        <div className="text-center mb-4">
-          <h1 className={`text-2xl md:text-3xl font-extrabold mb-2 ${
-            isPlayerWin ? "text-chess-green" : isDraw ? "text-gray-600" : "text-gray-500"
-          }`}>
-            CHESS GAME RESULT
-          </h1>
-          <div className={`text-5xl mb-2 ${isPlayerWin ? "text-yellow-500" : isDraw ? "text-gray-500" : "text-gray-400"}`}>
+        {/* Result display — big icon and title */}
+        <div className="text-center mb-3">
+          <div className="text-5xl mb-1" style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.3))' }}>
             {icon}
           </div>
-          <h1 className={`text-2xl md:text-3xl font-extrabold mb-2 ${
-            isPlayerWin ? "text-chess-green" : isDraw ? "text-gray-600" : "text-gray-500"
-          }`}>
+          <h1 className="text-3xl font-extrabold mb-1 tracking-tight" style={{ color: cardTheme.accent, textShadow: '0 2px 10px rgba(0,0,0,0.3)' }}>
             {title}
           </h1>
-          <p className="text-sm md:text-base text-gray-600 max-w-2xl mx-auto">
+          <p className="text-xs max-w-xs mx-auto" style={{ color: cardTheme.sub }}>
             {resultText}
           </p>
         </div>
 
         {/* Players section */}
-        <div className="space-y-2 mb-4">
+        <div className="space-y-1.5 mb-3">
           {(() => {
             // FIX: Determine who is "You" based on victory/defeat, not just color assignment
             // Determine who the winner is (white or black)
@@ -854,8 +803,9 @@ const handleShare = async () => {
                   score={playersInfo.isUserWhite ? (score !== undefined ? score : (result.final_score || result.finalScore || 0)) : (opponentScore !== undefined ? opponentScore : (result.opponent_score || 0))}
                 />
 
-                <div className="text-center">
-                  <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-green-100 text-chess-green font-bold text-lg shadow-md">
+                <div className="text-center -my-0.5">
+                  <div className="inline-flex items-center justify-center w-8 h-8 rounded-full font-extrabold text-xs shadow-md"
+                       style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: 'white', border: '2px solid rgba(255,255,255,0.3)' }}>
                     VS
                   </div>
                 </div>
@@ -874,96 +824,44 @@ const handleShare = async () => {
 
         {/* Rating update */}
         {ratingUpdate && !ratingUpdate.isLoading && !ratingUpdate.error && ratingUpdate.newRating !== null && (
-          <div className="bg-gradient-to-r from-yellow-50 to-orange-50 p-2 rounded-xl border-2 border-yellow-300 text-center mb-4">
-            <div className="text-sm font-semibold text-gray-700">Rating Update</div>
+          <div className="p-2.5 rounded-xl text-center mb-3" style={{ backgroundColor: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', backdropFilter: 'blur(4px)' }}>
+            <div className="text-xs font-bold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.6)' }}>Rating Update</div>
             <div className="flex items-center justify-center gap-2 mt-1">
-              <span className="text-gray-500 line-through text-sm">{ratingUpdate.oldRating}</span>
-              <span className={`text-xl font-bold ${ratingUpdate.ratingChange >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                {ratingUpdate.ratingChange >= 0 ? '↑' : '↓'} {Math.abs(ratingUpdate.ratingChange)}
+              <span className="line-through text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>{ratingUpdate.oldRating}</span>
+              <span className={`text-lg font-extrabold ${ratingUpdate.ratingChange >= 0 ? '' : ''}`}
+                    style={{ color: ratingUpdate.ratingChange >= 0 ? '#7CFC00' : '#FF6B6B' }}>
+                {ratingUpdate.ratingChange >= 0 ? '▲' : '▼'} {Math.abs(ratingUpdate.ratingChange)}
               </span>
-              <span className="text-2xl font-bold text-gray-800">{ratingUpdate.newRating}</span>
+              <span className="text-2xl font-extrabold text-white" style={{ textShadow: '0 1px 6px rgba(0,0,0,0.3)' }}>{ratingUpdate.newRating}</span>
             </div>
           </div>
         )}
 
         {/* Championship Standing/Points - show if championship data available */}
         {championshipData && (championshipData.standing || championshipData.points !== undefined) && (
-          <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-3 rounded-xl border-2 border-purple-300 text-center mb-4">
-            <div className="text-sm font-semibold text-gray-700 mb-2">Championship Progress</div>
-            <div className="flex items-center justify-center gap-4">
+          <div className="p-2.5 rounded-xl text-center mb-3" style={{ backgroundColor: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)' }}>
+            <div className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.6)' }}>Championship Progress</div>
+            <div className="flex items-center justify-center gap-6">
               {championshipData.standing && (
                 <div className="text-center">
-                  <div className="text-xs text-gray-600">Standing</div>
-                  <div className="text-xl font-bold text-purple-600">{championshipData.standing}</div>
+                  <div className="text-[10px] font-bold uppercase" style={{ color: 'rgba(255,255,255,0.5)' }}>Standing</div>
+                  <div className="text-xl font-extrabold text-yellow-300">{championshipData.standing}</div>
                 </div>
               )}
               {championshipData.points !== undefined && (
                 <div className="text-center">
-                  <div className="text-xs text-gray-600">Points</div>
-                  <div className="text-xl font-bold text-purple-600">{championshipData.points}</div>
+                  <div className="text-[10px] font-bold uppercase" style={{ color: 'rgba(255,255,255,0.5)' }}>Points</div>
+                  <div className="text-xl font-extrabold text-yellow-300">{championshipData.points}</div>
                 </div>
               )}
             </div>
           </div>
         )}
 
-        {/* Call to action - different messages for championship vs regular games */}
-        <div className="text-center mb-3">
-          <div className="bg-gradient-to-r from-chess-green to-chess-pressed text-white p-3 rounded-xl shadow-lg">
-            {championshipData ? (
-              <>
-                <div className="text-lg font-bold mb-1">
-                  🏆 Join the Championship!
-                </div>
-                <div className="text-sm mb-2">
-                  Compete in {championshipData.tournamentName} and prove your skills!
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="text-lg font-bold mb-1">
-                  ♟️ Want to Play With Me?
-                </div>
-                <div className="text-sm mb-2">
-                  Think you can beat me? Join and challenge me!
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Share button - only show for non-multiplayer games and when not hidden */}
-        {!isMultiplayer && !hideShareButton && (
-          <div className="text-center mb-3">
-            <button
-              onClick={handleShare}
-              disabled={isSharing}
-              className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-2 rounded-xl shadow-lg font-bold text-sm hover:from-green-600 hover:to-emerald-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mx-auto"
-            >
-              {isSharing ? (
-                <>
-                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  <span>Preparing...</span>
-                </>
-              ) : (
-                <>
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                  </svg>
-                  <span>Share Game Result</span>
-                </>
-              )}
-            </button>
-          </div>
-        )}
-
         {/* Footer branding */}
-        <div className="text-center pt-3 border-t border-gray-200">
-          <div className="text-gray-500 text-xs">
-            India's Best Chess Site for Kids • Making Chess Fun! 🎯
+        <div className="text-center pt-2 mt-1" style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+          <div className="text-[11px] font-bold" style={{ color: 'rgba(255,255,255,0.4)' }}>
+            ♟️ chess99.com
           </div>
         </div>
       </div>

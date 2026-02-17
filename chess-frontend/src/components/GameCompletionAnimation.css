@@ -1,7 +1,7 @@
 /* --- CSS Variables --- */
 :root {
-  --color-win-bg: rgba(129, 182, 76, 0.85); /* Chess green win overlay */
-  --color-loss-bg: rgba(231, 76, 60, 0.85); /* Danger red loss overlay */
+  --color-win-bg: rgba(16, 42, 12, 0.92); /* Deep forest green overlay */
+  --color-loss-bg: rgba(30, 20, 50, 0.92); /* Deep purple overlay (not harsh red) */
   --color-win-accent: #81b64c;             /* Chess green */
   --color-loss-accent: #e74c3c;            /* Danger red */
   --color-card-bg: #312e2b;               /* Dark surface card */
@@ -32,11 +32,15 @@
 }
 
 .completion-overlay.win {
-  background-color: var(--color-win-bg);
+  background: linear-gradient(135deg, rgba(16, 42, 12, 0.93) 0%, rgba(20, 60, 15, 0.90) 50%, rgba(30, 70, 20, 0.88) 100%);
 }
 
 .completion-overlay.loss {
-  background-color: var(--color-loss-bg);
+  background: linear-gradient(135deg, rgba(30, 20, 50, 0.93) 0%, rgba(45, 25, 70, 0.90) 50%, rgba(50, 30, 80, 0.88) 100%);
+}
+
+.completion-overlay.draw {
+  background: linear-gradient(135deg, rgba(50, 35, 10, 0.93) 0%, rgba(60, 45, 15, 0.90) 50%, rgba(70, 50, 20, 0.88) 100%);
 }
 
 .completion-overlay.visible {

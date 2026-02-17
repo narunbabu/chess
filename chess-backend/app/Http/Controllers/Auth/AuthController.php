@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\URL;
 use App\Models\User;
 
 class AuthController extends Controller
@@ -27,6 +29,16 @@ class AuthController extends Controller
         }
 
         $user = User::where('email', $request->email)->first();
+
+        // Block login for unverified manual registrations (social logins are pre-verified)
+        if (!$user->hasVerifiedEmail() && !$user->provider) {
+            return response()->json([
+                'status' => 'error',
+                'code' => 'email_not_verified',
+                'message' => 'Please verify your email. Check your inbox for the verification link.',
+            ], 403);
+        }
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
@@ -42,20 +54,96 @@ class AuthController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
+            'captcha_token' => 'required|string',
         ]);
+
+        // Verify reCAPTCHA token with Google
+        $secretKey = config('services.recaptcha.secret_key');
+        if ($secretKey) {
+            $captchaResponse = Http::asForm()->post('https://www.google.com/recaptcha/api/siteverify', [
+                'secret' => $secretKey,
+                'response' => $validated['captcha_token'],
+                'remoteip' => $request->ip(),
+            ]);
+
+            if (!$captchaResponse->json('success')) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'CAPTCHA verification failed. Please try again.',
+                ], 422);
+            }
+        }
 
         $user = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => bcrypt($validated['password']),
+            // email_verified_at is null by default — user must verify
         ]);
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+        // Send verification email
+        event(new Registered($user));
 
         return response()->json([
             'status' => 'success',
-            'token' => $token,
-            'user' => $user
+            'message' => 'Registration successful! Please check your email to verify your account.',
+            'requires_verification' => true,
+        ]);
+    }
+
+    /**
+     * Verify email address via signed URL
+     */
+    public function verifyEmail(Request $request, $id, $hash)
+    {
+        $user = User::findOrFail($id);
+
+        if (!hash_equals(sha1($user->getEmailForVerification()), $hash)) {
+            return redirect(config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:3000')) . '/login?verified=invalid');
+        }
+
+        if ($user->hasVerifiedEmail()) {
+            return redirect(config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:3000')) . '/login?verified=already');
+        }
+
+        $user->markEmailAsVerified();
+
+        Log::info('Email verified', ['user_id' => $user->id, 'email' => $user->email]);
+
+        return redirect(config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:3000')) . '/login?verified=1');
+    }
+
+    /**
+     * Resend verification email
+     */
+    public function resendVerification(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+        ]);
+
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            // Don't reveal whether email exists
+            return response()->json([
+                'status' => 'success',
+                'message' => 'If that email is registered, a verification link has been sent.',
+            ]);
+        }
+
+        if ($user->hasVerifiedEmail()) {
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Email is already verified. You can log in.',
+            ]);
+        }
+
+        $user->sendEmailVerificationNotification();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'If that email is registered, a verification link has been sent.',
         ]);
     }
 

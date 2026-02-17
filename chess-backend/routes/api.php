@@ -20,6 +20,8 @@ use App\Http\Controllers\RatingController;
 use App\Http\Controllers\SharedResultController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\TutorialController;
+use App\Http\Controllers\LobbyController;
+use App\Http\Controllers\MatchmakingController;
 // use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 
@@ -28,6 +30,13 @@ Route::group(['middleware' => 'api', 'prefix' => 'auth'], function () {
     Route::post('login', [AuthController::class, 'login']);
     Route::post('register', [AuthController::class, 'register']);
     Route::post('logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
+
+    // Email verification
+    Route::get('email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])
+        ->middleware('signed')
+        ->name('verification.verify');
+    Route::post('email/resend', [AuthController::class, 'resendVerification'])
+        ->middleware('throttle:6,1');
 
     // Mobile authentication routes (Android/iOS)
     Route::post('google/mobile', [AuthController::class, 'googleMobileLogin']);
@@ -321,6 +330,16 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/maintenance', [\App\Http\Controllers\TournamentAdminController::class, 'runMaintenance']);
         Route::get('/analytics', [\App\Http\Controllers\TournamentAdminController::class, 'getAnalytics']);
         Route::get('/health', [\App\Http\Controllers\TournamentAdminController::class, 'getSystemHealth']);
+    });
+
+    // Lobby routes
+    Route::get('/lobby/players', [LobbyController::class, 'players']);
+
+    // Matchmaking routes
+    Route::prefix('matchmaking')->group(function () {
+        Route::post('/join', [MatchmakingController::class, 'join']);
+        Route::get('/status/{id}', [MatchmakingController::class, 'status']);
+        Route::delete('/cancel/{id}', [MatchmakingController::class, 'cancel']);
     });
 
     // Organization routes (authenticated only)

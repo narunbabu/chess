@@ -1,278 +1,367 @@
-// Utility functions for exporting chess games as GIF
-import ReactDOM from 'react-dom';
-import html2canvas from 'html2canvas';
+// Utility functions for exporting chess games as animated GIF
+// Uses canvas-based rendering (no React component rendering needed)
 import GIF from 'gif.js';
 import { Chess } from 'chess.js';
 
+// Piece unicode characters for canvas rendering
+const PIECE_CHARS = {
+  wK: '\u2654', wQ: '\u2655', wR: '\u2656', wB: '\u2657', wN: '\u2658', wP: '\u2659',
+  bK: '\u265A', bQ: '\u265B', bR: '\u265C', bB: '\u265D', bN: '\u265E', bP: '\u265F'
+};
+
+// Board colors — walnut/maple wood theme
+const LIGHT_SQ = '#C9A96E';
+const DARK_SQ = '#6B4226';
+const HIGHLIGHT_SQ = 'rgba(255, 255, 0, 0.35)';
+
 /**
- * Generate a GIF from a chess game
- * @param {object} gameData - Game data with moves, player info, etc.
- * @param {React.Component} ChessBoardComponent - Chess board component to render
+ * Parse FEN position into a 2D array of pieces
+ */
+const parseFEN = (fen) => {
+  const rows = fen.split(' ')[0].split('/');
+  const board = [];
+  for (const row of rows) {
+    const boardRow = [];
+    for (const ch of row) {
+      if (ch >= '1' && ch <= '8') {
+        for (let i = 0; i < parseInt(ch); i++) boardRow.push(null);
+      } else {
+        const color = ch === ch.toUpperCase() ? 'w' : 'b';
+        const piece = ch.toUpperCase();
+        boardRow.push(color + piece);
+      }
+    }
+    board.push(boardRow);
+  }
+  return board;
+};
+
+/**
+ * Draw a single chess board frame onto a canvas context
+ */
+const drawBoardFrame = (ctx, fen, boardSize, orientation, lastMove, moveInfo, playerNames, branding) => {
+  const sqSize = boardSize / 8;
+  const headerHeight = 48;
+  const moveBarHeight = 44;
+  const footerHeight = 32;
+  const board = parseFEN(fen);
+
+  // --- Header: Player names ---
+  ctx.fillStyle = '#1a1a18';
+  ctx.fillRect(0, 0, boardSize, headerHeight);
+
+  ctx.font = `bold ${Math.round(sqSize * 0.22)}px "Segoe UI", Arial, sans-serif`;
+  ctx.textBaseline = 'middle';
+
+  // Top player (opponent from perspective)
+  ctx.fillStyle = '#e0e0e0';
+  const topPlayer = orientation === 'white' ? (playerNames.black || 'Black') : (playerNames.white || 'White');
+  const bottomPlayer = orientation === 'white' ? (playerNames.white || 'White') : (playerNames.black || 'Black');
+  ctx.fillText(topPlayer, 12, headerHeight / 2);
+
+  // --- Board ---
+  const boardY = headerHeight;
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 8; col++) {
+      const displayRow = orientation === 'white' ? row : 7 - row;
+      const displayCol = orientation === 'white' ? col : 7 - col;
+
+      const x = col * sqSize;
+      const y = boardY + row * sqSize;
+
+      // Square color
+      const isLight = (displayRow + displayCol) % 2 === 0;
+      ctx.fillStyle = isLight ? LIGHT_SQ : DARK_SQ;
+      ctx.fillRect(x, y, sqSize, sqSize);
+
+      // Last move highlight
+      if (lastMove) {
+        const file = displayCol;
+        const rank = 7 - displayRow;
+        const sq = String.fromCharCode(97 + file) + (rank + 1);
+        if (sq === lastMove.from || sq === lastMove.to) {
+          ctx.fillStyle = HIGHLIGHT_SQ;
+          ctx.fillRect(x, y, sqSize, sqSize);
+        }
+      }
+
+      // Piece
+      const piece = board[displayRow][displayCol];
+      if (piece) {
+        const charKey = piece;
+        const ch = PIECE_CHARS[charKey];
+        if (ch) {
+          ctx.font = `${Math.round(sqSize * 0.82)}px "Segoe UI Symbol", "Noto Color Emoji", Arial`;
+          ctx.textBaseline = 'middle';
+          ctx.textAlign = 'center';
+
+          // Shadow for depth
+          ctx.fillStyle = 'rgba(0,0,0,0.3)';
+          ctx.fillText(ch, x + sqSize / 2 + 1.5, y + sqSize / 2 + 2);
+
+          // Piece
+          ctx.fillStyle = piece[0] === 'w' ? '#FFFFFF' : '#222222';
+          ctx.fillText(ch, x + sqSize / 2, y + sqSize / 2);
+        }
+      }
+
+      // Coordinate labels on edges
+      ctx.font = `bold ${Math.round(sqSize * 0.14)}px Arial`;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      if (col === 0) {
+        const rankLabel = orientation === 'white' ? String(8 - row) : String(row + 1);
+        ctx.fillStyle = isLight ? DARK_SQ : LIGHT_SQ;
+        ctx.fillText(rankLabel, x + 3, y + 3);
+      }
+      if (row === 7) {
+        const fileLabel = orientation === 'white'
+          ? String.fromCharCode(97 + col)
+          : String.fromCharCode(97 + 7 - col);
+        ctx.fillStyle = isLight ? DARK_SQ : LIGHT_SQ;
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(fileLabel, x + sqSize - 3, y + sqSize - 3);
+      }
+    }
+  }
+
+  // --- Move bar ---
+  const moveBarY = boardY + boardSize;
+  ctx.fillStyle = '#2a2a28';
+  ctx.fillRect(0, moveBarY, boardSize, moveBarHeight);
+
+  ctx.font = `bold ${Math.round(sqSize * 0.2)}px "Segoe UI", Arial, sans-serif`;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+
+  if (moveInfo && moveInfo.moveNumber > 0) {
+    // Move number badge
+    const badgeText = `${moveInfo.moveNumber}.`;
+    ctx.fillStyle = moveInfo.isWhite ? '#f0d9b5' : '#8B8B8B';
+    const badgeW = ctx.measureText(badgeText).width + 16;
+    const badgeH = 28;
+    const badgeX = 12;
+    const badgeY = moveBarY + (moveBarHeight - badgeH) / 2;
+
+    // Badge background
+    ctx.fillStyle = moveInfo.isWhite ? 'rgba(240,217,181,0.2)' : 'rgba(139,139,139,0.2)';
+    ctx.beginPath();
+    ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 6);
+    ctx.fill();
+
+    // Badge text
+    ctx.fillStyle = moveInfo.isWhite ? '#f0d9b5' : '#bababa';
+    ctx.fillText(badgeText, badgeX + 8, moveBarY + moveBarHeight / 2);
+
+    // SAN
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `bold ${Math.round(sqSize * 0.22)}px "Segoe UI", Arial, sans-serif`;
+    ctx.fillText(moveInfo.san, badgeX + badgeW + 8, moveBarY + moveBarHeight / 2);
+
+    // Time spent
+    if (moveInfo.time) {
+      ctx.fillStyle = '#888';
+      ctx.font = `${Math.round(sqSize * 0.16)}px "Segoe UI", Arial, sans-serif`;
+      ctx.textAlign = 'right';
+      ctx.fillText(`${moveInfo.time}s`, boardSize - 12, moveBarY + moveBarHeight / 2);
+    }
+  } else {
+    ctx.fillStyle = '#888';
+    ctx.font = `italic ${Math.round(sqSize * 0.18)}px "Segoe UI", Arial, sans-serif`;
+    ctx.fillText('Starting Position', 12, moveBarY + moveBarHeight / 2);
+  }
+
+  // --- Footer: Bottom player + branding ---
+  const footerY = moveBarY + moveBarHeight;
+  ctx.fillStyle = '#1a1a18';
+  ctx.fillRect(0, footerY, boardSize, footerHeight);
+
+  ctx.font = `bold ${Math.round(sqSize * 0.18)}px "Segoe UI", Arial, sans-serif`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#e0e0e0';
+  ctx.fillText(bottomPlayer, 12, footerY + footerHeight / 2);
+
+  // Branding
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#FFD700';
+  ctx.font = `bold ${Math.round(sqSize * 0.17)}px "Segoe UI", Arial, sans-serif`;
+  ctx.fillText(branding || 'chess99.com', boardSize - 12, footerY + footerHeight / 2);
+};
+
+/**
+ * Draw a result frame (shown at end of GIF)
+ */
+const drawResultFrame = (ctx, resultText, boardSize, playerNames, isWin, isDraw) => {
+  const totalH = boardSize + 48 + 44 + 32; // header + board + movebar + footer
+
+  // Dark background
+  let bgColor;
+  if (isDraw) {
+    bgColor = '#7a5a00';
+  } else if (isWin) {
+    bgColor = '#1a5c1a';
+  } else {
+    bgColor = '#2d1b69';
+  }
+  ctx.fillStyle = bgColor;
+  ctx.fillRect(0, 0, boardSize, totalH);
+
+  // Result icon
+  const icon = isDraw ? '\u{1F91D}' : (isWin ? '\u{1F3C6}' : '\u{1F494}');
+  ctx.font = `${Math.round(boardSize * 0.18)}px "Segoe UI Symbol", "Noto Color Emoji", Arial`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(icon, boardSize / 2, totalH * 0.35);
+
+  // Result text
+  ctx.font = `bold ${Math.round(boardSize * 0.08)}px "Segoe UI", Arial, sans-serif`;
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillText(resultText, boardSize / 2, totalH * 0.52);
+
+  // Player names
+  ctx.font = `${Math.round(boardSize * 0.04)}px "Segoe UI", Arial, sans-serif`;
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.fillText(
+    `${playerNames.white || 'White'} vs ${playerNames.black || 'Black'}`,
+    boardSize / 2, totalH * 0.63
+  );
+
+  // Branding
+  ctx.font = `bold ${Math.round(boardSize * 0.045)}px "Segoe UI", Arial, sans-serif`;
+  ctx.fillStyle = '#FFD700';
+  ctx.fillText('chess99.com', boardSize / 2, totalH * 0.78);
+};
+
+/**
+ * Generate an animated GIF from a chess game
+ * @param {object} gameData - Game data
+ * @param {string} gameData.moves - Semicolon-separated moves string "e4,2.52;Nf6,0.98;..."
+ * @param {string} gameData.playerColor - 'w' or 'b'
+ * @param {string} gameData.playerName - Player name
+ * @param {string} gameData.opponentName - Opponent name
+ * @param {string} gameData.resultText - e.g. "White wins!", "Draw", "Black wins!"
+ * @param {boolean} gameData.isWin - Whether player won
+ * @param {boolean} gameData.isDraw - Whether it's a draw
  * @param {object} options - Additional options
+ * @param {number} options.boardSize - Board pixel size (default 400)
+ * @param {number} options.quality - GIF quality 1-30 (default 10, lower=better)
+ * @param {Function} options.onProgress - Progress callback (0-1)
+ * @param {boolean} options.autoSpeed - Auto-calculate delay for ~60s total (default true)
  * @returns {Promise<Blob>} GIF blob
  */
-export const generateGameGIF = async (gameData, ChessBoardComponent, options = {}) => {
+export const generateGameGIF = async (gameData, options = {}) => {
   const {
-    boardSize = 860,
-    delay = 500,
+    boardSize = 400,
     quality = 10,
     workers = 2,
     onProgress = null,
-    includeEndCard = false,
-    endCardComponent = null
+    autoSpeed = true
   } = options;
 
-  const moveDisplayHeight = 150;
-  const totalHeight = boardSize + moveDisplayHeight;
+  const headerHeight = 48;
+  const moveBarHeight = 44;
+  const footerHeight = 32;
+  const totalHeight = headerHeight + boardSize + moveBarHeight + footerHeight;
 
-  // Create a hidden container for rendering frames
-  const hiddenContainer = document.createElement('div');
-  hiddenContainer.id = 'gif-render-container';
-  hiddenContainer.style.position = 'absolute';
-  hiddenContainer.style.left = '-9999px';
-  hiddenContainer.style.width = `${boardSize}px`;
-  document.body.appendChild(hiddenContainer);
+  // Parse moves
+  const movesStr = gameData.moves || '';
+  const moveEntries = movesStr ? movesStr.split(';').filter(Boolean) : [];
+
+  // Calculate delay: target ~60s total playback
+  // Total frames = initial + moves + result (held 3s)
+  const totalMoveFrames = moveEntries.length + 1; // +1 for initial position
+  let delay;
+  if (autoSpeed && totalMoveFrames > 1) {
+    // Reserve 3s for result frame, rest for moves
+    const availableMs = Math.max(57000, 60000 - 3000);
+    delay = Math.round(availableMs / totalMoveFrames);
+    // Clamp between 200ms and 2000ms per frame
+    delay = Math.max(200, Math.min(2000, delay));
+  } else {
+    delay = 500;
+  }
+
+  const orientation = gameData.playerColor === 'b' ? 'black' : 'white';
+
+  const playerNames = {
+    white: gameData.playerColor === 'w' ? gameData.playerName : gameData.opponentName,
+    black: gameData.playerColor === 'b' ? gameData.playerName : gameData.opponentName
+  };
+
+  // Create canvas
+  const canvas = document.createElement('canvas');
+  canvas.width = boardSize;
+  canvas.height = totalHeight;
+  const ctx = canvas.getContext('2d');
+
+  const gif = new GIF({
+    workers,
+    quality,
+    width: boardSize,
+    height: totalHeight,
+    workerScript: '/gif.worker.js'
+  });
 
   try {
     const chess = new Chess();
-    const gif = new GIF({
-      workers,
-      quality,
-      width: boardSize,
-      height: totalHeight,
-      workerScript: '/gif.worker.js'
-    });
 
-    // Function to render board frame
-    const addFrameForMove = async (fen, moveIndex, moveData = null) => {
-      const tempGame = new Chess(fen);
+    // Frame 1: Initial position (hold longer)
+    drawBoardFrame(ctx, chess.fen(), boardSize, orientation, null, { moveNumber: 0 }, playerNames, 'chess99.com');
+    gif.addFrame(ctx, { copy: true, delay: Math.min(delay * 2, 3000) });
 
-      // Prepare move display data
-      let moveInfo = {
-        moveNumber: 'Start',
-        player: '',
-        san: 'Initial Position',
-        time: null
-      };
+    // Move frames
+    for (let i = 0; i < moveEntries.length; i++) {
+      const parts = moveEntries[i].split(',');
+      const san = parts[0];
+      const time = parts[1] ? parseFloat(parts[1]).toFixed(1) : null;
 
-      if (moveIndex > 0 && moveData) {
-        moveInfo = {
-          moveNumber: Math.ceil(moveIndex / 2),
-          player: moveData.playerColor === 'w' ? 'White' : 'Black',
-          san: moveData.move?.san || moveData.san || 'Unknown',
-          time: moveData.timeSpent?.toFixed(1)
-        };
-      }
+      try {
+        const moveResult = chess.move(san, { sloppy: true });
+        if (moveResult) {
+          const moveNumber = Math.ceil((i + 1) / 2);
+          const isWhite = i % 2 === 0;
 
-      // Render component
-      await new Promise(resolve => {
-        const playerColorFull = gameData.playerColor === 'w' ? 'White' : 'Black';
-        const opponentName = gameData.opponentName || (gameData.isMultiplayer ? 'Opponent' : 'Computer');
-
-        ReactDOM.render(
-          <div style={{ width: boardSize, backgroundColor: '#f0f0f0' }}>
-            {/* Move display */}
-            <div style={{
-              border: '1px solid #ccc',
-              padding: '10px',
-              background: '#f9f9f9',
-              borderRadius: '5px',
-              fontFamily: 'sans-serif',
-              fontSize: '14px'
-            }}>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '10px',
-                paddingBottom: '5px',
-                borderBottom: '1px solid #eee'
-              }}>
-                <span style={{ fontWeight: 'bold' }}>
-                  {gameData.playerName || 'Player'} ({playerColorFull}) vs {opponentName}
-                </span>
-              </div>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
-                <div style={{ flexGrow: 1 }}>
-                  {moveIndex > 0 && moveData ? (
-                    <span style={{
-                      backgroundColor: '#007bff',
-                      color: 'white',
-                      padding: '3px 8px',
-                      borderRadius: '4px'
-                    }}>
-                      {moveInfo.moveNumber}. {moveInfo.player}: {moveInfo.san}
-                      {moveInfo.time ? ` (${moveInfo.time}s)` : ''}
-                    </span>
-                  ) : (
-                    <span style={{ fontStyle: 'italic' }}>Initial Position</span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Chess board */}
-            <ChessBoardComponent
-              game={tempGame}
-              boardOrientation={gameData.playerColor === 'w' ? 'white' : 'black'}
-              boardWidth={boardSize}
-              isReplayMode={true}
-              onDrop={() => false}
-              moveFrom=""
-              setMoveFrom={() => {}}
-              rightClickedSquares={{}}
-              setRightClickedSquares={() => {}}
-              moveSquares={{}}
-              setMoveSquares={() => {}}
-              playerColor={gameData.playerColor}
-              activeTimer={null}
-              setMoveCompleted={() => {}}
-              setTimerButtonColor={() => {}}
-              previousGameStateRef={{ current: null }}
-              evaluateMove={() => {}}
-              updateGameStatus={() => {}}
-            />
-          </div>,
-          hiddenContainer,
-          resolve
-        );
-      });
-
-      // Wait for render to complete
-      await new Promise(resolve => setTimeout(resolve, 50));
-
-      // Capture frame
-      const canvas = await html2canvas(hiddenContainer, {
-        width: boardSize,
-        height: totalHeight,
-        windowHeight: totalHeight + 50
-      });
-      gif.addFrame(canvas, { delay });
-    };
-
-    // Add initial position frame
-    await addFrameForMove(chess.fen(), 0);
-
-    // Add frames for each move
-    const moves = gameData.moves || [];
-    for (let i = 0; i < moves.length; i++) {
-      const moveData = moves[i];
-      if (moveData && (moveData.move?.san || moveData.san)) {
-        try {
-          const san = moveData.move?.san || moveData.san;
-          const moveResult = chess.move(san, { sloppy: true });
-          if (moveResult) {
-            await addFrameForMove(chess.fen(), i + 1, moveData);
-          }
-        } catch (error) {
-          console.error(`Error processing move ${i}:`, error);
+          drawBoardFrame(ctx, chess.fen(), boardSize, orientation,
+            { from: moveResult.from, to: moveResult.to },
+            { moveNumber, san, isWhite, time },
+            playerNames, 'chess99.com'
+          );
+          gif.addFrame(ctx, { copy: true, delay });
         }
+      } catch (err) {
+        console.warn(`GIF: skipping invalid move ${i}: ${san}`, err);
+      }
+
+      // Report progress for frame generation phase (0-0.5)
+      if (onProgress) {
+        onProgress((i + 1) / moveEntries.length * 0.5);
       }
     }
 
-    // Add end card if requested
-    if (includeEndCard && endCardComponent) {
-      await new Promise(resolve => {
-        ReactDOM.render(endCardComponent, hiddenContainer, resolve);
-      });
-      await new Promise(resolve => setTimeout(resolve, 50));
-      const canvas = await html2canvas(hiddenContainer, {
-        width: boardSize,
-        height: totalHeight
-      });
-      gif.addFrame(canvas, { delay: 2000 }); // Show end card for 2 seconds
-    }
+    // Result frame (hold 3 seconds)
+    drawResultFrame(ctx, gameData.resultText || 'Game Over', boardSize, playerNames, gameData.isWin, gameData.isDraw);
+    gif.addFrame(ctx, { copy: true, delay: 3000 });
 
-    // Generate GIF
+    // Render GIF
     return new Promise((resolve, reject) => {
       gif.on('finished', (blob) => {
-        // Clean up
-        ReactDOM.unmountComponentAtNode(hiddenContainer);
-        document.body.removeChild(hiddenContainer);
         resolve(blob);
       });
 
       gif.on('progress', (p) => {
-        onProgress?.(p);
+        // GIF encoding progress (0.5-1.0)
+        if (onProgress) onProgress(0.5 + p * 0.5);
       });
 
       gif.on('error', (error) => {
-        // Clean up on error
-        if (document.getElementById('gif-render-container')) {
-          ReactDOM.unmountComponentAtNode(hiddenContainer);
-          document.body.removeChild(hiddenContainer);
-        }
         reject(error);
       });
 
       gif.render();
     });
   } catch (error) {
-    // Clean up on error
-    if (document.getElementById('gif-render-container')) {
-      ReactDOM.unmountComponentAtNode(hiddenContainer);
-      document.body.removeChild(hiddenContainer);
-    }
-    throw error;
-  }
-};
-
-/**
- * Generate a static image of the end card
- * @param {React.Element} endCardElement - End card component/element
- * @param {object} options - Additional options
- * @returns {Promise<Blob>} Image blob
- */
-export const generateEndCardImage = async (endCardElement, options = {}) => {
-  const {
-    width = 600,
-    height = 400
-  } = options;
-
-  // Create a hidden container
-  const hiddenContainer = document.createElement('div');
-  hiddenContainer.style.position = 'absolute';
-  hiddenContainer.style.left = '-9999px';
-  hiddenContainer.style.width = `${width}px`;
-  hiddenContainer.style.height = `${height}px`;
-  document.body.appendChild(hiddenContainer);
-
-  try {
-    // Render the end card
-    await new Promise(resolve => {
-      ReactDOM.render(endCardElement, hiddenContainer, resolve);
-    });
-
-    // Wait for render
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    // Capture as canvas
-    const canvas = await html2canvas(hiddenContainer, { width, height });
-
-    // Convert to blob
-    return new Promise((resolve, reject) => {
-      canvas.toBlob((blob) => {
-        // Clean up
-        ReactDOM.unmountComponentAtNode(hiddenContainer);
-        document.body.removeChild(hiddenContainer);
-
-        if (blob) {
-          resolve(blob);
-        } else {
-          reject(new Error('Failed to create blob'));
-        }
-      }, 'image/png');
-    });
-  } catch (error) {
-    // Clean up on error
-    if (hiddenContainer.parentNode) {
-      ReactDOM.unmountComponentAtNode(hiddenContainer);
-      document.body.removeChild(hiddenContainer);
-    }
     throw error;
   }
 };

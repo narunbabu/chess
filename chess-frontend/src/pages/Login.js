@@ -1,14 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { BASE_URL } from '../config';
 import api from '../services/api';
+import ReCAPTCHA from 'react-google-recaptcha';
 import MailIcon from "../assets/icons/MailIcon";
 import LockIcon from "../assets/icons/LockIcon";
 import EyeIcon from "../assets/icons/EyeIcon";
 import EyeOffIcon from "../assets/icons/EyeOffIcon";
 import SkillAssessmentModal from '../components/auth/SkillAssessmentModal';
 import logo from '../assets/images/logo.png';
+
+const RECAPTCHA_SITE_KEY = process.env.REACT_APP_RECAPTCHA_SITE_KEY;
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
@@ -22,15 +25,28 @@ const LoginPage = () => {
   const [showSkillAssessment, setShowSkillAssessment] = useState(false);
   const [showEmailForm, setShowEmailForm] = useState(false);
   const [requestedResource, setRequestedResource] = useState(null);
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState('');
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMessage, setResendMessage] = useState('');
+  const [captchaToken, setCaptchaToken] = useState(null);
+  const recaptchaRef = useRef(null);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { login, isAuthenticated, loading } = useAuth();
 
-  // Handle URL parameters for educational resources
+  // Handle URL parameters for educational resources and email verification
   useEffect(() => {
     const resource = searchParams.get('resource');
     if (resource) {
       setRequestedResource(resource);
+    }
+    const verified = searchParams.get('verified');
+    if (verified === '1') {
+      setError('');
+      setResendMessage('Email verified successfully! You can now sign in.');
+    } else if (verified === 'invalid') {
+      setError('Invalid verification link. Please request a new one.');
     }
   }, [searchParams]);
 
@@ -41,10 +57,24 @@ const LoginPage = () => {
     }
   }, [loading, isAuthenticated, navigate]);
 
+  const handleResendVerification = async () => {
+    setResendLoading(true);
+    setResendMessage('');
+    try {
+      const response = await api.post('/auth/email/resend', { email: registeredEmail || email });
+      setResendMessage(response.data.message || 'Verification email sent!');
+    } catch (err) {
+      setResendMessage('Failed to resend. Please try again later.');
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
+    setResendMessage('');
 
     try {
       if (isLogin) {
@@ -59,10 +89,22 @@ const LoginPage = () => {
           setIsLoading(false);
           return;
         }
+        if (!captchaToken) {
+          setError("Please complete the CAPTCHA.");
+          setIsLoading(false);
+          return;
+        }
         const response = await api.post('/auth/register', {
-          name, email, password, password_confirmation: confirmPassword
+          name, email, password, password_confirmation: confirmPassword,
+          captcha_token: captchaToken,
         });
-        if (response.data.status === 'success') {
+        if (response.data.requires_verification) {
+          setRegistrationSuccess(true);
+          setRegisteredEmail(email);
+          setIsLoading(false);
+          return;
+        }
+        if (response.data.status === 'success' && response.data.token) {
           await login(response.data.token);
           setShowSkillAssessment(true);
           setIsLoading(false);
@@ -71,10 +113,21 @@ const LoginPage = () => {
       }
     } catch (err) {
       console.error('Authentication error:', err);
-      setError(
-        err.response?.data?.message ||
-        (isLogin ? 'Login failed. Please try again.' : 'Registration failed. Please try again.')
-      );
+      const errorData = err.response?.data;
+      if (errorData?.code === 'email_not_verified') {
+        setRegisteredEmail(email);
+        setError(errorData.message);
+      } else {
+        setError(
+          errorData?.message ||
+          (isLogin ? 'Login failed. Please try again.' : 'Registration failed. Please try again.')
+        );
+      }
+      // Reset captcha on error
+      if (recaptchaRef.current) {
+        recaptchaRef.current.reset();
+        setCaptchaToken(null);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -144,10 +197,62 @@ const LoginPage = () => {
             {error && (
               <div className="bg-[#e74c3c] text-white p-3 rounded-lg mb-5 text-center text-sm font-medium animate-[errorShake_0.5s_ease-out]">
                 {error}
+                {/* Show resend link when email not verified */}
+                {registeredEmail && error.includes('verify') && (
+                  <button
+                    onClick={handleResendVerification}
+                    disabled={resendLoading}
+                    className="block mx-auto mt-2 text-white/80 hover:text-white underline text-xs bg-transparent border-none p-0"
+                  >
+                    {resendLoading ? 'Sending...' : 'Resend verification email'}
+                  </button>
+                )}
               </div>
             )}
 
-            {!showEmailForm ? (
+            {/* Success messages (verification confirmed, resend success) */}
+            {resendMessage && !error && (
+              <div className="bg-[#81b64c] text-white p-3 rounded-lg mb-5 text-center text-sm font-medium">
+                {resendMessage}
+              </div>
+            )}
+
+            {/* Registration success — check email screen */}
+            {registrationSuccess ? (
+              <div className="text-center py-4">
+                <div className="text-5xl mb-4">
+                  <svg className="w-16 h-16 mx-auto text-[#81b64c]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <h2 className="text-xl font-bold text-white mb-2">Check your email</h2>
+                <p className="text-[#bababa] text-sm mb-1">
+                  We sent a verification link to
+                </p>
+                <p className="text-white font-medium text-sm mb-4">{registeredEmail}</p>
+                <p className="text-[#8b8987] text-xs mb-5">
+                  Click the link in the email to activate your account, then come back to sign in.
+                </p>
+                <button
+                  onClick={handleResendVerification}
+                  disabled={resendLoading}
+                  className="text-[#81b64c] hover:text-[#a3d160] text-sm bg-transparent border-none p-0 transition-colors"
+                >
+                  {resendLoading ? 'Sending...' : "Didn't get it? Resend email"}
+                </button>
+                {resendMessage && (
+                  <p className="text-[#81b64c] text-xs mt-2">{resendMessage}</p>
+                )}
+                <div className="mt-5 pt-4 border-t border-[#3d3a37]">
+                  <button
+                    onClick={() => { setRegistrationSuccess(false); setIsLogin(true); setError(''); setResendMessage(''); }}
+                    className="text-[#8b8987] hover:text-white text-sm bg-transparent border-none p-0 transition-colors"
+                  >
+                    Back to Sign In
+                  </button>
+                </div>
+              </div>
+            ) : !showEmailForm ? (
               <div className="space-y-5">
                 <a
                   href={`${BASE_URL}/auth/google/redirect`}
@@ -239,9 +344,22 @@ const LoginPage = () => {
                     </div>
                   )}
 
+                  {/* reCAPTCHA — registration only */}
+                  {!isLogin && RECAPTCHA_SITE_KEY && (
+                    <div className="flex justify-center" style={{ transform: 'scale(0.9)', transformOrigin: 'center' }}>
+                      <ReCAPTCHA
+                        ref={recaptchaRef}
+                        sitekey={RECAPTCHA_SITE_KEY}
+                        theme="dark"
+                        onChange={(token) => setCaptchaToken(token)}
+                        onExpired={() => setCaptchaToken(null)}
+                      />
+                    </div>
+                  )}
+
                   <button
                     type="submit"
-                    disabled={isLoading}
+                    disabled={isLoading || (!isLogin && !captchaToken)}
                     className="w-full bg-[#81b64c] text-white font-semibold py-3 rounded-lg hover:bg-[#93c85a] active:bg-[#6fa03e] disabled:opacity-60 disabled:cursor-not-allowed transition-colors mt-1"
                   >
                     {isLoading ? (
@@ -256,7 +374,7 @@ const LoginPage = () => {
                 <p className="text-center text-sm text-[#8b8987] mt-5">
                   {isLogin ? "Don't have an account? " : "Already have an account? "}
                   <button
-                    onClick={() => { setIsLogin(!isLogin); setError(""); }}
+                    onClick={() => { setIsLogin(!isLogin); setError(""); setCaptchaToken(null); if (recaptchaRef.current) recaptchaRef.current.reset(); }}
                     className="text-[#81b64c] hover:text-[#a3d160] font-medium bg-transparent border-none p-0 transition-colors"
                   >
                     {isLogin ? 'Register' : 'Sign In'}

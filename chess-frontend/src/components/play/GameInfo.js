@@ -39,21 +39,23 @@ const GameInfo = ({
     return true;
   };
 
+  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '0.2rem' : '0.5rem' }}>
       {/* Important Game Status Only - not basic turn info */}
       {shouldShowStatus() && (
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '0.5rem',
-          padding: '0.5rem',
+          gap: '0.375rem',
+          padding: isMobile ? '0.25rem 0.375rem' : '0.5rem',
           backgroundColor: 'rgba(255, 255, 255, 0.05)',
           borderRadius: '0.375rem',
-          fontSize: '0.875rem'
+          fontSize: isMobile ? '0.75rem' : '0.875rem'
         }}>
-          <span style={{ fontSize: '1rem' }}>{getStatusIcon()}</span>
-          <span style={{ color: '#bababa', fontWeight: '500' }}>{gameStatus}</span>
+          <span style={{ fontSize: isMobile ? '0.8rem' : '1rem' }}>{getStatusIcon()}</span>
+          <span style={{ color: '#bababa', fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{gameStatus}</span>
         </div>
       )}
 

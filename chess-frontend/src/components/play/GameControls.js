@@ -61,26 +61,30 @@ const GameControls = ({
     }
   };
 
+  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+
   return (
-    <div className="game-controls" style={{ marginTop: "20px", textAlign: "center" }}>
+    <div className="game-controls" style={{ marginTop: isMobile ? "4px" : "20px", textAlign: "center" }}>
       {/* Rated Game Warning */}
       {isRated && gameStarted && !gameOver && !isReplayMode && (
         <div style={{
           backgroundColor: '#3d3a37',
           border: '2px solid #e8a93e',
           borderRadius: '8px',
-          padding: '12px 16px',
-          marginBottom: '15px',
+          padding: isMobile ? '6px 10px' : '12px 16px',
+          marginBottom: isMobile ? '4px' : '15px',
           maxWidth: '600px',
-          margin: '0 auto 15px auto'
+          margin: isMobile ? '0 auto 4px auto' : '0 auto 15px auto'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
-            <span style={{ fontSize: '20px' }}>⚠️</span>
-            <strong style={{ color: '#e8a93e' }}>RATED GAME</strong>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}>
+            <span style={{ fontSize: isMobile ? '14px' : '20px' }}>⚠️</span>
+            <strong style={{ color: '#e8a93e', fontSize: isMobile ? '12px' : '14px' }}>RATED GAME</strong>
           </div>
-          <p style={{ margin: '8px 0 0 0', fontSize: '14px', color: '#bababa' }}>
-            You cannot pause or exit this game. Closing the browser or leaving will result in automatic forfeiture and count as a LOSS.
-          </p>
+          {!isMobile && (
+            <p style={{ margin: '8px 0 0 0', fontSize: '14px', color: '#bababa' }}>
+              You cannot pause or exit this game. Closing the browser or leaving will result in automatic forfeiture and count as a LOSS.
+            </p>
+          )}
         </div>
       )}
 

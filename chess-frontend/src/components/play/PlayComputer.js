@@ -123,6 +123,9 @@ const PlayComputer = () => {
   const [undoChancesRemaining, setUndoChancesRemaining] = useState(0); // Track remaining undo chances
   const [pendingNavigation, setPendingNavigation] = useState(null); // Store navigation path when blocked
   const [showNavigationWarning, setShowNavigationWarning] = useState(false); // Show navigation warning modal
+  const [syntheticOpponent, setSyntheticOpponent] = useState(
+    location.state?.gameMode === 'synthetic' ? location.state.syntheticPlayer : null
+  ); // Synthetic bot identity from lobby matchmaking
 
   // --- Custom timer hook ---
   const {
@@ -146,7 +149,7 @@ const PlayComputer = () => {
           pgn: game.pgn(),
           moves: gameHistory,
           playerColor: playerColor,
-          opponentName: 'Computer',
+          opponentName: syntheticOpponent?.name || 'Computer',
           gameMode: 'computer',
           computerLevel: computerDepth,
           timerState: {
@@ -261,6 +264,13 @@ const PlayComputer = () => {
                 in_draw: status.outcome === 'draw'
             }
         );
+
+        // Attach synthetic opponent data so GameEndCard can display name/avatar
+        if (syntheticOpponent) {
+            standardizedResult.opponent_name = syntheticOpponent.name;
+            standardizedResult.opponent_avatar_url = syntheticOpponent.avatar_url;
+            standardizedResult.opponent_rating = syntheticOpponent.rating;
+        }
 
         console.log('🎯 [PlayComputer] Created standardized result:', standardizedResult);
 
@@ -472,7 +482,7 @@ const PlayComputer = () => {
             pgn: game.pgn(),
             moves: gameHistory,
             playerColor: playerColor,
-            opponentName: 'Computer',
+            opponentName: syntheticOpponent?.name || 'Computer',
             gameMode: 'computer',
             computerLevel: computerDepth,
             timerState: {
@@ -513,7 +523,7 @@ const PlayComputer = () => {
             pgn: game.pgn(),
             moves: gameHistory,
             playerColor: playerColor,
-            opponentName: 'Computer',
+            opponentName: syntheticOpponent?.name || 'Computer',
             gameMode: 'computer',
             computerLevel: computerDepth,
             timerState: {
@@ -637,6 +647,37 @@ const PlayComputer = () => {
       });
 
       startGame();
+    }
+  }, [location.state]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Handle synthetic player mode (from lobby challenge or matchmaking)
+  useEffect(() => {
+    if (location.state?.gameMode === 'synthetic' && location.state?.syntheticPlayer) {
+      const bot = location.state.syntheticPlayer;
+      console.log('[PlayComputer] Setting up synthetic opponent:', bot.name, 'level:', bot.computer_level);
+
+      setSyntheticOpponent(bot);
+
+      // Set difficulty to the bot's level
+      if (bot.computer_level) {
+        setComputerDepth(bot.computer_level);
+        localStorage.setItem('computerDepth', bot.computer_level.toString());
+      }
+
+      // Apply preferred color from lobby color selection
+      if (location.state.preferredColor) {
+        const color = location.state.preferredColor === 'black' ? 'b' : 'w';
+        setPlayerColor(color);
+        localStorage.setItem('playerColor', color);
+      }
+
+      // If a backend game was already created by matchmaking, use its ID
+      if (location.state.backendGameId) {
+        setCurrentGameId(location.state.backendGameId);
+      }
+
+      // Skip countdown — go straight into the game
+      onCountdownFinish();
     }
   }, [location.state]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1141,7 +1182,7 @@ const PlayComputer = () => {
                     pgn: gameCopy.pgn(),
                     moves: [...gameHistory, newHistoryEntry],
                     playerColor: playerColor,
-                    opponentName: 'Computer',
+                    opponentName: syntheticOpponent?.name || 'Computer',
                     gameMode: 'computer',
                     computerLevel: computerDepth,
                     timerState: {
@@ -1373,15 +1414,22 @@ const PlayComputer = () => {
             : JSON.stringify(gameHistory.map(h => h.move));
 
         // Create standardized result for resignation (player loses)
+        // The winner text must match "White wins" or "Black wins" pattern for
+        // createResultFromComputerGame to correctly identify win/loss status.
+        const winnerColor = playerColor === 'w' ? 'Black' : 'White';
         const standardizedResult = createResultFromComputerGame(
-            'resignation', // Result type
-            playerColor === 'w' ? 'black' : 'white', // Winner (opponent wins)
-            playerScore || 0,
-            computerScore || 0,
+            `${winnerColor} wins by resignation`,
             playerColor,
-            user?.rating || DEFAULT_RATING,
-            computerDepth
+            { in_checkmate: false, in_stalemate: false, in_draw: false }
         );
+        standardizedResult.end_reason = 'resignation';
+
+        // Attach synthetic opponent data so GameEndCard can display name/avatar
+        if (syntheticOpponent) {
+            standardizedResult.opponent_name = syntheticOpponent.name;
+            standardizedResult.opponent_avatar_url = syntheticOpponent.avatar_url;
+            standardizedResult.opponent_rating = syntheticOpponent.rating;
+        }
 
         console.log('🏳️ [PlayComputer] Player resigned, result:', standardizedResult);
 
@@ -1406,7 +1454,7 @@ const PlayComputer = () => {
     }, [
         gameOver, gameStarted, isReplayMode, timerRef, gameHistory, playerColor,
         playerScore, computerScore, computerDepth, user?.rating, invalidateGameHistory,
-        backendGame, user // Added backendGame and user for resignation API call
+        backendGame, user, syntheticOpponent
     ]);
 
      const resetCurrentGameSetup = useCallback(() => {
@@ -1780,7 +1828,7 @@ const PlayComputer = () => {
   const usePlayShell = process.env.REACT_APP_USE_PLAY_SHELL === 'true';
 
   
-  const preGameSetupSection = (
+  const preGameSetupSection = syntheticOpponent ? null : (
     <>
       {/* Game Mode Selection */}
       {gameMode === null && (
@@ -1867,10 +1915,17 @@ const PlayComputer = () => {
           name: user.name || user.username || 'You',
           avatar_url: user.avatar_url || user.avatar
         } : null,
-        opponentData: {
-          name: 'Computer',
-          avatar_url: null // Computer uses emoji 🤖 instead
-        }
+        opponentData: syntheticOpponent
+          ? {
+              name: syntheticOpponent.name,
+              avatar_url: syntheticOpponent.avatar_url,
+              rating: syntheticOpponent.rating,
+              personality: syntheticOpponent.personality,
+            }
+          : {
+              name: 'Computer',
+              avatar_url: null // Computer uses emoji 🤖 instead
+            }
       }}
       gameData={{
         game,
@@ -2155,8 +2210,8 @@ const PlayComputer = () => {
             <div
               style={{
                 backgroundColor: '#312e2b',
-                borderRadius: '16px',
-                padding: '32px',
+                borderRadius: window.innerWidth <= 480 ? '12px' : '16px',
+                padding: window.innerWidth <= 480 ? '20px' : '32px',
                 maxWidth: '500px',
                 width: '100%',
                 boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
@@ -2167,17 +2222,17 @@ const PlayComputer = () => {
               <div style={{
                 display: 'flex',
                 justifyContent: 'center',
-                marginBottom: '24px'
+                marginBottom: window.innerWidth <= 480 ? '16px' : '24px'
               }}>
                 <div style={{
-                  width: '80px',
-                  height: '80px',
+                  width: window.innerWidth <= 480 ? '56px' : '80px',
+                  height: window.innerWidth <= 480 ? '56px' : '80px',
                   borderRadius: '50%',
                   backgroundColor: '#3d3a37',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '48px'
+                  fontSize: window.innerWidth <= 480 ? '32px' : '48px'
                 }}>
                   ⚠️
                 </div>
@@ -2186,7 +2241,7 @@ const PlayComputer = () => {
               {/* Title */}
               <h2 style={{
                 color: '#e8a93e',
-                fontSize: '28px',
+                fontSize: window.innerWidth <= 480 ? '22px' : '28px',
                 fontWeight: 'bold',
                 textAlign: 'center',
                 marginBottom: '16px'
@@ -2198,13 +2253,13 @@ const PlayComputer = () => {
               <div style={{
                 backgroundColor: '#3d3a37',
                 borderLeft: '4px solid #e8a93e',
-                padding: '16px',
+                padding: window.innerWidth <= 480 ? '12px' : '16px',
                 borderRadius: '8px',
-                marginBottom: '24px'
+                marginBottom: window.innerWidth <= 480 ? '16px' : '24px'
               }}>
                 <p style={{
                   color: '#e8a93e',
-                  fontSize: '16px',
+                  fontSize: window.innerWidth <= 480 ? '14px' : '16px',
                   fontWeight: '600',
                   marginBottom: '12px'
                 }}>
@@ -2212,13 +2267,13 @@ const PlayComputer = () => {
                 </p>
                 <ul style={{
                   color: '#bababa',
-                  fontSize: '14px',
+                  fontSize: window.innerWidth <= 480 ? '13px' : '14px',
                   paddingLeft: '20px',
                   margin: 0
                 }}>
-                  <li style={{ marginBottom: '8px' }}>The game will be marked as RESIGNED</li>
-                  <li style={{ marginBottom: '8px' }}>This will count as a LOSS</li>
-                  <li style={{ marginBottom: '8px' }}>Your rating will DECREASE</li>
+                  <li style={{ marginBottom: '6px' }}>The game will be marked as RESIGNED</li>
+                  <li style={{ marginBottom: '6px' }}>This will count as a LOSS</li>
+                  <li style={{ marginBottom: '6px' }}>Your rating will DECREASE</li>
                   <li>The game cannot be resumed later</li>
                 </ul>
               </div>
@@ -2234,8 +2289,8 @@ const PlayComputer = () => {
                   onClick={handleNavigationCancel}
                   style={{
                     flex: 1,
-                    padding: '14px 24px',
-                    fontSize: '16px',
+                    padding: window.innerWidth <= 480 ? '12px 20px' : '14px 24px',
+                    fontSize: window.innerWidth <= 480 ? '14px' : '16px',
                     fontWeight: '600',
                     borderRadius: '8px',
                     border: 'none',
@@ -2243,7 +2298,8 @@ const PlayComputer = () => {
                     color: 'white',
                     cursor: 'pointer',
                     transition: 'all 0.2s',
-                    boxShadow: '0 4px 12px rgba(129, 182, 76, 0.3)'
+                    boxShadow: '0 4px 12px rgba(129, 182, 76, 0.3)',
+                    minHeight: '44px'
                   }}
                   onMouseEnter={(e) => {
                     e.target.style.backgroundColor = '#4e7837';
@@ -2254,7 +2310,7 @@ const PlayComputer = () => {
                     e.target.style.transform = 'translateY(0)';
                   }}
                 >
-                  ✋ Stay in Game
+                  Stay in Game
                 </button>
 
                 {/* Forfeit & Leave Button */}
@@ -2262,8 +2318,8 @@ const PlayComputer = () => {
                   onClick={handleNavigationConfirm}
                   style={{
                     flex: 1,
-                    padding: '14px 24px',
-                    fontSize: '16px',
+                    padding: window.innerWidth <= 480 ? '12px 20px' : '14px 24px',
+                    fontSize: window.innerWidth <= 480 ? '14px' : '16px',
                     fontWeight: '600',
                     borderRadius: '8px',
                     border: 'none',
@@ -2271,7 +2327,8 @@ const PlayComputer = () => {
                     color: 'white',
                     cursor: 'pointer',
                     transition: 'all 0.2s',
-                    boxShadow: '0 4px 12px rgba(231, 76, 60, 0.3)'
+                    boxShadow: '0 4px 12px rgba(231, 76, 60, 0.3)',
+                    minHeight: '44px'
                   }}
                   onMouseEnter={(e) => {
                     e.target.style.backgroundColor = '#fa6a5b';
@@ -2282,7 +2339,7 @@ const PlayComputer = () => {
                     e.target.style.transform = 'translateY(0)';
                   }}
                 >
-                  🏳️ Forfeit & Leave
+                  Forfeit & Leave
                 </button>
               </div>
             </div>
@@ -2323,8 +2380,8 @@ const PlayComputer = () => {
                   navigate(navPath);
                 }, 100);
               } else {
-                // No pending navigation, just reset the game
-                resetGame();
+                // Navigate to lobby after game ends
+                navigate('/lobby');
               }
             }}
           />
@@ -2354,7 +2411,7 @@ const PlayComputer = () => {
       <div className="chess-game-container text-white pt-4 md:pt-6">
 
         {/* Pre-Game Setup Screen */}
-        {!gameStarted && !isReplayMode && !isOnlineGame && gameMode === null && (
+        {!gameStarted && !isReplayMode && !isOnlineGame && !syntheticOpponent && gameMode === null && (
           <div className="pre-game-setup bg-surface-card backdrop-blur-lg rounded-2xl border border-white/10 p-6 text-center">
             <h2 className="text-3xl font-bold mb-6 text-gold">Choose Your Game Mode</h2>
             <div className="flex flex-col gap-4">
@@ -2368,8 +2425,8 @@ const PlayComputer = () => {
           </div>
         )}
 
-        {/* Pre-Game Setup Screen */}
-        {!gameStarted && !isReplayMode && !isOnlineGame && gameMode === 'computer' && (
+        {/* Pre-Game Setup Screen (skip for synthetic opponents from lobby) */}
+        {!gameStarted && !isReplayMode && !isOnlineGame && !syntheticOpponent && gameMode === 'computer' && (
           <div className="pre-game-setup bg-surface-card backdrop-blur-lg rounded-2xl border border-white/10 p-6 text-center">
 
             {/* Game Mode Selector */}
@@ -2457,8 +2514,8 @@ const PlayComputer = () => {
                   navigate(navPath);
                 }, 100);
               } else {
-                // No pending navigation, just reset the game
-                resetGame(); // Reset back to the pre-game setup
+                // Navigate to lobby after game ends
+                navigate('/lobby');
               }
             }}
           />

@@ -20,7 +20,10 @@ class UserController extends Controller
                     ->where('last_activity_at', '>=', $onlineThreshold);
 
         if ($query) {
-            $users->where('name', 'like', '%' . $query . '%');
+            $users->where(function ($q) use ($query) {
+                $q->where('name', 'like', '%' . $query . '%')
+                  ->orWhere('email', 'like', '%' . $query . '%');
+            });
         }
 
         // Return top 10 online users ordered by rating (descending)
@@ -31,8 +34,8 @@ class UserController extends Controller
 
     public function me(Request $request)
     {
-        // Load user with roles for permission checks on frontend
-        $user = $request->user()->load('roles:id,name');
+        // Load user with roles and organization for frontend
+        $user = $request->user()->load(['roles:id,name', 'organization:id,name,type,logo_url,slug']);
         return response()->json($user);
     }
 
@@ -72,12 +75,34 @@ class UserController extends Controller
         $validated = $request->validate([
             'name' => 'sometimes|string|max:255',
             'avatar' => 'sometimes|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'avatar_url' => 'sometimes|string|url|max:500',
+            'birthday' => 'sometimes|nullable|date|before:today|after:1950-01-01',
+            'class_of_study' => 'sometimes|nullable|integer|min:1|max:12',
         ]);
 
         // Update name if provided
         if (isset($validated['name'])) {
             \Log::info('Updating name from "' . $user->name . '" to "' . $validated['name'] . '"');
             $user->name = $validated['name'];
+        }
+
+        // Update birthday if provided
+        if (array_key_exists('birthday', $validated)) {
+            $user->birthday = $validated['birthday'];
+        }
+
+        // Update class of study if provided
+        if (array_key_exists('class_of_study', $validated)) {
+            $user->class_of_study = $validated['class_of_study'];
+        }
+
+        // Update avatar from DiceBear URL if provided (no file upload)
+        if (isset($validated['avatar_url']) && !$request->hasFile('avatar')) {
+            // Only allow DiceBear URLs for safety
+            if (str_starts_with($validated['avatar_url'], 'https://api.dicebear.com/')) {
+                $user->avatar_url = $validated['avatar_url'];
+                \Log::info('Setting DiceBear avatar URL:', ['url' => $validated['avatar_url']]);
+            }
         }
 
         // Update avatar if provided
@@ -163,6 +188,9 @@ class UserController extends Controller
                 ], 500);
             }
         }
+
+        // Mark profile as completed
+        $user->profile_completed = true;
 
         // Save changes
         $user->save();

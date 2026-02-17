@@ -32,16 +32,16 @@ const GamePreviewModal = ({ game, onClose }) => {
   const getResultColor = (result, playerColor) => {
     if (!result) return 'text-[#8b8987]';
 
+    const safePlayerColor = (playerColor || 'white').toLowerCase();
     let effectiveResult;
     if (typeof result === 'object' && result.end_reason) {
       if (result.end_reason === 'draw') {
         effectiveResult = 'draw';
       } else {
-        const normalizedPlayerColor = playerColor.toLowerCase();
         if (result.winner === 'player') {
-          effectiveResult = normalizedPlayerColor;
+          effectiveResult = safePlayerColor;
         } else if (result.winner === 'opponent') {
-          effectiveResult = normalizedPlayerColor === 'white' ? 'black' : 'white';
+          effectiveResult = safePlayerColor === 'white' ? 'black' : 'white';
         } else {
           effectiveResult = 'unknown';
         }
@@ -50,7 +50,7 @@ const GamePreviewModal = ({ game, onClose }) => {
       effectiveResult = typeof result === 'string' ? result.toLowerCase() : 'unknown';
     }
 
-    const normalizedPlayerColor = playerColor.toLowerCase();
+    const normalizedPlayerColor = safePlayerColor;
 
     switch (effectiveResult) {
       case 'white':
@@ -67,16 +67,16 @@ const GamePreviewModal = ({ game, onClose }) => {
   const getResultText = (result, playerColor) => {
     if (!result) return 'Unknown';
 
+    const safePlayerColor = (playerColor || 'white').toLowerCase();
     let effectiveResult;
     if (typeof result === 'object' && result.end_reason) {
       if (result.end_reason === 'draw') {
         effectiveResult = 'draw';
       } else {
-        const normalizedPlayerColor = playerColor.toLowerCase();
         if (result.winner === 'player') {
-          effectiveResult = normalizedPlayerColor;
+          effectiveResult = safePlayerColor;
         } else if (result.winner === 'opponent') {
-          effectiveResult = normalizedPlayerColor === 'white' ? 'black' : 'white';
+          effectiveResult = safePlayerColor === 'white' ? 'black' : 'white';
         } else {
           effectiveResult = 'unknown';
         }
@@ -85,7 +85,7 @@ const GamePreviewModal = ({ game, onClose }) => {
       effectiveResult = typeof result === 'string' ? result.toLowerCase() : 'unknown';
     }
 
-    const normalizedPlayerColor = playerColor.toLowerCase();
+    const normalizedPlayerColor = safePlayerColor;
 
     switch (effectiveResult) {
       case 'white':

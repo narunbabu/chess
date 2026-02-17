@@ -28,6 +28,8 @@ use App\Http\Controllers\TutorialController;
 use App\Http\Controllers\DeviceTokenController;
 use App\Http\Controllers\EmailPreferenceController;
 use App\Http\Controllers\HealthController;
+use App\Http\Controllers\LobbyController;
+use App\Http\Controllers\MatchmakingController;
 use Illuminate\Support\Facades\Route;
 
 // ─── Health Check (public) ────────────────────────────────────────────────────
@@ -222,6 +224,16 @@ Route::middleware('auth:sanctum')->group(function () {
     // Broadcasting auth (standard Laravel pattern, outside websocket prefix)
     Route::post('/broadcasting/auth', [WebSocketController::class, 'authenticate']);
 
+    // ── Lobby ─────────────────────────────────────────────────────────────
+    Route::get('/lobby/players', [LobbyController::class, 'players']);
+
+    // ── Matchmaking ──────────────────────────────────────────────────────
+    Route::prefix('matchmaking')->group(function () {
+        Route::post('/join', [MatchmakingController::class, 'join']);
+        Route::get('/status/{id}', [MatchmakingController::class, 'status']);
+        Route::delete('/cancel/{id}', [MatchmakingController::class, 'cancel']);
+    });
+
     // ── Championships (authenticated) ─────────────────────────────────────
     Route::prefix('championships')->group(function () {
         Route::post('/', [\App\Http\Controllers\ChampionshipController::class, 'store']);
@@ -300,6 +312,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // ── Organizations ─────────────────────────────────────────────────────
     Route::prefix('organizations')->group(function () {
+        // User self-service: search, join, leave
+        Route::get('/search', [\App\Http\Controllers\OrganizationController::class, 'searchSchools']);
+        Route::post('/{id}/join', [\App\Http\Controllers\OrganizationController::class, 'joinSchool']);
+        Route::post('/leave', [\App\Http\Controllers\OrganizationController::class, 'leaveSchool']);
+
+        // Admin CRUD
         Route::get('/', [\App\Http\Controllers\OrganizationController::class, 'index']);
         Route::post('/', [\App\Http\Controllers\OrganizationController::class, 'store']);
         Route::get('/{id}', [\App\Http\Controllers\OrganizationController::class, 'show']);

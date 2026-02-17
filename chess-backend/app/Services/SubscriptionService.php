@@ -25,10 +25,17 @@ class SubscriptionService
      */
     public function getPlans(): array
     {
-        $plans = SubscriptionPlan::active()
-            ->orderByRaw("FIELD(tier, 'free', 'premium', 'pro')")
-            ->orderByRaw("FIELD(`interval`, 'lifetime', 'monthly', 'yearly')")
-            ->get();
+        $query = SubscriptionPlan::active();
+
+        if (config('database.default') === 'sqlite') {
+            $query->orderByRaw("CASE tier WHEN 'free' THEN 1 WHEN 'premium' THEN 2 WHEN 'pro' THEN 3 ELSE 4 END")
+                  ->orderByRaw("CASE \"interval\" WHEN 'lifetime' THEN 1 WHEN 'monthly' THEN 2 WHEN 'yearly' THEN 3 ELSE 4 END");
+        } else {
+            $query->orderByRaw("FIELD(tier, 'free', 'premium', 'pro')")
+                  ->orderByRaw("FIELD(`interval`, 'lifetime', 'monthly', 'yearly')");
+        }
+
+        $plans = $query->get();
 
         return $plans->groupBy('tier')->toArray();
     }

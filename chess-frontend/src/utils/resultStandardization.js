@@ -250,7 +250,7 @@ export const getWinner = (result) => {
  * // Returns: { status: "lost", details: "Checkmate! Black wins!", end_reason: "checkmate", winner: "opponent" }
  */
 export const createResultFromComputerGame = (resultText, playerColor, gameStatus = {}) => {
-  const lowerResult = resultText.toLowerCase();
+  const lowerResult = (resultText || '').toLowerCase();
   const isPlayerWhite = playerColor === 'w' || playerColor === 'white';
 
   // Determine end reason

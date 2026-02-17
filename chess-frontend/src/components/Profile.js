@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import { getPlayerAvatar } from '../utils/playerDisplayUtils';
 import ReactCrop from 'react-image-crop';
@@ -10,19 +10,54 @@ import { getFriendInvitationMessage } from '../utils/socialShareUtils';
 import './Profile.css';
 import './tutorial/ProfileTutorial.css';
 
+// DiceBear avatar styles and seed generator
+const DICEBEAR_STYLES = ['adventurer', 'avataaars', 'bottts', 'fun-emoji'];
+const generateDiceBearAvatars = () => {
+  const avatars = [];
+  for (const style of DICEBEAR_STYLES) {
+    for (let i = 0; i < 3; i++) {
+      const seed = `${style}-${Math.random().toString(36).substring(2, 8)}`;
+      avatars.push({
+        url: `https://api.dicebear.com/7.x/${style}/svg?seed=${seed}`,
+        style,
+        seed,
+      });
+    }
+  }
+  return avatars;
+};
+
 const Profile = () => {
   const { user, fetchUser } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isSetupMode = searchParams.get('setup') === 'true';
   const [friends, setFriends] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [name, setName] = useState('');
+  const [birthday, setBirthday] = useState('');
+  const [classOfStudy, setClassOfStudy] = useState('');
   const [avatarFile, setAvatarFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [tutorialStats, setTutorialStats] = useState(null);
   const [xpProgress, setXpProgress] = useState(null);
+
+  // DiceBear avatar picker state
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+  const [diceBearAvatars, setDiceBearAvatars] = useState(() => generateDiceBearAvatars());
+  const [selectedDiceBear, setSelectedDiceBear] = useState(null);
+  const [fileSizeInfo, setFileSizeInfo] = useState(null);
+  const fileInputRef = useRef(null);
+
+  // Organization affiliation state
+  const [orgSearchQuery, setOrgSearchQuery] = useState('');
+  const [orgSearchResults, setOrgSearchResults] = useState([]);
+  const [orgSearchLoading, setOrgSearchLoading] = useState(false);
+  const [orgError, setOrgError] = useState('');
+  const orgSearchTimeout = useRef(null);
 
   // Image cropping states
   const [selectedImage, setSelectedImage] = useState(null);
@@ -35,6 +70,8 @@ const Profile = () => {
   useEffect(() => {
     if (user) {
       setName(user.name || '');
+      setBirthday(user.birthday ? user.birthday.split('T')[0] : '');
+      setClassOfStudy(user.class_of_study ? String(user.class_of_study) : '');
       loadFriends();
       loadPendingRequests();
       loadTutorialProgress();
@@ -135,6 +172,8 @@ const Profile = () => {
     }
   };
 
+  const MAX_AVATAR_SIZE = 100 * 1024; // 100KB
+
   const generateCroppedImage = async () => {
     if (!completedCrop || !imgRef.current || !canvasRef.current) {
       return null;
@@ -147,36 +186,52 @@ const Profile = () => {
     const scaleX = image.naturalWidth / image.width;
     const scaleY = image.naturalHeight / image.height;
 
-    canvas.width = completedCrop.width * scaleX;
-    canvas.height = completedCrop.height * scaleY;
+    let cropW = completedCrop.width * scaleX;
+    let cropH = completedCrop.height * scaleY;
 
-    ctx.drawImage(
-      image,
-      completedCrop.x * scaleX,
-      completedCrop.y * scaleY,
-      completedCrop.width * scaleX,
-      completedCrop.height * scaleY,
-      0,
-      0,
-      canvas.width,
-      canvas.height
-    );
+    // Try quality reduction first, then dimension halving
+    for (let scale = 1; scale >= 0.25; scale *= 0.5) {
+      canvas.width = cropW * scale;
+      canvas.height = cropH * scale;
+      ctx.drawImage(
+        image,
+        completedCrop.x * scaleX,
+        completedCrop.y * scaleY,
+        cropW,
+        cropH,
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      );
 
-    return new Promise((resolve) => {
-      canvas.toBlob((blob) => {
-        if (blob) {
-          const file = new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
-          resolve(file);
+      for (let quality = 0.9; quality >= 0.1; quality -= 0.1) {
+        const blob = await new Promise((resolve) =>
+          canvas.toBlob((b) => resolve(b), 'image/jpeg', quality)
+        );
+        if (blob && blob.size <= MAX_AVATAR_SIZE) {
+          setFileSizeInfo(`${(blob.size / 1024).toFixed(1)}KB`);
+          return new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
         }
-        resolve(null);
-      }, 'image/jpeg', 0.9);
-    });
+      }
+    }
+
+    // Final fallback: smallest possible
+    const blob = await new Promise((resolve) =>
+      canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.1)
+    );
+    if (blob) {
+      setFileSizeInfo(`${(blob.size / 1024).toFixed(1)}KB`);
+      return new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
+    }
+    return null;
   };
 
   const handleCropConfirm = async () => {
     const croppedFile = await generateCroppedImage();
     if (croppedFile) {
       setAvatarFile(croppedFile);
+      setSelectedDiceBear(null); // Clear DiceBear when uploading photo
       setShowCropper(false);
       setSelectedImage(null);
       setCompletedCrop(null);
@@ -190,59 +245,132 @@ const Profile = () => {
     setAvatarFile(null);
   };
 
+  // Organization affiliation handlers
+  const handleOrgSearch = (query) => {
+    setOrgSearchQuery(query);
+    setOrgError('');
+
+    if (orgSearchTimeout.current) clearTimeout(orgSearchTimeout.current);
+
+    if (query.length < 2) {
+      setOrgSearchResults([]);
+      return;
+    }
+
+    orgSearchTimeout.current = setTimeout(async () => {
+      setOrgSearchLoading(true);
+      try {
+        const response = await api.get('/v1/organizations/search', { params: { q: query } });
+        setOrgSearchResults(response.data);
+      } catch (err) {
+        console.error('Org search error:', err);
+        setOrgSearchResults([]);
+      } finally {
+        setOrgSearchLoading(false);
+      }
+    }, 300);
+  };
+
+  const handleJoinOrg = async (orgId) => {
+    try {
+      setOrgError('');
+      await api.post(`/v1/organizations/${orgId}/join`);
+      await fetchUser();
+      setOrgSearchQuery('');
+      setOrgSearchResults([]);
+    } catch (err) {
+      setOrgError(err.response?.data?.error || 'Failed to join organization');
+    }
+  };
+
+  const handleLeaveOrg = async () => {
+    try {
+      setOrgError('');
+      await api.post('/v1/organizations/leave');
+      await fetchUser();
+    } catch (err) {
+      setOrgError(err.response?.data?.error || 'Failed to leave organization');
+    }
+  };
+
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
+    // Setup mode validation
+    if (isSetupMode) {
+      if (!name.trim()) {
+        setError('Please enter a display name');
+        setLoading(false);
+        return;
+      }
+      if (!selectedDiceBear && !avatarFile && !user?.avatar_url) {
+        setError('Please pick an avatar or upload a photo');
+        setLoading(false);
+        return;
+      }
+    }
+
     try {
       const formData = new FormData();
-
-      // Log what we're sending
-      console.log('Current user data:', { name: user.name, hasAvatar: !!user.avatar_url });
-      console.log('Form data:', { name, hasAvatarFile: !!avatarFile });
+      let hasChanges = false;
 
       // Only append fields that have changed
       if (name !== user.name && name.trim()) {
         formData.append('name', name.trim());
-        console.log('Appending name:', name.trim());
+        hasChanges = true;
       }
 
       if (avatarFile) {
-        console.log('Appending avatar file:', {
-          name: avatarFile.name,
-          size: avatarFile.size,
-          type: avatarFile.type
-        });
         formData.append('avatar', avatarFile);
+        hasChanges = true;
+      } else if (selectedDiceBear) {
+        formData.append('avatar_url', selectedDiceBear);
+        hasChanges = true;
       }
 
-      // If nothing to update, just return
-      if (!formData.has('name') && !formData.has('avatar')) {
-        setError('No changes to update');
-        setLoading(false);
-        return;
+      // Birthday
+      const currentBirthday = user.birthday ? user.birthday.split('T')[0] : '';
+      if (birthday !== currentBirthday) {
+        formData.append('birthday', birthday || '');
+        hasChanges = true;
       }
 
-      // Log FormData contents (for debugging)
-      console.log('FormData contents:');
-      for (let [key, value] of formData.entries()) {
-        console.log(key, value instanceof File ? `File: ${value.name} (${value.size} bytes)` : value);
+      // Class of study
+      const currentClass = user.class_of_study ? String(user.class_of_study) : '';
+      if (classOfStudy !== currentClass) {
+        formData.append('class_of_study', classOfStudy || '');
+        hasChanges = true;
       }
 
-      console.log('Sending profile update request...');
-      const response = await api.post('/profile', formData, {
+      // If nothing to update and not setup mode, just return
+      if (!hasChanges) {
+        if (isSetupMode) {
+          formData.append('name', name.trim() || user.name);
+        } else {
+          setError('No changes to update');
+          setLoading(false);
+          return;
+        }
+      }
+
+      await api.post('/profile', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      console.log('Profile update response:', response.data);
 
       // Refresh user data from server
       await fetchUser();
       setAvatarFile(null);
+      setSelectedDiceBear(null);
       setLoading(false);
+
+      // In setup mode, navigate to lobby after saving
+      if (isSetupMode) {
+        navigate('/lobby');
+      }
     } catch (err) {
       console.error('Profile update error:', err);
-      console.error('Error response:', err.response?.data);
       const errorMessage = err.response?.data?.message ||
                           err.response?.data?.error ||
                           err.message ||
@@ -256,48 +384,155 @@ const Profile = () => {
     return <div>Loading...</div>;
   }
 
+  const handleShuffleAvatars = () => {
+    setDiceBearAvatars(generateDiceBearAvatars());
+    setSelectedDiceBear(null);
+  };
+
+  const handleSelectDiceBear = (url) => {
+    setSelectedDiceBear(url);
+    setAvatarFile(null); // Clear file upload if DiceBear selected
+    setFileSizeInfo(null);
+  };
+
   return (
     <div className="profile-container">
       <div className="profile-header">
-        <h1>Profile & Settings</h1>
+        <h1>{isSetupMode ? 'Welcome! Set up your profile' : 'Profile & Settings'}</h1>
+        {isSetupMode && (
+          <p style={{ color: '#bababa', marginTop: '8px' }}>
+            Choose a display name and pick an avatar to get started.
+          </p>
+        )}
       </div>
 
       {/* Profile Update Form */}
       <section className="profile-section">
-        <h2>Edit Profile</h2>
+        <h2>{isSetupMode ? 'Your Profile' : 'Edit Profile'}</h2>
         <form onSubmit={handleUpdateProfile} className="profile-form">
+          {/* Display Name */}
           <div className="form-group">
-            <label>Display Name</label>
+            <label>Display Name {isSetupMode && <span style={{ color: '#e74c3c' }}>*</span>}</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Enter display name"
+              required={isSetupMode}
             />
           </div>
 
+          {/* Avatar Section — Compact row with current preview + action buttons */}
           <div className="form-group">
             <label>Avatar</label>
+            <div className="avatar-action-row">
+              <img
+                src={
+                  avatarFile
+                    ? URL.createObjectURL(avatarFile)
+                    : selectedDiceBear || getPlayerAvatar(user)
+                }
+                alt="Current avatar"
+                className="avatar-action-preview"
+              />
+              <div className="avatar-action-buttons">
+                <button
+                  type="button"
+                  className="avatar-action-btn"
+                  onClick={() => setShowAvatarPicker(!showAvatarPicker)}
+                >
+                  {showAvatarPicker ? 'Hide Avatars' : 'Choose Avatar'}
+                </button>
+                <button
+                  type="button"
+                  className="avatar-action-btn avatar-action-btn-outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={loading}
+                >
+                  Choose Photo
+                </button>
+              </div>
+              {avatarFile && fileSizeInfo && (
+                <span className="avatar-size-info">({fileSizeInfo})</span>
+              )}
+            </div>
+            {/* Hidden file input triggered by Choose Photo */}
             <input
+              ref={fileInputRef}
               type="file"
               accept="image/*"
-              onChange={handleImageSelect}
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                setSelectedDiceBear(null);
+                setShowAvatarPicker(false);
+                handleImageSelect(e);
+              }}
               disabled={loading}
             />
-            {avatarFile && (
-              <div className="avatar-preview">
-                <p>Avatar ready to upload:</p>
-                <img src={URL.createObjectURL(avatarFile)} alt="Avatar preview" className="avatar-preview-img" />
+          </div>
+
+          {/* Collapsible DiceBear Avatar Grid */}
+          {showAvatarPicker && (
+            <div className="avatar-picker-collapsible">
+              <div className="avatar-picker-grid">
+                {diceBearAvatars.map((avatar) => (
+                  <div
+                    key={avatar.seed}
+                    onClick={() => handleSelectDiceBear(avatar.url)}
+                    className={`avatar-picker-item ${selectedDiceBear === avatar.url ? 'selected' : ''}`}
+                  >
+                    <img
+                      src={avatar.url}
+                      alt={`Avatar ${avatar.style}`}
+                    />
+                  </div>
+                ))}
               </div>
-            )}
-            {!avatarFile && (
-              <img src={getPlayerAvatar(user)} alt="Current avatar" className="current-avatar" />
-            )}
+              <button
+                type="button"
+                onClick={handleShuffleAvatars}
+                className="avatar-shuffle-btn"
+              >
+                Shuffle Avatars
+              </button>
+            </div>
+          )}
+
+          {/* Birthday & Class of Study */}
+          <div className="profile-field-row">
+            <div className="form-group profile-field-half">
+              <label>Birthday</label>
+              <input
+                type="date"
+                value={birthday}
+                onChange={(e) => setBirthday(e.target.value)}
+                max={new Date().toISOString().split('T')[0]}
+                min="1950-01-01"
+              />
+            </div>
+            <div className="form-group profile-field-half">
+              <label>Class of Study</label>
+              <select
+                value={classOfStudy}
+                onChange={(e) => setClassOfStudy(e.target.value)}
+                className="profile-select"
+              >
+                <option value="">Select Class</option>
+                {Array.from({ length: 12 }, (_, i) => i + 1).map((cls) => (
+                  <option key={cls} value={cls}>Class {cls}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {error && <p className="error">{error}</p>}
           <button type="submit" disabled={loading}>
-            {loading ? 'Updating...' : 'Update Profile'}
+            {loading
+              ? 'Saving...'
+              : isSetupMode
+                ? 'Continue to Lobby'
+                : 'Update Profile'
+            }
           </button>
         </form>
       </section>
@@ -342,6 +577,66 @@ const Profile = () => {
 
       {/* Hidden canvas for image processing */}
       <canvas ref={canvasRef} style={{ display: 'none' }} />
+
+      {/* School / Organization Affiliation */}
+      <section className="profile-section">
+        <h2>School / Organization</h2>
+        {user.organization ? (
+          <div className="org-current">
+            <div className="org-badge">
+              {user.organization.logo_url && (
+                <img src={user.organization.logo_url} alt="" className="org-badge-logo" />
+              )}
+              <div className="org-badge-info">
+                <span className="org-badge-name">{user.organization.name}</span>
+                <span className="org-badge-type">{user.organization.type}</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleLeaveOrg}
+                className="org-leave-btn"
+              >
+                Leave
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="org-search-wrapper">
+            <p style={{ color: '#bababa', marginBottom: '10px', fontSize: '14px' }}>
+              Search and join your school or organization.
+            </p>
+            <input
+              type="text"
+              value={orgSearchQuery}
+              onChange={(e) => handleOrgSearch(e.target.value)}
+              placeholder="Type to search organizations..."
+              className="org-search-input"
+            />
+            {orgSearchLoading && (
+              <p style={{ color: '#8b8987', fontSize: '13px', marginTop: '6px' }}>Searching...</p>
+            )}
+            {orgSearchResults.length > 0 && (
+              <div className="org-search-results">
+                {orgSearchResults.map((org) => (
+                  <div key={org.id} className="org-search-item" onClick={() => handleJoinOrg(org.id)}>
+                    {org.logo_url && (
+                      <img src={org.logo_url} alt="" className="org-search-item-logo" />
+                    )}
+                    <div className="org-search-item-info">
+                      <span className="org-search-item-name">{org.name}</span>
+                      <span className="org-search-item-meta">{org.type} &middot; {org.users_count} members</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {orgSearchQuery.length >= 2 && !orgSearchLoading && orgSearchResults.length === 0 && (
+              <p style={{ color: '#8b8987', fontSize: '13px', marginTop: '6px' }}>No organizations found.</p>
+            )}
+          </div>
+        )}
+        {orgError && <p className="error" style={{ marginTop: '8px' }}>{orgError}</p>}
+      </section>
 
       {/* Friends Management */}
       <section className="profile-section">

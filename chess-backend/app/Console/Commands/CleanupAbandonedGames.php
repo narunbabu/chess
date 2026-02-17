@@ -54,7 +54,9 @@ class CleanupAbandonedGames extends Command
         $abortedEndReasonId = EndReason::ABORTED->getId();
         $timeoutInactivityEndReasonId = EndReason::TIMEOUT_INACTIVITY->getId();
 
-        $targetStatusIds = [$waitingStatusId, $activeStatusId];
+        $pausedStatusId = GameStatus::PAUSED->getId();
+
+        $targetStatusIds = [$waitingStatusId, $activeStatusId, $pausedStatusId];
 
         // --- Phase 1: 0-move games older than threshold ---
         $zeroMoveQuery = Game::whereIn('status_id', $targetStatusIds)
@@ -125,6 +127,60 @@ class CleanupAbandonedGames extends Command
             }
         }
 
+        // --- Phase 3: Clean up stale game_connections for cleaned games ---
+        $cleanedGameIds = $zeroMoveGames->pluck('id')
+            ->merge($activeMoveGames->pluck('id'))
+            ->unique()
+            ->values();
+
+        $cleanedConnections = 0;
+        if ($cleanedGameIds->isNotEmpty() && !$dryRun) {
+            $cleanedConnections = DB::table('game_connections')
+                ->whereIn('game_id', $cleanedGameIds)
+                ->delete();
+        } elseif ($cleanedGameIds->isNotEmpty() && $dryRun) {
+            $cleanedConnections = DB::table('game_connections')
+                ->whereIn('game_id', $cleanedGameIds)
+                ->count();
+        }
+
+        // Also clean orphaned connections (no matching game or game already finished)
+        $finishedStatusId = GameStatus::FINISHED->getId();
+        $orphanedConnections = 0;
+        if (!$dryRun) {
+            $orphanedConnections = DB::table('game_connections')
+                ->whereNotExists(function ($query) {
+                    $query->select(DB::raw(1))
+                        ->from('games')
+                        ->whereColumn('games.id', 'game_connections.game_id');
+                })
+                ->delete();
+
+            $orphanedConnections += DB::table('game_connections')
+                ->whereIn('game_id', function ($query) use ($finishedStatusId, $abortedStatusId) {
+                    $query->select('id')
+                        ->from('games')
+                        ->whereIn('status_id', [$finishedStatusId, $abortedStatusId]);
+                })
+                ->delete();
+        } else {
+            $orphanedConnections = DB::table('game_connections')
+                ->whereNotExists(function ($query) {
+                    $query->select(DB::raw(1))
+                        ->from('games')
+                        ->whereColumn('games.id', 'game_connections.game_id');
+                })
+                ->count();
+
+            $orphanedConnections += DB::table('game_connections')
+                ->whereIn('game_id', function ($query) use ($finishedStatusId, $abortedStatusId) {
+                    $query->select('id')
+                        ->from('games')
+                        ->whereIn('status_id', [$finishedStatusId, $abortedStatusId]);
+                })
+                ->count();
+        }
+
         // Summary
         $this->newLine();
         $this->info('Cleanup Summary:');
@@ -133,8 +189,10 @@ class CleanupAbandonedGames extends Command
         $rows = [
             ['Zero-move games cleaned', $cleanedZero],
             ['Stale active games cleaned', $cleanedActive],
+            ['Connections for cleaned games', $cleanedConnections],
+            ['Orphaned connections removed', $orphanedConnections],
             ['Errors', $errors],
-            ['Total processed', $cleanedZero + $cleanedActive],
+            ['Total games processed', $cleanedZero + $cleanedActive],
         ];
         $this->table($headers, $rows);
 
@@ -146,6 +204,8 @@ class CleanupAbandonedGames extends Command
             'dry_run' => $dryRun,
             'zero_move_cleaned' => $cleanedZero,
             'stale_active_cleaned' => $cleanedActive,
+            'connections_cleaned' => $cleanedConnections,
+            'orphaned_connections' => $orphanedConnections,
             'errors' => $errors,
             'thresholds' => [
                 'zero_move_hours' => $zeroMoveHours,

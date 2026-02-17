@@ -150,7 +150,8 @@ export const AuthProvider = ({ children }) => {
       // Save user to localStorage for userStatusService initialization
       localStorage.setItem('user', JSON.stringify(response.data));
 
-      setUser(response.data);
+      const userData = response.data;
+      setUser(userData);
       setIsAuthenticated(true);
 
       // Check for and save any pending games after successful authentication
@@ -201,6 +202,7 @@ export const AuthProvider = ({ children }) => {
         console.error('[Auth] ❌ Echo singleton initialization failed!');
       }
 
+      return userData;
     } catch (error) {
       console.error('[Auth] Failed to fetch user:', error);
       console.error('[Auth] Error details:', error.response?.data);
@@ -224,7 +226,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem("auth_token", token);
     api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     setIsAuthenticated(true);
-    await fetchUser();
+    return await fetchUser();
   }, [fetchUser]);
 
   // Logout function

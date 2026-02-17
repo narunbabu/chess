@@ -13,8 +13,13 @@ const AuthCallback = () => {
     const token = query.get("token");
     if (token) {
       // Use the login function from AuthContext to properly set up authentication
-      login(token).then(() => {
-        navigate("/lobby");
+      login(token).then((userData) => {
+        // Redirect new users to profile setup
+        if (userData && userData.profile_completed === false) {
+          navigate("/profile?setup=true");
+        } else {
+          navigate("/lobby");
+        }
       }).catch((error) => {
         console.error("Login failed:", error);
         navigate("/login");

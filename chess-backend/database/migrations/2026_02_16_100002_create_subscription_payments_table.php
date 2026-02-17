@@ -16,7 +16,8 @@ return new class extends Migration
             $table->string('razorpay_payment_id', 255)->nullable()->unique();
             $table->string('razorpay_order_id', 255)->nullable();
             $table->string('razorpay_signature', 255)->nullable();
-            $table->foreignId('payment_status_id')->constrained('payment_statuses');
+            $table->unsignedTinyInteger('payment_status_id');
+            $table->foreign('payment_status_id')->references('id')->on('payment_statuses');
             $table->decimal('amount', 10, 2);
             $table->string('currency', 3)->default('INR');
             $table->string('interval', 20)->nullable();
