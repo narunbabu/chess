@@ -143,33 +143,26 @@ const C = {
 
 // ═══ Drawing Functions ═══
 
-const drawHeader = (ctx, w, h, playerNames, isPortrait, gameResult) => {
+const drawHeader = (ctx, w, h, playerNames, isPortrait) => {
   ctx.fillStyle = C.headerBg;
   ctx.fillRect(0, 0, w, h);
+  // Gold accent underline
   ctx.fillStyle = C.accent;
   ctx.fillRect(0, h - 2, w, 2);
 
-  // Row 1: Chess99.com brand (centered, prominent)
-  const brandFs = isPortrait ? 30 : 24;
+  // Left: bold gold "CHESS99" brand
+  const brandFs = isPortrait ? 28 : 22;
   ctx.font = `bold ${brandFs}px "Segoe UI", Arial, sans-serif`;
-  ctx.textAlign = 'center';
+  ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = C.accent;
-  ctx.fillText('\u265B Chess99.com', w / 2, h * 0.32);
+  ctx.fillText('\u265B CHESS99', 20, h / 2);
 
-  // Row 2: Result (Won / Lost / Draw)
-  if (gameResult) {
-    const resultColor = gameResult === 'Won' ? '#4CAF50' : (gameResult === 'Draw' ? '#FFD700' : '#FF6B6B');
-    const resultFs = isPortrait ? 20 : 17;
-    ctx.font = `bold ${resultFs}px "Segoe UI", Arial, sans-serif`;
-    ctx.fillStyle = resultColor;
-    ctx.fillText(`${playerNames.white} vs ${playerNames.black}  •  ${gameResult}`, w / 2, h * 0.72);
-  } else {
-    const subFs = isPortrait ? 18 : 16;
-    ctx.font = `${subFs}px "Segoe UI", Arial, sans-serif`;
-    ctx.fillStyle = C.textDim;
-    ctx.fillText(`${playerNames.white} vs ${playerNames.black}`, w / 2, h * 0.72);
-  }
+  // Right: dim player names
+  ctx.textAlign = 'right';
+  ctx.fillStyle = C.textDim;
+  ctx.font = `${isPortrait ? 18 : 16}px "Segoe UI", Arial, sans-serif`;
+  ctx.fillText(`${playerNames.white} vs ${playerNames.black}`, w - 20, h / 2);
 };
 
 const drawPlayerBar = (ctx, y, w, h, name, isBlackSide, isActive) => {
@@ -186,7 +179,7 @@ const drawPlayerBar = (ctx, y, w, h, name, isBlackSide, isActive) => {
   if (isActive) {
     ctx.beginPath();
     ctx.arc(cx, cy, r + 3, 0, Math.PI * 2);
-    ctx.strokeStyle = C.accent;
+    ctx.strokeStyle = '#4CAF50';
     ctx.lineWidth = 2;
     ctx.stroke();
   }
@@ -300,10 +293,6 @@ const drawCommentaryPortrait = (ctx, y, w, h, info) => {
     ctx.beginPath(); ctx.roundRect(barX, barY, barW * progress, barH, 2); ctx.fill();
   }
 
-  ctx.fillStyle = C.textMuted;
-  ctx.font = '14px "Segoe UI", Arial, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('chess99.com', cx, y + h - 18);
 };
 
 const drawCommentaryLandscape = (ctx, y, w, h, info) => {
@@ -436,14 +425,11 @@ export const generateGameVideo = async (gameData, options = {}) => {
 
   const wait = (ms) => new Promise(r => setTimeout(r, ms));
 
-  // Determine game result text for header
-  const gameResult = gameData.isWin ? 'Won' : (gameData.isDraw ? 'Draw' : 'Lost');
-
   // Full frame drawer
   const frame = (fen, lastMove, flash, moveInfo) => {
     ctx.fillStyle = C.bg;
     ctx.fillRect(0, 0, W, H);
-    drawHeader(ctx, W, headerH, pNames, isPortrait, gameResult);
+    drawHeader(ctx, W, headerH, pNames, isPortrait);
 
     if (isPortrait) {
       const topName = orient === 'white' ? pNames.black : pNames.white;
