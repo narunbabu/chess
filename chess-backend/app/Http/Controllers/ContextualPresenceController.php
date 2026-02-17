@@ -482,7 +482,7 @@ class ContextualPresenceController extends Controller
 
         // Get user details
         $users = User::whereIn('id', $userIds)
-            ->select('id', 'name', 'last_activity_at')
+            ->select('id', 'name', 'last_activity_at', 'rating', 'avatar_url')
             ->get();
 
         return $users->map(function($user) use ($statuses) {
@@ -490,7 +490,9 @@ class ContextualPresenceController extends Controller
                 'user_id' => $user->id,
                 'name' => $user->name,
                 'is_online' => $statuses[$user->id] ?? false,
-                'last_seen' => $user->last_activity_at?->diffForHumans()
+                'last_seen' => $user->last_activity_at?->diffForHumans(),
+                'rating' => $user->rating ?? 1200,
+                'avatar_url' => $user->avatar_url
             ];
         });
     }

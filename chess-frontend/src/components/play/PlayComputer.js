@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import { Chess } from "chess.js";
-import { useNavigate, useLocation } from "react-router-dom"; // Use Router if defining routes here, otherwise just useNavigate
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 
 // Import Components
 import ChessBoard from "./ChessBoard";
@@ -24,7 +24,7 @@ import { getMovePath, createPathHighlights, mergeHighlights } from "../../utils/
 
 // Import Services
 import { saveGameHistory, getGameHistories } from "../../services/gameHistoryService"; // Adjust paths if needed
-import { saveUnfinishedGame, clearUnfinishedGame, saveCompletedGame } from "../../services/unfinishedGameService"; // For saving, clearing paused games, and saving completed games
+import { saveUnfinishedGame, clearUnfinishedGame, saveCompletedGame, getUnfinishedGames } from "../../services/unfinishedGameService"; // For saving, clearing paused games, and saving completed games
 import { gameService } from "../../services/gameService"; // Backend game service
 import { useAuth } from "../../contexts/AuthContext";
 import { useAppData } from "../../contexts/AppDataContext";
@@ -111,6 +111,7 @@ const PlayComputer = () => {
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth); // For layout adjustments
   const navigate = useNavigate(); // For navigation buttons
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth(); // Get user for rating
   const { invalidateGameHistory } = useAppData(); // Get cache invalidation
   const [isOnlineGame, setIsOnlineGame] = useState(false);
@@ -168,6 +169,7 @@ const PlayComputer = () => {
           if (!currentGameId) {
             saveGameId = `local_${Date.now()}`;
             setCurrentGameId(saveGameId);
+            setSearchParams({ gameId: saveGameId }, { replace: true });
           } else {
             saveGameId = currentGameId;
           }
@@ -232,6 +234,7 @@ const PlayComputer = () => {
         setGameOver(true);
         setShowGameCompletion(true); // Show completion modal
         setCanUndo(false); // Disable undo after game ends
+        setSearchParams({}, { replace: true }); // Clear gameId from URL
         const now = new Date();
 
         // Ensure encodeGameHistory exists and is used, otherwise stringify
@@ -676,6 +679,7 @@ const PlayComputer = () => {
       // If a backend game was already created by matchmaking, use its ID
       if (location.state.backendGameId) {
         setCurrentGameId(location.state.backendGameId);
+        setSearchParams({ gameId: location.state.backendGameId.toString() }, { replace: true });
       }
 
       // Skip countdown — go straight into the game
@@ -740,6 +744,7 @@ const PlayComputer = () => {
       // Restore game ID to prevent creating a new ID when pausing again
       if (gameState.id) {
         setCurrentGameId(gameState.id);
+        setSearchParams({ gameId: gameState.id.toString() }, { replace: true });
       }
 
       // Start the game
@@ -776,6 +781,89 @@ const PlayComputer = () => {
     window.history.replaceState({}, document.title);
     console.log('[PlayComputer] 🧹 Cleared resume state from history');
   }, [location.state?.gameState?.isResume, location.state?.gameState?.fen, location.pathname]); // More specific dependencies
+
+  // Effect for restoring game from ?gameId= URL parameter on mount/refresh
+  useEffect(() => {
+    const urlGameId = searchParams.get('gameId');
+    if (!urlGameId) return;
+
+    // Skip if game is already started (resume from location.state already handled it)
+    if (gameStarted) return;
+
+    console.log('[PlayComputer] Restoring game from URL gameId:', urlGameId);
+
+    const restoreFromUrl = async () => {
+      try {
+        if (urlGameId.startsWith('local_')) {
+          // Guest game: find in localStorage
+          const localGames = await getUnfinishedGames(false);
+          const found = localGames.find(g => g.id === urlGameId);
+          if (!found) {
+            console.warn('[PlayComputer] Local game not found:', urlGameId);
+            setSearchParams({}, { replace: true });
+            setGameStatus('Game not found. Start a new game.');
+            return;
+          }
+          // Trigger resume via navigate with state (reuses existing resume logic)
+          navigate('/play', {
+            state: { gameState: { ...found, isResume: true } },
+            replace: true
+          });
+        } else if (user && !isNaN(Number(urlGameId))) {
+          // Auth user: fetch from backend
+          const gameData = await gameService.getGame(Number(urlGameId));
+          if (!gameData || !gameData.game) {
+            console.warn('[PlayComputer] Backend game not found:', urlGameId);
+            setSearchParams({}, { replace: true });
+            setGameStatus('Game not found. Start a new game.');
+            return;
+          }
+
+          const g = gameData.game;
+
+          // Only restore computer games that are still in progress
+          if (g.game_type !== 'computer' || g.status === 'completed') {
+            console.warn('[PlayComputer] Game is not a resumable computer game:', g.status, g.game_type);
+            setSearchParams({}, { replace: true });
+            setGameStatus(g.status === 'completed' ? 'That game is already completed.' : 'Invalid game type.');
+            return;
+          }
+
+          // Build game state from backend data and trigger resume
+          const playerCol = g.white_player_id === user.id ? 'w' : 'b';
+          const gameState = {
+            isResume: true,
+            id: g.id,
+            fen: g.current_fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+            pgn: g.pgn || '',
+            playerColor: playerCol,
+            computerLevel: g.computer_level || DEFAULT_DEPTH,
+            moves: g.moves_data ? (typeof g.moves_data === 'string' ? JSON.parse(g.moves_data) : g.moves_data) : [],
+            timerState: g.timer_state || {
+              whiteMs: (g.white_time_remaining || 600) * 1000,
+              blackMs: (g.black_time_remaining || 600) * 1000,
+            },
+          };
+
+          navigate('/play', {
+            state: { gameState },
+            replace: true
+          });
+        } else {
+          // Not logged in but has numeric gameId, or invalid format
+          console.warn('[PlayComputer] Cannot restore game: user not logged in or invalid gameId');
+          setSearchParams({}, { replace: true });
+        }
+      } catch (error) {
+        console.error('[PlayComputer] Error restoring game from URL:', error);
+        setSearchParams({}, { replace: true });
+        setGameStatus('Error restoring game. Start a new game.');
+      }
+    };
+
+    restoreFromUrl();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount
 
   // Effect for loading saved game histories on component mount
   useEffect(() => {
@@ -1203,6 +1291,7 @@ const PlayComputer = () => {
                   if (!currentGameId) {
                     saveGameId = `local_${Date.now()}`;
                     setCurrentGameId(saveGameId);
+                    setSearchParams({ gameId: saveGameId }, { replace: true });
                   } else {
                     saveGameId = currentGameId;
                   }
@@ -1298,6 +1387,7 @@ const PlayComputer = () => {
 
             setBackendGame(response.game);
             setCurrentGameId(response.game.id);
+            setSearchParams({ gameId: response.game.id.toString() }, { replace: true });
             setGameStatus(`Game created! Playing vs ${response.computer_opponent.name}`);
           } catch (error) {
             console.error('[PlayComputer] ❌ Failed to create backend game:', error);
@@ -1373,6 +1463,7 @@ const PlayComputer = () => {
         setGameResult(null); // Reset standardized result
         setBackendGame(null); // Reset backend game
         setCurrentGameId(null); // Reset current game ID
+        setSearchParams({}, { replace: true }); // Clear gameId from URL
         setCanUndo(false); // Reset undo availability
         setUndoChancesRemaining(0); // Reset undo chances
         // Note: Does not reset playerColor, computerDepth, or ratedMode, keeping user selections
@@ -1396,6 +1487,7 @@ const PlayComputer = () => {
         setGameOver(true);
         setShowGameCompletion(true);
         setCanUndo(false); // Disable undo after resignation
+        setSearchParams({}, { replace: true }); // Clear gameId from URL
 
         // Resign from backend game if we have one
         if (backendGame && user) {

@@ -1,26 +1,30 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { getPlayerAvatar } from '../../utils/playerDisplayUtils';
 import '../../styles/UnifiedCards.css';
 
+const COLLAPSED_COUNT = 3;
+
 /**
  * PlayersList - Displays available players to challenge
- * Shows real online players first, then synthetic players.
- * Users cannot distinguish between real and synthetic players.
+ * Shows top 3 collapsed with expand toggle, full list when expanded.
  *
  * @param {array} players - Combined list of real + synthetic players
- * @param {array} sentInvitations - List of sent invitations to check invited status
  * @param {function} onChallenge - Callback when challenge button is clicked
  */
 const PlayersList = ({ players, onChallenge }) => {
+  const [showAll, setShowAll] = useState(false);
+
   // Filter out any legacy computer entries
   const allPlayers = players.filter(p => !p.isComputer && p.id !== 'computer');
+  const visiblePlayers = showAll ? allPlayers : allPlayers.slice(0, COLLAPSED_COUNT);
+  const hiddenCount = allPlayers.length - COLLAPSED_COUNT;
 
   return (
     <div className="unified-section">
       <h2 className="unified-section-header">Online Players</h2>
       <div className="unified-card-grid cols-2">
-        {allPlayers.length > 0 ? (
-          allPlayers.map((player, index) => (
+        {visiblePlayers.length > 0 ? (
+          visiblePlayers.map((player, index) => (
             <div key={`${player.type || 'human'}-${player.id || index}`} className="unified-card horizontal">
               <img
                 src={
@@ -55,6 +59,28 @@ const PlayersList = ({ players, onChallenge }) => {
           </div>
         )}
       </div>
+      {allPlayers.length > COLLAPSED_COUNT && (
+        <button
+          onClick={() => setShowAll(prev => !prev)}
+          style={{
+            display: 'block',
+            margin: '1rem auto 0',
+            padding: '0.5rem 1.25rem',
+            background: 'transparent',
+            border: '1px solid #4a4744',
+            borderRadius: '8px',
+            color: '#bababa',
+            fontSize: '0.9rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+          }}
+          onMouseEnter={e => { e.target.style.background = '#3d3a37'; e.target.style.color = '#fff'; }}
+          onMouseLeave={e => { e.target.style.background = 'transparent'; e.target.style.color = '#bababa'; }}
+        >
+          {showAll ? 'Show less' : `Show ${hiddenCount} more player${hiddenCount !== 1 ? 's' : ''}`}
+        </button>
+      )}
     </div>
   );
 };

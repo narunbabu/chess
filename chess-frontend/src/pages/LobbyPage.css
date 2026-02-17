@@ -877,15 +877,7 @@
   box-sizing: border-box;
 }
 
-/* Make badges absolutely positioned so they do not push layout */
-.tab-badge {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  transform: translateX(0);    /* neutralize any transform on badges */
-  pointer-events: none;
-  white-space: nowrap;
-}
+/* Badge flows inline with tab text */
 
 /* Constrain active games list / cards to container width */
 .lobby-content,
@@ -947,7 +939,7 @@
   gap: 0.5rem;
   min-height: 44px;                  /* touch target minimum */
   position: relative;
-  padding-right: 2rem;               /* space for badge */
+  padding-right: 1rem;
 }
 
 /* Icon and text styles */
@@ -1001,6 +993,8 @@
   color: #0b1220;
   background: #fbbf24;                 /* amber */
   box-shadow: 0 2px 6px rgba(251,191,36,0.45);
+  margin-left: 0.35rem;
+  flex-shrink: 0;
 }
 
 .tab-button.active .tab-badge {
@@ -1034,7 +1028,7 @@
     margin-right: 0;
   }
   .tab-button {
-    padding-right: 1.2rem;
+    padding-right: 0.7rem;
   }
 }
 
@@ -1052,13 +1046,7 @@
   text-overflow: ellipsis;
 }
 
-/* Position badge to the far right */
-.tab-badge {
-  position: absolute;
-  right: 0.5rem;
-  top: 50%;
-  transform: translateY(-50%);
-}
+/* Badge positioned inline via margin-left in main rule above */
 
 /* Make the active tab gently pop on very small screens */
 @media (max-width: 480px) {

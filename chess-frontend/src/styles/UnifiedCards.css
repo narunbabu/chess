@@ -373,6 +373,11 @@
   color: #FFC107;
 }
 
+.unified-card-status.offline {
+  background-color: rgba(139, 137, 135, 0.2);
+  color: #8b8987;
+}
+
 /* Grid Layout for Cards */
 .unified-card-grid {
   display: grid;
