@@ -385,17 +385,19 @@ const downloadBlob = (blob, filename) => {
 
 /**
  * Share animated game replay as GIF
- * Generates GIF from move data, downloads it, and opens share dialog
+ * Generates GIF, then uses native share (mobile) or share menu callback (desktop)
  * @param {Object} params - Share parameters
  * @param {Object} params.gameData - Game data for GIF generation and share message
  * @param {Function} params.setIsGenerating - State setter for loading indicator
  * @param {Function} params.setProgress - State setter for progress (0-100)
+ * @param {Function} params.onShareReady - Callback for desktop fallback share menu (receives { blob, message, filename })
  * @returns {Promise<void>}
  */
 export const shareGameReplay = async ({
   gameData,
   setIsGenerating,
-  setProgress
+  setProgress,
+  onShareReady
 }) => {
   console.log('🎬 Share Replay started');
 
@@ -448,12 +450,8 @@ export const shareGameReplay = async ({
 
     console.log('✅ GIF generated, size:', (gifBlob.size / 1024).toFixed(1), 'KB');
 
-    // Download the GIF
-    const filename = `chess99-replay-${Date.now()}.gif`;
-    downloadBlobGif(gifBlob, filename);
-
-    // Generate share message
-    const shareMessage = generateShareMessage({
+    // Generate share message with chess99 link
+    const baseMessage = generateShareMessage({
       gameType: gameType || 'computer',
       isWin,
       isDraw,
@@ -461,24 +459,47 @@ export const shareGameReplay = async ({
       championshipData
     });
 
-    const fullMessage = `${shareMessage}\n\nWatch the full game replay!`;
+    const shareMessage = `${baseMessage}\n\n♟️ Play chess online free at https://chess99.com\n🎮 Challenge me now!`;
+    const filename = `chess99-replay-${Date.now()}.gif`;
 
-    // Copy message to clipboard
-    try {
-      await navigator.clipboard.writeText(fullMessage);
-    } catch (clipboardError) {
-      console.log('Could not copy to clipboard:', clipboardError);
+    // Try native share with file (mobile — shows WhatsApp, Instagram, Facebook, etc.)
+    const gifFile = new File([gifBlob], filename, { type: 'image/gif' });
+
+    if (navigator.share && navigator.canShare?.({ files: [gifFile] })) {
+      try {
+        await navigator.share({
+          title: 'Chess99 Game Replay',
+          text: shareMessage,
+          files: [gifFile]
+        });
+        console.log('✅ Native share completed');
+        return;
+      } catch (err) {
+        if (err.name === 'AbortError') {
+          console.log('User cancelled native share');
+          return;
+        }
+        console.warn('Native share failed, falling back:', err);
+      }
     }
 
-    // Open WhatsApp with message
+    // Desktop/fallback: show share menu via callback
+    if (onShareReady) {
+      onShareReady({ blob: gifBlob, message: shareMessage, filename });
+      return;
+    }
+
+    // Ultimate fallback: download + WhatsApp
+    downloadBlobGif(gifBlob, filename);
+    try {
+      await navigator.clipboard.writeText(shareMessage);
+    } catch (e) { /* ignore */ }
+
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     const whatsappUrl = isMobile
-      ? `whatsapp://send?text=${encodeURIComponent(fullMessage)}`
-      : `https://wa.me/?text=${encodeURIComponent(fullMessage)}`;
-
+      ? `whatsapp://send?text=${encodeURIComponent(shareMessage)}`
+      : `https://wa.me/?text=${encodeURIComponent(shareMessage)}`;
     window.open(whatsappUrl, '_blank');
-
-    alert(`Game replay GIF downloaded!\n\nShare message copied to clipboard.\nAttach the downloaded GIF to your message.`);
 
   } catch (error) {
     console.error('Error generating game replay:', error);

@@ -46,6 +46,7 @@ const GameCompletionAnimation = ({
   const [isTestSharing, setIsTestSharing] = useState(false); // Test Share state
   const [isGeneratingGif, setIsGeneratingGif] = useState(false); // GIF generation state
   const [gifProgress, setGifProgress] = useState(0); // GIF progress 0-100
+  const [shareMenuData, setShareMenuData] = useState(null); // { blob, message, filename } for share menu
   const { isAuthenticated, user, fetchUser } = useAuth();
   const navigate = useNavigate();
   const gameEndCardRef = useRef(null); // Ref for wrapper (used for layout)
@@ -211,8 +212,44 @@ const GameCompletionAnimation = ({
         championshipData
       },
       setIsGenerating: setIsGeneratingGif,
-      setProgress: setGifProgress
+      setProgress: setGifProgress,
+      onShareReady: setShareMenuData
     });
+  };
+
+  // Share menu handlers (desktop fallback when native share unavailable)
+  const handleShareToWhatsApp = () => {
+    if (!shareMenuData) return;
+    downloadBlob(shareMenuData.blob, shareMenuData.filename);
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const url = isMobile
+      ? `whatsapp://send?text=${encodeURIComponent(shareMenuData.message)}`
+      : `https://wa.me/?text=${encodeURIComponent(shareMenuData.message)}`;
+    window.open(url, '_blank');
+    setShareMenuData(null);
+  };
+
+  const handleShareToFacebook = () => {
+    if (!shareMenuData) return;
+    downloadBlob(shareMenuData.blob, shareMenuData.filename);
+    const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent('https://chess99.com')}&quote=${encodeURIComponent(shareMenuData.message)}`;
+    window.open(url, '_blank');
+    setShareMenuData(null);
+  };
+
+  const handleShareToInstagram = () => {
+    if (!shareMenuData) return;
+    downloadBlob(shareMenuData.blob, shareMenuData.filename);
+    navigator.clipboard.writeText(shareMenuData.message).catch(() => {});
+    alert('GIF downloaded! Open Instagram and share from your gallery.\nMessage copied to clipboard.');
+    setShareMenuData(null);
+  };
+
+  const handleDownloadGif = () => {
+    if (!shareMenuData) return;
+    downloadBlob(shareMenuData.blob, shareMenuData.filename);
+    navigator.clipboard.writeText(shareMenuData.message).catch(() => {});
+    setShareMenuData(null);
   };
 
   const handleContinue = async () => {
@@ -497,6 +534,93 @@ const GameCompletionAnimation = ({
               </button>
             </>
           )}
+        </div>
+      )}
+
+      {/* Share menu overlay (desktop fallback when native share unavailable) */}
+      {shareMenuData && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.75)', zIndex: 10001,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '20px'
+        }} onClick={() => setShareMenuData(null)}>
+          <div style={{
+            background: 'linear-gradient(180deg, #2d2a27 0%, #1a1816 100%)',
+            borderRadius: '20px', padding: '28px 24px',
+            maxWidth: '360px', width: '100%', textAlign: 'center',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+            border: '1px solid rgba(255,255,255,0.08)'
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🎬</div>
+            <h3 style={{ color: '#fff', margin: '0 0 6px', fontSize: '1.15rem', fontWeight: '700' }}>
+              Share Game Replay
+            </h3>
+            <p style={{ color: '#999', margin: '0 0 22px', fontSize: '0.82rem', lineHeight: '1.4' }}>
+              Your GIF is ready! Choose where to share:
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <button onClick={handleShareToWhatsApp} style={{
+                background: '#25D366', color: '#fff', border: 'none',
+                borderRadius: '12px', padding: '14px 10px', fontSize: '0.85rem',
+                fontWeight: '700', cursor: 'pointer', display: 'flex',
+                flexDirection: 'column', alignItems: 'center', gap: '4px',
+                transition: 'transform 0.15s', boxShadow: '0 4px 12px rgba(37,211,102,0.3)'
+              }}
+              onMouseDown={e => e.currentTarget.style.transform = 'scale(0.95)'}
+              onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                <span style={{ fontSize: '1.4rem' }}>💬</span>
+                <span>WhatsApp</span>
+              </button>
+              <button onClick={handleShareToFacebook} style={{
+                background: '#1877F2', color: '#fff', border: 'none',
+                borderRadius: '12px', padding: '14px 10px', fontSize: '0.85rem',
+                fontWeight: '700', cursor: 'pointer', display: 'flex',
+                flexDirection: 'column', alignItems: 'center', gap: '4px',
+                transition: 'transform 0.15s', boxShadow: '0 4px 12px rgba(24,119,242,0.3)'
+              }}
+              onMouseDown={e => e.currentTarget.style.transform = 'scale(0.95)'}
+              onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                <span style={{ fontSize: '1.4rem' }}>📘</span>
+                <span>Facebook</span>
+              </button>
+              <button onClick={handleShareToInstagram} style={{
+                background: 'linear-gradient(135deg, #833AB4 0%, #E1306C 50%, #F77737 100%)',
+                color: '#fff', border: 'none', borderRadius: '12px', padding: '14px 10px',
+                fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
+                transition: 'transform 0.15s', boxShadow: '0 4px 12px rgba(225,48,108,0.3)'
+              }}
+              onMouseDown={e => e.currentTarget.style.transform = 'scale(0.95)'}
+              onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                <span style={{ fontSize: '1.4rem' }}>📷</span>
+                <span>Instagram</span>
+              </button>
+              <button onClick={handleDownloadGif} style={{
+                background: '#3d3a37', color: '#ccc', border: '1px solid #555',
+                borderRadius: '12px', padding: '14px 10px', fontSize: '0.85rem',
+                fontWeight: '700', cursor: 'pointer', display: 'flex',
+                flexDirection: 'column', alignItems: 'center', gap: '4px',
+                transition: 'transform 0.15s'
+              }}
+              onMouseDown={e => e.currentTarget.style.transform = 'scale(0.95)'}
+              onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                <span style={{ fontSize: '1.4rem' }}>⬇️</span>
+                <span>Download</span>
+              </button>
+            </div>
+            <button onClick={() => setShareMenuData(null)} style={{
+              background: 'none', border: 'none', color: '#666',
+              marginTop: '18px', fontSize: '0.85rem', cursor: 'pointer',
+              padding: '6px 16px'
+            }}>
+              Cancel
+            </button>
+          </div>
         </div>
       )}
 
