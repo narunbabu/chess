@@ -6,7 +6,7 @@ import { updateRating } from "../services/ratingService";
 import { getRatingFromLevel } from "../utils/eloUtils";
 import { useAuth } from "../contexts/AuthContext";
 import { isWin, isDraw as isDrawResult, getResultDisplayText } from "../utils/resultStandardization";
-import { shareGameWithFriends, shareGameReplay } from "../utils/shareUtils";
+import { shareGameWithFriends, shareGameReplay, shareGameVideo } from "../utils/shareUtils";
 import { encodeGameHistory } from "../utils/gameHistoryStringUtils"; // Import for encoding moves
 import GameEndCard from "./GameEndCard";
 import "./GameCompletionAnimation.css";
@@ -47,6 +47,9 @@ const GameCompletionAnimation = ({
   const [isGeneratingGif, setIsGeneratingGif] = useState(false); // GIF generation state
   const [gifProgress, setGifProgress] = useState(0); // GIF progress 0-100
   const [shareMenuData, setShareMenuData] = useState(null); // { blob, message, filename } for share menu
+  const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
+  const [videoProgress, setVideoProgress] = useState(0);
+  const [showFormatPicker, setShowFormatPicker] = useState(false);
   const { isAuthenticated, user, fetchUser } = useAuth();
   const navigate = useNavigate();
   const gameEndCardRef = useRef(null); // Ref for wrapper (used for layout)
@@ -251,6 +254,52 @@ const GameCompletionAnimation = ({
     navigator.clipboard.writeText(shareMenuData.message).catch(() => {});
     setShareMenuData(null);
   };
+
+  // Video generation handler
+  const handleGenerateVideo = async (format) => {
+    setShowFormatPicker(false);
+
+    let movesString;
+    if (Array.isArray(gameHistory) && gameHistory.length > 0) {
+      movesString = encodeGameHistory(gameHistory);
+    } else if (typeof moves === 'string' && moves) {
+      movesString = moves;
+    } else {
+      alert('No move data available for video.');
+      return;
+    }
+
+    const opponentName = isMultiplayer
+      ? (playerColor === 'w' ? result?.black_player?.name : result?.white_player?.name)
+      : (championshipData
+          ? (playerColor === 'w' ? result?.black_player?.name : result?.white_player?.name)
+          : (result?.opponent_name || `Computer Lv.${computerLevel || '?'}`));
+
+    let gameType = 'computer';
+    if (championshipData) gameType = 'championship';
+    else if (isMultiplayer) gameType = 'multiplayer';
+
+    await shareGameVideo({
+      gameData: {
+        moves: movesString,
+        playerColor,
+        playerName: user?.name || 'Player',
+        opponentName: opponentName || 'Opponent',
+        isWin: isPlayerWin,
+        isDraw,
+        gameType,
+        championshipData
+      },
+      format,
+      setIsGenerating: setIsGeneratingVideo,
+      setProgress: setVideoProgress,
+      onShareReady: setShareMenuData
+    });
+  };
+
+  const videoSupported = typeof MediaRecorder !== 'undefined' &&
+    typeof HTMLCanvasElement !== 'undefined' &&
+    typeof HTMLCanvasElement.prototype.captureStream === 'function';
 
   const handleContinue = async () => {
     if (isAuthenticated) {
@@ -491,6 +540,19 @@ const GameCompletionAnimation = ({
               }}>
                 {isGeneratingGif ? `${gifProgress}%` : '🎬 GIF'}
               </button>
+              {videoSupported && (
+                <button onClick={() => setShowFormatPicker(true)} disabled={isGeneratingVideo} style={{
+                  background: isGeneratingVideo ? '#555' : 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)',
+                  color: 'white', padding: '8px 14px', borderRadius: '8px',
+                  border: 'none', fontSize: '0.8rem', fontWeight: '600',
+                  cursor: isGeneratingVideo ? 'not-allowed' : 'pointer',
+                  flex: '1 1 auto', whiteSpace: 'nowrap', transition: 'all 0.2s ease',
+                  opacity: isGeneratingVideo ? 0.6 : 1,
+                  boxShadow: '0 3px 10px rgba(139, 92, 246, 0.3)'
+                }}>
+                  {isGeneratingVideo ? `${videoProgress}%` : '📹 Vid'}
+                </button>
+              )}
               <button onClick={handleViewInHistory} style={{
                 backgroundColor: '#3d3a37', color: '#bababa', padding: '8px 14px', borderRadius: '8px',
                 border: '1px solid #4a4744', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer',
@@ -692,6 +754,34 @@ const GameCompletionAnimation = ({
           >
             {isGeneratingGif ? `${gifProgress}%` : '🎬'} {isGeneratingGif ? '' : 'GIF'}
           </button>
+          {/* Video button — purple gradient */}
+          {videoSupported && (
+            <button
+              onClick={() => setShowFormatPicker(true)}
+              disabled={isGeneratingVideo}
+              style={{
+                background: isGeneratingVideo ? '#555' : 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)',
+                color: 'white',
+                padding: '10px 16px',
+                borderRadius: '12px',
+                border: 'none',
+                fontSize: '0.82rem',
+                fontWeight: '700',
+                cursor: isGeneratingVideo ? 'not-allowed' : 'pointer',
+                transition: 'all 0.2s ease',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                opacity: isGeneratingVideo ? 0.6 : 1,
+                flex: '1 1 auto',
+                justifyContent: 'center',
+                whiteSpace: 'nowrap',
+                boxShadow: '0 3px 10px rgba(139, 92, 246, 0.3)'
+              }}
+            >
+              {isGeneratingVideo ? `${videoProgress}%` : '📹'} {isGeneratingVideo ? '' : 'Vid'}
+            </button>
+          )}
           {onNewGame && (
             <button
               onClick={() => onNewGame('random')}
@@ -767,6 +857,73 @@ const GameCompletionAnimation = ({
               🏆 Champ
             </button>
           )}
+        </div>
+      )}
+
+      {/* Video format picker modal */}
+      {showFormatPicker && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.75)', zIndex: 10002,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '20px'
+        }} onClick={() => setShowFormatPicker(false)}>
+          <div style={{
+            background: 'linear-gradient(180deg, #2d2a27 0%, #1a1816 100%)',
+            borderRadius: '20px', padding: '28px 24px',
+            maxWidth: '340px', width: '100%', textAlign: 'center',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+            border: '1px solid rgba(255,255,255,0.08)'
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: '2rem', marginBottom: '8px' }}>📹</div>
+            <h3 style={{ color: '#fff', margin: '0 0 6px', fontSize: '1.15rem', fontWeight: '700' }}>
+              Video Format
+            </h3>
+            <p style={{ color: '#999', margin: '0 0 22px', fontSize: '0.82rem', lineHeight: '1.4' }}>
+              Choose aspect ratio for your replay video:
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <button onClick={() => handleGenerateVideo('portrait')} style={{
+                background: 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)',
+                color: '#fff', border: 'none', borderRadius: '12px', padding: '16px',
+                fontSize: '0.9rem', fontWeight: '700', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: '12px',
+                transition: 'transform 0.15s', boxShadow: '0 4px 12px rgba(139,92,246,0.3)'
+              }}
+              onMouseDown={e => e.currentTarget.style.transform = 'scale(0.97)'}
+              onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                <span style={{ fontSize: '1.6rem' }}>📱</span>
+                <div style={{ textAlign: 'left' }}>
+                  <div>Portrait 9:16</div>
+                  <div style={{ fontSize: '0.75rem', opacity: 0.7, fontWeight: '400' }}>Instagram Stories / Reels / TikTok</div>
+                </div>
+              </button>
+              <button onClick={() => handleGenerateVideo('landscape')} style={{
+                background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
+                color: '#fff', border: 'none', borderRadius: '12px', padding: '16px',
+                fontSize: '0.9rem', fontWeight: '700', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: '12px',
+                transition: 'transform 0.15s', boxShadow: '0 4px 12px rgba(59,130,246,0.3)'
+              }}
+              onMouseDown={e => e.currentTarget.style.transform = 'scale(0.97)'}
+              onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                <span style={{ fontSize: '1.6rem' }}>🖥️</span>
+                <div style={{ textAlign: 'left' }}>
+                  <div>Landscape 16:9</div>
+                  <div style={{ fontSize: '0.75rem', opacity: 0.7, fontWeight: '400' }}>YouTube / Facebook / Desktop</div>
+                </div>
+              </button>
+            </div>
+            <button onClick={() => setShowFormatPicker(false)} style={{
+              background: 'none', border: 'none', color: '#666',
+              marginTop: '18px', fontSize: '0.85rem', cursor: 'pointer',
+              padding: '6px 16px'
+            }}>
+              Cancel
+            </button>
+          </div>
         </div>
       )}
     </div>

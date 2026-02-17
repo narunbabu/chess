@@ -509,3 +509,99 @@ export const shareGameReplay = async ({
     setProgress(0);
   }
 };
+
+/**
+ * Share animated game replay as video (WebM/MP4)
+ * Generates video via MediaRecorder, then uses native share or share menu callback
+ */
+export const shareGameVideo = async ({
+  gameData,
+  format = 'portrait',
+  setIsGenerating,
+  setProgress,
+  onShareReady
+}) => {
+  console.log('📹 Share Video started, format:', format);
+
+  try {
+    setIsGenerating(true);
+    setProgress(0);
+
+    // Dynamic import to keep bundle small
+    const { generateGameVideo } = await import('./videoExportUtils');
+
+    const {
+      moves, playerColor, playerName, opponentName,
+      isWin, isDraw, gameType, championshipData
+    } = gameData;
+
+    let resultText;
+    if (isDraw) resultText = 'Draw!';
+    else if (isWin) resultText = playerColor === 'w' ? 'White wins!' : 'Black wins!';
+    else resultText = playerColor === 'w' ? 'Black wins!' : 'White wins!';
+
+    const videoBlob = await generateGameVideo(
+      {
+        moves,
+        playerColor,
+        playerName: playerName || 'Player',
+        opponentName: opponentName || 'Opponent',
+        resultText,
+        isWin,
+        isDraw
+      },
+      {
+        format,
+        onProgress: (p) => setProgress(Math.round(p * 100))
+      }
+    );
+
+    console.log('✅ Video generated:', (videoBlob.size / 1024 / 1024).toFixed(1), 'MB');
+
+    const baseMessage = generateShareMessage({
+      gameType: gameType || 'computer',
+      isWin,
+      isDraw,
+      opponentName: opponentName || 'Opponent',
+      championshipData
+    });
+    const shareMessage = `${baseMessage}\n\n♟️ Play chess online free at https://chess99.com\n🎮 Challenge me now!`;
+
+    const ext = videoBlob.type.includes('mp4') ? 'mp4' : 'webm';
+    const filename = `chess99-replay-${Date.now()}.${ext}`;
+
+    // Try native share with video file
+    const videoFile = new File([videoBlob], filename, { type: videoBlob.type });
+    if (navigator.share && navigator.canShare?.({ files: [videoFile] })) {
+      try {
+        await navigator.share({
+          title: 'Chess99 Game Replay',
+          text: shareMessage,
+          files: [videoFile]
+        });
+        console.log('✅ Native video share completed');
+        return;
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+        console.warn('Native share failed, falling back:', err);
+      }
+    }
+
+    // Desktop fallback: share menu
+    if (onShareReady) {
+      onShareReady({ blob: videoBlob, message: shareMessage, filename });
+      return;
+    }
+
+    // Ultimate fallback: download
+    downloadBlobGif(videoBlob, filename);
+    try { await navigator.clipboard.writeText(shareMessage); } catch (e) { /* ignore */ }
+
+  } catch (error) {
+    console.error('Error generating video:', error);
+    alert(`Failed to generate video.\n\nError: ${error.message}`);
+  } finally {
+    setIsGenerating(false);
+    setProgress(0);
+  }
+};
