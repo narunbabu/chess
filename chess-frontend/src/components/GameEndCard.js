@@ -718,6 +718,21 @@ const handleShare = async () => {
 
       {/* Main content */}
       <div className="relative z-10 p-4 pb-3">
+        {/* Chess99 brand header */}
+        <div className="text-center mb-2">
+          <span className="text-xl" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))' }}>♛</span>
+          <span className="text-2xl font-extrabold tracking-tight ml-1" style={{
+            background: 'linear-gradient(135deg, #FFD700, #FFA500)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            letterSpacing: '-0.02em',
+            filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
+          }}>
+            Chess99.com
+          </span>
+        </div>
+
         {/* Header badge */}
         <div className="text-center mb-2">
           {championshipData ? (

@@ -297,9 +297,9 @@ const GameCompletionAnimation = ({
     });
   };
 
-  const videoSupported = typeof MediaRecorder !== 'undefined' &&
-    typeof HTMLCanvasElement !== 'undefined' &&
-    typeof HTMLCanvasElement.prototype.captureStream === 'function';
+  // MediaRecorder implies captureStream support — no need to check prototype directly
+  // (captureStream may not be enumerable on HTMLCanvasElement.prototype in some browsers)
+  const videoSupported = typeof MediaRecorder !== 'undefined';
 
   const handleContinue = async () => {
     if (isAuthenticated) {
