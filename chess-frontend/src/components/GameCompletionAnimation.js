@@ -594,6 +594,19 @@ const GameCompletionAnimation = ({
               }}>
                 {isGeneratingGif ? `${gifProgress}%` : '🎬 GIF'}
               </button>
+              {videoSupported && (
+                <button onClick={() => setShowFormatPicker(true)} disabled={isGeneratingVideo} style={{
+                  background: isGeneratingVideo ? '#555' : 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)',
+                  color: 'white', padding: '8px 14px', borderRadius: '8px',
+                  border: 'none', fontSize: '0.8rem', fontWeight: '600',
+                  cursor: isGeneratingVideo ? 'not-allowed' : 'pointer',
+                  flex: '1 1 auto', whiteSpace: 'nowrap', transition: 'all 0.2s ease',
+                  opacity: isGeneratingVideo ? 0.6 : 1,
+                  boxShadow: '0 3px 10px rgba(139, 92, 246, 0.3)'
+                }}>
+                  {isGeneratingVideo ? `${videoProgress}%` : '📹 Vid'}
+                </button>
+              )}
             </>
           )}
         </div>
