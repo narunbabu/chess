@@ -15,7 +15,7 @@ import GameModeSelector from "../game/GameModeSelector"; // Game mode selector
 
 // Import Utils & Hooks
 import { useGameTimer } from "../../utils/timerUtils"; // Adjust path if needed
-import { makeComputerMove } from "../../utils/computerMoveUtils"; // Adjust path if needed
+import { makeComputerMove, calculatePerceivedThinkTime } from "../../utils/computerMoveUtils"; // Adjust path if needed
 import { updateGameStatus, evaluateMove } from "../../utils/gameStateUtils"; // Adjust paths if needed (ensure evaluateMove exists)
 import { encodeGameHistory, reconstructGameFromHistory } from "../../utils/gameHistoryStringUtils"; // Adjust paths if needed
 import { createResultFromComputerGame } from "../../utils/resultStandardization"; // Standardized result format
@@ -45,8 +45,6 @@ const gameEndSoundEffect = new Audio(gameEndSound);
 const MIN_DEPTH = 1;
 const MAX_DEPTH = 16; // Used for DifficultyMeter max
 const DEFAULT_DEPTH = 2;
-// Minimum duration the computer should *appear* to think (milliseconds)
-const MIN_PERCEIVED_COMPUTER_THINK_TIME = 1500; // e.g., 1.5 seconds
 const DEFAULT_RATING = 1200;
 
 // --- Utility Functions ---
@@ -152,6 +150,7 @@ const PlayComputer = () => {
           moves: gameHistory,
           playerColor: playerColor,
           opponentName: syntheticOpponent?.name || 'Computer',
+          syntheticOpponent: syntheticOpponent || null,
           gameMode: 'computer',
           computerLevel: computerDepth,
           timerState: {
@@ -488,6 +487,7 @@ const PlayComputer = () => {
             moves: gameHistory,
             playerColor: playerColor,
             opponentName: syntheticOpponent?.name || 'Computer',
+            syntheticOpponent: syntheticOpponent || null,
             gameMode: 'computer',
             computerLevel: computerDepth,
             timerState: {
@@ -529,6 +529,7 @@ const PlayComputer = () => {
             moves: gameHistory,
             playerColor: playerColor,
             opponentName: syntheticOpponent?.name || 'Computer',
+            syntheticOpponent: syntheticOpponent || null,
             gameMode: 'computer',
             computerLevel: computerDepth,
             timerState: {
@@ -741,6 +742,11 @@ const PlayComputer = () => {
         }
       }
 
+      // Restore synthetic opponent identity if present
+      if (gameState.syntheticOpponent) {
+        setSyntheticOpponent(gameState.syntheticOpponent);
+      }
+
       // Restore game ID to prevent creating a new ID when pausing again
       if (gameState.id) {
         setCurrentGameId(gameState.id);
@@ -843,6 +849,7 @@ const PlayComputer = () => {
               whiteMs: (g.white_time_remaining || 600) * 1000,
               blackMs: (g.black_time_remaining || 600) * 1000,
             },
+            syntheticOpponent: null, // Backend doesn't store synthetic identity yet
           };
 
           navigate('/play', {
@@ -1014,9 +1021,13 @@ const PlayComputer = () => {
             // Move calculation was successful (or fallback occurred)
             const { newGame, thinkingTime } = result; // Get the new game state and actual engine time
 
-            // *** Artificial Delay Logic ***
-            // Calculate if an extra delay is needed to meet the minimum perceived time
-            const delayNeeded = Math.max(0, MIN_PERCEIVED_COMPUTER_THINK_TIME - thinkingTime);
+            // *** Dynamic Artificial Delay Logic ***
+            // Calculate perceived think time based on game phase, move complexity, and difficulty
+            const lastMove = result.newGame.history({ verbose: true }).slice(-1)[0];
+            const perceivedMinTime = calculatePerceivedThinkTime(
+              game.fen(), gameHistory.length, lastMove, computerDepth
+            );
+            const delayNeeded = Math.max(0, perceivedMinTime - thinkingTime);
 
             if (delayNeeded > 0) {
               
@@ -1273,6 +1284,7 @@ const PlayComputer = () => {
                     moves: [...gameHistory, newHistoryEntry],
                     playerColor: playerColor,
                     opponentName: syntheticOpponent?.name || 'Computer',
+                    syntheticOpponent: syntheticOpponent || null,
                     gameMode: 'computer',
                     computerLevel: computerDepth,
                     timerState: {

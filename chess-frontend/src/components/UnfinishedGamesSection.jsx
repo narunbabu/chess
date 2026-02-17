@@ -47,6 +47,7 @@ const UnfinishedGamesSection = ({ isAuthenticated = false }) => {
       moves: game.moves || [],
       playerColor: game.playerColor || 'white',
       opponentName: game.opponentName,
+      syntheticOpponent: game.syntheticOpponent || null,
       gameMode: game.gameMode,
       computerLevel: game.computerLevel,
       timerState: game.timerState,
@@ -137,13 +138,30 @@ const UnfinishedGamesSection = ({ isAuthenticated = false }) => {
             <div key={game.gameId || 'localStorage'} className="unified-card-content bg-gray-50 rounded-lg p-3">
               {/* Game Header */}
               <div className="flex justify-between items-start mb-2">
-                <div className="flex-1">
-                  <div className="font-semibold text-sm text-gray-800">
-                    {game.opponentName || 'Computer'}
-                    {game.gameMode === 'computer' && ' 🤖'}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {formatTimeAgo(game.timestamp)} • {game.source === 'localStorage' ? 'Local' : 'Online'}
+                <div className="flex-1 flex items-center gap-2">
+                  {game.syntheticOpponent?.avatar_url ? (
+                    <img
+                      src={game.syntheticOpponent.avatar_url}
+                      alt={game.syntheticOpponent.name}
+                      className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                    />
+                  ) : (
+                    game.gameMode === 'computer' && (
+                      <span className="text-lg flex-shrink-0">🤖</span>
+                    )
+                  )}
+                  <div>
+                    <div className="font-semibold text-sm text-gray-800">
+                      {game.syntheticOpponent?.name || game.opponentName || 'Computer'}
+                      {game.syntheticOpponent?.rating && (
+                        <span className="ml-1 text-xs font-normal text-gray-500">
+                          ({game.syntheticOpponent.rating})
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {formatTimeAgo(game.timestamp)} • {game.source === 'localStorage' ? 'Local' : 'Online'}
+                    </div>
                   </div>
                 </div>
                 <div className="text-xs text-gray-600 bg-white px-2 py-1 rounded">

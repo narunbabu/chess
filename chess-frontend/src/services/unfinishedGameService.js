@@ -117,6 +117,7 @@ export async function saveUnfinishedGame(gameState, isAuthenticated, gameId = nu
     ttl,
     savedReason: gameState.savedReason || 'navigation', // navigation, pause, beforeunload
     startTime: gameState.startTime || null,
+    syntheticOpponent: gameState.syntheticOpponent || null, // Full synthetic bot identity (name, avatar, rating)
     status: 'unfinished' // Explicit status for storage separation
   };
 

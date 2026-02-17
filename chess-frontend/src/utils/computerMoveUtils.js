@@ -181,6 +181,65 @@ const getStockfishTopMoves = async (fen, numMoves, moveTimeMs) => {
 };
 
 
+/**
+ * Calculate a human-like perceived thinking time based on game phase, move type, and difficulty.
+ * @param {string} fen - Current board position in FEN format (before computer's move).
+ * @param {number} moveNumber - Total half-moves played so far (gameHistory.length).
+ * @param {object|null} move - The chess.js verbose move object (with captured, san, etc.), or null.
+ * @param {number} depth - Difficulty level (1-16).
+ * @returns {number} Perceived minimum thinking time in milliseconds.
+ */
+export const calculatePerceivedThinkTime = (fen, moveNumber, move, depth) => {
+  // --- 1. Detect game phase from piece count + move number ---
+  const piecePart = fen ? fen.split(' ')[0] : '';
+  const pieceCount = (piecePart.match(/[rnbqkpRNBQKP]/g) || []).length;
+  const hasQueens = /[qQ]/.test(piecePart);
+  const fullMoveNum = Math.floor(moveNumber / 2) + 1;
+
+  let baseMin, baseMax;
+
+  if (fullMoveNum <= 8 && pieceCount >= 28) {
+    // Opening
+    baseMin = 400;
+    baseMax = 1800;
+  } else if (pieceCount <= 12 || (pieceCount <= 16 && !hasQueens)) {
+    // Endgame
+    baseMin = 600;
+    baseMax = 3500;
+  } else {
+    // Middlegame
+    baseMin = 1500;
+    baseMax = 4500;
+  }
+
+  // --- 2. Apply complexity modifiers ---
+  let modifier = 1.0;
+
+  // Captures are quick decisions (recaptures, obvious takes)
+  if (move?.captured) modifier *= 0.7;
+
+  // Checks: forced responses mean fewer options to consider
+  if (move?.san?.includes('+')) modifier *= 0.85;
+
+  // First 3 full moves: book moves, nearly instant
+  if (fullMoveNum <= 3) modifier *= 0.5;
+
+  // Difficulty scaling: higher depth = thinks longer (range 0.7 to 1.3)
+  const clampedDepth = Math.max(1, Math.min(depth, 16));
+  modifier *= 0.7 + (clampedDepth / 16) * 0.6;
+
+  // --- 3. Apply modifier to range ---
+  const adjMin = baseMin * modifier;
+  const adjMax = baseMax * modifier;
+
+  // --- 4. Human-like bell curve random: (rand1 + rand2) / 2 ---
+  const rand = (Math.random() + Math.random()) / 2;
+  const time = adjMin + rand * (adjMax - adjMin);
+
+  // --- 5. Clamp: 300ms minimum, 6000ms maximum ---
+  return Math.round(Math.max(300, Math.min(6000, time)));
+};
+
 // selectMoveFromRankedList remains the same as the corrected version from previous response
 /**
  * Selects a move from a ranked list based on difficulty depth,
