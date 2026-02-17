@@ -12,6 +12,17 @@ const PIECE_CHARS = {
 
 const HIGHLIGHT_SQ = 'rgba(255, 255, 0, 0.35)';
 
+// Animation helpers
+const squareToPixel = (sq, boardX, boardY, sqSz, orient) => {
+  const file = sq.charCodeAt(0) - 97;
+  const rank = parseInt(sq[1]) - 1;
+  const col = orient === 'white' ? file : 7 - file;
+  const row = orient === 'white' ? 7 - rank : rank;
+  return { x: boardX + col * sqSz, y: boardY + row * sqSz };
+};
+
+const easeInOut = (t) => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+
 /**
  * Parse FEN position into a 2D array of pieces
  */
@@ -37,7 +48,7 @@ const parseFEN = (fen) => {
 /**
  * Draw a single chess board frame onto a canvas context
  */
-const drawBoardFrame = (ctx, fen, boardSize, orientation, lastMove, moveInfo, playerNames, branding, themeColors) => {
+const drawBoardFrame = (ctx, fen, boardSize, orientation, lastMove, moveInfo, playerNames, branding, themeColors, movingPiece = null) => {
   const LIGHT_SQ = themeColors?.light || '#C9A96E';
   const DARK_SQ = themeColors?.dark || '#6B4226';
   const sqSize = boardSize / 8;
@@ -88,20 +99,23 @@ const drawBoardFrame = (ctx, fen, boardSize, orientation, lastMove, moveInfo, pl
       // Piece
       const piece = board[displayRow][displayCol];
       if (piece) {
-        const charKey = piece;
-        const ch = PIECE_CHARS[charKey];
-        if (ch) {
-          ctx.font = `${Math.round(sqSize * 0.82)}px "Segoe UI Symbol", "Noto Color Emoji", Arial`;
-          ctx.textBaseline = 'middle';
-          ctx.textAlign = 'center';
+        const sq = String.fromCharCode(97 + displayCol) + (8 - displayRow);
+        // Skip piece that is being animated (drawn separately at interpolated position)
+        if (!(movingPiece && movingPiece.fromSquare === sq)) {
+          const ch = PIECE_CHARS[piece];
+          if (ch) {
+            ctx.font = `${Math.round(sqSize * 0.82)}px "Segoe UI Symbol", "Noto Color Emoji", Arial`;
+            ctx.textBaseline = 'middle';
+            ctx.textAlign = 'center';
 
-          // Shadow for depth
-          ctx.fillStyle = 'rgba(0,0,0,0.3)';
-          ctx.fillText(ch, x + sqSize / 2 + 1.5, y + sqSize / 2 + 2);
+            // Shadow for depth
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.fillText(ch, x + sqSize / 2 + 1.5, y + sqSize / 2 + 2);
 
-          // Piece
-          ctx.fillStyle = piece[0] === 'w' ? '#FFFFFF' : '#222222';
-          ctx.fillText(ch, x + sqSize / 2, y + sqSize / 2);
+            // Piece
+            ctx.fillStyle = piece[0] === 'w' ? '#FFFFFF' : '#222222';
+            ctx.fillText(ch, x + sqSize / 2, y + sqSize / 2);
+          }
         }
       }
 
@@ -123,6 +137,20 @@ const drawBoardFrame = (ctx, fen, boardSize, orientation, lastMove, moveInfo, pl
         ctx.textBaseline = 'bottom';
         ctx.fillText(fileLabel, x + sqSize - 3, y + sqSize - 3);
       }
+    }
+  }
+
+  // Draw animated piece on top of board at interpolated position
+  if (movingPiece) {
+    const ch = PIECE_CHARS[movingPiece.piece];
+    if (ch) {
+      ctx.font = `${Math.round(sqSize * 0.82)}px "Segoe UI Symbol", "Noto Color Emoji", Arial`;
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.fillText(ch, movingPiece.x + sqSize / 2 + 1.5, movingPiece.y + sqSize / 2 + 2);
+      ctx.fillStyle = movingPiece.piece[0] === 'w' ? '#FFFFFF' : '#222222';
+      ctx.fillText(ch, movingPiece.x + sqSize / 2, movingPiece.y + sqSize / 2);
     }
   }
 
@@ -272,16 +300,19 @@ export const generateGameGIF = async (gameData, options = {}) => {
   const movesStr = gameData.moves || '';
   const moveEntries = movesStr ? movesStr.split(';').filter(Boolean) : [];
 
-  // Calculate delay: target ~60s total playback
-  // Total frames = initial + moves + result (held 3s)
+  // Animation settings for smooth piece movement
+  const GIF_ANIM_FRAMES = 4;
+  const GIF_ANIM_DELAY = 40; // ms per animation frame
+  const animTimePerMove = (GIF_ANIM_FRAMES - 1) * GIF_ANIM_DELAY; // 120ms
+
+  // Calculate hold delay: target ~60s total playback
   const totalMoveFrames = moveEntries.length + 1; // +1 for initial position
   let delay;
   if (autoSpeed && totalMoveFrames > 1) {
-    // Reserve 3s for result frame, rest for moves
     const availableMs = Math.max(57000, 60000 - 3000);
-    delay = Math.round(availableMs / totalMoveFrames);
-    // Clamp between 200ms and 2000ms per frame
-    delay = Math.max(200, Math.min(2000, delay));
+    const totalAnimMs = moveEntries.length * animTimePerMove;
+    delay = Math.round((availableMs - totalAnimMs) / totalMoveFrames);
+    delay = Math.max(150, Math.min(2000, delay));
   } else {
     delay = 500;
   }
@@ -314,22 +345,45 @@ export const generateGameGIF = async (gameData, options = {}) => {
     drawBoardFrame(ctx, chess.fen(), boardSize, orientation, null, { moveNumber: 0 }, playerNames, 'chess99.com', themeColors);
     gif.addFrame(ctx, { copy: true, delay: Math.min(delay * 2, 3000) });
 
-    // Move frames
+    // Move frames with smooth piece animation
+    const sqSize = boardSize / 8;
     for (let i = 0; i < moveEntries.length; i++) {
       const parts = moveEntries[i].split(',');
       const san = parts[0];
       const time = parts[1] ? parseFloat(parts[1]).toFixed(1) : null;
 
       try {
+        const fenBefore = chess.fen();
         const moveResult = chess.move(san, { sloppy: true });
         if (moveResult) {
           const moveNumber = Math.ceil((i + 1) / 2);
           const isWhite = i % 2 === 0;
+          const pieceKey = moveResult.color + moveResult.piece.toUpperCase();
+          const mi = { moveNumber, san, isWhite, time };
 
+          // Animate piece sliding from source to destination
+          const fromPix = squareToPixel(moveResult.from, 0, headerHeight, sqSize, orientation);
+          const toPix = squareToPixel(moveResult.to, 0, headerHeight, sqSize, orientation);
+
+          for (let f = 1; f < GIF_ANIM_FRAMES; f++) {
+            const t = f / GIF_ANIM_FRAMES;
+            const eased = easeInOut(t);
+            drawBoardFrame(ctx, fenBefore, boardSize, orientation,
+              null, mi, playerNames, 'chess99.com', themeColors,
+              {
+                piece: pieceKey,
+                fromSquare: moveResult.from,
+                x: fromPix.x + (toPix.x - fromPix.x) * eased,
+                y: fromPix.y + (toPix.y - fromPix.y) * eased
+              }
+            );
+            gif.addFrame(ctx, { copy: true, delay: GIF_ANIM_DELAY });
+          }
+
+          // Final position with highlight
           drawBoardFrame(ctx, chess.fen(), boardSize, orientation,
             { from: moveResult.from, to: moveResult.to },
-            { moveNumber, san, isWhite, time },
-            playerNames, 'chess99.com', themeColors
+            mi, playerNames, 'chess99.com', themeColors
           );
           gif.addFrame(ctx, { copy: true, delay });
         }

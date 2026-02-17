@@ -149,6 +149,17 @@ const getColors = (boardTheme) => {
   };
 };
 
+// ═══ Animation Helpers ═══
+const squareToPixel = (sq, boardX, boardY, sqSz, orient) => {
+  const file = sq.charCodeAt(0) - 97;
+  const rank = parseInt(sq[1]) - 1;
+  const col = orient === 'white' ? file : 7 - file;
+  const row = orient === 'white' ? 7 - rank : rank;
+  return { x: boardX + col * sqSz, y: boardY + row * sqSz };
+};
+
+const easeInOut = (t) => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+
 // ═══ Drawing Functions ═══
 
 const drawHeader = (ctx, w, h, playerNames, isPortrait, C) => {
@@ -198,7 +209,7 @@ const drawPlayerBar = (ctx, y, w, h, name, isBlackSide, isActive, C) => {
   ctx.fillText(name, 44, cy);
 };
 
-const drawBoard = (ctx, fen, bx, by, bSize, sqSz, orient, lastMove, flash, imgs, C) => {
+const drawBoard = (ctx, fen, bx, by, bSize, sqSz, orient, lastMove, flash, imgs, C, movingPiece = null) => {
   const board = parseFEN(fen);
   for (let row = 0; row < 8; row++) {
     for (let col = 0; col < 8; col++) {
@@ -227,7 +238,11 @@ const drawBoard = (ctx, fen, bx, by, bSize, sqSz, orient, lastMove, flash, imgs,
 
       const piece = board[dRow][dCol];
       if (piece && imgs[piece]) {
-        ctx.drawImage(imgs[piece], x, y, sqSz, sqSz);
+        // Skip piece that is being animated (drawn separately at interpolated position)
+        const sq = String.fromCharCode(97 + dCol) + (8 - dRow);
+        if (!(movingPiece && movingPiece.fromSquare === sq)) {
+          ctx.drawImage(imgs[piece], x, y, sqSz, sqSz);
+        }
       }
 
       // Coordinates
@@ -246,6 +261,10 @@ const drawBoard = (ctx, fen, bx, by, bSize, sqSz, orient, lastMove, flash, imgs,
         ctx.fillText(fl, x + sqSz - 3, y + sqSz - 3);
       }
     }
+  }
+  // Draw animated piece on top of board at interpolated position
+  if (movingPiece && imgs[movingPiece.piece]) {
+    ctx.drawImage(imgs[movingPiece.piece], movingPiece.x, movingPiece.y, sqSz, sqSz);
   }
 };
 
@@ -402,14 +421,16 @@ export const generateGameVideo = async (gameData, options = {}) => {
   const moveEntries = (gameData.moves || '').split(';').filter(Boolean);
   const totalMoves = moveEntries.length;
 
-  // Timing: target 12-35s total
-  const targetMs = Math.max(12000, Math.min(35000, totalMoves * 500 + 5000));
+  // Timing: target 15-45s total (extended for smooth animation)
+  const targetMs = Math.max(15000, Math.min(45000, totalMoves * 600 + 6000));
   const initHold = 1500;
   const resultHold = 2500;
-  const flashMs = 100;
+  const ANIM_FRAMES = 12;
+  const ANIM_FRAME_DELAY = 20; // ms per animation frame
+  const animTotalMs = ANIM_FRAMES * ANIM_FRAME_DELAY; // 240ms slide
   const availMs = targetMs - initHold - resultHold;
-  const perMoveMs = Math.max(250, Math.min(1200, availMs / Math.max(1, totalMoves)));
-  const holdMs = Math.max(100, perMoveMs - flashMs);
+  const perMoveMs = Math.max(350, Math.min(1500, availMs / Math.max(1, totalMoves)));
+  const holdMs = Math.max(50, perMoveMs - animTotalMs - 66);
 
   // Preload 3D piece images
   if (onProgress) onProgress(0);
@@ -426,7 +447,7 @@ export const generateGameVideo = async (gameData, options = {}) => {
   const ctx = canvas.getContext('2d');
 
   // MediaRecorder
-  const stream = canvas.captureStream(30);
+  const stream = canvas.captureStream(60);
   const mimeType = getSupportedMimeType();
   const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 3_000_000 });
   const chunks = [];
@@ -435,7 +456,7 @@ export const generateGameVideo = async (gameData, options = {}) => {
   const wait = (ms) => new Promise(r => setTimeout(r, ms));
 
   // Full frame drawer
-  const frame = (fen, lastMove, flash, moveInfo) => {
+  const frame = (fen, lastMove, flash, moveInfo, movingPiece = null) => {
     ctx.fillStyle = C.bg;
     ctx.fillRect(0, 0, W, H);
     drawHeader(ctx, W, headerH, pNames, isPortrait, C);
@@ -448,7 +469,7 @@ export const generateGameVideo = async (gameData, options = {}) => {
       drawPlayerBar(ctx, boardY + boardSz, W, pBarH, botName, orient !== 'white', orient === 'white' ? wTurn : !wTurn, C);
     }
 
-    drawBoard(ctx, fen, boardX, boardY, boardSz, sqSz, orient, lastMove, flash, pieceImgs, C);
+    drawBoard(ctx, fen, boardX, boardY, boardSz, sqSz, orient, lastMove, flash, pieceImgs, C, movingPiece);
 
     const ci = { ...moveInfo, openingName, totalMoves };
     if (isPortrait) drawCommentaryPortrait(ctx, commY, W, commH, ci, C);
@@ -465,10 +486,11 @@ export const generateGameVideo = async (gameData, options = {}) => {
     frame(chess.fen(), null, 0, { moveNumber: 0, san: '', annotation: '', isWhiteMove: true, moveIndex: 0 });
     await wait(initHold);
 
-    // Process each move
+    // Process each move with smooth piece animation
     for (let i = 0; i < moveEntries.length; i++) {
       const san = moveEntries[i].split(',')[0];
       try {
+        const fenBefore = chess.fen();
         const mr = chess.move(san, { sloppy: true });
         if (mr) {
           const moveNum = Math.ceil((i + 1) / 2);
@@ -476,13 +498,27 @@ export const generateGameVideo = async (gameData, options = {}) => {
           const ann = getMoveAnnotation(mr, openingName, i);
           const lm = { from: mr.from, to: mr.to };
           const mi = { moveNumber: moveNum, san: mr.san, annotation: ann, isWhiteMove: isW, moveIndex: i };
+          const pieceKey = mr.color + mr.piece.toUpperCase();
 
-          // Flash highlight (3 frames ~100ms)
-          for (let f = 0; f < 3; f++) {
-            frame(chess.fen(), lm, 1 - f / 3, mi);
-            await wait(33);
+          // Smooth slide: animate piece from source to destination
+          const fromPix = squareToPixel(mr.from, boardX, boardY, sqSz, orient);
+          const toPix = squareToPixel(mr.to, boardX, boardY, sqSz, orient);
+
+          for (let f = 0; f <= ANIM_FRAMES; f++) {
+            const t = f / ANIM_FRAMES;
+            const eased = easeInOut(t);
+            frame(fenBefore, null, 0, mi, {
+              piece: pieceKey,
+              fromSquare: mr.from,
+              x: fromPix.x + (toPix.x - fromPix.x) * eased,
+              y: fromPix.y + (toPix.y - fromPix.y) * eased
+            });
+            await wait(ANIM_FRAME_DELAY);
           }
-          // Hold
+
+          // Brief flash on landing then hold final position
+          frame(chess.fen(), lm, 0.6, mi);
+          await wait(33);
           frame(chess.fen(), lm, 0, mi);
           await wait(holdMs);
         }
