@@ -212,7 +212,8 @@ const GameCompletionAnimation = ({
         isWin: isPlayerWin,
         isDraw,
         gameType,
-        championshipData
+        championshipData,
+        boardTheme: user?.board_theme || 'classic'
       },
       setIsGenerating: setIsGeneratingGif,
       setProgress: setGifProgress,
@@ -288,7 +289,8 @@ const GameCompletionAnimation = ({
         isWin: isPlayerWin,
         isDraw,
         gameType,
-        championshipData
+        championshipData,
+        boardTheme: user?.board_theme || 'classic'
       },
       format,
       setIsGenerating: setIsGeneratingVideo,

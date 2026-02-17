@@ -413,7 +413,8 @@ export const shareGameReplay = async ({
       isWin,
       isDraw,
       gameType,
-      championshipData
+      championshipData,
+      boardTheme
     } = gameData;
 
     // Determine result text
@@ -442,6 +443,7 @@ export const shareGameReplay = async ({
         boardSize: 400,
         quality: 10,
         autoSpeed: true,
+        boardTheme: boardTheme || 'classic',
         onProgress: (p) => {
           setProgress(Math.round(p * 100));
         }
@@ -532,7 +534,7 @@ export const shareGameVideo = async ({
 
     const {
       moves, playerColor, playerName, opponentName,
-      isWin, isDraw, gameType, championshipData
+      isWin, isDraw, gameType, championshipData, boardTheme
     } = gameData;
 
     let resultText;
@@ -552,6 +554,7 @@ export const shareGameVideo = async ({
       },
       {
         format,
+        boardTheme: boardTheme || 'classic',
         onProgress: (p) => setProgress(Math.round(p * 100))
       }
     );

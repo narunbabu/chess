@@ -5,6 +5,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { Chess } from 'chess.js';
 import { pieces3dLanding } from '../assets/pieces/pieces3d';
+import { getTheme } from '../config/boardThemes';
 
 // ═══ Opening Book ═══
 const OPENING_BOOK = [
@@ -126,11 +127,9 @@ const parseFEN = (fen) => {
 };
 
 // ═══ Colors ═══
-const C = {
+const BASE_COLORS = {
   bg: '#161512',
   headerBg: '#1a1816',
-  boardLight: '#C9A96E',
-  boardDark: '#6B4226',
   hlFrom: 'rgba(255, 255, 0, 0.3)',
   hlTo: 'rgba(255, 255, 0, 0.45)',
   text: '#ffffff',
@@ -141,9 +140,18 @@ const C = {
   playerBg: '#242220',
 };
 
+const getColors = (boardTheme) => {
+  const theme = getTheme(boardTheme);
+  return {
+    ...BASE_COLORS,
+    boardLight: theme.light,
+    boardDark: theme.dark,
+  };
+};
+
 // ═══ Drawing Functions ═══
 
-const drawHeader = (ctx, w, h, playerNames, isPortrait) => {
+const drawHeader = (ctx, w, h, playerNames, isPortrait, C) => {
   ctx.fillStyle = C.headerBg;
   ctx.fillRect(0, 0, w, h);
   // Gold accent underline
@@ -165,7 +173,7 @@ const drawHeader = (ctx, w, h, playerNames, isPortrait) => {
   ctx.fillText(`${playerNames.white} vs ${playerNames.black}`, w - 20, h / 2);
 };
 
-const drawPlayerBar = (ctx, y, w, h, name, isBlackSide, isActive) => {
+const drawPlayerBar = (ctx, y, w, h, name, isBlackSide, isActive, C) => {
   ctx.fillStyle = C.playerBg;
   ctx.fillRect(0, y, w, h);
   const cx = 24, cy = y + h / 2, r = 10;
@@ -190,7 +198,7 @@ const drawPlayerBar = (ctx, y, w, h, name, isBlackSide, isActive) => {
   ctx.fillText(name, 44, cy);
 };
 
-const drawBoard = (ctx, fen, bx, by, bSize, sqSz, orient, lastMove, flash, imgs) => {
+const drawBoard = (ctx, fen, bx, by, bSize, sqSz, orient, lastMove, flash, imgs, C) => {
   const board = parseFEN(fen);
   for (let row = 0; row < 8; row++) {
     for (let col = 0; col < 8; col++) {
@@ -241,7 +249,7 @@ const drawBoard = (ctx, fen, bx, by, bSize, sqSz, orient, lastMove, flash, imgs)
   }
 };
 
-const drawCommentaryPortrait = (ctx, y, w, h, info) => {
+const drawCommentaryPortrait = (ctx, y, w, h, info, C) => {
   const { moveNumber, san, annotation, openingName, isWhiteMove, moveIndex, totalMoves } = info;
   ctx.fillStyle = C.commentBg;
   ctx.fillRect(0, y, w, h);
@@ -295,7 +303,7 @@ const drawCommentaryPortrait = (ctx, y, w, h, info) => {
 
 };
 
-const drawCommentaryLandscape = (ctx, y, w, h, info) => {
+const drawCommentaryLandscape = (ctx, y, w, h, info, C) => {
   const { moveNumber, san, annotation, isWhiteMove } = info;
   ctx.fillStyle = C.commentBg;
   ctx.fillRect(0, y, w, h);
@@ -323,7 +331,7 @@ const drawCommentaryLandscape = (ctx, y, w, h, info) => {
   }
 };
 
-const drawResultScreen = (ctx, w, h, config) => {
+const drawResultScreen = (ctx, w, h, config, C) => {
   const { resultText, playerNames, isWin, isDraw } = config;
   ctx.fillStyle = isDraw ? '#7a5a00' : (isWin ? '#1a5c1a' : '#2d1b69');
   ctx.fillRect(0, 0, w, h);
@@ -368,7 +376,8 @@ const getSupportedMimeType = () => {
 
 // ═══ Main Entry Point ═══
 export const generateGameVideo = async (gameData, options = {}) => {
-  const { format = 'portrait', onProgress = null } = options;
+  const { format = 'portrait', onProgress = null, boardTheme = 'classic' } = options;
+  const C = getColors(boardTheme);
   const isPortrait = format === 'portrait';
   const W = isPortrait ? 720 : 1280;
   const H = isPortrait ? 1280 : 720;
@@ -429,21 +438,21 @@ export const generateGameVideo = async (gameData, options = {}) => {
   const frame = (fen, lastMove, flash, moveInfo) => {
     ctx.fillStyle = C.bg;
     ctx.fillRect(0, 0, W, H);
-    drawHeader(ctx, W, headerH, pNames, isPortrait);
+    drawHeader(ctx, W, headerH, pNames, isPortrait, C);
 
     if (isPortrait) {
       const topName = orient === 'white' ? pNames.black : pNames.white;
       const botName = orient === 'white' ? pNames.white : pNames.black;
       const wTurn = !moveInfo || moveInfo.isWhiteMove;
-      drawPlayerBar(ctx, headerH, W, pBarH, topName, orient === 'white', orient === 'white' ? !wTurn : wTurn);
-      drawPlayerBar(ctx, boardY + boardSz, W, pBarH, botName, orient !== 'white', orient === 'white' ? wTurn : !wTurn);
+      drawPlayerBar(ctx, headerH, W, pBarH, topName, orient === 'white', orient === 'white' ? !wTurn : wTurn, C);
+      drawPlayerBar(ctx, boardY + boardSz, W, pBarH, botName, orient !== 'white', orient === 'white' ? wTurn : !wTurn, C);
     }
 
-    drawBoard(ctx, fen, boardX, boardY, boardSz, sqSz, orient, lastMove, flash, pieceImgs);
+    drawBoard(ctx, fen, boardX, boardY, boardSz, sqSz, orient, lastMove, flash, pieceImgs, C);
 
     const ci = { ...moveInfo, openingName, totalMoves };
-    if (isPortrait) drawCommentaryPortrait(ctx, commY, W, commH, ci);
-    else drawCommentaryLandscape(ctx, commY, W, commH, ci);
+    if (isPortrait) drawCommentaryPortrait(ctx, commY, W, commH, ci, C);
+    else drawCommentaryLandscape(ctx, commY, W, commH, ci, C);
   };
 
   // Start recording
@@ -489,7 +498,7 @@ export const generateGameVideo = async (gameData, options = {}) => {
       playerNames: pNames,
       isWin: gameData.isWin,
       isDraw: gameData.isDraw,
-    });
+    }, C);
     await wait(resultHold);
 
   } catch (error) {

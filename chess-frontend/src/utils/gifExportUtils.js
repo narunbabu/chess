@@ -2,6 +2,7 @@
 // Uses canvas-based rendering (no React component rendering needed)
 import GIF from 'gif.js';
 import { Chess } from 'chess.js';
+import { getTheme } from '../config/boardThemes';
 
 // Piece unicode characters for canvas rendering
 const PIECE_CHARS = {
@@ -9,9 +10,6 @@ const PIECE_CHARS = {
   bK: '\u265A', bQ: '\u265B', bR: '\u265C', bB: '\u265D', bN: '\u265E', bP: '\u265F'
 };
 
-// Board colors — walnut/maple wood theme
-const LIGHT_SQ = '#C9A96E';
-const DARK_SQ = '#6B4226';
 const HIGHLIGHT_SQ = 'rgba(255, 255, 0, 0.35)';
 
 /**
@@ -39,7 +37,9 @@ const parseFEN = (fen) => {
 /**
  * Draw a single chess board frame onto a canvas context
  */
-const drawBoardFrame = (ctx, fen, boardSize, orientation, lastMove, moveInfo, playerNames, branding) => {
+const drawBoardFrame = (ctx, fen, boardSize, orientation, lastMove, moveInfo, playerNames, branding, themeColors) => {
+  const LIGHT_SQ = themeColors?.light || '#C9A96E';
+  const DARK_SQ = themeColors?.dark || '#6B4226';
   const sqSize = boardSize / 8;
   const headerHeight = 48;
   const moveBarHeight = 44;
@@ -257,8 +257,11 @@ export const generateGameGIF = async (gameData, options = {}) => {
     quality = 10,
     workers = 2,
     onProgress = null,
-    autoSpeed = true
+    autoSpeed = true,
+    boardTheme = 'classic'
   } = options;
+
+  const themeColors = getTheme(boardTheme);
 
   const headerHeight = 48;
   const moveBarHeight = 44;
@@ -308,7 +311,7 @@ export const generateGameGIF = async (gameData, options = {}) => {
     const chess = new Chess();
 
     // Frame 1: Initial position (hold longer)
-    drawBoardFrame(ctx, chess.fen(), boardSize, orientation, null, { moveNumber: 0 }, playerNames, 'chess99.com');
+    drawBoardFrame(ctx, chess.fen(), boardSize, orientation, null, { moveNumber: 0 }, playerNames, 'chess99.com', themeColors);
     gif.addFrame(ctx, { copy: true, delay: Math.min(delay * 2, 3000) });
 
     // Move frames
@@ -326,7 +329,7 @@ export const generateGameGIF = async (gameData, options = {}) => {
           drawBoardFrame(ctx, chess.fen(), boardSize, orientation,
             { from: moveResult.from, to: moveResult.to },
             { moveNumber, san, isWhite, time },
-            playerNames, 'chess99.com'
+            playerNames, 'chess99.com', themeColors
           );
           gif.addFrame(ctx, { copy: true, delay });
         }
