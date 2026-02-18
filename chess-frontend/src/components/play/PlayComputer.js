@@ -769,6 +769,13 @@ const PlayComputer = () => {
         return; // Allow navigation for casual games or when game is over
       }
 
+      // Don't intercept clicks inside the navigation warning modal itself
+      // (the modal has z-index 10000 and needs its buttons to work)
+      const modal = document.querySelector('[data-navigation-modal]');
+      if (modal && modal.contains(event.target)) {
+        return;
+      }
+
       // Check if the click target or any parent is a navigation link
       let target = event.target;
       let isNavigationClick = false;
@@ -778,7 +785,9 @@ const PlayComputer = () => {
       while (target && target !== document.documentElement) {
         // Check for navigation buttons, links, or elements with navigation keywords
         const elementText = target.textContent?.toLowerCase() || '';
-        const className = target.className?.toLowerCase() || '';
+        // SVG elements have className as SVGAnimatedString (an object), not a string
+        const rawClassName = target.className;
+        const className = (typeof rawClassName === 'string' ? rawClassName : rawClassName?.baseVal || '').toLowerCase();
         const href = target.href || target.getAttribute('href') || '';
 
         // Navigation patterns to detect
@@ -793,7 +802,8 @@ const PlayComputer = () => {
           href.includes(pattern)
         );
 
-        if (isNavElement || target.tagName === 'A' || target.role === 'button') {
+        // Only treat <a> tags as navigation — generic buttons are not navigation
+        if (isNavElement || target.tagName === 'A') {
           isNavigationClick = true;
           navigationPath = href || elementText || 'page';
           break;
@@ -2558,6 +2568,7 @@ const PlayComputer = () => {
         {/* Navigation Warning Modal - Rated Game */}
         {showNavigationWarning && (
           <div
+            data-navigation-modal
             style={{
               position: 'fixed',
               top: 0,
