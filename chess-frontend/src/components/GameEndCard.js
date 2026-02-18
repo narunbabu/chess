@@ -715,7 +715,7 @@ const handleShare = async () => {
         {/* Chess99 brand header */}
         <div className="text-center mb-2">
           <span className="text-xl" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))' }}>♛</span>
-          <span className="text-2xl font-extrabold tracking-tight ml-1" style={{
+          <span className="chess99-brand-text text-2xl font-extrabold tracking-tight ml-1" style={{
             background: 'linear-gradient(135deg, #FFD700, #FFA500)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',

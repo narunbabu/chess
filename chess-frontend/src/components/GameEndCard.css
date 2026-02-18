@@ -368,6 +368,15 @@
   color: #e8a93e !important;
 }
 
+.share-mode .chess99-brand-text {
+  background: none !important;
+  -webkit-background-clip: initial !important;
+  -webkit-text-fill-color: initial !important;
+  background-clip: initial !important;
+  color: #FFD700 !important;
+  filter: none !important;
+}
+
 .share-mode .animate-bounce {
   animation: none !important;
 }

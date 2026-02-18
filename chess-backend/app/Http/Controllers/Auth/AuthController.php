@@ -225,24 +225,38 @@ class AuthController extends Controller
 
             Log::info('Avatar URL from Google: ' . ($avatarUrl ?? 'NULL'));
 
-            // Find or create user
-            $user = User::updateOrCreate(
-                ['email' => $email],
-                [
+            // Find or create user — preserve existing profile data on subsequent logins
+            $user = User::where('email', $email)->first();
+
+            if ($user) {
+                // Existing user: only update provider info, preserve user-customized fields
+                $user->update([
+                    'provider' => 'google',
+                    'provider_id' => $googleId,
+                    'email_verified_at' => $user->email_verified_at ?? (($payload['email_verified'] ?? false) ? now() : null),
+                ]);
+                // Only set name if user doesn't have one yet
+                if (!$user->name) {
+                    $user->update(['name' => $name]);
+                }
+            } else {
+                // New user: create with all social data
+                $user = User::create([
                     'name' => $name,
+                    'email' => $email,
                     'provider' => 'google',
                     'provider_id' => $googleId,
                     'email_verified_at' => ($payload['email_verified'] ?? false) ? now() : null,
-                ]
-            );
+                ]);
+            }
 
             Log::info('=== USER CREATED/UPDATED ===');
             Log::info('User ID: ' . $user->id);
             Log::info('User Name: ' . $user->name);
             Log::info('User Email: ' . $user->email);
 
-            // Download and store avatar locally if provided
-            if ($avatarUrl) {
+            // Download and store avatar locally only if user doesn't have one yet
+            if ($avatarUrl && !$user->getRawOriginal('avatar_url')) {
                 Log::info('Attempting to download and store avatar locally...');
                 $localAvatarPath = $this->downloadAndStoreAvatar($avatarUrl, $user->id);
 

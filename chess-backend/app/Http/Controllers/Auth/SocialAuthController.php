@@ -115,28 +115,40 @@ class SocialAuthController extends Controller
             $avatarUrl = $socialUser->getAvatar();
             Log::info('Original avatar URL from provider: ' . ($avatarUrl ?? 'NULL'));
 
-            // First create/update user without avatar
-            $user = User::updateOrCreate(
-                ['email' => $socialUser->getEmail()],
-                [
-                    'name' => $socialUser->getName(),
+            // Find or create user — preserve existing profile data on subsequent logins
+            $user = User::where('email', $socialUser->getEmail())->first();
+
+            if ($user) {
+                // Existing user: only update provider info, preserve user-customized fields
+                $user->update([
                     'provider' => $provider,
                     'provider_id' => $socialUser->getId(),
-                ]
-            );
+                ]);
+                // Only set name if user doesn't have one yet
+                if (!$user->name) {
+                    $user->update(['name' => $socialUser->getName()]);
+                }
+            } else {
+                // New user: create with all social data
+                $user = User::create([
+                    'name' => $socialUser->getName(),
+                    'email' => $socialUser->getEmail(),
+                    'provider' => $provider,
+                    'provider_id' => $socialUser->getId(),
+                ]);
+            }
 
             Log::info('=== USER CREATED/UPDATED ===');
             Log::info('User ID: ' . $user->id);
             Log::info('User Name: ' . $user->name);
             Log::info('User Email: ' . $user->email);
 
-            // Download and store avatar locally if provided
-            if ($avatarUrl) {
+            // Download and store avatar locally only if user doesn't have one yet
+            if ($avatarUrl && !$user->getRawOriginal('avatar_url')) {
                 Log::info('Attempting to download and store avatar locally...');
                 $localAvatarPath = $this->downloadAndStoreAvatar($avatarUrl, $user->id);
 
                 if ($localAvatarPath) {
-                    // Update user with local avatar path
                     $user->avatar_url = $localAvatarPath;
                     $user->save();
                     Log::info('Avatar downloaded and stored locally at: ' . $localAvatarPath);
