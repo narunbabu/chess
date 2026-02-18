@@ -84,33 +84,34 @@
 /* --- Main layout grid --- */
 .gc-layout {
   display: grid;
-  grid-template-columns: 220px 1fr 280px;
+  grid-template-columns: 200px 1fr 260px;
   gap: 16px;
   width: 100%;
-  max-width: 1400px;
+  max-width: min(1400px, 100vw);
   margin: 0 auto;
-  padding: 16px;
-  min-height: calc(100vh - 80px);
-  align-items: start;
+  padding: 8px 16px;
+  height: calc(100vh - 56px); /* Fill viewport minus header */
+  align-items: center; /* Center content vertically */
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 /* --- Left panel: scores, status --- */
 .gc-left-panel {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  position: sticky;
-  top: 80px;
+  gap: 8px;
+  align-self: center;
 }
 
 .gc-score-section {
   background: #1e1e1e;
-  border-radius: 12px;
+  border-radius: 8px;
   border: 1px solid #2a2a2a;
-  padding: 16px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .gc-score-card {
@@ -178,34 +179,49 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  align-self: stretch;       /* Fill full grid height */
+  justify-content: center;   /* Center content vertically */
   gap: 0;
   min-width: 0;
+  min-height: 0;
+  padding: 8px 0;
 }
 
 .gc-toolbar {
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 0 4px 8px;
+  gap: 4px;
+  width: min(100%, 70vh);
+  padding: 0 0 4px;
+  margin: 0 auto;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.gc-toolbar:hover {
+  opacity: 1;
 }
 
 .gc-board-wrapper {
-  width: 100%;
+  width: min(100%, 70vh);     /* Board = min(column width, 70% viewport height) */
+  aspect-ratio: 1;           /* Keep it square */
+  margin: 0 auto;
   background: #1e1e1e;
   border-radius: 16px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
-  padding: 12px;
+  padding: 8px;
   position: relative;
+  flex-shrink: 0;
 }
 
 /* --- Action bar (bottom of center) --- */
 .gc-action-bar {
   display: flex;
   gap: 8px;
-  width: 100%;
-  padding: 12px 0 0;
+  width: min(100%, 70vh);
+  margin: 0 auto;
+  padding: 8px 0 0;
   justify-content: center;
   flex-wrap: wrap;
 }
@@ -213,13 +229,13 @@
 .gc-action-btn {
   flex: 1;
   min-width: 0;
-  max-width: 160px;
-  padding: 10px 16px;
+  max-width: 140px;
+  padding: 8px 12px;
   border: 1px solid #2a2a2a;
   border-radius: 8px;
   background: #1e1e1e;
   color: #ffffff;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -288,9 +304,8 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  position: sticky;
-  top: 80px;
-  max-height: calc(100vh - 100px);
+  align-self: center;
+  max-height: min(70vh, 480px);
 }
 
 .gc-tabs {
@@ -301,11 +316,11 @@
 
 .gc-tab {
   flex: 1;
-  padding: 12px 16px;
+  padding: 8px 12px;
   background: transparent;
   border: none;
   color: #888;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -341,10 +356,10 @@
 
 /* --- Move list (two-column PGN) --- */
 .gc-move-list {
-  padding: 8px;
+  padding: 4px 6px;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 0;
 }
 
 .gc-move-empty {
@@ -356,28 +371,28 @@
 
 .gc-move-row {
   display: grid;
-  grid-template-columns: 36px 1fr 1fr;
-  gap: 2px;
+  grid-template-columns: 28px 1fr 1fr;
+  gap: 1px;
   align-items: center;
 }
 
 .gc-move-num {
-  font-size: 12px;
-  color: #666;
+  font-size: 11px;
+  color: #555;
   text-align: right;
-  padding-right: 6px;
+  padding-right: 4px;
   font-variant-numeric: tabular-nums;
 }
 
 .gc-move-cell {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   color: #ccc;
-  padding: 5px 8px;
-  border-radius: 4px;
+  padding: 3px 6px;
+  border-radius: 3px;
   cursor: default;
   transition: background 0.15s ease;
-  min-height: 28px;
+  min-height: 22px;
   display: flex;
   align-items: center;
 }
@@ -401,10 +416,10 @@
 
 /* --- Game info tab --- */
 .gc-info-content {
-  padding: 16px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .gc-info-row {
@@ -445,9 +460,9 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 12px;
-  border-radius: 10px;
-  width: 100%;
+  padding: 6px 10px;
+  border-radius: 8px;
+  width: min(100%, 70vh);    /* Match board width */
   transition: all 0.3s ease;
   border: 2px solid transparent;
 }
@@ -463,8 +478,8 @@
   border-color: transparent;
 }
 
-.apb-top { margin-bottom: 6px; }
-.apb-bottom { margin-top: 6px; }
+.apb-top { margin-bottom: 4px; }
+.apb-bottom { margin-top: 4px; }
 
 /* Avatar */
 .apb-avatar {
@@ -623,9 +638,9 @@
    ================================================================ */
 @media (max-width: 1200px) {
   .gc-layout {
-    grid-template-columns: 1fr 280px;
-    gap: 12px;
-    padding: 12px;
+    grid-template-columns: 1fr 240px;
+    gap: 8px;
+    padding: 8px;
   }
 
   .gc-left-panel {
@@ -639,38 +654,53 @@
 @media (max-width: 768px) {
   .gc-layout {
     grid-template-columns: 1fr;
-    gap: 8px;
-    padding: 8px;
-    min-height: auto;
+    gap: 4px;
+    padding: 4px;
+    height: auto;
+    min-height: 100vh;
+    align-items: start;
+    overflow: visible;
   }
 
   .gc-left-panel {
     display: none;
   }
 
-  .gc-right-panel {
-    position: static;
-    max-height: 300px;
+  .gc-center {
+    align-self: auto;
   }
 
   .gc-board-wrapper {
-    padding: 8px;
-    border-radius: 12px;
+    width: 100%;
+    max-width: calc(100vw - 8px);
+    padding: 4px;
+    border-radius: 8px;
+  }
+
+  .gc-toolbar {
+    width: 100%;
   }
 
   .gc-action-bar {
-    padding: 8px 0 0;
+    width: 100%;
+  }
+
+  .gc-right-panel {
+    align-self: auto;
+    max-height: 240px;
+    border-radius: 8px;
   }
 
   .gc-action-btn {
-    padding: 8px 12px;
-    font-size: 12px;
+    padding: 6px 10px;
+    font-size: 11px;
   }
 
   /* Compact player bars on mobile */
   .apb {
-    padding: 6px 8px;
-    gap: 8px;
+    width: 100%;              /* Override 70vh constraint on mobile */
+    padding: 4px 8px;
+    gap: 6px;
   }
 
   .apb-avatar {
@@ -678,20 +708,11 @@
     height: 28px;
   }
 
-  .apb-name {
-    font-size: 13px;
-  }
-
-  .apb-clock-digits {
-    font-size: 15px;
-  }
-
-  .apb-clock {
-    padding: 4px 8px;
-  }
-
-  .apb-top { margin-bottom: 4px; }
-  .apb-bottom { margin-top: 4px; }
+  .apb-name { font-size: 13px; }
+  .apb-clock-digits { font-size: 15px; }
+  .apb-clock { padding: 4px 8px; }
+  .apb-top { margin-bottom: 2px; }
+  .apb-bottom { margin-top: 2px; }
 }
 
 /* ================================================================
@@ -699,39 +720,35 @@
    ================================================================ */
 @media (max-width: 480px) {
   .gc-layout {
-    padding: 4px;
-    gap: 4px;
+    padding: 2px;
+    gap: 2px;
   }
 
   .gc-board-wrapper {
-    padding: 4px;
-    border-radius: 8px;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    padding: 2px;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   }
 
   .gc-right-panel {
-    max-height: 250px;
-    border-radius: 8px;
+    max-height: 200px;
+    border-radius: 6px;
   }
 
   .gc-action-btn {
-    padding: 7px 8px;
-    font-size: 11px;
+    padding: 6px 8px;
+    font-size: 10px;
     max-width: none;
   }
 
   .apb {
-    padding: 4px 6px;
-    gap: 6px;
-    border-radius: 8px;
+    padding: 3px 6px;
+    gap: 4px;
+    border-radius: 6px;
     border-width: 1px;
   }
 
-  .apb-avatar {
-    width: 24px;
-    height: 24px;
-  }
-
+  .apb-avatar { width: 24px; height: 24px; }
   .apb-name { font-size: 12px; }
   .apb-rating { font-size: 10px; padding: 0 4px; }
   .apb-capture-piece { font-size: 11px; }
@@ -745,11 +762,10 @@
    ================================================================ */
 @media (orientation: landscape) and (max-height: 500px) {
   .gc-layout {
-    grid-template-columns: 1fr 200px;
-    gap: 6px;
-    padding: 4px;
-    min-height: 100vh;
-    max-height: 100vh;
+    grid-template-columns: 1fr 180px;
+    gap: 4px;
+    padding: 2px 4px;
+    height: 100vh;
     overflow: hidden;
   }
 
@@ -758,38 +774,41 @@
   .gc-center {
     max-height: 100vh;
     overflow: hidden;
+    padding: 2px 0;
   }
 
   .gc-board-wrapper {
-    padding: 4px;
-    border-radius: 8px;
+    width: min(100%, 90vh);
+    padding: 2px;
+    border-radius: 6px;
   }
 
   .gc-right-panel {
-    position: static;
+    align-self: stretch;
     max-height: 100vh;
-    border-radius: 8px;
-    font-size: 12px;
+    border-radius: 6px;
+    font-size: 11px;
   }
 
-  .gc-toolbar { padding: 0 2px 4px; }
+  .gc-toolbar { padding: 0; width: min(100%, 90vh); }
 
   .apb {
-    padding: 3px 6px;
-    gap: 6px;
-    border-radius: 6px;
+    padding: 2px 4px;
+    gap: 4px;
+    border-radius: 4px;
     border-width: 1px;
   }
-  .apb-avatar { width: 22px; height: 22px; }
-  .apb-name { font-size: 11px; }
-  .apb-clock-digits { font-size: 13px; }
-  .apb-clock { padding: 2px 5px; }
-  .apb-top { margin-bottom: 3px; }
-  .apb-bottom { margin-top: 3px; }
+  .apb-avatar { width: 20px; height: 20px; }
+  .apb-name { font-size: 10px; }
+  .apb-clock-digits { font-size: 12px; }
+  .apb-clock { padding: 2px 4px; }
+  .apb-top { margin-bottom: 2px; }
+  .apb-bottom { margin-top: 2px; }
   .apb-captures { display: none; }
+  .apb-rating { display: none; }
 
-  .gc-action-bar { padding: 4px 0 0; gap: 4px; }
-  .gc-action-btn { padding: 4px 6px; font-size: 10px; }
+  .gc-action-bar { padding: 2px 0 0; gap: 4px; width: min(100%, 90vh); }
+  .gc-action-btn { padding: 3px 6px; font-size: 9px; }
 }
 
 

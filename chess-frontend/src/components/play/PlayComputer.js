@@ -2776,7 +2776,7 @@ const PlayComputer = () => {
   // Main layout — GameContainer handles its own 3-column grid
   return (
     <>
-      <div className="min-h-screen" style={{ background: '#121212' }}>
+      <div className="min-h-screen" style={{ background: '#121212', width: '100%', maxWidth: '100vw', overflowX: 'hidden' }}>
 
         {/* Pre-Game Setup Screen */}
         {!gameStarted && !isReplayMode && !isOnlineGame && !syntheticOpponent && (
