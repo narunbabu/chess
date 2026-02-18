@@ -304,8 +304,12 @@ class GameHistoryController extends Controller
                     // If not JSON or decode fails, keep as string (legacy format)
                 }
 
+                // Auto-detect multiplayer: if game_id exists and both players are real users
+                $isMultiplayer = ($game->game_mode === 'multiplayer')
+                    || ($game->game_id && $game->white_player_name && $game->black_player_name);
+
                 // Add opponent info based on game mode
-                if ($game->game_mode === 'multiplayer' && $game->game_id) {
+                if ($isMultiplayer && $game->game_id) {
                     // Multiplayer: show actual opponent with rating
                     if ($game->player_color === 'w') {
                         $game->opponent_name = $game->black_player_name;
@@ -318,7 +322,11 @@ class GameHistoryController extends Controller
                         $game->opponent_score = $game->white_player_score;
                         $game->opponent_rating = $game->white_player_rating ?? 1200;
                     }
-                } elseif ($game->game_mode === 'computer') {
+                    // Ensure game_mode is set for frontend detection
+                    if (!$game->game_mode || $game->game_mode !== 'multiplayer') {
+                        $game->game_mode = 'multiplayer';
+                    }
+                } elseif (!$game->game_mode || $game->game_mode === 'computer') {
                     // Computer: use stored synthetic opponent name/avatar, fallback to generic 'Computer'
                     $game->opponent_name = $game->opponent_name ?: 'Computer';
                     $game->opponent_avatar = $game->opponent_avatar_url ?: null;
@@ -438,8 +446,28 @@ class GameHistoryController extends Controller
             // If not JSON or decode fails, keep as string (legacy format)
         }
 
-        // Add player objects if this is a multiplayer game
-        if ($game->game_mode === 'multiplayer' && $game->game_id) {
+        // Auto-detect multiplayer: if game_id exists and both players are real users
+        $isMultiplayer = ($game->game_mode === 'multiplayer')
+            || ($game->game_id && $game->white_player_name && $game->black_player_name);
+
+        // Add opponent info based on game mode (same logic as index())
+        if ($isMultiplayer && $game->game_id) {
+            if ($game->player_color === 'w') {
+                $game->opponent_name = $game->black_player_name ?: $game->opponent_name;
+                $game->opponent_avatar_url = $game->black_player_avatar ?: $game->opponent_avatar_url;
+                $game->opponent_rating = $game->black_player_rating ?? $game->opponent_rating ?? 1200;
+                $game->opponent_score = $game->black_player_score ?? $game->opponent_score;
+            } else {
+                $game->opponent_name = $game->white_player_name ?: $game->opponent_name;
+                $game->opponent_avatar_url = $game->white_player_avatar ?: $game->opponent_avatar_url;
+                $game->opponent_rating = $game->white_player_rating ?? $game->opponent_rating ?? 1200;
+                $game->opponent_score = $game->white_player_score ?? $game->opponent_score;
+            }
+            // Ensure game_mode is set for frontend detection
+            if (!$game->game_mode || $game->game_mode !== 'multiplayer') {
+                $game->game_mode = 'multiplayer';
+            }
+
             $game->white_player = [
                 'id' => $game->white_player_id,
                 'name' => $game->white_player_name,
@@ -452,6 +480,9 @@ class GameHistoryController extends Controller
                 'avatar' => $game->black_player_avatar,
                 'rating' => $game->black_player_rating ?? 1200
             ];
+        } elseif (!$game->game_mode || $game->game_mode === 'computer') {
+            $game->opponent_name = $game->opponent_name ?: 'Computer';
+            $game->opponent_avatar_url = $game->opponent_avatar_url ?: null;
         }
 
         // Remove the extra fields we don't want to return

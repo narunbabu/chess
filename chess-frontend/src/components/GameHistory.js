@@ -283,7 +283,8 @@ const GameHistory = () => {
         await new Promise(resolve => {
             const playerColorFull = selectedGame.player_color === 'w' ? 'White' : 'Black';
             const opponentColorFull = selectedGame.player_color === 'w' ? 'Black' : 'White';
-            const gameResultText = isWin(selectedGame.result) ? `User Won on ${selectedGame.moves.length -1} move` : isLoss(selectedGame.result) ? `Computer Won on ${selectedGame.moves.length -1} move` : 'Draw';
+            const opponentLabel = selectedGame.opponent_name || (selectedGame.game_mode === 'multiplayer' ? 'Opponent' : 'Computer');
+            const gameResultText = isWin(selectedGame.result) ? `You Won in ${selectedGame.moves.length -1} moves` : isLoss(selectedGame.result) ? `${opponentLabel} Won in ${selectedGame.moves.length -1} moves` : 'Draw';
             const resultColor = isWin(selectedGame.result) ? '#4CAF50' : isLoss(selectedGame.result) ? '#f44336' : '#ff9800'; // Green for win, Red for loss, Orange for draw
 
             ReactDOM.render(
@@ -292,7 +293,7 @@ const GameHistory = () => {
                     <div className="current-move-display" style={{ border: '1px solid #ccc', padding: '10px', background: '#f9f9f9', borderRadius: '5px', boxSizing: 'border-box', fontFamily: 'sans-serif', fontSize: '14px' }}>
                         {/* Top Row: Player Info & Logo */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', paddingBottom: '5px', borderBottom: '1px solid #eee' }}>
-                            <span style={{ fontWeight: 'bold' }}>User ({playerColorFull}) Vs. Computer ({opponentColorFull})</span>
+                            <span style={{ fontWeight: 'bold' }}>You ({playerColorFull}) Vs. {opponentLabel} ({opponentColorFull})</span>
                             <img src={logo} alt="Logo" style={{ height: '30px' }} />
                         </div>
                         {/* Bottom Row: Move, Result, Score */}
@@ -550,7 +551,8 @@ const GameHistory = () => {
             await new Promise(resolve => {
                 const playerColorFull = selectedGame.player_color === 'w' ? 'White' : 'Black';
                 const opponentColorFull = selectedGame.player_color === 'w' ? 'Black' : 'White';
-                const gameResultText = isWin(selectedGame.result) ? `User Won on ${selectedGame.moves.length -1} move` : isLoss(selectedGame.result) ? `Computer Won on ${selectedGame.moves.length -1} move` : 'Draw';
+                const opponentLabel = selectedGame.opponent_name || (selectedGame.game_mode === 'multiplayer' ? 'Opponent' : 'Computer');
+                const gameResultText = isWin(selectedGame.result) ? `You Won in ${selectedGame.moves.length -1} moves` : isLoss(selectedGame.result) ? `${opponentLabel} Won in ${selectedGame.moves.length -1} moves` : 'Draw';
                 const resultColor = isWin(selectedGame.result) ? '#4CAF50' : isLoss(selectedGame.result) ? '#f44336' : '#ff9800'; // Green for win, Red for loss, Orange for draw
 
                 ReactDOM.render(
@@ -559,7 +561,7 @@ const GameHistory = () => {
                          <div className="current-move-display" style={{ border: '1px solid #ccc', padding: '10px', background: '#f9f9f9', borderRadius: '5px', boxSizing: 'border-box', fontFamily: 'sans-serif', fontSize: '14px' }}>
                             {/* Top Row: Player Info & Logo */}
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', paddingBottom: '5px', borderBottom: '1px solid #eee' }}>
-                                <span style={{ fontWeight: 'bold' }}>User ({playerColorFull}) Vs. Computer ({opponentColorFull})</span>
+                                <span style={{ fontWeight: 'bold' }}>You ({playerColorFull}) Vs. {opponentLabel} ({opponentColorFull})</span>
                                 <img src={logo} alt="Logo" style={{ height: '30px' }} />
                             </div>
                             {/* Bottom Row: Move, Result, Score */}
@@ -828,7 +830,10 @@ const GameHistory = () => {
                       <div className="text-xs lg:text-sm text-[#8b8987]">
                         <div className="flex flex-wrap gap-1 lg:gap-2">
                           <span>{summary.playerColor}</span>
-                          <span>Lvl: {summary.computerLevel}</span>
+                          {game.game_mode === 'multiplayer'
+                            ? <span>vs {game.opponent_name || 'Opponent'}</span>
+                            : <span>Lvl: {summary.computerLevel}</span>
+                          }
                           <span>Moves: {summary.moveCount}</span>
                           <span>Score: {summary.finalScore}</span>
                         </div>
@@ -878,7 +883,10 @@ const GameHistory = () => {
                   <div className="grid grid-cols-1 gap-2 text-sm lg:text-base">
                     <p><strong>Date:</strong> {new Date(selectedGame.played_at).toLocaleString()}</p>
                     <p><strong>Player Color:</strong> {selectedGame.player_color === "w" ? "White" : "Black"}</p>
-                    <p><strong>Computer Level:</strong> {selectedGame.computer_level}</p>
+                    {selectedGame.game_mode === 'multiplayer'
+                      ? <p><strong>Opponent:</strong> {selectedGame.opponent_name || 'Unknown'}</p>
+                      : <p><strong>Computer Level:</strong> {selectedGame.computer_level}</p>
+                    }
                     <p><strong>Result:</strong> {getResultDisplayText(selectedGame.result)}</p>
                     <p><strong>Final Score:</strong> {typeof selectedGame.finalScore === 'number' ? selectedGame.finalScore.toFixed(1) : 'N/A'}</p>
                   </div>

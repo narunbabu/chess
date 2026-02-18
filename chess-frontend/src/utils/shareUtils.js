@@ -114,6 +114,18 @@ export const shareGameWithFriends = async ({
             console.warn(`⚠️ Cloned image ${idx + 1} is NOT using data URL: ${img.src.substring(0, 50)}`);
           }
         });
+
+        // Fix gradient-as-text elements: html2canvas doesn't support background-clip:text
+        // Without this fix, the gradient background renders as a yellow patch behind the text
+        const brandTexts = clonedDoc.querySelectorAll('.chess99-brand-text');
+        brandTexts.forEach(el => {
+          el.style.background = 'none';
+          el.style.webkitBackgroundClip = 'initial';
+          el.style.webkitTextFillColor = '#FFD700';
+          el.style.backgroundClip = 'initial';
+          el.style.color = '#FFD700';
+          el.style.filter = 'none';
+        });
       }
     });
     console.log('✅ Canvas created:', canvas.width, 'x', canvas.height);
@@ -317,7 +329,19 @@ export const shareGameNative = async ({
       logging: true,
       foreignObjectRendering: false,
       removeContainer: true,
-      imageTimeout: 15000
+      imageTimeout: 15000,
+      onclone: (clonedDoc) => {
+        // Fix gradient-as-text elements: html2canvas doesn't support background-clip:text
+        const brandTexts = clonedDoc.querySelectorAll('.chess99-brand-text');
+        brandTexts.forEach(el => {
+          el.style.background = 'none';
+          el.style.webkitBackgroundClip = 'initial';
+          el.style.webkitTextFillColor = '#FFD700';
+          el.style.backgroundClip = 'initial';
+          el.style.color = '#FFD700';
+          el.style.filter = 'none';
+        });
+      }
     });
 
     // Remove share-mode class after capture
