@@ -48,6 +48,8 @@ const MIN_DEPTH = 1;
 const MAX_DEPTH = 16; // Used for DifficultyMeter max
 const DEFAULT_DEPTH = 2;
 const DEFAULT_RATING = 1200;
+const ACTIVE_GAME_KEY = 'chess99_active_computer_game';
+const ACTIVE_GAME_MAX_AGE_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 // --- Utility Functions ---
 /**
@@ -65,6 +67,53 @@ const calculateUndoChances = (depth, isRated) => {
   if (depth <= 8) return 3; // Medium
   if (depth <= 12) return 2; // Hard
   return 1; // Expert
+};
+
+/**
+ * Save active game state to localStorage for refresh persistence.
+ * Called after moves, game start, and on beforeunload.
+ */
+const saveActiveGameState = (state) => {
+  try {
+    localStorage.setItem(ACTIVE_GAME_KEY, JSON.stringify({
+      ...state,
+      lastUpdated: Date.now()
+    }));
+  } catch (e) {
+    console.error('[PlayComputer] Failed to save active game state:', e);
+  }
+};
+
+/**
+ * Clear active game state from localStorage.
+ * Called on game end, reset, or resign.
+ */
+const clearActiveGameState = () => {
+  try {
+    localStorage.removeItem(ACTIVE_GAME_KEY);
+  } catch (e) {
+    // Ignore
+  }
+};
+
+/**
+ * Load active game state from localStorage if it exists and is fresh.
+ * Returns null if no valid saved state.
+ */
+const loadActiveGameState = () => {
+  try {
+    const raw = localStorage.getItem(ACTIVE_GAME_KEY);
+    if (!raw) return null;
+    const state = JSON.parse(raw);
+    if (!state.lastUpdated || (Date.now() - state.lastUpdated) > ACTIVE_GAME_MAX_AGE_MS) {
+      localStorage.removeItem(ACTIVE_GAME_KEY);
+      return null;
+    }
+    return state;
+  } catch (e) {
+    localStorage.removeItem(ACTIVE_GAME_KEY);
+    return null;
+  }
 };
 
 const PlayComputer = () => {
@@ -128,6 +177,7 @@ const PlayComputer = () => {
   const [syntheticOpponent, setSyntheticOpponent] = useState(
     location.state?.gameMode === 'synthetic' ? location.state.syntheticPlayer : null
   ); // Synthetic bot identity from lobby matchmaking
+  const [restoredFromRefresh, setRestoredFromRefresh] = useState(false); // Show "Game restored" toast
 
   // Board customization state
   const [boardTheme, setBoardTheme] = useState(() => getBoardTheme(user));
@@ -143,6 +193,95 @@ const PlayComputer = () => {
     setActiveTimer, setIsTimerRunning, setPlayerTime, setComputerTime,
     handleTimer: startTimerInterval, pauseTimer, switchTimer, resetTimer
   } = useGameTimer(playerColor, game, setGameStatus); // Pass callbacks
+
+  // --- Restore active game from localStorage on mount (refresh persistence) ---
+  useEffect(() => {
+    // Skip if already started (e.g. from location.state synthetic or resume)
+    if (gameStarted || location.state?.gameMode === 'synthetic' || location.state?.gameState?.isResume) {
+      return;
+    }
+
+    const saved = loadActiveGameState();
+    if (!saved || !saved.fen || !saved.gameStarted) {
+      return;
+    }
+
+    console.log('[PlayComputer] Restoring active game from localStorage:', saved);
+
+    try {
+      const restoredGame = new Chess(saved.fen);
+      setGame(restoredGame);
+
+      // Restore player color and orientation
+      const color = saved.playerColor || 'w';
+      setPlayerColor(color);
+      setBoardOrientation(color === 'w' ? 'white' : 'black');
+
+      // Restore difficulty
+      if (saved.computerDepth) setComputerDepth(saved.computerDepth);
+
+      // Restore rated mode
+      if (saved.ratedMode) setRatedMode(saved.ratedMode);
+
+      // Restore move history
+      if (saved.moves && Array.isArray(saved.moves)) {
+        setGameHistory(saved.moves);
+        setMoveCount(saved.moves.length);
+      }
+
+      // Restore scores
+      if (saved.playerScore != null) setPlayerScore(saved.playerScore);
+      if (saved.computerScore != null) setComputerScore(saved.computerScore);
+
+      // Restore timers from saved remaining times
+      if (saved.playerTime != null) setPlayerTime(saved.playerTime);
+      if (saved.computerTime != null) setComputerTime(saved.computerTime);
+
+      // Restore synthetic opponent identity
+      if (saved.syntheticOpponent) {
+        setSyntheticOpponent(saved.syntheticOpponent);
+      }
+
+      // Restore undo state
+      if (saved.undoChancesRemaining != null) setUndoChancesRemaining(saved.undoChancesRemaining);
+
+      // Restore game IDs
+      if (saved.currentGameId) setCurrentGameId(saved.currentGameId);
+      if (saved.backendGameId) {
+        setSearchParams({ gameId: saved.backendGameId.toString() }, { replace: true });
+      }
+
+      // Start the game
+      setGameStarted(true);
+      setGameStatus('Game restored!');
+      setRestoredFromRefresh(true);
+
+      // Start timer for the correct side
+      const currentTurn = restoredGame.turn();
+      const computerColor = color === 'w' ? 'b' : 'w';
+
+      if (currentTurn === color) {
+        setActiveTimer(color);
+        setIsTimerRunning(true);
+        startTimerInterval();
+        moveStartTimeRef.current = Date.now();
+      } else {
+        setActiveTimer(computerColor);
+        setIsTimerRunning(true);
+        startTimerInterval();
+        // Trigger computer move after a short delay
+        setTimeout(() => {
+          setComputerMoveInProgress(true);
+        }, 500);
+      }
+
+      // Auto-dismiss the "Game restored" toast after 3 seconds
+      setTimeout(() => setRestoredFromRefresh(false), 3000);
+    } catch (error) {
+      console.error('[PlayComputer] Error restoring active game:', error);
+      clearActiveGameState();
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- Enhanced pause handler with game saving ---
   const handlePauseWithSave = useCallback(async () => {
@@ -237,6 +376,7 @@ const PlayComputer = () => {
         const positiveScore = Math.abs(capturedPlayerScore);
 
         // Stops timers, sets game over state, saves game locally and potentially online
+        clearActiveGameState(); // Clear refresh persistence — game is over
         if (timerRef.current) clearInterval(timerRef.current);
         setIsTimerRunning(false);
         setActiveTimer(null);
@@ -520,6 +660,24 @@ const PlayComputer = () => {
           const result = saveUnfinishedGame(gameState, !!user, saveGameId, null);
           console.log('[PlayComputer] 📂 Auto-saving on navigation:', result);
 
+          // Also save to active game key for instant refresh restoration
+          saveActiveGameState({
+            fen: game.fen(),
+            gameStarted: true,
+            playerColor,
+            computerDepth,
+            ratedMode,
+            moves: gameHistory,
+            playerScore,
+            computerScore,
+            playerTime,
+            computerTime,
+            syntheticOpponent: syntheticOpponent || null,
+            undoChancesRemaining,
+            currentGameId: currentGameId || null,
+            backendGameId: backendGame?.id || null,
+          });
+
           // Show user a brief message (though might not be visible due to page unload)
           event.returnValue = 'Your game will be saved and can be resumed later.';
           return event.returnValue;
@@ -561,6 +719,24 @@ const PlayComputer = () => {
           const result = await saveUnfinishedGame(gameState, !!user, saveGameId, null);
             console.log('[PlayComputer] 👁 Auto-saving on visibility change:', result);
 
+          // Also save to active game key for instant refresh restoration
+          saveActiveGameState({
+            fen: game.fen(),
+            gameStarted: true,
+            playerColor,
+            computerDepth,
+            ratedMode,
+            moves: gameHistory,
+            playerScore,
+            computerScore,
+            playerTime,
+            computerTime,
+            syntheticOpponent: syntheticOpponent || null,
+            undoChancesRemaining,
+            currentGameId: currentGameId || null,
+            backendGameId: backendGame?.id || null,
+          });
+
           // Invalidate cache to refresh unfinished games
           if (invalidateGameHistory) {
             invalidateGameHistory();
@@ -579,7 +755,7 @@ const PlayComputer = () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [gameStarted, gameOver, gameHistory, playerColor, computerDepth, playerTime, computerTime, game, saveUnfinishedGame, user, invalidateGameHistory, currentGameId, ratedMode, backendGame]); // Dependencies for auto-save
+  }, [gameStarted, gameOver, gameHistory, playerColor, computerDepth, playerTime, computerTime, game, saveUnfinishedGame, user, invalidateGameHistory, currentGameId, ratedMode, backendGame, playerScore, computerScore, syntheticOpponent, undoChancesRemaining]); // Dependencies for auto-save
 
   // Effect for in-app navigation protection (rated games only)
   useEffect(() => {
@@ -695,6 +871,28 @@ const PlayComputer = () => {
 
       // Skip countdown — go straight into the game
       onCountdownFinish();
+
+      // Save active game state with synthetic opponent identity for refresh persistence
+      // Use setTimeout to ensure state updates from above have been queued
+      setTimeout(() => {
+        const color = location.state.preferredColor === 'black' ? 'b' : 'w';
+        saveActiveGameState({
+          fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+          gameStarted: true,
+          playerColor: color,
+          computerDepth: bot.computer_level || computerDepth,
+          ratedMode: 'casual',
+          moves: [],
+          playerScore: 0,
+          computerScore: 0,
+          playerTime: 600,
+          computerTime: 600,
+          syntheticOpponent: bot,
+          undoChancesRemaining: calculateUndoChances(bot.computer_level || computerDepth, false),
+          currentGameId: location.state.backendGameId || null,
+          backendGameId: location.state.backendGameId || null,
+        });
+      }, 100);
     }
   }, [location.state]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1329,6 +1527,24 @@ const PlayComputer = () => {
         // Execute auto-save asynchronously (don't block game flow)
         autoSaveAfterMove();
 
+        // Save to active game localStorage for refresh persistence (synchronous, instant)
+        saveActiveGameState({
+          fen: gameCopy.fen(),
+          gameStarted: true,
+          playerColor,
+          computerDepth,
+          ratedMode,
+          moves: updatedHistory,
+          playerScore: playerScore + (evaluationResult?.total || 0),
+          computerScore,
+          playerTime,
+          computerTime,
+          syntheticOpponent: syntheticOpponent || null,
+          undoChancesRemaining,
+          currentGameId: currentGameId || null,
+          backendGameId: backendGame?.id || null,
+        });
+
         // Check game status after the move
         const status = typeof updateGameStatus === 'function'
             ? updateGameStatus(gameCopy, setGameStatus)
@@ -1448,6 +1664,23 @@ const PlayComputer = () => {
         // - game.turn() will be 'w' (computer's color when player is black)
         // - activeTimer will be 'w'
 
+        // Save initial game state to localStorage for refresh persistence
+        saveActiveGameState({
+          fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+          gameStarted: true,
+          playerColor,
+          computerDepth,
+          ratedMode,
+          moves: [],
+          playerScore: 0,
+          computerScore: 0,
+          playerTime: 600,
+          computerTime: 600,
+          syntheticOpponent: syntheticOpponent || null,
+          undoChancesRemaining: initialUndoChances,
+          currentGameId: currentGameId || null,
+        });
+
     }, [ // Dependencies for onCountdownFinish
         playerColor, computerDepth, user, ratedMode, // Read
         setActiveTimer, startTimerInterval, resetTimer, // Stable from hook
@@ -1459,6 +1692,7 @@ const PlayComputer = () => {
     const resetGame = useCallback(() => {
         // Resets the entire game state back to the pre-game setup screen
         console.log("Resetting game...");
+        clearActiveGameState(); // Clear refresh persistence
         if (timerRef.current) clearInterval(timerRef.current);
         if (replayTimerRef.current) clearInterval(replayTimerRef.current);
         setGame(new Chess());
@@ -1503,6 +1737,7 @@ const PlayComputer = () => {
         }
 
         // Stop timers
+        clearActiveGameState(); // Clear refresh persistence — player resigned
         if (timerRef.current) clearInterval(timerRef.current);
         setIsTimerRunning(false);
         setActiveTimer(null);
@@ -2511,19 +2746,30 @@ const PlayComputer = () => {
     </>
   );
 
+  // Toast element for restored game notification
+  const restoredToast = restoredFromRefresh ? (
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-[#81b64c] text-white px-4 py-2 rounded-lg shadow-lg text-sm font-medium animate-fade-in flex items-center gap-2">
+      <span>Game restored</span>
+      <button onClick={() => setRestoredFromRefresh(false)} className="ml-1 opacity-70 hover:opacity-100">&times;</button>
+    </div>
+  ) : null;
+
   // Render with PlayShell wrapper if feature flag is enabled
   if (usePlayShell) {
     return (
-      <PlayShell
-        header={null}          // use the global site header only
-        preGameSetup={preGameSetupSection}
-        boardArea={gameContainerSection}
-        sidebar={null}
-        timerScore={null}
-        modals={modalsSection}
-        showBoard={!isOnlineGame && (gameStarted || isReplayMode)}
-        mode="computer"
-      />
+      <>
+        {restoredToast}
+        <PlayShell
+          header={null}          // use the global site header only
+          preGameSetup={preGameSetupSection}
+          boardArea={gameContainerSection}
+          sidebar={null}
+          timerScore={null}
+          modals={modalsSection}
+          showBoard={!isOnlineGame && (gameStarted || isReplayMode)}
+          mode="computer"
+        />
+      </>
     );
   }
 
@@ -2597,6 +2843,9 @@ const PlayComputer = () => {
             )}
           </div>
         )}
+
+        {/* Game Restored Toast */}
+        {restoredToast}
 
         {/* Main Game/Replay Screen Layout */}
         {(gameStarted || isReplayMode) && gameContainerSection}
