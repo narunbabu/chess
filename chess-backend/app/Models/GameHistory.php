@@ -17,6 +17,8 @@ class GameHistory extends Model
         'result',
         'game_id',
         'opponent_name',
+        'opponent_avatar_url',
+        'opponent_rating',
         'game_mode',
     ];
 

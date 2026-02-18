@@ -66,16 +66,18 @@ class GameHistoryController extends Controller
         Log::info($request);
 
         $validated = $request->validate([
-            'played_at'      => 'required|date_format:Y-m-d H:i:s',
-            'player_color'   => 'required|in:w,b',
-            'computer_level' => 'nullable|integer',
-            'moves'          => 'nullable|string',
-            'final_score'    => 'required|numeric',
-            'opponent_score' => 'nullable|numeric',
-            'result'         => 'required', // Accept both string and array/object
-            'game_id'        => 'nullable|integer|exists:games,id',
-            'opponent_name'  => 'nullable|string|max:255',
-            'game_mode'      => 'nullable|in:computer,multiplayer',
+            'played_at'           => 'required|date_format:Y-m-d H:i:s',
+            'player_color'        => 'required|in:w,b',
+            'computer_level'      => 'nullable|integer',
+            'moves'               => 'nullable|string',
+            'final_score'         => 'required|numeric',
+            'opponent_score'      => 'nullable|numeric',
+            'result'              => 'required', // Accept both string and array/object
+            'game_id'             => 'nullable|integer|exists:games,id',
+            'opponent_name'       => 'nullable|string|max:255',
+            'opponent_avatar_url' => 'nullable|string|max:500',
+            'opponent_rating'     => 'nullable|integer',
+            'game_mode'           => 'nullable|in:computer,multiplayer',
         ]);
 
         Log::info('Validated game data for user:', $validated);
@@ -127,6 +129,8 @@ class GameHistoryController extends Controller
             $game->result = $resultValue;
             $game->game_id = $validated['game_id'] ?? null;
             $game->opponent_name = $validated['opponent_name'] ?? null;
+            $game->opponent_avatar_url = $validated['opponent_avatar_url'] ?? null;
+            $game->opponent_rating = $validated['opponent_rating'] ?? null;
             $game->game_mode = $validated['game_mode'] ?? 'computer';
             $game->save();
 
@@ -150,16 +154,18 @@ class GameHistoryController extends Controller
 
         try {
             $validated = $request->validate([
-                'played_at'      => 'nullable|date_format:Y-m-d H:i:s',
-                'player_color'   => 'required|in:w,b',
-                'computer_level' => 'nullable|integer',
-                'moves'          => 'nullable|string',
-                'final_score'    => 'required|numeric',
-                'opponent_score' => 'nullable|numeric',
-                'result'         => 'required', // Accept both string and array/object
-                'game_id'        => 'nullable|integer|exists:games,id',
-                'opponent_name'  => 'nullable|string|max:255',
-                'game_mode'      => 'nullable|in:computer,multiplayer',
+                'played_at'           => 'nullable|date_format:Y-m-d H:i:s',
+                'player_color'        => 'required|in:w,b',
+                'computer_level'      => 'nullable|integer',
+                'moves'               => 'nullable|string',
+                'final_score'         => 'required|numeric',
+                'opponent_score'      => 'nullable|numeric',
+                'result'              => 'required', // Accept both string and array/object
+                'game_id'             => 'nullable|integer|exists:games,id',
+                'opponent_name'       => 'nullable|string|max:255',
+                'opponent_avatar_url' => 'nullable|string|max:500',
+                'opponent_rating'     => 'nullable|integer',
+                'game_mode'           => 'nullable|in:computer,multiplayer',
             ]);
 
             Log::info('Validated public game data:', $validated);
@@ -208,6 +214,8 @@ class GameHistoryController extends Controller
             $game->result = $resultValue;
             $game->game_id = $validated['game_id'] ?? null;
             $game->opponent_name = $validated['opponent_name'] ?? null;
+            $game->opponent_avatar_url = $validated['opponent_avatar_url'] ?? null;
+            $game->opponent_rating = $validated['opponent_rating'] ?? null;
             $game->game_mode = $validated['game_mode'] ?? 'computer';
             $game->save();
 
@@ -256,6 +264,9 @@ class GameHistoryController extends Controller
                 'game_histories.game_id',
                 'game_histories.game_mode',
                 'game_histories.moves',
+                'game_histories.opponent_name',
+                'game_histories.opponent_avatar_url',
+                'game_histories.opponent_rating',
                 'games.white_player_id',
                 'games.black_player_id',
                 'games.white_player_score',
@@ -308,10 +319,10 @@ class GameHistoryController extends Controller
                         $game->opponent_rating = $game->white_player_rating ?? 1200;
                     }
                 } elseif ($game->game_mode === 'computer') {
-                    // Computer: show level and use stored opponent_score
-                    $game->opponent_name = 'Computer';
-                    $game->opponent_avatar = null;
-                    $game->opponent_rating = null;
+                    // Computer: use stored synthetic opponent name/avatar, fallback to generic 'Computer'
+                    $game->opponent_name = $game->opponent_name ?: 'Computer';
+                    $game->opponent_avatar = $game->opponent_avatar_url ?: null;
+                    // opponent_rating already set from DB column (null for legacy games)
 
                     // Use the opponent_score from database (calculated on frontend during game)
                     // Fallback to 0 if not set (for legacy games)

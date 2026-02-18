@@ -243,8 +243,8 @@ const GameReview = () => {
     if (playerColor === 'w') {
       // Player is white → opponent (black) on top, player (white) on bottom
       topName = gameHistory.opponent_name || (isMultiplayer ? blackPlayer?.name : 'Computer');
-      topRating = isMultiplayer ? blackPlayer?.rating : (gameHistory.computer_level ? `Level ${gameHistory.computer_level}` : null);
-      topAvatar = isMultiplayer ? blackPlayer?.avatar_url : null;
+      topRating = isMultiplayer ? blackPlayer?.rating : (gameHistory.opponent_rating || (gameHistory.computer_level ? `Level ${gameHistory.computer_level}` : null));
+      topAvatar = isMultiplayer ? blackPlayer?.avatar_url : (gameHistory.opponent_avatar || gameHistory.opponent_avatar_url || null);
       topTime = gameHistory.black_time_remaining_ms;
       topScore = gameHistory.opponent_score;
       topIsWhite = false;
@@ -258,8 +258,8 @@ const GameReview = () => {
     } else {
       // Player is black → opponent (white) on top, player (black) on bottom
       topName = gameHistory.opponent_name || (isMultiplayer ? whitePlayer?.name : 'Computer');
-      topRating = isMultiplayer ? whitePlayer?.rating : (gameHistory.computer_level ? `Level ${gameHistory.computer_level}` : null);
-      topAvatar = isMultiplayer ? whitePlayer?.avatar_url : null;
+      topRating = isMultiplayer ? whitePlayer?.rating : (gameHistory.opponent_rating || (gameHistory.computer_level ? `Level ${gameHistory.computer_level}` : null));
+      topAvatar = isMultiplayer ? whitePlayer?.avatar_url : (gameHistory.opponent_avatar || gameHistory.opponent_avatar_url || null);
       topTime = gameHistory.white_time_remaining_ms;
       topScore = gameHistory.opponent_score;
       topIsWhite = true;

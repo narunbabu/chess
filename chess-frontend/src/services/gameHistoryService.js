@@ -58,9 +58,11 @@ export const saveGameHistory = async (gameData) => {
     final_score: gameData.final_score ?? gameData.finalScore ?? gameData.score ?? 0,
     opponent_score: gameData.opponent_score ?? gameData.opponentScore ?? 0,
     result: gameData.result,
-    // Multiplayer game fields
+    // Opponent identity fields (synthetic AI or multiplayer)
     game_id: gameData.game_id || null,
     opponent_name: gameData.opponent_name || null,
+    opponent_avatar_url: gameData.opponent_avatar_url || null,
+    opponent_rating: gameData.opponent_rating || null,
     game_mode: gameData.game_mode || 'computer'
   };
 

@@ -453,6 +453,10 @@ const PlayComputer = () => {
             final_score: positiveScore,
             opponent_score: Math.abs(capturedComputerScore), // Save computer score as positive
             result: standardizedResult, // Use standardized result object
+            // Synthetic opponent identity — persisted so game review shows correct name/avatar
+            opponent_name: syntheticOpponent?.name || null,
+            opponent_avatar_url: syntheticOpponent?.avatar_url || null,
+            opponent_rating: syntheticOpponent?.rating || null,
         };
 
         // Save completed game to the correct storage location
