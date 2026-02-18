@@ -7,6 +7,8 @@ const SubscriptionContext = createContext(null);
 export const SubscriptionProvider = ({ children }) => {
   const { isAuthenticated, user } = useAuth();
   const [plans, setPlans] = useState({});
+  const [plansLoading, setPlansLoading] = useState(true);
+  const [plansError, setPlansError] = useState(null);
   const [currentSubscription, setCurrentSubscription] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -14,10 +16,15 @@ export const SubscriptionProvider = ({ children }) => {
   // Fetch available plans (public endpoint)
   const fetchPlans = useCallback(async () => {
     try {
+      setPlansLoading(true);
+      setPlansError(null);
       const response = await api.get('/subscriptions/plans');
       setPlans(response.data.plans || {});
     } catch (err) {
       console.error('[Subscription] Failed to fetch plans:', err);
+      setPlansError('Unable to load subscription plans. Please try again.');
+    } finally {
+      setPlansLoading(false);
     }
   }, []);
 
@@ -108,6 +115,8 @@ export const SubscriptionProvider = ({ children }) => {
 
   const value = useMemo(() => ({
     plans,
+    plansLoading,
+    plansError,
     currentSubscription,
     currentTier,
     isPremium,
@@ -118,7 +127,7 @@ export const SubscriptionProvider = ({ children }) => {
     cancelSubscription,
     fetchPlans,
     fetchCurrentSubscription,
-  }), [plans, currentSubscription, currentTier, isPremium, isPro, loading, error, checkout, cancelSubscription, fetchPlans, fetchCurrentSubscription]);
+  }), [plans, plansLoading, plansError, currentSubscription, currentTier, isPremium, isPro, loading, error, checkout, cancelSubscription, fetchPlans, fetchCurrentSubscription]);
 
   return (
     <SubscriptionContext.Provider value={value}>

@@ -9,7 +9,7 @@ import '../styles/Subscription.css';
 const PricingPage = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
-  const { plans, currentTier, loading, fetchCurrentSubscription } = useSubscription();
+  const { plans, plansLoading, plansError, currentTier, loading, fetchPlans, fetchCurrentSubscription } = useSubscription();
   const [interval, setInterval] = useState('monthly');
   const [checkoutPlanId, setCheckoutPlanId] = useState(null);
 
@@ -67,19 +67,40 @@ const PricingPage = () => {
         </button>
       </div>
 
-      {/* Plan Cards */}
+      {/* Plan Cards — with loading, error, and empty states */}
       <div className="pricing-page__cards">
-        {tierData.map((data) => (
-          <PricingCard
-            key={data.tier}
-            plan={data}
-            interval={data.tier === 'free' ? 'lifetime' : interval}
-            isCurrentPlan={currentTier === data.tier}
-            isPopular={data.tier === 'premium'}
-            onSubscribe={handleSubscribe}
-            loading={loading}
-          />
-        ))}
+        {plansLoading ? (
+          <div className="pricing-page__status">
+            <div className="pricing-page__spinner" />
+            <p>Loading plans...</p>
+          </div>
+        ) : plansError ? (
+          <div className="pricing-page__status">
+            <p>{plansError}</p>
+            <button className="pricing-page__retry-btn" onClick={fetchPlans}>
+              Retry
+            </button>
+          </div>
+        ) : tierData.length === 0 ? (
+          <div className="pricing-page__status">
+            <p>No plans available at the moment. Please check back later.</p>
+            <button className="pricing-page__retry-btn" onClick={fetchPlans}>
+              Refresh
+            </button>
+          </div>
+        ) : (
+          tierData.map((data) => (
+            <PricingCard
+              key={data.tier}
+              plan={data}
+              interval={data.tier === 'free' ? 'lifetime' : interval}
+              isCurrentPlan={currentTier === data.tier}
+              isPopular={data.tier === 'premium'}
+              onSubscribe={handleSubscribe}
+              loading={loading}
+            />
+          ))
+        )}
       </div>
 
       {/* Feature Comparison */}

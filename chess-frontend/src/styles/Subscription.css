@@ -88,6 +88,49 @@
   }
 }
 
+/* ── Plan Cards Status (loading / error / empty) ── */
+.pricing-page__status {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 3rem 1rem;
+  text-align: center;
+}
+
+.pricing-page__status p {
+  color: var(--text-muted);
+  font-size: 1rem;
+  margin: 0;
+}
+
+.pricing-page__spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--surface-elevated);
+  border-top-color: var(--green-cta);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.pricing-page__retry-btn {
+  padding: 0.5rem 1.5rem;
+  border: 1px solid var(--green-cta);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--green-cta);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pricing-page__retry-btn:hover {
+  background: var(--green-cta);
+  color: #fff;
+}
+
 /* ── Pricing Card ── */
 .pricing-card {
   position: relative;

@@ -19,10 +19,21 @@ const RazorpayCheckout = ({ planId, onSuccess, onClose }) => {
         return;
       }
 
-      // Real mode: load Razorpay SDK and open checkout
-      if (!data.mock_mode && data.checkout?.subscription_id) {
-        loadRazorpaySDK(data);
+      // Mock mode but not auto-completed: treat as success (test environment)
+      if (data.mock_mode) {
+        setStep('success');
+        return;
       }
+
+      // Real mode: load Razorpay SDK and open checkout
+      if (data.checkout?.subscription_id) {
+        loadRazorpaySDK(data);
+        return;
+      }
+
+      // Fallback: no valid checkout data received
+      setError('Unable to initialize payment. Please try again.');
+      setStep('error');
     } catch (err) {
       setError(err.response?.data?.message || 'Payment failed. Please try again.');
       setStep('error');
