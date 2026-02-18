@@ -1765,9 +1765,12 @@
        font-size: 13px;
      }
 
-     /* Make content fill remaining viewport */
-     .content-wrapper,
-     .main-content {
+     /* Constrain viewport height only when a chess game is active.
+        Non-game pages (pricing, dashboard, history) must scroll freely. */
+     .content-wrapper:has(.gc-layout),
+     .content-wrapper:has(.game-container),
+     .main-content:has(.gc-layout),
+     .main-content:has(.game-container) {
        height: calc(100vh - 50px); /* Account for compact header */
        padding: 0;
        overflow: hidden;
@@ -1845,18 +1848,22 @@
        font-size: 12px;
      }
 
-     /* Make content fill remaining viewport */
-     .content-wrapper,
-     .main-content {
+     /* Constrain viewport height only when a chess game is active */
+     .content-wrapper:has(.gc-layout),
+     .content-wrapper:has(.game-container),
+     .main-content:has(.gc-layout),
+     .main-content:has(.game-container) {
        height: calc(100vh - 40px); /* Account for compact header */
        padding: 0;
        overflow: hidden;
        transition: height 0.3s ease;
      }
 
-     /* When header is hidden, expand content */
-     body.header-hidden .content-wrapper,
-     body.header-hidden .main-content {
+     /* When header is hidden, expand content (game pages only) */
+     body.header-hidden .content-wrapper:has(.gc-layout),
+     body.header-hidden .content-wrapper:has(.game-container),
+     body.header-hidden .main-content:has(.gc-layout),
+     body.header-hidden .main-content:has(.game-container) {
        height: 100vh;
        margin-top: 0;
      }
