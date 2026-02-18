@@ -7,6 +7,7 @@ import TimerDisplay from './TimerDisplay';
 import GameControls from './GameControls';
 import TimerButton from './TimerButton';
 import SoundToggle from './SoundToggle';
+import BoardCustomizer from './BoardCustomizer';
 import PerformanceDisplay from '../game/PerformanceDisplay';
 
 /**
@@ -33,7 +34,11 @@ const GameContainer = ({
   timerData = {},
   gameData = {},
   sidebarData = {},
-  controlsData = null
+  controlsData = null,
+  boardTheme,
+  pieceStyle,
+  onBoardThemeChange,
+  onPieceStyleChange
 }) => {
   // Extract timer data
   const {
@@ -244,8 +249,16 @@ const GameContainer = ({
       {/* Main Content Area */}
       <div className={mode === 'computer' ? 'main-content-area' : 'board-section'}>
         <div className="board-container">
-          {/* Sound toggle above board */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '4px' }}>
+          {/* Toolbar above board */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '4px', gap: '6px' }}>
+            {boardTheme !== undefined && onBoardThemeChange && (
+              <BoardCustomizer
+                boardTheme={boardTheme}
+                pieceStyle={pieceStyle}
+                onThemeChange={onBoardThemeChange}
+                onPieceStyleChange={onPieceStyleChange}
+              />
+            )}
             <SoundToggle />
           </div>
 

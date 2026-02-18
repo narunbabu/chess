@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use App\Models\RatingHistory;
+use App\Models\Game;
+use App\Models\SyntheticPlayer;
 
 class RatingController extends Controller
 {
@@ -138,6 +140,31 @@ class RatingController extends Controller
         }
 
         $user->save();
+
+        // Update synthetic player ELO if this game was against one
+        if ($request->input('game_id')) {
+            $game = Game::find($request->input('game_id'));
+            if ($game && $game->synthetic_player_id) {
+                $syntheticPlayer = SyntheticPlayer::find($game->synthetic_player_id);
+                if ($syntheticPlayer) {
+                    $botOldRating = $syntheticPlayer->rating;
+                    // Bot result is opposite of player result
+                    $botActualScore = match($result) {
+                        'win' => 0.0,
+                        'draw' => 0.5,
+                        'loss' => 1.0,
+                    };
+                    $botExpected = 1 / (1 + pow(10, ($oldRating - $botOldRating) / 400));
+                    $botK = 16; // Conservative K-factor for bots
+                    $botRatingChange = round($botK * ($botActualScore - $botExpected));
+                    $syntheticPlayer->rating = max(400, min(3200, $botOldRating + $botRatingChange));
+                    if ($result === 'loss') {
+                        $syntheticPlayer->wins_count = ($syntheticPlayer->wins_count ?? 0) + 1;
+                    }
+                    $syntheticPlayer->save();
+                }
+            }
+        }
 
         // Create rating history record
         $historyRecord = RatingHistory::create([

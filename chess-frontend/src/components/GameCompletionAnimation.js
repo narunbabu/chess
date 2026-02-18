@@ -8,6 +8,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { isWin, isDraw as isDrawResult, getResultDisplayText } from "../utils/resultStandardization";
 import { shareGameWithFriends, shareGameReplay, shareGameVideo } from "../utils/shareUtils";
 import { encodeGameHistory } from "../utils/gameHistoryStringUtils"; // Import for encoding moves
+import { getBoardTheme } from "./play/BoardCustomizer";
 import GameEndCard from "./GameEndCard";
 import "./GameCompletionAnimation.css";
 
@@ -55,6 +56,14 @@ const GameCompletionAnimation = ({
   const gameEndCardRef = useRef(null); // Ref for wrapper (used for layout)
   const gameEndCardContentRef = useRef(null); // Ref for actual GameEndCard component (used for sharing)
   const fetchUserCalledRef = useRef(false); // Track if fetchUser has been called to prevent re-render loop
+
+  // Media generation derived state
+  const isMediaGenerating = isGeneratingGif || isGeneratingVideo;
+  const mediaProgress = isGeneratingVideo ? videoProgress : gifProgress;
+  const mediaLabel = isGeneratingVideo ? 'Generating Video' : 'Generating GIF';
+
+  // Effective board theme — respects guest localStorage selection
+  const effectiveBoardTheme = getBoardTheme(user);
 
   // Determine win state for both single player and multiplayer
   const isPlayerWin = (() => {
@@ -213,7 +222,7 @@ const GameCompletionAnimation = ({
         isDraw,
         gameType,
         championshipData,
-        boardTheme: user?.board_theme || 'classic'
+        boardTheme: effectiveBoardTheme
       },
       setIsGenerating: setIsGeneratingGif,
       setProgress: setGifProgress,
@@ -290,7 +299,7 @@ const GameCompletionAnimation = ({
         isDraw,
         gameType,
         championshipData,
-        boardTheme: user?.board_theme || 'classic'
+        boardTheme: effectiveBoardTheme
       },
       format,
       setIsGenerating: setIsGeneratingVideo,
@@ -504,6 +513,48 @@ const GameCompletionAnimation = ({
         </button>
       )}
 
+      {/* Progress bar during media generation */}
+      {isMediaGenerating && (
+        <div style={{
+          position: 'fixed',
+          bottom: window.innerWidth <= 480 ? '62px' : '66px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 1001,
+          maxWidth: window.innerWidth <= 480 ? '90%' : '460px',
+          width: '100%',
+          padding: '0 12px',
+        }}>
+          <div style={{
+            background: 'rgba(30, 27, 24, 0.85)',
+            backdropFilter: 'blur(8px)',
+            borderRadius: '10px',
+            padding: '8px 14px',
+            border: '1px solid rgba(255,255,255,0.08)',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+              <span style={{ color: '#ccc', fontSize: '0.72rem', fontWeight: '600' }}>{mediaLabel}</span>
+              <span style={{ color: '#fff', fontSize: '0.72rem', fontWeight: '700' }}>{mediaProgress}%</span>
+            </div>
+            <div style={{
+              height: '6px', borderRadius: '3px',
+              background: 'rgba(255,255,255,0.1)', overflow: 'hidden',
+            }}>
+              <div style={{
+                height: '100%', borderRadius: '3px',
+                width: `${mediaProgress}%`,
+                background: isGeneratingVideo
+                  ? 'linear-gradient(90deg, #8B5CF6, #a78bfa, #8B5CF6)'
+                  : 'linear-gradient(90deg, #F97316, #ef4444, #F97316)',
+                backgroundSize: '200% 100%',
+                animation: 'shimmer 1.5s ease-in-out infinite',
+                transition: 'width 0.3s ease',
+              }} />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Action buttons container - single player */}
       {!isMultiplayer && (
         <div style={{
@@ -522,88 +573,97 @@ const GameCompletionAnimation = ({
         }}>
           {isAuthenticated ? (
             <>
-              <button onClick={handleShareWithFriends} disabled={isTestSharing} style={{
-                background: isTestSharing ? '#555' : 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+              <button onClick={handleShareWithFriends} disabled={isMediaGenerating || isTestSharing} style={{
+                background: (isMediaGenerating || isTestSharing) ? '#555' : 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
                 color: 'white', padding: '8px 14px', borderRadius: '8px',
-                border: 'none', fontSize: '0.8rem', fontWeight: '700', cursor: isTestSharing ? 'not-allowed' : 'pointer',
+                border: 'none', fontSize: '0.8rem', fontWeight: '700',
+                cursor: (isMediaGenerating || isTestSharing) ? 'not-allowed' : 'pointer',
                 flex: '1 1 auto', whiteSpace: 'nowrap', transition: 'all 0.2s ease',
-                opacity: isTestSharing ? 0.6 : 1,
+                opacity: (isMediaGenerating || isTestSharing) ? 0.6 : 1,
                 boxShadow: '0 3px 10px rgba(16, 185, 129, 0.4)'
               }}>
                 Share
               </button>
-              <button onClick={handleShareReplay} disabled={isGeneratingGif} style={{
-                background: isGeneratingGif ? '#555' : 'linear-gradient(135deg, #F97316 0%, #DC2626 100%)',
+              <button onClick={handleShareReplay} disabled={isMediaGenerating} style={{
+                background: isMediaGenerating ? '#555' : 'linear-gradient(135deg, #F97316 0%, #DC2626 100%)',
                 color: 'white', padding: '8px 14px', borderRadius: '8px',
                 border: 'none', fontSize: '0.8rem', fontWeight: '600',
-                cursor: isGeneratingGif ? 'not-allowed' : 'pointer',
+                cursor: isMediaGenerating ? 'not-allowed' : 'pointer',
                 flex: '1 1 auto', whiteSpace: 'nowrap', transition: 'all 0.2s ease',
-                opacity: isGeneratingGif ? 0.6 : 1
+                opacity: isMediaGenerating ? 0.6 : 1
               }}>
                 {isGeneratingGif ? `${gifProgress}%` : '🎬 GIF'}
               </button>
               {videoSupported && (
-                <button onClick={() => setShowFormatPicker(true)} disabled={isGeneratingVideo} style={{
-                  background: isGeneratingVideo ? '#555' : 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)',
+                <button onClick={() => setShowFormatPicker(true)} disabled={isMediaGenerating} style={{
+                  background: isMediaGenerating ? '#555' : 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)',
                   color: 'white', padding: '8px 14px', borderRadius: '8px',
                   border: 'none', fontSize: '0.8rem', fontWeight: '600',
-                  cursor: isGeneratingVideo ? 'not-allowed' : 'pointer',
+                  cursor: isMediaGenerating ? 'not-allowed' : 'pointer',
                   flex: '1 1 auto', whiteSpace: 'nowrap', transition: 'all 0.2s ease',
-                  opacity: isGeneratingVideo ? 0.6 : 1,
+                  opacity: isMediaGenerating ? 0.6 : 1,
                   boxShadow: '0 3px 10px rgba(139, 92, 246, 0.3)'
                 }}>
                   {isGeneratingVideo ? `${videoProgress}%` : '📹 Vid'}
                 </button>
               )}
-              <button onClick={handleViewInHistory} style={{
+              <button onClick={handleViewInHistory} disabled={isMediaGenerating} style={{
                 backgroundColor: '#3d3a37', color: '#bababa', padding: '8px 14px', borderRadius: '8px',
-                border: '1px solid #4a4744', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer',
-                flex: '1 1 auto', whiteSpace: 'nowrap', transition: 'all 0.2s ease'
+                border: '1px solid #4a4744', fontSize: '0.8rem', fontWeight: '600',
+                cursor: isMediaGenerating ? 'not-allowed' : 'pointer',
+                flex: '1 1 auto', whiteSpace: 'nowrap', transition: 'all 0.2s ease',
+                opacity: isMediaGenerating ? 0.6 : 1
               }}>
                 History
               </button>
-              <button onClick={handlePlayAgain} style={{
+              <button onClick={handlePlayAgain} disabled={isMediaGenerating} style={{
                 backgroundColor: '#3d3a37', color: '#bababa', padding: '8px 14px', borderRadius: '8px',
-                border: '1px solid #4a4744', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer',
-                flex: '1 1 auto', whiteSpace: 'nowrap', transition: 'all 0.2s ease'
+                border: '1px solid #4a4744', fontSize: '0.8rem', fontWeight: '600',
+                cursor: isMediaGenerating ? 'not-allowed' : 'pointer',
+                flex: '1 1 auto', whiteSpace: 'nowrap', transition: 'all 0.2s ease',
+                opacity: isMediaGenerating ? 0.6 : 1
               }}>
                 Play Again
               </button>
             </>
           ) : (
             <>
-              <button onClick={handleLoginRedirect} style={{
-                backgroundColor: '#81b64c', color: 'white', padding: '8px 14px', borderRadius: '8px',
-                border: 'none', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer',
-                flex: '1 1 auto', whiteSpace: 'nowrap', transition: 'all 0.2s ease'
+              <button onClick={handleLoginRedirect} disabled={isMediaGenerating} style={{
+                backgroundColor: isMediaGenerating ? '#555' : '#81b64c', color: 'white', padding: '8px 14px', borderRadius: '8px',
+                border: 'none', fontSize: '0.8rem', fontWeight: '600',
+                cursor: isMediaGenerating ? 'not-allowed' : 'pointer',
+                flex: '1 1 auto', whiteSpace: 'nowrap', transition: 'all 0.2s ease',
+                opacity: isMediaGenerating ? 0.6 : 1
               }}>
                 Login to Save
               </button>
-              <button onClick={handlePlayAgain} style={{
+              <button onClick={handlePlayAgain} disabled={isMediaGenerating} style={{
                 backgroundColor: '#3d3a37', color: '#bababa', padding: '8px 14px', borderRadius: '8px',
-                border: '1px solid #4a4744', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer',
-                flex: '1 1 auto', whiteSpace: 'nowrap', transition: 'all 0.2s ease'
+                border: '1px solid #4a4744', fontSize: '0.8rem', fontWeight: '600',
+                cursor: isMediaGenerating ? 'not-allowed' : 'pointer',
+                flex: '1 1 auto', whiteSpace: 'nowrap', transition: 'all 0.2s ease',
+                opacity: isMediaGenerating ? 0.6 : 1
               }}>
                 Play Again
               </button>
-              <button onClick={handleShareReplay} disabled={isGeneratingGif} style={{
-                background: isGeneratingGif ? '#555' : 'linear-gradient(135deg, #F97316 0%, #DC2626 100%)',
+              <button onClick={handleShareReplay} disabled={isMediaGenerating} style={{
+                background: isMediaGenerating ? '#555' : 'linear-gradient(135deg, #F97316 0%, #DC2626 100%)',
                 color: 'white', padding: '8px 14px', borderRadius: '8px',
                 border: 'none', fontSize: '0.8rem', fontWeight: '600',
-                cursor: isGeneratingGif ? 'not-allowed' : 'pointer',
+                cursor: isMediaGenerating ? 'not-allowed' : 'pointer',
                 flex: '1 1 auto', whiteSpace: 'nowrap', transition: 'all 0.2s ease',
-                opacity: isGeneratingGif ? 0.6 : 1
+                opacity: isMediaGenerating ? 0.6 : 1
               }}>
                 {isGeneratingGif ? `${gifProgress}%` : '🎬 GIF'}
               </button>
               {videoSupported && (
-                <button onClick={() => setShowFormatPicker(true)} disabled={isGeneratingVideo} style={{
-                  background: isGeneratingVideo ? '#555' : 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)',
+                <button onClick={() => setShowFormatPicker(true)} disabled={isMediaGenerating} style={{
+                  background: isMediaGenerating ? '#555' : 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)',
                   color: 'white', padding: '8px 14px', borderRadius: '8px',
                   border: 'none', fontSize: '0.8rem', fontWeight: '600',
-                  cursor: isGeneratingVideo ? 'not-allowed' : 'pointer',
+                  cursor: isMediaGenerating ? 'not-allowed' : 'pointer',
                   flex: '1 1 auto', whiteSpace: 'nowrap', transition: 'all 0.2s ease',
-                  opacity: isGeneratingVideo ? 0.6 : 1,
+                  opacity: isMediaGenerating ? 0.6 : 1,
                   boxShadow: '0 3px 10px rgba(139, 92, 246, 0.3)'
                 }}>
                   {isGeneratingVideo ? `${videoProgress}%` : '📹 Vid'}
@@ -720,21 +780,21 @@ const GameCompletionAnimation = ({
           {/* Share with Friends button — vibrant green */}
           <button
             onClick={handleShareWithFriends}
-            disabled={isTestSharing}
+            disabled={isMediaGenerating || isTestSharing}
             style={{
-              background: isTestSharing ? '#555' : 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+              background: (isMediaGenerating || isTestSharing) ? '#555' : 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
               color: 'white',
               padding: '10px 16px',
               borderRadius: '12px',
               border: 'none',
               fontSize: '0.82rem',
               fontWeight: '700',
-              cursor: isTestSharing ? 'not-allowed' : 'pointer',
+              cursor: (isMediaGenerating || isTestSharing) ? 'not-allowed' : 'pointer',
               transition: 'all 0.2s ease',
               display: 'flex',
               alignItems: 'center',
               gap: '5px',
-              opacity: isTestSharing ? 0.6 : 1,
+              opacity: (isMediaGenerating || isTestSharing) ? 0.6 : 1,
               flex: '1 1 auto',
               justifyContent: 'center',
               whiteSpace: 'nowrap',
@@ -746,21 +806,21 @@ const GameCompletionAnimation = ({
           {/* Share Replay GIF button — orange/red gradient */}
           <button
             onClick={handleShareReplay}
-            disabled={isGeneratingGif}
+            disabled={isMediaGenerating}
             style={{
-              background: isGeneratingGif ? '#555' : 'linear-gradient(135deg, #F97316 0%, #DC2626 100%)',
+              background: isMediaGenerating ? '#555' : 'linear-gradient(135deg, #F97316 0%, #DC2626 100%)',
               color: 'white',
               padding: '10px 16px',
               borderRadius: '12px',
               border: 'none',
               fontSize: '0.82rem',
               fontWeight: '700',
-              cursor: isGeneratingGif ? 'not-allowed' : 'pointer',
+              cursor: isMediaGenerating ? 'not-allowed' : 'pointer',
               transition: 'all 0.2s ease',
               display: 'flex',
               alignItems: 'center',
               gap: '4px',
-              opacity: isGeneratingGif ? 0.6 : 1,
+              opacity: isMediaGenerating ? 0.6 : 1,
               flex: '1 1 auto',
               justifyContent: 'center',
               whiteSpace: 'nowrap',
@@ -773,21 +833,21 @@ const GameCompletionAnimation = ({
           {videoSupported && (
             <button
               onClick={() => setShowFormatPicker(true)}
-              disabled={isGeneratingVideo}
+              disabled={isMediaGenerating}
               style={{
-                background: isGeneratingVideo ? '#555' : 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)',
+                background: isMediaGenerating ? '#555' : 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)',
                 color: 'white',
                 padding: '10px 16px',
                 borderRadius: '12px',
                 border: 'none',
                 fontSize: '0.82rem',
                 fontWeight: '700',
-                cursor: isGeneratingVideo ? 'not-allowed' : 'pointer',
+                cursor: isMediaGenerating ? 'not-allowed' : 'pointer',
                 transition: 'all 0.2s ease',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '4px',
-                opacity: isGeneratingVideo ? 0.6 : 1,
+                opacity: isMediaGenerating ? 0.6 : 1,
                 flex: '1 1 auto',
                 justifyContent: 'center',
                 whiteSpace: 'nowrap',
@@ -800,19 +860,21 @@ const GameCompletionAnimation = ({
           {onNewGame && (
             <button
               onClick={() => onNewGame('random')}
+              disabled={isMediaGenerating}
               style={{
-                background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
+                background: isMediaGenerating ? '#555' : 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
                 color: 'white',
                 padding: '10px 16px',
                 borderRadius: '12px',
                 border: 'none',
                 fontSize: '0.82rem',
                 fontWeight: '700',
-                cursor: 'pointer',
+                cursor: isMediaGenerating ? 'not-allowed' : 'pointer',
                 transition: 'all 0.2s ease',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '4px',
+                opacity: isMediaGenerating ? 0.6 : 1,
                 flex: '1 1 auto',
                 justifyContent: 'center',
                 whiteSpace: 'nowrap',
@@ -825,19 +887,21 @@ const GameCompletionAnimation = ({
           {onPreview && (
             <button
               onClick={onPreview}
+              disabled={isMediaGenerating}
               style={{
-                background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
+                background: isMediaGenerating ? '#555' : 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
                 color: 'white',
                 padding: '10px 16px',
                 borderRadius: '12px',
                 border: 'none',
                 fontSize: '0.82rem',
                 fontWeight: '700',
-                cursor: 'pointer',
+                cursor: isMediaGenerating ? 'not-allowed' : 'pointer',
                 transition: 'all 0.2s ease',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '4px',
+                opacity: isMediaGenerating ? 0.6 : 1,
                 flex: '1 1 auto',
                 justifyContent: 'center',
                 whiteSpace: 'nowrap',
@@ -850,19 +914,21 @@ const GameCompletionAnimation = ({
           {championshipData && championshipData.championshipId && (
             <button
               onClick={() => navigate(`/championships/${championshipData.championshipId}`)}
+              disabled={isMediaGenerating}
               style={{
-                background: 'linear-gradient(135deg, #EC4899 0%, #DB2777 100%)',
+                background: isMediaGenerating ? '#555' : 'linear-gradient(135deg, #EC4899 0%, #DB2777 100%)',
                 color: 'white',
                 padding: '10px 16px',
                 borderRadius: '12px',
                 border: 'none',
                 fontSize: '0.82rem',
                 fontWeight: '700',
-                cursor: 'pointer',
+                cursor: isMediaGenerating ? 'not-allowed' : 'pointer',
                 transition: 'all 0.2s ease',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '4px',
+                opacity: isMediaGenerating ? 0.6 : 1,
                 flex: '1 1 auto',
                 justifyContent: 'center',
                 whiteSpace: 'nowrap',

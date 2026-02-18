@@ -413,7 +413,7 @@ class GameController extends Controller
         if ($request->has('status')) {
             $status = $request->get('status');
             if ($status === 'finished') {
-                $query->whereIn('status', ['white_wins', 'black_wins', 'draw', 'timeout']);
+                $query->whereIn('status', ['finished', 'white_wins', 'black_wins', 'draw', 'timeout']);
             } else {
                 $query->where('status', $status);
             }
@@ -423,24 +423,47 @@ class GameController extends Controller
         $limit = $request->get('limit', 50);
         $query->limit(min($limit, 100)); // Cap at 100 for performance
 
-        $games = $query->with(['whitePlayer', 'blackPlayer', 'statusRelation', 'endReasonRelation'])
+        $games = $query->with(['whitePlayer', 'blackPlayer', 'computerPlayer', 'syntheticPlayer', 'statusRelation', 'endReasonRelation'])
         ->orderBy('last_move_at', 'desc')
         ->orderBy('created_at', 'desc')
         ->get()
         ->map(function($game) {
             $gameArray = $game->toArray();
-            $gameArray['white_player'] = [
+            $isComputerGame = $game->computer_player_id !== null;
+
+            // Prefer synthetic player data over generic computer player
+            if ($isComputerGame && $game->syntheticPlayer) {
+                $computerData = [
+                    'id' => 'synthetic_' . $game->syntheticPlayer->id,
+                    'name' => $game->syntheticPlayer->name,
+                    'avatar' => $game->syntheticPlayer->avatar_url,
+                    'rating' => $game->syntheticPlayer->rating
+                ];
+            } elseif ($isComputerGame && $game->computerPlayer) {
+                $computerData = [
+                    'id' => 'computer_' . $game->computerPlayer->id,
+                    'name' => $game->computerPlayer->name,
+                    'avatar' => null,
+                    'rating' => $game->computerPlayer->rating
+                ];
+            } else {
+                $computerData = null;
+            }
+
+            $gameArray['white_player'] = $game->whitePlayer ? [
                 'id' => $game->whitePlayer->id,
                 'name' => $game->whitePlayer->name,
                 'avatar' => $game->whitePlayer->avatar_url,
                 'rating' => $game->whitePlayer->rating
-            ];
-            $gameArray['black_player'] = [
+            ] : ($computerData ?? ['id' => null, 'name' => 'Computer', 'avatar' => null, 'rating' => null]);
+
+            $gameArray['black_player'] = $game->blackPlayer ? [
                 'id' => $game->blackPlayer->id,
                 'name' => $game->blackPlayer->name,
                 'avatar' => $game->blackPlayer->avatar_url,
                 'rating' => $game->blackPlayer->rating
-            ];
+            ] : ($computerData ?? ['id' => null, 'name' => 'Computer', 'avatar' => null, 'rating' => null]);
+
             return $gameArray;
         });
 

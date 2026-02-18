@@ -82,27 +82,17 @@ class SyntheticPlayer extends Model
     }
 
     /**
-     * Get a randomized subset of synthetic players for lobby display.
-     * Returns 8-20 players with freshly generated random names each call.
+     * Get a subset of synthetic players for lobby display.
+     * Returns 8-20 players using their permanent DB names and avatar seeds.
      */
     public static function getRandomizedForLobby(): \Illuminate\Database\Eloquent\Collection
     {
         $count = rand(8, 20);
 
-        $players = self::active()
+        return self::active()
             ->inRandomOrder()
             ->limit($count)
             ->get();
-
-        // Assign random names and matching avatar seeds
-        $players->each(function ($player) {
-            $first = self::$firstNames[array_rand(self::$firstNames)];
-            $last = self::$lastNames[array_rand(self::$lastNames)];
-            $player->name = "{$first} {$last}";
-            $player->avatar_seed = strtolower("{$first}-{$last}-" . rand(1, 9999));
-        });
-
-        return $players;
     }
 
     /**

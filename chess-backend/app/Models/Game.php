@@ -38,6 +38,7 @@ class Game extends Model
         // Computer game fields
         'computer_player_id',
         'computer_level',
+        'synthetic_player_id',
         'player_color',
         // Game mode and undo tracking
         'game_mode',
@@ -82,7 +83,8 @@ class Game extends Model
         'undo_black_remaining' => 'integer',
         // Computer game casts
         'computer_player_id' => 'integer',
-        'computer_level' => 'integer'
+        'computer_level' => 'integer',
+        'synthetic_player_id' => 'integer'
     ];
 
     /**
@@ -107,6 +109,11 @@ class Game extends Model
     public function computerPlayer()
     {
         return $this->belongsTo(ComputerPlayer::class, 'computer_player_id');
+    }
+
+    public function syntheticPlayer()
+    {
+        return $this->belongsTo(SyntheticPlayer::class, 'synthetic_player_id');
     }
 
     public function pausedByUser()

@@ -26,6 +26,8 @@ import { saveUnfinishedGame } from '../../services/unfinishedGameService';
 import { getMovePath, createPathHighlights, mergeHighlights } from '../../utils/movePathUtils'; // Move path utilities
 import { getPreferredGameMode, setPreferredGameMode } from '../../utils/gamePreferences'; // Game preferences
 import { getTheme } from '../../config/boardThemes';
+import { getBoardTheme, getPieceStyle } from './BoardCustomizer';
+import { pieces3dLanding } from '../../assets/pieces/pieces3d';
 import DrawButton from '../game/DrawButton';
 import PerformanceDisplay from '../game/PerformanceDisplay';
 import RatingChangeDisplay from '../game/RatingChangeDisplay';
@@ -175,6 +177,13 @@ const PlayMultiplayer = () => {
     serverTurn,
     isMyTurn,
   } = gameState;
+
+  // Board customization state
+  const [boardTheme, setBoardTheme] = useState(() => getBoardTheme(user));
+  const [pieceStyle, setPieceStyle] = useState(() => getPieceStyle());
+  useEffect(() => {
+    if (user?.board_theme) setBoardTheme(user.board_theme);
+  }, [user?.board_theme]);
 
   // Destructure pause/resume state
   const {
@@ -4119,6 +4128,10 @@ const PlayMultiplayer = () => {
     <GameContainer
       mode="multiplayer"
       header={headerSection}
+      boardTheme={boardTheme}
+      pieceStyle={pieceStyle}
+      onBoardThemeChange={setBoardTheme}
+      onPieceStyleChange={setPieceStyle}
       timerData={{
         myMs,
         oppMs,
@@ -4159,8 +4172,9 @@ const PlayMultiplayer = () => {
           onSquareClick={handleSquareClick}
           boardOrientation={boardOrientation}
           areArrowsAllowed={false}
-          customDarkSquareStyle={{ backgroundColor: getTheme(user?.board_theme).dark }}
-          customLightSquareStyle={{ backgroundColor: getTheme(user?.board_theme).light }}
+          customDarkSquareStyle={{ backgroundColor: getTheme(boardTheme).dark }}
+          customLightSquareStyle={{ backgroundColor: getTheme(boardTheme).light }}
+          {...(pieceStyle === '3d' ? { customPieces: pieces3dLanding } : {})}
           customSquareStyles={{
             ...lastMoveHighlights, // Base layer: last move highlights
             [selectedSquare]: {

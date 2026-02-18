@@ -12,6 +12,8 @@ import GameCompletionAnimation from "../GameCompletionAnimation"; // Adjust path
 import PlayShell from "./PlayShell"; // Layout wrapper (Phase 4)
 import GameContainer from "./GameContainer"; // Unified game container
 import GameModeSelector from "../game/GameModeSelector"; // Game mode selector
+import { getBoardTheme, getPieceStyle } from "./BoardCustomizer"; // Board customization helpers
+import { pieces3dLanding } from "../../assets/pieces/pieces3d"; // 3D piece renderers
 
 // Import Utils & Hooks
 import { useGameTimer } from "../../utils/timerUtils"; // Adjust path if needed
@@ -126,6 +128,14 @@ const PlayComputer = () => {
   const [syntheticOpponent, setSyntheticOpponent] = useState(
     location.state?.gameMode === 'synthetic' ? location.state.syntheticPlayer : null
   ); // Synthetic bot identity from lobby matchmaking
+
+  // Board customization state
+  const [boardTheme, setBoardTheme] = useState(() => getBoardTheme(user));
+  const [pieceStyle, setPieceStyle] = useState(() => getPieceStyle());
+  // Sync when user object loads after mount (e.g. auth resolves)
+  useEffect(() => {
+    if (user?.board_theme) setBoardTheme(user.board_theme);
+  }, [user?.board_theme]);
 
   // --- Custom timer hook ---
   const {
@@ -2008,6 +2018,10 @@ const PlayComputer = () => {
   const gameContainerSection = (
     <GameContainer
       mode="computer"
+      boardTheme={boardTheme}
+      pieceStyle={pieceStyle}
+      onBoardThemeChange={setBoardTheme}
+      onPieceStyleChange={setPieceStyle}
       timerData={{
         playerTime,
         computerTime,
@@ -2095,7 +2109,8 @@ const PlayComputer = () => {
         lastMoveHighlights={lastMoveHighlights}
         playerColor={playerColor}
         isReplayMode={isReplayMode}
-        boardTheme={user?.board_theme || 'classic'}
+        boardTheme={boardTheme}
+        customPieces={pieceStyle === '3d' ? pieces3dLanding : undefined}
       />
     </GameContainer>
   );

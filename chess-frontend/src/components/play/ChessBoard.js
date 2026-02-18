@@ -21,6 +21,7 @@ const ChessBoard = ({
   isReplayMode,
   allowAllMoves = false, // Prop to allow all moves regardless of turn (for interactive practice)
   boardTheme = 'classic', // Board color theme key
+  customPieces, // Custom piece renderers (e.g. 3D pieces from pieces3d.js)
   // Interactive lesson props
   lessonArrows = [], // Array of arrows: [{from: 'e2', to: 'e4', color: 'red'}]
   lessonHighlights = [], // Array of highlighted squares: [{square: 'e2', type: 'move'|'target'}]
@@ -369,6 +370,7 @@ const ChessBoard = ({
                 borderRadius: '8px',
                 overflow: 'hidden'
               }}
+              {...(customPieces ? { customPieces } : {})}
             />
             {/* Render arrows on top of the board */}
             <div className="absolute top-0 left-0 w-full h-full pointer-events-none">

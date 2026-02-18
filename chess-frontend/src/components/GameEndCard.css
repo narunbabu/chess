@@ -372,6 +372,14 @@
   animation: none !important;
 }
 
+/* Prevent name truncation in share captures so html2canvas renders full names */
+.share-mode .truncate {
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+}
+
 /* Scroll indicator for small screens */
 @media (max-width: 480px) {
   /* Add a subtle shadow at the bottom of scrollable content */

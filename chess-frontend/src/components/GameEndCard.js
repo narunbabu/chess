@@ -401,27 +401,21 @@ const GameEndCard = React.forwardRef(({
   const PlayerCard = ({ player, isCurrentUser, color, score }) => {
     const avatarUrl = getAvatarUrl(player, color);
 
-    // For multiplayer games, use chess scoring if score is 0 or undefined
-    // Check using isMultiplayer prop and ensure neither player is a computer
-    const isMultiplayerGameCheck = isMultiplayer && !playersInfo.white_player.isComputer && !playersInfo.black_player.isComputer;
-
+    // Calculate chess score (1.0/0.5/0.0) if not explicitly provided
     let displayScore = score;
-    if (isMultiplayerGameCheck && (score === 0 || score === undefined || score === null)) {
+    if (displayScore === undefined || displayScore === null) {
       // Determine if this player is the winner
       const isThisPlayerWhite = color === 'white';
 
-      // Check multiple winner indicators from the result object
       let isThisPlayerWinner = false;
       if (result.winner_player === 'white') {
         isThisPlayerWinner = isThisPlayerWhite;
       } else if (result.winner_player === 'black') {
         isThisPlayerWinner = !isThisPlayerWhite;
       } else if (result.winner_user_id) {
-        // Winner determined by user ID
         const thisPlayerId = isThisPlayerWhite ? playersInfo.white_player.id : playersInfo.black_player.id;
         isThisPlayerWinner = result.winner_user_id === thisPlayerId;
       } else {
-        // Fallback: check if this card is for the user and the user won
         isThisPlayerWinner = (isCurrentUser && isPlayerWin);
       }
 

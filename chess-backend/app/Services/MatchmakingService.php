@@ -154,6 +154,7 @@ class MatchmakingService
             'black_player_id' => $isUserWhite ? null : $user->id,
             'computer_player_id' => $computerPlayer->id,
             'computer_level' => $bot->computer_level,
+            'synthetic_player_id' => $bot->id,
             'player_color' => $isUserWhite ? 'white' : 'black',
             'status' => 'active',
             'result' => 'ongoing',
