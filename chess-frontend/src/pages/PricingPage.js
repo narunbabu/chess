@@ -33,11 +33,22 @@ const PricingPage = () => {
   const [interval, setInterval] = useState('monthly');
   const [checkoutPlanId, setCheckoutPlanId] = useState(null);
 
+  // Normalize API plans: backend groupBy may return objects instead of arrays
+  // when collection keys are non-sequential (e.g. {1: {...}, 2: {...}})
+  const normalizedPlans = useMemo(() => {
+    if (!plans || Object.keys(plans).length === 0) return {};
+    const result = {};
+    for (const [tier, tierPlans] of Object.entries(plans)) {
+      result[tier] = Array.isArray(tierPlans) ? tierPlans : Object.values(tierPlans);
+    }
+    return result;
+  }, [plans]);
+
   // Use API plans if available, otherwise fall back to static plans
-  const hasApiPlans = plans && Object.keys(plans).length > 0 &&
-    Object.values(plans).some(tierPlans => Array.isArray(tierPlans) && tierPlans.length > 0);
+  const hasApiPlans = Object.keys(normalizedPlans).length > 0 &&
+    Object.values(normalizedPlans).some(tierPlans => tierPlans.length > 0);
   const usingFallback = !plansLoading && !hasApiPlans;
-  const effectivePlans = hasApiPlans ? plans : FALLBACK_PLANS;
+  const effectivePlans = hasApiPlans ? normalizedPlans : FALLBACK_PLANS;
 
   // Build tier display data from grouped plans
   const tierData = useMemo(() => {

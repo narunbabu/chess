@@ -37,7 +37,7 @@ class SubscriptionService
 
         $plans = $query->get();
 
-        return $plans->groupBy('tier')->toArray();
+        return $plans->groupBy('tier')->map->values()->toArray();
     }
 
     /**
