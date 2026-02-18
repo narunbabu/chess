@@ -850,9 +850,14 @@ const PlayComputer = () => {
   useEffect(() => {
     if (location.state?.gameMode === 'synthetic' && location.state?.syntheticPlayer) {
       const bot = location.state.syntheticPlayer;
-      console.log('[PlayComputer] Setting up synthetic opponent:', bot.name, 'level:', bot.computer_level);
+      const lobbyRatedMode = location.state.ratedMode || 'casual';
+      console.log('[PlayComputer] Setting up synthetic opponent:', bot.name, 'level:', bot.computer_level, 'mode:', lobbyRatedMode);
 
       setSyntheticOpponent(bot);
+
+      // Apply rated/casual selection from lobby ChallengeModal
+      setRatedMode(lobbyRatedMode);
+      localStorage.setItem('gameRatedMode', lobbyRatedMode);
 
       // Set difficulty to the bot's level
       if (bot.computer_level) {
@@ -873,26 +878,27 @@ const PlayComputer = () => {
         setSearchParams({ gameId: location.state.backendGameId.toString() }, { replace: true });
       }
 
-      // Skip countdown — go straight into the game
-      onCountdownFinish();
+      // Skip countdown — go straight into the game (pass ratedMode to bypass stale closure)
+      onCountdownFinish(lobbyRatedMode);
 
       // Save active game state with synthetic opponent identity for refresh persistence
       // Use setTimeout to ensure state updates from above have been queued
       setTimeout(() => {
         const color = location.state.preferredColor === 'black' ? 'b' : 'w';
+        const isRated = lobbyRatedMode === 'rated';
         saveActiveGameState({
           fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
           gameStarted: true,
           playerColor: color,
           computerDepth: bot.computer_level || computerDepth,
-          ratedMode: 'casual',
+          ratedMode: lobbyRatedMode,
           moves: [],
           playerScore: 0,
           computerScore: 0,
           playerTime: 600,
           computerTime: 600,
           syntheticOpponent: bot,
-          undoChancesRemaining: calculateUndoChances(bot.computer_level || computerDepth, false),
+          undoChancesRemaining: calculateUndoChances(bot.computer_level || computerDepth, isRated),
           currentGameId: location.state.backendGameId || null,
           backendGameId: location.state.backendGameId || null,
         });
@@ -1608,9 +1614,11 @@ const PlayComputer = () => {
         if (!gameStarted && !countdownActive) setCountdownActive(true);
     }, [gameStarted, countdownActive, ratedMode]); // Correct dependencies
 
-   const onCountdownFinish = useCallback(async () => {
+   const onCountdownFinish = useCallback(async (overrideRatedMode) => {
         // Initializes game state when countdown finishes
-        console.log("Starting game...");
+        // overrideRatedMode bypasses stale closure when called from synthetic player setup
+        const effectiveRatedMode = overrideRatedMode || ratedMode;
+        console.log("Starting game...", { effectiveRatedMode });
         setCountdownActive(false);
 
         // For authenticated users, create a backend game
@@ -1622,7 +1630,7 @@ const PlayComputer = () => {
               computer_level: computerDepth,
               time_control: 10, // Default 10 minutes
               increment: 0, // No increment by default
-              game_mode: ratedMode,
+              game_mode: effectiveRatedMode,
               synthetic_player_id: syntheticOpponent?.id || null,
             };
 
@@ -1651,9 +1659,9 @@ const PlayComputer = () => {
         resetTimer(); // Reset timer values (ensure useGameTimer provides initial values)
 
         // Initialize undo chances based on difficulty and mode
-        const initialUndoChances = calculateUndoChances(computerDepth, ratedMode === 'rated');
+        const initialUndoChances = calculateUndoChances(computerDepth, effectiveRatedMode === 'rated');
         setUndoChancesRemaining(initialUndoChances);
-        console.log(`[PlayComputer] 🎮 Game started - Mode: ${ratedMode}, Difficulty: ${computerDepth}, Undo chances: ${initialUndoChances}`);
+        console.log(`[PlayComputer] 🎮 Game started - Mode: ${effectiveRatedMode}, Difficulty: ${computerDepth}, Undo chances: ${initialUndoChances}`);
 
         // White always starts in chess, so set active timer to white
         setActiveTimer("w"); // White always starts
@@ -1676,7 +1684,7 @@ const PlayComputer = () => {
           gameStarted: true,
           playerColor,
           computerDepth,
-          ratedMode,
+          ratedMode: effectiveRatedMode,
           moves: [],
           playerScore: 0,
           computerScore: 0,

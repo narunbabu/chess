@@ -350,6 +350,7 @@ const LobbyPage = () => {
               gameMode: 'synthetic',
               syntheticPlayer: player,
               preferredColor: resolvedColor,
+              ratedMode: gameMode, // Pass rated/casual selection from ChallengeModal
             },
           });
         }, 1200);
