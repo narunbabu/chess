@@ -1,16 +1,18 @@
 /* src/components/play/PlayShell.css */
-/* PURE LAYOUT STYLES - NO GAME BEHAVIOR */
+/* Layout styles for play pages + GameContainer + ActivePlayerBar */
 
+/* ================================================================
+   PLAY SHELL — wrapper (feature-flagged)
+   ================================================================ */
 .play-shell-container {
   min-height: 100vh;
   width: 100%;
   display: flex;
   flex-direction: column;
-  background: #262421;
+  background: #121212;
   color: white;
 }
 
-/* Header Section */
 .play-shell-header {
   padding: 1rem 2rem;
   background: #1a1a18;
@@ -19,7 +21,6 @@
   flex-shrink: 0;
 }
 
-/* Pre-Game Setup Screen */
 .play-shell-setup {
   flex: 1;
   display: flex;
@@ -31,7 +32,770 @@
   overflow-x: hidden;
 }
 
-/* Mobile responsive pre-game setup */
+/* PlayShell layout passes board area straight through */
+.play-shell-layout {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  padding: 0;
+  width: 100%;
+}
+
+.play-shell-board {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  background: transparent;
+  padding: 0;
+}
+
+.play-shell-sidebar {
+  display: none; /* GameContainer handles its own sidebar */
+}
+
+.play-shell-timer-score {
+  display: none; /* GameContainer handles timers via ActivePlayerBar */
+}
+
+.play-shell-modals {
+  /* Modals handle their own positioning */
+}
+
+/* Preserve z-index hierarchy */
+.play-shell-container {
+  /* Don't create new stacking contexts */
+}
+
+.play-shell-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+  color: #bababa;
+  font-size: 1.25rem;
+}
+
+/* ================================================================
+   GAME CONTAINER — 3-column premium layout (gc-*)
+   ================================================================ */
+
+/* --- Main layout grid --- */
+.gc-layout {
+  display: grid;
+  grid-template-columns: 220px 1fr 280px;
+  gap: 16px;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 16px;
+  min-height: calc(100vh - 80px);
+  align-items: start;
+}
+
+/* --- Left panel: scores, status --- */
+.gc-left-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: sticky;
+  top: 80px;
+}
+
+.gc-score-section {
+  background: #1e1e1e;
+  border-radius: 12px;
+  border: 1px solid #2a2a2a;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gc-score-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.gc-score-label {
+  font-size: 13px;
+  color: #bdbdbd;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gc-score-value {
+  font-family: 'Roboto Mono', 'Courier New', monospace;
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.gc-score-player { color: #4CAF50; }
+.gc-score-opponent { color: #ff5252; }
+
+.gc-score-divider {
+  text-align: center;
+  font-size: 12px;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 2px 0;
+}
+
+.gc-eval-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: capitalize;
+}
+
+.gc-eval-great { background: rgba(76, 175, 80, 0.2); color: #4CAF50; }
+.gc-eval-good { background: rgba(139, 195, 74, 0.2); color: #8BC34A; }
+.gc-eval-inaccuracy { background: rgba(255, 152, 0, 0.15); color: #FF9800; }
+.gc-eval-mistake { background: rgba(255, 152, 0, 0.2); color: #e8a93e; }
+.gc-eval-blunder { background: rgba(255, 82, 82, 0.2); color: #ff5252; }
+
+.gc-status-bar {
+  background: #1e1e1e;
+  border-radius: 8px;
+  border: 1px solid #2a2a2a;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #bdbdbd;
+  text-align: center;
+}
+
+/* --- Center column: board hero zone --- */
+.gc-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  min-width: 0;
+}
+
+.gc-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 0 4px 8px;
+}
+
+.gc-board-wrapper {
+  width: 100%;
+  background: #1e1e1e;
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  padding: 12px;
+  position: relative;
+}
+
+/* --- Action bar (bottom of center) --- */
+.gc-action-bar {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 0 0;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.gc-action-btn {
+  flex: 1;
+  min-width: 0;
+  max-width: 160px;
+  padding: 10px 16px;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  background: #1e1e1e;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.gc-action-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.gc-action-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.gc-action-btn:disabled,
+.gc-action-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.gc-action-neutral {
+  border-color: #3a3a3a;
+  background: #2a2a2a;
+}
+.gc-action-neutral:hover:not(:disabled) {
+  background: #333;
+  border-color: #4a4a4a;
+}
+
+.gc-action-info {
+  border-color: rgba(33, 150, 243, 0.3);
+  color: #2196F3;
+}
+.gc-action-info:hover:not(:disabled) {
+  background: rgba(33, 150, 243, 0.12);
+  border-color: rgba(33, 150, 243, 0.5);
+}
+
+.gc-action-warning {
+  border-color: rgba(255, 152, 0, 0.3);
+  color: #FF9800;
+}
+.gc-action-warning:hover:not(:disabled) {
+  background: rgba(255, 152, 0, 0.12);
+  border-color: rgba(255, 152, 0, 0.5);
+}
+
+.gc-action-danger {
+  border-color: rgba(255, 82, 82, 0.3);
+  color: #ff5252;
+}
+.gc-action-danger:hover:not(:disabled) {
+  background: rgba(255, 82, 82, 0.12);
+  border-color: rgba(255, 82, 82, 0.5);
+}
+
+/* --- Right panel: moves & game info --- */
+.gc-right-panel {
+  background: #1e1e1e;
+  border-radius: 12px;
+  border: 1px solid #2a2a2a;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: sticky;
+  top: 80px;
+  max-height: calc(100vh - 100px);
+}
+
+.gc-tabs {
+  display: flex;
+  border-bottom: 1px solid #2a2a2a;
+  flex-shrink: 0;
+}
+
+.gc-tab {
+  flex: 1;
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  color: #888;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+  position: relative;
+}
+
+.gc-tab:hover {
+  color: #bdbdbd;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.gc-tab-active {
+  color: #4CAF50;
+}
+
+.gc-tab-active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 16px;
+  right: 16px;
+  height: 2px;
+  background: #4CAF50;
+  border-radius: 2px 2px 0 0;
+}
+
+.gc-tab-content {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* --- Move list (two-column PGN) --- */
+.gc-move-list {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.gc-move-empty {
+  text-align: center;
+  color: #666;
+  font-size: 13px;
+  padding: 32px 16px;
+}
+
+.gc-move-row {
+  display: grid;
+  grid-template-columns: 36px 1fr 1fr;
+  gap: 2px;
+  align-items: center;
+}
+
+.gc-move-num {
+  font-size: 12px;
+  color: #666;
+  text-align: right;
+  padding-right: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.gc-move-cell {
+  font-size: 13px;
+  font-weight: 500;
+  color: #ccc;
+  padding: 5px 8px;
+  border-radius: 4px;
+  cursor: default;
+  transition: background 0.15s ease;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+}
+
+.gc-move-cell:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.gc-move-active {
+  background: rgba(76, 175, 80, 0.18) !important;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+/* Move evaluation colors in move list */
+.gc-move-cell.gc-eval-great { color: #4CAF50; }
+.gc-move-cell.gc-eval-good { color: #8BC34A; }
+.gc-move-cell.gc-eval-inaccuracy { color: #FF9800; }
+.gc-move-cell.gc-eval-mistake { color: #e8a93e; }
+.gc-move-cell.gc-eval-blunder { color: #ff5252; }
+
+/* --- Game info tab --- */
+.gc-info-content {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.gc-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.gc-info-label {
+  font-size: 12px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.gc-info-value {
+  font-size: 13px;
+  color: #e0e0e0;
+  font-weight: 500;
+}
+
+.gc-rated-badge {
+  background: rgba(255, 152, 0, 0.12);
+  border: 1px solid rgba(255, 152, 0, 0.3);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: #FF9800;
+  text-align: center;
+}
+
+
+/* ================================================================
+   ACTIVE PLAYER BAR (apb-*)
+   ================================================================ */
+
+.apb {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  width: 100%;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.apb-active {
+  background: #1e1e1e;
+  border-color: rgba(76, 175, 80, 0.4);
+  box-shadow: 0 0 12px rgba(76, 175, 80, 0.1);
+}
+
+.apb-idle {
+  background: rgba(30, 30, 30, 0.5);
+  border-color: transparent;
+}
+
+.apb-top { margin-bottom: 6px; }
+.apb-bottom { margin-top: 6px; }
+
+/* Avatar */
+.apb-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  object-fit: cover;
+  border: 2px solid #2a2a2a;
+}
+
+.apb-avatar-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.apb-avatar-white {
+  background: #f0d9b5;
+  color: #4a3728;
+  border-color: #d4b896;
+}
+
+.apb-avatar-black {
+  background: #4a3728;
+  color: #f0d9b5;
+  border-color: #6b5a48;
+}
+
+/* Info section */
+.apb-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.apb-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.apb-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #bdbdbd;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color 0.2s;
+}
+
+.apb-name-active {
+  color: #ffffff;
+}
+
+.apb-rating {
+  font-size: 11px;
+  color: #888;
+  font-weight: 500;
+  padding: 1px 5px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+/* Captured pieces */
+.apb-captures {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  flex-wrap: wrap;
+}
+
+.apb-capture-piece {
+  font-size: 13px;
+  opacity: 0.7;
+  line-height: 1;
+}
+
+.apb-mat-adv {
+  font-size: 11px;
+  font-weight: 700;
+  color: #4CAF50;
+  margin-left: 4px;
+}
+
+/* Clock */
+.apb-clock {
+  padding: 6px 12px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+
+.apb-clock-digits {
+  font-family: 'Roboto Mono', 'Courier New', monospace;
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.5px;
+}
+
+.apb-clock-idle {
+  background: #1a1a1a;
+  color: #666;
+}
+
+.apb-clock-active {
+  background: rgba(76, 175, 80, 0.12);
+  color: #ffffff;
+}
+
+.apb-clock-low {
+  background: rgba(255, 152, 0, 0.15);
+  color: #FF9800;
+}
+
+.apb-clock-critical {
+  background: #ff5252;
+  color: #ffffff;
+  animation: clock-critical-pulse 0.6s ease-in-out infinite;
+}
+
+.apb-clock-pulse {
+  animation: clock-glow 2s ease-in-out infinite;
+}
+
+@keyframes clock-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+  50% { box-shadow: 0 0 10px 3px rgba(76, 175, 80, 0.2); }
+}
+
+@keyframes clock-critical-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+/* Active player border pulse */
+.apb-active {
+  animation: active-border-pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes active-border-pulse {
+  0%, 100% { border-color: rgba(76, 175, 80, 0.4); box-shadow: 0 0 12px rgba(76, 175, 80, 0.1); }
+  50% { border-color: rgba(76, 175, 80, 0.6); box-shadow: 0 0 16px rgba(76, 175, 80, 0.18); }
+}
+
+
+/* ================================================================
+   RESPONSIVE — Tablet (< 1200px): hide left panel
+   ================================================================ */
+@media (max-width: 1200px) {
+  .gc-layout {
+    grid-template-columns: 1fr 280px;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .gc-left-panel {
+    display: none;
+  }
+}
+
+/* ================================================================
+   RESPONSIVE — Mobile (< 768px): single column
+   ================================================================ */
+@media (max-width: 768px) {
+  .gc-layout {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 8px;
+    min-height: auto;
+  }
+
+  .gc-left-panel {
+    display: none;
+  }
+
+  .gc-right-panel {
+    position: static;
+    max-height: 300px;
+  }
+
+  .gc-board-wrapper {
+    padding: 8px;
+    border-radius: 12px;
+  }
+
+  .gc-action-bar {
+    padding: 8px 0 0;
+  }
+
+  .gc-action-btn {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+
+  /* Compact player bars on mobile */
+  .apb {
+    padding: 6px 8px;
+    gap: 8px;
+  }
+
+  .apb-avatar {
+    width: 28px;
+    height: 28px;
+  }
+
+  .apb-name {
+    font-size: 13px;
+  }
+
+  .apb-clock-digits {
+    font-size: 15px;
+  }
+
+  .apb-clock {
+    padding: 4px 8px;
+  }
+
+  .apb-top { margin-bottom: 4px; }
+  .apb-bottom { margin-top: 4px; }
+}
+
+/* ================================================================
+   RESPONSIVE — Small mobile (< 480px)
+   ================================================================ */
+@media (max-width: 480px) {
+  .gc-layout {
+    padding: 4px;
+    gap: 4px;
+  }
+
+  .gc-board-wrapper {
+    padding: 4px;
+    border-radius: 8px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+  }
+
+  .gc-right-panel {
+    max-height: 250px;
+    border-radius: 8px;
+  }
+
+  .gc-action-btn {
+    padding: 7px 8px;
+    font-size: 11px;
+    max-width: none;
+  }
+
+  .apb {
+    padding: 4px 6px;
+    gap: 6px;
+    border-radius: 8px;
+    border-width: 1px;
+  }
+
+  .apb-avatar {
+    width: 24px;
+    height: 24px;
+  }
+
+  .apb-name { font-size: 12px; }
+  .apb-rating { font-size: 10px; padding: 0 4px; }
+  .apb-capture-piece { font-size: 11px; }
+  .apb-clock-digits { font-size: 14px; }
+  .apb-clock { padding: 3px 6px; border-radius: 6px; }
+}
+
+
+/* ================================================================
+   MOBILE LANDSCAPE — board hero + compact sidebar
+   ================================================================ */
+@media (orientation: landscape) and (max-height: 500px) {
+  .gc-layout {
+    grid-template-columns: 1fr 200px;
+    gap: 6px;
+    padding: 4px;
+    min-height: 100vh;
+    max-height: 100vh;
+    overflow: hidden;
+  }
+
+  .gc-left-panel { display: none; }
+
+  .gc-center {
+    max-height: 100vh;
+    overflow: hidden;
+  }
+
+  .gc-board-wrapper {
+    padding: 4px;
+    border-radius: 8px;
+  }
+
+  .gc-right-panel {
+    position: static;
+    max-height: 100vh;
+    border-radius: 8px;
+    font-size: 12px;
+  }
+
+  .gc-toolbar { padding: 0 2px 4px; }
+
+  .apb {
+    padding: 3px 6px;
+    gap: 6px;
+    border-radius: 6px;
+    border-width: 1px;
+  }
+  .apb-avatar { width: 22px; height: 22px; }
+  .apb-name { font-size: 11px; }
+  .apb-clock-digits { font-size: 13px; }
+  .apb-clock { padding: 2px 5px; }
+  .apb-top { margin-bottom: 3px; }
+  .apb-bottom { margin-top: 3px; }
+  .apb-captures { display: none; }
+
+  .gc-action-bar { padding: 4px 0 0; gap: 4px; }
+  .gc-action-btn { padding: 4px 6px; font-size: 10px; }
+}
+
+
+/* ================================================================
+   PRE-GAME SETUP — responsive styles
+   ================================================================ */
 @media (max-width: 768px) {
   .play-shell-setup {
     padding: 1rem;
@@ -62,7 +826,7 @@
     font-size: 1.1rem;
     padding: 0.75rem 2rem;
     margin: 1rem 0;
-    min-height: 44px; /* WCAG touch target */
+    min-height: 44px;
   }
 
   .play-shell-setup .pre-game-setup .countdown-in-setup {
@@ -71,110 +835,6 @@
   }
 }
 
-/* Main Game Layout - Board + Sidebar */
-.play-shell-layout {
-  flex: 1;
-  display: grid;
-  grid-template-columns: minmax(400px, 2fr) minmax(300px, 1fr);
-  grid-template-rows: auto 1fr;
-  gap: 2rem;
-  padding: 2rem;
-  max-width: 1600px;
-  margin: 0 auto;
-  width: 100%;
-}
-
-/* Timer/Score Section - positioned above board by default */
-.play-shell-timer-score {
-  grid-column: 1;
-  grid-row: 1;
-  margin-bottom: 1rem;
-}
-
-/* Board Section - Center Focus */
-.play-shell-board {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  background: #312e2b;
-  backdrop-filter: blur(10px);
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 1.5rem;
-  min-height: 500px;
-  grid-column: 1;
-  grid-row: 2;
-}
-
-/* Sidebar Section - Game Info */
-.play-shell-sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  background: #312e2b;
-  backdrop-filter: blur(10px);
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 1.5rem;
-  overflow-y: auto;
-  max-height: calc(100vh - 8rem);
-  grid-column: 2;
-  grid-row: 1 / 3; /* Span both timer/score and board rows */
-}
-
-/* Modals and Overlays */
-.play-shell-modals {
-  /* Modals handle their own positioning (fixed/absolute) */
-  /* This is just a container for organizational purposes */
-}
-
-/* Responsive Design */
-@media (max-width: 1024px) {
-  .play-shell-layout {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto auto auto;
-    gap: 1rem;
-    padding: 1rem;
-  }
-
-  .play-shell-timer-score {
-    grid-column: 1;
-    grid-row: 1;
-  }
-
-  .play-shell-board {
-    grid-column: 1;
-    grid-row: 2;
-  }
-
-  .play-shell-sidebar {
-    grid-column: 1;
-    grid-row: 3;
-    max-height: none;
-  }
-}
-
-@media (max-width: 768px) {
-  .play-shell-header {
-    padding: 0.75rem 1rem;
-  }
-
-  .play-shell-board {
-    padding: 1rem;
-    min-height: 300px;
-  }
-
-  .play-shell-sidebar {
-    padding: 1rem;
-  }
-
-  .play-shell-layout {
-    padding: 0.5rem;
-  }
-}
-
-/* Very small mobile devices (portrait phones) */
 @media (max-width: 480px) {
   .play-shell-setup {
     padding: 0.5rem;
@@ -182,7 +842,6 @@
 
   .play-shell-setup .pre-game-setup {
     width: 100%;
-
     max-width: 98vw;
     max-height: 95vh;
     padding: 1rem;
@@ -194,129 +853,23 @@
     margin-bottom: 1rem;
   }
 
-  .play-shell-setup .pre-game-setup .difficulty-selection,
-  .play-shell-setup .pre-game-setup .color-selection {
-    margin-bottom: 0.5rem;
-  }
-
   .play-shell-setup .pre-game-setup .start-button.large {
     font-size: 1rem;
     padding: 0.75rem 1.5rem;
     margin: 0.5rem 0;
     width: 100%;
     max-width: 280px;
-    min-height: 44px; /* WCAG touch target */
+    min-height: 44px;
   }
 
-  .play-shell-setup .pre-game-setup .countdown-in-setup {
-    font-size: 1.1rem;
-    margin: 0.8rem 0;
-  }
-
-  /* Make difficulty meter more compact on small screens */
   .play-shell-setup .pre-game-setup canvas {
     max-width: 100% !important;
     height: auto !important;
   }
-
-  /* Specific styling for difficulty meter in mobile landscape */
-  body.mobile-landscape .play-shell-setup .pre-game-setup .difficulty-selection {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 120px;
-    flex: 1;
-  }
-
-  body.mobile-landscape .play-shell-setup .pre-game-setup .difficulty-selection canvas {
-    width: min(180px, 30vw) !important;
-    height: min(135px, 22vh) !important;
-    max-width: min(180px, 30vw) !important;
-    max-height: min(135px, 22vh) !important;
-  }
-
-  body.mobile-landscape .play-shell-setup .pre-game-setup .color-selection {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    min-height: 120px;
-  }
-
-  body.mobile-landscape .play-shell-setup .pre-game-setup .start-button.large {
-    flex: 0 0 auto;
-    margin-top: 1rem;
-  }
 }
 
-/* Mode-specific customization */
-.play-shell-computer {
-  /* Computer mode specific styles (if needed) */
-}
-
-.play-shell-multiplayer {
-  /* Multiplayer mode specific styles (if needed) */
-}
-
-/* Preserve z-index hierarchy - don't create new stacking contexts */
-.play-shell-container {
-  /* DON'T use transform, will-change, or other properties that create stacking contexts */
-  /* Keep layout flat to preserve existing modal z-index behavior */
-}
-
-/* Animation support for smooth transitions */
-.play-shell-board,
-.play-shell-sidebar,
-.play-shell-setup {
-  transition: opacity 0.3s ease, transform 0.3s ease;
-}
-
-/* Mobile Landscape Layout - Sidebar Left, Board Right */
+/* Mobile landscape setup */
 @media (orientation: landscape) and (max-width: 900px) {
-  body.mobile-landscape .play-shell-layout {
-    display: grid;
-    grid-template-columns: minmax(140px, 30vw) 1fr;
-    gap: 0.4rem;
-    height: 100vh;
-    width: 100vw;
-    overflow: hidden;
-    padding: 0.4rem;
-  }
-
-  /* Sidebar to the left, stack items */
-  body.mobile-landscape .play-shell-sidebar {
-    order: 1;
-    padding: 0.5rem;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    gap: 0.5rem;
-    overflow-y: auto;
-    max-height: 100vh;
-  }
-
-  /* Board to the right, fill remaining space */
-  body.mobile-landscape .play-shell-board {
-    order: 2;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    margin: 0;
-    min-height: auto;
-    background: transparent;
-    border: none;
-    border-radius: 0;
-  }
-
-  /* Board container sizing for mobile landscape */
-  body.mobile-landscape .board-container {
-    width: min(95vh, 65vw);
-    height: min(95vh, 65vw);
-  }
-
-  /* Pre-game setup full-width in mobile landscape */
   body.mobile-landscape .play-shell-setup {
     width: 100vw;
     height: 100vh;
@@ -340,12 +893,10 @@
     justify-content: center;
   }
 
-  /* Ensure buttons and controls fit within mobile landscape */
   body.mobile-landscape .pre-game-setup .start-button.large {
     font-size: 1.1rem;
     padding: 0.6rem 1.2rem;
-    margin: 0.25rem;
-    min-height: 44px; /* WCAG touch target */
+    min-height: 44px;
   }
 
   body.mobile-landscape .pre-game-setup h2 {
@@ -353,130 +904,29 @@
     margin-bottom: 0.25rem;
   }
 
-  body.mobile-landscape .pre-game-setup .difficulty-selection,
-  body.mobile-landscape .pre-game-setup .color-selection {
-    margin-bottom: 0.5rem;
-  }
-
-  /* Mobile landscape timer/score styling in sidebar */
-  body.mobile-landscape .play-shell-sidebar-timer-score .timer-score-display {
-    width: 100% !important;
-    font-size: 12px !important;
-    margin-bottom: 0 !important;
-  }
-
-  body.mobile-landscape .play-shell-sidebar-timer-score .timer-score-display > div:first-child,
-  body.mobile-landscape .play-shell-sidebar-timer-score .timer-score-display > div:last-child {
-    flex-direction: column !important;
-    gap: 6px !important;
-    margin-bottom: 6px !important;
-  }
-
-  body.mobile-landscape .play-shell-sidebar-timer-score .timer-score-display > div > div {
-    width: 100% !important;
-    min-width: unset !important;
-    padding: 4px 6px !important;
-    font-size: 11px !important;
-  }
-
-  body.mobile-landscape .play-shell-sidebar-timer-score .timer-score-display span {
-    font-size: 11px !important;
-  }
-
-  body.mobile-landscape .play-shell-sidebar-timer-score .timer-score-display .monospace {
-    font-size: 10px !important;
-  }
-
-  /* Hide sidebar timer/score in normal mode */
-  .play-shell-sidebar-timer-score {
-    display: none;
+  body.mobile-landscape .play-shell-setup .pre-game-setup .difficulty-selection canvas {
+    width: min(180px, 30vw) !important;
+    height: min(135px, 22vh) !important;
+    max-width: min(180px, 30vw) !important;
+    max-height: min(135px, 22vh) !important;
   }
 }
 
-/* Loading state */
-.play-shell-loading {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 400px;
-  color: #bababa;
-  font-size: 1.25rem;
-}
 
-/* === FINAL LANDSCAPE OVERRIDES === */
-@media (orientation: landscape) and (max-width: 900px) {
-  body.mobile-landscape .play-shell-layout {
-    display: grid !important;
-    grid-template-columns: 1fr 28vw !important;
-    grid-template-rows: 1fr !important;
-    gap: 0.3rem !important;
-    height: 100vh !important;
-    width: 100vw !important;
-    overflow: hidden !important;
-    padding: 0.3rem !important;
-  }
-
-  /* Hide timer/score section from main layout in mobile landscape */
-  body.mobile-landscape .play-shell-timer-score {
-    display: none !important;
-  }
-
-  body.mobile-landscape .play-shell-board {
-    grid-column: 1 !important;
-    grid-row: 1 !important;
-    order: 1 !important;
-    display: flex !important;
-    justify-content: center !important;
-    align-items: center !important;
-    background: transparent !important;
-    border: none !important;
-    padding: 0 !important;
-  }
-
-  body.mobile-landscape .play-shell-sidebar {
-    grid-column: 2 !important;
-    grid-row: 1 !important;
-    order: 2 !important;
-    width: 28vw !important;
-    max-width: 280px !important;
-    padding: 0.5rem !important;
-    overflow-y: auto !important;
-  }
-
-  /* Timer/Score inside sidebar for mobile landscape */
-  body.mobile-landscape .play-shell-sidebar-timer-score {
-    display: block !important;
-    margin-bottom: 1rem !important;
-    order: -1 !important; /* Show at top of sidebar */
-  }
-
-  body.mobile-landscape .board-container {
-    width: min(95vh, 75vw) !important;
-    height: min(95vh, 75vw) !important;
-  }
-
-  /* Fit start-game card properly */
-  body.mobile-landscape .play-shell-setup {
-    width: 100vw !important;
-    height: 100vh !important;
-    display: flex !important;
-    justify-content: center !important;
-    align-items: center !important;
-  }
-}
-
-/* Championship Banner - Horizontally expanding, vertically lean */
+/* ================================================================
+   CHAMPIONSHIP BANNER (multiplayer)
+   ================================================================ */
 .championship-banner {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: linear-gradient(135deg, #81b64c 0%, #4e7837 100%);
+  background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);
   color: white;
   padding: 1px 4px;
   border-radius: 3px;
   margin: 0.25rem 0;
-  box-shadow: 0 1px 4px rgba(129, 182, 76, 0.3);
-  border: 1px solid rgba(129, 182, 76, 0.4);
+  box-shadow: 0 1px 4px rgba(76, 175, 80, 0.3);
+  border: 1px solid rgba(76, 175, 80, 0.4);
   animation: fadeIn 0.5s ease-in;
   width: 100%;
   max-width: 100%;
@@ -520,7 +970,7 @@
   line-height: 1.1;
 }
 
-/* Game Header Info Row - Time control and status below championship banner */
+/* Game Header Info Row */
 .game-header .time-control-display,
 .game-header .game-status {
   display: inline-block;
@@ -532,7 +982,7 @@
   width: 50%;
   padding-right: 1rem;
   font-size: 0.9rem;
-  color: #8b8987;
+  color: #888;
   box-sizing: border-box;
 }
 
@@ -543,7 +993,6 @@
   box-sizing: border-box;
 }
 
-/* Championship mode - ensure elements are in proper rows */
 .game-header.championship-mode {
   display: flex;
   flex-direction: column;
@@ -552,10 +1001,7 @@
   overflow: hidden;
 }
 
-/* Hide "Multiplayer Chess" title in championship mode */
-.game-header.championship-mode h2 {
-  display: none;
-}
+.game-header.championship-mode h2 { display: none; }
 
 .game-header.championship-mode .championship-banner {
   order: 1;
@@ -575,13 +1021,46 @@
   width: 50%;
 }
 
+
+/* ================================================================
+   HIDE FOOTER during active game
+   ================================================================ */
+.chess-game-container ~ footer,
+.chess-game-container ~ .footer,
+.chess-game-container ~ .app-footer,
+.play-shell-container footer,
+.play-shell-container .footer,
+.play-shell-container .app-footer {
+  display: none !important;
+}
+
+
+/* ================================================================
+   ANIMATIONS
+   ================================================================ */
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Scrollbar styling for move list */
+.gc-tab-content::-webkit-scrollbar,
+.gc-move-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.gc-tab-content::-webkit-scrollbar-track,
+.gc-move-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.gc-tab-content::-webkit-scrollbar-thumb,
+.gc-move-list::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 2px;
+}
+
+.gc-tab-content::-webkit-scrollbar-thumb:hover,
+.gc-move-list::-webkit-scrollbar-thumb:hover {
+  background: #444;
 }

@@ -1,114 +1,58 @@
-/* PlayMobileLandscape.css - Mobile Landscape Dedicated Styles */
-/* This file provides nuclear-option overrides for mobile landscape layout */
+/* PlayMobileLandscape.css - Mobile Landscape & Portrait Override Styles */
+/* Targets both old play-shell layout and new gc-layout (GameContainer) */
 
 /* === MOBILE PORTRAIT FIXES === */
-/* Fix footer blocking and layout issues in mobile portrait */
 @media screen and (max-width: 768px) and (orientation: portrait) {
-  /* Hide footer in mobile portrait on play pages to prevent blocking buttons */
+  /* Hide footer on play pages */
   .play-shell-container footer,
   .play-shell-container .footer,
   .play-shell-container .app-footer,
   .game-container footer,
   .game-container .footer,
-  .game-container .app-footer {
+  .game-container .app-footer,
+  .chess-game-container footer,
+  .chess-game-container .footer {
     display: none !important;
     visibility: hidden !important;
     height: 0 !important;
     overflow: hidden !important;
   }
 
-  /* Ensure game container has proper bottom padding */
   .play-shell-container,
-  .game-container {
+  .game-container,
+  .chess-game-container {
     padding-bottom: 20px !important;
     margin-bottom: 0 !important;
   }
 
-  /* Mobile portrait championship banner improvements */
+  /* Mobile portrait championship banner */
   .game-header .championship-banner {
     padding: 2px 6px !important;
     margin: 0.15rem 0 !important;
     gap: 6px !important;
     width: 100% !important;
-    height: auto !important;
     min-height: 28px !important;
-    max-width: 100% !important;
   }
 
-  .game-header .championship-badge {
-    font-size: 0.9rem !important;
-    line-height: 1 !important;
-  }
+  .game-header .championship-badge { font-size: 0.9rem !important; }
+  .game-header .championship-name { font-size: 0.8rem !important; }
+  .game-header .championship-details { font-size: 0.7rem !important; }
+  .game-header.championship-mode h2 { display: none !important; }
 
-  .game-header .championship-info {
-    gap: 6px !important;
-  }
-
-  .game-header .championship-name {
-    font-size: 0.8rem !important;
-    font-weight: 600 !important;
-    max-width: 100% !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    white-space: nowrap !important;
-    line-height: 1.1 !important;
-  }
-
-  .game-header .championship-details {
-    font-size: 0.7rem !important;
-    opacity: 0.9 !important;
-    line-height: 1.1 !important;
-  }
-
-  /* Hide "Multiplayer Chess" title in championship mode on mobile */
-  .game-header.championship-mode h2 {
-    display: none !important;
-  }
-
-  /* Compact time control and turn status in single row */
+  /* Compact time control in single row */
   .game-header .time-control-display,
   .game-header .game-status {
     display: inline-block !important;
     vertical-align: top !important;
     margin: 0 !important;
-  }
-
-  .game-header .time-control-display {
     width: 50% !important;
     font-size: 12px !important;
-    padding-right: 8px !important;
-  }
-
-  .game-header .game-status {
-    width: 50% !important;
-    font-size: 12px !important;
-    padding-left: 8px !important;
-  }
-
-  .game-header .turn-status {
-    font-size: 11px !important;
-    line-height: 1.2 !important;
-  }
-
-  /* Game controls - ensure they're not blocked by footer */
-  .game-controls {
-    position: relative !important;
-    z-index: 10 !important;
-    padding-bottom: 30px !important;
-    margin-bottom: 20px !important;
-  }
-
-  .game-controls button {
-    padding: 8px 16px !important;
-    font-size: 14px !important;
-    margin: 4px !important;
   }
 }
 
 /* === MOBILE LANDSCAPE OVERRIDES === */
-/* Force hide header and footer in mobile landscape */
 @media screen and (max-width: 812px) and (orientation: landscape) {
-  /* Hide header and footer using multiple selectors for maximum coverage */
+  /* Hide header and footer */
   html.mobile-landscape .app-header,
   html.mobile-landscape header,
   html.mobile-landscape .header,
@@ -116,13 +60,7 @@
   body.mobile-landscape .app-header,
   body.mobile-landscape header,
   body.mobile-landscape .header,
-  body.mobile-landscape nav {
-    display: none !important;
-    visibility: hidden !important;
-    height: 0 !important;
-    overflow: hidden !important;
-  }
-
+  body.mobile-landscape nav,
   html.mobile-landscape footer,
   html.mobile-landscape .footer,
   html.mobile-landscape .app-footer,
@@ -135,7 +73,7 @@
     overflow: hidden !important;
   }
 
-  /* Override the main app container */
+  /* Full viewport */
   html.mobile-landscape .app-container,
   html.mobile-landscape #root,
   body.mobile-landscape .app-container,
@@ -146,7 +84,6 @@
     overflow: hidden !important;
   }
 
-  /* Force the play shell container to full viewport */
   html.mobile-landscape .play-shell-container,
   body.mobile-landscape .play-shell-container {
     height: 100vh !important;
@@ -156,7 +93,69 @@
     overflow: hidden !important;
   }
 
-  /* Force the play shell layout - Sidebar Left, Board Right */
+  /* --- New GC Layout in landscape: board + moves panel --- */
+  body.mobile-landscape .gc-layout {
+    grid-template-columns: 1fr 180px !important;
+    grid-template-rows: 1fr !important;
+    gap: 4px !important;
+    padding: 4px !important;
+    max-height: 100vh !important;
+    overflow: hidden !important;
+  }
+
+  body.mobile-landscape .gc-left-panel {
+    display: none !important;
+  }
+
+  body.mobile-landscape .gc-center {
+    max-height: 100vh !important;
+    overflow: hidden !important;
+  }
+
+  body.mobile-landscape .gc-board-wrapper {
+    padding: 2px !important;
+    border-radius: 6px !important;
+  }
+
+  body.mobile-landscape .gc-right-panel {
+    position: static !important;
+    max-height: 100vh !important;
+    overflow-y: auto !important;
+    font-size: 11px !important;
+  }
+
+  body.mobile-landscape .gc-action-bar {
+    padding: 2px 0 0 !important;
+    gap: 3px !important;
+  }
+
+  body.mobile-landscape .gc-action-btn {
+    padding: 3px 5px !important;
+    font-size: 10px !important;
+  }
+
+  body.mobile-landscape .apb {
+    padding: 2px 4px !important;
+    gap: 4px !important;
+    border-width: 1px !important;
+  }
+
+  body.mobile-landscape .apb-avatar {
+    width: 20px !important;
+    height: 20px !important;
+  }
+
+  body.mobile-landscape .apb-name { font-size: 10px !important; }
+  body.mobile-landscape .apb-clock-digits { font-size: 12px !important; }
+  body.mobile-landscape .apb-clock { padding: 2px 4px !important; }
+  body.mobile-landscape .apb-captures { display: none !important; }
+  body.mobile-landscape .apb-rating { display: none !important; }
+  body.mobile-landscape .apb-top { margin-bottom: 2px !important; }
+  body.mobile-landscape .apb-bottom { margin-top: 2px !important; }
+
+  body.mobile-landscape .gc-toolbar { padding: 0 2px 2px !important; }
+
+  /* --- Old play-shell layout in landscape (backward compat) --- */
   html.mobile-landscape .play-shell-layout,
   body.mobile-landscape .play-shell-layout {
     display: flex !important;
@@ -165,64 +164,7 @@
     height: 100vh !important;
     padding: 0.5rem !important;
     gap: 0.5rem !important;
-    margin: 0 !important;
     overflow: hidden !important;
-  }
-
-  /* Sidebar on the left - fixed width */
-  html.mobile-landscape .play-shell-sidebar,
-  body.mobile-landscape .play-shell-sidebar {
-    width: 25vw !important;
-    min-width: 180px !important;
-    max-width: 240px !important;
-    height: 100vh !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-    padding: 0.5rem !important;
-    background: #1a1a18 !important;
-    border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
-    border-radius: 8px !important;
-    flex-shrink: 0 !important;
-    order: 1 !important;
-  }
-
-  /* Board on the right - fill remaining space */
-  html.mobile-landscape .play-shell-board,
-  body.mobile-landscape .play-shell-board {
-    flex: 1 !important;
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: center !important;
-    align-items: center !important;
-    padding: 0.5rem !important;
-    background: transparent !important;
-    border: none !important;
-    min-width: 0 !important;
-    order: 2 !important;
-  }
-
-  /* Make board square and as large as possible */
-  html.mobile-landscape .board-container,
-  body.mobile-landscape .board-container {
-    --board-size: min(calc(100vh - 2rem), calc(70vw - 2rem));
-    width: var(--board-size) !important;
-    height: var(--board-size) !important;
-    max-width: var(--board-size) !important;
-    max-height: var(--board-size) !important;
-  }
-
-  /* Compact sidebar elements */
-  html.mobile-landscape .game-info,
-  html.mobile-landscape .score-display,
-  html.mobile-landscape .timer-display,
-  html.mobile-landscape .game-controls,
-  body.mobile-landscape .game-info,
-  body.mobile-landscape .score-display,
-  body.mobile-landscape .timer-display,
-  body.mobile-landscape .game-controls {
-    padding: 0.5rem !important;
-    margin: 0.25rem 0 !important;
-    font-size: 0.85rem !important;
   }
 
   /* Setup screen for mobile landscape */
@@ -237,7 +179,6 @@
     align-items: center !important;
   }
 
-  /* Pre-game setup styling */
   html.mobile-landscape .pre-game-setup,
   body.mobile-landscape .pre-game-setup {
     max-width: 80vw !important;
@@ -245,78 +186,10 @@
     overflow-y: auto !important;
   }
 
-  /* Compact timer displays above/below board */
-  html.mobile-landscape .board-container > div:first-child,
-  body.mobile-landscape .board-container > div:first-child {
-    margin-bottom: 0.5rem !important;
-    font-size: 0.8rem !important;
-  }
-
-  html.mobile-landscape .board-container > div:last-child,
-  body.mobile-landscape .board-container > div:last-child {
-    margin-top: 0.5rem !important;
-    font-size: 0.8rem !important;
-  }
-
-  /* Make buttons and controls more compact */
+  /* Compact buttons */
   html.mobile-landscape button,
   body.mobile-landscape button {
     padding: 0.4rem 0.8rem !important;
     font-size: 0.85rem !important;
-  }
-
-  /* Compact headings in sidebar */
-  html.mobile-landscape .sidebar h2,
-  html.mobile-landscape .sidebar h3,
-  body.mobile-landscape .sidebar h2,
-  body.mobile-landscape .sidebar h3 {
-    font-size: 1rem !important;
-    margin-bottom: 0.5rem !important;
-  }
-}
-
-/* Alternative approach using CSS transforms if flex doesn't work */
-@media screen and (max-width: 812px) and (orientation: landscape) {
-  html.mobile-landscape.force-transform .play-shell-layout,
-  body.mobile-landscape.force-transform .play-shell-layout {
-    position: relative !important;
-    display: block !important;
-  }
-
-  html.mobile-landscape.force-transform .play-shell-sidebar,
-  body.mobile-landscape.force-transform .play-shell-sidebar {
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
-    width: 200px !important;
-    height: 100vh !important;
-    z-index: 10 !important;
-  }
-
-  html.mobile-landscape.force-transform .play-shell-board,
-  body.mobile-landscape.force-transform .play-shell-board {
-    position: absolute !important;
-    left: 200px !important;
-    top: 0 !important;
-    width: calc(100vw - 200px) !important;
-    height: 100vh !important;
-  }
-}
-
-/* Debug helper - add a visible indicator when mobile-landscape is active */
-@media screen and (max-width: 812px) and (orientation: landscape) {
-  html.mobile-landscape::before,
-  body.mobile-landscape::before {
-    content: "📱 Mobile Landscape Active";
-    position: fixed;
-    top: 5px;
-    right: 5px;
-    background: rgba(129, 182, 76, 0.9);
-    color: white;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 10px;
-    z-index: 9999;
-    pointer-events: none;
   }
 }

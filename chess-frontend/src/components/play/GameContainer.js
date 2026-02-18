@@ -1,32 +1,17 @@
 // src/components/play/GameContainer.js
+// Premium 3-column game layout: Left Panel | Center Board (hero) | Right Panel
 
-import React from 'react';
-import GameInfo from './GameInfo';
-import ScoreDisplay from './ScoreDisplay';
-import TimerDisplay from './TimerDisplay';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import ActivePlayerBar from './ActivePlayerBar';
-import GameControls from './GameControls';
-import TimerButton from './TimerButton';
 import SoundToggle from './SoundToggle';
 import BoardCustomizer from './BoardCustomizer';
 import PerformanceDisplay from '../game/PerformanceDisplay';
 
 /**
- * GameContainer - Unified game layout component
+ * GameContainer - Premium 3-zone game layout
  *
- * Provides consistent layout structure for both computer and multiplayer modes:
- * - Timer/Score display above board
- * - Board area (provided as children)
- * - Sidebar with game info, scores, timers, controls
- *
- * @param {Object} props
- * @param {string} props.mode - 'computer' or 'multiplayer'
- * @param {React.ReactNode} props.children - Board component and controls
- * @param {React.ReactNode} props.header - Header section (optional, for multiplayer mode)
- * @param {Object} props.timerData - Timer-related data
- * @param {Object} props.gameData - Game state data
- * @param {Object} props.sidebarData - Sidebar component data
- * @param {Object} props.controlsData - Game controls data (optional, computer mode only)
+ * Desktop: [Left Info Panel] [Center Board Hero] [Right Moves Panel]
+ * Mobile: Full-width board → compressed bars → bottom controls → collapsible panels
  */
 const GameContainer = ({
   mode = 'computer',
@@ -41,269 +26,337 @@ const GameContainer = ({
   onBoardThemeChange,
   onPieceStyleChange
 }) => {
+  const [rightTab, setRightTab] = useState('moves');
+  const moveListRef = useRef(null);
+
   // Extract timer data
   const {
-    playerTime,
-    computerTime,
-    myMs,
-    oppMs,
-    activeTimer,
-    playerColor,
-    isMyTurn,
-    isTimerRunning,
-    playerScore = 0, // Player's score
-    computerScore = 0, // Computer/opponent's score (for both computer and multiplayer modes)
-    playerData = null, // Player information with avatar
-    opponentData = null // Opponent/computer information
+    playerTime, computerTime, myMs, oppMs, activeTimer, playerColor,
+    isMyTurn, isTimerRunning,
+    playerScore = 0, computerScore = 0,
+    playerData = null, opponentData = null
   } = timerData;
 
   // Extract game data
   const {
-    game,
-    gameHistory = [],
-    gameStatus,
-    moveCompleted,
-    isReplayMode = false,
-    currentReplayMove = 0,
-    settings = {},
-    isOnlineGame = false,
-    players = null
+    game, gameHistory = [], gameStatus, moveCompleted,
+    isReplayMode = false, currentReplayMove = 0,
+    settings = {}, isOnlineGame = false, players = null
   } = gameData;
 
   // Extract sidebar data
   const {
-    lastMoveEvaluation,
-    lastComputerEvaluation,
-    lastOpponentEvaluation,
-    opponent,
-    isPortrait: sidebarIsPortrait,
+    lastMoveEvaluation, lastComputerEvaluation, lastOpponentEvaluation,
     performanceData: sidebarPerformanceData,
     showPerformance: sidebarShowPerformance
   } = sidebarData;
 
-  // Extract controls data (computer mode only)
+  // Extract controls data
   const {
-    gameStarted,
-    countdownActive,
-    resetGame,
-    handleTimer,
-    pauseTimer,
-    handleResign,
-    replayPaused,
-    startReplay,
-    pauseReplay,
-    savedGames,
-    loadGame,
-    moveCount,
-    replayTimerRef,
-    timerButtonColor,
-    timerButtonText,
-    handleTimerButtonPress,
-    gameOver,
-    isPortrait,
-    // Undo functionality props
-    handleUndo,
-    canUndo,
-    undoChancesRemaining,
-    // Draw functionality props
-    handleDrawOffer,
-    handleDrawAccept,
-    handleDrawDecline,
-    handleDrawCancel,
-    drawState,
-    ratedMode,
-    currentGameId,
-    // Performance data
-    performanceData
+    gameStarted, countdownActive, resetGame,
+    handleTimer, pauseTimer, handleResign,
+    replayPaused, startReplay, pauseReplay,
+    handleUndo, canUndo, undoChancesRemaining,
+    handleDrawOffer, drawState, currentGameId,
+    gameOver, isPortrait, ratedMode, performanceData
   } = controlsData || {};
 
-  
-  // Timer/Score Display Component (currently unused - kept for potential future use)
+  const isRated = ratedMode === 'rated';
 
+  // Build move pairs for two-column algebraic notation
+  const movePairs = useMemo(() => {
+    const pairs = [];
+    for (let i = 0; i < gameHistory.length; i += 2) {
+      pairs.push({
+        num: Math.floor(i / 2) + 1,
+        white: gameHistory[i]?.move?.san || '...',
+        whiteIdx: i,
+        black: gameHistory[i + 1]?.move?.san || null,
+        blackIdx: i + 1,
+      });
+    }
+    return pairs;
+  }, [gameHistory]);
 
+  // Auto-scroll move list
+  useEffect(() => {
+    if (moveListRef.current) {
+      const active = moveListRef.current.querySelector('[data-active="true"]');
+      if (active) active.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }, [gameHistory.length]);
 
-  // Sidebar Component
-  const renderSidebar = () => {
+  // Determine status for the info panel
+  const getStatusLabel = () => {
+    if (!game) return '';
+    if (game.isCheckmate?.()) return 'Checkmate';
+    if (game.isCheck?.()) return 'Check';
+    if (game.isStalemate?.()) return 'Stalemate';
+    if (game.isDraw?.()) return 'Draw';
+    if (gameOver) return 'Game Over';
+    return game.turn?.() === 'w' ? "White's turn" : "Black's turn";
+  };
+
+  const getMoveClass = (classification) => {
+    switch (classification?.toLowerCase()) {
+      case 'excellent': case 'great': return 'gc-eval-great';
+      case 'good': return 'gc-eval-good';
+      case 'inaccuracy': return 'gc-eval-inaccuracy';
+      case 'mistake': return 'gc-eval-mistake';
+      case 'blunder': return 'gc-eval-blunder';
+      default: return '';
+    }
+  };
+
+  // ----- ACTION BAR -----
+  const renderActionBar = () => {
+    if (!gameStarted || isReplayMode) return null;
     return (
-      <>
-        {/* Header Section (multiplayer mode) */}
-        {header && header}
-
-        {/* GameInfo */}
-        <GameInfo
-          gameStatus={gameStatus}
-          playerColor={playerColor}
-          game={game}
-          gameHistory={gameHistory}
-          moveCompleted={mode === 'computer' ? moveCompleted : undefined}
-          activeTimer={mode === 'computer' ? activeTimer : undefined}
-          isReplayMode={mode === 'computer' ? isReplayMode : undefined}
-          currentReplayMove={mode === 'computer' ? currentReplayMove : undefined}
-          totalMoves={gameHistory.length}
-          settings={mode === 'computer' ? settings : undefined}
-          isOnlineGame={isOnlineGame}
-          players={players}
-          opponent={mode === 'multiplayer' ? opponent : undefined}
-        />
-
-        {/* ScoreDisplay */}
-        <ScoreDisplay
-          playerScore={playerScore}
-          lastMoveEvaluation={lastMoveEvaluation}
-          computerScore={computerScore}
-          lastComputerEvaluation={mode === 'computer' ? lastComputerEvaluation : lastOpponentEvaluation}
-          isOnlineGame={isOnlineGame}
-          mode={mode}
-          playerData={playerData}
-          opponentData={opponentData}
-          game={game}
-        />
-
-        {/* TimerDisplay - Both modes */}
-        <TimerDisplay
-          playerTime={mode === 'computer' ? playerTime : Math.floor(myMs / 1000)}
-          computerTime={mode === 'computer' ? computerTime : Math.floor(oppMs / 1000)}
-          activeTimer={mode === 'computer' ? activeTimer : (isMyTurn ? playerColor : (playerColor === 'w' ? 'b' : 'w'))}
-          playerColor={playerColor}
-          isPortrait={mode === 'computer' ? isPortrait : sidebarIsPortrait}
-          isRunning={mode === 'computer' ? (isTimerRunning && activeTimer === playerColor) : isMyTurn}
-          isComputerRunning={mode === 'computer' ? (isTimerRunning && activeTimer !== playerColor) : !isMyTurn}
-          mode={mode}
-          playerData={playerData}
-          opponentData={opponentData}
-        />
-
-        {/* GameControls - Computer mode only */}
-        {mode === 'computer' && controlsData && (
-          <GameControls
-            gameStarted={gameStarted}
-            countdownActive={countdownActive}
-            isTimerRunning={isTimerRunning}
-            resetGame={resetGame}
-            handleTimer={handleTimer}
-            pauseTimer={pauseTimer}
-            handleResign={handleResign}
-            isReplayMode={isReplayMode}
-            replayPaused={replayPaused}
-            startReplay={startReplay}
-            pauseReplay={pauseReplay}
-            savedGames={savedGames}
-            loadGame={loadGame}
-            moveCount={moveCount}
-            playerColor={playerColor}
-            replayTimerRef={replayTimerRef}
-            gameOver={gameOver}
-            handleUndo={handleUndo}
-            canUndo={canUndo}
-            undoChancesRemaining={undoChancesRemaining}
-            handleDrawOffer={handleDrawOffer}
-            handleDrawAccept={handleDrawAccept}
-            handleDrawDecline={handleDrawDecline}
-            handleDrawCancel={handleDrawCancel}
-            drawState={drawState}
-            ratedMode={ratedMode}
-            currentGameId={currentGameId}
-          />
+      <div className="gc-action-bar">
+        {/* Pause/Resume — casual only */}
+        {!isRated && (
+          <button
+            className="gc-action-btn gc-action-neutral"
+            onClick={() => isTimerRunning ? pauseTimer?.() : handleTimer?.()}
+            disabled={gameOver}
+          >
+            {isTimerRunning ? '⏸ Pause' : '▶ Resume'}
+          </button>
         )}
-
-        {/* PerformanceDisplay - Rated games only (computer and multiplayer) */}
-        {mode === 'computer' && ratedMode === 'rated' && performanceData && gameStarted && !gameOver && !isReplayMode && (
-          <div style={{ marginTop: '20px' }}>
-            <PerformanceDisplay
-              performanceData={performanceData}
-              compact={true}
-            />
-          </div>
+        {/* Undo — casual only */}
+        {handleUndo && !isRated && (
+          <button
+            className={`gc-action-btn gc-action-info ${(!canUndo || gameOver) ? 'gc-action-disabled' : ''}`}
+            onClick={handleUndo}
+            disabled={!canUndo || gameOver}
+            title={canUndo ? `Undo (${undoChancesRemaining} left)` : 'Cannot undo'}
+          >
+            ↩ Undo{undoChancesRemaining > 0 ? ` (${undoChancesRemaining})` : ''}
+          </button>
         )}
-        {mode === 'multiplayer' && sidebarShowPerformance && sidebarPerformanceData && (
-          <div style={{ marginTop: '20px' }}>
-            <PerformanceDisplay
-              performanceData={sidebarPerformanceData}
-              compact={true}
-              showRealtime={true}
-            />
-          </div>
+        {/* Draw */}
+        {handleDrawOffer && !gameOver && (
+          <button
+            className="gc-action-btn gc-action-warning"
+            onClick={handleDrawOffer}
+            disabled={gameOver}
+          >
+            ½ Draw
+          </button>
         )}
-
-        {/* TimerButton - Computer mode only, conditional */}
-        {mode === 'computer' && settings.requireDoneButton && !isReplayMode && (
-          <TimerButton
-            timerButtonColor={timerButtonColor}
-            timerButtonText={timerButtonText}
-            moveCompleted={moveCompleted}
-            activeTimer={activeTimer}
-            playerColor={playerColor}
-            onClick={handleTimerButtonPress}
-            disabled={gameOver || !moveCompleted || activeTimer !== playerColor}
-          />
+        {/* Resign */}
+        {handleResign && (
+          <button
+            className="gc-action-btn gc-action-danger"
+            onClick={handleResign}
+            disabled={gameOver}
+          >
+            ⚑ Resign
+          </button>
         )}
-      </>
+      </div>
     );
   };
 
-  return (
-    <div className={mode === 'computer' ? 'play-computer-layout' : 'game-layout'}>
-      {/* Sidebar */}
-      <div className={mode === 'computer' ? 'sidebar' : 'game-sidebar'}>
-        {renderSidebar()}
+  // ----- REPLAY BAR -----
+  const renderReplayBar = () => {
+    if (!isReplayMode) return null;
+    return (
+      <div className="gc-action-bar">
+        <button className="gc-action-btn gc-action-neutral" onClick={() => replayPaused ? startReplay?.() : pauseReplay?.()}>
+          {replayPaused ? '▶ Play' : '⏸ Pause'}
+        </button>
+        <button className="gc-action-btn gc-action-danger" onClick={resetGame}>
+          ✕ Exit Replay
+        </button>
       </div>
+    );
+  };
 
-      {/* Main Content Area */}
-      <div className={mode === 'computer' ? 'main-content-area' : 'board-section'}>
-        <div className="board-container">
-          {/* Toolbar above board */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '4px', gap: '6px' }}>
-            {boardTheme !== undefined && onBoardThemeChange && (
-              <BoardCustomizer
-                boardTheme={boardTheme}
-                pieceStyle={pieceStyle}
-                onThemeChange={onBoardThemeChange}
-                onPieceStyleChange={onPieceStyleChange}
-              />
-            )}
-            <SoundToggle />
+  // ----- MOVE LIST -----
+  const renderMoveList = () => (
+    <div className="gc-move-list" ref={moveListRef}>
+      {movePairs.length === 0 ? (
+        <div className="gc-move-empty">No moves yet</div>
+      ) : (
+        movePairs.map((pair) => (
+          <div key={pair.num} className="gc-move-row">
+            <span className="gc-move-num">{pair.num}.</span>
+            <span
+              className={`gc-move-cell ${pair.whiteIdx === gameHistory.length - 1 ? 'gc-move-active' : ''} ${getMoveClass(gameHistory[pair.whiteIdx]?.evaluation?.moveClassification)}`}
+              data-active={pair.whiteIdx === gameHistory.length - 1}
+            >
+              {pair.white}
+            </span>
+            {pair.black ? (
+              <span
+                className={`gc-move-cell ${pair.blackIdx === gameHistory.length - 1 ? 'gc-move-active' : ''} ${getMoveClass(gameHistory[pair.blackIdx]?.evaluation?.moveClassification)}`}
+                data-active={pair.blackIdx === gameHistory.length - 1}
+              >
+                {pair.black}
+              </span>
+            ) : <span className="gc-move-cell" />}
           </div>
+        ))
+      )}
+    </div>
+  );
 
-          {/* Opponent PlayerBar (above board) */}
-          <ActivePlayerBar
-            name={opponentData?.name || (mode === 'computer' ? 'Computer' : 'Opponent')}
-            rating={opponentData?.rating}
-            playerData={opponentData}
-            time={mode === 'computer' ? computerTime : (oppMs != null ? Math.floor(oppMs / 1000) : computerTime)}
-            isActive={mode === 'computer'
-              ? activeTimer === (playerColor === 'w' ? 'b' : 'w')
-              : !isMyTurn}
-            isWhite={playerColor === 'b'}
-            game={game}
-            isTop={true}
-            mode={mode}
-            isTimerRunning={mode === 'computer'
-              ? (isTimerRunning && activeTimer !== playerColor)
-              : !isMyTurn}
-          />
+  // ----- GAME INFO TAB -----
+  const renderGameInfo = () => (
+    <div className="gc-info-content">
+      {/* Status */}
+      <div className="gc-info-row">
+        <span className="gc-info-label">Status</span>
+        <span className="gc-info-value">{getStatusLabel()}</span>
+      </div>
+      {/* Mode */}
+      <div className="gc-info-row">
+        <span className="gc-info-label">Mode</span>
+        <span className="gc-info-value">{isRated ? 'Rated' : 'Casual'} · {mode === 'computer' ? 'vs Computer' : 'Multiplayer'}</span>
+      </div>
+      {/* Moves */}
+      <div className="gc-info-row">
+        <span className="gc-info-label">Moves</span>
+        <span className="gc-info-value">{gameHistory.length}</span>
+      </div>
+      {/* Rated warning */}
+      {isRated && gameStarted && !gameOver && (
+        <div className="gc-rated-badge">
+          ⚠ Rated — no pause, no undo, closing forfeits
+        </div>
+      )}
+      {/* Performance */}
+      {mode === 'computer' && ratedMode === 'rated' && performanceData && gameStarted && !gameOver && !isReplayMode && (
+        <div style={{ marginTop: 12 }}>
+          <PerformanceDisplay performanceData={performanceData} compact={true} />
+        </div>
+      )}
+      {mode === 'multiplayer' && sidebarShowPerformance && sidebarPerformanceData && (
+        <div style={{ marginTop: 12 }}>
+          <PerformanceDisplay performanceData={sidebarPerformanceData} compact={true} showRealtime={true} />
+        </div>
+      )}
+    </div>
+  );
 
-          {/* Board and Controls (passed as children) */}
-          {children}
+  // ----- RIGHT PANEL -----
+  const renderRightPanel = () => (
+    <div className="gc-right-panel">
+      {/* Tabs */}
+      <div className="gc-tabs">
+        {['moves', 'info'].map((tab) => (
+          <button
+            key={tab}
+            className={`gc-tab ${rightTab === tab ? 'gc-tab-active' : ''}`}
+            onClick={() => setRightTab(tab)}
+          >
+            {tab === 'moves' ? 'Moves' : 'Game Info'}
+          </button>
+        ))}
+      </div>
+      {/* Tab content */}
+      <div className="gc-tab-content">
+        {rightTab === 'moves' && renderMoveList()}
+        {rightTab === 'info' && renderGameInfo()}
+      </div>
+    </div>
+  );
 
-          {/* Player PlayerBar (below board) */}
-          <ActivePlayerBar
-            name={playerData?.name || 'You'}
-            rating={playerData?.rating}
-            playerData={playerData}
-            time={mode === 'computer' ? playerTime : (myMs != null ? Math.floor(myMs / 1000) : playerTime)}
-            isActive={mode === 'computer'
-              ? activeTimer === playerColor
-              : isMyTurn}
-            isWhite={playerColor === 'w'}
-            game={game}
-            isTop={false}
-            mode={mode}
-            isTimerRunning={mode === 'computer'
-              ? (isTimerRunning && activeTimer === playerColor)
-              : isMyTurn}
-          />
+  // ----- LEFT PANEL -----
+  const renderLeftPanel = () => (
+    <div className="gc-left-panel">
+      {header && header}
+      {/* Score display */}
+      <div className="gc-score-section">
+        <div className="gc-score-card">
+          <span className="gc-score-label">{playerData?.name || 'You'}</span>
+          <span className="gc-score-value gc-score-player">{typeof playerScore === 'number' ? Math.abs(playerScore).toFixed(1) : '0.0'}</span>
+          {lastMoveEvaluation?.moveClassification && (
+            <span className={`gc-eval-badge ${getMoveClass(lastMoveEvaluation.moveClassification)}`}>
+              {lastMoveEvaluation.moveClassification}
+            </span>
+          )}
+        </div>
+        <div className="gc-score-divider">vs</div>
+        <div className="gc-score-card">
+          <span className="gc-score-label">{opponentData?.name || (mode === 'computer' ? 'CPU' : 'Opponent')}</span>
+          <span className="gc-score-value gc-score-opponent">{typeof computerScore === 'number' ? Math.abs(computerScore).toFixed(1) : '0.0'}</span>
+          {(mode === 'computer' ? lastComputerEvaluation : lastOpponentEvaluation)?.moveClassification && (
+            <span className={`gc-eval-badge ${getMoveClass((mode === 'computer' ? lastComputerEvaluation : lastOpponentEvaluation).moveClassification)}`}>
+              {(mode === 'computer' ? lastComputerEvaluation : lastOpponentEvaluation).moveClassification}
+            </span>
+          )}
         </div>
       </div>
+      {/* Game status */}
+      {gameStatus && !gameStatus.match(/^(White|Black)'s turn$/i) && (
+        <div className="gc-status-bar">{gameStatus}</div>
+      )}
+    </div>
+  );
+
+  // ========== MAIN RENDER ==========
+  return (
+    <div className="gc-layout">
+      {/* LEFT PANEL — scores, status (desktop only) */}
+      {renderLeftPanel()}
+
+      {/* CENTER — board hero zone */}
+      <div className="gc-center">
+        {/* Toolbar */}
+        <div className="gc-toolbar">
+          {boardTheme !== undefined && onBoardThemeChange && (
+            <BoardCustomizer
+              boardTheme={boardTheme}
+              pieceStyle={pieceStyle}
+              onThemeChange={onBoardThemeChange}
+              onPieceStyleChange={onPieceStyleChange}
+            />
+          )}
+          <SoundToggle />
+        </div>
+
+        {/* Opponent bar */}
+        <ActivePlayerBar
+          name={opponentData?.name || (mode === 'computer' ? 'Computer' : 'Opponent')}
+          rating={opponentData?.rating}
+          playerData={opponentData}
+          time={mode === 'computer' ? computerTime : (oppMs != null ? Math.floor(oppMs / 1000) : computerTime)}
+          isActive={mode === 'computer' ? activeTimer === (playerColor === 'w' ? 'b' : 'w') : !isMyTurn}
+          isWhite={playerColor === 'b'}
+          game={game}
+          isTop={true}
+          mode={mode}
+          isTimerRunning={mode === 'computer' ? (isTimerRunning && activeTimer !== playerColor) : !isMyTurn}
+        />
+
+        {/* Board */}
+        <div className="gc-board-wrapper">
+          {children}
+        </div>
+
+        {/* Player bar */}
+        <ActivePlayerBar
+          name={playerData?.name || 'You'}
+          rating={playerData?.rating}
+          playerData={playerData}
+          time={mode === 'computer' ? playerTime : (myMs != null ? Math.floor(myMs / 1000) : playerTime)}
+          isActive={mode === 'computer' ? activeTimer === playerColor : isMyTurn}
+          isWhite={playerColor === 'w'}
+          game={game}
+          isTop={false}
+          mode={mode}
+          isTimerRunning={mode === 'computer' ? (isTimerRunning && activeTimer === playerColor) : isMyTurn}
+        />
+
+        {/* Action bar / Replay bar */}
+        {renderActionBar()}
+        {renderReplayBar()}
+      </div>
+
+      {/* RIGHT PANEL — moves, game info */}
+      {renderRightPanel()}
     </div>
   );
 };

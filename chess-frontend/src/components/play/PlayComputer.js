@@ -2773,74 +2773,15 @@ const PlayComputer = () => {
     );
   }
 
-  // Fallback to original layout (backward compatibility)
+  // Main layout — GameContainer handles its own 3-column grid
   return (
     <>
-      <div className="chess-game-container text-white pt-4 md:pt-6">
+      <div className="min-h-screen" style={{ background: '#121212' }}>
 
         {/* Pre-Game Setup Screen */}
-        {!gameStarted && !isReplayMode && !isOnlineGame && !syntheticOpponent && gameMode === null && (
-          <div className="pre-game-setup bg-surface-card backdrop-blur-lg rounded-2xl border border-white/10 p-6 text-center">
-            <h2 className="text-3xl font-bold mb-6 text-gold">Choose Your Game Mode</h2>
-            <div className="flex flex-col gap-4">
-              <button className="start-button large green bg-chess-green hover:bg-chess-hover text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300" onClick={() => setGameMode('computer')}>
-                Play Against Computer
-              </button>
-              <button className="start-button large blue bg-gold hover:bg-gold-hover text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300" onClick={() => navigate('/lobby')}>
-                Play Against a Friend
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Pre-Game Setup Screen (skip for synthetic opponents from lobby) */}
-        {!gameStarted && !isReplayMode && !isOnlineGame && !syntheticOpponent && gameMode === 'computer' && (
-          <div className="pre-game-setup bg-surface-card backdrop-blur-lg rounded-2xl border border-white/10 p-6 text-center">
-
-            {/* Game Mode Selector */}
-            <div className="mode-selection mb-4">
-              <GameModeSelector
-                selectedMode={ratedMode}
-                onModeChange={handleModeChange}
-                disabled={countdownActive}
-              />
-            </div>
-
-            <div className="difficulty-selection mb-2">
-              <DifficultyMeter
-                value={computerDepth}
-                onChange={handleDifficultyChange}
-                min={MIN_DEPTH}
-                max={MAX_DEPTH}
-                disabled={countdownActive}
-              />
-            </div>
-            <div className="color-selection mb-2">
-              <h3 className="text-xl font-semibold mb-2">Select Your Color:</h3>
-              <label className="color-toggle-container inline-flex items-center cursor-pointer" htmlFor="color-toggle">
-                <span className="mr-3">White</span>
-                <div className="relative">
-                  <input type="checkbox" id="color-toggle" className="sr-only"
-                    checked={playerColor === 'b'}
-                    onChange={handleColorToggle} // Stable callback
-                    disabled={countdownActive} />
-                  <div className="w-14 h-8 bg-surface-elevated rounded-full"></div>
-                  <div className={`dot absolute top-1 bg-white w-6 h-6 rounded-full transition ${playerColor === 'b' ? 'left-7' : 'left-1'}`}></div>
-                </div>
-                <span className="ml-3">Black</span>
-              </label>
-            </div>
-            {!countdownActive && (
-              <button className="start-button large green bg-chess-green hover:bg-chess-hover text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300" onClick={startGame} disabled={countdownActive}>
-                Start Game
-              </button>
-            )}
-            {countdownActive && (
-              <div className="countdown-in-setup">
-                <p className="text-xl mb-2">Starting in...</p>
-                <Countdown startValue={3} onCountdownFinish={onCountdownFinish} />
-              </div>
-            )}
+        {!gameStarted && !isReplayMode && !isOnlineGame && !syntheticOpponent && (
+          <div className="play-shell-setup">
+            {preGameSetupSection}
           </div>
         )}
 
@@ -2850,47 +2791,8 @@ const PlayComputer = () => {
         {/* Main Game/Replay Screen Layout */}
         {(gameStarted || isReplayMode) && gameContainerSection}
 
-        {/* Game Completion Modal/Animation */}
-        {showGameCompletion && (
-          <GameCompletionAnimation
-            result={gameResult || gameStatus} // Use standardized result object if available, fallback to text
-            score={typeof playerScore === 'number' && !isNaN(playerScore) ? playerScore : 0}
-            opponentScore={typeof computerScore === 'number' && !isNaN(computerScore) ? computerScore : 0}
-            playerColor={playerColor}
-            computerLevel={computerDepth} // Pass computer difficulty level for rating calculation
-            moves={encodedMoves} // Pass encoded moves string for Login to Save functionality
-            gameHistory={gameHistory} // Pass full history array for pending construction
-            isMultiplayer={false} // This is computer mode
-            onClose={() => {
-              setShowGameCompletion(false); // Hide the animation
-
-              // If there's a pending navigation (user tried to leave during rated game),
-              // execute it now after showing the game result
-              if (pendingNavigation) {
-                console.log('[PlayComputer] 🚀 Executing pending navigation after game completion:', pendingNavigation);
-
-                // Extract path from navigation string if it's a URL
-                let navPath = pendingNavigation;
-                if (navPath.includes('dashboard')) navPath = '/dashboard';
-                else if (navPath.includes('lobby')) navPath = '/lobby';
-                else if (navPath.includes('learn')) navPath = '/learn';
-                else if (navPath.includes('championship')) navPath = '/championships';
-                else if (navPath.includes('profile')) navPath = '/profile';
-
-                // Clear pending navigation
-                setPendingNavigation(null);
-
-                // Navigate to the intended destination
-                setTimeout(() => {
-                  navigate(navPath);
-                }, 100);
-              } else {
-                // Navigate to lobby after game ends
-                navigate('/lobby');
-              }
-            }}
-          />
-        )}
+        {/* Game Completion + Modals */}
+        {modalsSection}
       </div>
     </>
   );
