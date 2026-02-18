@@ -169,24 +169,24 @@ class AppServiceProvider extends ServiceProvider
         });
 
         // Subscription Gates
+        Gate::define('access-standard', function ($user) {
+            return $user->hasSubscriptionTier('standard');
+        });
+
         Gate::define('access-premium', function ($user) {
             return $user->hasSubscriptionTier('premium');
         });
 
-        Gate::define('access-pro', function ($user) {
-            return $user->hasSubscriptionTier('pro');
-        });
-
         Gate::define('create-tournament', function ($user) {
-            return $user->hasSubscriptionTier('pro') || $user->hasPermission('create_championship');
+            return $user->hasSubscriptionTier('premium') || $user->hasPermission('create_championship');
         });
 
         Gate::define('access-analytics', function ($user) {
-            return $user->hasSubscriptionTier('pro');
+            return $user->hasSubscriptionTier('premium');
         });
 
         Gate::define('access-synthetic-opponents', function ($user) {
-            return $user->hasSubscriptionTier('pro');
+            return $user->hasSubscriptionTier('premium');
         });
 
         // Super Admin Gate (bypass all checks)
