@@ -10,19 +10,19 @@ import '../styles/Subscription.css';
 const FALLBACK_PLANS = {
   free: [{
     id: null, tier: 'free', name: 'Free', interval: 'lifetime', price: 0,
-    features: ['Basic game stats', 'Play vs computer', 'Online multiplayer', '5 undos per game'],
+    features: ['Play vs computer', '5 games/day online', 'Public tournaments', 'Basic game stats', '5 undos per game'],
   }],
-  premium: [
-    { id: null, tier: 'premium', name: 'Premium Monthly', interval: 'monthly', price: 99,
-      features: ['Ad-free experience', 'Unlimited undos', 'Full game statistics', 'Priority matchmaking', 'Custom board themes'] },
-    { id: null, tier: 'premium', name: 'Premium Yearly', interval: 'yearly', price: 999,
-      features: ['Ad-free experience', 'Unlimited undos', 'Full game statistics', 'Priority matchmaking', 'Custom board themes', 'Save 16% vs monthly'] },
+  standard: [
+    { id: null, tier: 'standard', name: 'Standard Monthly', interval: 'monthly', price: 99,
+      features: ['Unlimited games', 'All tournaments', 'ELO tracking', 'Full game history', 'Ad-free experience', 'Unlimited undos', 'Priority matchmaking', 'Custom board themes'] },
+    { id: null, tier: 'standard', name: 'Standard Yearly', interval: 'yearly', price: 999,
+      features: ['Unlimited games', 'All tournaments', 'ELO tracking', 'Full game history', 'Ad-free experience', 'Unlimited undos', 'Priority matchmaking', 'Custom board themes', 'Save 16% vs monthly'] },
   ],
-  pro: [
-    { id: null, tier: 'pro', name: 'Pro Monthly', interval: 'monthly', price: 499,
-      features: ['Everything in Premium', 'Create tournaments', 'Advanced analytics', 'Synthetic AI opponents', 'Opening explorer', 'Game annotations'] },
-    { id: null, tier: 'pro', name: 'Pro Yearly', interval: 'yearly', price: 4999,
-      features: ['Everything in Premium', 'Create tournaments', 'Advanced analytics', 'Synthetic AI opponents', 'Opening explorer', 'Game annotations', 'Save 16% vs monthly'] },
+  premium: [
+    { id: null, tier: 'premium', name: 'Premium Monthly', interval: 'monthly', price: 499,
+      features: ['Everything in Standard', 'Org/school affiliation', 'Priority support', 'Advanced analytics', 'AI opponent', 'Opening explorer', 'Game annotations'] },
+    { id: null, tier: 'premium', name: 'Premium Yearly', interval: 'yearly', price: 4999,
+      features: ['Everything in Standard', 'Org/school affiliation', 'Priority support', 'Advanced analytics', 'AI opponent', 'Opening explorer', 'Game annotations', 'Save 16% vs monthly'] },
   ],
 };
 
@@ -52,7 +52,7 @@ const PricingPage = () => {
 
   // Build tier display data from grouped plans
   const tierData = useMemo(() => {
-    const tiers = ['free', 'premium', 'pro'];
+    const tiers = ['free', 'standard', 'premium'];
     return tiers.map(tier => {
       const tierPlans = effectivePlans[tier] || [];
       if (tierPlans.length === 0) return null;
@@ -135,7 +135,7 @@ const PricingPage = () => {
               plan={data}
               interval={data.tier === 'free' ? 'lifetime' : interval}
               isCurrentPlan={currentTier === data.tier}
-              isPopular={data.tier === 'premium'}
+              isPopular={data.tier === 'standard'}
               onSubscribe={handleSubscribe}
               loading={loading}
             />
@@ -152,8 +152,8 @@ const PricingPage = () => {
               <tr>
                 <th>Feature</th>
                 <th>Free</th>
-                <th className="pricing-page__table-highlight">Premium</th>
-                <th>Pro</th>
+                <th className="pricing-page__table-highlight">Standard</th>
+                <th>Premium</th>
               </tr>
             </thead>
             <tbody>
@@ -162,8 +162,20 @@ const PricingPage = () => {
                 <td>✓</td><td>✓</td><td>✓</td>
               </tr>
               <tr>
-                <td>Online Multiplayer</td>
-                <td>✓</td><td>✓</td><td>✓</td>
+                <td>Online Games</td>
+                <td>5/day</td><td>Unlimited</td><td>Unlimited</td>
+              </tr>
+              <tr>
+                <td>Tournaments</td>
+                <td>Public</td><td>All</td><td>All + Create</td>
+              </tr>
+              <tr>
+                <td>ELO Tracking</td>
+                <td>—</td><td>✓</td><td>✓</td>
+              </tr>
+              <tr>
+                <td>Full Game History</td>
+                <td>—</td><td>✓</td><td>✓</td>
               </tr>
               <tr>
                 <td>Ad-Free Experience</td>
@@ -174,10 +186,6 @@ const PricingPage = () => {
                 <td>5</td><td>Unlimited</td><td>Unlimited</td>
               </tr>
               <tr>
-                <td>Game Statistics</td>
-                <td>Basic</td><td>Full</td><td>Full</td>
-              </tr>
-              <tr>
                 <td>Priority Matchmaking</td>
                 <td>—</td><td>✓</td><td>✓</td>
               </tr>
@@ -186,7 +194,11 @@ const PricingPage = () => {
                 <td>—</td><td>✓</td><td>✓</td>
               </tr>
               <tr>
-                <td>Create Tournaments</td>
+                <td>Org/School Affiliation</td>
+                <td>—</td><td>—</td><td>✓</td>
+              </tr>
+              <tr>
+                <td>Priority Support</td>
                 <td>—</td><td>—</td><td>✓</td>
               </tr>
               <tr>
@@ -194,7 +206,7 @@ const PricingPage = () => {
                 <td>—</td><td>—</td><td>✓</td>
               </tr>
               <tr>
-                <td>Synthetic AI Opponents</td>
+                <td>AI Opponent</td>
                 <td>—</td><td>—</td><td>✓</td>
               </tr>
               <tr>

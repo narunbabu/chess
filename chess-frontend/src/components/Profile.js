@@ -32,7 +32,7 @@ const generateDiceBearAvatars = () => {
 
 const Profile = () => {
   const { user, fetchUser } = useAuth();
-  const { isPremium } = useSubscription();
+  const { isStandard } = useSubscription();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isSetupMode = searchParams.get('setup') === 'true';
@@ -656,7 +656,7 @@ const Profile = () => {
         }}>
           {Object.entries(BOARD_THEMES).map(([key, theme]) => {
             const isSelected = (user?.board_theme || 'classic') === key;
-            const isLocked = theme.tier === 'premium' && !isPremium;
+            const isLocked = theme.tier === 'standard' && !isStandard;
             return (
               <button
                 key={key}

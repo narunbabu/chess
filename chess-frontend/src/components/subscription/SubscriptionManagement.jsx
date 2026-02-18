@@ -4,8 +4,8 @@ import { useSubscription } from '../../contexts/SubscriptionContext';
 
 const tierBadgeColors = {
   free: { bg: '#4a4744', text: '#bababa' },
-  premium: { bg: '#4a3a1a', text: '#e8a93e' },
-  pro: { bg: '#2d1a4a', text: '#a855f7' },
+  standard: { bg: '#4a3a1a', text: '#e8a93e' },
+  premium: { bg: '#2d1a4a', text: '#a855f7' },
 };
 
 const SubscriptionManagement = () => {

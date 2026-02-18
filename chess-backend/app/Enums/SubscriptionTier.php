@@ -5,15 +5,15 @@ namespace App\Enums;
 enum SubscriptionTier: string
 {
     case FREE = 'free';
+    case STANDARD = 'standard';
     case PREMIUM = 'premium';
-    case PRO = 'pro';
 
     public function label(): string
     {
         return match($this) {
             self::FREE => 'Free',
+            self::STANDARD => 'Standard',
             self::PREMIUM => 'Premium',
-            self::PRO => 'Pro',
         };
     }
 
@@ -21,8 +21,8 @@ enum SubscriptionTier: string
     {
         return match($this) {
             self::FREE => 0,
-            self::PREMIUM => 1,
-            self::PRO => 2,
+            self::STANDARD => 1,
+            self::PREMIUM => 2,
         };
     }
 

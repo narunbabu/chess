@@ -20,7 +20,7 @@ const BoardCustomizer = ({ boardTheme, pieceStyle, onThemeChange, onPieceStyleCh
   const popoverRef = useRef(null);
   const buttonRef = useRef(null);
   const { isAuthenticated, user, fetchUser } = useAuth();
-  const { isPremium } = useSubscription();
+  const { isStandard } = useSubscription();
 
   // Close on click outside
   useEffect(() => {
@@ -39,7 +39,7 @@ const BoardCustomizer = ({ boardTheme, pieceStyle, onThemeChange, onPieceStyleCh
 
   const handleThemeSelect = async (key) => {
     const theme = BOARD_THEMES[key];
-    if (theme.tier === 'premium' && !isPremium) {
+    if (theme.tier === 'standard' && !isStandard) {
       alert('This theme requires a premium subscription. Upgrade in your Profile to unlock it!');
       return;
     }
@@ -125,7 +125,7 @@ const BoardCustomizer = ({ boardTheme, pieceStyle, onThemeChange, onPieceStyleCh
               {themeKeys.map((key) => {
                 const theme = BOARD_THEMES[key];
                 const isSelected = boardTheme === key;
-                const isLocked = theme.tier === 'premium' && !isPremium;
+                const isLocked = theme.tier === 'standard' && !isStandard;
                 return (
                   <button
                     key={key}

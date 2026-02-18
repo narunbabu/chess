@@ -8,8 +8,8 @@ const defaultContextValue = {
   plansError: null,
   currentSubscription: null,
   currentTier: 'free',
+  isStandard: false,
   isPremium: false,
-  isPro: false,
   loading: false,
   error: null,
   checkout: async () => {},
@@ -121,12 +121,12 @@ export const SubscriptionProvider = ({ children }) => {
     return currentSubscription?.tier || user?.subscription_tier || 'free';
   }, [currentSubscription, user]);
 
-  const isPremium = useMemo(() => {
-    return currentTier === 'premium' || currentTier === 'pro';
+  const isStandard = useMemo(() => {
+    return currentTier === 'standard' || currentTier === 'premium';
   }, [currentTier]);
 
-  const isPro = useMemo(() => {
-    return currentTier === 'pro';
+  const isPremium = useMemo(() => {
+    return currentTier === 'premium';
   }, [currentTier]);
 
   const value = useMemo(() => ({
@@ -135,15 +135,15 @@ export const SubscriptionProvider = ({ children }) => {
     plansError,
     currentSubscription,
     currentTier,
+    isStandard,
     isPremium,
-    isPro,
     loading,
     error,
     checkout,
     cancelSubscription,
     fetchPlans,
     fetchCurrentSubscription,
-  }), [plans, plansLoading, plansError, currentSubscription, currentTier, isPremium, isPro, loading, error, checkout, cancelSubscription, fetchPlans, fetchCurrentSubscription]);
+  }), [plans, plansLoading, plansError, currentSubscription, currentTier, isStandard, isPremium, loading, error, checkout, cancelSubscription, fetchPlans, fetchCurrentSubscription]);
 
   return (
     <SubscriptionContext.Provider value={value}>

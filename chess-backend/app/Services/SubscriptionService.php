@@ -28,10 +28,10 @@ class SubscriptionService
         $query = SubscriptionPlan::active();
 
         if (config('database.default') === 'sqlite') {
-            $query->orderByRaw("CASE tier WHEN 'free' THEN 1 WHEN 'premium' THEN 2 WHEN 'pro' THEN 3 ELSE 4 END")
+            $query->orderByRaw("CASE tier WHEN 'free' THEN 1 WHEN 'standard' THEN 2 WHEN 'premium' THEN 3 ELSE 4 END")
                   ->orderByRaw("CASE \"interval\" WHEN 'lifetime' THEN 1 WHEN 'monthly' THEN 2 WHEN 'yearly' THEN 3 ELSE 4 END");
         } else {
-            $query->orderByRaw("FIELD(tier, 'free', 'premium', 'pro')")
+            $query->orderByRaw("FIELD(tier, 'free', 'standard', 'premium')")
                   ->orderByRaw("FIELD(`interval`, 'lifetime', 'monthly', 'yearly')");
         }
 
