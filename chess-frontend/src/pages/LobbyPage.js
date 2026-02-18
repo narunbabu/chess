@@ -573,29 +573,29 @@ const LobbyPage = () => {
 
         </div>
 
-        <ChallengeModal
-          // Color Choice Modal props
-          showColorModal={showColorModal}
-          selectedPlayer={selectedPlayer}
-          onColorChoice={sendInvitation}
-          onCancelColorChoice={() => setShowColorModal(false)}
-          // Response Modal props
-          showResponseModal={showResponseModal}
-          selectedInvitation={selectedInvitation}
-          processingInvitations={new Set()}
-          onAcceptWithColor={() => {}}
-          onCancelResponse={() => setShowResponseModal(false)}
-          onDeclineInvitation={() => {}}
-          // Status Modal props
-          inviteStatus={inviteStatus}
-          invitedPlayer={invitedPlayer}
-        />
-
         </div>
       </div>
 
-      {/* Matchmaking Queue Modal — rendered outside lobby-container to avoid
-          backdrop-filter breaking position:fixed centering */}
+      {/* Modals rendered outside lobby-container to avoid backdrop-filter
+          breaking position:fixed centering in Safari/WebKit browsers */}
+      <ChallengeModal
+        // Color Choice Modal props
+        showColorModal={showColorModal}
+        selectedPlayer={selectedPlayer}
+        onColorChoice={sendInvitation}
+        onCancelColorChoice={() => setShowColorModal(false)}
+        // Response Modal props
+        showResponseModal={showResponseModal}
+        selectedInvitation={selectedInvitation}
+        processingInvitations={new Set()}
+        onAcceptWithColor={() => {}}
+        onCancelResponse={() => setShowResponseModal(false)}
+        onDeclineInvitation={() => {}}
+        // Status Modal props
+        inviteStatus={inviteStatus}
+        invitedPlayer={invitedPlayer}
+      />
+
       <MatchmakingQueue
         isOpen={showMatchmaking}
         onClose={() => setShowMatchmaking(false)}
