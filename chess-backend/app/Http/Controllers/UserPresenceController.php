@@ -4,8 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\UserPresence;
 use App\Models\User;
+use App\Models\Game;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 use App\Events\UserPresenceUpdated;
 
@@ -27,37 +30,63 @@ class UserPresenceController extends Controller
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
-        $presence = UserPresence::updateOrCreate(
-            ['user_id' => $user->id],
-            [
-                'status' => $request->input('status', 'online'),
-                'socket_id' => $request->input('socket_id'),
-                'device_info' => $request->input('device_info'),
-                'last_activity' => now()
-            ]
-        );
+        try {
+            $presence = UserPresence::updateOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'status' => $request->input('status', 'online'),
+                    'socket_id' => $request->input('socket_id'),
+                    'device_info' => $request->input('device_info'),
+                    'last_activity' => now()
+                ]
+            );
 
-        // Update Redis for real-time tracking
-        $redisData = [
-            'status' => $presence->status,
-            'last_activity' => $presence->last_activity->timestamp,
-            'user_name' => $user->name
-        ];
+            // Update Redis for real-time tracking (non-critical)
+            try {
+                $redisData = [
+                    'status' => $presence->status,
+                    'last_activity' => $presence->last_activity?->timestamp ?? time(),
+                    'user_name' => $user->name
+                ];
 
-        // Only include socket_id if it's not null
-        if ($presence->socket_id) {
-            $redisData['socket_id'] = $presence->socket_id;
+                if ($presence->socket_id) {
+                    $redisData['socket_id'] = $presence->socket_id;
+                }
+
+                Redis::hmset("user_presence:{$user->id}", $redisData);
+            } catch (\Exception $e) {
+                Log::warning('Redis presence update failed', [
+                    'user_id' => $user->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
+
+            // Broadcast presence update (non-critical)
+            try {
+                broadcast(new UserPresenceUpdated($user->id, $presence->status, $user->name));
+            } catch (\Exception $e) {
+                Log::warning('Presence broadcast failed', [
+                    'user_id' => $user->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'presence' => $presence
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Update presence failed', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'error' => 'Server error',
+                'message' => 'Failed to update presence'
+            ], 500);
         }
-
-        Redis::hmset("user_presence:{$user->id}", $redisData);
-
-        // Broadcast presence update
-        broadcast(new UserPresenceUpdated($user->id, $presence->status, $user->name));
-
-        return response()->json([
-            'status' => 'success',
-            'presence' => $presence
-        ]);
     }
 
     /**
@@ -65,16 +94,29 @@ class UserPresenceController extends Controller
      */
     public function getPresence(User $user): JsonResponse
     {
-        $presence = UserPresence::where('user_id', $user->id)->first();
+        try {
+            $presence = UserPresence::where('user_id', $user->id)->first();
 
-        if (!$presence) {
-            $presence = UserPresence::create([
+            if (!$presence) {
+                $presence = UserPresence::create([
+                    'user_id' => $user->id,
+                    'status' => 'offline'
+                ]);
+            }
+
+            return response()->json(['presence' => $presence]);
+
+        } catch (\Exception $e) {
+            Log::error('Get presence failed', [
                 'user_id' => $user->id,
-                'status' => 'offline'
+                'error' => $e->getMessage()
             ]);
-        }
 
-        return response()->json(['presence' => $presence]);
+            return response()->json([
+                'error' => 'Server error',
+                'message' => 'Failed to get presence'
+            ], 500);
+        }
     }
 
     /**
@@ -82,9 +124,18 @@ class UserPresenceController extends Controller
      */
     public function getOnlineUsers(): JsonResponse
     {
-        $onlineUsers = UserPresence::getOnlineUsers();
+        try {
+            $onlineUsers = UserPresence::getOnlineUsers();
 
-        return response()->json(['online_users' => $onlineUsers]);
+            return response()->json(['online_users' => $onlineUsers]);
+
+        } catch (\Exception $e) {
+            Log::error('Get online users failed', [
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json(['online_users' => []], 200);
+        }
     }
 
     /**
@@ -97,17 +148,24 @@ class UserPresenceController extends Controller
             'user_id' => 'required|integer'
         ]);
 
-        $userId = $request->input('user_id');
-        $socketId = $request->input('socket_id');
+        try {
+            $userId = $request->input('user_id');
+            $socketId = $request->input('socket_id');
 
-        // Check if user has other active connections
-        $otherConnections = UserPresence::where('user_id', $userId)
-            ->where('socket_id', '!=', $socketId)
-            ->where('last_activity', '>', now()->subMinutes(2))
-            ->exists();
+            // Check if user has other active connections
+            $otherConnections = UserPresence::where('user_id', $userId)
+                ->where('socket_id', '!=', $socketId)
+                ->where('last_activity', '>', now()->subMinutes(2))
+                ->exists();
 
-        if (!$otherConnections) {
-            $this->setUserOffline($userId);
+            if (!$otherConnections) {
+                $this->setUserOffline($userId);
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Handle disconnection failed', [
+                'error' => $e->getMessage()
+            ]);
         }
 
         return response()->json(['status' => 'success']);
@@ -123,12 +181,23 @@ class UserPresenceController extends Controller
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
-        $presence = UserPresence::where('user_id', $user->id)->first();
-        if ($presence) {
-            $presence->updateActivity();
+        try {
+            $presence = UserPresence::where('user_id', $user->id)->first();
+            if ($presence) {
+                $presence->updateActivity();
 
-            // Update Redis
-            Redis::hset("user_presence:{$user->id}", 'last_activity', now()->timestamp);
+                // Update Redis (non-critical)
+                try {
+                    Redis::hset("user_presence:{$user->id}", 'last_activity', now()->timestamp);
+                } catch (\Exception $e) {
+                    // Redis failure is non-critical for heartbeat
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error('Heartbeat failed', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage()
+            ]);
         }
 
         return response()->json(['status' => 'heartbeat_received']);
@@ -139,22 +208,38 @@ class UserPresenceController extends Controller
      */
     private function setUserOffline(int $userId): void
     {
-        $user = User::find($userId);
-        if (!$user) return;
+        try {
+            $user = User::find($userId);
+            if (!$user) return;
 
-        $presence = UserPresence::where('user_id', $userId)->first();
-        if ($presence) {
-            $presence->setOffline();
+            $presence = UserPresence::where('user_id', $userId)->first();
+            if ($presence) {
+                $presence->setOffline();
+            }
+
+            // Update Redis (non-critical)
+            try {
+                Redis::hset("user_presence:$userId", 'status', 'offline');
+            } catch (\Exception $e) {
+                Log::warning('Redis offline update failed', ['user_id' => $userId]);
+            }
+
+            // Handle any active games
+            $this->handlePlayerDisconnection($userId);
+
+            // Broadcast presence update (non-critical)
+            try {
+                broadcast(new UserPresenceUpdated($userId, 'offline', $user->name));
+            } catch (\Exception $e) {
+                Log::warning('Offline broadcast failed', ['user_id' => $userId]);
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Set user offline failed', [
+                'user_id' => $userId,
+                'error' => $e->getMessage()
+            ]);
         }
-
-        // Update Redis
-        Redis::hset("user_presence:$userId", 'status', 'offline');
-
-        // Handle any active games
-        $this->handlePlayerDisconnection($userId);
-
-        // Broadcast presence update
-        broadcast(new UserPresenceUpdated($userId, 'offline', $user->name));
     }
 
     /**
@@ -162,24 +247,31 @@ class UserPresenceController extends Controller
      */
     private function handlePlayerDisconnection(int $userId): void
     {
-        $user = User::find($userId);
-        if (!$user) return;
+        try {
+            // Find active games where this user is playing
+            // Status IDs: 1=waiting, 2=active/in_progress
+            $activeGames = DB::table('games')
+                ->where(function ($query) use ($userId) {
+                    $query->where('white_player_id', $userId)
+                          ->orWhere('black_player_id', $userId);
+                })
+                ->whereIn('status_id', [1, 2])
+                ->get();
 
-        // Find active games where this user is playing
-        $activeGames = $user->games()
-            ->whereIn('status', ['waiting', 'active'])
-            ->get();
-
-        foreach ($activeGames as $game) {
-            // Update connection status
-            if ($game->white_player_id === $userId) {
-                $game->update(['white_connected' => false, 'white_last_seen' => now()]);
-            } elseif ($game->black_player_id === $userId) {
-                $game->update(['black_connected' => false, 'black_last_seen' => now()]);
+            foreach ($activeGames as $game) {
+                if ($game->white_player_id === $userId) {
+                    DB::table('games')->where('id', $game->id)
+                        ->update(['white_connected' => false, 'white_last_seen' => now()]);
+                } elseif ($game->black_player_id === $userId) {
+                    DB::table('games')->where('id', $game->id)
+                        ->update(['black_connected' => false, 'black_last_seen' => now()]);
+                }
             }
-
-            // TODO: Implement game-specific disconnection handling
-            // This will be expanded in Phase 3 with timeout logic
+        } catch (\Exception $e) {
+            Log::error('Handle player disconnection failed', [
+                'user_id' => $userId,
+                'error' => $e->getMessage()
+            ]);
         }
     }
 
@@ -188,18 +280,29 @@ class UserPresenceController extends Controller
      */
     public function getPresenceStats(): JsonResponse
     {
-        $stats = [
-            'total_online' => UserPresence::where('status', 'online')
-                ->where('last_activity', '>', now()->subMinutes(5))
-                ->count(),
-            'total_away' => UserPresence::where('status', 'away')
-                ->where('last_activity', '>', now()->subMinutes(15))
-                ->count(),
-            'in_game' => UserPresence::whereNotNull('current_game_id')
-                ->where('status', 'online')
-                ->count()
-        ];
+        try {
+            $stats = [
+                'total_online' => UserPresence::where('status', 'online')
+                    ->where('last_activity', '>', now()->subMinutes(5))
+                    ->count(),
+                'total_away' => UserPresence::where('status', 'away')
+                    ->where('last_activity', '>', now()->subMinutes(15))
+                    ->count(),
+                'in_game' => UserPresence::whereNotNull('current_game_id')
+                    ->where('status', 'online')
+                    ->count()
+            ];
 
-        return response()->json(['stats' => $stats]);
+            return response()->json(['stats' => $stats]);
+
+        } catch (\Exception $e) {
+            Log::error('Get presence stats failed', [
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'stats' => ['total_online' => 0, 'total_away' => 0, 'in_game' => 0]
+            ]);
+        }
     }
 }

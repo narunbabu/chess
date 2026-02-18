@@ -200,8 +200,8 @@ class ContextualPresenceController extends Controller
                     ],
                     'match' => [
                         'id' => $match->id,
-                        'round' => $match->round,
-                        'status' => $match->status,
+                        'round' => $match->round_number,
+                        'status_id' => $match->status_id,
                         'scheduled_at' => $match->scheduled_at?->toIso8601String()
                     ]
                 ];
