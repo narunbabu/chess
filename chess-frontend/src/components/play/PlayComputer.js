@@ -776,6 +776,12 @@ const PlayComputer = () => {
         return;
       }
 
+      // Don't intercept clicks on the chessboard — these are game moves, not navigation
+      const boardElement = document.querySelector('.gc-board-wrapper') || document.querySelector('[data-testid="chessboard"]') || document.querySelector('.chessboard');
+      if (boardElement && boardElement.contains(event.target)) {
+        return;
+      }
+
       // Check if the click target or any parent is a navigation link
       let target = event.target;
       let isNavigationClick = false;
