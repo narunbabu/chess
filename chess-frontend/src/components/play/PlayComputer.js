@@ -1621,7 +1621,9 @@ const PlayComputer = () => {
               player_color: playerColor === 'w' ? 'white' : 'black',
               computer_level: computerDepth,
               time_control: 10, // Default 10 minutes
-              increment: 0 // No increment by default
+              increment: 0, // No increment by default
+              game_mode: ratedMode,
+              synthetic_player_id: syntheticOpponent?.id || null,
             };
 
             const response = await gameService.createComputerGame(gameData);

@@ -52,7 +52,9 @@ class GameController extends Controller
             'player_color' => 'required|in:white,black',
             'computer_level' => 'required|integer|min:1|max:20',
             'time_control' => 'sometimes|integer|min:1|max:60', // minutes
-            'increment' => 'sometimes|integer|min:0|max:60' // seconds per move
+            'increment' => 'sometimes|integer|min:0|max:60', // seconds per move
+            'synthetic_player_id' => 'sometimes|nullable|integer|exists:synthetic_players,id',
+            'game_mode' => 'sometimes|in:rated,casual',
         ]);
 
         $user = Auth::user();
@@ -79,7 +81,9 @@ class GameController extends Controller
             'black_player_id' => $blackPlayerId,
             'computer_player_id' => $computerPlayer->id,
             'computer_level' => $computerLevel,
+            'synthetic_player_id' => $request->synthetic_player_id,
             'player_color' => $playerColor,
+            'game_mode' => $request->game_mode ?? 'casual',
             'status' => 'active',
             'result' => 'ongoing',
             'turn' => 'white', // White always starts
@@ -94,20 +98,33 @@ class GameController extends Controller
             'whitePlayer',
             'blackPlayer',
             'computerPlayer',
+            'syntheticPlayer',
             'statusRelation',
             'endReasonRelation'
         ]);
 
+        // Prefer synthetic player identity over generic computer player
+        $syntheticPlayer = $game->syntheticPlayer;
+        $opponentData = $syntheticPlayer ? [
+            'id' => $syntheticPlayer->id,
+            'level' => $computerPlayer->level,
+            'name' => $syntheticPlayer->name,
+            'rating' => $syntheticPlayer->rating,
+            'avatar' => $syntheticPlayer->avatar_url,
+            'type' => 'synthetic',
+        ] : [
+            'id' => $computerPlayer->id,
+            'level' => $computerPlayer->level,
+            'name' => $computerPlayer->name,
+            'rating' => $computerPlayer->rating,
+            'avatar' => $computerPlayer->avatar,
+            'type' => 'computer',
+        ];
+
         return response()->json([
             'message' => 'Computer game created successfully',
             'game' => $game,
-            'computer_opponent' => [
-                'id' => $computerPlayer->id,
-                'level' => $computerPlayer->level,
-                'name' => $computerPlayer->name,
-                'rating' => $computerPlayer->rating,
-                'avatar' => $computerPlayer->avatar
-            ]
+            'computer_opponent' => $opponentData
         ]);
     }
 
