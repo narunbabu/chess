@@ -578,6 +578,13 @@ class GameController extends Controller
             return response()->json(['message' => 'Game already finished', 'game' => $game], 200);
         }
 
+        // Rated games cannot be paused - players must complete or resign
+        if ($game->game_mode === 'rated') {
+            return response()->json([
+                'error' => 'Rated games cannot be paused. Players must complete the game or resign.',
+            ], 403);
+        }
+
         // Update game status to paused
         $updateData = [
             'status_id' => \DB::table('game_statuses')->where('code', 'paused')->first()->id,
