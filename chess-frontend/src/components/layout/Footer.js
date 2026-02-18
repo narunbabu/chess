@@ -63,7 +63,8 @@ const Footer = () => {
     };
   }, [isPlayPage, location.pathname]);
 
-  // Footer is now shown on all pages including landing page
+  // Hide footer entirely on play pages (game takes full focus)
+  if (isPlayPage) return null;
 
   return (
     <>

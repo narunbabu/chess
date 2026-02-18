@@ -64,7 +64,7 @@ const Layout = ({ children }) => {
 
   return (
     <div>
-      <Background />
+      {!isPlayPage && <Background />}
       <div ref={headerRef}>
         <Header />
       </div>
