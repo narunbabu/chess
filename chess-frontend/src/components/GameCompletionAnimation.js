@@ -372,13 +372,8 @@ const GameCompletionAnimation = ({
     navigate("/login");
   };
   const handleViewInHistory = () => {
-    const savedGameId = localStorage.getItem('lastGameId');
-    if (savedGameId) {
-      navigate("/history", { state: { gameIdToSelect: savedGameId } });
-    } else {
-      navigate("/history"); // Fallback if no game ID found
-    }
     onClose?.(); // Close the animation
+    navigate("/dashboard");
   };
 
   const handlePlayAgain = () => {

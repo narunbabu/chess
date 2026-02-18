@@ -5,10 +5,8 @@ import { useLocation, useNavigate, useParams, useSearchParams } from "react-rout
 import { getGameHistoryById } from "../services/gameHistoryService";
 import api from "../services/api";
 import GameEndCard from "./GameEndCard";
-import { getGameResultShareMessage, getShareableGameUrl } from "../utils/socialShareUtils";
 import { isWin, isDraw } from "../utils/resultStandardization";
 import { useAuth } from "../contexts/AuthContext";
-import { uploadGameResultImage } from "../services/sharedResultService";
 import BoardCustomizer, { getBoardTheme, getPieceStyle } from './play/BoardCustomizer';
 import { pieces3dLanding } from '../assets/pieces/pieces3d';
 import { getTheme } from '../config/boardThemes';
@@ -178,6 +176,9 @@ const GameReview = () => {
   const [showEndCard, setShowEndCard] = useState(false);
   const [isTestSharing, setIsTestSharing] = useState(false);
   const [sharePlayerName, setSharePlayerName] = useState(null);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareImageUrl, setShareImageUrl] = useState(null);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   // Board customization
   const [boardTheme, setBoardTheme] = useState(() => getBoardTheme(user));
@@ -649,68 +650,7 @@ const GameReview = () => {
     });
   }, [game]);
 
-  // ═══ Share functions (kept verbatim) ═══
-
-  const downloadBlob = (blob, filename) => {
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
-  const handleShareWithImage = async () => {
-    try {
-      setShowEndCard(true);
-      await new Promise(resolve => setTimeout(resolve, 300));
-      const cardElement = document.querySelector('.game-end-card');
-      if (!cardElement) throw new Error('GameEndCard not found');
-      cardElement.classList.add('share-mode');
-      await waitForImagesToLoad(cardElement);
-      await convertImagesToDataURLs(cardElement);
-      await new Promise(resolve => setTimeout(resolve, 200));
-
-      const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(cardElement, {
-        backgroundColor: '#ffffff', scale: 2, useCORS: true, allowTaint: false, logging: false
-      });
-      cardElement.classList.remove('share-mode');
-
-      canvas.toBlob(async (blob) => {
-        if (blob) {
-          const file = new File([blob], 'chess-game-result.jpg', { type: 'image/jpeg' });
-          const shareMessage = getGameResultShareMessage({
-            result: gameHistory.result,
-            playerColor: gameHistory.player_color === 'w' ? 'white' : 'black',
-            isWin: isWin(gameHistory.result),
-            isDraw: isDraw(gameHistory.result),
-            opponentName: gameHistory.opponent_name || (gameHistory.game_mode === 'computer' ? 'Computer' : 'Opponent'),
-            playerName: user?.name || 'Player'
-          });
-          try { await navigator.clipboard.writeText(shareMessage); } catch { /* noop */ }
-          if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-            try { await navigator.share({ title: 'Chess Game Result', text: shareMessage, files: [file] }); }
-            catch (shareError) {
-              if (shareError.name !== 'AbortError') { downloadBlob(blob, 'chess-game-result.jpg'); alert('Failed to share image. Image has been downloaded instead.'); }
-            }
-          } else {
-            downloadBlob(blob, 'chess-game-result.jpg');
-            alert('Sharing not supported on this device. Image has been downloaded instead.');
-          }
-        }
-      }, 'image/jpeg', 0.8);
-    } catch (error) {
-      console.error('Error sharing image:', error);
-      alert('Failed to share image. Please try again.');
-      const cardElement = document.querySelector('.game-end-card');
-      if (cardElement) cardElement.classList.remove('share-mode');
-    } finally {
-      setTimeout(() => setShowEndCard(false), 1000);
-    }
-  };
+  // ═══ Share functions ═══
 
   const handleTestShare = async () => {
     try {
@@ -733,80 +673,69 @@ const GameReview = () => {
 
       const html2canvas = (await import('html2canvas')).default;
       const canvas = await html2canvas(cardElement, {
-        backgroundColor: '#ffffff', scale: 2, useCORS: true, allowTaint: false, logging: true,
+        backgroundColor: '#ffffff', scale: 2, useCORS: true, allowTaint: false, logging: false,
         foreignObjectRendering: false, removeContainer: true, imageTimeout: 15000,
-        onclone: (clonedDoc) => {
-          const clonedImages = clonedDoc.querySelectorAll('img');
-          clonedImages.forEach((img, idx) => {
-            if (!img.src.startsWith('data:')) console.warn(`Cloned image ${idx + 1} not data URL: ${img.src.substring(0, 50)}`);
-          });
-        }
       });
       cardElement.classList.remove('share-mode');
 
-      canvas.toBlob(async (blob) => {
-        if (blob) {
-          const fileName = `chess-game-result-${Date.now()}.jpg`;
-          const file = new File([blob], fileName, { type: 'image/jpeg' });
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.8));
+      if (!blob) throw new Error('Failed to generate image');
 
-          if (isAuthenticated) {
-            try {
-              const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
-              const response = await uploadGameResultImage(imageDataUrl, {
-                game_id: gameHistory.id, user_id: user?.id,
-                winner: isWin(gameHistory.result) ? 'player' : (isDraw(gameHistory.result) ? 'draw' : 'opponent'),
-                playerName: user?.name || 'Player',
-                opponentName: gameHistory.opponent_name || (gameHistory.game_mode === 'computer' ? 'Computer' : 'Opponent'),
-                result: gameHistory.result, gameMode: gameHistory.game_mode
-              });
-              if (response.success && response.share_url) {
-                const shareUrl = response.share_url;
-                const opponentName = gameHistory.opponent_name || (gameHistory.game_mode === 'computer' ? 'Computer' : 'Opponent');
-                const playerWon = isWin(gameHistory.result);
-                const isDrawResult = isDraw(gameHistory.result);
-                let shareMessage;
-                if (isDrawResult) shareMessage = `♟️ I just played an exciting chess game against ${opponentName} at Chess99.com!\n\nGame ended in a draw. Can you do better?\n\n${shareUrl}`;
-                else if (playerWon) shareMessage = `🏆 Victory! I just defeated ${opponentName} in an epic chess battle at Chess99.com!\n\nThink you can beat me? Challenge me now!\n\n${shareUrl}`;
-                else shareMessage = `♟️ Just played an intense chess match against ${opponentName} at Chess99.com!\n\nCan you avenge my defeat? Play now!\n\n${shareUrl}`;
-                try { await navigator.clipboard.writeText(shareUrl); } catch { /* noop */ }
-                if (navigator.share) {
-                  try { await navigator.share({ title: 'Chess Game Result', text: shareMessage, url: shareUrl }); }
-                  catch (shareError) {
-                    if (shareError.name !== 'AbortError') alert(`Share URL copied!\n\n${shareUrl}\n\nPaste this link on WhatsApp to share with preview!`);
-                  }
-                } else { alert(`Share URL copied!\n\n${shareUrl}\n\nPaste this link on WhatsApp to share with preview!`); }
-              } else { throw new Error('Failed to upload image'); }
-            } catch (uploadError) {
-              console.error('Upload failed, falling back to download:', uploadError);
-              downloadBlob(blob, fileName);
-              alert('Upload failed. Image downloaded instead.');
-            }
-          } else {
-            const opponentName = gameHistory.opponent_name || 'Computer';
-            const playerWon = isWin(gameHistory.result);
-            const isDrawResult = isDraw(gameHistory.result);
-            let shareMessage;
-            if (isDrawResult) shareMessage = `♟️ ${playerName} just played an exciting chess game against ${opponentName}!\n\nGame ended in a draw. Can you do better?\n\n🎯 Play at www.chess99.com`;
-            else if (playerWon) shareMessage = `🏆 Victory! ${playerName} defeated ${opponentName} in an epic chess battle!\n\nThink you can beat ${playerName}?\n\n🎯 Play at www.chess99.com`;
-            else shareMessage = `♟️ ${playerName} just played an intense chess match against ${opponentName}!\n\nCan you avenge the defeat?\n\n🎯 Play at www.chess99.com`;
-            try { await navigator.clipboard.writeText(shareMessage); } catch { /* noop */ }
-            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-              try { await navigator.share({ title: 'Chess Game Result', text: shareMessage, files: [file] }); }
-              catch (shareError) { if (shareError.name !== 'AbortError') console.error('Error sharing:', shareError); }
-            }
-          }
-        }
-      }, 'image/jpeg', 0.8);
+      // Create preview URL and show the share modal
+      const imageUrl = URL.createObjectURL(blob);
+      setShareImageUrl(imageUrl);
+      setShowEndCard(false);
+      setShowShareModal(true);
+      setCopiedLink(false);
     } catch (error) {
-      console.error('Error in test share:', error);
-      const errorMessage = error.response?.data?.message || error.message || 'Unknown error';
-      alert(`Failed to create shareable link.\n\nError: ${errorMessage}`);
+      console.error('Error in share:', error);
+      alert(`Failed to generate share image: ${error.message || 'Unknown error'}`);
       const cardElement = document.querySelector('.game-end-card');
       if (cardElement) cardElement.classList.remove('share-mode');
+      setShowEndCard(false);
     } finally {
       setIsTestSharing(false);
-      setTimeout(() => setShowEndCard(false), 1000);
     }
+  };
+
+  const reviewLink = gameHistory.id ? `https://chess99.com/play/review/${gameHistory.id}` : null;
+
+  const handleCopyReviewLink = async () => {
+    if (!reviewLink) return;
+    try {
+      await navigator.clipboard.writeText(reviewLink);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
+    } catch {
+      // Fallback
+      const ta = document.createElement('textarea');
+      ta.value = reviewLink;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
+    }
+  };
+
+  const handleShareModalDownload = () => {
+    if (!shareImageUrl) return;
+    const link = document.createElement('a');
+    link.href = shareImageUrl;
+    link.download = `chess99-game-${gameHistory.id || Date.now()}.jpg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const closeShareModal = () => {
+    setShowShareModal(false);
+    if (shareImageUrl) {
+      URL.revokeObjectURL(shareImageUrl);
+      setShareImageUrl(null);
+    }
+    setCopiedLink(false);
   };
 
   // ═══ Loading & Error states ═══
@@ -1152,6 +1081,123 @@ const GameReview = () => {
             computerLevel={gameHistory.computer_level}
             hideShareButton={true}
           />
+        </div>
+      )}
+
+      {/* ═══ Share Modal (image preview + review link) ═══ */}
+      {showShareModal && (
+        <div
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            display: 'flex', justifyContent: 'center', alignItems: 'center',
+            zIndex: 9999, padding: '20px',
+          }}
+          onClick={closeShareModal}
+        >
+          <div
+            style={{
+              backgroundColor: '#262421',
+              borderRadius: '16px',
+              padding: '24px',
+              maxWidth: '480px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+              border: '1px solid #3d3a37',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+              <h2 style={{ fontSize: '20px', fontWeight: 'bold', color: '#81b64c', margin: '0 0 4px' }}>
+                Share Game
+              </h2>
+              <p style={{ color: '#8b8987', fontSize: '13px', margin: 0 }}>
+                Share your game result with friends
+              </p>
+            </div>
+
+            {/* Image preview */}
+            {shareImageUrl && (
+              <div style={{
+                marginBottom: '16px', borderRadius: '12px',
+                overflow: 'hidden', border: '1px solid #3d3a37',
+              }}>
+                <img
+                  src={shareImageUrl}
+                  alt="Game result"
+                  style={{ width: '100%', height: 'auto', display: 'block', maxHeight: '240px', objectFit: 'cover' }}
+                />
+              </div>
+            )}
+
+            {/* Review link */}
+            {reviewLink && (
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', color: '#8b8987', fontSize: '12px', fontWeight: '600', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Review Link
+                </label>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: '8px',
+                  backgroundColor: '#1a1a18', borderRadius: '8px',
+                  border: '1px solid #3d3a37', padding: '8px 12px',
+                }}>
+                  <span style={{
+                    flex: 1, color: '#bababa', fontSize: '13px',
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    fontFamily: 'monospace',
+                  }}>
+                    {reviewLink}
+                  </span>
+                  <button
+                    onClick={handleCopyReviewLink}
+                    style={{
+                      flexShrink: 0, padding: '6px 14px', borderRadius: '6px',
+                      border: 'none', fontSize: '12px', fontWeight: '600',
+                      cursor: 'pointer', transition: 'all 0.2s',
+                      backgroundColor: copiedLink ? '#81b64c' : '#3d3a37',
+                      color: copiedLink ? '#fff' : '#bababa',
+                    }}
+                  >
+                    {copiedLink ? 'Copied!' : 'Copy Link'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Action buttons */}
+            <div style={{ display: 'flex', gap: '8px', flexDirection: 'column' }}>
+              {/* Download image */}
+              <button
+                onClick={handleShareModalDownload}
+                style={{
+                  width: '100%', padding: '12px', borderRadius: '10px',
+                  border: 'none', backgroundColor: '#81b64c', color: 'white',
+                  fontSize: '14px', fontWeight: '700', cursor: 'pointer',
+                  transition: 'all 0.2s', display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', gap: '8px',
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download Image
+              </button>
+
+              {/* Close */}
+              <button
+                onClick={closeShareModal}
+                style={{
+                  width: '100%', padding: '10px', borderRadius: '10px',
+                  border: '1px solid #3d3a37', backgroundColor: '#1a1a18',
+                  color: '#8b8987', fontSize: '13px', fontWeight: '600',
+                  cursor: 'pointer', transition: 'all 0.2s',
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
