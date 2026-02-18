@@ -11,6 +11,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * ContextualPresenceController
@@ -43,15 +44,15 @@ class ContextualPresenceController extends Controller
             $user = Auth::user();
 
             // Get all users the current user has played games with
-            $friendIds = DB::table('game_history')
+            $friendIds = DB::table('games')
                 ->where(function($query) use ($user) {
-                    $query->where('player1_id', $user->id)
-                          ->orWhere('player2_id', $user->id);
+                    $query->where('white_player_id', $user->id)
+                          ->orWhere('black_player_id', $user->id);
                 })
                 ->get()
                 ->flatMap(function($game) use ($user) {
                     return [
-                        $game->player1_id == $user->id ? $game->player2_id : $game->player1_id
+                        $game->white_player_id == $user->id ? $game->black_player_id : $game->white_player_id
                     ];
                 })
                 ->unique()
@@ -59,22 +60,25 @@ class ContextualPresenceController extends Controller
                 ->values()
                 ->toArray();
 
-            // Also include users from friendship table if it exists
-            $friendshipIds = DB::table('friendships')
-                ->where(function($query) use ($user) {
-                    $query->where('user_id', $user->id)
-                          ->orWhere('friend_id', $user->id);
-                })
-                ->where('status', 'accepted')
-                ->get()
-                ->map(function($friendship) use ($user) {
-                    return $friendship->user_id == $user->id
-                        ? $friendship->friend_id
-                        : $friendship->user_id;
-                })
-                ->unique()
-                ->values()
-                ->toArray();
+            // Also include users from user_friends table if it exists
+            $friendshipIds = [];
+            if (Schema::hasTable('user_friends')) {
+                $friendshipIds = DB::table('user_friends')
+                    ->where(function($query) use ($user) {
+                        $query->where('user_id', $user->id)
+                              ->orWhere('friend_id', $user->id);
+                    })
+                    ->where('status', 'accepted')
+                    ->get()
+                    ->map(function($friendship) use ($user) {
+                        return $friendship->user_id == $user->id
+                            ? $friendship->friend_id
+                            : $friendship->user_id;
+                    })
+                    ->unique()
+                    ->values()
+                    ->toArray();
+            }
 
             // Merge and deduplicate
             $allFriendIds = array_unique(array_merge($friendIds, $friendshipIds));
@@ -287,15 +291,15 @@ class ContextualPresenceController extends Controller
 
             // Optional: Exclude friends
             if ($excludeFriends) {
-                $friendIds = DB::table('game_history')
+                $friendIds = DB::table('games')
                     ->where(function($q) use ($currentUser) {
-                        $q->where('player1_id', $currentUser->id)
-                          ->orWhere('player2_id', $currentUser->id);
+                        $q->where('white_player_id', $currentUser->id)
+                          ->orWhere('black_player_id', $currentUser->id);
                     })
                     ->get()
                     ->flatMap(function($game) use ($currentUser) {
                         return [
-                            $game->player1_id == $currentUser->id ? $game->player2_id : $game->player1_id
+                            $game->white_player_id == $currentUser->id ? $game->black_player_id : $game->white_player_id
                         ];
                     })
                     ->unique()
@@ -380,16 +384,16 @@ class ContextualPresenceController extends Controller
             // Collect all relevant user IDs
             $relevantUserIds = collect();
 
-            // 1. Friends/Contacts
-            $friendIds = DB::table('game_history')
+            // 1. Friends/Contacts (people you've played games with)
+            $friendIds = DB::table('games')
                 ->where(function($query) use ($user) {
-                    $query->where('player1_id', $user->id)
-                          ->orWhere('player2_id', $user->id);
+                    $query->where('white_player_id', $user->id)
+                          ->orWhere('black_player_id', $user->id);
                 })
                 ->get()
                 ->flatMap(function($game) use ($user) {
                     return [
-                        $game->player1_id == $user->id ? $game->player2_id : $game->player1_id
+                        $game->white_player_id == $user->id ? $game->black_player_id : $game->white_player_id
                     ];
                 })
                 ->unique();
