@@ -2,7 +2,23 @@ import React, { createContext, useState, useContext, useEffect, useCallback, use
 import api from '../services/api';
 import { useAuth } from './AuthContext';
 
-const SubscriptionContext = createContext(null);
+const defaultContextValue = {
+  plans: {},
+  plansLoading: false,
+  plansError: null,
+  currentSubscription: null,
+  currentTier: 'free',
+  isPremium: false,
+  isPro: false,
+  loading: false,
+  error: null,
+  checkout: async () => {},
+  cancelSubscription: async () => {},
+  fetchPlans: () => {},
+  fetchCurrentSubscription: () => {},
+};
+
+const SubscriptionContext = createContext(defaultContextValue);
 
 export const SubscriptionProvider = ({ children }) => {
   const { isAuthenticated, user } = useAuth();

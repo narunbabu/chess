@@ -6,6 +6,26 @@ import PricingCard from '../components/subscription/PricingCard';
 import RazorpayCheckout from '../components/subscription/RazorpayCheckout';
 import '../styles/Subscription.css';
 
+// Static fallback plans shown when the API is unavailable or returns empty data
+const FALLBACK_PLANS = {
+  free: [{
+    id: null, tier: 'free', name: 'Free', interval: 'lifetime', price: 0,
+    features: ['Basic game stats', 'Play vs computer', 'Online multiplayer', '5 undos per game'],
+  }],
+  premium: [
+    { id: null, tier: 'premium', name: 'Premium Monthly', interval: 'monthly', price: 99,
+      features: ['Ad-free experience', 'Unlimited undos', 'Full game statistics', 'Priority matchmaking', 'Custom board themes'] },
+    { id: null, tier: 'premium', name: 'Premium Yearly', interval: 'yearly', price: 999,
+      features: ['Ad-free experience', 'Unlimited undos', 'Full game statistics', 'Priority matchmaking', 'Custom board themes', 'Save 16% vs monthly'] },
+  ],
+  pro: [
+    { id: null, tier: 'pro', name: 'Pro Monthly', interval: 'monthly', price: 499,
+      features: ['Everything in Premium', 'Create tournaments', 'Advanced analytics', 'Synthetic AI opponents', 'Opening explorer', 'Game annotations'] },
+    { id: null, tier: 'pro', name: 'Pro Yearly', interval: 'yearly', price: 4999,
+      features: ['Everything in Premium', 'Create tournaments', 'Advanced analytics', 'Synthetic AI opponents', 'Opening explorer', 'Game annotations', 'Save 16% vs monthly'] },
+  ],
+};
+
 const PricingPage = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
@@ -13,11 +33,17 @@ const PricingPage = () => {
   const [interval, setInterval] = useState('monthly');
   const [checkoutPlanId, setCheckoutPlanId] = useState(null);
 
+  // Use API plans if available, otherwise fall back to static plans
+  const hasApiPlans = plans && Object.keys(plans).length > 0 &&
+    Object.values(plans).some(tierPlans => Array.isArray(tierPlans) && tierPlans.length > 0);
+  const usingFallback = !plansLoading && !hasApiPlans;
+  const effectivePlans = hasApiPlans ? plans : FALLBACK_PLANS;
+
   // Build tier display data from grouped plans
   const tierData = useMemo(() => {
     const tiers = ['free', 'premium', 'pro'];
     return tiers.map(tier => {
-      const tierPlans = plans[tier] || [];
+      const tierPlans = effectivePlans[tier] || [];
       if (tierPlans.length === 0) return null;
 
       return {
@@ -26,11 +52,16 @@ const PricingPage = () => {
         plans: tierPlans,
       };
     }).filter(Boolean);
-  }, [plans]);
+  }, [effectivePlans]);
 
   const handleSubscribe = (planId) => {
     if (!isAuthenticated) {
       navigate('/login', { state: { from: '/pricing' } });
+      return;
+    }
+    if (!planId) {
+      // Fallback plan clicked — try refreshing live plans first
+      fetchPlans();
       return;
     }
     setCheckoutPlanId(planId);
@@ -67,26 +98,24 @@ const PricingPage = () => {
         </button>
       </div>
 
-      {/* Plan Cards — with loading, error, and empty states */}
+      {/* Fallback notice when using static plans */}
+      {usingFallback && !plansLoading && (
+        <div className="pricing-page__status" style={{ paddingBottom: '0.5rem' }}>
+          <p style={{ fontSize: '0.85rem' }}>
+            {plansError || 'Showing standard pricing. Live pricing will load shortly.'}
+          </p>
+          <button className="pricing-page__retry-btn" onClick={fetchPlans}>
+            Refresh Plans
+          </button>
+        </div>
+      )}
+
+      {/* Plan Cards — always render (using API data or fallback) */}
       <div className="pricing-page__cards">
         {plansLoading ? (
           <div className="pricing-page__status">
             <div className="pricing-page__spinner" />
             <p>Loading plans...</p>
-          </div>
-        ) : plansError ? (
-          <div className="pricing-page__status">
-            <p>{plansError}</p>
-            <button className="pricing-page__retry-btn" onClick={fetchPlans}>
-              Retry
-            </button>
-          </div>
-        ) : tierData.length === 0 ? (
-          <div className="pricing-page__status">
-            <p>No plans available at the moment. Please check back later.</p>
-            <button className="pricing-page__retry-btn" onClick={fetchPlans}>
-              Refresh
-            </button>
           </div>
         ) : (
           tierData.map((data) => (

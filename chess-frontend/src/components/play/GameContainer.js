@@ -145,13 +145,21 @@ const GameContainer = ({
           </button>
         )}
         {/* Resign */}
-        {handleResign && (
+        {handleResign && !gameOver && (
           <button
             className="gc-action-btn gc-action-danger"
             onClick={handleResign}
-            disabled={gameOver}
           >
             ⚑ Resign
+          </button>
+        )}
+        {/* New Game — shown when game is over */}
+        {gameOver && resetGame && (
+          <button
+            className="gc-action-btn gc-action-primary"
+            onClick={resetGame}
+          >
+            ♟ New Game
           </button>
         )}
       </div>

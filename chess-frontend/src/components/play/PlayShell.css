@@ -295,6 +295,15 @@
   background: rgba(255, 82, 82, 0.12);
   border-color: rgba(255, 82, 82, 0.5);
 }
+.gc-action-primary {
+  border-color: rgba(129, 182, 76, 0.4);
+  color: #81b64c;
+  font-weight: 600;
+}
+.gc-action-primary:hover:not(:disabled) {
+  background: rgba(129, 182, 76, 0.15);
+  border-color: rgba(129, 182, 76, 0.6);
+}
 
 /* --- Right panel: moves & game info --- */
 .gc-right-panel {

@@ -8,25 +8,28 @@ class LazyLoadErrorBoundary extends Component {
   }
 
   static getDerivedStateFromError(error) {
-    // Check if it's a chunk loading error
-    if (error.name === 'ChunkLoadError' || error.message.includes('Loading chunk')) {
-      return { hasError: true };
-    }
-    return { hasError: false };
+    // Catch all render errors — chunk load errors get retry logic,
+    // other errors get the final error UI immediately
+    return { hasError: true };
   }
 
   componentDidCatch(error, errorInfo) {
     console.error('LazyLoad Error:', error, errorInfo);
 
+    const isChunkError = error.name === 'ChunkLoadError' ||
+      (error.message && error.message.includes('Loading chunk'));
+
     // Only retry chunk load errors up to 3 times
-    if (this.state.retryCount < 3 &&
-        (error.name === 'ChunkLoadError' || error.message.includes('Loading chunk'))) {
+    if (this.state.retryCount < 3 && isChunkError) {
       setTimeout(() => {
         this.setState(prevState => ({
           hasError: false,
           retryCount: prevState.retryCount + 1
         }));
       }, 2000 * (this.state.retryCount + 1)); // Exponential backoff: 2s, 4s, 6s
+    } else if (!isChunkError) {
+      // For non-chunk errors, skip retries and show error UI immediately
+      this.setState({ retryCount: 3 });
     }
   }
 
