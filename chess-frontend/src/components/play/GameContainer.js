@@ -4,6 +4,7 @@ import React from 'react';
 import GameInfo from './GameInfo';
 import ScoreDisplay from './ScoreDisplay';
 import TimerDisplay from './TimerDisplay';
+import ActivePlayerBar from './ActivePlayerBar';
 import GameControls from './GameControls';
 import TimerButton from './TimerButton';
 import SoundToggle from './SoundToggle';
@@ -155,6 +156,7 @@ const GameContainer = ({
           mode={mode}
           playerData={playerData}
           opponentData={opponentData}
+          game={game}
         />
 
         {/* TimerDisplay - Both modes */}
@@ -262,8 +264,44 @@ const GameContainer = ({
             <SoundToggle />
           </div>
 
+          {/* Opponent PlayerBar (above board) */}
+          <ActivePlayerBar
+            name={opponentData?.name || (mode === 'computer' ? 'Computer' : 'Opponent')}
+            rating={opponentData?.rating}
+            playerData={opponentData}
+            time={mode === 'computer' ? computerTime : (oppMs != null ? Math.floor(oppMs / 1000) : computerTime)}
+            isActive={mode === 'computer'
+              ? activeTimer === (playerColor === 'w' ? 'b' : 'w')
+              : !isMyTurn}
+            isWhite={playerColor === 'b'}
+            game={game}
+            isTop={true}
+            mode={mode}
+            isTimerRunning={mode === 'computer'
+              ? (isTimerRunning && activeTimer !== playerColor)
+              : !isMyTurn}
+          />
+
           {/* Board and Controls (passed as children) */}
           {children}
+
+          {/* Player PlayerBar (below board) */}
+          <ActivePlayerBar
+            name={playerData?.name || 'You'}
+            rating={playerData?.rating}
+            playerData={playerData}
+            time={mode === 'computer' ? playerTime : (myMs != null ? Math.floor(myMs / 1000) : playerTime)}
+            isActive={mode === 'computer'
+              ? activeTimer === playerColor
+              : isMyTurn}
+            isWhite={playerColor === 'w'}
+            game={game}
+            isTop={false}
+            mode={mode}
+            isTimerRunning={mode === 'computer'
+              ? (isTimerRunning && activeTimer === playerColor)
+              : isMyTurn}
+          />
         </div>
       </div>
     </div>

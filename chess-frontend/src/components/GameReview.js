@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Chess } from "chess.js";
 import { Chessboard } from "react-chessboard";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -9,52 +9,30 @@ import { getGameResultShareMessage, getShareableGameUrl } from "../utils/socialS
 import { isWin, isDraw } from "../utils/resultStandardization";
 import { useAuth } from "../contexts/AuthContext";
 import { uploadGameResultImage } from "../services/sharedResultService";
+import BoardCustomizer, { getBoardTheme, getPieceStyle } from './play/BoardCustomizer';
+import { pieces3dLanding } from '../assets/pieces/pieces3d';
+import { getTheme } from '../config/boardThemes';
+import { detectOpening } from '../utils/openingDetection';
 
-// Helper function to wait for all images to fully load
+// ═══ Image helpers (kept verbatim — battle-tested for share capture) ═══
+
 const waitForImagesToLoad = async (element) => {
-  console.log('⏳ Waiting for all images to load...');
-
   const images = Array.from(element.querySelectorAll('img'));
-  console.log(`📸 Found ${images.length} images to check`);
-
-  const imageLoadPromises = images.map((img, index) => {
+  const imageLoadPromises = images.map((img) => {
     return new Promise((resolve) => {
-      // Check if image is already loaded
-      if (img.complete && img.naturalHeight > 0) {
-        console.log(`✅ Image ${index + 1} already loaded: ${img.src.substring(0, 50)}...`);
-        resolve();
-      } else {
-        console.log(`⏳ Waiting for image ${index + 1} to load: ${img.src.substring(0, 50)}...`);
-
-        // Wait for image to load
-        img.onload = () => {
-          console.log(`✅ Image ${index + 1} loaded successfully`);
-          resolve();
-        };
-
-        // Handle errors - resolve anyway to not block the process
-        img.onerror = () => {
-          console.warn(`⚠️ Image ${index + 1} failed to load, continuing anyway`);
-          resolve();
-        };
-
-        // Timeout after 5 seconds to prevent indefinite waiting
-        setTimeout(() => {
-          console.warn(`⏱️ Timeout waiting for image ${index + 1}, continuing anyway`);
-          resolve();
-        }, 5000);
-      }
+      if (img.complete && img.naturalHeight > 0) { resolve(); return; }
+      img.onload = () => resolve();
+      img.onerror = () => resolve();
+      setTimeout(() => resolve(), 5000);
     });
   });
-
   await Promise.all(imageLoadPromises);
-  console.log('✅ All images loaded (or timed out)');
 };
 
 const loadImageToDataURL = (src) => {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = 'anonymous'; // Use CORS for cross-origin images
+    img.crossOrigin = 'anonymous';
     img.onload = () => {
       try {
         const canvas = document.createElement('canvas');
@@ -63,125 +41,244 @@ const loadImageToDataURL = (src) => {
         const ctx = canvas.getContext('2d');
         if (ctx) {
           ctx.drawImage(img, 0, 0);
-          const dataURL = canvas.toDataURL('image/jpeg', 0.8);
-          resolve(dataURL);
-        } else {
-          reject(new Error('Failed to get canvas context'));
-        }
-      } catch (error) {
-        reject(error);
-      }
+          resolve(canvas.toDataURL('image/jpeg', 0.8));
+        } else { reject(new Error('Failed to get canvas context')); }
+      } catch (error) { reject(error); }
     };
-    img.onerror = () => {
-      reject(new Error(`Failed to load image: ${src}`));
-    };
+    img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
     img.src = src;
   });
 };
 
-// Helper function to convert all images within an element to data URLs
-// This robustly handles image loading for html2canvas capture using canvas extraction.
 const convertImagesToDataURLs = async (element) => {
-  console.log('🔄 Converting images to data URLs...');
-
-  // Handle <img> tags
   const images = Array.from(element.querySelectorAll('img'));
-  console.log(`📸 Found ${images.length} <img> tags to convert`);
-
   await Promise.all(
-    images.map(async (img, index) => {
-      // Don't re-convert if it's already a data URL
-      if (img.src.startsWith('data:')) {
-        console.log(`✅ Image ${index + 1} already a data URL`);
-        return;
-      }
-
+    images.map(async (img) => {
+      if (img.src.startsWith('data:')) return;
       try {
-        console.log(`🔄 Converting image ${index + 1}: ${img.src.substring(0, 50)}...`);
-        const dataUrl = await loadImageToDataURL(img.src);
-        img.src = dataUrl;
-        console.log(`✅ Image ${index + 1} converted successfully`);
-      } catch (error) {
-        console.error(`❌ Could not convert image ${index + 1} (${img.src}) to data URL:`, error);
-        // We continue even if one image fails, so the capture process doesn't halt.
-      }
+        img.src = await loadImageToDataURL(img.src);
+      } catch { /* continue */ }
     })
   );
-
-  // Handle CSS background-image properties (for logo, etc.)
-  const allElements = Array.from(element.querySelectorAll('*'));
-  allElements.push(element); // Include the root element itself
-
-  let bgImageCount = 0;
+  const allElements = [...Array.from(element.querySelectorAll('*')), element];
   await Promise.all(
-    allElements.map(async (el, elIndex) => {
+    allElements.map(async (el) => {
       const bgImage = window.getComputedStyle(el).backgroundImage;
-
-      // Check if there's a background-image and it's a URL (not 'none' or gradient)
-      if (bgImage && bgImage !== 'none' && bgImage.includes('url(')) {
-        bgImageCount++;
-        // Extract URL from background-image (handles multiple backgrounds)
-        const urlMatches = bgImage.match(/url\(["']?([^"')]+)["']?\)/g);
-
-        if (urlMatches) {
-          for (const urlMatch of urlMatches) {
-            const url = urlMatch.match(/url\(["']?([^"')]+)["']?\)/)[1];
-
-            // Skip if already a data URL
-            if (url.startsWith('data:')) {
-              console.log(`✅ Background image already a data URL on element ${elIndex}`);
-              continue;
-            }
-
-            try {
-              console.log(`🔄 Converting background image: ${url.substring(0, 50)}...`);
-              const dataUrl = await loadImageToDataURL(url);
-
-              // Replace the URL in the background-image with the data URL
-              const newBgImage = bgImage.replace(new RegExp(escapeRegExp(url), 'g'), dataUrl);
-              el.style.backgroundImage = newBgImage;
-              console.log(`✅ Background image converted successfully on element ${elIndex}`);
-            } catch (error) {
-              console.error(`❌ Could not convert background image ${url} to data URL on element ${elIndex}:`, error);
-              // We continue even if one image fails
-            }
-          }
-        }
+      if (!bgImage || bgImage === 'none' || !bgImage.includes('url(')) return;
+      const urlMatches = bgImage.match(/url\(["']?([^"')]+)["']?\)/g);
+      if (!urlMatches) return;
+      for (const urlMatch of urlMatches) {
+        const url = urlMatch.match(/url\(["']?([^"')]+)["']?\)/)[1];
+        if (url.startsWith('data:')) continue;
+        try {
+          const dataUrl = await loadImageToDataURL(url);
+          el.style.backgroundImage = bgImage.replace(new RegExp(escapeRegExp(url), 'g'), dataUrl);
+        } catch { /* continue */ }
       }
     })
   );
-
-  console.log(`✅ Image conversion complete. Found ${bgImageCount} background images.`);
 };
 
-// Helper function to escape special regex characters
-const escapeRegExp = (string) => {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// ═══ Inline sub-components ═══
+
+const PlayerBar = ({ name, rating, avatarUrl, isWhite, isTop, time, score }) => {
+  const initial = (name || '?')[0].toUpperCase();
+  const formatTime = (ms) => {
+    if (ms == null) return null;
+    const totalSec = Math.floor(ms / 1000);
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+  const formattedTime = formatTime(time);
+
+  return (
+    <div className={`flex items-center gap-2.5 px-3 py-2 rounded-lg bg-[#262421] border border-[#3d3a37] ${isTop ? 'mb-1' : 'mt-1'}`}>
+      {/* Avatar */}
+      {avatarUrl ? (
+        <img src={avatarUrl} alt={name} className="w-8 h-8 rounded-full object-cover border border-[#4a4744]" />
+      ) : (
+        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border border-[#4a4744] ${isWhite ? 'bg-gray-200 text-gray-800' : 'bg-gray-700 text-gray-200'}`}>
+          {initial}
+        </div>
+      )}
+      {/* Name + rating */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          <span className="text-white text-sm font-medium truncate max-w-[120px] lg:max-w-[180px]">{name || 'Player'}</span>
+          {rating != null && <span className="text-[#8b8987] text-xs">({rating})</span>}
+        </div>
+      </div>
+      {/* Score */}
+      {score != null && (
+        <span className="text-[#e8a93e] text-sm font-semibold tabular-nums">{score}</span>
+      )}
+      {/* Time */}
+      {formattedTime && (
+        <div className="bg-[#1a1a18] px-2.5 py-1 rounded border border-[#3d3a37]">
+          <span className="text-white text-sm font-mono tabular-nums">{formattedTime}</span>
+        </div>
+      )}
+    </div>
+  );
 };
 
+const ResultBadge = ({ result, gameHistory }) => {
+  const playerWon = isWin(result);
+  const drawResult = isDraw(result);
+  const endReason = typeof result === 'object' ? (result?.end_reason || result?.details || '') : '';
+  const resultText = playerWon ? 'Victory' : drawResult ? 'Draw' : 'Defeat';
+  const bgColor = playerWon ? 'bg-[#81b64c]' : drawResult ? 'bg-[#e8a93e]' : 'bg-[#c33a3a]';
+  const icon = playerWon ? '🏆' : drawResult ? '🤝' : '💔';
+
+  return (
+    <div className={`${bgColor} rounded-lg px-4 py-3 text-center`}>
+      <div className="text-2xl mb-0.5">{icon}</div>
+      <div className="text-white text-lg font-bold">{resultText}</div>
+      {endReason && <div className="text-white/80 text-xs capitalize mt-0.5">{endReason}</div>}
+    </div>
+  );
+};
+
+const MoveCell = ({ san, isActive, onClick, dataIndex }) => (
+  <span
+    onClick={onClick}
+    data-active={isActive || undefined}
+    data-move-index={dataIndex}
+    className={`cursor-pointer px-1.5 py-0.5 rounded text-sm font-mono transition-colors
+      ${isActive
+        ? 'bg-[#81b64c]/25 text-[#a3d160] font-semibold'
+        : 'text-[#bababa] hover:bg-[#3d3a37] hover:text-white'
+      }`}
+  >
+    {san}
+  </span>
+);
+
+// ═══ Main Component ═══
 
 const GameReview = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { id: gameId } = useParams();
   const { user, isAuthenticated } = useAuth();
+  const [searchParams] = useSearchParams();
+
+  // Core state
   const [gameHistory, setGameHistory] = useState({ moves: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
   const [game, setGame] = useState(new Chess());
-  const timerRef = useRef(null);
-  const boardBoxRef = useRef(null);
+
+  // UI state
   const [boardSize, setBoardSize] = useState(400);
-  const [searchParams] = useSearchParams();
   const [showEndCard, setShowEndCard] = useState(false);
   const [isTestSharing, setIsTestSharing] = useState(false);
   const [sharePlayerName, setSharePlayerName] = useState(null);
 
-  // Load game data when component mounts or gameId changes
+  // Board customization
+  const [boardTheme, setBoardTheme] = useState(() => getBoardTheme(user));
+  const [pieceStyle, setPieceStyle] = useState(() => getPieceStyle());
+
+  // Auto-play
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [playSpeed, setPlaySpeed] = useState(1000); // ms: 2000=slow, 1000=normal, 400=fast
+  const timerRef = useRef(null);
+
+  // FEN copy feedback
+  const [copiedFen, setCopiedFen] = useState(false);
+
+  // Refs
+  const boardBoxRef = useRef(null);
+  const moveListRef = useRef(null);
+
+  // Sync board theme from user profile
+  useEffect(() => {
+    if (user?.board_theme) setBoardTheme(user.board_theme);
+  }, [user?.board_theme]);
+
+  // ═══ Computed values ═══
+
+  const totalMoves = gameHistory.moves ? Math.max(0, gameHistory.moves.length - 1) : 0;
+
+  const openingName = useMemo(() => {
+    if (!gameHistory.moves || gameHistory.moves.length < 2) return null;
+    const sanMoves = gameHistory.moves
+      .slice(1) // skip Start entry
+      .map(m => m.move?.san)
+      .filter(Boolean);
+    return detectOpening(sanMoves);
+  }, [gameHistory.moves]);
+
+  // Transform flat moves into pairs for two-column display: [{num, white, whiteIdx, black, blackIdx}]
+  const movePairs = useMemo(() => {
+    if (!gameHistory.moves || gameHistory.moves.length <= 1) return [];
+    const pairs = [];
+    const moves = gameHistory.moves.slice(1); // skip Start
+    for (let i = 0; i < moves.length; i += 2) {
+      pairs.push({
+        num: Math.floor(i / 2) + 1,
+        white: moves[i]?.move?.san || '',
+        whiteIdx: i + 1, // +1 because we skipped Start
+        black: moves[i + 1]?.move?.san || null,
+        blackIdx: moves[i + 1] ? i + 2 : null,
+      });
+    }
+    return pairs;
+  }, [gameHistory.moves]);
+
+  // Player info derived from gameHistory
+  const playerInfo = useMemo(() => {
+    const playerColor = gameHistory.player_color || 'w';
+    const isMultiplayer = gameHistory.game_mode === 'multiplayer';
+    const whitePlayer = gameHistory.white_player;
+    const blackPlayer = gameHistory.black_player;
+
+    let topName, topRating, topAvatar, topTime, topScore, topIsWhite;
+    let bottomName, bottomRating, bottomAvatar, bottomTime, bottomScore, bottomIsWhite;
+
+    if (playerColor === 'w') {
+      // Player is white → opponent (black) on top, player (white) on bottom
+      topName = gameHistory.opponent_name || (isMultiplayer ? blackPlayer?.name : 'Computer');
+      topRating = isMultiplayer ? blackPlayer?.rating : (gameHistory.computer_level ? `Level ${gameHistory.computer_level}` : null);
+      topAvatar = isMultiplayer ? blackPlayer?.avatar_url : null;
+      topTime = gameHistory.black_time_remaining_ms;
+      topScore = gameHistory.opponent_score;
+      topIsWhite = false;
+
+      bottomName = isMultiplayer ? (whitePlayer?.name || user?.name || 'You') : (user?.name || 'You');
+      bottomRating = isMultiplayer ? whitePlayer?.rating : null;
+      bottomAvatar = isMultiplayer ? whitePlayer?.avatar_url : (user?.avatar_url || null);
+      bottomTime = gameHistory.white_time_remaining_ms;
+      bottomScore = gameHistory.final_score || gameHistory.finalScore;
+      bottomIsWhite = true;
+    } else {
+      // Player is black → opponent (white) on top, player (black) on bottom
+      topName = gameHistory.opponent_name || (isMultiplayer ? whitePlayer?.name : 'Computer');
+      topRating = isMultiplayer ? whitePlayer?.rating : (gameHistory.computer_level ? `Level ${gameHistory.computer_level}` : null);
+      topAvatar = isMultiplayer ? whitePlayer?.avatar_url : null;
+      topTime = gameHistory.white_time_remaining_ms;
+      topScore = gameHistory.opponent_score;
+      topIsWhite = true;
+
+      bottomName = isMultiplayer ? (blackPlayer?.name || user?.name || 'You') : (user?.name || 'You');
+      bottomRating = isMultiplayer ? blackPlayer?.rating : null;
+      bottomAvatar = isMultiplayer ? blackPlayer?.avatar_url : (user?.avatar_url || null);
+      bottomTime = gameHistory.black_time_remaining_ms;
+      bottomScore = gameHistory.final_score || gameHistory.finalScore;
+      bottomIsWhite = false;
+    }
+
+    return { topName, topRating, topAvatar, topTime, topScore, topIsWhite, bottomName, bottomRating, bottomAvatar, bottomTime, bottomScore, bottomIsWhite };
+  }, [gameHistory, user]);
+
+  // ═══ Data loading (kept verbatim) ═══
+
   useEffect(() => {
     const loadGameData = async () => {
-      // Prioritize location.state.gameHistory for local games (guest users)
       if (location.state?.gameHistory) {
         console.log('[GameReview] Using gameHistory from navigation state (local game)');
         setGameHistory(location.state.gameHistory);
@@ -191,20 +288,17 @@ const GameReview = () => {
 
       let effectiveGameId = gameId;
 
-      // If no gameId in URL, try to get from location state or localStorage
       if (!effectiveGameId) {
         let history = location.state?.gameHistory;
         if (!history) {
           const stored = localStorage.getItem('lastGameHistory');
           history = stored ? JSON.parse(stored) : null;
         }
-        
         if (history) {
           setGameHistory(history);
           setLoading(false);
           return;
         } else {
-          // If still no history, set an error or default state
           setError('No game specified');
           setGameHistory({ moves: [] });
           setLoading(false);
@@ -215,25 +309,21 @@ const GameReview = () => {
       try {
         setLoading(true);
         setError(null);
-
         const mode = searchParams.get('mode');
-
         let gameData;
         let isMultiplayer = mode === 'multiplayer';
 
         if (isMultiplayer) {
-          // For multiplayer, fetch from games API to get correct quality scores
           const response = await api.get(`/games/${effectiveGameId}`);
           gameData = response.data;
 
           if (!gameData) {
             setError('Game not found');
             setGameHistory({ moves: [] });
-            setLoading(false); // Stop loading even if not found
+            setLoading(false);
             return;
           }
 
-          // Map game data to history format
           const playerColor = gameData.player_color;
           const formattedGameHistory = {
             id: gameData.id,
@@ -251,144 +341,96 @@ const GameReview = () => {
             },
             white_time_remaining_ms: gameData.white_time_remaining_ms,
             black_time_remaining_ms: gameData.black_time_remaining_ms,
-            // **CRITICAL**: Pass full player objects with avatar data
             white_player: gameData.white_player,
             black_player: gameData.black_player,
             winner_user_id: gameData.winner_user_id,
-            // Add other fields as needed
             computer_level: 0
           };
 
-          // Handle moves conversion - expect semicolon-separated format: "e4,2.52;Nf6,0.98;..."
           let convertedMoves = [{ move: { san: 'Start' }, fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1' }];
 
           if (typeof gameData.moves === 'string' && gameData.moves.length > 0) {
-            // Parse semicolon-separated format: "e4,2.52;Nf6,0.98;..."
-            console.log("Converting encoded moves format for multiplayer:", gameData.moves.substring(0, 50) + "...");
             const tempGame = new Chess();
-
             gameData.moves.split(';').forEach(moveStr => {
               const [notation, time] = moveStr.split(',');
               if (notation && notation.trim()) {
                 try {
                   const move = tempGame.move(notation.trim());
                   if (move) {
-                    convertedMoves.push({
-                      move: { san: move.san },
-                      fen: tempGame.fen(),
-                      time: parseFloat(time) || undefined
-                    });
+                    convertedMoves.push({ move: { san: move.san }, fen: tempGame.fen(), time: parseFloat(time) || undefined });
                   }
-                } catch (moveError) {
-                  console.error('Error processing move:', notation, moveError);
-                }
+                } catch (moveError) { console.error('Error processing move:', notation, moveError); }
               }
             });
             formattedGameHistory.moves = convertedMoves;
           } else if (Array.isArray(gameData.moves) && gameData.moves.length > 0 && gameData.moves[0].notation) {
-            // Convert from API format [{notation: "e4", time: 2.5}]
-            console.log("Converting API moves format for multiplayer...");
             const tempGame = new Chess();
-
             gameData.moves.forEach(moveData => {
               try {
                 const move = tempGame.move(moveData.notation);
                 if (move) {
-                  convertedMoves.push({
-                    move: { san: move.san },
-                    fen: tempGame.fen(),
-                    time: moveData.time
-                  });
+                  convertedMoves.push({ move: { san: move.san }, fen: tempGame.fen(), time: moveData.time });
                 }
-              } catch (moveError) {
-                console.error('Error processing move:', moveData.notation, moveError);
-              }
+              } catch (moveError) { console.error('Error processing move:', moveData.notation, moveError); }
             });
             formattedGameHistory.moves = convertedMoves;
           } else if (!Array.isArray(gameData.moves)) {
-              formattedGameHistory.moves = convertedMoves; // Just have the start move
+            formattedGameHistory.moves = convertedMoves;
           } else {
-            // Already in correct format
             formattedGameHistory.moves = gameData.moves;
           }
 
-          // Ensure consistency: prepend 'Start' entry if first move is a real move (for detailed JSON format)
           if (formattedGameHistory.moves && formattedGameHistory.moves.length > 0) {
             const firstEntry = formattedGameHistory.moves[0];
             if (firstEntry && firstEntry.move && firstEntry.move.san && firstEntry.move.san !== 'Start') {
-              const startEntry = {
+              formattedGameHistory.moves.unshift({
                 move: { san: 'Start' },
                 fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
-              };
-              formattedGameHistory.moves.unshift(startEntry);
-              console.log('Prepended Start entry to moves array for consistent indexing');
+              });
             }
           }
 
           setGameHistory(formattedGameHistory);
         } else {
-          // For non-multiplayer, use existing history fetch
           gameData = await getGameHistoryById(effectiveGameId);
-
           if (!gameData) {
             setError('Game not found');
             setGameHistory({ moves: [] });
-            setLoading(false); // Stop loading even if not found
+            setLoading(false);
             return;
           }
 
           let formattedGameHistory = { ...gameData };
-
-          // Handle moves conversion - expect semicolon-separated format: "e4,2.52;Nf6,0.98;..."
           let convertedMoves = [{ move: { san: 'Start' }, fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1' }];
 
           if (typeof gameData.moves === 'string' && gameData.moves.length > 0) {
-            // Parse semicolon-separated format: "e4,2.52;Nf6,0.98;..."
-            console.log("Converting encoded moves format:", gameData.moves.substring(0, 50) + "...");
             const tempGame = new Chess();
-
             gameData.moves.split(';').forEach(moveStr => {
               const [notation, time] = moveStr.split(',');
               if (notation && notation.trim()) {
                 try {
                   const move = tempGame.move(notation.trim());
                   if (move) {
-                    convertedMoves.push({
-                      move: { san: move.san },
-                      fen: tempGame.fen(),
-                      time: parseFloat(time) || undefined
-                    });
+                    convertedMoves.push({ move: { san: move.san }, fen: tempGame.fen(), time: parseFloat(time) || undefined });
                   }
-                } catch (moveError) {
-                  console.error('Error processing move:', notation, moveError);
-                }
+                } catch (moveError) { console.error('Error processing move:', notation, moveError); }
               }
             });
             formattedGameHistory.moves = convertedMoves;
           } else if (Array.isArray(gameData.moves) && gameData.moves.length > 0 && gameData.moves[0].notation) {
-            // Convert from API format [{notation: "e4", time: 2.5}]
-            console.log("Converting API moves format...");
             const tempGame = new Chess();
-
             gameData.moves.forEach(moveData => {
               try {
                 const move = tempGame.move(moveData.notation);
                 if (move) {
-                  convertedMoves.push({
-                    move: { san: move.san },
-                    fen: tempGame.fen(),
-                    time: moveData.time
-                  });
+                  convertedMoves.push({ move: { san: move.san }, fen: tempGame.fen(), time: moveData.time });
                 }
-              } catch (moveError) {
-                console.error('Error processing move:', moveData.notation, moveError);
-              }
+              } catch (moveError) { console.error('Error processing move:', moveData.notation, moveError); }
             });
             formattedGameHistory.moves = convertedMoves;
           } else if (!Array.isArray(gameData.moves)) {
-              formattedGameHistory.moves = convertedMoves; // Just have the start move
+            formattedGameHistory.moves = convertedMoves;
           } else {
-            // Already in correct format
             formattedGameHistory.moves = gameData.moves;
           }
 
@@ -406,197 +448,208 @@ const GameReview = () => {
     loadGameData();
   }, [gameId, location.state, searchParams]);
 
+  // Reset board when game history changes
   useEffect(() => {
-    // Reset the board to the initial position when the game history is loaded.
     const newGame = new Chess();
     setGame(newGame);
     setCurrentMoveIndex(0);
-  }, [gameHistory]); // Reset when gameHistory changes
+  }, [gameHistory]);
 
-  // REVISED: ResizeObserver logic
+  // ═══ Board sizing ═══
+
   useEffect(() => {
     if (!boardBoxRef.current) return;
     const ro = new ResizeObserver(([entry]) => {
-      const { width } = entry.contentRect; // Only need width
+      const { width } = entry.contentRect;
       const vh = window.innerHeight;
-      
-      // Size is the container's width, but no more than viewport height minus padding
-      const newSize = Math.floor(Math.min(width, vh - 120)); // 120px for header/padding
-
-      if (newSize > 0) { // Only set if valid size
-        setBoardSize(newSize);
-      }
+      const newSize = Math.floor(Math.min(width, vh - 180));
+      if (newSize > 0) setBoardSize(newSize);
     });
     ro.observe(boardBoxRef.current);
     return () => ro.disconnect();
-  }, []); // Empty dependency array is correct here
+  }, []);
 
-  const playMoves = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => {
-      setCurrentMoveIndex((prevIndex) => {
-        const nextIndex = prevIndex + 1;
-        if (gameHistory && Array.isArray(gameHistory.moves) && nextIndex < gameHistory.moves.length) {
-          const newGame = new Chess();
-          for (let i = 1; i <= nextIndex; i++) {
-            const moveEntry = gameHistory.moves[i];
-            if (moveEntry && moveEntry.move && moveEntry.move.san && moveEntry.move.san !== 'Start') {
-              const result = newGame.move(moveEntry.move.san);
-              if (!result) {
-                console.error(`Invalid replay move in playMoves (Index ${i}):`, moveEntry.move.san, 'FEN:', newGame.fen());
-                clearInterval(timerRef.current);
-                return prevIndex;
-              }
-            }
-          }
-          setGame(newGame);
-          return nextIndex;
-        } else {
-          clearInterval(timerRef.current);
-          return prevIndex;
-        }
-      });
-    }, 1000);
-  };
+  // ═══ Navigation functions ═══
 
-  const pauseMoves = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-  };
+  const jumpToMove = useCallback((targetIndex) => {
+    if (!gameHistory.moves || targetIndex < 0 || targetIndex >= gameHistory.moves.length) return;
+    // Stop auto-play
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    setIsPlaying(false);
 
-  const stepForward = () => {
-    if (gameHistory && Array.isArray(gameHistory.moves) && currentMoveIndex < gameHistory.moves.length - 1) {
-      const nextIndex = currentMoveIndex + 1;
-      const newGame = new Chess();
-      for (let i = 1; i <= nextIndex; i++) {
-        const moveEntry = gameHistory.moves[i];
-        if (moveEntry && moveEntry.move && moveEntry.move.san && moveEntry.move.san !== 'Start') {
-          const result = newGame.move(moveEntry.move.san);
-          if (!result) {
-            console.error(`Invalid replay move in stepForward (Index ${i}):`, moveEntry.move.san, 'FEN:', newGame.fen());
-            return;
-          }
-        }
-      }
-      setGame(newGame);
-      setCurrentMoveIndex(nextIndex);
-    }
-  };
-
-  const stepBackward = () => {
-    if (currentMoveIndex <= 0) return;
-    const targetIndex = currentMoveIndex - 1;
     const newGame = new Chess();
     for (let i = 1; i <= targetIndex; i++) {
       const moveEntry = gameHistory.moves[i];
-      if (moveEntry && moveEntry.move && moveEntry.move.san && moveEntry.move.san !== 'Start') {
+      if (moveEntry?.move?.san && moveEntry.move.san !== 'Start') {
         const result = newGame.move(moveEntry.move.san);
         if (!result) {
-          console.error(`Invalid replay move during stepBackward at index ${i}:`, moveEntry.move.san, 'FEN:', newGame.fen());
+          console.error(`Invalid replay move at index ${i}:`, moveEntry.move.san);
           return;
         }
       }
     }
     setGame(newGame);
     setCurrentMoveIndex(targetIndex);
-  };
+  }, [gameHistory.moves]);
 
-  // Share functionality - simplified to match GameCompletionAnimation.js
-  const handleShareWithImage = async () => {
-    try {
-      // Show the card temporarily for capture
-      setShowEndCard(true);
+  const stepForward = useCallback(() => {
+    if (!gameHistory.moves || currentMoveIndex >= gameHistory.moves.length - 1) return;
+    jumpToMove(currentMoveIndex + 1);
+  }, [currentMoveIndex, gameHistory.moves, jumpToMove]);
 
-      // Wait for GameEndCard to render
-      await new Promise(resolve => setTimeout(resolve, 300));
+  const stepBackward = useCallback(() => {
+    if (currentMoveIndex <= 0) return;
+    jumpToMove(currentMoveIndex - 1);
+  }, [currentMoveIndex, jumpToMove]);
 
-      // Find the actual GameEndCard element
-      const cardElement = document.querySelector('.game-end-card');
-      if (!cardElement) {
-        throw new Error('GameEndCard not found');
+  const goToStart = useCallback(() => jumpToMove(0), [jumpToMove]);
+  const goToEnd = useCallback(() => {
+    if (gameHistory.moves) jumpToMove(gameHistory.moves.length - 1);
+  }, [gameHistory.moves, jumpToMove]);
+
+  // ═══ Auto-play ═══
+
+  const toggleAutoPlay = useCallback(() => {
+    if (isPlaying) {
+      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+      setIsPlaying(false);
+    } else {
+      // If at end, restart from beginning
+      if (currentMoveIndex >= (gameHistory.moves?.length || 1) - 1) {
+        jumpToMove(0);
       }
-
-      // Add share-mode class for styling
-      cardElement.classList.add('share-mode');
-
-      // **CRITICAL FIX**: Wait for all images to fully load first
-      await waitForImagesToLoad(cardElement);
-
-      // **CRITICAL FIX**: Convert all images to data URLs before capture
-      // This ensures logos, avatars, and background images load properly
-      await convertImagesToDataURLs(cardElement);
-
-      // Wait for DOM to update with converted images
-      await new Promise(resolve => setTimeout(resolve, 200));
-
-      const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(cardElement, {
-        backgroundColor: '#ffffff',
-        scale: 2, // Higher quality
-        useCORS: true, // Enable CORS to capture external images (avatars)
-        allowTaint: false, // Not needed since images are already data URLs
-        logging: false
-      });
-
-      // Remove share-mode class after capture
-      cardElement.classList.remove('share-mode');
-
-      // Convert to blob with medium quality (JPEG format)
-      canvas.toBlob(async (blob) => {
-        if (blob) {
-          const file = new File([blob], 'chess-game-result.jpg', { type: 'image/jpeg' });
-
-          // Generate share message
-          const shareMessage = getGameResultShareMessage({
-            result: gameHistory.result,
-            playerColor: gameHistory.player_color === 'w' ? 'white' : 'black',
-            isWin: isWin(gameHistory.result),
-            isDraw: isDraw(gameHistory.result),
-            opponentName: gameHistory.opponent_name || (gameHistory.game_mode === 'computer' ? 'Computer' : 'Opponent'),
-            playerName: user?.name || 'Player'
-          });
-
-          // Copy message to clipboard for easy pasting (WhatsApp workaround)
-          try {
-            await navigator.clipboard.writeText(shareMessage);
-            console.log('Share message copied to clipboard');
-          } catch (clipboardError) {
-            console.log('Could not copy to clipboard:', clipboardError);
-          }
-
-          // Check if Web Share API is supported
-          if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-            try {
-              await navigator.share({
-                title: 'Chess Game Result',
-                text: shareMessage,
-                files: [file]
-              });
-            } catch (shareError) {
-              if (shareError.name !== 'AbortError') {
-                console.error('Error sharing:', shareError);
-                // Fallback to download if share fails
-                downloadBlob(blob, 'chess-game-result.jpg');
-                alert('Failed to share image. Image has been downloaded instead.');
-              }
-            }
-          } else {
-            // Fallback: download the image
-            downloadBlob(blob, 'chess-game-result.jpg');
-            alert('Sharing not supported on this device. Image has been downloaded instead.');
-          }
-        }
-      }, 'image/jpeg', 0.8);
-    } catch (error) {
-      console.error('Error sharing image:', error);
-      alert('Failed to share image. Please try again.');
-      // Clean up share-mode class on error
-      const cardElement = document.querySelector('.game-end-card');
-      if (cardElement) cardElement.classList.remove('share-mode');
-    } finally {
-      // Hide the card after a short delay
-      setTimeout(() => setShowEndCard(false), 1000);
+      setIsPlaying(true);
     }
-  };
+  }, [isPlaying, currentMoveIndex, gameHistory.moves, jumpToMove]);
+
+  // Auto-play interval effect
+  useEffect(() => {
+    if (!isPlaying) return;
+    timerRef.current = setInterval(() => {
+      setCurrentMoveIndex(prev => {
+        const nextIndex = prev + 1;
+        if (gameHistory?.moves && nextIndex < gameHistory.moves.length) {
+          const newGame = new Chess();
+          for (let i = 1; i <= nextIndex; i++) {
+            const moveEntry = gameHistory.moves[i];
+            if (moveEntry?.move?.san && moveEntry.move.san !== 'Start') {
+              const result = newGame.move(moveEntry.move.san);
+              if (!result) { clearInterval(timerRef.current); timerRef.current = null; setIsPlaying(false); return prev; }
+            }
+          }
+          setGame(newGame);
+          return nextIndex;
+        } else {
+          clearInterval(timerRef.current); timerRef.current = null; setIsPlaying(false);
+          return prev;
+        }
+      });
+    }, playSpeed);
+    return () => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; } };
+  }, [isPlaying, playSpeed, gameHistory.moves]);
+
+  // ═══ Keyboard shortcuts ═══
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+      switch (e.key) {
+        case 'ArrowLeft': e.preventDefault(); stepBackward(); break;
+        case 'ArrowRight': e.preventDefault(); stepForward(); break;
+        case 'Home': e.preventDefault(); goToStart(); break;
+        case 'End': e.preventDefault(); goToEnd(); break;
+        case ' ': e.preventDefault(); toggleAutoPlay(); break;
+        default: break;
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [stepBackward, stepForward, goToStart, goToEnd, toggleAutoPlay]);
+
+  // ═══ Auto-scroll move list ═══
+
+  useEffect(() => {
+    if (!moveListRef.current) return;
+    const activeEl = moveListRef.current.querySelector('[data-active="true"]');
+    if (activeEl) {
+      activeEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }, [currentMoveIndex]);
+
+  // ═══ PGN generation & download ═══
+
+  const generatePgn = useCallback(() => {
+    const pgnGame = new Chess();
+    const moves = gameHistory.moves || [];
+    for (let i = 1; i < moves.length; i++) {
+      const san = moves[i]?.move?.san;
+      if (san && san !== 'Start') {
+        const result = pgnGame.move(san);
+        if (!result) break;
+      }
+    }
+    const playerColor = gameHistory.player_color || 'w';
+    const isMP = gameHistory.game_mode === 'multiplayer';
+    const whiteName = playerColor === 'w' ? (user?.name || 'Player') : (gameHistory.opponent_name || (isMP ? 'Opponent' : 'Computer'));
+    const blackName = playerColor === 'b' ? (user?.name || 'Player') : (gameHistory.opponent_name || (isMP ? 'Opponent' : 'Computer'));
+    const dateStr = gameHistory.played_at ? new Date(gameHistory.played_at).toISOString().split('T')[0].replace(/-/g, '.') : '????.??.??';
+
+    let resultStr = '*';
+    if (gameHistory.result) {
+      const won = isWin(gameHistory.result);
+      const draw = isDraw(gameHistory.result);
+      if (draw) resultStr = '1/2-1/2';
+      else if (won && playerColor === 'w') resultStr = '1-0';
+      else if (won && playerColor === 'b') resultStr = '0-1';
+      else if (!won && playerColor === 'w') resultStr = '0-1';
+      else if (!won && playerColor === 'b') resultStr = '1-0';
+    }
+
+    const headers = [
+      `[Event "Chess99 Game"]`,
+      `[Site "chess99.com"]`,
+      `[Date "${dateStr}"]`,
+      `[White "${whiteName}"]`,
+      `[Black "${blackName}"]`,
+      `[Result "${resultStr}"]`,
+    ];
+    if (openingName) headers.push(`[Opening "${openingName}"]`);
+
+    return headers.join('\n') + '\n\n' + pgnGame.pgn() + ' ' + resultStr + '\n';
+  }, [gameHistory, user, openingName]);
+
+  const handleDownloadPgn = useCallback(() => {
+    const pgn = generatePgn();
+    const blob = new Blob([pgn], { type: 'application/x-chess-pgn' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `chess99-game-${gameHistory.id || 'local'}.pgn`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [generatePgn, gameHistory.id]);
+
+  const handleCopyFen = useCallback(() => {
+    const fen = game.fen();
+    navigator.clipboard.writeText(fen).then(() => {
+      setCopiedFen(true);
+      setTimeout(() => setCopiedFen(false), 2000);
+    }).catch(() => {
+      // Fallback
+      const ta = document.createElement('textarea');
+      ta.value = fen;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      setCopiedFen(true);
+      setTimeout(() => setCopiedFen(false), 2000);
+    });
+  }, [game]);
+
+  // ═══ Share functions (kept verbatim) ═══
 
   const downloadBlob = (blob, filename) => {
     const url = URL.createObjectURL(blob);
@@ -609,613 +662,484 @@ const GameReview = () => {
     URL.revokeObjectURL(url);
   };
 
-  // Test Share - Upload image to server and share URL with preview (authenticated) or download (guest)
+  const handleShareWithImage = async () => {
+    try {
+      setShowEndCard(true);
+      await new Promise(resolve => setTimeout(resolve, 300));
+      const cardElement = document.querySelector('.game-end-card');
+      if (!cardElement) throw new Error('GameEndCard not found');
+      cardElement.classList.add('share-mode');
+      await waitForImagesToLoad(cardElement);
+      await convertImagesToDataURLs(cardElement);
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      const html2canvas = (await import('html2canvas')).default;
+      const canvas = await html2canvas(cardElement, {
+        backgroundColor: '#ffffff', scale: 2, useCORS: true, allowTaint: false, logging: false
+      });
+      cardElement.classList.remove('share-mode');
+
+      canvas.toBlob(async (blob) => {
+        if (blob) {
+          const file = new File([blob], 'chess-game-result.jpg', { type: 'image/jpeg' });
+          const shareMessage = getGameResultShareMessage({
+            result: gameHistory.result,
+            playerColor: gameHistory.player_color === 'w' ? 'white' : 'black',
+            isWin: isWin(gameHistory.result),
+            isDraw: isDraw(gameHistory.result),
+            opponentName: gameHistory.opponent_name || (gameHistory.game_mode === 'computer' ? 'Computer' : 'Opponent'),
+            playerName: user?.name || 'Player'
+          });
+          try { await navigator.clipboard.writeText(shareMessage); } catch { /* noop */ }
+          if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+            try { await navigator.share({ title: 'Chess Game Result', text: shareMessage, files: [file] }); }
+            catch (shareError) {
+              if (shareError.name !== 'AbortError') { downloadBlob(blob, 'chess-game-result.jpg'); alert('Failed to share image. Image has been downloaded instead.'); }
+            }
+          } else {
+            downloadBlob(blob, 'chess-game-result.jpg');
+            alert('Sharing not supported on this device. Image has been downloaded instead.');
+          }
+        }
+      }, 'image/jpeg', 0.8);
+    } catch (error) {
+      console.error('Error sharing image:', error);
+      alert('Failed to share image. Please try again.');
+      const cardElement = document.querySelector('.game-end-card');
+      if (cardElement) cardElement.classList.remove('share-mode');
+    } finally {
+      setTimeout(() => setShowEndCard(false), 1000);
+    }
+  };
+
   const handleTestShare = async () => {
-    console.log('🔵 Test Share started');
     try {
       setIsTestSharing(true);
-      console.log('✅ State set to sharing');
-
-      // For guests, prompt for player name
       let playerName = user?.name || 'Player';
       if (!isAuthenticated) {
         const name = window.prompt('Enter your name for the share image:', playerName);
-        if (name && name.trim()) {
-          playerName = name.trim();
-        }
+        if (name && name.trim()) playerName = name.trim();
       }
-
       setSharePlayerName(playerName);
-
-      // Show the card temporarily for capture
       setShowEndCard(true);
-      console.log('✅ End card shown');
-
-      // Wait for GameEndCard to render
       await new Promise(resolve => setTimeout(resolve, 300));
-      console.log('✅ Wait completed');
 
-      // Find the actual GameEndCard element
       const cardElement = document.querySelector('.game-end-card');
-      console.log('🔍 Card element:', cardElement ? 'Found' : 'NOT FOUND');
-      if (!cardElement) {
-        throw new Error('GameEndCard not found');
-      }
-
-      // Add share-mode class for styling
+      if (!cardElement) throw new Error('GameEndCard not found');
       cardElement.classList.add('share-mode');
-      console.log('✅ Share mode class added');
-
-      // **CRITICAL FIX**: Wait for all images to fully load first
       await waitForImagesToLoad(cardElement);
-      console.log('✅ All images loaded');
-
-      // Convert all images to data URLs before capture
       await convertImagesToDataURLs(cardElement);
-      console.log('✅ Images converted to data URLs');
-
-      // Wait for DOM to update with converted images
       await new Promise(resolve => setTimeout(resolve, 200));
-      console.log('✅ DOM update wait completed');
 
       const html2canvas = (await import('html2canvas')).default;
-      console.log('✅ html2canvas loaded');
-
       const canvas = await html2canvas(cardElement, {
-        backgroundColor: '#ffffff',
-        scale: 2, // Higher quality
-        useCORS: true, // Enable CORS for cross-origin images
-        allowTaint: false, // Don't allow tainted canvas (required for CORS)
-        logging: true, // Enable logging for debugging in production
-        foreignObjectRendering: false, // Disable foreign object rendering for better compatibility
-        removeContainer: true, // Remove the temporary container after rendering
-        imageTimeout: 15000, // Increase timeout for image loading (15 seconds)
+        backgroundColor: '#ffffff', scale: 2, useCORS: true, allowTaint: false, logging: true,
+        foreignObjectRendering: false, removeContainer: true, imageTimeout: 15000,
         onclone: (clonedDoc) => {
-          // This function is called with the cloned document before rendering
-          console.log('📋 Document cloned, preparing for capture...');
-          // Ensure all images are visible in the cloned document
           const clonedImages = clonedDoc.querySelectorAll('img');
           clonedImages.forEach((img, idx) => {
-            if (img.src && img.src.startsWith('data:')) {
-              console.log(`✅ Cloned image ${idx + 1} is using data URL`);
-            } else {
-              console.warn(`⚠️ Cloned image ${idx + 1} is NOT using data URL: ${img.src.substring(0, 50)}`);
-            }
+            if (!img.src.startsWith('data:')) console.warn(`Cloned image ${idx + 1} not data URL: ${img.src.substring(0, 50)}`);
           });
         }
       });
-      console.log('✅ Canvas created:', canvas.width, 'x', canvas.height);
-
-      // Remove share-mode class after capture
       cardElement.classList.remove('share-mode');
 
-      // Convert canvas to blob for download/share
       canvas.toBlob(async (blob) => {
         if (blob) {
           const fileName = `chess-game-result-${Date.now()}.jpg`;
           const file = new File([blob], fileName, { type: 'image/jpeg' });
 
           if (isAuthenticated) {
-            // Authenticated: Upload to server and share URL
             try {
-              // Convert to data URL for upload
               const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
-              console.log('📤 Uploading to server...');
               const response = await uploadGameResultImage(imageDataUrl, {
-                game_id: gameHistory.id,
-                user_id: user?.id,
+                game_id: gameHistory.id, user_id: user?.id,
                 winner: isWin(gameHistory.result) ? 'player' : (isDraw(gameHistory.result) ? 'draw' : 'opponent'),
                 playerName: user?.name || 'Player',
                 opponentName: gameHistory.opponent_name || (gameHistory.game_mode === 'computer' ? 'Computer' : 'Opponent'),
-                result: gameHistory.result,
-                gameMode: gameHistory.game_mode
+                result: gameHistory.result, gameMode: gameHistory.game_mode
               });
-              console.log('✅ Server response:', response);
-
               if (response.success && response.share_url) {
                 const shareUrl = response.share_url;
-
-                // Generate personalized share message based on game result
-                let shareMessage;
                 const opponentName = gameHistory.opponent_name || (gameHistory.game_mode === 'computer' ? 'Computer' : 'Opponent');
                 const playerWon = isWin(gameHistory.result);
                 const isDrawResult = isDraw(gameHistory.result);
-
-                if (isDrawResult) {
-                  shareMessage = `♟️ I just played an exciting chess game against ${opponentName} at Chess99.com!\n\nGame ended in a draw. Can you do better?\n\n${shareUrl}`;
-                } else if (playerWon) {
-                  shareMessage = `🏆 Victory! I just defeated ${opponentName} in an epic chess battle at Chess99.com!\n\nThink you can beat me? Challenge me now!\n\n${shareUrl}`;
-                } else {
-                  shareMessage = `♟️ Just played an intense chess match against ${opponentName} at Chess99.com!\n\nCan you avenge my defeat? Play now!\n\n${shareUrl}`;
-                }
-
-                // Copy share URL to clipboard
-                try {
-                  await navigator.clipboard.writeText(shareUrl);
-                  console.log('Share URL copied to clipboard');
-                } catch (clipboardError) {
-                  console.log('Could not copy to clipboard:', clipboardError);
-                }
-
-                // Try native share with URL (works great on WhatsApp)
+                let shareMessage;
+                if (isDrawResult) shareMessage = `♟️ I just played an exciting chess game against ${opponentName} at Chess99.com!\n\nGame ended in a draw. Can you do better?\n\n${shareUrl}`;
+                else if (playerWon) shareMessage = `🏆 Victory! I just defeated ${opponentName} in an epic chess battle at Chess99.com!\n\nThink you can beat me? Challenge me now!\n\n${shareUrl}`;
+                else shareMessage = `♟️ Just played an intense chess match against ${opponentName} at Chess99.com!\n\nCan you avenge my defeat? Play now!\n\n${shareUrl}`;
+                try { await navigator.clipboard.writeText(shareUrl); } catch { /* noop */ }
                 if (navigator.share) {
-                  try {
-                    await navigator.share({
-                      title: 'Chess Game Result',
-                      text: shareMessage,
-                      url: shareUrl
-                    });
-                  } catch (shareError) {
-                    if (shareError.name !== 'AbortError') {
-                      console.error('Error sharing:', shareError);
-                      // Fallback: show share URL
-                      alert(`Share URL copied!\n\n${shareUrl}\n\nPaste this link on WhatsApp to share with preview!`);
-                    }
+                  try { await navigator.share({ title: 'Chess Game Result', text: shareMessage, url: shareUrl }); }
+                  catch (shareError) {
+                    if (shareError.name !== 'AbortError') alert(`Share URL copied!\n\n${shareUrl}\n\nPaste this link on WhatsApp to share with preview!`);
                   }
-                } else {
-                  // Desktop fallback: show share URL and instructions
-                  alert(`Share URL copied!\n\n${shareUrl}\n\nPaste this link on WhatsApp to share with preview!`);
-                }
-              } else {
-                throw new Error('Failed to upload image');
-              }
+                } else { alert(`Share URL copied!\n\n${shareUrl}\n\nPaste this link on WhatsApp to share with preview!`); }
+              } else { throw new Error('Failed to upload image'); }
             } catch (uploadError) {
               console.error('Upload failed, falling back to download:', uploadError);
-              // Fallback to download
               downloadBlob(blob, fileName);
               alert('Upload failed. Image downloaded instead.');
             }
           } else {
-            // Guest: Generate share message with custom name
             const opponentName = gameHistory.opponent_name || 'Computer';
             const playerWon = isWin(gameHistory.result);
             const isDrawResult = isDraw(gameHistory.result);
             let shareMessage;
-            if (isDrawResult) {
-              shareMessage = `♟️ ${playerName} just played an exciting chess game against ${opponentName}!\n\nGame ended in a draw. Can you do better?\n\n🎯 Play at www.chess99.com`;
-            } else if (playerWon) {
-              shareMessage = `🏆 Victory! ${playerName} defeated ${opponentName} in an epic chess battle!\n\nThink you can beat ${playerName}?\n\n🎯 Play at www.chess99.com`;
-            } else {
-              shareMessage = `♟️ ${playerName} just played an intense chess match against ${opponentName}!\n\nCan you avenge the defeat?\n\n🎯 Play at www.chess99.com`;
-            }
-
-            // Copy message to clipboard
-            try {
-              await navigator.clipboard.writeText(shareMessage);
-              console.log('Share message copied to clipboard');
-            } catch (clipboardError) {
-              console.log('Could not copy to clipboard:', clipboardError);
-            }
-
-            // Try native share if supported
+            if (isDrawResult) shareMessage = `♟️ ${playerName} just played an exciting chess game against ${opponentName}!\n\nGame ended in a draw. Can you do better?\n\n🎯 Play at www.chess99.com`;
+            else if (playerWon) shareMessage = `🏆 Victory! ${playerName} defeated ${opponentName} in an epic chess battle!\n\nThink you can beat ${playerName}?\n\n🎯 Play at www.chess99.com`;
+            else shareMessage = `♟️ ${playerName} just played an intense chess match against ${opponentName}!\n\nCan you avenge the defeat?\n\n🎯 Play at www.chess99.com`;
+            try { await navigator.clipboard.writeText(shareMessage); } catch { /* noop */ }
             if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-              try {
-                await navigator.share({
-                  title: 'Chess Game Result',
-                  text: shareMessage,
-                  files: [file]
-                });
-              } catch (shareError) {
-                if (shareError.name !== 'AbortError') {
-                  console.error('Error sharing:', shareError);
-                }
-              }
+              try { await navigator.share({ title: 'Chess Game Result', text: shareMessage, files: [file] }); }
+              catch (shareError) { if (shareError.name !== 'AbortError') console.error('Error sharing:', shareError); }
             }
           }
         }
       }, 'image/jpeg', 0.8);
-
     } catch (error) {
       console.error('Error in test share:', error);
-      console.error('Error details:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-        stack: error.stack
-      });
-
-      // Show more detailed error message
       const errorMessage = error.response?.data?.message || error.message || 'Unknown error';
-      alert(`Failed to create shareable link.\n\nError: ${errorMessage}\n\nCheck console for details.`);
-
-      // Clean up share-mode class on error
+      alert(`Failed to create shareable link.\n\nError: ${errorMessage}`);
       const cardElement = document.querySelector('.game-end-card');
       if (cardElement) cardElement.classList.remove('share-mode');
     } finally {
       setIsTestSharing(false);
-      // Hide the card after a short delay
       setTimeout(() => setShowEndCard(false), 1000);
     }
   };
 
+  // ═══ Loading & Error states ═══
+
   if (loading) {
     return (
-      <div className="game-review p-6 min-h-screen text-white flex flex-col items-center justify-center">
-        <h3 className="text-2xl font-bold mb-4 text-vivid-yellow">Loading Game...</h3>
-        <div className="loading-message">Please wait while we load your game data.</div>
-        <button onClick={() => navigate(-1)} className="mt-4 px-4 py-2 bg-[#81b64c] hover:bg-[#a3d160] rounded-lg">Back</button>
+      <div className="min-h-screen bg-[#1a1a18] flex flex-col items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-2 border-[#81b64c] border-t-transparent rounded-full mb-4" />
+        <p className="text-[#bababa] text-sm">Loading game...</p>
+        <button onClick={() => navigate(-1)} className="mt-4 px-4 py-2 bg-[#312e2b] border border-[#3d3a37] hover:border-[#4a4744] text-white rounded-lg text-sm transition-colors">Back</button>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="game-review p-6 min-h-screen text-white flex flex-col items-center justify-center">
-        <h3 className="text-2xl font-bold mb-4 text-red-500">Error Loading Game</h3>
-        <div className="error-message">{error}</div>
-        <button onClick={() => navigate(-1)} className="mt-4 px-4 py-2 bg-[#81b64c] hover:bg-[#a3d160] rounded-lg">Back</button>
+      <div className="min-h-screen bg-[#1a1a18] flex flex-col items-center justify-center">
+        <div className="text-[#c33a3a] text-lg font-semibold mb-2">Error</div>
+        <p className="text-[#bababa] text-sm mb-4">{error}</p>
+        <button onClick={() => navigate(-1)} className="px-4 py-2 bg-[#312e2b] border border-[#3d3a37] hover:border-[#4a4744] text-white rounded-lg text-sm transition-colors">Back</button>
       </div>
     );
   }
 
+  // ═══ Speed buttons config ═══
+  const speeds = [
+    { label: 'Slow', value: 2000 },
+    { label: 'Normal', value: 1000 },
+    { label: 'Fast', value: 400 },
+  ];
+
+  // ═══ JSX ═══
+
   return (
-    <div className="game-review p-1 sm:p-2 min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white overflow-y-auto mobile-scroll-container">
-      <h3 className="text-xl font-bold text-center mb-2 text-vivid-yellow">Game Replay</h3>
+    <div className="min-h-screen bg-[#1a1a18] text-white">
+      {/* ─── Header ─── */}
+      <div className="bg-[#262421] border-b border-[#3d3a37] px-4 py-3 flex items-center gap-3">
+        <button
+          onClick={() => navigate(-1)}
+          className="text-[#bababa] hover:text-white transition-colors text-sm flex items-center gap-1"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+          Back
+        </button>
+        <h1 className="text-white font-semibold text-base flex-1 text-center">Game Review</h1>
+        <div className="w-12" /> {/* Spacer for centering */}
+      </div>
 
-      {/* Main Layout Container */}
-      <div className="flex flex-col items-center justify-center max-w-6xl mx-auto px-2">
+      {/* ─── Main Content: Two-column on lg+, stacked on mobile ─── */}
+      <div className="max-w-7xl mx-auto px-3 py-4 lg:px-6">
+        <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
 
-        {/* Chess Board Container */}
-        <div className="w-full flex justify-center mb-3" ref={boardBoxRef}>
-          <Chessboard position={game.fen()} boardWidth={boardSize} />
-        </div>
+          {/* ═══ LEFT COLUMN: Board + Controls ═══ */}
+          <div className="flex-1 flex flex-col items-center lg:items-start min-w-0">
 
-        {/* Ultra-Compact Review Controls - Directly Below Board */}
-        <div className="review-controls w-full max-w-[400px] bg-slate-800/95 backdrop-blur-lg rounded-xl p-2 mb-3 border border-slate-500/60 shadow-xl">
-          {/* Control Buttons Row - Ultra Compact */}
-          <div className="flex justify-center items-center gap-1 mb-1">
-            <button onClick={playMoves} disabled={!gameHistory.moves || gameHistory.moves.length <= 1} className="control-button bg-ufo-green hover:bg-vivid-yellow text-white font-bold py-1 px-2 rounded transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed text-xs">▶</button>
-            <button onClick={pauseMoves} className="control-button bg-ryb-orange hover:bg-vivid-yellow text-white font-bold py-1 px-2 rounded transition-all duration-200 hover:scale-105 text-xs">❚❚</button>
-            <button onClick={stepBackward} disabled={currentMoveIndex <= 0} className="control-button bg-picton-blue hover:bg-blue-violet text-white font-bold py-1 px-2 rounded transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed text-xs">⏪</button>
-            <button onClick={stepForward} disabled={!gameHistory.moves || currentMoveIndex >= gameHistory.moves.length - 1} className="control-button bg-picton-blue hover:bg-blue-violet text-white font-bold py-1 px-2 rounded transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed text-xs">⏩</button>
-            <button onClick={() => navigate(-1)} className="control-button bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-2 rounded transition-all duration-200 hover:scale-105 text-xs">✕</button>
-          </div>
-
-          {/* Move Counter - Ultra Compact */}
-          <div className="text-center bg-slate-700/60 rounded px-2 py-1">
-            <p className="text-white text-xs"><span className="text-yellow-300 font-semibold">Move:</span> {currentMoveIndex} / {gameHistory.moves && gameHistory.moves.length > 0 ? gameHistory.moves.length - 1 : 0}</p>
-          </div>
-        </div>
-
-        {/* Game Info Section - Below Controls */}
-        <div className="w-full max-w-[400px] lg:max-w-[600px] grid grid-cols-1 lg:grid-cols-2 gap-3">
-          {/* Game Info Card */}
-          <div className="game-info bg-gradient-to-r from-slate-800/95 to-gray-800/95 backdrop-blur-lg rounded-xl border border-slate-500/60 shadow-2xl p-3 text-white">
-            <h4 className="text-yellow-300 font-semibold text-sm mb-2 text-center">Game Details</h4>
-
-            {/* Basic Game Info - Ultra-compact */}
-            <div className="space-y-1 mb-2">
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-yellow-300">ID:</span>
-                <span className="text-white font-mono">{gameHistory.id || 'Unknown'}</span>
-              </div>
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-yellow-300">Date:</span>
-                <span className="text-white">{gameHistory.played_at ? new Date(gameHistory.played_at).toLocaleDateString() : 'Unknown'}</span>
-              </div>
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-yellow-300">Mode:</span>
-                <span className="text-white">{gameHistory.game_mode || 'Unknown'}</span>
-              </div>
-              {gameHistory.computer_level && (
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-yellow-300">Level:</span>
-                  <span className="text-white">{gameHistory.computer_level}</span>
-                </div>
-              )}
-              {gameHistory.player_color && (
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-yellow-300">Color:</span>
-                  <span className="text-white">{gameHistory.player_color === 'w' ? 'White' : 'Black'}</span>
-                </div>
-              )}
+            {/* Opponent PlayerBar (top) */}
+            <div className="w-full max-w-[600px]">
+              <PlayerBar
+                name={playerInfo.topName}
+                rating={playerInfo.topRating}
+                avatarUrl={playerInfo.topAvatar}
+                isWhite={playerInfo.topIsWhite}
+                isTop={true}
+                time={playerInfo.topTime}
+                score={playerInfo.topScore}
+              />
             </div>
 
-            {/* Result Info */}
-            <div className="bg-slate-700/60 rounded p-2 text-xs">
-              <p className="text-white text-center mb-1">
-                <span className="text-yellow-300">Result:</span> {typeof gameHistory.result === 'object' ? (gameHistory.result?.details || gameHistory.result?.status || 'Unknown') : (gameHistory.result || 'Unknown')}
-              </p>
-              <div className="grid grid-cols-2 gap-2 text-center">
-                <div>
-                  <p className="text-yellow-300 font-medium">You</p>
-                  <p className="text-white font-bold">{gameHistory.final_score || gameHistory.finalScore || 'N/A'}</p>
-                </div>
-                {gameHistory.opponent_score !== undefined && (
-                  <div>
-                    <p className="text-yellow-300 font-medium">Opp</p>
-                    <p className="text-white font-bold">{gameHistory.opponent_score || 'N/A'}</p>
-                  </div>
-                )}
+            {/* Board + Customizer */}
+            <div className="w-full max-w-[600px] relative" ref={boardBoxRef}>
+              {/* Board Customizer button */}
+              <div className="absolute top-1 right-1 z-10">
+                <BoardCustomizer
+                  boardTheme={boardTheme}
+                  pieceStyle={pieceStyle}
+                  onThemeChange={setBoardTheme}
+                  onPieceStyleChange={setPieceStyle}
+                />
               </div>
-            </div>
-          </div>
-
-          {/* Additional Info Card */}
-          <div className="game-stats bg-gradient-to-r from-slate-800/95 to-gray-800/95 backdrop-blur-lg rounded-xl border border-slate-500/60 shadow-2xl p-3 text-white">
-            <h4 className="text-yellow-300 font-semibold text-sm mb-2 text-center">Statistics</h4>
-
-            <div className="bg-slate-700/60 rounded p-2 text-xs space-y-2">
-              <div className="grid grid-cols-2 gap-2 text-center">
-                {gameHistory.result?.end_reason && (
-                  <div>
-                    <p className="text-yellow-300 font-medium">End</p>
-                    <p className="capitalize">{gameHistory.result.end_reason}</p>
-                  </div>
-                )}
-                <div>
-                  <p className="text-yellow-300 font-medium">Moves</p>
-                  <p className="font-bold">{gameHistory.moves && gameHistory.moves.length > 0 ? Math.max(0, gameHistory.moves.length - 1) : 0}</p>
-                </div>
-              </div>
-
-              {/* Time Remaining - Compact */}
-              {(gameHistory.white_time_remaining_ms !== null && gameHistory.white_time_remaining_ms !== undefined &&
-                gameHistory.black_time_remaining_ms !== null && gameHistory.black_time_remaining_ms !== undefined) && (
-                <div className="text-center pt-1 border-t border-slate-600/40">
-                  <p className="text-yellow-300 font-medium mb-1">Time Left</p>
-                  <div className="flex justify-center gap-3">
-                    <span className="text-white">W: {Math.floor((gameHistory.white_time_remaining_ms || 0) / 1000)}s</span>
-                    <span className="text-white">B: {Math.floor((gameHistory.black_time_remaining_ms || 0) / 1000)}s</span>
-                  </div>
-                </div>
-              )}
+              <Chessboard
+                position={game.fen()}
+                boardWidth={boardSize}
+                boardOrientation={gameHistory.player_color === 'b' ? 'black' : 'white'}
+                arePiecesDraggable={false}
+                customDarkSquareStyle={{ backgroundColor: getTheme(boardTheme).dark }}
+                customLightSquareStyle={{ backgroundColor: getTheme(boardTheme).light }}
+                customBoardStyle={{ borderRadius: '8px', overflow: 'hidden' }}
+                {...(pieceStyle === '3d' ? { customPieces: pieces3dLanding } : {})}
+              />
             </div>
 
-            {/* Compact Debug Section */}
-            <div className="mt-2">
-              <details className="bg-slate-800/50 rounded-lg p-1 border border-slate-600/30">
-                <summary className="cursor-pointer text-white hover:text-yellow-300 transition-colors duration-200 text-xs">Debug ({gameHistory.moves?.length || 0} moves)</summary>
-                <div className="bg-slate-900/70 p-1 rounded mt-1 text-xs text-slate-300 overflow-x-auto max-h-32 overflow-y-auto">
-                  <div className="mb-2 text-yellow-300">
-                    Total Moves: {gameHistory.moves?.length || 0} | Showing: {Math.min(10, gameHistory.moves?.length || 0)}
-                  </div>
-                  <pre className="text-xs">
-                    {JSON.stringify(gameHistory.moves?.slice(0, 10), null, 2)}
-                    {(gameHistory.moves?.length || 0) > 10 && (
-                      <div className="text-yellow-300 mt-2">
-                        ... and {gameHistory.moves.length - 10} more moves
-                      </div>
-                    )}
-                  </pre>
-                </div>
-              </details>
+            {/* Player PlayerBar (bottom) */}
+            <div className="w-full max-w-[600px]">
+              <PlayerBar
+                name={playerInfo.bottomName}
+                rating={playerInfo.bottomRating}
+                avatarUrl={playerInfo.bottomAvatar}
+                isWhite={playerInfo.bottomIsWhite}
+                isTop={false}
+                time={playerInfo.bottomTime}
+                score={playerInfo.bottomScore}
+              />
             </div>
-          </div>
-        </div>
 
-        {/* Moves List Section */}
-        {gameHistory.moves && gameHistory.moves.length > 1 && (
-          <div className="w-full max-w-[600px] mt-3">
-            <details className="bg-slate-800/95 backdrop-blur-lg rounded-xl border border-slate-500/60 shadow-xl p-3">
-              <summary className="cursor-pointer text-white hover:text-yellow-300 transition-colors duration-200 font-medium text-sm">
-                All Moves ({Math.max(0, gameHistory.moves.length - 1)} total)
-              </summary>
-              <div className="mt-3 max-h-48 overflow-y-auto bg-slate-900/70 rounded-lg p-2">
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1 text-xs">
-                  {gameHistory.moves.map((move, index) => (
-                    index > 0 && <div key={index} className={`text-center p-1 rounded ${index === currentMoveIndex ? 'bg-yellow-500/20 border border-yellow-400/40' : 'bg-slate-800/50'}`}>
-                      <div className="text-gray-400 mb-1">{`${Math.ceil(index/2)}.`}</div>
-                      <div className="text-white font-mono">
-                        {move.move?.san || '?'}
-                      </div>
-                      {move.time && (
-                        <div className="text-gray-500 text-xs">
-                          {move.time.toFixed(1)}s
-                        </div>
-                      )}
-                    </div>
+            {/* ─── Navigation Controls ─── */}
+            <div className="w-full max-w-[600px] mt-2 unified-card !py-2.5 !px-3">
+              <div className="flex items-center gap-2">
+                {/* Nav buttons */}
+                <div className="flex items-center gap-1">
+                  {[
+                    { label: '|◀', onClick: goToStart, disabled: currentMoveIndex <= 0 },
+                    { label: '◀', onClick: stepBackward, disabled: currentMoveIndex <= 0 },
+                    { label: isPlaying ? '⏸' : '▶', onClick: toggleAutoPlay, disabled: totalMoves === 0, isPlay: true },
+                    { label: '▶|', onClick: stepForward, disabled: currentMoveIndex >= totalMoves, flip: true },
+                    { label: '▶|', onClick: goToEnd, disabled: currentMoveIndex >= totalMoves, isEnd: true },
+                  ].map((btn, i) => (
+                    <button
+                      key={i}
+                      onClick={btn.onClick}
+                      disabled={btn.disabled}
+                      className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-bold transition-all
+                        ${btn.isPlay
+                          ? 'bg-[#81b64c] hover:bg-[#a3d160] text-white'
+                          : 'bg-[#262421] border border-[#3d3a37] hover:border-[#4a4744] text-[#bababa] hover:text-white'
+                        }
+                        disabled:opacity-30 disabled:cursor-not-allowed`}
+                    >
+                      {btn.isEnd ? '▶|' : btn.flip ? '▶' : btn.label}
+                    </button>
                   ))}
                 </div>
+
+                {/* Speed selector */}
+                <div className="flex items-center gap-0.5 ml-2 bg-[#262421] rounded-lg p-0.5 border border-[#3d3a37]">
+                  {speeds.map(s => (
+                    <button
+                      key={s.value}
+                      onClick={() => setPlaySpeed(s.value)}
+                      className={`px-2 py-1 text-xs rounded-md transition-all ${
+                        playSpeed === s.value
+                          ? 'bg-[#81b64c] text-white font-semibold'
+                          : 'text-[#8b8987] hover:text-[#bababa]'
+                      }`}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Move counter */}
+                <div className="ml-auto text-[#8b8987] text-xs tabular-nums">
+                  <span className="text-[#bababa]">{currentMoveIndex}</span> / {totalMoves}
+                </div>
               </div>
-            </details>
+            </div>
           </div>
-        )}
 
-        {/* Share Section */}
-        {gameHistory.id && (
-          <div className="w-full max-w-[600px] mt-3">
-            <div className="bg-gradient-to-r from-slate-800/95 to-gray-800/95 backdrop-blur-lg rounded-xl border border-slate-500/60 shadow-xl p-4">
-              <h4 className="text-yellow-300 font-semibold text-sm mb-3 text-center">Share This Game</h4>
-              <p className="text-center text-gray-300 text-xs mb-3">
-                Challenge your friends to beat this result!
-              </p>
+          {/* ═══ RIGHT COLUMN: Info + Moves + Actions ═══ */}
+          <div className="w-full lg:w-[340px] xl:w-[380px] flex flex-col gap-3 flex-shrink-0">
 
-              {/* Share buttons container */}
-              <div className="flex flex-col gap-3">
-                {/* Share with Friends button - prominent and attractive */}
+            {/* ─── Game Info Card ─── */}
+            <div className="unified-card">
+              <ResultBadge result={gameHistory.result} gameHistory={gameHistory} />
+
+              <div className="space-y-2 mt-3">
+                {openingName && (
+                  <div className="flex items-center gap-2 bg-[#262421] rounded-lg px-3 py-2">
+                    <span className="text-[#8b8987] text-xs">Opening</span>
+                    <span className="text-white text-sm font-medium ml-auto">{openingName}</span>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="bg-[#262421] rounded-lg px-3 py-2">
+                    <div className="text-[#8b8987] text-xs">Date</div>
+                    <div className="text-white text-sm">{gameHistory.played_at ? new Date(gameHistory.played_at).toLocaleDateString() : '—'}</div>
+                  </div>
+                  <div className="bg-[#262421] rounded-lg px-3 py-2">
+                    <div className="text-[#8b8987] text-xs">Mode</div>
+                    <div className="text-white text-sm capitalize">{gameHistory.game_mode || '—'}</div>
+                  </div>
+                  <div className="bg-[#262421] rounded-lg px-3 py-2">
+                    <div className="text-[#8b8987] text-xs">Moves</div>
+                    <div className="text-white text-sm font-semibold">{totalMoves}</div>
+                  </div>
+                  {gameHistory.computer_level > 0 && (
+                    <div className="bg-[#262421] rounded-lg px-3 py-2">
+                      <div className="text-[#8b8987] text-xs">Level</div>
+                      <div className="text-white text-sm font-semibold">{gameHistory.computer_level}</div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Time remaining */}
+                {(gameHistory.white_time_remaining_ms != null && gameHistory.black_time_remaining_ms != null) && (
+                  <div className="flex gap-2">
+                    <div className="flex-1 bg-[#262421] rounded-lg px-3 py-2 text-center">
+                      <div className="text-[#8b8987] text-xs mb-0.5">White Time</div>
+                      <div className="text-white text-sm font-mono tabular-nums">{Math.floor(gameHistory.white_time_remaining_ms / 1000)}s</div>
+                    </div>
+                    <div className="flex-1 bg-[#262421] rounded-lg px-3 py-2 text-center">
+                      <div className="text-[#8b8987] text-xs mb-0.5">Black Time</div>
+                      <div className="text-white text-sm font-mono tabular-nums">{Math.floor(gameHistory.black_time_remaining_ms / 1000)}s</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ─── Moves Card ─── */}
+            {totalMoves > 0 && (
+              <div className="unified-card">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-white text-sm font-semibold">Moves</h3>
+                  <span className="text-[#8b8987] text-xs">{totalMoves} moves</span>
+                </div>
+                <div
+                  ref={moveListRef}
+                  className="max-h-[300px] lg:max-h-[50vh] overflow-y-auto pr-1 custom-scrollbar"
+                >
+                  <div className="grid gap-px">
+                    {movePairs.map(pair => (
+                      <div key={pair.num} className="grid grid-cols-[36px_1fr_1fr] items-center">
+                        <span className="text-[#8b8987] text-xs text-right pr-2 tabular-nums">{pair.num}.</span>
+                        <MoveCell
+                          san={pair.white}
+                          isActive={currentMoveIndex === pair.whiteIdx}
+                          onClick={() => jumpToMove(pair.whiteIdx)}
+                          dataIndex={pair.whiteIdx}
+                        />
+                        {pair.black ? (
+                          <MoveCell
+                            san={pair.black}
+                            isActive={currentMoveIndex === pair.blackIdx}
+                            onClick={() => jumpToMove(pair.blackIdx)}
+                            dataIndex={pair.blackIdx}
+                          />
+                        ) : <span />}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ─── Actions Card ─── */}
+            <div className="unified-card">
+              <h3 className="text-white text-sm font-semibold mb-2">Actions</h3>
+              <div className="grid grid-cols-2 gap-2">
+                {/* Download PGN */}
+                <button
+                  onClick={handleDownloadPgn}
+                  className="flex items-center justify-center gap-1.5 bg-[#262421] border border-[#3d3a37] hover:border-[#81b64c] hover:bg-[#81b64c]/10 rounded-lg px-3 py-2.5 text-[#bababa] hover:text-white transition-all text-sm"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  PGN
+                </button>
+
+                {/* Copy FEN */}
+                <button
+                  onClick={handleCopyFen}
+                  className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 transition-all text-sm border ${
+                    copiedFen
+                      ? 'bg-[#81b64c]/20 border-[#81b64c] text-[#a3d160]'
+                      : 'bg-[#262421] border-[#3d3a37] hover:border-[#81b64c] hover:bg-[#81b64c]/10 text-[#bababa] hover:text-white'
+                  }`}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                  {copiedFen ? 'Copied!' : 'FEN'}
+                </button>
+
+                {/* Share */}
                 <button
                   onClick={handleTestShare}
                   disabled={isTestSharing}
-                  style={{
-                    backgroundColor: isTestSharing ? '#6B7280' : '#EC4899',
-                    color: 'white',
-                    padding: window.innerWidth <= 480 ? '14px 24px' : '18px 36px',
-                    borderRadius: '12px',
-                    border: 'none',
-                    fontSize: window.innerWidth <= 480 ? '1.05rem' : '1.2rem',
-                    fontWeight: '800',
-                    cursor: isTestSharing ? 'not-allowed' : 'pointer',
-                    transition: 'all 0.2s ease',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: window.innerWidth <= 480 ? '8px' : '10px',
-                    boxShadow: '0 6px 20px rgba(236, 72, 153, 0.5)',
-                    width: '100%',
-                    maxWidth: '400px',
-                    margin: '0 auto',
-                    opacity: isTestSharing ? 0.6 : 1,
-                    transform: 'scale(1.05)'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isTestSharing) {
-                      e.currentTarget.style.backgroundColor = '#DB2777';
-                      e.currentTarget.style.transform = 'scale(1.08) translateY(-2px)';
-                      e.currentTarget.style.boxShadow = '0 8px 24px rgba(236, 72, 153, 0.6)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isTestSharing) {
-                      e.currentTarget.style.backgroundColor = '#EC4899';
-                      e.currentTarget.style.transform = 'scale(1.05) translateY(0)';
-                      e.currentTarget.style.boxShadow = '0 6px 20px rgba(236, 72, 153, 0.5)';
-                    }
-                  }}
+                  className="flex items-center justify-center gap-1.5 bg-[#81b64c] hover:bg-[#a3d160] rounded-lg px-3 py-2.5 text-white transition-all text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isTestSharing ? (
-                    <>
-                      <svg
-                        className="animate-spin"
-                        style={{ width: window.innerWidth <= 480 ? '20px' : '24px', height: window.innerWidth <= 480 ? '20px' : '24px' }}
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      <span>Creating Link...</span>
-                    </>
+                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
                   ) : (
-                    <>
-                      <svg
-                        style={{ width: window.innerWidth <= 480 ? '20px' : '24px', height: window.innerWidth <= 480 ? '20px' : '24px' }}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2.5}
-                          d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
-                        />
-                      </svg>
-                      🎉 Share with Friends
-                    </>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
                   )}
+                  {isTestSharing ? 'Sharing...' : 'Share'}
                 </button>
 
-                {/* Alternative share option - less prominent */}
-              <button
-                onClick={handleShareWithImage}
-                style={{
-                  backgroundColor: '#6B7280',
-                  color: 'white',
-                  padding: window.innerWidth <= 480 ? '8px 14px' : '10px 18px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  fontSize: window.innerWidth <= 480 ? '0.75rem' : '0.85rem',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: window.innerWidth <= 480 ? '6px' : '8px',
-                  boxShadow: '0 2px 6px rgba(107, 114, 128, 0.3)',
-                  width: '100%',
-                  maxWidth: '300px',
-                  margin: '0 auto',
-                  opacity: 0.85
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#4B5563';
-                  e.currentTarget.style.opacity = '1';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#6B7280';
-                  e.currentTarget.style.opacity = '0.85';
-                }}
-              >
-                <svg
-                  style={{ width: window.innerWidth <= 480 ? '14px' : '16px', height: window.innerWidth <= 480 ? '14px' : '16px' }}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
+                {/* Analyze placeholder */}
+                <button
+                  disabled
+                  className="flex items-center justify-center gap-1.5 bg-[#262421] border border-[#3d3a37] rounded-lg px-3 py-2.5 text-[#8b8987] text-sm cursor-not-allowed relative"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
-                Download Image
-              </button>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                  Analyze
+                  <span className="absolute -top-1.5 -right-1.5 bg-[#e8a93e] text-[#1a1a18] text-[9px] font-bold px-1.5 py-0.5 rounded-full">Soon</span>
+                </button>
+              </div>
+            </div>
+
+            {/* ─── Analysis Placeholder ─── */}
+            <div className="unified-card opacity-60">
+              <div className="flex flex-col items-center py-4 text-center">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8b8987" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mb-2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                <p className="text-[#8b8987] text-sm">Computer analysis coming soon</p>
+                <p className="text-[#8b8987]/60 text-xs mt-1">Evaluate positions and find best moves</p>
               </div>
             </div>
           </div>
-        )}
+        </div>
       </div>
 
-      {/* GameEndCard Modal - Temporarily shown during share process */}
+      {/* ═══ GameEndCard Modal (for share capture) ═══ */}
       {showEndCard && (
         <div
           style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
             backgroundColor: 'rgba(0, 0, 0, 0.75)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'flex-start',
-            zIndex: 9999,
-            minHeight: '100vh',
-            height: '100vh',
-            padding: window.innerWidth <= 480 ? '10px' : '20px',
-            paddingTop: window.innerWidth <= 480 ? '50px' : '80px',
-            paddingBottom: window.innerWidth <= 480 ? '120px' : '140px',
-            overflowY: 'auto',
-            overflowX: 'hidden',
-            WebkitOverflowScrolling: 'touch'
+            display: 'flex', justifyContent: 'center', alignItems: 'flex-start',
+            zIndex: 9999, minHeight: '100vh', height: '100vh',
+            padding: '20px', paddingTop: '80px', paddingBottom: '140px',
+            overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch'
           }}
-          onClick={(e) => {
-            // Close modal when clicking on backdrop
-            if (e.target === e.currentTarget) {
-              setShowEndCard(false);
-            }
-          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowEndCard(false); }}
         >
-          {/* Close button */}
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowEndCard(false);
-            }}
+            onClick={(e) => { e.stopPropagation(); setShowEndCard(false); }}
             style={{
-              position: 'fixed',
-              top: '20px',
-              right: '20px',
-              background: 'rgba(255, 255, 255, 0.9)',
-              border: 'none',
-              borderRadius: '50%',
-              width: '40px',
-              height: '40px',
-              fontSize: '24px',
-              cursor: 'pointer',
-              zIndex: 10000,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-              transition: 'all 0.2s'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 1)';
-              e.currentTarget.style.transform = 'scale(1.1)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.9)';
-              e.currentTarget.style.transform = 'scale(1)';
+              position: 'fixed', top: '20px', right: '20px',
+              background: 'rgba(255,255,255,0.9)', border: 'none', borderRadius: '50%',
+              width: '40px', height: '40px', fontSize: '24px', cursor: 'pointer',
+              zIndex: 10000, boxShadow: '0 2px 8px rgba(0,0,0,0.2)', transition: 'all 0.2s'
             }}
           >
             ×
           </button>
-
-          {/* GameEndCard - Same structure as GameCompletionAnimation */}
           <GameEndCard
             result={gameHistory}
             user={user || {}}
@@ -1230,6 +1154,14 @@ const GameReview = () => {
           />
         </div>
       )}
+
+      {/* Custom scrollbar styles */}
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #3d3a37; border-radius: 2px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #4a4744; }
+      `}</style>
     </div>
   );
 };
