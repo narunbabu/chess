@@ -67,6 +67,10 @@ const PricingPage = () => {
 
   const handleSubscribe = (planId) => {
     if (!isAuthenticated) {
+      // Save the plan they clicked so we can resume checkout after login
+      if (planId) {
+        localStorage.setItem('pending_plan_id', planId.toString());
+      }
       navigate('/login', { state: { from: '/pricing' } });
       return;
     }
@@ -77,6 +81,20 @@ const PricingPage = () => {
     }
     setCheckoutPlanId(planId);
   };
+
+  // Resume checkout after login redirect — check for pending plan
+  React.useEffect(() => {
+    if (isAuthenticated && !checkoutPlanId) {
+      const pendingPlanId = localStorage.getItem('pending_plan_id');
+      if (pendingPlanId) {
+        localStorage.removeItem('pending_plan_id');
+        // Wait for plans to load before triggering checkout
+        if (hasApiPlans) {
+          setCheckoutPlanId(parseInt(pendingPlanId, 10));
+        }
+      }
+    }
+  }, [isAuthenticated, hasApiPlans, checkoutPlanId]);
 
   const handleCheckoutSuccess = () => {
     setCheckoutPlanId(null);

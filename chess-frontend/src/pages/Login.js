@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { BASE_URL } from '../config';
 import api from '../services/api';
@@ -32,8 +32,19 @@ const LoginPage = () => {
   const [captchaToken, setCaptchaToken] = useState(null);
   const recaptchaRef = useRef(null);
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { login, isAuthenticated, loading } = useAuth();
+
+  // Determine where to redirect after login (respects state.from from pricing, RouteGuard, etc.)
+  const getRedirectPath = () => {
+    const from = location.state?.from;
+    // location.state.from can be a string (e.g. '/pricing') or a location object (from RouteGuard)
+    if (from) {
+      return typeof from === 'string' ? from : from.pathname || '/lobby';
+    }
+    return '/lobby';
+  };
 
   // Handle URL parameters for educational resources and email verification
   useEffect(() => {
@@ -50,12 +61,12 @@ const LoginPage = () => {
     }
   }, [searchParams]);
 
-  // Auto-redirect authenticated users to lobby
+  // Auto-redirect authenticated users
   React.useEffect(() => {
     if (!loading && isAuthenticated) {
-      navigate('/lobby');
+      navigate(getRedirectPath());
     }
-  }, [loading, isAuthenticated, navigate]);
+  }, [loading, isAuthenticated, navigate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleResendVerification = async () => {
     setResendLoading(true);
@@ -81,7 +92,7 @@ const LoginPage = () => {
         const response = await api.post('/auth/login', { email, password });
         if (response.data.status === 'success') {
           await login(response.data.token);
-          navigate("/lobby");
+          navigate(getRedirectPath());
         }
       } else {
         if (password !== confirmPassword) {
@@ -135,12 +146,12 @@ const LoginPage = () => {
 
   const handleSkillAssessmentComplete = (rating) => {
     setShowSkillAssessment(false);
-    navigate("/lobby");
+    navigate(getRedirectPath());
   };
 
   const handleSkillAssessmentSkip = () => {
     setShowSkillAssessment(false);
-    navigate("/lobby");
+    navigate(getRedirectPath());
   };
 
   return (
@@ -256,6 +267,13 @@ const LoginPage = () => {
               <div className="space-y-5">
                 <a
                   href={`${BASE_URL}/auth/google/redirect`}
+                  onClick={() => {
+                    // Save redirect path so AuthCallback can return user to the right page
+                    const redirectPath = getRedirectPath();
+                    if (redirectPath !== '/lobby') {
+                      localStorage.setItem('pending_login_redirect', redirectPath);
+                    }
+                  }}
                   className="w-full flex items-center justify-center px-4 py-3.5 rounded-lg text-base font-semibold text-white bg-[#3d3a37] border border-[#4a4744] hover:bg-[#4a4744] transition-colors"
                 >
                   <svg className="w-5 h-5 mr-3 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">

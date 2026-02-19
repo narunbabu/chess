@@ -14,11 +14,17 @@ const AuthCallback = () => {
     if (token) {
       // Use the login function from AuthContext to properly set up authentication
       login(token).then((userData) => {
+        // Check for pending redirect (e.g. user was on /pricing before login)
+        const pendingRedirect = localStorage.getItem('pending_login_redirect');
+        if (pendingRedirect) {
+          localStorage.removeItem('pending_login_redirect');
+        }
+
         // Redirect new users to profile setup
         if (userData && userData.profile_completed === false) {
           navigate("/profile?setup=true");
         } else {
-          navigate("/lobby");
+          navigate(pendingRedirect || "/lobby");
         }
       }).catch((error) => {
         console.error("Login failed:", error);
