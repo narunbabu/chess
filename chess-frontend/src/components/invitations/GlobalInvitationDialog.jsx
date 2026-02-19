@@ -1,5 +1,5 @@
 // src/components/invitations/GlobalInvitationDialog.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useGlobalInvitation } from '../../contexts/GlobalInvitationContext';
 import { getPlayerAvatar } from '../../utils/playerDisplayUtils';
 import './GlobalInvitationDialog.css';
@@ -15,6 +15,7 @@ const GlobalInvitationDialog = () => {
     pendingInvitation,
     resumeRequest,
     championshipResumeRequest,
+    pendingMatchRequest,
     isProcessing,
     acceptInvitation,
     declineInvitation,
@@ -22,15 +23,41 @@ const GlobalInvitationDialog = () => {
     declineResumeRequest,
     acceptChampionshipResumeRequest,
     declineChampionshipResumeRequest,
+    acceptMatchRequest,
+    declineMatchRequest,
   } = useGlobalInvitation();
 
   console.log('[GlobalInvitationDialog] 🔍 Dialog render state:', {
     hasPendingInvitation: !!pendingInvitation,
     hasResumeRequest: !!resumeRequest,
-    hasChampionshipResumeRequest: !!championshipResumeRequest
+    hasChampionshipResumeRequest: !!championshipResumeRequest,
+    hasPendingMatchRequest: !!pendingMatchRequest,
   });
 
   const [showColorChoice, setShowColorChoice] = useState(false);
+
+  // Countdown timer for match requests
+  const [matchRequestSecondsLeft, setMatchRequestSecondsLeft] = useState(0);
+  const matchRequestTimerRef = useRef(null);
+
+  useEffect(() => {
+    if (pendingMatchRequest?.expires_at) {
+      const updateCountdown = () => {
+        const remaining = Math.max(0, Math.ceil((new Date(pendingMatchRequest.expires_at) - Date.now()) / 1000));
+        setMatchRequestSecondsLeft(remaining);
+        if (remaining <= 0) {
+          // Auto-decline when expired
+          declineMatchRequest(pendingMatchRequest.token);
+        }
+      };
+      updateCountdown();
+      matchRequestTimerRef.current = setInterval(updateCountdown, 500);
+      return () => clearInterval(matchRequestTimerRef.current);
+    } else {
+      setMatchRequestSecondsLeft(0);
+      if (matchRequestTimerRef.current) clearInterval(matchRequestTimerRef.current);
+    }
+  }, [pendingMatchRequest, declineMatchRequest]);
 
   // Debug logging
   React.useEffect(() => {
@@ -101,8 +128,8 @@ const GlobalInvitationDialog = () => {
     setShowColorChoice(false);
   };
 
-  // Don't render if no invitation or resume request
-  if (!pendingInvitation && !resumeRequest && !championshipResumeRequest) {
+  // Don't render if no invitation, resume request, or match request
+  if (!pendingInvitation && !resumeRequest && !championshipResumeRequest && !pendingMatchRequest) {
     return null;
   }
 
@@ -259,6 +286,61 @@ const GlobalInvitationDialog = () => {
                 disabled={isProcessing}
               >
                 ❌ Decline
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Match Request Flow (smart matchmaking) */}
+        {pendingMatchRequest && (
+          <>
+            <div className="dialog-header">
+              <h2>&#9812; Match Request</h2>
+            </div>
+            <div className="dialog-body">
+              <div className="invitation-info">
+                <img
+                  src={
+                    pendingMatchRequest.requester.avatar_url ||
+                    getPlayerAvatar(pendingMatchRequest.requester) ||
+                    `https://i.pravatar.cc/150?u=user${pendingMatchRequest.requester.id}`
+                  }
+                  alt={pendingMatchRequest.requester.name}
+                  className="inviter-avatar"
+                />
+                <div className="invitation-text">
+                  <p className="inviter-name">{pendingMatchRequest.requester.name}</p>
+                  <p className="invitation-message">
+                    wants to play you!
+                  </p>
+                  <p className="invitation-meta">
+                    Rating: {pendingMatchRequest.requester.rating || '?'}
+                  </p>
+                  <p className="invitation-meta">
+                    {pendingMatchRequest.time_control_minutes}+{pendingMatchRequest.increment_seconds}
+                  </p>
+                  {matchRequestSecondsLeft > 0 && (
+                    <p className="invitation-meta" style={{ color: matchRequestSecondsLeft <= 5 ? '#e74c3c' : '#f39c12', fontWeight: 'bold' }}>
+                      {matchRequestSecondsLeft}s remaining
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="dialog-actions">
+              <button
+                className="btn-accept"
+                onClick={() => acceptMatchRequest(pendingMatchRequest.token)}
+                disabled={isProcessing}
+              >
+                {isProcessing ? 'Accepting...' : 'Accept'}
+              </button>
+              <button
+                className="btn-decline"
+                onClick={() => declineMatchRequest(pendingMatchRequest.token)}
+                disabled={isProcessing}
+              >
+                Decline
               </button>
             </div>
           </>

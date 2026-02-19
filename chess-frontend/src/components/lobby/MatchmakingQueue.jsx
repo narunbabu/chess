@@ -4,6 +4,7 @@ import matchmakingService from '../../services/matchmakingService';
 import '../../styles/UnifiedCards.css';
 
 const QUEUE_TIMEOUT_SECONDS = 20;
+const FIND_PLAYERS_TIMEOUT_SECONDS = 15;
 const POLL_INTERVAL_MS = 2000;
 
 const TIME_PRESETS = [
@@ -20,17 +21,22 @@ const TIME_PRESETS = [
 /**
  * MatchmakingQueue — Modal overlay for searching opponents
  *
- * States: idle (options) → searching → matched (human or synthetic) → navigating
+ * States: idle (options) → findingPlayers (smart match) → searching (queue fallback) → matched → navigating
  */
 const MatchmakingQueue = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
-  const [status, setStatus] = useState('idle'); // idle | searching | matched | error
+  const [status, setStatus] = useState('idle'); // idle | findingPlayers | searching | matched | error
   const [entryId, setEntryId] = useState(null);
   const [secondsLeft, setSecondsLeft] = useState(QUEUE_TIMEOUT_SECONDS);
   const [matchResult, setMatchResult] = useState(null);
+  const [remainingTargets, setRemainingTargets] = useState(0);
   const pollRef = useRef(null);
   const countdownRef = useRef(null);
   const startTimeRef = useRef(null);
+  const matchRequestTokenRef = useRef(null);
+  const findPlayersTimeoutRef = useRef(null);
+  const statusRef = useRef('idle');
+  statusRef.current = status;
 
   // Pre-search preferences
   const [preferredColor, setPreferredColor] = useState('random');
@@ -40,8 +46,10 @@ const MatchmakingQueue = ({ isOpen, onClose }) => {
   const cleanup = useCallback(() => {
     if (pollRef.current) clearInterval(pollRef.current);
     if (countdownRef.current) clearInterval(countdownRef.current);
+    if (findPlayersTimeoutRef.current) clearTimeout(findPlayersTimeoutRef.current);
     pollRef.current = null;
     countdownRef.current = null;
+    findPlayersTimeoutRef.current = null;
   }, []);
 
   // Reset when modal closes
@@ -52,13 +60,17 @@ const MatchmakingQueue = ({ isOpen, onClose }) => {
       setEntryId(null);
       setSecondsLeft(QUEUE_TIMEOUT_SECONDS);
       setMatchResult(null);
+      setRemainingTargets(0);
+      matchRequestTokenRef.current = null;
     }
   }, [isOpen, cleanup]);
 
-  const startSearch = useCallback(async () => {
+  // Fall back to existing polling-based queue
+  const fallbackToQueue = useCallback(async () => {
     try {
       setStatus('searching');
       startTimeRef.current = Date.now();
+      setSecondsLeft(QUEUE_TIMEOUT_SECONDS);
 
       const data = await matchmakingService.joinQueue({
         preferred_color: preferredColor,
@@ -89,13 +101,11 @@ const MatchmakingQueue = ({ isOpen, onClose }) => {
             // Navigate after brief celebration
             setTimeout(() => {
               if (entry.match_type === 'human') {
-                // Human match → multiplayer game
                 sessionStorage.setItem('lastInvitationAction', 'matchmaking_matched');
                 sessionStorage.setItem('lastInvitationTime', Date.now().toString());
                 sessionStorage.setItem('lastGameId', entry.game_id.toString());
                 navigate(`/play/multiplayer/${entry.game_id}`);
               } else {
-                // Synthetic match → computer game with bot identity
                 navigate('/play', {
                   state: {
                     gameMode: 'synthetic',
@@ -119,13 +129,129 @@ const MatchmakingQueue = ({ isOpen, onClose }) => {
     }
   }, [preferredColor, timeControl, increment, cleanup, navigate]);
 
+  // Start smart matchmaking: try findPlayers first, then fall back
+  const startSearch = useCallback(async () => {
+    try {
+      setStatus('findingPlayers');
+      startTimeRef.current = Date.now();
+      setSecondsLeft(FIND_PLAYERS_TIMEOUT_SECONDS);
+
+      const data = await matchmakingService.findPlayers({
+        preferred_color: preferredColor,
+        time_control_minutes: timeControl,
+        increment_seconds: increment,
+      });
+
+      const targetsCount = data.match_request?.targets_count || 0;
+      matchRequestTokenRef.current = data.match_request?.token;
+      setRemainingTargets(targetsCount);
+
+      // If no targets found, immediately fall back to queue
+      if (targetsCount === 0) {
+        console.log('[Matchmaking] No online players found, falling back to queue');
+        matchRequestTokenRef.current = null;
+        fallbackToQueue();
+        return;
+      }
+
+      // Start countdown timer for finding players phase
+      countdownRef.current = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
+        const remaining = Math.max(0, FIND_PLAYERS_TIMEOUT_SECONDS - elapsed);
+        setSecondsLeft(remaining);
+      }, 250);
+
+      // Set timeout: after 15s, cancel find and fall back to queue
+      findPlayersTimeoutRef.current = setTimeout(async () => {
+        // Only fall back if still in findingPlayers state
+        if (statusRef.current !== 'findingPlayers') return;
+
+        console.log('[Matchmaking] Find players timeout, falling back to queue');
+        cleanup();
+
+        // Cancel the match request
+        if (matchRequestTokenRef.current) {
+          try {
+            await matchmakingService.cancelFindPlayers(matchRequestTokenRef.current);
+          } catch (err) {
+            console.error('[Matchmaking] Cancel find error:', err);
+          }
+          matchRequestTokenRef.current = null;
+        }
+
+        fallbackToQueue();
+      }, FIND_PLAYERS_TIMEOUT_SECONDS * 1000);
+    } catch (err) {
+      console.error('[Matchmaking] Failed to find players:', err);
+      // Fall back to queue on error
+      fallbackToQueue();
+    }
+  }, [preferredColor, timeControl, increment, cleanup, fallbackToQueue]);
+
+  // Listen for matchRequestAccepted DOM event (from GlobalInvitationContext)
+  useEffect(() => {
+    const handleMatchAccepted = (event) => {
+      const { gameId } = event.detail;
+      if (statusRef.current === 'findingPlayers' && gameId) {
+        cleanup();
+        setStatus('matched');
+        setMatchResult({
+          match_type: 'human',
+          game_id: gameId,
+          opponent: event.detail.acceptedBy || {},
+        });
+
+        setTimeout(() => {
+          sessionStorage.setItem('lastInvitationAction', 'smart_match_accepted');
+          sessionStorage.setItem('lastInvitationTime', Date.now().toString());
+          sessionStorage.setItem('lastGameId', gameId.toString());
+          navigate(`/play/multiplayer/${gameId}`);
+        }, 1500);
+      }
+    };
+
+    const handleMatchDeclined = (event) => {
+      const { remainingTargets: remaining } = event.detail;
+      if (statusRef.current === 'findingPlayers') {
+        setRemainingTargets(remaining);
+        // If all declined, immediately fall back
+        if (remaining === 0) {
+          cleanup();
+          if (matchRequestTokenRef.current) {
+            matchRequestTokenRef.current = null;
+          }
+          fallbackToQueue();
+        }
+      }
+    };
+
+    window.addEventListener('matchRequestAccepted', handleMatchAccepted);
+    window.addEventListener('matchRequestDeclined', handleMatchDeclined);
+    return () => {
+      window.removeEventListener('matchRequestAccepted', handleMatchAccepted);
+      window.removeEventListener('matchRequestDeclined', handleMatchDeclined);
+    };
+  }, [cleanup, navigate, fallbackToQueue]);
+
   const handleCancel = async () => {
     cleanup();
+
+    // Cancel smart match request if active
+    if (matchRequestTokenRef.current) {
+      try {
+        await matchmakingService.cancelFindPlayers(matchRequestTokenRef.current);
+      } catch (err) {
+        console.error('[Matchmaking] Cancel find error:', err);
+      }
+      matchRequestTokenRef.current = null;
+    }
+
+    // Cancel queue entry if active
     if (entryId) {
       try {
         await matchmakingService.cancelQueue(entryId);
       } catch (err) {
-        console.error('[Matchmaking] Cancel error:', err);
+        console.error('[Matchmaking] Cancel queue error:', err);
       }
     }
     onClose();
@@ -133,7 +259,8 @@ const MatchmakingQueue = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
-  const progress = ((QUEUE_TIMEOUT_SECONDS - secondsLeft) / QUEUE_TIMEOUT_SECONDS) * 100;
+  const timeoutForProgress = status === 'findingPlayers' ? FIND_PLAYERS_TIMEOUT_SECONDS : QUEUE_TIMEOUT_SECONDS;
+  const progress = ((timeoutForProgress - secondsLeft) / timeoutForProgress) * 100;
   const categories = [...new Set(TIME_PRESETS.map(p => p.category))];
 
   return (
@@ -183,9 +310,9 @@ const MatchmakingQueue = ({ isOpen, onClose }) => {
               <p style={{ marginBottom: '8px', fontWeight: 'bold', color: '#bababa', fontSize: '14px' }}>Color Preference:</p>
               <div style={{ display: 'flex', gap: '8px' }}>
                 {[
-                  { value: 'white', label: '♔ White', bg: '#e0e0e0', fg: '#1a1a18' },
-                  { value: 'black', label: '♚ Black', bg: '#1a1a18', fg: '#bababa' },
-                  { value: 'random', label: '🎲 Random', bg: '#81b64c', fg: '#ffffff' },
+                  { value: 'white', label: '\u2654 White', bg: '#e0e0e0', fg: '#1a1a18' },
+                  { value: 'black', label: '\u265A Black', bg: '#1a1a18', fg: '#bababa' },
+                  { value: 'random', label: '\uD83C\uDFB2 Random', bg: '#81b64c', fg: '#ffffff' },
                 ].map(opt => {
                   const isSelected = preferredColor === opt.value;
                   return (
@@ -241,10 +368,42 @@ const MatchmakingQueue = ({ isOpen, onClose }) => {
           </>
         )}
 
+        {/* Finding real players (smart matchmaking phase) */}
+        {status === 'findingPlayers' && (
+          <>
+            <div className="matchmaking-spinner">
+              <div className="chess-piece-spin">&#9812;</div>
+            </div>
+            <h2 className="matchmaking-title">Finding players...</h2>
+            <p className="matchmaking-subtitle">
+              {timeControl}+{increment} &bull; {preferredColor === 'random' ? 'Any color' : preferredColor.charAt(0).toUpperCase() + preferredColor.slice(1)}
+            </p>
+
+            <div className="matchmaking-progress-bar">
+              <div
+                className="matchmaking-progress-fill"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <p className="matchmaking-timer">{secondsLeft}s remaining</p>
+            <p className="matchmaking-hint">
+              {remainingTargets > 0
+                ? `Waiting for ${remainingTargets} player${remainingTargets !== 1 ? 's' : ''} to respond...`
+                : 'Looking for online players...'
+              }
+            </p>
+
+            <button className="matchmaking-cancel-btn" onClick={handleCancel}>
+              Cancel
+            </button>
+          </>
+        )}
+
+        {/* Queue-based searching (fallback) */}
         {status === 'searching' && (
           <>
             <div className="matchmaking-spinner">
-              <div className="chess-piece-spin">♚</div>
+              <div className="chess-piece-spin">&#9818;</div>
             </div>
             <h2 className="matchmaking-title">Searching for opponent...</h2>
             <p className="matchmaking-subtitle">
@@ -270,7 +429,7 @@ const MatchmakingQueue = ({ isOpen, onClose }) => {
 
         {status === 'matched' && matchResult && (
           <>
-            <div className="matchmaking-matched-icon">⚔️</div>
+            <div className="matchmaking-matched-icon">&#9876;&#65039;</div>
             <h2 className="matchmaking-title">Match Found!</h2>
             <div className="matchmaking-opponent-card">
               {matchResult.opponent?.avatar_url && (
@@ -291,7 +450,7 @@ const MatchmakingQueue = ({ isOpen, onClose }) => {
 
         {status === 'error' && (
           <>
-            <div className="matchmaking-error-icon">😞</div>
+            <div className="matchmaking-error-icon">&#128542;</div>
             <h2 className="matchmaking-title">No match found</h2>
             <p className="matchmaking-subtitle">Please try again</p>
             <button className="matchmaking-cancel-btn" onClick={onClose}>

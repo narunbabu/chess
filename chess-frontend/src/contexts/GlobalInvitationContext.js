@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { getEcho } from '../services/echoSingleton';
 import api from '../services/api';
+import matchmakingService from '../services/matchmakingService';
 import globalWebSocketManager from '../services/GlobalWebSocketManager';
 
 const GlobalInvitationContext = createContext(null);
@@ -17,6 +18,7 @@ export const GlobalInvitationProvider = ({ children }) => {
   const [pendingInvitation, setPendingInvitation] = useState(null);
   const [resumeRequest, setResumeRequest] = useState(null);
   const [championshipResumeRequest, setChampionshipResumeRequest] = useState(null);
+  const [pendingMatchRequest, setPendingMatchRequest] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Use refs to track current values without causing re-renders
@@ -28,6 +30,9 @@ export const GlobalInvitationProvider = ({ children }) => {
 
   const championshipResumeRequestRef = useRef(null);
   championshipResumeRequestRef.current = championshipResumeRequest;
+
+  const pendingMatchRequestRef = useRef(null);
+  pendingMatchRequestRef.current = pendingMatchRequest;
 
   const isProcessingRef = useRef(false);
   isProcessingRef.current = isProcessing;
@@ -347,6 +352,55 @@ export const GlobalInvitationProvider = ({ children }) => {
         setPendingInvitation(null);
       }
     });
+
+    // ─── Smart Match Request Listeners ────────────────────────────────
+
+    // Listen for incoming match requests (target receives this)
+    userChannel.listen('.match.request.received', (data) => {
+      // Don't show dialog if user is in active game
+      if (isInActiveGameRef.current()) {
+        return;
+      }
+
+      if (data.match_request) {
+        setPendingMatchRequest(data.match_request);
+      }
+    });
+
+    // Listen for match request cancelled (target receives this when requester cancels or another accepts)
+    userChannel.listen('.match.request.cancelled', (data) => {
+      if (data.match_request_token && pendingMatchRequestRef.current?.token === data.match_request_token) {
+        setPendingMatchRequest(null);
+      }
+    });
+
+    // Listen for match request accepted (requester receives this when a target accepts)
+    userChannel.listen('.match.request.accepted', (data) => {
+      // Dispatch DOM event for MatchmakingQueue to navigate
+      if (data.game && data.game.id) {
+        const acceptedEvent = new CustomEvent('matchRequestAccepted', {
+          detail: {
+            gameId: data.game.id,
+            matchRequestToken: data.match_request?.token,
+            acceptedBy: data.match_request?.accepted_by,
+          }
+        });
+        window.dispatchEvent(acceptedEvent);
+      }
+    });
+
+    // Listen for match request declined (requester receives this when a target declines)
+    userChannel.listen('.match.request.declined', (data) => {
+      if (data.match_request_token) {
+        const declinedEvent = new CustomEvent('matchRequestDeclined', {
+          detail: {
+            matchRequestToken: data.match_request_token,
+            remainingTargets: data.remaining_targets,
+          }
+        });
+        window.dispatchEvent(declinedEvent);
+      }
+    });
     } // End of registerEventListeners function
 
       // Return cleanup function from setupListeners
@@ -361,6 +415,10 @@ export const GlobalInvitationProvider = ({ children }) => {
           userChannel.stopListening('.championship.game.resume.declined');
           userChannel.stopListening('.resume.request.expired');
           userChannel.stopListening('.resume.request.response');
+          userChannel.stopListening('.match.request.received');
+          userChannel.stopListening('.match.request.cancelled');
+          userChannel.stopListening('.match.request.accepted');
+          userChannel.stopListening('.match.request.declined');
         }
       };
     } // End of setupListeners function
@@ -592,6 +650,51 @@ export const GlobalInvitationProvider = ({ children }) => {
     }
   }, [navigate]);
 
+  // Accept match request (target player accepts)
+  const acceptMatchRequest = useCallback(async (token) => {
+    if (isProcessingRef.current) return;
+
+    setIsProcessing(true);
+    try {
+      const response = await matchmakingService.acceptMatchRequest(token);
+
+      // Clear the dialog
+      setPendingMatchRequest(null);
+
+      // Navigate to the game
+      if (response.game?.id) {
+        const gameId = response.game.id;
+        sessionStorage.setItem('lastInvitationAction', 'match_request_accepted');
+        sessionStorage.setItem('lastInvitationTime', Date.now().toString());
+        sessionStorage.setItem('lastGameId', gameId.toString());
+        navigate(`/play/multiplayer/${gameId}`);
+      }
+    } catch (error) {
+      console.error('[GlobalInvitation] Failed to accept match request:', error);
+      const errorMessage = error.response?.data?.error || error.message;
+      alert(`Failed to accept match request: ${errorMessage}`);
+      setPendingMatchRequest(null);
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [navigate]);
+
+  // Decline match request (target player declines)
+  const declineMatchRequest = useCallback(async (token) => {
+    if (isProcessingRef.current) return;
+
+    setIsProcessing(true);
+    try {
+      await matchmakingService.declineMatchRequest(token);
+      setPendingMatchRequest(null);
+    } catch (error) {
+      console.error('[GlobalInvitation] Failed to decline match request:', error);
+      setPendingMatchRequest(null);
+    } finally {
+      setIsProcessing(false);
+    }
+  }, []);
+
   // Decline championship resume request
   const declineChampionshipResumeRequest = useCallback(async (matchId, gameId) => {
     if (isProcessingRef.current) return;
@@ -624,6 +727,7 @@ export const GlobalInvitationProvider = ({ children }) => {
     pendingInvitation,
     resumeRequest,
     championshipResumeRequest,
+    pendingMatchRequest,
     isProcessing,
     acceptInvitation,
     declineInvitation,
@@ -631,10 +735,13 @@ export const GlobalInvitationProvider = ({ children }) => {
     declineResumeRequest,
     acceptChampionshipResumeRequest,
     declineChampionshipResumeRequest,
+    acceptMatchRequest,
+    declineMatchRequest,
   }), [
     pendingInvitation,
     resumeRequest,
     championshipResumeRequest,
+    pendingMatchRequest,
     isProcessing,
     acceptInvitation,
     declineInvitation,
@@ -642,6 +749,8 @@ export const GlobalInvitationProvider = ({ children }) => {
     declineResumeRequest,
     acceptChampionshipResumeRequest,
     declineChampionshipResumeRequest,
+    acceptMatchRequest,
+    declineMatchRequest,
   ]);
 
   return (

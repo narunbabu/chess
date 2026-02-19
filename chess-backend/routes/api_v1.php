@@ -232,6 +232,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/join', [MatchmakingController::class, 'join']);
         Route::get('/status/{id}', [MatchmakingController::class, 'status']);
         Route::delete('/cancel/{id}', [MatchmakingController::class, 'cancel']);
+
+        // Smart real-user matchmaking
+        Route::post('/find-players', [MatchmakingController::class, 'findPlayers']);
+        Route::post('/accept/{token}', [MatchmakingController::class, 'acceptRequest']);
+        Route::post('/decline/{token}', [MatchmakingController::class, 'declineRequest']);
+        Route::post('/cancel-find/{token}', [MatchmakingController::class, 'cancelFind']);
     });
 
     // ── Championships (authenticated) ─────────────────────────────────────

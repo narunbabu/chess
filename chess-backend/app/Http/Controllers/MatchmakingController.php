@@ -76,6 +76,94 @@ class MatchmakingController extends Controller
         ]);
     }
 
+    // ─── Smart Real-User Matchmaking ────────────────────────────────────────
+
+    /**
+     * POST /api/v1/matchmaking/find-players
+     *
+     * Start smart matchmaking: find real online players and send them match requests.
+     */
+    public function findPlayers(Request $request)
+    {
+        $validated = $request->validate([
+            'preferred_color' => 'nullable|in:white,black,random',
+            'time_control_minutes' => 'nullable|integer|in:3,5,10,15,30',
+            'increment_seconds' => 'nullable|integer|in:0,2,3,5,10',
+        ]);
+
+        $user = Auth::user();
+        $matchRequest = $this->matchmaking->findAndBroadcastPlayers($user, $validated);
+
+        return response()->json([
+            'message' => 'Match request created',
+            'match_request' => [
+                'token' => $matchRequest->token,
+                'status' => $matchRequest->status,
+                'targets_count' => $matchRequest->targets->count(),
+                'expires_at' => $matchRequest->expires_at->toISOString(),
+            ],
+        ]);
+    }
+
+    /**
+     * POST /api/v1/matchmaking/accept/{token}
+     *
+     * Accept a match request (called by a target player).
+     */
+    public function acceptRequest(Request $request, string $token)
+    {
+        try {
+            $result = $this->matchmaking->acceptMatchRequest($token, Auth::user());
+
+            $game = $result['game'];
+
+            return response()->json([
+                'message' => 'Match request accepted',
+                'game' => [
+                    'id' => $game->id,
+                    'white_player_id' => $game->white_player_id,
+                    'black_player_id' => $game->black_player_id,
+                    'time_control_minutes' => $game->time_control_minutes,
+                    'increment_seconds' => $game->increment_seconds,
+                ],
+            ]);
+        } catch (\RuntimeException $e) {
+            return response()->json(['error' => $e->getMessage()], 409);
+        }
+    }
+
+    /**
+     * POST /api/v1/matchmaking/decline/{token}
+     *
+     * Decline a match request (called by a target player).
+     */
+    public function declineRequest(Request $request, string $token)
+    {
+        try {
+            $this->matchmaking->declineMatchRequest($token, Auth::user());
+
+            return response()->json(['message' => 'Match request declined']);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['error' => 'Match request not found or already resolved.'], 404);
+        }
+    }
+
+    /**
+     * POST /api/v1/matchmaking/cancel-find/{token}
+     *
+     * Cancel a match request (called by the requester).
+     */
+    public function cancelFind(Request $request, string $token)
+    {
+        try {
+            $this->matchmaking->cancelMatchRequest($token, Auth::user());
+
+            return response()->json(['message' => 'Match request cancelled']);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['error' => 'Match request not found or already resolved.'], 404);
+        }
+    }
+
     /**
      * Format a matchmaking entry for the API response.
      */

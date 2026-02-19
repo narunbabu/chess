@@ -40,6 +40,40 @@ const matchmakingService = {
     const response = await api.get(`/users?search=${encodeURIComponent(query)}`);
     return response.data;
   },
+
+  // ─── Smart Real-User Matchmaking ────────────────────────────────────
+
+  /**
+   * Find online players and send match requests
+   */
+  findPlayers: async (preferences = {}) => {
+    const response = await api.post('/matchmaking/find-players', preferences);
+    return response.data;
+  },
+
+  /**
+   * Accept a match request (as a target player)
+   */
+  acceptMatchRequest: async (token) => {
+    const response = await api.post(`/matchmaking/accept/${token}`);
+    return response.data;
+  },
+
+  /**
+   * Decline a match request (as a target player)
+   */
+  declineMatchRequest: async (token) => {
+    const response = await api.post(`/matchmaking/decline/${token}`);
+    return response.data;
+  },
+
+  /**
+   * Cancel finding players (as the requester)
+   */
+  cancelFindPlayers: async (token) => {
+    const response = await api.post(`/matchmaking/cancel-find/${token}`);
+    return response.data;
+  },
 };
 
 export default matchmakingService;
