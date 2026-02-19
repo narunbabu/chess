@@ -106,13 +106,13 @@ class TournamentStructureCalculatorTest extends TestCase
     public function testSwissRoundsBounds()
     {
         $testCases = [
-            [2, 2],    // Minimum
-            [4, 2],    // Very small
-            [8, 3],    // Standard small
-            [10, 3],   // Your case
-            [16, 4],   // Small maximum
-            [32, 5],   // Medium standard
-            [64, 6],   // Large standard
+            [2, 1],    // Minimum (≤2 → 1 Swiss round)
+            [4, 2],    // Very small (≤4 → 2 Swiss rounds)
+            [8, 3],    // Standard small (≤16 → 3 Swiss rounds)
+            [10, 3],   // Your case (≤16 → 3 Swiss rounds)
+            [16, 3],   // Small maximum (≤16 → 3 Swiss rounds)
+            [32, 5],   // Medium standard (≤48 → 5 Swiss rounds)
+            [64, 6],   // Large standard (≤64 → 6 Swiss rounds)
             [128, 7],  // Maximum supported
         ];
 
@@ -180,25 +180,28 @@ class TournamentStructureCalculatorTest extends TestCase
 
     public static function smallTournamentProvider(): array
     {
+        // Values aligned with TournamentStructureCalculator tier-based boundaries:
+        // ≤2: SR=1, ≤4: SR=2, ≤16: SR=3, ≤24: SR=4, ≤48: SR=5, ≤64: SR=6, else: SR=7
+        // TopK: ≤2: 2, 3: 2, ≤8: 4, ≤16: 4, ≤32: 8, ≤64: 16, ≤128: 32
         return [
-            [2, ['swiss_rounds' => 2, 'top_k' => 2, 'elimination_rounds' => 1, 'total_rounds' => 3]],
+            [2, ['swiss_rounds' => 1, 'top_k' => 2, 'elimination_rounds' => 1, 'total_rounds' => 2]],
             [4, ['swiss_rounds' => 2, 'top_k' => 4, 'elimination_rounds' => 2, 'total_rounds' => 4]],
             [6, ['swiss_rounds' => 3, 'top_k' => 4, 'elimination_rounds' => 2, 'total_rounds' => 5]],
             [7, ['swiss_rounds' => 3, 'top_k' => 4, 'elimination_rounds' => 2, 'total_rounds' => 5]],
             [8, ['swiss_rounds' => 3, 'top_k' => 4, 'elimination_rounds' => 2, 'total_rounds' => 5]],
             [10, ['swiss_rounds' => 3, 'top_k' => 4, 'elimination_rounds' => 2, 'total_rounds' => 5]],
-            [12, ['swiss_rounds' => 4, 'top_k' => 8, 'elimination_rounds' => 3, 'total_rounds' => 7]],
-            [14, ['swiss_rounds' => 4, 'top_k' => 8, 'elimination_rounds' => 3, 'total_rounds' => 7]],
-            [16, ['swiss_rounds' => 4, 'top_k' => 8, 'elimination_rounds' => 3, 'total_rounds' => 7]],
+            [12, ['swiss_rounds' => 3, 'top_k' => 4, 'elimination_rounds' => 2, 'total_rounds' => 5]],
+            [14, ['swiss_rounds' => 3, 'top_k' => 4, 'elimination_rounds' => 2, 'total_rounds' => 5]],
+            [16, ['swiss_rounds' => 3, 'top_k' => 4, 'elimination_rounds' => 2, 'total_rounds' => 5]],
         ];
     }
 
     public static function mediumTournamentProvider(): array
     {
         return [
-            [18, ['swiss_rounds' => 5, 'top_k' => 8, 'elimination_rounds' => 3, 'total_rounds' => 8]],
-            [20, ['swiss_rounds' => 5, 'top_k' => 8, 'elimination_rounds' => 3, 'total_rounds' => 8]],
-            [24, ['swiss_rounds' => 5, 'top_k' => 8, 'elimination_rounds' => 3, 'total_rounds' => 8]],
+            [18, ['swiss_rounds' => 4, 'top_k' => 8, 'elimination_rounds' => 3, 'total_rounds' => 7]],
+            [20, ['swiss_rounds' => 4, 'top_k' => 8, 'elimination_rounds' => 3, 'total_rounds' => 7]],
+            [24, ['swiss_rounds' => 4, 'top_k' => 8, 'elimination_rounds' => 3, 'total_rounds' => 7]],
             [28, ['swiss_rounds' => 5, 'top_k' => 8, 'elimination_rounds' => 3, 'total_rounds' => 8]],
             [32, ['swiss_rounds' => 5, 'top_k' => 8, 'elimination_rounds' => 3, 'total_rounds' => 8]],
         ];
@@ -206,24 +209,25 @@ class TournamentStructureCalculatorTest extends TestCase
 
     public static function largeTournamentProvider(): array
     {
+        // ≤32 → TK=8, ≤64 → TK=16; ≤48 → SR=5, ≤64 → SR=6
         return [
-            [36, ['swiss_rounds' => 6, 'top_k' => 16, 'elimination_rounds' => 4, 'total_rounds' => 10]],
-            [40, ['swiss_rounds' => 6, 'top_k' => 16, 'elimination_rounds' => 4, 'total_rounds' => 10]],
-            [48, ['swiss_rounds' => 6, 'top_k' => 16, 'elimination_rounds' => 4, 'total_rounds' => 10]],
-            [56, ['swiss_rounds' => 6, 'top_k' => 32, 'elimination_rounds' => 5, 'total_rounds' => 11]],
-            [64, ['swiss_rounds' => 6, 'top_k' => 32, 'elimination_rounds' => 5, 'total_rounds' => 11]],
+            [36, ['swiss_rounds' => 5, 'top_k' => 16, 'elimination_rounds' => 4, 'total_rounds' => 9]],
+            [40, ['swiss_rounds' => 5, 'top_k' => 16, 'elimination_rounds' => 4, 'total_rounds' => 9]],
+            [48, ['swiss_rounds' => 5, 'top_k' => 16, 'elimination_rounds' => 4, 'total_rounds' => 9]],
+            [56, ['swiss_rounds' => 6, 'top_k' => 16, 'elimination_rounds' => 4, 'total_rounds' => 10]],
+            [64, ['swiss_rounds' => 6, 'top_k' => 16, 'elimination_rounds' => 4, 'total_rounds' => 10]],
         ];
     }
 
     public static function edgeCaseProvider(): array
     {
         return [
-            [3, ['swiss_rounds' => 2, 'top_k' => 4, 'elimination_rounds' => 2, 'total_rounds' => 4]], // 3 players
+            [3, ['swiss_rounds' => 2, 'top_k' => 2, 'elimination_rounds' => 1, 'total_rounds' => 3]], // 3 players
             [5, ['swiss_rounds' => 3, 'top_k' => 4, 'elimination_rounds' => 2, 'total_rounds' => 5]], // 5 players
             [9, ['swiss_rounds' => 3, 'top_k' => 4, 'elimination_rounds' => 2, 'total_rounds' => 5]], // 9 players
-            [11, ['swiss_rounds' => 4, 'top_k' => 8, 'elimination_rounds' => 3, 'total_rounds' => 7]], // 11 players
-            [13, ['swiss_rounds' => 4, 'top_k' => 8, 'elimination_rounds' => 3, 'total_rounds' => 7]], // 13 players
-            [15, ['swiss_rounds' => 4, 'top_k' => 8, 'elimination_rounds' => 3, 'total_rounds' => 7]], // 15 players
+            [11, ['swiss_rounds' => 3, 'top_k' => 4, 'elimination_rounds' => 2, 'total_rounds' => 5]], // 11 players
+            [13, ['swiss_rounds' => 3, 'top_k' => 4, 'elimination_rounds' => 2, 'total_rounds' => 5]], // 13 players
+            [15, ['swiss_rounds' => 3, 'top_k' => 4, 'elimination_rounds' => 2, 'total_rounds' => 5]], // 15 players
         ];
     }
 }

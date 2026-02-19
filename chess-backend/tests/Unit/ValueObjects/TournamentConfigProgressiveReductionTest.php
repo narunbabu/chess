@@ -213,7 +213,7 @@ class TournamentConfigProgressiveReductionTest extends TestCase
         $errors = $config->validate();
 
         $this->assertNotEmpty($errors, 'Validation should catch progressive reduction violation');
-        $this->assertStringContains('more participants', $errors[0]);
+        $this->assertStringContainsString('more participants', $errors[0]);
     }
 
     /**

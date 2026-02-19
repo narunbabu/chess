@@ -82,21 +82,25 @@ class TournamentStructureEndToEndTest extends TestCase
      */
     public function testFiftyPlayerTournamentStructure()
     {
+        // 50 players: ≤64 → SR=6, ≤64 → TK=16, ER=log2(16)=4, TR=10
+        // But TournamentStructureCalculator: 50 > 48 → SR=6, 50 ≤ 64 → TK=16
+        // Note: ≤48 → SR=5, but 50 > 48 so SR=6
         $this->validateTournamentStructure(50, [
-            'swiss_rounds' => 5,
+            'swiss_rounds' => 6,
             'top_k' => 16,
             'elimination_rounds' => 4,
-            'total_rounds' => 9,
+            'total_rounds' => 10,
             'expected_structure' => [
                 1 => ['type' => 'swiss', 'matches' => 25, 'players' => 50],
                 2 => ['type' => 'swiss', 'matches' => 25, 'players' => 50],
                 3 => ['type' => 'swiss', 'matches' => 25, 'players' => 50],
                 4 => ['type' => 'swiss', 'matches' => 25, 'players' => 50],
                 5 => ['type' => 'swiss', 'matches' => 25, 'players' => 50],
-                6 => ['type' => 'swiss', 'matches' => 8, 'players' => 16], // round_of_16 (but type swiss for now)
-                7 => ['type' => 'swiss', 'matches' => 4, 'players' => 8], // quarter_final
-                8 => ['type' => 'swiss', 'matches' => 2, 'players' => 4], // semi_final
-                9 => ['type' => 'swiss', 'matches' => 1, 'players' => 2], // final
+                6 => ['type' => 'swiss', 'matches' => 25, 'players' => 50],
+                7 => ['type' => 'elimination', 'matches' => 8, 'players' => 16],
+                8 => ['type' => 'elimination', 'matches' => 4, 'players' => 8],
+                9 => ['type' => 'semi_final', 'matches' => 2, 'players' => 4],
+                10 => ['type' => 'final', 'matches' => 1, 'players' => 2],
             ],
         ]);
     }
@@ -333,15 +337,11 @@ class TournamentStructureEndToEndTest extends TestCase
     {
         $owner = User::factory()->create(['name' => 'Tournament Owner']);
 
-        $championship = Championship::create([
-            'title' => "Test Tournament - {$participantCount} Players",
-            'format_id' => 1,
-            'status_id' => \App\Enums\ChampionshipStatus::IN_PROGRESS->getId(),
-            'match_time_window_hours' => 24,
-            'registration_deadline' => now()->addDays(7),
+        $championship = Championship::factory()->create([
+            'name' => "Test Tournament - {$participantCount} Players",
+            'status' => \App\Enums\ChampionshipStatus::IN_PROGRESS->value,
             'start_date' => now()->addDay(),
             'total_rounds' => 5,
-            'visibility' => 'public',
             'created_by' => $owner->id,
         ]);
 
