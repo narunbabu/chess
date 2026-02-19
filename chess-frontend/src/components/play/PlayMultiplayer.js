@@ -490,15 +490,20 @@ const PlayMultiplayer = () => {
       setCanUndo(false); // Will be enabled after first complete turn
       console.log(`[Undo] Initialized with ${undoChances} undo chances for ${gameMode} mode`);
 
-      // Reset registration flag for new game and register it
-      gameRegisteredRef.current = false;
-      const isRated = ratedMode === 'rated';
-      registerActiveGame(data.id, data.status, isRated);
-      gameRegisteredRef.current = true;
-      console.log('[PlayMultiplayer] Game registered with navigation context:', data.id, 'isRated:', isRated);
-
       // Prevent rejoining a finished game (only allow active and waiting statuses, paused is not finished)
       const isGameFinished = data.status === 'finished' || data.status === 'aborted' || data.status === 'resigned';
+
+      // Only register active/in-progress games with navigation guard — skip finished games
+      gameRegisteredRef.current = false;
+      const isRated = ratedMode === 'rated';
+      if (!isGameFinished) {
+        registerActiveGame(data.id, data.status, isRated);
+        gameRegisteredRef.current = true;
+        console.log('[PlayMultiplayer] Game registered with navigation context:', data.id, 'isRated:', isRated);
+      } else {
+        console.log('[PlayMultiplayer] Skipping navigation guard registration — game already finished:', data.status);
+      }
+
       if (isGameFinished) {
         console.log('🚫 Game is already finished, status:', data.status);
         setGameComplete(true);
@@ -1510,6 +1515,13 @@ const PlayMultiplayer = () => {
     setGameComplete(true);
     setLoading(false); // Ensure loading is false when game ends
 
+    // Unregister from navigation guard — game is no longer active
+    if (gameRegisteredRef.current) {
+      unregisterActiveGame();
+      gameRegisteredRef.current = false;
+      console.log('[PlayMultiplayer] Unregistered from navigation guard on game end');
+    }
+
     // Auto-report result to championship system (non-intrusive - only for championship games)
     if (championshipContext && championshipContext.match_id) {
       try {
@@ -1764,7 +1776,7 @@ const PlayMultiplayer = () => {
     }
 
     console.log('✅ Game completion processed, showing result modal');
-  }, [user?.id, gameId, gameHistory, gameInfo, myMs, oppMs, invalidateGameHistory]);
+  }, [user?.id, gameId, gameHistory, gameInfo, myMs, oppMs, invalidateGameHistory, unregisterActiveGame]);
 
   // Handle resign
   const handleResign = useCallback(async () => {

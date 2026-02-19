@@ -91,8 +91,9 @@ export const GameNavigationProvider = ({ children }) => {
     });
   }, []); // Remove activeGame dependency to prevent infinite loop
 
-  // Check if current page is a game page
+  // Check if current page is a game page (exclude review pages)
   const isGamePage = useCallback(() => {
+    if (location.pathname.startsWith('/play/review/')) return false;
     return location.pathname.startsWith('/play/multiplayer/') ||
            location.pathname.startsWith('/play/');
   }, [location.pathname]);
