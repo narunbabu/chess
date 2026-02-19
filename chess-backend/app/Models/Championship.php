@@ -58,6 +58,9 @@ class Championship extends Model
         'tournament_generated',
         'tournament_generated_at',
         'is_test_tournament',
+        'end_date',
+        'organizer_id',
+        'tournament_configuration',
     ];
 
     protected $casts = [
@@ -93,6 +96,7 @@ class Championship extends Model
         'tournament_generated' => 'boolean',
         'tournament_generated_at' => 'datetime',
         'is_test_tournament' => 'boolean',
+        'end_date' => 'datetime',
     ];
 
     /**
@@ -294,6 +298,35 @@ class Championship extends Model
     public function setStartsAtAttribute($value)
     {
         $this->attributes['start_date'] = $value;
+    }
+
+    /**
+     * Mutator: Allow setting 'organizer_id' which maps to 'created_by'
+     */
+    public function setOrganizerIdAttribute($value)
+    {
+        $this->attributes['organizer_id'] = $value;
+        $this->attributes['created_by'] = $value;
+    }
+
+    /**
+     * Mutator: Allow setting 'tournament_configuration' which maps to 'tournament_config'
+     */
+    public function setTournamentConfigurationAttribute($value)
+    {
+        $this->attributes['tournament_config'] = is_array($value) ? json_encode($value) : $value;
+    }
+
+    /**
+     * Accessor: Read 'tournament_configuration' from 'tournament_config'
+     */
+    public function getTournamentConfigurationAttribute()
+    {
+        $val = $this->attributes['tournament_config'] ?? null;
+        if (is_string($val)) {
+            return json_decode($val, true);
+        }
+        return $val;
     }
 
     /**
