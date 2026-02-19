@@ -331,6 +331,8 @@ class TournamentStructureEndToEndTest extends TestCase
 
     private function createTournament(int $participantCount): Championship
     {
+        $owner = User::factory()->create(['name' => 'Tournament Owner']);
+
         $championship = Championship::create([
             'title' => "Test Tournament - {$participantCount} Players",
             'format_id' => 1,
@@ -340,6 +342,7 @@ class TournamentStructureEndToEndTest extends TestCase
             'start_date' => now()->addDay(),
             'total_rounds' => 5,
             'visibility' => 'public',
+            'created_by' => $owner->id,
         ]);
 
         for ($i = 1; $i <= $participantCount; $i++) {

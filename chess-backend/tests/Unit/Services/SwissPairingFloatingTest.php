@@ -15,6 +15,14 @@ class SwissPairingFloatingTest extends TestCase
 {
     use RefreshDatabase;
 
+    private User $owner;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->owner = User::factory()->create(['name' => 'Test Owner']);
+    }
+
     /** @test */
     public function it_pairs_all_players_in_round_3_with_floating()
     {
@@ -25,6 +33,7 @@ class SwissPairingFloatingTest extends TestCase
             'status_id' => ChampionshipStatus::where('code', 'in_progress')->first()->id,
             'match_time_window_hours' => 24,
             'registration_deadline' => now()->addDays(7),
+            'created_by' => $this->owner->id,
         ]);
 
         // Create 10 test users
@@ -100,6 +109,7 @@ class SwissPairingFloatingTest extends TestCase
             'status_id' => ChampionshipStatus::where('code', 'in_progress')->first()->id,
             'match_time_window_hours' => 24,
             'registration_deadline' => now()->addDays(7),
+            'created_by' => $this->owner->id,
         ]);
 
         // Create 8 test users (even number)
@@ -172,6 +182,7 @@ class SwissPairingFloatingTest extends TestCase
             'format_id' => 1,
             'status_id' => ChampionshipStatus::where('code', 'in_progress')->first()->id,
             'registration_deadline' => now()->addDays(7),
+            'created_by' => $this->owner->id,
         ]);
 
         // Create users and participants

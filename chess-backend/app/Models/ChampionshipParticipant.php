@@ -20,6 +20,8 @@ class ChampionshipParticipant extends Model
         'payment_status_id', // FK to payment_statuses table
         'amount_paid',
         'registered_at',
+        'registration_date', // Alias for registered_at (mutator)
+        'is_paid',           // Alias for payment_status_id (mutator)
         'seed_number',
     ];
 
@@ -93,6 +95,26 @@ class ChampionshipParticipant extends Model
         }
 
         return 'pending';
+    }
+
+    /**
+     * Mutator: Allow setting 'registration_date' which maps to 'registered_at'
+     */
+    public function setRegistrationDateAttribute($value)
+    {
+        $this->attributes['registered_at'] = $value;
+    }
+
+    /**
+     * Mutator: Allow setting 'is_paid' which maps to payment_status_id
+     */
+    public function setIsPaidAttribute($value)
+    {
+        if ($value) {
+            $this->attributes['payment_status_id'] = PaymentStatusEnum::COMPLETED->getId();
+        } else {
+            $this->attributes['payment_status_id'] = PaymentStatusEnum::PENDING->getId();
+        }
     }
 
     // Scopes

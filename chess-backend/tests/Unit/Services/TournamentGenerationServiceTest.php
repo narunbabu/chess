@@ -26,9 +26,6 @@ class TournamentGenerationServiceTest extends TestCase
     {
         parent::setUp();
 
-        // Seed championship statuses
-        $this->seedChampionshipStatuses();
-
         // Mock the SwissPairingService dependency
         $this->swissService = $this->createMock(SwissPairingService::class);
 
@@ -46,39 +43,20 @@ class TournamentGenerationServiceTest extends TestCase
 
         $this->service = new TournamentGenerationService($this->swissService);
 
-        // Create test championship
+        // Create a base user for championship ownership
+        $owner = User::factory()->create(['name' => 'Test Owner']);
+
+        // Create test championship (status uses mutator: 'registration' → 'registration_open')
         $this->championship = Championship::create([
             'title' => 'Test Championship',
             'start_date' => now()->addDays(14),
             'registration_deadline' => now()->addDays(7),
-            'status_id' => \App\Models\ChampionshipStatus::where('code', 'registration')->first()->id,
-            'user_id' => 1,
+            'status' => 'registration',
+            'created_by' => $owner->id,
         ]);
 
         // Create test participants with varying ratings
         $this->participants = $this->createTestParticipants(8);
-    }
-
-    /**
-     * Seed championship status lookup table
-     */
-    private function seedChampionshipStatuses(): void
-    {
-        // Create the table if it doesn't exist
-        \Illuminate\Support\Facades\Schema::dropIfExists('championship_statuses');
-        \Illuminate\Support\Facades\Schema::create('championship_statuses', function ($table) {
-            $table->id();
-            $table->string('code')->unique();
-            $table->string('label');
-            $table->timestamps();
-        });
-
-        \App\Models\ChampionshipStatus::insert([
-            ['code' => 'registration', 'label' => 'Registration'],
-            ['code' => 'active', 'label' => 'Active'],
-            ['code' => 'completed', 'label' => 'Completed'],
-            ['code' => 'archived', 'label' => 'Archived'],
-        ]);
     }
 
     /**

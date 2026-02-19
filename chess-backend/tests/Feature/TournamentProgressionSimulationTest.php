@@ -369,6 +369,8 @@ class TournamentProgressionSimulationTest extends TestCase
 
     private function createChampionship(int $playerCount): Championship
     {
+        $owner = User::factory()->create(['name' => 'Tournament Owner']);
+
         return Championship::create([
             'title' => "Simulation Test - {$playerCount} Players",
             'format_id' => 1,
@@ -379,6 +381,7 @@ class TournamentProgressionSimulationTest extends TestCase
             'total_rounds' => 10,
             'visibility' => 'public',
             'is_test_tournament' => true,
+            'created_by' => $owner->id,
         ]);
     }
 

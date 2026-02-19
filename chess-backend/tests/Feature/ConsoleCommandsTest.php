@@ -49,8 +49,8 @@ class ConsoleCommandsTest extends TestCase
             ChampionshipParticipant::create([
                 'championship_id' => $this->championship->id,
                 'user_id' => $player->id,
-                'registration_date' => now(),
-                'is_paid' => true,
+                'registered_at' => now(),
+                'payment_status_id' => \App\Enums\PaymentStatus::COMPLETED->getId(),
             ]);
         }
     }
@@ -80,7 +80,7 @@ class ConsoleCommandsTest extends TestCase
             'player2_id' => $this->player2->id,
             'round_number' => 1,
             'status_id' => MatchStatusEnum::COMPLETED->getId(),
-            'result_id' => ResultTypeEnum::WHITE_WINS->getId(),
+            'result_type_id' => ResultTypeEnum::COMPLETED->getId(),
         ]);
 
         $this->artisan('championship:check-rounds', ['--championship' => $this->championship->id])
@@ -315,7 +315,7 @@ class ConsoleCommandsTest extends TestCase
                 'player2_id' => $this->player2->id,
                 'round_number' => 1,
                 'status_id' => MatchStatusEnum::COMPLETED->getId(),
-                'result_id' => ResultTypeEnum::WHITE_WINS->getId(),
+                'result_type_id' => ResultTypeEnum::COMPLETED->getId(),
             ]);
         }
 
@@ -376,7 +376,7 @@ class ConsoleCommandsTest extends TestCase
             'player2_id' => $this->player2->id,
             'round_number' => 1,
             'status_id' => MatchStatusEnum::COMPLETED->getId(),
-            'result_id' => ResultTypeEnum::WHITE_WINS->getId(),
+            'result_type_id' => ResultTypeEnum::COMPLETED->getId(),
         ]);
 
         // Both commands should run successfully

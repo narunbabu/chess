@@ -11,6 +11,9 @@ enum ChampionshipResultType: string
     case DRAW = 'draw';
     case BYE = 'bye';
 
+    // Alias constants for test compatibility
+    const WHITE_WINS = self::COMPLETED;
+
     /**
      * Get the database ID for this result type
      */

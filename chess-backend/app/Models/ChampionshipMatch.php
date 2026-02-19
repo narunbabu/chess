@@ -38,6 +38,8 @@ class ChampionshipMatch extends Model
         'winner_id',
         'result_type',      // Virtual attribute (mutator converts to result_type_id)
         'result_type_id',   // FK to championship_result_types table
+        'player1_result_type_id', // FK to championship_result_types for player1
+        'player2_result_type_id', // FK to championship_result_types for player2
         'status',           // Virtual attribute (mutator converts to status_id)
         'status_id',        // FK to championship_match_statuses table
         // Scheduling fields
@@ -48,6 +50,7 @@ class ChampionshipMatch extends Model
         'scheduling_notes',
         // Test-compat fields
         'result',
+        'result_id',        // Alias for result_type_id (mutator)
         'completed_at',
         'moves',
     ];
@@ -75,6 +78,8 @@ class ChampionshipMatch extends Model
         'invitation_status' => 'string',
         'winner_id' => 'integer',
         'result_type_id' => 'integer',
+        'player1_result_type_id' => 'integer',
+        'player2_result_type_id' => 'integer',
         'status_id' => 'integer',
         // Scheduling field casts
         'scheduled_time' => 'datetime',
@@ -287,6 +292,14 @@ class ChampionshipMatch extends Model
         }
 
         return 'swiss';
+    }
+
+    /**
+     * Mutator: Allow setting 'result_id' which maps to 'result_type_id'
+     */
+    public function setResultIdAttribute($value)
+    {
+        $this->attributes['result_type_id'] = $value;
     }
 
     /**

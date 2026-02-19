@@ -289,6 +289,8 @@ class InvariantValidationTest extends TestCase
 
     private function createTournament(int $participantCount): Championship
     {
+        $owner = User::factory()->create(['name' => 'Tournament Owner']);
+
         $championship = Championship::create([
             'title' => "Test Tournament - {$participantCount} Players",
             'format_id' => 1,
@@ -298,6 +300,7 @@ class InvariantValidationTest extends TestCase
             'start_date' => now()->addDay(),
             'total_rounds' => 5, // Will be updated by actual calculation
             'visibility' => 'public',
+            'created_by' => $owner->id,
         ]);
 
         // Create participants

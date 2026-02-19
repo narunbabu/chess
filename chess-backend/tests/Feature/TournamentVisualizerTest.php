@@ -60,8 +60,8 @@ class TournamentVisualizerTest extends TestCase
         if (ChampionshipFormat::count() === 0) {
             ChampionshipFormat::insert([
                 ['id' => 1, 'code' => 'swiss_elimination', 'label' => 'Swiss + Elimination'],
-                ['id' => 2, 'code' => 'round_robin', 'label' => 'Round Robin'],
-                ['id' => 3, 'code' => 'single_elimination', 'label' => 'Single Elimination'],
+                ['id' => 2, 'code' => 'swiss_only', 'label' => 'Swiss Only'],
+                ['id' => 3, 'code' => 'elimination_only', 'label' => 'Single Elimination'],
             ]);
         }
 
