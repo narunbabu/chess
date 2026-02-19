@@ -351,6 +351,8 @@ const LobbyPage = () => {
               syntheticPlayer: player,
               preferredColor: resolvedColor,
               ratedMode: gameMode, // Pass rated/casual selection from ChallengeModal
+              timeControl, // minutes (e.g. 3, 5, 10, 30)
+              increment, // seconds per move (e.g. 0, 2, 3, 5)
             },
           });
         }, 1200);

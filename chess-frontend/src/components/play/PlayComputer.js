@@ -168,6 +168,14 @@ const PlayComputer = () => {
   const [gameMode, setGameMode] = useState('computer'); // Default to computer mode for /play route
   const [ratedMode, setRatedMode] = useState('casual'); // 'casual' or 'rated'
 
+  // Time control from lobby (minutes + increment seconds)
+  const [timeControlMin, setTimeControlMin] = useState(() => {
+    return location.state?.timeControl || 10; // default 10 minutes
+  });
+  const [incrementSec, setIncrementSec] = useState(() => {
+    return location.state?.increment || 0; // default no increment
+  });
+
   const [currentGameId, setCurrentGameId] = useState(null);
   const [backendGame, setBackendGame] = useState(null); // Store backend game data
   const [canUndo, setCanUndo] = useState(false); // Track if undo is available
@@ -192,7 +200,7 @@ const PlayComputer = () => {
     playerTime, computerTime, activeTimer, isTimerRunning, timerRef,
     setActiveTimer, setIsTimerRunning, setPlayerTime, setComputerTime,
     handleTimer: startTimerInterval, pauseTimer, switchTimer, resetTimer
-  } = useGameTimer(playerColor, game, setGameStatus); // Pass callbacks
+  } = useGameTimer(playerColor, game, setGameStatus, timeControlMin * 60, incrementSec);
 
   // --- Restore active game from localStorage on mount (refresh persistence) ---
   useEffect(() => {
@@ -222,6 +230,10 @@ const PlayComputer = () => {
 
       // Restore rated mode
       if (saved.ratedMode) setRatedMode(saved.ratedMode);
+
+      // Restore time control settings
+      if (saved.timeControlMin) setTimeControlMin(saved.timeControlMin);
+      if (saved.incrementSec != null) setIncrementSec(saved.incrementSec);
 
       // Restore move history
       if (saved.moves && Array.isArray(saved.moves)) {
@@ -671,6 +683,8 @@ const PlayComputer = () => {
             playerColor,
             computerDepth,
             ratedMode,
+            timeControlMin,
+            incrementSec,
             moves: gameHistory,
             playerScore,
             computerScore,
@@ -730,6 +744,8 @@ const PlayComputer = () => {
             playerColor,
             computerDepth,
             ratedMode,
+            timeControlMin,
+            incrementSec,
             moves: gameHistory,
             playerScore,
             computerScore,
@@ -867,9 +883,15 @@ const PlayComputer = () => {
     if (location.state?.gameMode === 'synthetic' && location.state?.syntheticPlayer) {
       const bot = location.state.syntheticPlayer;
       const lobbyRatedMode = location.state.ratedMode || 'casual';
-      console.log('[PlayComputer] Setting up synthetic opponent:', bot.name, 'level:', bot.computer_level, 'mode:', lobbyRatedMode);
+      const lobbyTimeControl = location.state.timeControl || 10;
+      const lobbyIncrement = location.state.increment || 0;
+      console.log('[PlayComputer] Setting up synthetic opponent:', bot.name, 'level:', bot.computer_level, 'mode:', lobbyRatedMode, 'time:', lobbyTimeControl, '+', lobbyIncrement);
 
       setSyntheticOpponent(bot);
+
+      // Apply time control from lobby ChallengeModal
+      setTimeControlMin(lobbyTimeControl);
+      setIncrementSec(lobbyIncrement);
 
       // Apply rated/casual selection from lobby ChallengeModal
       setRatedMode(lobbyRatedMode);
@@ -902,17 +924,20 @@ const PlayComputer = () => {
       setTimeout(() => {
         const color = location.state.preferredColor === 'black' ? 'b' : 'w';
         const isRated = lobbyRatedMode === 'rated';
+        const initialTimeSec = lobbyTimeControl * 60;
         saveActiveGameState({
           fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
           gameStarted: true,
           playerColor: color,
           computerDepth: bot.computer_level || computerDepth,
           ratedMode: lobbyRatedMode,
+          timeControlMin: lobbyTimeControl,
+          incrementSec: lobbyIncrement,
           moves: [],
           playerScore: 0,
           computerScore: 0,
-          playerTime: 600,
-          computerTime: 600,
+          playerTime: initialTimeSec,
+          computerTime: initialTimeSec,
           syntheticOpponent: bot,
           undoChancesRemaining: calculateUndoChances(bot.computer_level || computerDepth, isRated),
           currentGameId: location.state.backendGameId || null,
@@ -1560,6 +1585,8 @@ const PlayComputer = () => {
           playerColor,
           computerDepth,
           ratedMode,
+          timeControlMin,
+          incrementSec,
           moves: updatedHistory,
           playerScore: playerScore + (evaluationResult?.total || 0),
           computerScore,
@@ -1644,8 +1671,8 @@ const PlayComputer = () => {
             const gameData = {
               player_color: playerColor === 'w' ? 'white' : 'black',
               computer_level: computerDepth,
-              time_control: 10, // Default 10 minutes
-              increment: 0, // No increment by default
+              time_control: timeControlMin,
+              increment: incrementSec,
               game_mode: effectiveRatedMode,
               synthetic_player_id: syntheticOpponent?.id || null,
             };
@@ -1701,11 +1728,13 @@ const PlayComputer = () => {
           playerColor,
           computerDepth,
           ratedMode: effectiveRatedMode,
+          timeControlMin,
+          incrementSec,
           moves: [],
           playerScore: 0,
           computerScore: 0,
-          playerTime: 600,
-          computerTime: 600,
+          playerTime: timeControlMin * 60,
+          computerTime: timeControlMin * 60,
           syntheticOpponent: syntheticOpponent || null,
           undoChancesRemaining: initialUndoChances,
           currentGameId: currentGameId || null,
