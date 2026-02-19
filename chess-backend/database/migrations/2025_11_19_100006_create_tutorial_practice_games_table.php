@@ -26,6 +26,7 @@ return new class extends Migration
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
             $table->foreign('lesson_id')->references('id')->on('tutorial_lessons')->onDelete('set null');
             $table->index(['user_id', 'played_at']);
+            $table->timestamps();
         });
     }
 

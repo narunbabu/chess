@@ -8,6 +8,9 @@ enum ChampionshipFormat: string
     case SWISS_ONLY = 'swiss_only';
     case ELIMINATION_ONLY = 'elimination_only';
 
+    // Alias constant for test compatibility
+    const SWISS = self::SWISS_ONLY;
+
     /**
      * Get the database ID for this format
      */

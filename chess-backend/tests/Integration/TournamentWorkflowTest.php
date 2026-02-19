@@ -47,7 +47,7 @@ class TournamentWorkflowTest extends TestCase
             'auto_generate_rounds' => true
         ]);
 
-        $this->championship->participants()->attach(
+        $this->championship->participantUsers()->attach(
             $this->players->pluck('id')
         );
     }
@@ -200,7 +200,7 @@ class TournamentWorkflowTest extends TestCase
         ]);
 
         $oddPlayers = User::factory()->count(5)->create();
-        $oddChampionship->participants()->attach($oddPlayers->pluck('id'));
+        $oddChampionship->participantUsers()->attach($oddPlayers->pluck('id'));
 
         $pairingService = new SwissPairingService($oddChampionship);
         $pairings = $pairingService->generatePairings(1);
@@ -260,7 +260,7 @@ class TournamentWorkflowTest extends TestCase
             'min_players' => 2
         ]);
 
-        $minimumChampionship->participants()->attach([
+        $minimumChampionship->participantUsers()->attach([
             $this->players[0]->id,
             $this->players[1]->id
         ]);
@@ -275,7 +275,7 @@ class TournamentWorkflowTest extends TestCase
     }
 
     /** @test */
-    public void tournament_with_elimination_format()
+    public function tournament_with_elimination_format()
     {
         $eliminationChampionship = Championship::factory()->create([
             'type' => 'elimination',
@@ -286,7 +286,7 @@ class TournamentWorkflowTest extends TestCase
         ]);
 
         $eliminationPlayers = User::factory()->count(4)->create();
-        $eliminationChampionship->participants()->attach($eliminationPlayers->pluck('id'));
+        $eliminationChampionship->participantUsers()->attach($eliminationPlayers->pluck('id'));
 
         $eliminationChampionship->update(['status' => 'active']);
 

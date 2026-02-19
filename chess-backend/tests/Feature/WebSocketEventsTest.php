@@ -38,7 +38,7 @@ class WebSocketEventsTest extends TestCase
             'organizer_id' => $this->admin->id
         ]);
 
-        $this->championship->participants()->attach([
+        $this->championship->participantUsers()->attach([
             $this->player1->id,
             $this->player2->id
         ]);
@@ -246,7 +246,7 @@ class WebSocketEventsTest extends TestCase
         // Create championship with odd number of players
         $oddChampionship = Championship::factory()->create();
         $players = User::factory()->count(5)->create();
-        $oddChampionship->participants()->attach($players->pluck('id'));
+        $oddChampionship->participantUsers()->attach($players->pluck('id'));
 
         $service = new \App\Services\SwissPairingService($oddChampionship);
         $pairings = $service->generatePairings(1);

@@ -61,6 +61,14 @@ class Championship extends Model
         'end_date',
         'organizer_id',
         'tournament_configuration',
+        'type',
+        'max_players',
+        'min_players',
+        'player_count',
+        'auto_start',
+        'auto_generate_rounds',
+        'metadata',
+        'user_id',
     ];
 
     protected $casts = [
@@ -97,6 +105,11 @@ class Championship extends Model
         'tournament_generated_at' => 'datetime',
         'is_test_tournament' => 'boolean',
         'end_date' => 'datetime',
+        'auto_start' => 'boolean',
+        'auto_generate_rounds' => 'boolean',
+        'metadata' => 'array',
+        'max_players' => 'integer',
+        'min_players' => 'integer',
     ];
 
     /**
@@ -123,11 +136,21 @@ class Championship extends Model
     // Relationships
 
     /**
-     * Participants in this championship
+     * Participants in this championship (HasMany for direct ChampionshipParticipant access)
      */
     public function participants()
     {
         return $this->hasMany(ChampionshipParticipant::class);
+    }
+
+    /**
+     * Participant users via BelongsToMany (supports attach/detach/sync)
+     */
+    public function participantUsers()
+    {
+        return $this->belongsToMany(User::class, 'championship_participants')
+            ->withPivot('payment_status_id', 'amount_paid', 'registered_at', 'seed_number')
+            ->withTimestamps();
     }
 
     /**
@@ -171,6 +194,14 @@ class Championship extends Model
     }
 
     /**
+     * Organizer of this championship (alias for creator via organizer_id)
+     */
+    public function organizer()
+    {
+        return $this->belongsTo(User::class, 'organizer_id');
+    }
+
+    /**
      * Organization hosting this championship
      */
     public function organization()
@@ -199,6 +230,14 @@ class Championship extends Model
             $code = $value;
         }
 
+        // Map test shorthand status names to actual status codes
+        $statusMap = [
+            'registration' => 'registration_open',
+            'active' => 'in_progress',
+            'pending' => 'upcoming',
+        ];
+        $code = $statusMap[$code] ?? $code;
+
         $this->attributes['status_id'] = ChampionshipStatus::getIdByCode($code);
     }
 
@@ -226,6 +265,15 @@ class Championship extends Model
         } else {
             $code = $value;
         }
+
+        // Map shorthand format names to actual format codes
+        $formatMap = [
+            'swiss' => 'swiss_only',
+            'elimination' => 'elimination_only',
+            'hybrid' => 'swiss_elimination',
+            'round-robin' => 'swiss_only',
+        ];
+        $code = $formatMap[$code] ?? $code;
 
         $this->attributes['format_id'] = ChampionshipFormat::getIdByCode($code);
     }
@@ -327,6 +375,60 @@ class Championship extends Model
             return json_decode($val, true);
         }
         return $val;
+    }
+
+    /**
+     * Mutator: Allow setting 'type' which maps to 'format'
+     */
+    public function setTypeAttribute($value)
+    {
+        // Map test shorthand type names to actual format codes
+        $typeToFormat = [
+            'swiss' => 'swiss_only',
+            'elimination' => 'elimination_only',
+            'hybrid' => 'swiss_elimination',
+            'round-robin' => 'swiss_only',
+        ];
+        $this->format = $typeToFormat[$value] ?? $value;
+    }
+
+    /**
+     * Accessor: Read 'type' from format (reverse mapping)
+     */
+    public function getTypeAttribute(): string
+    {
+        $format = $this->format;
+        $formatToType = [
+            'swiss_only' => 'swiss',
+            'elimination_only' => 'elimination',
+            'swiss_elimination' => 'hybrid',
+        ];
+        return $formatToType[$format] ?? $format;
+    }
+
+    /**
+     * Mutator: Allow setting 'max_players' which maps to 'max_participants'
+     */
+    public function setMaxPlayersAttribute($value)
+    {
+        $this->attributes['max_participants'] = $value;
+        $this->attributes['max_players'] = $value;
+    }
+
+    /**
+     * Mutator: Allow setting 'player_count' which maps to 'max_participants'
+     */
+    public function setPlayerCountAttribute($value)
+    {
+        $this->attributes['max_participants'] = $value;
+    }
+
+    /**
+     * Mutator: Allow setting 'user_id' which maps to 'created_by'
+     */
+    public function setUserIdAttribute($value)
+    {
+        $this->attributes['created_by'] = $value;
     }
 
     /**

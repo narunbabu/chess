@@ -57,7 +57,11 @@ class Game extends Model
         'resume_status',
         // Time control
         'time_control_minutes',
-        'increment_seconds'
+        'increment_seconds',
+        // Draw detection
+        'halfmove_clock',
+        'queen_only_move_count',
+        'position_history',
     ];
 
     protected $casts = [
@@ -84,7 +88,11 @@ class Game extends Model
         // Computer game casts
         'computer_player_id' => 'integer',
         'computer_level' => 'integer',
-        'synthetic_player_id' => 'integer'
+        'synthetic_player_id' => 'integer',
+        // Draw detection casts
+        'halfmove_clock' => 'integer',
+        'queen_only_move_count' => 'integer',
+        'position_history' => 'array',
     ];
 
     /**

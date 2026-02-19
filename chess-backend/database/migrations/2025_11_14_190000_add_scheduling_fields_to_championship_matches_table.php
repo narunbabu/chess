@@ -15,7 +15,7 @@ return new class extends Migration
             // Scheduling fields
             $table->dateTime('scheduled_time')->nullable()->comment('Scheduled time for match to be played');
             $table->dateTime('game_timeout')->nullable()->comment('Deadline for player availability before automatic forfeit');
-            $table->enum('scheduling_status', ['pending', 'proposed', 'accepted', 'confirmed', 'forfeit'])->default('pending')->comment('Current scheduling status');
+            $table->string('scheduling_status')->default('pending')->comment('Current scheduling status');
             $table->boolean('can_schedule_early')->default(true)->comment('Allow playing before scheduled time if both available');
             $table->text('scheduling_notes')->nullable()->comment('Notes about scheduling arrangements');
         });

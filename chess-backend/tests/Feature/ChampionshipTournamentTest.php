@@ -54,7 +54,7 @@ class ChampionshipTournamentTest extends TestCase
         ]);
 
         // Register players
-        $this->championship->participants()->attach([
+        $this->championship->participantUsers()->attach([
             $this->player1->id,
             $this->player2->id,
             $this->player3->id,
@@ -129,7 +129,7 @@ class ChampionshipTournamentTest extends TestCase
             'max_players' => 4
         ]);
 
-        $elimChampionship->participants()->attach([
+        $elimChampionship->participantUsers()->attach([
             $this->player1->id,
             $this->player2->id,
             $this->player3->id,
@@ -270,7 +270,7 @@ class ChampionshipTournamentTest extends TestCase
             'auto_start' => true
         ]);
 
-        $pastChampionship->participants()->attach([$this->player1->id, $this->player2->id]);
+        $pastChampionship->participantUsers()->attach([$this->player1->id, $this->player2->id]);
 
         $this->artisan('tournaments:auto-start')
             ->expectsOutput('Auto-started 1 tournaments')

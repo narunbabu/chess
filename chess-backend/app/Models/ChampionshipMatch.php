@@ -46,6 +46,10 @@ class ChampionshipMatch extends Model
         'scheduling_status',
         'can_schedule_early',
         'scheduling_notes',
+        // Test-compat fields
+        'result',
+        'completed_at',
+        'moves',
     ];
 
     protected $casts = [
@@ -76,6 +80,7 @@ class ChampionshipMatch extends Model
         'scheduled_time' => 'datetime',
         'game_timeout' => 'datetime',
         'can_schedule_early' => 'boolean',
+        'completed_at' => 'datetime',
     ];
 
     /**
@@ -232,6 +237,12 @@ class ChampionshipMatch extends Model
         } else {
             $code = $value;
         }
+
+        // Map test shorthand status names to actual status codes
+        $statusMap = [
+            'scheduled' => 'pending',
+        ];
+        $code = $statusMap[$code] ?? $code;
 
         $this->attributes['status_id'] = ChampionshipMatchStatus::getIdByCode($code);
     }

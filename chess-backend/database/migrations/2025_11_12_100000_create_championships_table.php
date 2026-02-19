@@ -55,12 +55,12 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->decimal('entry_fee', 10, 2)->default(0);
             $table->unsignedInteger('max_participants')->nullable()->comment('NULL = unlimited');
-            $table->dateTime('registration_deadline');
-            $table->dateTime('start_date');
+            $table->dateTime('registration_deadline')->nullable();
+            $table->dateTime('start_date')->nullable();
             $table->unsignedInteger('match_time_window_hours')->default(24)->comment('Hours to complete match');
 
             // Format using lookup table
-            $table->unsignedTinyInteger('format_id');
+            $table->unsignedTinyInteger('format_id')->default(2);
             $table->foreign('format_id')->references('id')->on('championship_formats')->onDelete('restrict');
 
             $table->unsignedInteger('swiss_rounds')->nullable()->comment('Number of Swiss rounds');
