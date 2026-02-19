@@ -175,6 +175,10 @@ class SubscriptionService
                     'price' => $plan->price,
                     'interval' => $plan->interval,
                 ],
+                'prefill' => [
+                    'name' => $user->name,
+                    'email' => $user->email,
+                ],
             ],
             'mock_mode' => false,
         ];

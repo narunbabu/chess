@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSubscription } from '../../contexts/SubscriptionContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 const RazorpayCheckout = ({ planId, onSuccess, onClose }) => {
   const { checkout } = useSubscription();
+  const { user } = useAuth();
   const [step, setStep] = useState('init'); // init | processing | success | error
   const [error, setError] = useState(null);
   const [checkoutData, setCheckoutData] = useState(null);
@@ -41,6 +43,18 @@ const RazorpayCheckout = ({ planId, onSuccess, onClose }) => {
   }, [planId, checkout]);
 
   const loadRazorpaySDK = (data) => {
+    // Avoid duplicate script loading — reuse if SDK already present
+    if (window.Razorpay) {
+      openRazorpayModal(data);
+      return;
+    }
+
+    const existing = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
+    if (existing) {
+      existing.addEventListener('load', () => openRazorpayModal(data), { once: true });
+      return;
+    }
+
     const script = document.createElement('script');
     script.src = 'https://checkout.razorpay.com/v1/checkout.js';
     script.async = true;
@@ -53,11 +67,16 @@ const RazorpayCheckout = ({ planId, onSuccess, onClose }) => {
   };
 
   const openRazorpayModal = (data) => {
+    const prefill = data.checkout.prefill || {};
     const options = {
       key: data.checkout.key_id,
       subscription_id: data.checkout.subscription_id,
       name: 'Chess99',
       description: `${data.checkout.plan.name} Subscription`,
+      prefill: {
+        name: prefill.name || user?.name || '',
+        email: prefill.email || user?.email || '',
+      },
       handler: (response) => {
         setStep('success');
       },

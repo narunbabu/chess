@@ -99,18 +99,18 @@ class AuthController extends Controller
         $user = User::findOrFail($id);
 
         if (!hash_equals(sha1($user->getEmailForVerification()), $hash)) {
-            return redirect(config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:3000')) . '/login?verified=invalid');
+            return redirect(config('app.frontend_url') . '/login?verified=invalid');
         }
 
         if ($user->hasVerifiedEmail()) {
-            return redirect(config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:3000')) . '/login?verified=already');
+            return redirect(config('app.frontend_url') . '/login?verified=already');
         }
 
         $user->markEmailAsVerified();
 
         Log::info('Email verified', ['user_id' => $user->id, 'email' => $user->email]);
 
-        return redirect(config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:3000')) . '/login?verified=1');
+        return redirect(config('app.frontend_url') . '/login?verified=1');
     }
 
     /**
