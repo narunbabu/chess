@@ -141,6 +141,16 @@ class SubscriptionService
             $user->update(['razorpay_customer_id' => $customerId]);
         }
 
+        // Verify plan has a Razorpay plan ID configured
+        if (empty($plan->razorpay_plan_id)) {
+            Log::error('Razorpay plan ID missing for subscription plan', [
+                'plan_id' => $plan->id,
+                'tier' => $plan->tier,
+                'interval' => $plan->interval,
+            ]);
+            throw new \RuntimeException('Subscription plan is not configured for payments. Please contact support.');
+        }
+
         // Create Razorpay subscription
         $subscriptionData = $this->createRazorpaySubscription(
             $plan->razorpay_plan_id,
