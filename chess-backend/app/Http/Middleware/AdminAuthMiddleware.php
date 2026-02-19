@@ -15,8 +15,8 @@ class AdminAuthMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Allow access in local development
-        if (config('app.env') === 'local') {
+        // Allow access in local development and testing
+        if (in_array(config('app.env'), ['local', 'testing'])) {
             return $next($request);
         }
 

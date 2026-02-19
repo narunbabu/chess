@@ -147,7 +147,7 @@ class ChampionshipGameTimeoutService
     /**
      * Process timeout for a specific match
      */
-    private function processMatchTimeout(ChampionshipMatch $match): ?array
+    public function processMatchTimeout(ChampionshipMatch $match): ?array
     {
         // Check if match is already completed
         if ($match->getStatusEnum()->isFinished()) {
