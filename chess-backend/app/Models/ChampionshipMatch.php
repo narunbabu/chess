@@ -303,6 +303,14 @@ class ChampionshipMatch extends Model
     }
 
     /**
+     * Accessor: Read result_id as alias for result_type_id
+     */
+    public function getResultIdAttribute()
+    {
+        return $this->attributes['result_type_id'] ?? null;
+    }
+
+    /**
      * Mutator: Convert result type string/enum to result_type_id FK
      */
     public function setResultTypeAttribute($value)

@@ -82,12 +82,15 @@ class ChampionshipGameTimeoutService
         foreach ($players as $player) {
             if ($player) {
                 // Fire event for WebSocket notification
-                ChampionshipTimeoutWarning::dispatch($match, $player);
+                ChampionshipTimeoutWarning::dispatch($match, $player, 'approaching');
 
                 // Update schedule record to track warning
                 ChampionshipMatchSchedule::updateOrCreate(
                     ['championship_match_id' => $match->id],
                     [
+                        'proposer_id' => $match->player1_id,
+                        'proposed_time' => $match->scheduled_time ?? now(),
+                        'status' => 'accepted',
                         'warning_sent_at' => now(),
                         'warning_type' => 'game_start',
                         'warning_sent_to' => $player->id,

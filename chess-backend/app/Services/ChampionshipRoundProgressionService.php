@@ -561,10 +561,14 @@ class ChampionshipRoundProgressionService
             $standing = ChampionshipStanding::create([
                 'championship_id' => $championship->id,
                 'user_id' => $player->id,
-                'score' => 0,
-                'games_played' => 0,
-                'tie_break_points' => 0,
-                'position' => 0,
+                'points' => 0,
+                'matches_played' => 0,
+                'wins' => 0,
+                'draws' => 0,
+                'losses' => 0,
+                'buchholz_score' => 0,
+                'sonneborn_berger' => 0,
+                'rank' => 0,
             ]);
         }
 
@@ -640,11 +644,11 @@ class ChampionshipRoundProgressionService
     {
         $standings = ChampionshipStanding::where('championship_id', $championship->id)
             ->orderBy('points', 'desc')
-            ->orderBy('tie_break_points', 'desc')
+            ->orderBy('buchholz_score', 'desc')
             ->get();
 
         foreach ($standings as $index => $standing) {
-            $standing->update(['position' => $index + 1]);
+            $standing->update(['rank' => $index + 1, 'final_position' => $index + 1]);
         }
     }
 
@@ -655,7 +659,7 @@ class ChampionshipRoundProgressionService
     {
         $topStanding = ChampionshipStanding::where('championship_id', $championship->id)
             ->orderBy('points', 'desc')
-            ->orderBy('tie_break_points', 'desc')
+            ->orderBy('buchholz_score', 'desc')
             ->first();
 
         return $topStanding?->user;
@@ -829,16 +833,16 @@ class ChampionshipRoundProgressionService
         return ChampionshipStanding::where('championship_id', $championship->id)
             ->with('user')
             ->orderBy('points', 'desc')
-            ->orderBy('tie_break_points', 'desc')
+            ->orderBy('buchholz_score', 'desc')
             ->get()
             ->map(function ($standing) {
                 return [
-                    'position' => $standing->position,
+                    'rank' => $standing->rank,
                     'user_id' => $standing->user_id,
-                    'username' => $standing->user->username,
-                    'score' => $standing->score,
-                    'games_played' => $standing->games_played,
-                    'tie_break_points' => $standing->tie_break_points,
+                    'username' => $standing->user->username ?? $standing->user->name,
+                    'score' => $standing->points,
+                    'matches_played' => $standing->matches_played,
+                    'tiebreak_points' => $standing->buchholz_score,
                 ];
             })
             ->toArray();

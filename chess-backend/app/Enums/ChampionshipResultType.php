@@ -13,6 +13,7 @@ enum ChampionshipResultType: string
 
     // Alias constants for test compatibility
     const WHITE_WINS = self::COMPLETED;
+    const BLACK_WINS = self::COMPLETED;
 
     /**
      * Get the database ID for this result type
