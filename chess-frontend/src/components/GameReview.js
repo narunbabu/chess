@@ -178,6 +178,7 @@ const GameReview = () => {
   const [sharePlayerName, setSharePlayerName] = useState(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareImageUrl, setShareImageUrl] = useState(null);
+  const [shareBlob, setShareBlob] = useState(null);
   const [copiedLink, setCopiedLink] = useState(false);
 
   // Board customization
@@ -652,6 +653,23 @@ const GameReview = () => {
 
   // ═══ Share functions ═══
 
+  // Generate share text from game result
+  const getShareText = useCallback(() => {
+    const opponentName = playerInfo.topName || 'opponent';
+    const gameResult = gameHistory.result;
+    const playerWon = isWin(gameResult);
+    const gameDraw = isDraw(gameResult);
+    const reviewUrl = gameHistory.id ? `https://chess99.com/play/review/${gameHistory.id}` : 'https://chess99.com';
+
+    if (playerWon) {
+      return `🏆 I defeated ${opponentName} in chess!\n\n🎯 It is fun to play chess at www.chess99.com, Join me! ♟️\n\n${reviewUrl}`;
+    } else if (gameDraw) {
+      return `🤝 I drew against ${opponentName} in chess!\n\n🎯 It is fun to play chess at www.chess99.com, Join me! ♟️\n\n${reviewUrl}`;
+    } else {
+      return `♟️ I played against ${opponentName} in chess!\n\n🎯 It is fun to play chess at www.chess99.com, Join me! ♟️\n\n${reviewUrl}`;
+    }
+  }, [playerInfo.topName, gameHistory.result, gameHistory.id]);
+
   const handleTestShare = async () => {
     try {
       setIsTestSharing(true);
@@ -681,9 +699,34 @@ const GameReview = () => {
       const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.8));
       if (!blob) throw new Error('Failed to generate image');
 
-      // Create preview URL and show the share modal
+      const file = new File([blob], 'chess-game-result.jpg', { type: 'image/jpeg' });
+      const shareText = getShareText();
+
+      // Copy message to clipboard
+      try {
+        await navigator.clipboard.writeText(shareText);
+      } catch { /* ignore */ }
+
+      // Try native share first (shows OS share dialog with all apps)
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          setShowEndCard(false);
+          await navigator.share({
+            title: 'Chess Game Result',
+            text: shareText,
+            files: [file]
+          });
+          return; // Success
+        } catch (shareError) {
+          if (shareError.name === 'AbortError') return; // User cancelled
+          // Fall through to modal
+        }
+      }
+
+      // Fallback: show share modal
       const imageUrl = URL.createObjectURL(blob);
       setShareImageUrl(imageUrl);
+      setShareBlob(blob);
       setShowEndCard(false);
       setShowShareModal(true);
       setCopiedLink(false);
@@ -729,12 +772,63 @@ const GameReview = () => {
     document.body.removeChild(link);
   };
 
+  const handleNativeShare = async () => {
+    if (!shareImageUrl) return;
+    try {
+      const blob = shareBlob || await (await fetch(shareImageUrl)).blob();
+      const file = new File([blob], 'chess-game-result.jpg', { type: 'image/jpeg' });
+      const shareText = getShareText();
+
+      // Copy message to clipboard
+      try {
+        await navigator.clipboard.writeText(shareText);
+      } catch { /* ignore */ }
+
+      // Try native share with file (shows all apps on mobile)
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title: 'Chess Game Result',
+          text: shareText,
+          files: [file]
+        });
+        return;
+      }
+
+      // Desktop fallback: open WhatsApp + auto-download image
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      if (!isMobile) {
+        window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank');
+        const link = document.createElement('a');
+        link.href = shareImageUrl;
+        link.download = 'chess-game-result.jpg';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => {
+          alert('WhatsApp opened!\n\nMessage copied to clipboard - paste it in WhatsApp\nImage downloaded - attach it to your message');
+        }, 500);
+      } else {
+        // Mobile without native share - just download
+        const link = document.createElement('a');
+        link.href = shareImageUrl;
+        link.download = 'chess-game-result.jpg';
+        link.click();
+      }
+    } catch (error) {
+      if (error.name !== 'AbortError') {
+        console.error('Error sharing:', error);
+        alert('Failed to share. Please try downloading the image instead.');
+      }
+    }
+  };
+
   const closeShareModal = () => {
     setShowShareModal(false);
     if (shareImageUrl) {
       URL.revokeObjectURL(shareImageUrl);
       setShareImageUrl(null);
     }
+    setShareBlob(null);
     setCopiedLink(false);
   };
 
@@ -1112,10 +1206,10 @@ const GameReview = () => {
             {/* Header */}
             <div style={{ textAlign: 'center', marginBottom: '16px' }}>
               <h2 style={{ fontSize: '20px', fontWeight: 'bold', color: '#81b64c', margin: '0 0 4px' }}>
-                Share Game
+                Share Your Game Result
               </h2>
               <p style={{ color: '#8b8987', fontSize: '13px', margin: 0 }}>
-                Share your game result with friends
+                Share your achievement with WhatsApp, Facebook, and more!
               </p>
             </div>
 
@@ -1133,9 +1227,35 @@ const GameReview = () => {
               </div>
             )}
 
+            {/* Primary share button - shows all apps */}
+            <button
+              onClick={handleNativeShare}
+              style={{
+                width: '100%', padding: '16px', borderRadius: '12px',
+                border: 'none', backgroundColor: '#81b64c', color: 'white',
+                fontSize: '16px', fontWeight: '700', cursor: 'pointer',
+                transition: 'all 0.2s', display: 'flex', alignItems: 'center',
+                justifyContent: 'center', gap: '10px', marginBottom: '12px',
+                boxShadow: '0 4px 12px rgba(129, 182, 76, 0.3)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#4e7837';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(129, 182, 76, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#81b64c';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(129, 182, 76, 0.3)';
+              }}
+            >
+              <span style={{ fontSize: '22px' }}>🔗</span>
+              <span>{navigator.share ? 'Share Your Achievement' : 'Share via WhatsApp'}</span>
+            </button>
+
             {/* Review link */}
             {reviewLink && (
-              <div style={{ marginBottom: '16px' }}>
+              <div style={{ marginBottom: '12px' }}>
                 <label style={{ display: 'block', color: '#8b8987', fontSize: '12px', fontWeight: '600', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                   Review Link
                 </label>
@@ -1174,11 +1294,14 @@ const GameReview = () => {
                 onClick={handleShareModalDownload}
                 style={{
                   width: '100%', padding: '12px', borderRadius: '10px',
-                  border: 'none', backgroundColor: '#81b64c', color: 'white',
-                  fontSize: '14px', fontWeight: '700', cursor: 'pointer',
-                  transition: 'all 0.2s', display: 'flex', alignItems: 'center',
+                  border: '1px solid #3d3a37', backgroundColor: '#312e2b',
+                  color: '#bababa', fontSize: '14px', fontWeight: '600',
+                  cursor: 'pointer', transition: 'all 0.2s',
+                  display: 'flex', alignItems: 'center',
                   justifyContent: 'center', gap: '8px',
                 }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#3d3a37'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#312e2b'; }}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 Download Image

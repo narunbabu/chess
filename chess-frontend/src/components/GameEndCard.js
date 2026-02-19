@@ -307,7 +307,21 @@ const GameEndCard = React.forwardRef(({
       gameDurationText = '0m 0s';
     }
 
-    return { isPlayerWin, isDraw, playersInfo, resultText, icon, title, gameDurationText };
+    // Track winner name for highlighting
+    let winnerName = null;
+    if (!isDraw) {
+      if (result.winner_player === 'white') {
+        winnerName = white_player.name;
+      } else if (result.winner_player === 'black') {
+        winnerName = black_player.name;
+      } else if (isPlayerWin) {
+        winnerName = userPlayer.name;
+      } else {
+        winnerName = opponentPlayer.name;
+      }
+    }
+
+    return { isPlayerWin, isDraw, playersInfo, resultText, icon, title, gameDurationText, winnerName };
   }, [result, user, score, opponentScore, playerColor, isMultiplayer, computerLevel, isAuthenticated, sharePlayerName]);
 
   const handleAvatarError = (e, name, color) => {
@@ -398,35 +412,23 @@ const GameEndCard = React.forwardRef(({
     return isWinner ? 1.0 : 0.0;
   };
 
-  const PlayerCard = ({ player, isCurrentUser, color, score }) => {
+  // Map eval points to white/black players
+  const whiteEvalPoints = playersInfo.isUserWhite ? score : opponentScore;
+  const blackEvalPoints = playersInfo.isUserWhite ? opponentScore : score;
+
+  const PlayerCard = ({ player, isCurrentUser, color, isWinner, evalPoints }) => {
     const avatarUrl = getAvatarUrl(player, color);
 
-    // Calculate chess score (1.0/0.5/0.0) if not explicitly provided
-    let displayScore = score;
-    if (displayScore === undefined || displayScore === null) {
-      // Determine if this player is the winner
-      const isThisPlayerWhite = color === 'white';
-
-      let isThisPlayerWinner = false;
-      if (result.winner_player === 'white') {
-        isThisPlayerWinner = isThisPlayerWhite;
-      } else if (result.winner_player === 'black') {
-        isThisPlayerWinner = !isThisPlayerWhite;
-      } else if (result.winner_user_id) {
-        const thisPlayerId = isThisPlayerWhite ? playersInfo.white_player.id : playersInfo.black_player.id;
-        isThisPlayerWinner = result.winner_user_id === thisPlayerId;
-      } else {
-        isThisPlayerWinner = (isCurrentUser && isPlayerWin);
-      }
-
-      displayScore = calculateGameScore(isThisPlayerWinner, isDraw);
-    }
+    // Chess game score: 1.0 for winner, 0.0 for loser, 0.5 for draw
+    const displayScore = calculateGameScore(isWinner, isDraw);
+    // Eval points: accumulated move quality evaluation (can be negative after fix)
+    const displayEval = typeof evalPoints === 'number' && !isNaN(evalPoints) ? evalPoints : null;
 
     return (
       <div className="flex items-center gap-2.5 p-2.5 rounded-xl transition-all duration-300"
       style={{
-        backgroundColor: isCurrentUser ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.08)',
-        border: isCurrentUser ? '2px solid rgba(255,255,255,0.3)' : '1px solid rgba(255,255,255,0.1)',
+        backgroundColor: isWinner ? 'rgba(255,215,0,0.15)' : isCurrentUser ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.08)',
+        border: isWinner ? '2px solid rgba(255,215,0,0.4)' : isCurrentUser ? '2px solid rgba(255,255,255,0.3)' : '1px solid rgba(255,255,255,0.1)',
         backdropFilter: 'blur(4px)'
       }}>
         <div className="relative flex-shrink-0">
@@ -440,11 +442,16 @@ const GameEndCard = React.forwardRef(({
               src={avatarUrl}
               alt={player.name}
               className="w-11 h-11 rounded-full object-cover shadow-lg"
-              style={{ border: '2px solid rgba(255,255,255,0.3)' }}
+              style={{ border: isWinner ? '2px solid #FFD700' : '2px solid rgba(255,255,255,0.3)' }}
               onError={(e) => handleAvatarError(e, player.name, color === 'white' ? '4f46e5' : '1f2937')}
             />
           )}
-          {isCurrentUser && (
+          {isWinner && !isDraw && (
+            <div className="absolute -top-1.5 -right-1.5 text-sm" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.5))' }}>
+              👑
+            </div>
+          )}
+          {isCurrentUser && !isWinner && (
             <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] shadow-md"
                  style={{ backgroundColor: cardTheme.accent, color: cardTheme.badgeText }}>
               ★
@@ -452,9 +459,11 @@ const GameEndCard = React.forwardRef(({
           )}
         </div>
       <div className="flex-grow min-w-0">
-        <div className="font-bold text-white text-sm truncate">
+        <div className={`text-sm truncate ${isWinner ? 'font-extrabold' : 'font-bold'}`}
+             style={{ color: isWinner ? '#FFD700' : '#fff', textShadow: isWinner ? '0 1px 4px rgba(255,215,0,0.3)' : 'none' }}>
+          {isWinner && !isDraw && <span className="mr-1">🏆</span>}
           {player.name}
-          {isCurrentUser && <span className="text-xs font-semibold ml-1" style={{ color: cardTheme.accent }}>(You)</span>}
+          {isCurrentUser && <span className="text-xs font-semibold ml-1" style={{ color: isWinner ? '#fff' : cardTheme.accent }}>(You)</span>}
         </div>
         <div className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.6)' }}>
           Rating: {player.rating}
@@ -462,10 +471,15 @@ const GameEndCard = React.forwardRef(({
         </div>
       </div>
       <div className="text-center flex-shrink-0">
-        <div className="text-xl font-extrabold text-white" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.3)' }}>
-          {typeof displayScore === 'number' ? displayScore.toFixed(1) : '0.0'}
+        <div className="text-xl font-extrabold" style={{ color: isWinner ? '#FFD700' : '#fff', textShadow: '0 1px 4px rgba(0,0,0,0.3)' }}>
+          {displayScore.toFixed(1)}
         </div>
         <div className="text-[10px] uppercase tracking-wider font-bold" style={{ color: 'rgba(255,255,255,0.5)' }}>Score</div>
+        {displayEval !== null && (
+          <div className="text-xs font-bold mt-0.5" style={{ color: displayEval >= 0 ? 'rgba(124,252,0,0.8)' : 'rgba(255,107,107,0.8)' }}>
+            {displayEval >= 0 ? '+' : ''}{displayEval.toFixed(1)} eval
+          </div>
+        )}
       </div>
     </div>
     );
@@ -746,6 +760,16 @@ const handleShare = async () => {
           )}
         </div>
 
+        {/* Winner name banner near logo */}
+        {winnerName && !isDraw && (
+          <div className="text-center mb-1">
+            <span className="text-xs font-bold px-3 py-0.5 rounded-full"
+                  style={{ backgroundColor: 'rgba(255,215,0,0.15)', color: '#FFD700', border: '1px solid rgba(255,215,0,0.3)' }}>
+              ⭐ {winnerName} wins!
+            </span>
+          </div>
+        )}
+
         {/* Result display — big icon and title */}
         <div className="text-center mb-3">
           <div className="text-5xl mb-1" style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.3))' }}>
@@ -754,6 +778,12 @@ const handleShare = async () => {
           <h1 className="text-3xl font-extrabold mb-1 tracking-tight" style={{ color: cardTheme.accent, textShadow: '0 2px 10px rgba(0,0,0,0.3)' }}>
             {title}
           </h1>
+          {/* Winner name highlight */}
+          {winnerName && !isDraw && (
+            <div className="text-base font-extrabold mb-1" style={{ color: '#FFD700', textShadow: '0 1px 6px rgba(255,215,0,0.3)' }}>
+              👑 {winnerName}
+            </div>
+          )}
           <p className="text-xs max-w-xs mx-auto" style={{ color: cardTheme.sub }}>
             {resultText}
           </p>
@@ -809,7 +839,8 @@ const handleShare = async () => {
                   player={playersInfo.white_player}
                   isCurrentUser={whiteIsCurrentUser}
                   color="white"
-                  score={playersInfo.isUserWhite ? (score !== undefined ? score : (result.final_score || result.finalScore || 0)) : (opponentScore !== undefined ? opponentScore : (result.opponent_score || 0))}
+                  isWinner={!isDraw && whiteIsWinner}
+                  evalPoints={whiteEvalPoints}
                 />
 
                 <div className="text-center -my-0.5">
@@ -823,7 +854,8 @@ const handleShare = async () => {
                   player={playersInfo.black_player}
                   isCurrentUser={blackIsCurrentUser}
                   color="black"
-                  score={playersInfo.isUserBlack ? (score !== undefined ? score : (result.final_score || result.finalScore || 0)) : (opponentScore !== undefined ? opponentScore : (result.opponent_score || 0))}
+                  isWinner={!isDraw && !whiteIsWinner}
+                  evalPoints={blackEvalPoints}
                 />
               </>
             );

@@ -1,5 +1,5 @@
 // src/utils/gameStateUtils.js
-import { evaluatePlayerMove } from "./evaluate"; // Assuming evaluate.js exists as per old context
+import { evaluatePlayerMove, PIECE_VALUES } from "./evaluate";
 
 export const updateGameStatus = (game, setGameStatus, playerColor) => { // <-- Add playerColor
   let status = {
@@ -64,7 +64,8 @@ export const evaluateMove = (
   entityRating,
   setLastMoveEvaluation,
   updateScoreCallback,
-  engineLevel = 1          // <‑‑ add param
+  engineLevel = 1,
+  opponentLossCallback = null  // Penalize opponent when this move captures their piece
 ) => {
   try {
     // Ensure evaluatePlayerMove is properly imported and implemented
@@ -78,12 +79,19 @@ export const evaluateMove = (
       newState,
       moveTimeInSeconds,
       entityRating,
-      engineLevel         // <‑‑ forward
+      engineLevel
     );
 
     setLastMoveEvaluation(evaluation);
     // Use functional update for safety if many rapid updates could occur
     updateScoreCallback((prevScore) => prevScore + (evaluation?.total || 0));
+
+    // Penalize the opponent when this move captures one of their pieces
+    // This makes blunders (losing material) produce negative score impact
+    if (move.captured && opponentLossCallback) {
+      const capturedValue = PIECE_VALUES[move.captured.toLowerCase()] || 0;
+      opponentLossCallback((prevScore) => prevScore - capturedValue);
+    }
 
     return evaluation;
 

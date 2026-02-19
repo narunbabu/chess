@@ -1297,7 +1297,7 @@ const PlayComputer = () => {
               // Evaluate the computer's final move before ending the game
               const prev = previousGameStateRef.current;
               const compEval = typeof evaluateMove === 'function'
-                ? evaluateMove(result.newGame.history().slice(-1)[0], prev, newGame, (thinkingTime/1000), user?.rating || DEFAULT_RATING, setLastComputerEvaluation, setComputerScore, computerDepth)
+                ? evaluateMove(result.newGame.history().slice(-1)[0], prev, newGame, (thinkingTime/1000), user?.rating || DEFAULT_RATING, setLastComputerEvaluation, setComputerScore, computerDepth, setPlayerScore)
                 : null;
 
               // Calculate final computer score synchronously (state updates are async)
@@ -1315,7 +1315,7 @@ const PlayComputer = () => {
               // Evaluate computer's move
               const prev = previousGameStateRef.current;
               const compEval = typeof evaluateMove === 'function'
-                ? evaluateMove(result.newGame.history().slice(-1)[0], prev, newGame, (thinkingTime/1000), user?.rating || DEFAULT_RATING, setLastComputerEvaluation, setComputerScore, computerDepth) // Use slice(-1)[0] for safety
+                ? evaluateMove(result.newGame.history().slice(-1)[0], prev, newGame, (thinkingTime/1000), user?.rating || DEFAULT_RATING, setLastComputerEvaluation, setComputerScore, computerDepth, setPlayerScore) // Use slice(-1)[0] for safety
                 : null;
 
               // *** Add computer's move to gameHistory state ***
@@ -1482,7 +1482,7 @@ const PlayComputer = () => {
         // Evaluate the move (if evaluateMove function is available)
         const evaluationResult = monitorPerformance('Move Evaluation', () => {
             return typeof evaluateMove === 'function'
-                ? evaluateMove(moveResult, previousState, gameCopy, moveTimeInSeconds, user?.rating || DEFAULT_RATING, setLastMoveEvaluation, setPlayerScore, computerDepth)
+                ? evaluateMove(moveResult, previousState, gameCopy, moveTimeInSeconds, user?.rating || DEFAULT_RATING, setLastMoveEvaluation, setPlayerScore, computerDepth, setComputerScore)
                 : null; // Provides feedback/scoring
         });
 

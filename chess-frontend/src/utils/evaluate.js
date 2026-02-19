@@ -178,12 +178,10 @@ function evaluatePlayerMove(
   // Adjust score based on game result
   if (newGameState.isGameOver()) {
     if (newGameState.isCheckmate()) {
-      // If player is checkmated, apply large negative score
-      const bonus = Math.min(
-        Math.abs(totalScore) * 0.25,
-        100 * difficultyFactor
-      );
+      // Flat checkmate bonus/penalty — meaningful enough to reward winning
+      const bonus = 20 * difficultyFactor;
       if (newGameState.turn() === move.color) {
+        // This player got checkmated (their turn but can't move)
         totalScore -= bonus;
         logMoveEvaluation({
           move,
@@ -194,6 +192,7 @@ function evaluatePlayerMove(
           engineEvaluation: `-${bonus.toFixed(2)}`
         });
       } else {
+        // This player delivered checkmate
         totalScore += bonus;
         logMoveEvaluation({
           move,
@@ -205,15 +204,15 @@ function evaluatePlayerMove(
         });
       }
     } else if (newGameState.isDraw()) {
-      // Draw results in a small negative score
-      totalScore -= 10;
+      // Small draw penalty
+      totalScore -= 5;
       logMoveEvaluation({
         move,
         color: move.color,
         total: totalScore,
         totalBeforeCap,
         classification: 'Draw Penalty',
-        engineEvaluation: -10
+        engineEvaluation: -5
       });
     }
   }

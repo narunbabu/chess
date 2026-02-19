@@ -1374,7 +1374,8 @@ const PlayMultiplayer = () => {
                 1200, // Fixed rating for consistent cross-client scoring
                 setLastOpponentEvaluation,
                 setOpponentScore,
-                1 // Always 1 for multiplayer - no difficulty scaling
+                1, // Always 1 for multiplayer - no difficulty scaling
+                setPlayerScore // Penalize player when opponent captures their piece
               );
               // Clean up old move keys after 5 seconds to prevent memory leak
               setTimeout(() => evaluatedMovesRef.current.delete(opponentMoveKey), 5000);
@@ -3717,7 +3718,8 @@ const PlayMultiplayer = () => {
         1200, // Fixed rating for consistent cross-client scoring
         setLastMoveEvaluation,
         setPlayerScore,
-        1 // Always 1 for multiplayer - no difficulty scaling
+        1, // Always 1 for multiplayer - no difficulty scaling
+        setOpponentScore // Penalize opponent when player captures their piece
       );
       // Calculate new cumulative score for database (ensure numeric addition)
       const currentScore = parseFloat(playerScore) || 0;
