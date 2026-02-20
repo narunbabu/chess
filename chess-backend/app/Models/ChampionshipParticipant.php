@@ -31,18 +31,33 @@ class ChampionshipParticipant extends Model
         'refunded'  => [],  // terminal — no further transitions
     ];
 
+    /**
+     * Maps each PaymentStatus value to its corresponding registration_status string.
+     *
+     * registration_status provides a single, human-readable participant state that
+     * combines payment information with lifecycle events (cancel) that have no
+     * representation in the payment_status state machine.
+     */
+    public const PAYMENT_TO_REGISTRATION_STATUS = [
+        'pending'   => 'payment_pending',
+        'completed' => 'registered',
+        'failed'    => 'payment_failed',
+        'refunded'  => 'refunded',
+    ];
+
     protected $fillable = [
         'championship_id',
         'user_id',
         'razorpay_order_id',
         'razorpay_payment_id',
         'razorpay_signature',
-        'payment_status',    // Virtual attribute (mutator converts to payment_status_id)
-        'payment_status_id', // FK to payment_statuses table
+        'payment_status',     // Virtual attribute (mutator converts to payment_status_id)
+        'payment_status_id',  // FK to payment_statuses table
+        'registration_status',
         'amount_paid',
         'registered_at',
-        'registration_date', // Alias for registered_at (mutator)
-        'is_paid',           // Alias for payment_status_id (mutator)
+        'registration_date',  // Alias for registered_at (mutator)
+        'is_paid',            // Alias for payment_status_id (mutator)
         'seed_number',
     ];
 
@@ -177,7 +192,10 @@ class ChampionshipParticipant extends Model
                 throw new InvalidStateTransitionException($current, $newStatus->value);
             }
 
-            $fresh->update(['payment_status' => $newStatus->value]);
+            $fresh->update([
+                'payment_status'      => $newStatus->value,
+                'registration_status' => self::PAYMENT_TO_REGISTRATION_STATUS[$newStatus->value],
+            ]);
         });
 
         $this->refresh();
@@ -225,6 +243,7 @@ class ChampionshipParticipant extends Model
                 'razorpay_payment_id' => $razorpayPaymentId,
                 'razorpay_signature'  => $razorpaySignature,
                 'payment_status'      => PaymentStatusEnum::COMPLETED->value,
+                'registration_status' => 'registered',
             ]);
         });
 
@@ -249,5 +268,40 @@ class ChampionshipParticipant extends Model
     public function markAsRefunded(): void
     {
         $this->transitionTo(PaymentStatusEnum::REFUNDED);
+    }
+
+    /**
+     * Cancel this registration.
+     *
+     * Cancellation is a lifecycle event independent of the payment state machine —
+     * a participant can cancel regardless of whether payment succeeded, failed, or
+     * is pending. The payment_status_id is intentionally left unchanged so that
+     * any pending refund logic can still read the payment history.
+     *
+     * Uses SELECT FOR UPDATE to prevent concurrent double-cancels.
+     */
+    public function cancel(): void
+    {
+        DB::transaction(function () {
+            /** @var static $fresh */
+            $fresh = static::lockForUpdate()->findOrFail($this->id);
+            $fresh->update(['registration_status' => 'cancelled']);
+        });
+
+        $this->refresh();
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Additional helpers
+    // ──────────────────────────────────────────────────────────────────────────
+
+    public function isRegistered(): bool
+    {
+        return $this->registration_status === 'registered';
+    }
+
+    public function isCancelled(): bool
+    {
+        return $this->registration_status === 'cancelled';
     }
 }

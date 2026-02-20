@@ -390,4 +390,176 @@ class ChampionshipRegistrationStateMachineTest extends TestCase
             'user_id'         => $this->user->id,
         ]);
     }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // 8. H1 fix: registration_status stays in sync with payment_status
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Free registration via HTTP → both payment_status=completed AND
+     * registration_status=registered must be set atomically.
+     */
+    public function test_free_registration_sets_registration_status_to_registered(): void
+    {
+        $this->actingAs($this->user);
+        $this->postJson("/api/championships/{$this->freeChampionship->id}/register")
+             ->assertStatus(201);
+
+        $this->assertDatabaseHas('championship_participants', [
+            'championship_id'     => $this->freeChampionship->id,
+            'user_id'             => $this->user->id,
+            'registration_status' => 'registered',
+        ]);
+    }
+
+    /**
+     * Paid registration via HTTP → registration_status=payment_pending until
+     * the payment webhook / callback fires.
+     */
+    public function test_paid_registration_sets_registration_status_to_payment_pending(): void
+    {
+        $paidChamp = Championship::factory()->create([
+            'entry_fee' => 100,
+            'status'    => 'registration_open',
+        ]);
+
+        $this->mock(RazorpayService::class, function ($mock) {
+            $mock->shouldReceive('createOrder')->once()->andReturn([
+                'order_id' => 'order_sync_test',
+                'amount'   => 10000,
+                'currency' => 'INR',
+                'key_id'   => 'rzp_test',
+            ]);
+        });
+
+        $this->actingAs($this->user);
+        $this->postJson("/api/championships/{$paidChamp->id}/register-with-payment")
+             ->assertStatus(201);
+
+        $this->assertDatabaseHas('championship_participants', [
+            'championship_id'     => $paidChamp->id,
+            'user_id'             => $this->user->id,
+            'registration_status' => 'payment_pending',
+        ]);
+    }
+
+    /**
+     * markAsPaid() must set registration_status=registered atomically.
+     * This covers the webhook path where payment.captured triggers activation.
+     */
+    public function test_mark_as_paid_syncs_registration_status_to_registered(): void
+    {
+        $p = $this->makeParticipant('pending');
+        $p->markAsPaid('pay_sync123', 'sig_sync456');
+
+        $fresh = $p->fresh();
+        $this->assertSame('completed',  $fresh->payment_status);
+        $this->assertSame('registered', $fresh->registration_status);
+    }
+
+    /**
+     * transitionTo(FAILED) must set registration_status=payment_failed.
+     */
+    public function test_transition_to_failed_syncs_registration_status(): void
+    {
+        $p = $this->makeParticipant('pending');
+        $p->transitionTo(PaymentStatus::FAILED);
+
+        $fresh = $p->fresh();
+        $this->assertSame('failed',          $fresh->payment_status);
+        $this->assertSame('payment_failed',  $fresh->registration_status);
+    }
+
+    /**
+     * failed → pending (retry) must restore registration_status=payment_pending.
+     */
+    public function test_retry_from_failed_syncs_registration_status_to_payment_pending(): void
+    {
+        $p = $this->makeParticipant('failed');
+        $p->transitionTo(PaymentStatus::PENDING);
+
+        $fresh = $p->fresh();
+        $this->assertSame('pending',         $fresh->payment_status);
+        $this->assertSame('payment_pending', $fresh->registration_status);
+    }
+
+    /**
+     * transitionTo(REFUNDED) must set registration_status=refunded.
+     */
+    public function test_transition_to_refunded_syncs_registration_status(): void
+    {
+        $p = $this->makeParticipant('completed');
+        $p->transitionTo(PaymentStatus::REFUNDED);
+
+        $fresh = $p->fresh();
+        $this->assertSame('refunded', $fresh->payment_status);
+        $this->assertSame('refunded', $fresh->registration_status);
+    }
+
+    /**
+     * cancel() sets registration_status=cancelled and leaves payment_status
+     * unchanged so refund logic can still inspect payment history.
+     */
+    public function test_cancel_sets_registration_status_to_cancelled(): void
+    {
+        // A participant who has already paid
+        $p = $this->makeParticipant('completed');
+        $p->update(['registration_status' => 'registered']);
+
+        $p->cancel();
+
+        $fresh = $p->fresh();
+        $this->assertSame('cancelled',  $fresh->registration_status,
+            'registration_status must be cancelled after cancel()');
+        $this->assertSame('completed',  $fresh->payment_status,
+            'payment_status must be preserved so refund logic can still read it');
+    }
+
+    /**
+     * cancel() is safe to call on a payment_pending participant too.
+     */
+    public function test_cancel_on_payment_pending_participant(): void
+    {
+        $p = $this->makeParticipant('pending');
+
+        $p->cancel();
+
+        $this->assertSame('cancelled', $p->fresh()->registration_status);
+        $this->assertSame('pending',   $p->fresh()->payment_status);
+    }
+
+    /**
+     * isCancelled() and isRegistered() helpers return correct values.
+     */
+    public function test_helper_methods_reflect_registration_status(): void
+    {
+        $p = $this->makeParticipant('pending');
+
+        $this->assertFalse($p->isCancelled());
+        $this->assertFalse($p->isRegistered());
+
+        $p->markAsPaid('pay_helper', 'sig_helper');
+        $this->assertTrue($p->isRegistered());
+        $this->assertFalse($p->isCancelled());
+
+        $p->cancel();
+        $this->assertTrue($p->isCancelled());
+        $this->assertFalse($p->isRegistered());
+    }
+
+    /**
+     * PAYMENT_TO_REGISTRATION_STATUS constant covers all PaymentStatus cases.
+     */
+    public function test_payment_to_registration_status_map_is_complete(): void
+    {
+        $map = ChampionshipParticipant::PAYMENT_TO_REGISTRATION_STATUS;
+
+        foreach (PaymentStatus::cases() as $case) {
+            $this->assertArrayHasKey(
+                $case->value,
+                $map,
+                "PAYMENT_TO_REGISTRATION_STATUS must cover PaymentStatus::{$case->name}"
+            );
+        }
+    }
 }

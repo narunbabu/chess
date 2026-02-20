@@ -1200,11 +1200,12 @@ class ChampionshipController extends Controller
                 }
 
                 return ChampionshipParticipant::create([
-                    'championship_id' => $championship->id,
-                    'user_id' => $user->id,
-                    'amount_paid' => 0,
-                    'payment_status' => PaymentStatus::COMPLETED->value,
-                    'registered_at' => now(),
+                    'championship_id'     => $championship->id,
+                    'user_id'             => $user->id,
+                    'amount_paid'         => 0,
+                    'payment_status'      => PaymentStatus::COMPLETED->value,
+                    'registration_status' => 'registered',
+                    'registered_at'       => now(),
                 ]);
             });
 
@@ -1339,11 +1340,12 @@ class ChampionshipController extends Controller
                 }
 
                 return ChampionshipParticipant::create([
-                    'championship_id' => $championship->id,
-                    'user_id' => $user->id,
-                    'amount_paid' => $championship->entry_fee,
-                    'payment_status' => PaymentStatus::PENDING->value,
-                    'registered_at' => now(),
+                    'championship_id'     => $championship->id,
+                    'user_id'             => $user->id,
+                    'amount_paid'         => $championship->entry_fee,
+                    'payment_status'      => PaymentStatus::PENDING->value,
+                    'registration_status' => 'payment_pending',
+                    'registered_at'       => now(),
                 ]);
             });
 
