@@ -68,7 +68,7 @@ const Layout = ({ children }) => {
       <div ref={headerRef}>
         <Header />
       </div>
-      <div className="relative z-0">{children}</div>
+      <div className="relative">{children}</div>
     </div>
   );
 };

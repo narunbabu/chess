@@ -350,7 +350,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 1000000; /* Must exceed header (999997) and nav panel (999999) */
   -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
 }

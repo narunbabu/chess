@@ -33,6 +33,9 @@ const PricingPage = () => {
   const [interval, setInterval] = useState('monthly');
   const [checkoutPlanId, setCheckoutPlanId] = useState(null);
   const [fallbackRetrying, setFallbackRetrying] = useState(false);
+  // Stores { tier, interval } when user clicks Subscribe on a fallback plan (id: null).
+  // Cleared once real plan IDs load and checkout is triggered automatically.
+  const [pendingIntent, setPendingIntent] = useState(null);
 
   // Normalize API plans: backend groupBy may return objects instead of arrays
   // when collection keys are non-sequential (e.g. {1: {...}, 2: {...}})
@@ -66,17 +69,23 @@ const PricingPage = () => {
     }).filter(Boolean);
   }, [effectivePlans]);
 
-  const handleSubscribe = async (planId) => {
+  const handleSubscribe = async (planId, tier, planInterval) => {
     if (!isAuthenticated) {
       // Save the plan they clicked so we can resume checkout after login
       if (planId) {
         localStorage.setItem('pending_plan_id', planId.toString());
+      } else if (tier) {
+        // Fallback plan clicked before login — save intent as tier+interval
+        localStorage.setItem('pending_plan_tier', tier);
+        localStorage.setItem('pending_plan_interval', planInterval || interval);
       }
       navigate('/login', { state: { from: '/pricing' } });
       return;
     }
     if (!planId) {
-      // Fallback plan — fetch live plans so the real plan IDs are available for checkout
+      // Fallback plan — remember which tier+interval they wanted, then fetch live plans.
+      // A useEffect below will auto-open checkout once real plan IDs arrive.
+      setPendingIntent({ tier, interval: planInterval || interval });
       setFallbackRetrying(true);
       await fetchPlans();
       setFallbackRetrying(false);
@@ -85,19 +94,46 @@ const PricingPage = () => {
     setCheckoutPlanId(planId);
   };
 
-  // Resume checkout after login redirect — check for pending plan
+  // Auto-open checkout when live plans load after a fallback-plan click
   React.useEffect(() => {
-    if (isAuthenticated && !checkoutPlanId) {
+    if (!pendingIntent || !hasApiPlans) return;
+    const { tier: wantedTier, interval: wantedInterval } = pendingIntent;
+    const tierPlans = normalizedPlans[wantedTier] || [];
+    const match = tierPlans.find(p => p.interval === wantedInterval) || tierPlans[0];
+    if (match?.id) {
+      setPendingIntent(null);
+      setCheckoutPlanId(match.id);
+    }
+  }, [pendingIntent, hasApiPlans, normalizedPlans]);
+
+  // Resume checkout after login redirect — check for pending plan (by ID or by tier+interval)
+  React.useEffect(() => {
+    if (isAuthenticated && !checkoutPlanId && !pendingIntent) {
       const pendingPlanId = localStorage.getItem('pending_plan_id');
       if (pendingPlanId) {
         localStorage.removeItem('pending_plan_id');
-        // Wait for plans to load before triggering checkout
         if (hasApiPlans) {
           setCheckoutPlanId(parseInt(pendingPlanId, 10));
         }
+        return;
+      }
+      // Handle post-login fallback-plan intent saved as tier+interval
+      const pendingTier = localStorage.getItem('pending_plan_tier');
+      const pendingInterval = localStorage.getItem('pending_plan_interval');
+      if (pendingTier) {
+        localStorage.removeItem('pending_plan_tier');
+        localStorage.removeItem('pending_plan_interval');
+        if (hasApiPlans) {
+          const tierPlans = normalizedPlans[pendingTier] || [];
+          const match = tierPlans.find(p => p.interval === pendingInterval) || tierPlans[0];
+          if (match?.id) setCheckoutPlanId(match.id);
+        } else {
+          // Plans not loaded yet — store as pendingIntent for the other useEffect to handle
+          setPendingIntent({ tier: pendingTier, interval: pendingInterval || 'monthly' });
+        }
       }
     }
-  }, [isAuthenticated, hasApiPlans, checkoutPlanId]);
+  }, [isAuthenticated, hasApiPlans, checkoutPlanId, normalizedPlans, pendingIntent]);
 
   const handleCheckoutSuccess = () => {
     setCheckoutPlanId(null);

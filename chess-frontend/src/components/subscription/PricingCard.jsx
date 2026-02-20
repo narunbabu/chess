@@ -86,7 +86,7 @@ const PricingCard = ({ plan, isCurrentPlan, isPopular, onSubscribe, loading, int
           <button
             className="pricing-card__btn pricing-card__btn--subscribe"
             style={{ backgroundColor: colors.badge }}
-            onClick={() => onSubscribe(planId)}
+            onClick={() => onSubscribe(planId, displayPlan.tier, displayPlan.interval)}
             disabled={loading}
           >
             {loading ? 'Processing...' : 'Subscribe'}

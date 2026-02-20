@@ -9,7 +9,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 2000;
+  z-index: 1000001; /* Must exceed header (999997) and nav panel (999999) */
   animation: fadeIn 0.3s ease-in;
 }
 
