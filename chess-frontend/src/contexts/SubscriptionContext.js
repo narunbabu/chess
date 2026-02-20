@@ -13,6 +13,8 @@ const defaultContextValue = {
   loading: false,
   error: null,
   checkout: async () => {},
+  createOrder: async () => {},
+  verifyPayment: async () => {},
   cancelSubscription: async () => {},
   fetchPlans: () => {},
   fetchCurrentSubscription: () => {},
@@ -86,6 +88,41 @@ export const SubscriptionProvider = ({ children }) => {
     }
   }, []);
 
+  // Create a Razorpay order for one-time payment (order flow)
+  const createOrder = useCallback(async (planId) => {
+    setError(null);
+    try {
+      setLoading(true);
+      const response = await api.post('/subscriptions/create-order', { plan_id: planId });
+      return response.data;
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Failed to create payment order.';
+      setError(msg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Verify Razorpay payment and activate subscription
+  const verifyPayment = useCallback(async (paymentData) => {
+    setError(null);
+    try {
+      setLoading(true);
+      const response = await api.post('/subscriptions/verify-payment', paymentData);
+      if (response.data.success) {
+        await fetchCurrentSubscription();
+      }
+      return response.data;
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Payment verification failed.';
+      setError(msg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchCurrentSubscription]);
+
   // Cancel subscription
   const cancelSubscription = useCallback(async () => {
     setError(null);
@@ -146,10 +183,12 @@ export const SubscriptionProvider = ({ children }) => {
     loading,
     error,
     checkout,
+    createOrder,
+    verifyPayment,
     cancelSubscription,
     fetchPlans,
     fetchCurrentSubscription,
-  }), [plans, plansLoading, plansError, currentSubscription, currentTier, isStandard, isPremium, loading, error, checkout, cancelSubscription, fetchPlans, fetchCurrentSubscription]);
+  }), [plans, plansLoading, plansError, currentSubscription, currentTier, isStandard, isPremium, loading, error, checkout, createOrder, verifyPayment, cancelSubscription, fetchPlans, fetchCurrentSubscription]);
 
   return (
     <SubscriptionContext.Provider value={value}>

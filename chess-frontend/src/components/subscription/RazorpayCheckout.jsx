@@ -1,214 +1,240 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSubscription } from '../../contexts/SubscriptionContext';
 import { useAuth } from '../../contexts/AuthContext';
-import api from '../../services/api';
 
-const POLL_INTERVAL_MS = 3000;
-const POLL_MAX_ATTEMPTS = 20; // 20 × 3s = 60s max
-
+/**
+ * RazorpayCheckout — order-based payment flow
+ *
+ * Steps:
+ *   init → creating_order → awaiting_payment → verifying → success | error
+ *
+ * Mock mode (RAZORPAY_MOCK_MODE=true on backend):
+ *   Backend returns order_id='order_mock_…'. We skip the Razorpay SDK and
+ *   call verify-payment directly with a synthetic payment_id so the full
+ *   activation path runs in both dev and prod-mock environments.
+ */
 const RazorpayCheckout = ({ planId, onSuccess, onClose }) => {
-  const { checkout } = useSubscription();
+  const { createOrder, verifyPayment } = useSubscription();
   const { user } = useAuth();
-  const [step, setStep] = useState('init'); // init | processing | activating | success | error
-  const [error, setError] = useState(null);
-  const [checkoutData, setCheckoutData] = useState(null);
-  const pollTimerRef = useRef(null);
+  const [step, setStep]         = useState('init');
+  const [error, setError]       = useState(null);
+  const [orderData, setOrderData] = useState(null);
+  const mountedRef              = useRef(true);
 
-  // Cancel any in-flight poll on unmount
   useEffect(() => {
-    return () => { if (pollTimerRef.current) clearTimeout(pollTimerRef.current); };
+    return () => { mountedRef.current = false; };
   }, []);
 
-  // Poll /subscriptions/current until tier leaves 'free' (webhook has fired)
-  // or until the timeout expires (show success anyway — webhook will activate eventually).
-  const pollForActivation = useCallback(() => {
-    setStep('activating');
-    let attempts = 0;
+  // ── helpers ──────────────────────────────────────────────────────────────
 
-    const poll = async () => {
-      attempts++;
-      try {
-        const response = await api.get('/subscriptions/current');
-        if (response.data?.tier && response.data.tier !== 'free') {
-          setStep('success');
-          return;
-        }
-      } catch {
-        // Network error — keep polling
-      }
+  const safeSet = (setter, value) => {
+    if (mountedRef.current) setter(value);
+  };
 
-      if (attempts < POLL_MAX_ATTEMPTS) {
-        pollTimerRef.current = setTimeout(poll, POLL_INTERVAL_MS);
-      } else {
-        // Timed out waiting for webhook — show success so the user isn't stuck.
-        // Their subscription will appear on next page load once the webhook lands.
-        setStep('success');
-      }
-    };
-
-    // 2s initial delay to give the webhook a head start
-    pollTimerRef.current = setTimeout(poll, 2000);
-  }, []);
-
-  const initiateCheckout = useCallback(async () => {
-    try {
-      setStep('processing');
-      const data = await checkout(planId);
-      setCheckoutData(data);
-
-      // Mock mode: auto-completed by backend
-      if (data.mock_mode && data.auto_completed) {
-        setStep('success');
-        return;
-      }
-
-      // Mock mode but not auto-completed: treat as success (test environment)
-      if (data.mock_mode) {
-        setStep('success');
-        return;
-      }
-
-      // Real mode: load Razorpay SDK and open checkout
-      if (data.checkout?.subscription_id) {
-        loadRazorpaySDK(data);
-        return;
-      }
-
-      // Fallback: no valid checkout data received
-      setError('Unable to initialize payment. Please try again.');
-      setStep('error');
-    } catch (err) {
-      setError(err.response?.data?.message || 'Payment failed. Please try again.');
-      setStep('error');
-    }
-  }, [planId, checkout]);
-
-  const loadRazorpaySDK = (data) => {
-    // Avoid duplicate script loading — reuse if SDK already present
+  const loadRazorpaySDK = useCallback((data) => {
     if (window.Razorpay) {
       openRazorpayModal(data);
       return;
     }
 
-    // Script element already in DOM but SDK not yet ready — attach both load and error handlers
-    const existing = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
+    const existing = document.querySelector(
+      'script[src="https://checkout.razorpay.com/v1/checkout.js"]'
+    );
     if (existing) {
       existing.addEventListener('load', () => openRazorpayModal(data), { once: true });
       existing.addEventListener('error', () => {
-        setError('Failed to load payment gateway. Please try again.');
-        setStep('error');
+        safeSet(setError, 'Failed to load payment gateway. Please check your connection.');
+        safeSet(setStep, 'error');
       }, { once: true });
       return;
     }
 
     const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.src   = 'https://checkout.razorpay.com/v1/checkout.js';
     script.async = true;
-    script.onload = () => openRazorpayModal(data);
+    script.onload  = () => openRazorpayModal(data);
     script.onerror = () => {
-      setError('Failed to load payment gateway. Please try again.');
-      setStep('error');
+      safeSet(setError, 'Failed to load payment gateway. Please check your connection.');
+      safeSet(setStep, 'error');
     };
     document.body.appendChild(script);
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const openRazorpayModal = (data) => {
+  const handleVerify = useCallback(async (paymentId, rzpOrderId, signature) => {
+    safeSet(setStep, 'verifying');
     try {
-      const prefill = data.checkout.prefill || {};
+      await verifyPayment({
+        razorpay_payment_id: paymentId,
+        razorpay_order_id:   rzpOrderId,
+        razorpay_signature:  signature,
+        plan_id:             planId,
+      });
+      safeSet(setStep, 'success');
+    } catch (err) {
+      safeSet(setError, err.response?.data?.message || 'Payment verification failed. Please contact support.');
+      safeSet(setStep, 'error');
+    }
+  }, [verifyPayment, planId]);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const openRazorpayModal = useCallback((data) => {
+    safeSet(setStep, 'awaiting_payment');
+    try {
       const options = {
-        key: data.checkout.key_id,
-        subscription_id: data.checkout.subscription_id,
-        name: 'Chess99',
-        description: `${data.checkout.plan?.name || 'Premium'} Subscription`,
+        key:         data.key_id,
+        amount:      data.amount,
+        currency:    data.currency || 'INR',
+        order_id:    data.order_id,
+        name:        'Chess99',
+        description: `${data.plan?.name || 'Premium'} Subscription`,
+        image:       '/logo192.png',
         prefill: {
-          name: prefill.name || user?.name || '',
-          email: prefill.email || user?.email || '',
+          name:  data.prefill?.name  || user?.name  || '',
+          email: data.prefill?.email || user?.email || '',
         },
-        handler: () => {
-          pollForActivation();
+        notes: {
+          plan_id: planId,
+        },
+        handler: (response) => {
+          handleVerify(
+            response.razorpay_payment_id,
+            response.razorpay_order_id,
+            response.razorpay_signature
+          );
         },
         modal: {
           ondismiss: () => {
-            setStep('error');
-            setError('Payment was cancelled.');
+            safeSet(setError, 'Payment was cancelled.');
+            safeSet(setStep, 'error');
           },
         },
-        theme: {
-          color: '#81b64c',
-        },
+        theme: { color: '#81b64c' },
       };
 
       const rzp = new window.Razorpay(options);
       rzp.open();
     } catch (err) {
       console.error('[RazorpayCheckout] Failed to open payment modal:', err);
-      setError('Failed to open payment form. Please try again.');
-      setStep('error');
+      safeSet(setError, 'Failed to open payment form. Please try again.');
+      safeSet(setStep, 'error');
     }
-  };
+  }, [user, planId, handleVerify]);
 
+  // ── main flow ─────────────────────────────────────────────────────────────
+
+  const initiateCheckout = useCallback(async () => {
+    safeSet(setError, null);
+    safeSet(setStep, 'creating_order');
+
+    try {
+      const data = await createOrder(planId);
+      safeSet(setOrderData, data);
+
+      if (data.mock_mode) {
+        // Mock: skip the Razorpay SDK, call verify-payment with synthetic IDs
+        const mockPaymentId = 'pay_mock_' + Math.random().toString(36).substr(2, 14);
+        await handleVerify(mockPaymentId, data.order_id, 'mock_signature');
+        return;
+      }
+
+      loadRazorpaySDK(data);
+    } catch (err) {
+      safeSet(setError, err.response?.data?.message || 'Failed to initialize payment. Please try again.');
+      safeSet(setStep, 'error');
+    }
+  }, [planId, createOrder, loadRazorpaySDK, handleVerify]);
+
+  // kick off on mount
   useEffect(() => {
     initiateCheckout();
   }, [initiateCheckout]);
 
+  // notify parent 1.5 s after success
   useEffect(() => {
     if (step === 'success' && onSuccess) {
-      const timer = setTimeout(() => onSuccess(checkoutData), 1500);
+      const timer = setTimeout(() => onSuccess(orderData), 1500);
       return () => clearTimeout(timer);
     }
-  }, [step, onSuccess, checkoutData]);
+  }, [step, onSuccess, orderData]);
+
+  // ── render ────────────────────────────────────────────────────────────────
+
+  const isBusy = step === 'creating_order' || step === 'verifying';
 
   return (
-    <div className="razorpay-checkout-overlay" onClick={(e) => e.target === e.currentTarget && step !== 'processing' && step !== 'activating' && onClose()}>
+    <div
+      className="razorpay-checkout-overlay"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !isBusy && step !== 'awaiting_payment') {
+          onClose();
+        }
+      }}
+    >
       <div className="razorpay-checkout-modal">
-        {step === 'init' && (
+
+        {/* ── initialising / creating order ── */}
+        {(step === 'init' || step === 'creating_order') && (
           <div className="razorpay-checkout__step">
             <div className="razorpay-checkout__spinner" />
-            <p>Initializing payment...</p>
+            <p>Preparing your order…</p>
           </div>
         )}
 
-        {step === 'processing' && (
+        {/* ── Razorpay modal is open (SDK handles UI) ── */}
+        {step === 'awaiting_payment' && (
           <div className="razorpay-checkout__step">
             <div className="razorpay-checkout__spinner" />
-            <p>Processing your subscription...</p>
-            {checkoutData?.mock_mode && (
-              <p className="razorpay-checkout__note">Test mode — payment will be simulated</p>
-            )}
+            <p>Complete payment in the Razorpay window</p>
+            <p className="razorpay-checkout__note">
+              Do not close this window until payment is confirmed.
+            </p>
           </div>
         )}
 
-        {step === 'activating' && (
+        {/* ── verifying signature with backend ── */}
+        {step === 'verifying' && (
           <div className="razorpay-checkout__step">
             <div className="razorpay-checkout__spinner" />
             <h3>Activating Subscription</h3>
-            <p>Confirming your payment, please wait...</p>
+            <p>Verifying your payment, please wait…</p>
           </div>
         )}
 
+        {/* ── success ── */}
         {step === 'success' && (
           <div className="razorpay-checkout__step razorpay-checkout__step--success">
             <div className="razorpay-checkout__checkmark">✓</div>
             <h3>Subscription Activated!</h3>
-            <p>Your {checkoutData?.checkout?.plan?.name} subscription is now active.</p>
+            <p>
+              Your <strong>{orderData?.plan?.name || 'Premium'}</strong> subscription is now active.
+            </p>
           </div>
         )}
 
+        {/* ── error ── */}
         {step === 'error' && (
           <div className="razorpay-checkout__step razorpay-checkout__step--error">
             <div className="razorpay-checkout__error-icon">!</div>
             <h3>Payment Failed</h3>
             <p>{error}</p>
             <div className="razorpay-checkout__actions">
-              <button className="razorpay-checkout__btn razorpay-checkout__btn--retry" onClick={initiateCheckout}>
+              <button
+                className="razorpay-checkout__btn razorpay-checkout__btn--retry"
+                onClick={initiateCheckout}
+              >
                 Try Again
               </button>
-              <button className="razorpay-checkout__btn razorpay-checkout__btn--cancel" onClick={onClose}>
+              <button
+                className="razorpay-checkout__btn razorpay-checkout__btn--cancel"
+                onClick={onClose}
+              >
                 Cancel
               </button>
             </div>
           </div>
         )}
+
       </div>
     </div>
   );

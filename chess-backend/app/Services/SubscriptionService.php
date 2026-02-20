@@ -72,6 +72,143 @@ class SubscriptionService
     }
 
     /**
+     * Create a Razorpay order for one-time subscription payment
+     */
+    public function createOrder(User $user, SubscriptionPlan $plan): array
+    {
+        if ($this->isMockMode()) {
+            return [
+                'order_id'  => 'order_mock_' . Str::random(14),
+                'key_id'    => config('services.razorpay.key_id', 'rzp_test_mock'),
+                'amount'    => (int) round((float) $plan->price * 100), // paise
+                'currency'  => 'INR',
+                'plan'      => [
+                    'id'       => $plan->id,
+                    'tier'     => $plan->tier,
+                    'name'     => $plan->name,
+                    'price'    => $plan->price,
+                    'interval' => $plan->interval,
+                ],
+                'prefill'   => ['name' => $user->name, 'email' => $user->email],
+                'mock_mode' => true,
+            ];
+        }
+
+        $keyId     = config('services.razorpay.key_id');
+        $keySecret = config('services.razorpay.key_secret');
+
+        $ch = curl_init('https://api.razorpay.com/v1/orders');
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_USERPWD        => "{$keyId}:{$keySecret}",
+            CURLOPT_POSTFIELDS     => json_encode([
+                'amount'   => (int) round((float) $plan->price * 100),
+                'currency' => 'INR',
+                'receipt'  => 'chess99_' . $user->id . '_' . time(),
+                'notes'    => ['user_id' => $user->id, 'plan_id' => $plan->id],
+            ]),
+            CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+        ]);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode !== 200) {
+            Log::error('Razorpay order creation failed', ['response' => $response]);
+            throw new \RuntimeException('Failed to create payment order. Please try again.');
+        }
+
+        $order = json_decode($response, true);
+
+        return [
+            'order_id' => $order['id'],
+            'key_id'   => $keyId,
+            'amount'   => $order['amount'],
+            'currency' => $order['currency'],
+            'plan'     => [
+                'id'       => $plan->id,
+                'tier'     => $plan->tier,
+                'name'     => $plan->name,
+                'price'    => $plan->price,
+                'interval' => $plan->interval,
+            ],
+            'prefill'   => ['name' => $user->name, 'email' => $user->email],
+            'mock_mode' => false,
+        ];
+    }
+
+    /**
+     * Verify Razorpay payment signature and activate the subscription
+     */
+    public function verifyAndActivate(User $user, SubscriptionPlan $plan, array $data): array
+    {
+        $paymentId = $data['razorpay_payment_id'];
+        $orderId   = $data['razorpay_order_id'];
+        $signature = $data['razorpay_signature'];
+
+        // Verify HMAC signature in production
+        if (!$this->isMockMode()) {
+            $keySecret = config('services.razorpay.key_secret');
+            $expected  = hash_hmac('sha256', "{$orderId}|{$paymentId}", $keySecret);
+            if (!hash_equals($expected, $signature)) {
+                Log::warning('Razorpay signature mismatch', [
+                    'user_id'    => $user->id,
+                    'order_id'   => $orderId,
+                    'payment_id' => $paymentId,
+                ]);
+                throw new \InvalidArgumentException('Payment verification failed: invalid signature.');
+            }
+        }
+
+        // Idempotency — skip if this payment was already recorded
+        if (SubscriptionPayment::where('razorpay_payment_id', $paymentId)->exists()) {
+            Log::info('Payment already processed (idempotent)', ['payment_id' => $paymentId]);
+            return [
+                'success'    => true,
+                'tier'       => $user->subscription_tier,
+                'expires_at' => $user->subscription_expires_at?->toISOString(),
+            ];
+        }
+
+        // Record the completed payment
+        SubscriptionPayment::create([
+            'user_id'              => $user->id,
+            'subscription_plan_id' => $plan->id,
+            'razorpay_order_id'    => $orderId,
+            'razorpay_payment_id'  => $paymentId,
+            'razorpay_signature'   => $signature,
+            'payment_status'       => PaymentStatus::COMPLETED->value,
+            'amount'               => $plan->price,
+            'currency'             => 'INR',
+            'interval'             => $plan->interval,
+            'paid_at'              => now(),
+            'period_start'         => now(),
+            'period_end'           => $plan->interval === 'monthly' ? now()->addMonth() : now()->addYear(),
+        ]);
+
+        // Activate the subscription (store order_id in razorpay_subscription_id for reference)
+        $user->activateSubscription($plan, $orderId);
+        $user->refresh();
+
+        Log::info('Subscription activated via order payment', [
+            'user_id'    => $user->id,
+            'tier'       => $plan->tier,
+            'order_id'   => $orderId,
+            'payment_id' => $paymentId,
+        ]);
+
+        return [
+            'success'    => true,
+            'message'    => "Your {$plan->name} subscription is now active!",
+            'tier'       => $user->subscription_tier,
+            'tier_label' => $user->getSubscriptionTierEnum()->label(),
+            'expires_at' => $user->subscription_expires_at?->toISOString(),
+        ];
+    }
+
+    /**
      * Initiate a subscription checkout
      */
     public function initiateCheckout(User $user, SubscriptionPlan $plan): array

@@ -30,6 +30,88 @@ class SubscriptionController extends Controller
     }
 
     /**
+     * POST /api/subscriptions/create-order
+     * Create a Razorpay order for one-time subscription payment
+     */
+    public function createOrder(Request $request): JsonResponse
+    {
+        $request->validate([
+            'plan_id' => 'required|integer|exists:subscription_plans,id',
+        ]);
+
+        $plan = SubscriptionPlan::findOrFail($request->plan_id);
+
+        if ($plan->isFree()) {
+            return response()->json([
+                'error'   => 'Invalid plan',
+                'message' => 'Cannot create an order for the free plan',
+            ], 400);
+        }
+
+        if (!$plan->is_active) {
+            return response()->json([
+                'error'   => 'Plan unavailable',
+                'message' => 'This plan is not currently available',
+            ], 400);
+        }
+
+        try {
+            $orderData = $this->subscriptionService->createOrder($request->user(), $plan);
+            return response()->json($orderData);
+        } catch (\Exception $e) {
+            Log::error('Subscription create-order failed', [
+                'user_id' => $request->user()->id,
+                'plan_id' => $plan->id,
+                'error'   => $e->getMessage(),
+            ]);
+            return response()->json([
+                'error'   => 'Order creation failed',
+                'message' => 'Unable to create payment order. Please try again.',
+            ], 500);
+        }
+    }
+
+    /**
+     * POST /api/subscriptions/verify-payment
+     * Verify Razorpay payment signature and activate subscription
+     */
+    public function verifyPayment(Request $request): JsonResponse
+    {
+        $request->validate([
+            'razorpay_payment_id' => 'required|string|max:255',
+            'razorpay_order_id'   => 'required|string|max:255',
+            'razorpay_signature'  => 'required|string|max:512',
+            'plan_id'             => 'required|integer|exists:subscription_plans,id',
+        ]);
+
+        $plan = SubscriptionPlan::findOrFail($request->plan_id);
+
+        try {
+            $result = $this->subscriptionService->verifyAndActivate(
+                $request->user(),
+                $plan,
+                $request->only(['razorpay_payment_id', 'razorpay_order_id', 'razorpay_signature'])
+            );
+            return response()->json($result);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'error'   => 'Verification failed',
+                'message' => $e->getMessage(),
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Payment verification error', [
+                'user_id' => $request->user()->id,
+                'plan_id' => $plan->id,
+                'error'   => $e->getMessage(),
+            ]);
+            return response()->json([
+                'error'   => 'Verification error',
+                'message' => 'Unable to verify payment. Please contact support.',
+            ], 500);
+        }
+    }
+
+    /**
      * GET /api/subscriptions/current
      * Get user's current subscription details
      */

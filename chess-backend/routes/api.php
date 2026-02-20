@@ -380,7 +380,9 @@ Route::prefix('subscriptions')->group(function () {
     // Authenticated subscription routes
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/current', [SubscriptionController::class, 'current']);
-        Route::post('/checkout', [SubscriptionController::class, 'checkout']);
+        Route::post('/checkout', [SubscriptionController::class, 'checkout']); // legacy subscription flow
+        Route::post('/create-order', [SubscriptionController::class, 'createOrder']);
+        Route::post('/verify-payment', [SubscriptionController::class, 'verifyPayment']);
         Route::post('/cancel', [SubscriptionController::class, 'cancel']);
     });
 });
