@@ -392,7 +392,7 @@ const LandingPage = () => {
                   </div>
                 </div>
                 <ul className="space-y-2 flex-1 mb-6">
-                  {['Unlimited games', 'All tournaments', 'ELO tracking', 'Full game history', 'Ad-free experience', 'Priority matchmaking', 'Custom board themes'].map(f => (
+                  {['Unlimited games', 'All tournaments', 'ELO tracking', 'Full game history', 'Ad-free experience', 'Priority matchmaking', 'Custom board themes', 'Puzzle & Opening Trainer'].map(f => (
                     <li key={f} className="flex items-center gap-2 text-sm text-[#bababa]">
                       <span className="text-[#81b64c] flex-shrink-0">✓</span>{f}
                     </li>
@@ -418,7 +418,7 @@ const LandingPage = () => {
                   </div>
                 </div>
                 <ul className="space-y-2 flex-1 mb-6">
-                  {['Everything in Standard', 'Org/school affiliation', 'AI opponent', 'Opening explorer', 'Advanced analytics', 'Priority support', 'Game annotations'].map(f => (
+                  {['Everything in Standard', 'Org/school affiliation', 'AI opponent', 'Opening explorer', 'Advanced analytics', 'Priority support', 'Game annotations', 'Full training suite'].map(f => (
                     <li key={f} className="flex items-center gap-2 text-sm text-[#bababa]">
                       <span className="text-[#e8a93e] flex-shrink-0">✓</span>{f}
                     </li>

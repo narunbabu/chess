@@ -235,6 +235,22 @@ const PricingPage = () => {
                 <td>Opening Explorer</td>
                 <td>—</td><td>—</td><td>✓</td>
               </tr>
+              <tr>
+                <td>Opening Trainer</td>
+                <td>—</td><td>✓</td><td>✓</td>
+              </tr>
+              <tr>
+                <td>Puzzle Trainer</td>
+                <td>—</td><td>✓</td><td>✓</td>
+              </tr>
+              <tr>
+                <td>Endgame Drills</td>
+                <td>—</td><td>Limited</td><td>✓</td>
+              </tr>
+              <tr>
+                <td>Video Lessons</td>
+                <td>—</td><td>—</td><td>✓</td>
+              </tr>
             </tbody>
           </table>
         </div>
