@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { BASE_URL } from '../config';
 import api from '../services/api';
@@ -58,6 +58,11 @@ const LoginPage = () => {
       setResendMessage('Email verified successfully! You can now sign in.');
     } else if (verified === 'invalid') {
       setError('Invalid verification link. Please request a new one.');
+    }
+    const reset = searchParams.get('reset');
+    if (reset === 'success') {
+      setError('');
+      setResendMessage('Password updated successfully. Please sign in with your new password.');
     }
   }, [searchParams]);
 
@@ -344,6 +349,18 @@ const LoginPage = () => {
                       {showPassword ? <EyeOffIcon /> : <EyeIcon />}
                     </button>
                   </div>
+
+                  {/* Forgot password link — login only */}
+                  {isLogin && (
+                    <div className="text-right -mt-1">
+                      <Link
+                        to="/forgot-password"
+                        className="text-xs text-[#8b8987] hover:text-[#bababa] transition-colors"
+                      >
+                        Forgot password?
+                      </Link>
+                    </div>
+                  )}
 
                   {!isLogin && (
                     <div className="relative">

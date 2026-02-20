@@ -50,6 +50,8 @@ class User extends Authenticatable implements MustVerifyEmail
         'class_of_study',
         'board_theme',
         'role',
+        'reset_token',
+        'reset_token_expires_at',
     ];
 
     protected $hidden = [
@@ -74,6 +76,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'subscription_expires_at' => 'datetime',
         'subscription_auto_renew' => 'boolean',
         'profile_completed' => 'boolean',
+        'reset_token_expires_at' => 'datetime',
         'birthday' => 'date',
         'class_of_study' => 'integer',
     ];

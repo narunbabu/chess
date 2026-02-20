@@ -181,7 +181,7 @@ export default function DifficultyMeter({
     ctx.font = `bold ${fontSize}px sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText("Hardness: " + value, drawCenter.x, drawCenter.y - drawRadius / 3); // Adjust vertical position proportionally
+    ctx.fillText("Difficulty: " + value, drawCenter.x, drawCenter.y - drawRadius / 3); // Adjust vertical position proportionally
   };
 
   const updateFromPosition = (clientX, clientY) => {

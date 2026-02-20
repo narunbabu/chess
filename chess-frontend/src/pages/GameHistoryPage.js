@@ -24,8 +24,8 @@ const GameHistoryPage = () => {
 
   useEffect(() => {
     if (isAuthenticated) {
-      // Redirect authenticated users to their profile/dashboards
-      navigate('/profile');
+      // Redirect authenticated users to the full game history page
+      navigate('/history');
       return;
     }
 

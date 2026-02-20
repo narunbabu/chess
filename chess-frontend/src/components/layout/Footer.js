@@ -79,7 +79,7 @@ const Footer = () => {
                 Chess99 is an educational, skill-based chess learning platform for kids. We do not offer real-money gaming, betting, or gambling in any form. All activities are designed for learning and safe competitive play.
               </p>
             </div>
-            <p className="text-[#8b8987] text-xs sm:text-sm lg:text-base mb-4 sm:mb-6">© 2024 Chess99. Making Chess Fun for Kids!</p>
+            <p className="text-[#8b8987] text-xs sm:text-sm lg:text-base mb-4 sm:mb-6">© 2026 Chess99. Making Chess Fun for Kids!</p>
             <div className="flex flex-wrap justify-center gap-4 sm:gap-6 lg:gap-8">
               <Link to="/coming-soon" className="text-[#8b8987] hover:text-[#81b64c] transition-colors text-xs sm:text-sm lg:text-base">Puzzles</Link>
               <Link to="/tutorial" className="text-[#8b8987] hover:text-[#81b64c] transition-colors text-xs sm:text-sm lg:text-base">

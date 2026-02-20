@@ -431,8 +431,8 @@ const LobbyPage = () => {
   const tabs = [
     {
       id: 'players',
-      label: 'Players',
-      short: 'Players',
+      label: 'Online',
+      short: 'Online',
       icon: '👥',
       badge: players.length
     },

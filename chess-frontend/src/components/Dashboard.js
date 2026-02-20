@@ -422,7 +422,7 @@ const Dashboard = () => {
       <div className="dashboard-container">
         <div className="dashboard p-6 text-white">
           <header className="dashboard-header text-center mb-10">
-            <h1 className="text-4xl font-bold text-white">Welcome, {user?.username || "Player"}!</h1>
+            <h1 className="text-4xl font-bold text-white">Welcome, {user?.name || "Player"}!</h1>
 
             {/* Upgrade Banner for free-tier users */}
             {currentTier === 'free' && (

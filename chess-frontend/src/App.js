@@ -67,6 +67,8 @@ const ChampionshipMatchesEdit = createLazyComponent(() => import("./components/c
 const ChampionshipVictoryTest = createLazyComponent(() => import("./tests/ChampionshipVictoryTest"), { componentName: "ChampionshipVictoryTest" });
 const PricingPage = createLazyComponent(() => import("./pages/PricingPage"), { componentName: "PricingPage" });
 const SubscriptionManagement = createLazyComponent(() => import("./components/subscription/SubscriptionManagement"), { componentName: "SubscriptionManagement" });
+const ForgotPasswordPage = createLazyComponent(() => import("./pages/ForgotPasswordPage"), { componentName: "ForgotPasswordPage" });
+const ResetPasswordPage = createLazyComponent(() => import("./pages/ResetPasswordPage"), { componentName: "ResetPasswordPage" });
 const App = () => {
   useEffect(()=> {
     const mq = window.matchMedia("(orientation:landscape)");
@@ -113,7 +115,7 @@ const App = () => {
 // Component to add full-bleed class for landing/login pages
 const AppContent = () => {
   const location = useLocation();
-  const isFullBleed = location.pathname === '/' || location.pathname === '/login';
+  const isFullBleed = ['/', '/login', '/forgot-password', '/reset-password'].includes(location.pathname);
 
   return (
     <div className={`app-container ${isFullBleed ? 'full-bleed' : ''} flex flex-col min-h-screen`}>
@@ -123,6 +125,8 @@ const AppContent = () => {
             {/* Public routes */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/puzzles" element={<Puzzles />} />
             <Route path="/learn" element={<Learn />} />

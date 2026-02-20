@@ -4,6 +4,7 @@
 
 use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Auth\PasswordResetController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Api\GameHistoryController;
@@ -37,6 +38,11 @@ Route::group(['middleware' => 'api', 'prefix' => 'auth'], function () {
         ->name('verification.verify');
     Route::post('email/resend', [AuthController::class, 'resendVerification'])
         ->middleware('throttle:6,1');
+
+    // Password reset
+    Route::post('forgot-password', [PasswordResetController::class, 'forgotPassword'])
+        ->middleware('throttle:3,5');
+    Route::post('reset-password', [PasswordResetController::class, 'resetPassword']);
 
     // Mobile authentication routes (Android/iOS)
     Route::post('google/mobile', [AuthController::class, 'googleMobileLogin']);
