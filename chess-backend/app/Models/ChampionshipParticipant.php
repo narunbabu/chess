@@ -2,13 +2,34 @@
 
 namespace App\Models;
 
+use App\Enums\PaymentStatus as PaymentStatusEnum;
+use App\Exceptions\InvalidStateTransitionException;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Enums\PaymentStatus as PaymentStatusEnum;
+use Illuminate\Support\Facades\DB;
 
 class ChampionshipParticipant extends Model
 {
     use HasFactory;
+
+    /**
+     * State machine transition table.
+     *
+     * Maps each current status to the set of statuses it may legally move to.
+     * 'refunded' is a terminal state — no outbound transitions allowed.
+     *
+     * Valid flows:
+     *   pending   → completed  (payment confirmed)
+     *   pending   → failed     (payment failed)
+     *   completed → refunded   (refund issued)
+     *   failed    → pending    (user retries payment)
+     */
+    public const ALLOWED_TRANSITIONS = [
+        'pending'   => ['completed', 'failed'],
+        'completed' => ['refunded'],
+        'failed'    => ['pending'],
+        'refunded'  => [],  // terminal — no further transitions
+    ];
 
     protected $fillable = [
         'championship_id',
@@ -27,11 +48,11 @@ class ChampionshipParticipant extends Model
 
     protected $casts = [
         'championship_id' => 'integer',
-        'user_id' => 'integer',
+        'user_id'         => 'integer',
         'payment_status_id' => 'integer',
-        'amount_paid' => 'decimal:2',
-        'registered_at' => 'datetime',
-        'seed_number' => 'integer',
+        'amount_paid'     => 'decimal:2',
+        'registered_at'   => 'datetime',
+        'seed_number'     => 'integer',
     ];
 
     /**
@@ -41,33 +62,28 @@ class ChampionshipParticipant extends Model
         'payment_status',
     ];
 
+    // ──────────────────────────────────────────────────────────────────────────
     // Relationships
+    // ──────────────────────────────────────────────────────────────────────────
 
-    /**
-     * The championship this participant is in
-     */
     public function championship()
     {
         return $this->belongsTo(Championship::class);
     }
 
-    /**
-     * The user participating
-     */
     public function user()
     {
         return $this->belongsTo(User::class);
     }
 
-    /**
-     * Relationship to PaymentStatus lookup table
-     */
     public function paymentStatusRelation()
     {
         return $this->belongsTo(PaymentStatus::class, 'payment_status_id');
     }
 
+    // ──────────────────────────────────────────────────────────────────────────
     // Mutators & Accessors
+    // ──────────────────────────────────────────────────────────────────────────
 
     /**
      * Mutator: Convert payment status string/enum to payment_status_id FK
@@ -117,87 +133,121 @@ class ChampionshipParticipant extends Model
         }
     }
 
+    // ──────────────────────────────────────────────────────────────────────────
     // Scopes
+    // ──────────────────────────────────────────────────────────────────────────
 
-    /**
-     * Scope: Paid participants
-     */
     public function scopePaid($query)
     {
         return $query->where('payment_status_id', PaymentStatusEnum::COMPLETED->getId());
     }
 
-    /**
-     * Scope: Pending payment participants
-     */
     public function scopePending($query)
     {
         return $query->where('payment_status_id', PaymentStatusEnum::PENDING->getId());
     }
 
-    /**
-     * Scope: Failed payment participants
-     */
     public function scopeFailed($query)
     {
         return $query->where('payment_status_id', PaymentStatusEnum::FAILED->getId());
     }
 
-    // Helper Methods
+    // ──────────────────────────────────────────────────────────────────────────
+    // State Machine
+    // ──────────────────────────────────────────────────────────────────────────
 
     /**
-     * Get payment status as enum
+     * Transition to a new payment status, enforcing the state machine rules.
+     *
+     * Uses SELECT FOR UPDATE inside a DB transaction so that concurrent webhook
+     * deliveries or duplicate requests cannot produce inconsistent states.
+     *
+     * @throws InvalidStateTransitionException when the transition is not allowed.
      */
+    public function transitionTo(PaymentStatusEnum $newStatus): void
+    {
+        DB::transaction(function () use ($newStatus) {
+            /** @var static $fresh */
+            $fresh = static::lockForUpdate()->findOrFail($this->id);
+
+            $current = $fresh->payment_status;
+            $allowed = self::ALLOWED_TRANSITIONS[$current] ?? [];
+
+            if (!in_array($newStatus->value, $allowed, true)) {
+                throw new InvalidStateTransitionException($current, $newStatus->value);
+            }
+
+            $fresh->update(['payment_status' => $newStatus->value]);
+        });
+
+        $this->refresh();
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Helper Methods
+    // ──────────────────────────────────────────────────────────────────────────
+
     public function getPaymentStatusEnum(): PaymentStatusEnum
     {
         return PaymentStatusEnum::from($this->payment_status);
     }
 
-    /**
-     * Check if payment is completed
-     */
     public function isPaid(): bool
     {
         return $this->getPaymentStatusEnum()->isSuccessful();
     }
 
-    /**
-     * Check if payment is pending
-     */
     public function isPending(): bool
     {
         return $this->payment_status === 'pending';
     }
 
     /**
-     * Mark payment as completed
+     * Mark payment as completed.
+     * Updates Razorpay IDs atomically within the same locked transaction.
+     *
+     * @throws InvalidStateTransitionException if not in a state that allows completion.
      */
     public function markAsPaid(string $razorpayPaymentId, string $razorpaySignature): void
     {
-        $this->update([
-            'razorpay_payment_id' => $razorpayPaymentId,
-            'razorpay_signature' => $razorpaySignature,
-            'payment_status' => PaymentStatusEnum::COMPLETED->value,
-        ]);
+        DB::transaction(function () use ($razorpayPaymentId, $razorpaySignature) {
+            /** @var static $fresh */
+            $fresh = static::lockForUpdate()->findOrFail($this->id);
+
+            $current = $fresh->payment_status;
+            $allowed = self::ALLOWED_TRANSITIONS[$current] ?? [];
+
+            if (!in_array(PaymentStatusEnum::COMPLETED->value, $allowed, true)) {
+                throw new InvalidStateTransitionException($current, PaymentStatusEnum::COMPLETED->value);
+            }
+
+            $fresh->update([
+                'razorpay_payment_id' => $razorpayPaymentId,
+                'razorpay_signature'  => $razorpaySignature,
+                'payment_status'      => PaymentStatusEnum::COMPLETED->value,
+            ]);
+        });
+
+        $this->refresh();
     }
 
     /**
-     * Mark payment as failed
+     * Mark payment as failed.
+     *
+     * @throws InvalidStateTransitionException if not in a state that allows failure.
      */
     public function markAsFailed(): void
     {
-        $this->update([
-            'payment_status' => PaymentStatusEnum::FAILED->value,
-        ]);
+        $this->transitionTo(PaymentStatusEnum::FAILED);
     }
 
     /**
-     * Mark payment as refunded
+     * Mark payment as refunded.
+     *
+     * @throws InvalidStateTransitionException if not in a state that allows refund.
      */
     public function markAsRefunded(): void
     {
-        $this->update([
-            'payment_status' => PaymentStatusEnum::REFUNDED->value,
-        ]);
+        $this->transitionTo(PaymentStatusEnum::REFUNDED);
     }
 }

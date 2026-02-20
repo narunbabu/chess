@@ -1143,7 +1143,17 @@ class ChampionshipController extends Controller
 
             $championship = Championship::findOrFail($id);
 
-            // Validate registration eligibility
+            // Duplicate-registration check must return 409 Conflict,
+            // separate from other 422 eligibility failures.
+            if ($championship->isUserRegistered($user->id)) {
+                return response()->json([
+                    'error'   => 'Already Registered',
+                    'message' => 'You are already registered for this championship. Check your "My Matches" for details.',
+                    'code'    => 'ALREADY_REGISTERED',
+                ], 409);
+            }
+
+            // Validate remaining registration eligibility
             if (!$championship->canRegister($user->id)) {
                 $reasons = [];
 
@@ -1155,16 +1165,12 @@ class ChampionshipController extends Controller
                     $reasons[] = 'Championship is full';
                 }
 
-                if ($championship->isUserRegistered($user->id)) {
-                    $reasons[] = 'You are already registered for this championship';
-                }
-
                 if (!$championship->allow_public_registration && $championship->visibility !== 'public') {
                     $reasons[] = 'This championship does not allow public registration';
                 }
 
                 return response()->json([
-                    'error' => 'Registration not allowed',
+                    'error'   => 'Registration not allowed',
                     'message' => implode('. ', $reasons),
                 ], 422);
             }
@@ -1176,9 +1182,9 @@ class ChampionshipController extends Controller
 
             if ($championship->entry_fee > 0 && !$isAdmin) {
                 return response()->json([
-                    'error' => 'Payment required',
-                    'message' => 'This championship requires an entry fee. Please use the payment registration endpoint.',
-                    'entry_fee' => $championship->entry_fee,
+                    'error'      => 'Payment required',
+                    'message'    => 'This championship requires an entry fee. Please use the payment registration endpoint.',
+                    'entry_fee'  => $championship->entry_fee,
                 ], 422);
             }
 
@@ -1284,7 +1290,16 @@ class ChampionshipController extends Controller
 
             $championship = Championship::findOrFail($id);
 
-            // Validate registration eligibility
+            // Duplicate-registration check must return 409 Conflict.
+            if ($championship->isUserRegistered($user->id)) {
+                return response()->json([
+                    'error'   => 'Already Registered',
+                    'message' => 'You are already registered for this championship. Check your "My Matches" for details.',
+                    'code'    => 'ALREADY_REGISTERED',
+                ], 409);
+            }
+
+            // Validate remaining registration eligibility
             if (!$championship->canRegister($user->id)) {
                 $reasons = [];
 
@@ -1296,16 +1311,12 @@ class ChampionshipController extends Controller
                     $reasons[] = 'Championship is full';
                 }
 
-                if ($championship->isUserRegistered($user->id)) {
-                    $reasons[] = 'You are already registered for this championship';
-                }
-
                 if (!$championship->allow_public_registration && $championship->visibility !== 'public') {
                     $reasons[] = 'This championship does not allow public registration';
                 }
 
                 return response()->json([
-                    'error' => 'Registration not allowed',
+                    'error'   => 'Registration not allowed',
                     'message' => implode('. ', $reasons),
                 ], 422);
             }
@@ -1336,13 +1347,34 @@ class ChampionshipController extends Controller
                 ]);
             });
 
-            // Use RazorpayService to create payment order
+            // Create Razorpay payment order.
+            // If this external call fails after the participant row was committed,
+            // we must delete the PENDING row so the user can retry cleanly.
             $razorpayService = app(\App\Services\RazorpayService::class);
-            $orderDetails = $razorpayService->createOrder(
-                $championship->entry_fee,
-                $championship->id,
-                $user->id
-            );
+            try {
+                $orderDetails = $razorpayService->createOrder(
+                    $championship->entry_fee,
+                    $championship->id,
+                    $user->id
+                );
+            } catch (\Exception $razorpayEx) {
+                // Roll back the PENDING participant — user will not be stuck in limbo.
+                DB::transaction(function () use ($participant) {
+                    $participant->delete();
+                });
+
+                Log::error('Razorpay order creation failed; PENDING participant removed', [
+                    'championship_id' => $championship->id,
+                    'user_id'         => $user->id,
+                    'participant_id'  => $participant->id,
+                    'error'           => $razorpayEx->getMessage(),
+                ]);
+
+                return response()->json([
+                    'error'   => 'Payment initiation failed',
+                    'message' => 'Could not create a payment order. Please try again in a moment.',
+                ], 502);
+            }
 
             // Update participant with order ID
             $participant->update([
