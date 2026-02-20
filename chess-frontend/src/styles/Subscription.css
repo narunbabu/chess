@@ -5,9 +5,11 @@
 
 /* ── Pricing Page ── */
 .pricing-page {
+  width: 100%;            /* fill the flex container (.main-content display:flex) */
   max-width: 1200px;
   margin: 0 auto;
   padding: 2rem 1rem 4rem;
+  box-sizing: border-box;
 }
 
 .pricing-page__header {

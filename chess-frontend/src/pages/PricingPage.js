@@ -33,6 +33,7 @@ const PricingPage = () => {
   const [billingInterval, setBillingInterval] = useState('monthly');
   const [checkoutPlanId, setCheckoutPlanId] = useState(null);
   const [fallbackRetrying, setFallbackRetrying] = useState(false);
+  const [checkoutError, setCheckoutError] = useState(null);
   // Stores { tier, interval } when user clicks Subscribe on a fallback plan (id: null).
   // Cleared once real plan IDs load and checkout is triggered automatically.
   const [pendingIntent, setPendingIntent] = useState(null);
@@ -70,6 +71,7 @@ const PricingPage = () => {
   }, [effectivePlans]);
 
   const handleSubscribe = async (planId, tier, planInterval) => {
+    setCheckoutError(null);
     if (!isAuthenticated) {
       // Save the plan they clicked so we can resume checkout after login
       if (planId) {
@@ -105,6 +107,20 @@ const PricingPage = () => {
       setCheckoutPlanId(match.id);
     }
   }, [pendingIntent, hasApiPlans, normalizedPlans]);
+
+  // Detect when a fallback-plan checkout attempt fails because plans are still unavailable.
+  // Fires after fetchPlans() resolves with no plan data and fallbackRetrying has cleared.
+  React.useEffect(() => {
+    if (!pendingIntent) return;
+    if (fallbackRetrying || plansLoading) return; // still in-flight
+    if (hasApiPlans) return;                       // success case handled by the other effect
+    // Plans fetched but still empty — show a helpful error
+    setCheckoutError(
+      'Subscription plans are temporarily unavailable. ' +
+      'Please refresh the page or contact support@chess99.com to upgrade.'
+    );
+    setPendingIntent(null);
+  }, [pendingIntent, fallbackRetrying, plansLoading, hasApiPlans]);
 
   // Resume checkout after login redirect — check for pending plan (by ID or by tier+interval)
   React.useEffect(() => {
@@ -174,6 +190,16 @@ const PricingPage = () => {
           </p>
           <button className="pricing-page__retry-btn" onClick={fetchPlans}>
             Refresh Plans
+          </button>
+        </div>
+      )}
+
+      {/* Checkout error — shown when subscribe attempt fails (e.g., plans unavailable in DB) */}
+      {checkoutError && (
+        <div className="pricing-page__status" style={{ background: 'rgba(231,76,60,0.1)', border: '1px solid var(--danger)', borderRadius: 8, padding: '0.75rem 1rem', marginBottom: '1rem' }}>
+          <p style={{ color: 'var(--danger)', fontSize: '0.9rem', margin: 0 }}>{checkoutError}</p>
+          <button className="pricing-page__retry-btn" style={{ marginTop: '0.5rem', borderColor: 'var(--danger)', color: 'var(--danger)' }} onClick={() => setCheckoutError(null)}>
+            Dismiss
           </button>
         </div>
       )}
