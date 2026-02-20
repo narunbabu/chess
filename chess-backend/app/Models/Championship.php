@@ -13,6 +13,9 @@ class Championship extends Model
 {
     use HasFactory, SoftDeletes;
 
+    /** Platform commission on entry fees (10%) — retained for operations & prize fund */
+    const PLATFORM_COMMISSION_RATE = 0.10;
+
     protected $fillable = [
         'title',
         'name',                   // Alias for title (mutator converts to title)
@@ -131,6 +134,7 @@ class Championship extends Model
         'registration_end_at',    // Alias for registration_deadline
         'starts_at',              // Alias for start_date
         'time_control',           // Time control object for frontend compatibility
+        'prize_pool',             // Computed: sum of entry fees collected minus platform commission
     ];
 
     // Relationships
@@ -465,6 +469,19 @@ class Championship extends Model
             'minutes' => $this->time_control_minutes ?? 10,
             'increment' => $this->time_control_increment ?? 0,
         ];
+    }
+
+    /**
+     * Accessor: Compute current prize pool from collected entry fees minus platform commission.
+     * Prize pool = total amount_paid by COMPLETED participants × (1 - PLATFORM_COMMISSION_RATE)
+     */
+    public function getPrizePoolAttribute(): float
+    {
+        $totalCollected = $this->participants()
+            ->paid()
+            ->sum('amount_paid');
+
+        return round((float) $totalCollected * (1 - self::PLATFORM_COMMISSION_RATE), 2);
     }
 
     /**

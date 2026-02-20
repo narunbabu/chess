@@ -217,6 +217,18 @@ export const ChampionshipProvider = ({ children }) => {
     }
   }, []);
 
+  // Initiate entry-fee payment for a championship registration
+  const initiateChampionshipPayment = useCallback(async (id) => {
+    const response = await api.post(`/championships/${id}/payment/initiate`);
+    return response.data;
+  }, []);
+
+  // Confirm payment with Razorpay callback details
+  const handleChampionshipPaymentCallback = useCallback(async (paymentData) => {
+    const response = await api.post('/championships/payment/callback', paymentData);
+    return response.data;
+  }, []);
+
   // Fetch championship participants
   const fetchParticipants = useCallback(async (id) => {
     if (!id) return null; // defensive guard
@@ -440,6 +452,8 @@ export const ChampionshipProvider = ({ children }) => {
       restoreChampionship,
       forceDeleteChampionship,
       registerForChampionship,
+      initiateChampionshipPayment,
+      handleChampionshipPaymentCallback,
       fetchParticipants,
       fetchStandings,
       fetchMatches,

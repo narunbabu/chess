@@ -27,6 +27,8 @@ const ChampionshipDetails = () => {
     fetchParticipants,
     fetchStandings,
     registerForChampionship,
+    initiateChampionshipPayment,
+    handleChampionshipPaymentCallback,
     startChampionship,
     pauseChampionship,
     completeChampionship,
@@ -133,20 +135,109 @@ const ChampionshipDetails = () => {
     }
 
     setRegistering(true);
-    try {
-      await registerForChampionship(id);
-      await fetchChampionship(id);
-      await fetchParticipants(id);
-    } catch (error) {
-      console.error('Registration failed:', error);
 
-      // Check if user is already registered
-      if (error.response?.status === 409 && error.response?.data?.error?.code === 'ALREADY_REGISTERED') {
-        // Refresh the championship data to show correct registration status
+    const entryFee = parseFloat(activeChampionship.entry_fee) || 0;
+
+    if (entryFee <= 0) {
+      // Free championship — use the simple registration flow
+      try {
+        await registerForChampionship(id);
         await fetchChampionship(id);
         await fetchParticipants(id);
+      } catch (error) {
+        console.error('Registration failed:', error);
+        if (error.response?.status === 409 && error.response?.data?.error?.code === 'ALREADY_REGISTERED') {
+          await fetchChampionship(id);
+          await fetchParticipants(id);
+        }
+      } finally {
+        setRegistering(false);
       }
-    } finally {
+      return;
+    }
+
+    // Paid championship — initiate Razorpay payment
+    try {
+      const paymentData = await initiateChampionshipPayment(id);
+
+      if (!paymentData.payment_required) {
+        // Backend treated it as free (edge case)
+        await fetchChampionship(id);
+        await fetchParticipants(id);
+        setRegistering(false);
+        return;
+      }
+
+      // Mock/test mode: auto-confirm payment without opening Razorpay modal
+      if (paymentData.order_details?.mock_mode) {
+        await handleChampionshipPaymentCallback({
+          razorpay_payment_id: 'pay_mock_' + Date.now(),
+          razorpay_order_id: paymentData.order_details.order_id,
+          razorpay_signature: 'mock_sig_' + Date.now(),
+        });
+        await fetchChampionship(id);
+        await fetchParticipants(id);
+        setRegistering(false);
+        return;
+      }
+
+      // Real Razorpay checkout — load SDK then open modal
+      // setRegistering(false) is handled inside handler/ondismiss to keep the
+      // spinner active until the async Razorpay flow completes.
+      const openRazorpayModal = () => {
+        const options = {
+          key: paymentData.order_details.key_id,
+          amount: paymentData.order_details.amount,
+          currency: paymentData.order_details.currency || 'INR',
+          name: 'Chess99',
+          description: `Entry Fee — ${paymentData.championship?.title || activeChampionship.name}`,
+          order_id: paymentData.order_details.order_id,
+          handler: async (response) => {
+            try {
+              setRegistering(true);
+              await handleChampionshipPaymentCallback({
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_signature: response.razorpay_signature,
+              });
+              await fetchChampionship(id);
+              await fetchParticipants(id);
+            } catch (err) {
+              console.error('Payment callback failed:', err);
+            } finally {
+              setRegistering(false);
+            }
+          },
+          modal: { ondismiss: () => setRegistering(false) },
+          prefill: { name: user?.name || '', email: user?.email || '' },
+          theme: { color: '#81b64c' },
+        };
+        const rzp = new window.Razorpay(options);
+        rzp.open();
+      };
+
+      if (window.Razorpay) {
+        openRazorpayModal();
+        return;
+      }
+
+      const existing = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
+      if (existing) {
+        existing.addEventListener('load', openRazorpayModal, { once: true });
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.async = true;
+      script.onload = openRazorpayModal;
+      script.onerror = () => {
+        console.error('Failed to load Razorpay SDK');
+        setRegistering(false);
+      };
+      document.body.appendChild(script);
+    } catch (error) {
+      console.error('Payment initiation failed:', error);
       setRegistering(false);
     }
   };
@@ -354,6 +445,28 @@ const ChampionshipDetails = () => {
           </div>
         </div>
 
+        {parseFloat(activeChampionship.entry_fee) > 0 && (
+          <div className="overview-section">
+            <h3>💰 Entry Fee & Prize Pool</h3>
+            <div className="format-details">
+              <div className="detail-item">
+                <span className="detail-label">Entry Fee:</span>
+                <span className="detail-value">₹{parseFloat(activeChampionship.entry_fee).toFixed(2)}</span>
+              </div>
+              <div className="detail-item">
+                <span className="detail-label">Current Prize Pool:</span>
+                <span className="detail-value" style={{ color: '#81b64c', fontWeight: '600' }}>
+                  ₹{parseFloat(activeChampionship.prize_pool || 0).toFixed(2)}
+                </span>
+              </div>
+              <div className="detail-item">
+                <span className="detail-label">Platform Commission:</span>
+                <span className="detail-value" style={{ color: '#8b8987', fontSize: '0.9em' }}>10% retained for operations</span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {activeChampionship.prizes && activeChampionship.prizes.length > 0 && (
           <div className="overview-section">
             <h3>🎁 Prizes</h3>
@@ -491,7 +604,13 @@ const ChampionshipDetails = () => {
               className="btn btn-success"
             >
               <span className="btn-icon">📝</span>
-              <span className="btn-text">{registering ? 'Registering...' : 'Register'}</span>
+              <span className="btn-text">
+                {registering
+                  ? 'Registering...'
+                  : parseFloat(activeChampionship.entry_fee) > 0
+                    ? `Register (₹${parseFloat(activeChampionship.entry_fee).toFixed(2)})`
+                    : 'Register'}
+              </span>
             </button>
           )}
 
