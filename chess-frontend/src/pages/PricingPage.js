@@ -194,7 +194,7 @@ const PricingPage = () => {
             plan={data}
             interval={data.tier === 'free' ? 'lifetime' : billingInterval}
             isCurrentPlan={currentTier === data.tier}
-            isPopular={data.tier === 'standard'}
+            isPopular={data.tier === 'silver'}
             onSubscribe={handleSubscribe}
             loading={loading || fallbackRetrying}
           />
@@ -210,8 +210,8 @@ const PricingPage = () => {
               <tr>
                 <th>Feature</th>
                 <th>Free</th>
-                <th className="pricing-page__table-highlight">Standard</th>
-                <th>Premium</th>
+                <th className="pricing-page__table-highlight">Silver</th>
+                <th>Gold</th>
               </tr>
             </thead>
             <tbody>

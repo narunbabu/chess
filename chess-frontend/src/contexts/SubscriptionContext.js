@@ -125,11 +125,14 @@ export const SubscriptionProvider = ({ children }) => {
   }, [currentSubscription, user]);
 
   const isStandard = useMemo(() => {
-    return currentTier === 'standard' || currentTier === 'premium';
+    // 'silver' is current name; 'standard' kept for backward-compat
+    return currentTier === 'silver' || currentTier === 'gold'
+        || currentTier === 'standard' || currentTier === 'premium';
   }, [currentTier]);
 
   const isPremium = useMemo(() => {
-    return currentTier === 'premium';
+    // 'gold' is current name; 'premium' kept for backward-compat
+    return currentTier === 'gold' || currentTier === 'premium';
   }, [currentTier]);
 
   const value = useMemo(() => ({

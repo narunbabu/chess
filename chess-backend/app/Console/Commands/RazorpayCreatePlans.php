@@ -60,7 +60,7 @@ class RazorpayCreatePlans extends Command
 
         // Summary table of all plans
         $plans = SubscriptionPlan::orderByRaw("CASE tier WHEN 'free' THEN 0 WHEN 'silver' THEN 1 WHEN 'gold' THEN 2 ELSE 3 END")
-            ->orderByRaw("CASE interval WHEN 'lifetime' THEN 0 WHEN 'monthly' THEN 1 WHEN 'yearly' THEN 2 ELSE 3 END")
+            ->orderByRaw("CASE `interval` WHEN 'lifetime' THEN 0 WHEN 'monthly' THEN 1 WHEN 'yearly' THEN 2 ELSE 3 END")
             ->get();
 
         if ($plans->isEmpty()) {

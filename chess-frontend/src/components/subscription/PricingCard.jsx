@@ -1,9 +1,12 @@
 import React from 'react';
 
 const tierColors = {
-  free: { badge: '#8b8987', border: '#4a4744', gradient: 'linear-gradient(135deg, #3d3a37, #312e2b)' },
+  free:     { badge: '#8b8987', border: '#4a4744', gradient: 'linear-gradient(135deg, #3d3a37, #312e2b)' },
+  silver:   { badge: '#e8a93e', border: '#e8a93e', gradient: 'linear-gradient(135deg, #4a3a1a, #312e2b)' },
+  gold:     { badge: '#a855f7', border: '#a855f7', gradient: 'linear-gradient(135deg, #2d1a4a, #312e2b)' },
+  // Legacy aliases kept for backward-compat
   standard: { badge: '#e8a93e', border: '#e8a93e', gradient: 'linear-gradient(135deg, #4a3a1a, #312e2b)' },
-  premium: { badge: '#a855f7', border: '#a855f7', gradient: 'linear-gradient(135deg, #2d1a4a, #312e2b)' },
+  premium:  { badge: '#a855f7', border: '#a855f7', gradient: 'linear-gradient(135deg, #2d1a4a, #312e2b)' },
 };
 
 const PricingCard = ({ plan, isCurrentPlan, isPopular, onSubscribe, loading, interval }) => {
