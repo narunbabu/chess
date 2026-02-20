@@ -427,12 +427,20 @@ class GameController extends Controller
         });
 
         // Filter by status if provided
+        // NOTE: games.status does not exist as a DB column — status is stored as status_id
+        // (FK to game_statuses). Use whereHas on the statusRelation instead of whereIn('status').
         if ($request->has('status')) {
             $status = $request->get('status');
             if ($status === 'finished') {
-                $query->whereIn('status', ['finished', 'white_wins', 'black_wins', 'draw', 'timeout']);
+                // 'finished' captures all terminal games (checkmate, resign, draw, timeout, etc.)
+                // 'aborted' covers killed/abandoned games
+                $query->whereHas('statusRelation', function ($q) {
+                    $q->whereIn('code', ['finished', 'aborted']);
+                });
             } else {
-                $query->where('status', $status);
+                $query->whereHas('statusRelation', function ($q) use ($status) {
+                    $q->where('code', $status);
+                });
             }
         }
 
