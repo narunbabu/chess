@@ -26,8 +26,10 @@
   border-radius: 16px;
   color: #ffffff;
   box-shadow: 0 4px 30px rgba(0,0,0,0.4);
-  overflow-y: auto;
-  overflow-x: visible;         /* keep visible, children constrained instead */
+  /* overflow: visible — container is height:auto so no scroll needed;
+     removing overflow-y:auto prevents the Safari stacking-context bug
+     where backdrop-filter + overflow:auto can swallow child z-index */
+  overflow: visible;
   box-sizing: border-box;
   height: auto;
   display: flex;

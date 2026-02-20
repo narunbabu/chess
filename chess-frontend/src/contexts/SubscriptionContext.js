@@ -34,11 +34,14 @@ export const SubscriptionProvider = ({ children }) => {
     try {
       setPlansLoading(true);
       setPlansError(null);
-      const response = await api.get('/subscriptions/plans');
+      const response = await api.get('/subscriptions/plans', { timeout: 8000 });
       setPlans(response.data.plans || {});
     } catch (err) {
       console.error('[Subscription] Failed to fetch plans:', err);
-      setPlansError('Unable to load subscription plans. Please try again.');
+      // Don't set an error for timeouts — fallback plans will render automatically
+      if (err.code !== 'ECONNABORTED') {
+        setPlansError('Unable to load subscription plans. Please try again.');
+      }
     } finally {
       setPlansLoading(false);
     }

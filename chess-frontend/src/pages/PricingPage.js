@@ -32,6 +32,7 @@ const PricingPage = () => {
   const { plans, plansLoading, plansError, currentTier, loading, fetchPlans, fetchCurrentSubscription } = useSubscription();
   const [interval, setInterval] = useState('monthly');
   const [checkoutPlanId, setCheckoutPlanId] = useState(null);
+  const [fallbackRetrying, setFallbackRetrying] = useState(false);
 
   // Normalize API plans: backend groupBy may return objects instead of arrays
   // when collection keys are non-sequential (e.g. {1: {...}, 2: {...}})
@@ -65,7 +66,7 @@ const PricingPage = () => {
     }).filter(Boolean);
   }, [effectivePlans]);
 
-  const handleSubscribe = (planId) => {
+  const handleSubscribe = async (planId) => {
     if (!isAuthenticated) {
       // Save the plan they clicked so we can resume checkout after login
       if (planId) {
@@ -75,8 +76,10 @@ const PricingPage = () => {
       return;
     }
     if (!planId) {
-      // Fallback plan clicked — try refreshing live plans first
-      fetchPlans();
+      // Fallback plan — fetch live plans so the real plan IDs are available for checkout
+      setFallbackRetrying(true);
+      await fetchPlans();
+      setFallbackRetrying(false);
       return;
     }
     setCheckoutPlanId(planId);
@@ -139,26 +142,27 @@ const PricingPage = () => {
         </div>
       )}
 
-      {/* Plan Cards — always render (using API data or fallback) */}
+      {/* Loading indicator — shown as a banner above cards, never hides the cards */}
+      {plansLoading && (
+        <div className="pricing-page__status" style={{ padding: '0.5rem 1rem', marginBottom: '1rem' }}>
+          <div className="pricing-page__spinner" style={{ width: 24, height: 24, borderWidth: 2 }} />
+          <p style={{ fontSize: '0.85rem' }}>Fetching current pricing...</p>
+        </div>
+      )}
+
+      {/* Plan Cards — always render immediately using API data or fallback */}
       <div className="pricing-page__cards">
-        {plansLoading ? (
-          <div className="pricing-page__status">
-            <div className="pricing-page__spinner" />
-            <p>Loading plans...</p>
-          </div>
-        ) : (
-          tierData.map((data) => (
-            <PricingCard
-              key={data.tier}
-              plan={data}
-              interval={data.tier === 'free' ? 'lifetime' : interval}
-              isCurrentPlan={currentTier === data.tier}
-              isPopular={data.tier === 'standard'}
-              onSubscribe={handleSubscribe}
-              loading={loading}
-            />
-          ))
-        )}
+        {tierData.map((data) => (
+          <PricingCard
+            key={data.tier}
+            plan={data}
+            interval={data.tier === 'free' ? 'lifetime' : interval}
+            isCurrentPlan={currentTier === data.tier}
+            isPopular={data.tier === 'standard'}
+            onSubscribe={handleSubscribe}
+            loading={loading || fallbackRetrying}
+          />
+        ))}
       </div>
 
       {/* Feature Comparison */}
