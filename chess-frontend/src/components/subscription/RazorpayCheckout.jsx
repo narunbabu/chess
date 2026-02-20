@@ -1,13 +1,54 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSubscription } from '../../contexts/SubscriptionContext';
 import { useAuth } from '../../contexts/AuthContext';
+import api from '../../services/api';
+
+const POLL_INTERVAL_MS = 3000;
+const POLL_MAX_ATTEMPTS = 20; // 20 × 3s = 60s max
 
 const RazorpayCheckout = ({ planId, onSuccess, onClose }) => {
   const { checkout } = useSubscription();
   const { user } = useAuth();
-  const [step, setStep] = useState('init'); // init | processing | success | error
+  const [step, setStep] = useState('init'); // init | processing | activating | success | error
   const [error, setError] = useState(null);
   const [checkoutData, setCheckoutData] = useState(null);
+  const pollTimerRef = useRef(null);
+
+  // Cancel any in-flight poll on unmount
+  useEffect(() => {
+    return () => { if (pollTimerRef.current) clearTimeout(pollTimerRef.current); };
+  }, []);
+
+  // Poll /subscriptions/current until tier leaves 'free' (webhook has fired)
+  // or until the timeout expires (show success anyway — webhook will activate eventually).
+  const pollForActivation = useCallback(() => {
+    setStep('activating');
+    let attempts = 0;
+
+    const poll = async () => {
+      attempts++;
+      try {
+        const response = await api.get('/subscriptions/current');
+        if (response.data?.tier && response.data.tier !== 'free') {
+          setStep('success');
+          return;
+        }
+      } catch {
+        // Network error — keep polling
+      }
+
+      if (attempts < POLL_MAX_ATTEMPTS) {
+        pollTimerRef.current = setTimeout(poll, POLL_INTERVAL_MS);
+      } else {
+        // Timed out waiting for webhook — show success so the user isn't stuck.
+        // Their subscription will appear on next page load once the webhook lands.
+        setStep('success');
+      }
+    };
+
+    // 2s initial delay to give the webhook a head start
+    pollTimerRef.current = setTimeout(poll, 2000);
+  }, []);
 
   const initiateCheckout = useCallback(async () => {
     try {
@@ -77,8 +118,8 @@ const RazorpayCheckout = ({ planId, onSuccess, onClose }) => {
         name: prefill.name || user?.name || '',
         email: prefill.email || user?.email || '',
       },
-      handler: (response) => {
-        setStep('success');
+      handler: () => {
+        pollForActivation();
       },
       modal: {
         ondismiss: () => {
@@ -107,7 +148,7 @@ const RazorpayCheckout = ({ planId, onSuccess, onClose }) => {
   }, [step, onSuccess, checkoutData]);
 
   return (
-    <div className="razorpay-checkout-overlay" onClick={(e) => e.target === e.currentTarget && step !== 'processing' && onClose()}>
+    <div className="razorpay-checkout-overlay" onClick={(e) => e.target === e.currentTarget && step !== 'processing' && step !== 'activating' && onClose()}>
       <div className="razorpay-checkout-modal">
         {step === 'init' && (
           <div className="razorpay-checkout__step">
@@ -123,6 +164,14 @@ const RazorpayCheckout = ({ planId, onSuccess, onClose }) => {
             {checkoutData?.mock_mode && (
               <p className="razorpay-checkout__note">Test mode — payment will be simulated</p>
             )}
+          </div>
+        )}
+
+        {step === 'activating' && (
+          <div className="razorpay-checkout__step">
+            <div className="razorpay-checkout__spinner" />
+            <h3>Activating Subscription</h3>
+            <p>Confirming your payment, please wait...</p>
           </div>
         )}
 
