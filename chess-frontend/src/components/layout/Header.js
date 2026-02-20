@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSubscription } from '../../contexts/SubscriptionContext';
 import { useActiveGame } from '../../hooks/useActiveGame';
 import { useGameNavigation } from '../../contexts/GameNavigationContext';
 import { trackAuth, trackNavigation } from '../../utils/analytics';
@@ -22,6 +23,7 @@ const Header = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { isAuthenticated, logout, user } = useAuth();
+  const { currentTier } = useSubscription();
   const { activeGame, loading } = useActiveGame();
   const { navigateWithGuard } = useGameNavigation();
   const [showNavPanel, setShowNavPanel] = useState(false);
@@ -417,8 +419,45 @@ const Header = () => {
 
         {isAuthenticated ? (
           <div className="user-compact" ref={userMenuRef}>
+            {currentTier === 'free' && (
+              <Link
+                to="/pricing"
+                onClick={() => { setShowNavPanel(false); trackNavigation('pricing', 'header'); }}
+                style={{
+                  marginRight: '6px',
+                  padding: '3px 10px',
+                  borderRadius: '20px',
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  background: 'linear-gradient(135deg, #81b64c, #a3d160)',
+                  color: '#fff',
+                  textDecoration: 'none',
+                  whiteSpace: 'nowrap',
+                  letterSpacing: '0.02em',
+                }}
+              >
+                ⬆ Upgrade
+              </Link>
+            )}
             <div className="user-name">
               <span>{user?.name}</span>
+              {currentTier && (
+                <span style={{
+                  marginLeft: '6px',
+                  padding: '1px 7px',
+                  borderRadius: '10px',
+                  fontSize: '10px',
+                  fontWeight: '700',
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
+                  background: currentTier === 'premium' ? 'linear-gradient(135deg, #e8a93e, #f0c060)' :
+                               currentTier === 'standard' ? 'linear-gradient(135deg, #81b64c, #a3d160)' :
+                               'rgba(100,96,92,0.5)',
+                  color: currentTier === 'free' ? '#bababa' : '#1a1a18',
+                }}>
+                  {currentTier}
+                </span>
+              )}
             </div>
             <div className="user-avatar" onClick={handleUserMenuClick} title="User Menu" aria-label="User Menu">
               <img
@@ -543,6 +582,12 @@ const Header = () => {
 
               <div className="nav-section">
                 <h4>Account</h4>
+                <button
+                  className="nav-item"
+                  onClick={() => handleNavItemClick(() => navigate('/pricing'), '/pricing')}
+                >
+                  💰 Pricing & Plans
+                </button>
                 <button
                   className="nav-item"
                   onClick={() => handleNavItemClick(() => navigate('/profile'), '/profile')}

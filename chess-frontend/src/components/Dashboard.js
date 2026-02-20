@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { useSubscription } from "../contexts/SubscriptionContext";
 import { useAppData } from "../contexts/AppDataContext";
 import { getGameHistories } from "../services/gameHistoryService";
 import api from "../services/api";
@@ -43,6 +44,7 @@ const Dashboard = () => {
   const [visibleActiveGames, setVisibleActiveGames] = useState(3);
   const [visibleRecentGames, setVisibleRecentGames] = useState(3);
   const { user } = useAuth();
+  const { currentTier } = useSubscription();
   const { getGameHistory } = useAppData();
   const navigate = useNavigate();
 
@@ -421,6 +423,44 @@ const Dashboard = () => {
         <div className="dashboard p-6 text-white">
           <header className="dashboard-header text-center mb-10">
             <h1 className="text-4xl font-bold text-white">Welcome, {user?.username || "Player"}!</h1>
+
+            {/* Upgrade Banner for free-tier users */}
+            {currentTier === 'free' && (
+              <div style={{
+                margin: '16px auto 0',
+                maxWidth: '640px',
+                padding: '12px 20px',
+                borderRadius: '10px',
+                background: 'linear-gradient(135deg, rgba(129,182,76,0.12), rgba(129,182,76,0.06))',
+                border: '1px solid rgba(129,182,76,0.35)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px',
+                flexWrap: 'wrap',
+              }}>
+                <p style={{ margin: 0, color: '#bababa', fontSize: '14px', textAlign: 'left' }}>
+                  You're on the <strong style={{ color: '#e5e7eb' }}>Free plan</strong>.
+                  Upgrade to <strong style={{ color: '#81b64c' }}>Standard ₹99/mo</strong> for unlimited games, tournaments & premium features.
+                </p>
+                <button
+                  onClick={() => navigate('/pricing')}
+                  style={{
+                    flexShrink: 0,
+                    padding: '6px 18px',
+                    borderRadius: '20px',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #81b64c, #a3d160)',
+                    color: '#fff',
+                    fontWeight: '700',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Upgrade Now
+                </button>
+              </div>
+            )}
 
             {/* Skill Assessment Prompt */}
             {shouldShowRatingPrompt && (

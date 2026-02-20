@@ -22,6 +22,7 @@ const LandingPage = () => {
   const { isAuthenticated, loading } = useAuth();
   const [showAuthGate, setShowAuthGate] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [pricingInterval, setPricingInterval] = useState('monthly');
   const navigate = useNavigate();
 
   // Chess animation state
@@ -117,6 +118,12 @@ const LandingPage = () => {
             >
               Play
             </button>
+            <button
+              onClick={() => { const el = document.getElementById('pricing'); el && el.scrollIntoView({ behavior: 'smooth' }); }}
+              className="text-[#bababa] bg-transparent border-0 px-3 py-1.5 text-sm font-medium hover:text-white transition-colors"
+            >
+              Pricing
+            </button>
             {!isAuthenticated && (
               <>
                 <button
@@ -189,6 +196,12 @@ const LandingPage = () => {
                 className="text-left px-4 py-2.5 text-sm font-medium text-[#bababa] bg-transparent border-0 hover:text-white hover:bg-[#312e2b] rounded transition-colors"
               >
                 Tournaments
+              </button>
+              <button
+                onClick={() => { const el = document.getElementById('pricing'); if (el) { el.scrollIntoView({ behavior: 'smooth' }); setShowMobileMenu(false); } else { navigate('/pricing'); setShowMobileMenu(false); } }}
+                className="text-left px-4 py-2.5 text-sm font-medium text-[#bababa] bg-transparent border-0 hover:text-white hover:bg-[#312e2b] rounded transition-colors"
+              >
+                Pricing
               </button>
             </nav>
           </div>
@@ -314,6 +327,116 @@ const LandingPage = () => {
                 <h3 className="text-white font-semibold text-base mb-1">Compete</h3>
                 <p className="text-[#8b8987] text-sm">Tournaments & Rankings</p>
               </button>
+            </div>
+          </div>
+        </section>
+        {/* Pricing Section */}
+        <section id="pricing" className="bg-[#262421] border-t border-[#3d3a37]/50 py-12 sm:py-16">
+          <div className="max-w-5xl mx-auto px-4">
+            <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-2">Simple Pricing</h2>
+            <p className="text-[#bababa] text-center mb-8 text-base">Start free. Upgrade anytime.</p>
+
+            {/* Interval Toggle */}
+            <div className="flex items-center justify-center gap-2 mb-8">
+              <button
+                onClick={() => setPricingInterval('monthly')}
+                className={`px-5 py-2 rounded-lg text-sm font-semibold transition-colors ${pricingInterval === 'monthly' ? 'bg-[#81b64c] text-white' : 'bg-[#312e2b] text-[#bababa] hover:text-white border border-[#4a4744]'}`}
+              >
+                Monthly
+              </button>
+              <button
+                onClick={() => setPricingInterval('yearly')}
+                className={`px-5 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 ${pricingInterval === 'yearly' ? 'bg-[#81b64c] text-white' : 'bg-[#312e2b] text-[#bababa] hover:text-white border border-[#4a4744]'}`}
+              >
+                Yearly
+                <span className="bg-[#e8a93e] text-[#1a1a18] text-xs px-1.5 py-0.5 rounded font-bold">Save 16%</span>
+              </button>
+            </div>
+
+            {/* Tier Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              {/* Free */}
+              <div className="rounded-xl bg-[#312e2b] border border-[#3d3a37] p-6 flex flex-col">
+                <div className="mb-4">
+                  <span className="inline-block px-3 py-1 text-xs font-semibold rounded-full bg-[#3d3a37] text-[#bababa] mb-3">Free</span>
+                  <div className="text-3xl font-bold text-white">₹0</div>
+                  <div className="text-[#8b8987] text-sm mt-1">Forever free</div>
+                </div>
+                <ul className="space-y-2 flex-1 mb-6">
+                  {['Play vs computer', '5 games/day online', 'Public tournaments', 'Basic game stats', '5 undos per game'].map(f => (
+                    <li key={f} className="flex items-center gap-2 text-sm text-[#bababa]">
+                      <span className="text-[#81b64c] flex-shrink-0">✓</span>{f}
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  onClick={handlePlayClick}
+                  className="w-full py-2.5 rounded-lg text-sm font-semibold bg-[#3d3a37] text-white hover:bg-[#4a4744] transition-colors border border-[#4a4744]"
+                >
+                  Play Now
+                </button>
+              </div>
+
+              {/* Standard */}
+              <div className="rounded-xl bg-[#312e2b] border-2 border-[#81b64c] p-6 flex flex-col relative">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                  <span className="bg-[#81b64c] text-white text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap">Most Popular</span>
+                </div>
+                <div className="mb-4">
+                  <span className="inline-block px-3 py-1 text-xs font-semibold rounded-full bg-[#81b64c]/20 text-[#81b64c] mb-3">Standard</span>
+                  <div className="text-3xl font-bold text-white">
+                    ₹{pricingInterval === 'monthly' ? '99' : '999'}
+                  </div>
+                  <div className="text-[#8b8987] text-sm mt-1">
+                    {pricingInterval === 'monthly' ? 'per month' : 'per year · save ₹189'}
+                  </div>
+                </div>
+                <ul className="space-y-2 flex-1 mb-6">
+                  {['Unlimited games', 'All tournaments', 'ELO tracking', 'Full game history', 'Ad-free experience', 'Priority matchmaking', 'Custom board themes'].map(f => (
+                    <li key={f} className="flex items-center gap-2 text-sm text-[#bababa]">
+                      <span className="text-[#81b64c] flex-shrink-0">✓</span>{f}
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  to="/pricing"
+                  className="w-full py-2.5 rounded-lg text-sm font-bold bg-[#81b64c] text-white hover:bg-[#a3d160] transition-colors text-center block"
+                >
+                  Get Standard
+                </Link>
+              </div>
+
+              {/* Premium */}
+              <div className="rounded-xl bg-[#312e2b] border border-[#e8a93e]/50 p-6 flex flex-col">
+                <div className="mb-4">
+                  <span className="inline-block px-3 py-1 text-xs font-semibold rounded-full bg-[#e8a93e]/20 text-[#e8a93e] mb-3">Premium</span>
+                  <div className="text-3xl font-bold text-white">
+                    ₹{pricingInterval === 'monthly' ? '499' : '4,999'}
+                  </div>
+                  <div className="text-[#8b8987] text-sm mt-1">
+                    {pricingInterval === 'monthly' ? 'per month' : 'per year · save ₹989'}
+                  </div>
+                </div>
+                <ul className="space-y-2 flex-1 mb-6">
+                  {['Everything in Standard', 'Org/school affiliation', 'AI opponent', 'Opening explorer', 'Advanced analytics', 'Priority support', 'Game annotations'].map(f => (
+                    <li key={f} className="flex items-center gap-2 text-sm text-[#bababa]">
+                      <span className="text-[#e8a93e] flex-shrink-0">✓</span>{f}
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  to="/pricing"
+                  className="w-full py-2.5 rounded-lg text-sm font-bold bg-[#e8a93e] text-[#1a1a18] hover:bg-[#f0c060] transition-colors text-center block"
+                >
+                  Get Premium
+                </Link>
+              </div>
+            </div>
+
+            <div className="text-center mt-8">
+              <Link to="/pricing" className="text-[#81b64c] text-sm hover:underline">
+                View full feature comparison →
+              </Link>
             </div>
           </div>
         </section>

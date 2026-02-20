@@ -32,7 +32,7 @@ const generateDiceBearAvatars = () => {
 
 const Profile = () => {
   const { user, fetchUser } = useAuth();
-  const { isStandard } = useSubscription();
+  const { isStandard, currentTier, isPremium } = useSubscription();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isSetupMode = searchParams.get('setup') === 'true';
@@ -410,6 +410,51 @@ const Profile = () => {
           </p>
         )}
       </div>
+
+      {/* Subscription Plan Section */}
+      <section className="profile-section">
+        <h2>Subscription Plan</h2>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{
+              padding: '4px 14px',
+              borderRadius: '20px',
+              fontSize: '13px',
+              fontWeight: '700',
+              letterSpacing: '0.05em',
+              textTransform: 'uppercase',
+              background: isPremium ? 'linear-gradient(135deg, #e8a93e, #f0c060)' :
+                           isStandard ? 'linear-gradient(135deg, #81b64c, #a3d160)' :
+                           'rgba(100,96,92,0.4)',
+              color: currentTier === 'free' ? '#bababa' : '#1a1a18',
+            }}>
+              {currentTier === 'premium' ? '★ Premium' : currentTier === 'standard' ? '✓ Standard' : 'Free'}
+            </span>
+            <span style={{ color: '#8b8987', fontSize: '13px' }}>
+              {isPremium ? 'All features unlocked' :
+               isStandard ? 'Unlimited games & tournaments' :
+               'Limited to 5 games/day online'}
+            </span>
+          </div>
+          {!isPremium && (
+            <button
+              onClick={() => navigate('/pricing')}
+              style={{
+                padding: '8px 20px',
+                borderRadius: '8px',
+                border: 'none',
+                background: 'linear-gradient(135deg, #81b64c, #a3d160)',
+                color: '#fff',
+                fontWeight: '700',
+                fontSize: '13px',
+                cursor: 'pointer',
+              }}
+            >
+              {isStandard ? '⬆ Upgrade to Premium' : '⬆ Upgrade Plan'}
+            </button>
+          )}
+        </div>
+      </section>
 
       {/* Profile Update Form */}
       <section className="profile-section">
