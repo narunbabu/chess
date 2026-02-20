@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Support\Facades\RateLimiter;
 use App\Models\Game;
 use App\Observers\GameObserver;
 
@@ -52,6 +54,18 @@ class AppServiceProvider extends ServiceProvider
                 ['id' => $notifiable->getKey(), 'hash' => sha1($notifiable->getEmailForVerification())]
             );
             return $url;
+        });
+
+        // Register rate limiters for mobile API routes (must live here, not in
+        // bootstrap/app.php then: callback, so they survive route:cache)
+        RateLimiter::for('mobile-api', function (\Illuminate\Http\Request $request) {
+            return $request->user()
+                ? Limit::perMinute(120)->by($request->user()->id)
+                : Limit::perMinute(30)->by($request->ip());
+        });
+
+        RateLimiter::for('mobile-auth', function (\Illuminate\Http\Request $request) {
+            return Limit::perMinute(10)->by($request->ip());
         });
 
         // Register model observers

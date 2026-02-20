@@ -4,9 +4,6 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Console\Scheduling\Schedule;
-use Illuminate\Cache\RateLimiting\Limit;
-use Illuminate\Support\Facades\RateLimiter;
-
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
@@ -15,18 +12,9 @@ return Application::configure(basePath: dirname(__DIR__))
         channels: __DIR__.'/../routes/channels.php',
         health: '/up',
         then: function () {
-            // Rate limiters for mobile API
-            RateLimiter::for('mobile-api', function (Illuminate\Http\Request $request) {
-                return $request->user()
-                    ? Limit::perMinute(120)->by($request->user()->id)
-                    : Limit::perMinute(30)->by($request->ip());
-            });
-
-            RateLimiter::for('mobile-auth', function (Illuminate\Http\Request $request) {
-                return Limit::perMinute(10)->by($request->ip());
-            });
-
             // API v1 routes for mobile apps (Android/iOS)
+            // Rate limiters (mobile-api, mobile-auth) are defined in
+            // AppServiceProvider::boot() so they survive route:cache
             Illuminate\Support\Facades\Route::middleware(['api', 'throttle:mobile-api'])
                 ->prefix('api/v1')
                 ->group(base_path('routes/api_v1.php'));
