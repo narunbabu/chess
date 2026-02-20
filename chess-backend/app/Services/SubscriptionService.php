@@ -122,6 +122,18 @@ class SubscriptionService
 
         $order = json_decode($response, true);
 
+        // Create a pending payment record so the webhook can find the user+plan
+        // if the client-side verify-payment call never arrives.
+        SubscriptionPayment::create([
+            'user_id'              => $user->id,
+            'subscription_plan_id' => $plan->id,
+            'razorpay_order_id'    => $order['id'],
+            'payment_status'       => PaymentStatus::PENDING->value,
+            'amount'               => $plan->price,
+            'currency'             => 'INR',
+            'interval'             => $plan->interval,
+        ]);
+
         return [
             'order_id' => $order['id'],
             'key_id'   => $keyId,
@@ -172,21 +184,39 @@ class SubscriptionService
             ];
         }
 
-        // Record the completed payment
-        SubscriptionPayment::create([
-            'user_id'              => $user->id,
-            'subscription_plan_id' => $plan->id,
-            'razorpay_order_id'    => $orderId,
-            'razorpay_payment_id'  => $paymentId,
-            'razorpay_signature'   => $signature,
-            'payment_status'       => PaymentStatus::COMPLETED->value,
-            'amount'               => $plan->price,
-            'currency'             => 'INR',
-            'interval'             => $plan->interval,
-            'paid_at'              => now(),
-            'period_start'         => now(),
-            'period_end'           => $plan->interval === 'monthly' ? now()->addMonth() : now()->addYear(),
-        ]);
+        // Update the pending record created by createOrder(), or insert a new one
+        // if none exists (e.g. legacy or mock flows).
+        $periodEnd = $plan->interval === 'monthly' ? now()->addMonth() : now()->addYear();
+        $existing  = SubscriptionPayment::where('razorpay_order_id', $orderId)
+            ->where('user_id', $user->id)
+            ->whereNull('razorpay_payment_id')
+            ->first();
+
+        if ($existing) {
+            $existing->update([
+                'razorpay_payment_id' => $paymentId,
+                'razorpay_signature'  => $signature,
+                'payment_status'      => PaymentStatus::COMPLETED->value,
+                'paid_at'             => now(),
+                'period_start'        => now(),
+                'period_end'          => $periodEnd,
+            ]);
+        } else {
+            SubscriptionPayment::create([
+                'user_id'              => $user->id,
+                'subscription_plan_id' => $plan->id,
+                'razorpay_order_id'    => $orderId,
+                'razorpay_payment_id'  => $paymentId,
+                'razorpay_signature'   => $signature,
+                'payment_status'       => PaymentStatus::COMPLETED->value,
+                'amount'               => $plan->price,
+                'currency'             => 'INR',
+                'interval'             => $plan->interval,
+                'paid_at'              => now(),
+                'period_start'         => now(),
+                'period_end'           => $periodEnd,
+            ]);
+        }
 
         // Activate the subscription (store order_id in razorpay_subscription_id for reference)
         $user->activateSubscription($plan, $orderId);
@@ -387,27 +417,128 @@ class SubscriptionService
     public function handleWebhook(array $payload): void
     {
         $event = $payload['event'] ?? null;
-        $subscriptionEntity = $payload['payload']['subscription']['entity'] ?? null;
 
-        if (!$event || !$subscriptionEntity) {
-            Log::warning('Subscription webhook: missing event or entity', $payload);
+        if (!$event) {
+            Log::warning('Webhook: missing event field', ['payload' => $payload]);
+            return;
+        }
+
+        Log::info("Razorpay webhook received: {$event}");
+
+        // ── Payment events (order-based flow) ────────────────────────────────
+        if (str_starts_with($event, 'payment.')) {
+            $paymentEntity = $payload['payload']['payment']['entity'] ?? null;
+            if ($event === 'payment.captured') {
+                $paymentEntity
+                    ? $this->handlePaymentCaptured($paymentEntity)
+                    : Log::warning('payment.captured: missing payment entity in payload');
+            } else {
+                Log::info("Webhook: unhandled payment event {$event}");
+            }
+            return;
+        }
+
+        // ── Subscription events (subscription-based flow) ─────────────────────
+        $subscriptionEntity = $payload['payload']['subscription']['entity'] ?? null;
+        if (!$subscriptionEntity) {
+            Log::warning('Webhook: missing subscription entity', ['event' => $event]);
             return;
         }
 
         $razorpaySubscriptionId = $subscriptionEntity['id'] ?? null;
-
-        Log::info("Subscription webhook: {$event}", [
-            'subscription_id' => $razorpaySubscriptionId,
-        ]);
+        Log::info("Subscription event: {$event}", ['subscription_id' => $razorpaySubscriptionId]);
 
         match($event) {
             'subscription.authenticated' => $this->handleSubscriptionAuthenticated($subscriptionEntity),
-            'subscription.activated' => $this->handleSubscriptionActivated($subscriptionEntity, $payload),
-            'subscription.charged' => $this->handleSubscriptionCharged($subscriptionEntity, $payload),
-            'subscription.cancelled' => $this->handleSubscriptionCancelled($subscriptionEntity),
-            'subscription.halted' => $this->handleSubscriptionHalted($subscriptionEntity),
-            default => Log::info("Subscription webhook: unhandled event {$event}"),
+            'subscription.activated'     => $this->handleSubscriptionActivated($subscriptionEntity, $payload),
+            'subscription.charged'       => $this->handleSubscriptionCharged($subscriptionEntity, $payload),
+            'subscription.cancelled'     => $this->handleSubscriptionCancelled($subscriptionEntity),
+            'subscription.halted'        => $this->handleSubscriptionHalted($subscriptionEntity),
+            default                      => Log::info("Webhook: unhandled subscription event {$event}"),
         };
+    }
+
+    /**
+     * Handle payment.captured — activates subscription when client-side verify-payment
+     * call fails or is delayed. Idempotent: safe to call multiple times.
+     */
+    protected function handlePaymentCaptured(array $payment): void
+    {
+        $paymentId = $payment['id'];
+        $orderId   = $payment['order_id'] ?? null;
+
+        if (!$orderId) {
+            Log::warning('payment.captured: no order_id present', ['payment_id' => $paymentId]);
+            return;
+        }
+
+        // Idempotency — skip if already processed (client-side verify-payment beat us here)
+        if (SubscriptionPayment::where('razorpay_payment_id', $paymentId)->exists()) {
+            Log::info('payment.captured: already processed', ['payment_id' => $paymentId]);
+            return;
+        }
+
+        // Find the pending record created by createOrder()
+        $record = SubscriptionPayment::where('razorpay_order_id', $orderId)
+            ->whereNull('razorpay_payment_id')
+            ->first();
+
+        if ($record) {
+            $plan = $record->plan;
+            $user = $record->user;
+        } else {
+            // Fallback: use notes (user_id / plan_id) embedded in the Razorpay order
+            $userId = $payment['notes']['user_id'] ?? null;
+            $planId = $payment['notes']['plan_id'] ?? null;
+
+            if (!$userId || !$planId) {
+                Log::warning('payment.captured: cannot identify user/plan', [
+                    'payment_id' => $paymentId,
+                    'order_id'   => $orderId,
+                ]);
+                return;
+            }
+
+            $user = User::find($userId);
+            $plan = SubscriptionPlan::find($planId);
+
+            if (!$user || !$plan) {
+                Log::warning('payment.captured: user or plan not found', [
+                    'user_id' => $userId,
+                    'plan_id' => $planId,
+                ]);
+                return;
+            }
+
+            // Create the payment record from scratch
+            $record = new SubscriptionPayment([
+                'user_id'              => $user->id,
+                'subscription_plan_id' => $plan->id,
+                'razorpay_order_id'    => $orderId,
+                'amount'               => $plan->price,
+                'currency'             => 'INR',
+                'interval'             => $plan->interval,
+            ]);
+        }
+
+        $periodEnd = $plan->interval === 'monthly' ? now()->addMonth() : now()->addYear();
+
+        $record->fill([
+            'razorpay_payment_id' => $paymentId,
+            'payment_status'      => PaymentStatus::COMPLETED->value,
+            'paid_at'             => now(),
+            'period_start'        => now(),
+            'period_end'          => $periodEnd,
+        ])->save();
+
+        $user->activateSubscription($plan, $orderId);
+
+        Log::info('Subscription activated via payment.captured webhook', [
+            'user_id'    => $user->id,
+            'tier'       => $plan->tier,
+            'payment_id' => $paymentId,
+            'order_id'   => $orderId,
+        ]);
     }
 
     protected function handleSubscriptionAuthenticated(array $subscription): void
@@ -523,12 +654,11 @@ class SubscriptionService
             return;
         }
 
-        // Mark as non-renewal but keep active until expiry
-        $user->update(['subscription_auto_renew' => false]);
+        // Downgrade to free tier immediately on cancellation
+        $user->downgradeToFree();
 
-        Log::info('Subscription cancelled (will expire at end of cycle)', [
+        Log::info('Subscription cancelled — user downgraded to free', [
             'user_id' => $user->id,
-            'expires_at' => $user->subscription_expires_at,
         ]);
     }
 
