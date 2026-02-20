@@ -1,12 +1,7 @@
-
 import React from 'react';
+import { Navigate } from 'react-router-dom';
 
-const Learn = () => {
-  return (
-    <div className="min-h-screen bg-gray-900 text-white flex justify-center items-center">
-      <h1 className="text-4xl font-bold">Learning Page</h1>
-    </div>
-  );
-};
+// /learn redirects to the Tutorial page which is the canonical learn section.
+const Learn = () => <Navigate to="/tutorial" replace />;
 
 export default Learn;

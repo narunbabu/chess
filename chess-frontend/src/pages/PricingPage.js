@@ -12,17 +12,17 @@ const FALLBACK_PLANS = {
     id: null, tier: 'free', name: 'Free', interval: 'lifetime', price: 0,
     features: ['Play vs computer', '5 games/day online', 'Public tournaments', 'Basic game stats', '5 undos per game'],
   }],
-  standard: [
-    { id: null, tier: 'standard', name: 'Standard Monthly', interval: 'monthly', price: 99,
+  silver: [
+    { id: null, tier: 'silver', name: 'Silver Monthly', interval: 'monthly', price: 99,
       features: ['Unlimited games', 'All tournaments', 'ELO tracking', 'Full game history', 'Ad-free experience', 'Unlimited undos', 'Priority matchmaking', 'Custom board themes'] },
-    { id: null, tier: 'standard', name: 'Standard Yearly', interval: 'yearly', price: 999,
+    { id: null, tier: 'silver', name: 'Silver Yearly', interval: 'yearly', price: 999,
       features: ['Unlimited games', 'All tournaments', 'ELO tracking', 'Full game history', 'Ad-free experience', 'Unlimited undos', 'Priority matchmaking', 'Custom board themes', 'Save 16% vs monthly'] },
   ],
-  premium: [
-    { id: null, tier: 'premium', name: 'Premium Monthly', interval: 'monthly', price: 499,
-      features: ['Everything in Standard', 'Org/school affiliation', 'Priority support', 'Advanced analytics', 'AI opponent', 'Opening explorer', 'Game annotations'] },
-    { id: null, tier: 'premium', name: 'Premium Yearly', interval: 'yearly', price: 4999,
-      features: ['Everything in Standard', 'Org/school affiliation', 'Priority support', 'Advanced analytics', 'AI opponent', 'Opening explorer', 'Game annotations', 'Save 16% vs monthly'] },
+  gold: [
+    { id: null, tier: 'gold', name: 'Gold Monthly', interval: 'monthly', price: 499,
+      features: ['Everything in Silver', 'Org/school affiliation', 'Priority support', 'Advanced analytics', 'AI opponent', 'Opening explorer', 'Game annotations'] },
+    { id: null, tier: 'gold', name: 'Gold Yearly', interval: 'yearly', price: 4999,
+      features: ['Everything in Silver', 'Org/school affiliation', 'Priority support', 'Advanced analytics', 'AI opponent', 'Opening explorer', 'Game annotations', 'Save 16% vs monthly'] },
   ],
 };
 
@@ -56,7 +56,7 @@ const PricingPage = () => {
 
   // Build tier display data from grouped plans
   const tierData = useMemo(() => {
-    const tiers = ['free', 'standard', 'premium'];
+    const tiers = ['free', 'silver', 'gold'];
     return tiers.map(tier => {
       const tierPlans = effectivePlans[tier] || [];
       if (tierPlans.length === 0) return null;

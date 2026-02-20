@@ -4,25 +4,25 @@ namespace App\Enums;
 
 enum SubscriptionTier: string
 {
-    case FREE = 'free';
-    case STANDARD = 'standard';
-    case PREMIUM = 'premium';
+    case FREE   = 'free';
+    case SILVER = 'silver';
+    case GOLD   = 'gold';
 
     public function label(): string
     {
         return match($this) {
-            self::FREE => 'Free',
-            self::STANDARD => 'Standard',
-            self::PREMIUM => 'Premium',
+            self::FREE   => 'Free',
+            self::SILVER => 'Silver',
+            self::GOLD   => 'Gold',
         };
     }
 
     public function level(): int
     {
         return match($this) {
-            self::FREE => 0,
-            self::STANDARD => 1,
-            self::PREMIUM => 2,
+            self::FREE   => 0,
+            self::SILVER => 1,
+            self::GOLD   => 2,
         };
     }
 

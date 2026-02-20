@@ -463,6 +463,22 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * Get user's subscription records
+     */
+    public function userSubscriptions()
+    {
+        return $this->hasMany(UserSubscription::class);
+    }
+
+    /**
+     * Get user's current active subscription record
+     */
+    public function activeUserSubscription()
+    {
+        return $this->hasOne(UserSubscription::class)->where('status', 'active')->latest();
+    }
+
+    /**
      * Get the user's current subscription tier as enum
      */
     public function getSubscriptionTierEnum(): SubscriptionTier

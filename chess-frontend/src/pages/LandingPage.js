@@ -239,12 +239,6 @@ const LandingPage = () => {
                   >
                     Play Now
                   </button>
-                  <button
-                    onClick={handleMultiplayerClick}
-                    className="bg-[#312e2b] text-white px-8 py-3 rounded-lg text-lg font-semibold hover:bg-[#3d3a37] transition-all border border-[#4a4744] hover:border-[#81b64c]/50"
-                  >
-                    Play Online
-                  </button>
                 </div>
 
                 {!isAuthenticated && (
@@ -377,13 +371,13 @@ const LandingPage = () => {
                 </button>
               </div>
 
-              {/* Standard */}
+              {/* Silver */}
               <div className="rounded-xl bg-[#312e2b] border-2 border-[#81b64c] p-6 flex flex-col relative">
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                   <span className="bg-[#81b64c] text-white text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap">Most Popular</span>
                 </div>
                 <div className="mb-4">
-                  <span className="inline-block px-3 py-1 text-xs font-semibold rounded-full bg-[#81b64c]/20 text-[#81b64c] mb-3">Standard</span>
+                  <span className="inline-block px-3 py-1 text-xs font-semibold rounded-full bg-[#81b64c]/20 text-[#81b64c] mb-3">Silver</span>
                   <div className="text-3xl font-bold text-white">
                     ₹{pricingInterval === 'monthly' ? '99' : '999'}
                   </div>
@@ -402,14 +396,14 @@ const LandingPage = () => {
                   to="/pricing"
                   className="w-full py-2.5 rounded-lg text-sm font-bold bg-[#81b64c] text-white hover:bg-[#a3d160] transition-colors text-center block"
                 >
-                  Get Standard
+                  Get Silver
                 </Link>
               </div>
 
-              {/* Premium */}
+              {/* Gold */}
               <div className="rounded-xl bg-[#312e2b] border border-[#e8a93e]/50 p-6 flex flex-col">
                 <div className="mb-4">
-                  <span className="inline-block px-3 py-1 text-xs font-semibold rounded-full bg-[#e8a93e]/20 text-[#e8a93e] mb-3">Premium</span>
+                  <span className="inline-block px-3 py-1 text-xs font-semibold rounded-full bg-[#e8a93e]/20 text-[#e8a93e] mb-3">Gold</span>
                   <div className="text-3xl font-bold text-white">
                     ₹{pricingInterval === 'monthly' ? '499' : '4,999'}
                   </div>
@@ -418,7 +412,7 @@ const LandingPage = () => {
                   </div>
                 </div>
                 <ul className="space-y-2 flex-1 mb-6">
-                  {['Everything in Standard', 'Org/school affiliation', 'AI opponent', 'Opening explorer', 'Advanced analytics', 'Priority support', 'Game annotations', 'Full training suite'].map(f => (
+                  {['Everything in Silver', 'Org/school affiliation', 'AI opponent', 'Opening explorer', 'Advanced analytics', 'Priority support', 'Game annotations', 'Full training suite'].map(f => (
                     <li key={f} className="flex items-center gap-2 text-sm text-[#bababa]">
                       <span className="text-[#e8a93e] flex-shrink-0">✓</span>{f}
                     </li>
@@ -428,7 +422,7 @@ const LandingPage = () => {
                   to="/pricing"
                   className="w-full py-2.5 rounded-lg text-sm font-bold bg-[#e8a93e] text-[#1a1a18] hover:bg-[#f0c060] transition-colors text-center block"
                 >
-                  Get Premium
+                  Get Gold
                 </Link>
               </div>
             </div>
