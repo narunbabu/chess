@@ -612,6 +612,13 @@ const Dashboard = () => {
             <div className="unified-empty-state">
               <p>🎮 No active games</p>
               <p>Start a new game from the lobby!</p>
+              <button
+                onClick={() => navigate('/lobby')}
+                className="unified-card-btn primary"
+                style={{ marginTop: '0.75rem' }}
+              >
+                Create Game
+              </button>
             </div>
           )}
         </section>

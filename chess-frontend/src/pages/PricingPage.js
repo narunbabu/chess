@@ -30,7 +30,7 @@ const PricingPage = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const { plans, plansLoading, plansError, currentTier, loading, fetchPlans, fetchCurrentSubscription } = useSubscription();
-  const [interval, setInterval] = useState('monthly');
+  const [billingInterval, setBillingInterval] = useState('monthly');
   const [checkoutPlanId, setCheckoutPlanId] = useState(null);
   const [fallbackRetrying, setFallbackRetrying] = useState(false);
   // Stores { tier, interval } when user clicks Subscribe on a fallback plan (id: null).
@@ -77,7 +77,7 @@ const PricingPage = () => {
       } else if (tier) {
         // Fallback plan clicked before login — save intent as tier+interval
         localStorage.setItem('pending_plan_tier', tier);
-        localStorage.setItem('pending_plan_interval', planInterval || interval);
+        localStorage.setItem('pending_plan_interval', planInterval || billingInterval);
       }
       navigate('/login', { state: { from: '/pricing' } });
       return;
@@ -85,7 +85,7 @@ const PricingPage = () => {
     if (!planId) {
       // Fallback plan — remember which tier+interval they wanted, then fetch live plans.
       // A useEffect below will auto-open checkout once real plan IDs arrive.
-      setPendingIntent({ tier, interval: planInterval || interval });
+      setPendingIntent({ tier, interval: planInterval || billingInterval });
       setFallbackRetrying(true);
       await fetchPlans();
       setFallbackRetrying(false);
@@ -152,14 +152,14 @@ const PricingPage = () => {
       {/* Interval Toggle */}
       <div className="pricing-page__toggle">
         <button
-          className={`pricing-page__toggle-btn ${interval === 'monthly' ? 'active' : ''}`}
-          onClick={() => setInterval('monthly')}
+          className={`pricing-page__toggle-btn ${billingInterval === 'monthly' ? 'active' : ''}`}
+          onClick={() => setBillingInterval('monthly')}
         >
           Monthly
         </button>
         <button
-          className={`pricing-page__toggle-btn ${interval === 'yearly' ? 'active' : ''}`}
-          onClick={() => setInterval('yearly')}
+          className={`pricing-page__toggle-btn ${billingInterval === 'yearly' ? 'active' : ''}`}
+          onClick={() => setBillingInterval('yearly')}
         >
           Yearly
           <span className="pricing-page__toggle-badge">Save 16%</span>
@@ -192,7 +192,7 @@ const PricingPage = () => {
           <PricingCard
             key={data.tier}
             plan={data}
-            interval={data.tier === 'free' ? 'lifetime' : interval}
+            interval={data.tier === 'free' ? 'lifetime' : billingInterval}
             isCurrentPlan={currentTier === data.tier}
             isPopular={data.tier === 'standard'}
             onSubscribe={handleSubscribe}

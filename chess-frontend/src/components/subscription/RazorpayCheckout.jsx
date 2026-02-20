@@ -90,9 +90,14 @@ const RazorpayCheckout = ({ planId, onSuccess, onClose }) => {
       return;
     }
 
+    // Script element already in DOM but SDK not yet ready — attach both load and error handlers
     const existing = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
     if (existing) {
       existing.addEventListener('load', () => openRazorpayModal(data), { once: true });
+      existing.addEventListener('error', () => {
+        setError('Failed to load payment gateway. Please try again.');
+        setStep('error');
+      }, { once: true });
       return;
     }
 
@@ -108,32 +113,38 @@ const RazorpayCheckout = ({ planId, onSuccess, onClose }) => {
   };
 
   const openRazorpayModal = (data) => {
-    const prefill = data.checkout.prefill || {};
-    const options = {
-      key: data.checkout.key_id,
-      subscription_id: data.checkout.subscription_id,
-      name: 'Chess99',
-      description: `${data.checkout.plan.name} Subscription`,
-      prefill: {
-        name: prefill.name || user?.name || '',
-        email: prefill.email || user?.email || '',
-      },
-      handler: () => {
-        pollForActivation();
-      },
-      modal: {
-        ondismiss: () => {
-          setStep('error');
-          setError('Payment was cancelled.');
+    try {
+      const prefill = data.checkout.prefill || {};
+      const options = {
+        key: data.checkout.key_id,
+        subscription_id: data.checkout.subscription_id,
+        name: 'Chess99',
+        description: `${data.checkout.plan?.name || 'Premium'} Subscription`,
+        prefill: {
+          name: prefill.name || user?.name || '',
+          email: prefill.email || user?.email || '',
         },
-      },
-      theme: {
-        color: '#81b64c',
-      },
-    };
+        handler: () => {
+          pollForActivation();
+        },
+        modal: {
+          ondismiss: () => {
+            setStep('error');
+            setError('Payment was cancelled.');
+          },
+        },
+        theme: {
+          color: '#81b64c',
+        },
+      };
 
-    const rzp = new window.Razorpay(options);
-    rzp.open();
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } catch (err) {
+      console.error('[RazorpayCheckout] Failed to open payment modal:', err);
+      setError('Failed to open payment form. Please try again.');
+      setStep('error');
+    }
   };
 
   useEffect(() => {
