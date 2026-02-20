@@ -11,6 +11,7 @@ import DetailedStatsModal from "./DetailedStatsModal";
 import { getPlayerAvatar } from "../utils/playerDisplayUtils";
 import { isWin, getResultDisplayText } from "../utils/resultStandardization";
 import { getUnfinishedGame, getUnfinishedGames, deleteUnfinishedGame } from "../services/unfinishedGameService";
+import MatchmakingQueue from "./lobby/MatchmakingQueue";
 import "./Dashboard.css";
 import "../styles/UnifiedCards.css"; // Import unified card styles
 
@@ -41,6 +42,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [showSkillAssessment, setShowSkillAssessment] = useState(false);
   const [showDetailedStats, setShowDetailedStats] = useState(false);
+  const [showMatchmaking, setShowMatchmaking] = useState(false);
   const [visibleActiveGames, setVisibleActiveGames] = useState(3);
   const [visibleRecentGames, setVisibleRecentGames] = useState(3);
   const { user } = useAuth();
@@ -419,6 +421,12 @@ const Dashboard = () => {
         user={user}
       />
 
+      <MatchmakingQueue
+        isOpen={showMatchmaking}
+        onClose={() => setShowMatchmaking(false)}
+        autoStart={true}
+      />
+
       <div className="dashboard-container">
         <div className="dashboard p-6 text-white">
           <header className="dashboard-header text-center mb-10">
@@ -479,43 +487,81 @@ const Dashboard = () => {
           </header>
 
         <div className="dashboard-grid">
-        {/* Quick Actions Section */}
+        {/* Quick Actions Section — single primary CTA with secondaries */}
         <section className="unified-section">
           <h2 className="unified-section-header">⚡ Quick Actions</h2>
-          <div className="unified-card-grid cols-4">
+
+          {/* Primary CTA: Play Now */}
+          <button
+            onClick={() => user ? setShowMatchmaking(true) : navigate('/play')}
+            style={{
+              display: 'block',
+              width: '100%',
+              padding: '18px 24px',
+              marginBottom: '12px',
+              background: 'linear-gradient(135deg, #81b64c, #5d8a35)',
+              border: 'none',
+              borderRadius: '12px',
+              color: '#fff',
+              fontSize: '20px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              letterSpacing: '0.3px',
+              boxShadow: '0 4px 16px rgba(129,182,76,0.35)',
+              transition: 'transform 0.12s ease, box-shadow 0.12s ease',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(129,182,76,0.45)'; }}
+            onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '0 4px 16px rgba(129,182,76,0.35)'; }}
+          >
+            ▶ Play Now
+            <span style={{ display: 'block', fontSize: '12px', fontWeight: 'normal', opacity: 0.85, marginTop: '2px' }}>
+              Find an opponent — falls back to AI if none available
+            </span>
+          </button>
+
+          {/* Secondary CTAs */}
+          <div className="unified-card-grid cols-2" style={{ marginBottom: '12px' }}>
             <button
-              onClick={() => navigate("/play")}
-              className="unified-card gradient-accent centered"
+              onClick={() => navigate('/play')}
+              className="unified-card centered"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid #3d3a37' }}
             >
               <div className="unified-card-content">
-                <h3 className="unified-card-title">🤖 Play Computer</h3>
-                <p className="unified-card-subtitle">Play against AI</p>
+                <h3 className="unified-card-title" style={{ fontSize: '15px' }}>🤖 vs Computer</h3>
+                <p className="unified-card-subtitle">Play against AI directly</p>
               </div>
             </button>
             <button
-              onClick={() => navigate("/lobby")}
-              className="unified-card gradient-primary centered"
+              onClick={() => navigate('/lobby')}
+              className="unified-card centered"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid #3d3a37' }}
             >
               <div className="unified-card-content">
-                <h3 className="unified-card-title">👥 Play Human</h3>
-                <p className="unified-card-subtitle">Challenge other players</p>
+                <h3 className="unified-card-title" style={{ fontSize: '15px' }}>👥 vs Friend</h3>
+                <p className="unified-card-subtitle">Challenge from lobby</p>
+              </div>
+            </button>
+          </div>
+
+          {/* Tertiary row */}
+          <div className="unified-card-grid cols-2">
+            <button
+              onClick={() => navigate('/tutorial')}
+              className="unified-card centered"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid #3d3a37' }}
+            >
+              <div className="unified-card-content">
+                <h3 className="unified-card-title" style={{ fontSize: '14px' }}>🎓 Learn Chess</h3>
+                <p className="unified-card-subtitle">Lessons & practice</p>
               </div>
             </button>
             <button
-              onClick={() => navigate("/tutorial")}
-              className="unified-card gradient-success centered"
+              onClick={() => navigate('/championships')}
+              className="unified-card centered"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid #3d3a37' }}
             >
               <div className="unified-card-content">
-                <h3 className="unified-card-title">🎓 Learn Chess</h3>
-                <p className="unified-card-subtitle">Interactive lessons & practice</p>
-              </div>
-            </button>
-            <button
-              onClick={() => navigate("/championships")}
-              className="unified-card gradient-info centered"
-            >
-              <div className="unified-card-content">
-                <h3 className="unified-card-title">🏆 Championships</h3>
+                <h3 className="unified-card-title" style={{ fontSize: '14px' }}>🏆 Championships</h3>
                 <p className="unified-card-subtitle">Join tournaments</p>
               </div>
             </button>

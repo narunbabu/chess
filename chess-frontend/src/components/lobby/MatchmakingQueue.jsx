@@ -23,9 +23,9 @@ const TIME_PRESETS = [
  *
  * States: idle (options) → findingPlayers (smart match) → searching (queue fallback) → matched → navigating
  */
-const MatchmakingQueue = ({ isOpen, onClose }) => {
+const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
   const navigate = useNavigate();
-  const [status, setStatus] = useState('idle'); // idle | findingPlayers | searching | matched | error
+  const [status, setStatus] = useState('idle'); // idle | findingPlayers | searching | matched | fallback | error
   const [entryId, setEntryId] = useState(null);
   const [secondsLeft, setSecondsLeft] = useState(QUEUE_TIMEOUT_SECONDS);
   const [matchResult, setMatchResult] = useState(null);
@@ -64,6 +64,14 @@ const MatchmakingQueue = ({ isOpen, onClose }) => {
       matchRequestTokenRef.current = null;
     }
   }, [isOpen, cleanup]);
+
+  // Auto-start search immediately when opened with autoStart=true (from "Play Now" button)
+  useEffect(() => {
+    if (isOpen && autoStart && status === 'idle') {
+      startSearch();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   // Fall back to existing polling-based queue
   const fallbackToQueue = useCallback(async () => {
@@ -117,7 +125,12 @@ const MatchmakingQueue = ({ isOpen, onClose }) => {
             }, 1500);
           } else if (entry.status === 'expired' || entry.status === 'cancelled') {
             cleanup();
-            setStatus('error');
+            // AI fallback: no human found → start a computer game automatically
+            setStatus('fallback');
+            setTimeout(() => {
+              onClose();
+              navigate('/play');
+            }, 2000);
           }
         } catch (err) {
           console.error('[Matchmaking] Poll error:', err);
@@ -445,6 +458,17 @@ const MatchmakingQueue = ({ isOpen, onClose }) => {
               </div>
             </div>
             <p className="matchmaking-starting">Starting game...</p>
+          </>
+        )}
+
+        {/* AI fallback: no human found, starting computer game */}
+        {status === 'fallback' && (
+          <>
+            <div className="matchmaking-spinner">
+              <div className="chess-piece-spin">&#9820;</div>
+            </div>
+            <h2 className="matchmaking-title">No opponent found</h2>
+            <p className="matchmaking-subtitle">Starting a game vs computer...</p>
           </>
         )}
 
