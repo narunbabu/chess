@@ -8,6 +8,7 @@ use App\Models\Championship;
 use App\Models\ChampionshipParticipant;
 use App\Services\MatchSchedulerService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 
@@ -49,13 +50,37 @@ class AutoStartTournamentsCommand extends Command
                 ->get();
 
             foreach ($readyChampionships as $championship) {
+                // H4 fix: acquire a per-championship cache lock before attempting to
+                // start.  If two concurrent command invocations both pick up the same
+                // championship (possible when the cron overlaps), only the one that
+                // acquires the lock will proceed; the other skips immediately.
+                // TTL of 60 seconds is generous: normal start completes in < 5 s.
+                $lock = Cache::lock(
+                    "tournament.auto-start.{$championship->id}",
+                    60
+                );
+
+                if (!$lock->get()) {
+                    $this->line("Skipping championship {$championship->id} - start already in progress by another process");
+                    $skippedCount++;
+                    continue;
+                }
+
                 DB::beginTransaction();
 
                 try {
-                    // Double-check status hasn't changed (re-query to avoid stale reads)
-                    $championship->refresh();
-                    if ($championship->status_id !== ChampionshipStatus::REGISTRATION_OPEN->getId()) {
-                        $this->line("Skipping championship {$championship->id} - status changed to {$championship->status}");
+                    // H4 fix: use lockForUpdate() to re-read the row exclusively so
+                    // that no other transaction can read/update it until we commit.
+                    // This closes the window between the cache-lock check and the
+                    // actual DB UPDATE.
+                    $championship = Championship::where('id', $championship->id)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if (!$championship || $championship->status_id !== ChampionshipStatus::REGISTRATION_OPEN->getId()) {
+                        $this->line("Skipping championship {$championship?->id} - status changed to {$championship?->status}");
+                        DB::rollBack();
+                        $lock->release();
                         $skippedCount++;
                         continue;
                     }
@@ -96,6 +121,9 @@ class AutoStartTournamentsCommand extends Command
 
                     $this->error("❌ Failed to auto-start championship {$championship->id}: {$e->getMessage()}");
                     $skippedCount++;
+                } finally {
+                    // Always release the cache lock, even on exception.
+                    $lock->release();
                 }
             }
 
