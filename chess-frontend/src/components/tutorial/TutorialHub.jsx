@@ -394,7 +394,7 @@ const TutorialHub = () => {
 
         <div className="flex items-center text-base text-[#bababa] font-bold mb-5 bg-[#262421] p-2 rounded-lg">
           <span className="mr-2 text-xl">🏆</span>
-          <span>{dailyChallenge.completion_count} players completed</span>
+          <span>{dailyChallenge.completion_count > 0 ? `${dailyChallenge.completion_count} players completed` : 'Be the first to solve today\'s puzzle!'}</span>
         </div>
 
         <Link
@@ -535,19 +535,19 @@ const TutorialHub = () => {
 
         {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* Sidebar — shows first on mobile so progress is visible immediately */}
+          <div className="order-first lg:order-last space-y-6">
+            <QuickStatsCard />
+            <DailyChallengeCard />
+          </div>
+
           {/* Modules Grid */}
-          <div className="lg:col-span-3">
+          <div className="order-last lg:order-first lg:col-span-3">
             <div className="tutorial-modules-grid grid grid-cols-1 md:grid-cols-2 gap-6">
               {filteredModules.map((module) => (
                 <ModuleCard key={module.id} module={module} />
               ))}
             </div>
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            <QuickStatsCard />
-            <DailyChallengeCard />
           </div>
         </div>
       </div>

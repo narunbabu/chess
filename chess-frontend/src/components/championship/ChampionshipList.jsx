@@ -247,7 +247,16 @@ const ChampionshipList = () => {
         <div className="summary-row">
         <div className="summary-item">
           <span className="summary-icon">🏆</span>
-          <span className="summary-text">{formatChampionshipType(championship.format)}</span>
+          <span
+            className="summary-text"
+            title={
+              championship.format === 'swiss' ? 'Players are paired by score — no elimination. Everyone plays all rounds.' :
+              championship.format === 'elimination' ? 'Lose once and you\'re out. Winner advances each round.' :
+              championship.format === 'round_robin' ? 'Every player faces every other player. Most points wins.' :
+              championship.format === 'hybrid' ? 'Group stage followed by elimination rounds.' :
+              ''
+            }
+          >{formatChampionshipType(championship.format)}</span>
         </div>
         <div className="summary-item">
           <span className="summary-icon">⏱️</span>
@@ -547,13 +556,22 @@ const ChampionshipList = () => {
       {!loading && !error && (
         <>
           {filteredChampionships.length === 0 ? (
-            <div className="empty-state">
-              <h3>No championships found</h3>
-              <p>Try adjusting your filters{userCanCreate ? ' or create a new championship' : ''}.</p>
+            <div style={{ textAlign: 'center', padding: '4rem 1rem' }}>
+              <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🏆</div>
+              <h3 style={{ color: '#fff', fontSize: '1.25rem', fontWeight: '700', marginBottom: '0.5rem' }}>No championships scheduled yet</h3>
+              <p style={{ color: '#bababa', marginBottom: '1rem', maxWidth: '340px', margin: '0 auto 1rem' }}>
+                Upcoming: Daily arenas, weekly tournaments, school championships, and more!
+              </p>
+              <div style={{ background: '#312e2b', borderRadius: '10px', padding: '1rem', maxWidth: '280px', margin: '0 auto 1.5rem', textAlign: 'left' }}>
+                <p style={{ color: '#8b8987', fontSize: '0.85rem', margin: '0 0 0.4rem' }}>🗓️ Daily Blitz Arena — every day</p>
+                <p style={{ color: '#8b8987', fontSize: '0.85rem', margin: '0 0 0.4rem' }}>🏅 Weekend Rapid — Saturday &amp; Sunday</p>
+                <p style={{ color: '#8b8987', fontSize: '0.85rem', margin: '0 0 0.4rem' }}>👶 Beginner Friendly — weekly</p>
+                <p style={{ color: '#8b8987', fontSize: '0.85rem', margin: 0 }}>🥇 Monthly Championship — once per month</p>
+              </div>
               {userCanCreate && (
                 <button
                   onClick={() => setShowCreateModal(true)}
-                  className="btn btn-primary"
+                  style={{ background: '#81b64c', color: '#fff', border: 'none', borderRadius: '8px', padding: '0.6rem 1.5rem', fontWeight: '600', cursor: 'pointer' }}
                 >
                   Create Championship
                 </button>

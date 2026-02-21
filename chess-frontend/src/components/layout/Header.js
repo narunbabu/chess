@@ -9,7 +9,7 @@ import { useGameNavigation } from '../../contexts/GameNavigationContext';
 import { trackAuth, trackNavigation } from '../../utils/analytics';
 import { BACKEND_URL } from '../../config';
 import { MdDashboard } from 'react-icons/md';
-import { IoGameController, IoSchool, IoTrophy } from 'react-icons/io5';
+import { IoGameController, IoSchool, IoTrophy, IoPlay } from 'react-icons/io5';
 import presenceService from '../../services/presenceService';
 import './Header.css';
 
@@ -328,6 +328,20 @@ const Header = () => {
       {isAuthenticated && (
         <div className="center-section">
           <Link
+            to="/play"
+            className={`nav-link nav-icon-link${location.pathname === '/play' ? ' active' : ''}`}
+            onClick={(e) => {
+              e.preventDefault();
+              handleNavItemClick(() => navigate('/play'), '/play');
+            }}
+            title="Play"
+            aria-label="Play"
+            style={{ color: '#81b64c', fontWeight: '700' }}
+          >
+            <IoPlay size={24} />
+            <span className="nav-text">Play</span>
+          </Link>
+          <Link
             to="/dashboard"
             className="nav-link nav-icon-link"
             onClick={(e) => {
@@ -544,6 +558,12 @@ const Header = () => {
                   onClick={() => handleNavItemClick(() => navigate('/championships'), '/championships')}
                 >
                   🏆 Championships
+                </button>
+                <button
+                  className="nav-item"
+                  onClick={() => handleNavItemClick(() => navigate('/history'), '/history')}
+                >
+                  📋 My Games
                 </button>
                 {recentChampionship && (
                   <button

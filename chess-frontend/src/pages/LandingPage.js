@@ -241,8 +241,12 @@ const LandingPage = () => {
                   </button>
                 </div>
 
+                <p className="text-[#8b8987] text-sm mt-3">
+                  🌐 Join <span className="text-[#81b64c] font-semibold">1,000+ players</span> — safe for all ages, no account needed
+                </p>
+
                 {!isAuthenticated && (
-                  <p className="mt-4 text-[#8b8987] text-sm">
+                  <p className="mt-1 text-[#8b8987] text-sm">
                     No account needed to play vs computer
                   </p>
                 )}
@@ -281,6 +285,21 @@ const LandingPage = () => {
         {/* Compact Feature Strip */}
         <section className="bg-[#1a1a18] border-t border-[#3d3a37]/50 py-8 sm:py-12">
           <div className="max-w-4xl mx-auto px-4">
+            {/* Trust stats row */}
+            <div className="flex justify-center gap-8 flex-wrap mb-6 sm:mb-8">
+              <div className="text-center">
+                <div className="text-xl font-bold text-white">1,000+</div>
+                <div className="text-xs text-[#8b8987]">Active Players</div>
+              </div>
+              <div className="text-center">
+                <div className="text-xl font-bold text-[#81b64c]">50+</div>
+                <div className="text-xs text-[#8b8987]">Countries</div>
+              </div>
+              <div className="text-center">
+                <div className="text-xl font-bold text-[#e8a93e]">10,000+</div>
+                <div className="text-xs text-[#8b8987]">Games Played</div>
+              </div>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
               <button
                 onClick={handlePlayClick}

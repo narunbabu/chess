@@ -181,6 +181,11 @@ const PricingPage = () => {
           <span className="pricing-page__toggle-badge">Save 16%</span>
         </button>
       </div>
+      {billingInterval === 'yearly' && (
+        <p style={{ textAlign: 'center', fontSize: '0.78rem', color: '#81b64c', margin: '-1rem 0 1.5rem' }}>
+          💰 Silver saves ₹189/yr · Gold saves ₹989/yr vs monthly billing
+        </p>
+      )}
 
       {/* Fallback notice when using static plans */}
       {usingFallback && !plansLoading && (
@@ -255,15 +260,15 @@ const PricingPage = () => {
               </tr>
               <tr>
                 <td>ELO Tracking</td>
-                <td>—</td><td>✓</td><td>✓</td>
+                <td style={{color:'#5c5a57',fontSize:'0.8rem'}}>Silver+</td><td>✓</td><td>✓</td>
               </tr>
               <tr>
                 <td>Full Game History</td>
-                <td>—</td><td>✓</td><td>✓</td>
+                <td style={{color:'#5c5a57',fontSize:'0.8rem'}}>Silver+</td><td>✓</td><td>✓</td>
               </tr>
               <tr>
                 <td>Ad-Free Experience</td>
-                <td>—</td><td>✓</td><td>✓</td>
+                <td style={{color:'#5c5a57',fontSize:'0.8rem'}}>Silver+</td><td>✓</td><td>✓</td>
               </tr>
               <tr>
                 <td>Undos per Game</td>
@@ -271,47 +276,47 @@ const PricingPage = () => {
               </tr>
               <tr>
                 <td>Priority Matchmaking</td>
-                <td>—</td><td>✓</td><td>✓</td>
+                <td style={{color:'#5c5a57',fontSize:'0.8rem'}}>Silver+</td><td>✓</td><td>✓</td>
               </tr>
               <tr>
                 <td>Custom Board Themes</td>
-                <td>—</td><td>✓</td><td>✓</td>
+                <td style={{color:'#5c5a57',fontSize:'0.8rem'}}>Silver+</td><td>✓</td><td>✓</td>
               </tr>
               <tr>
                 <td>Org/School Affiliation</td>
-                <td>—</td><td>—</td><td>✓</td>
+                <td style={{color:'#5c5a57',fontSize:'0.8rem'}}>Gold</td><td style={{color:'#5c5a57',fontSize:'0.8rem'}}>Gold</td><td>✓</td>
               </tr>
               <tr>
                 <td>Priority Support</td>
-                <td>—</td><td>—</td><td>✓</td>
+                <td style={{color:'#5c5a57',fontSize:'0.8rem'}}>Gold</td><td style={{color:'#5c5a57',fontSize:'0.8rem'}}>Gold</td><td>✓</td>
               </tr>
               <tr>
                 <td>Advanced Analytics</td>
-                <td>—</td><td>—</td><td>✓</td>
+                <td style={{color:'#5c5a57',fontSize:'0.8rem'}}>Gold</td><td style={{color:'#5c5a57',fontSize:'0.8rem'}}>Gold</td><td>✓</td>
               </tr>
               <tr>
                 <td>AI Opponent</td>
-                <td>—</td><td>—</td><td>✓</td>
+                <td style={{color:'#5c5a57',fontSize:'0.8rem'}}>Gold</td><td style={{color:'#5c5a57',fontSize:'0.8rem'}}>Gold</td><td>✓</td>
               </tr>
               <tr>
                 <td>Opening Explorer</td>
-                <td>—</td><td>—</td><td>✓</td>
+                <td style={{color:'#5c5a57',fontSize:'0.8rem'}}>Gold</td><td style={{color:'#5c5a57',fontSize:'0.8rem'}}>Gold</td><td>✓</td>
               </tr>
               <tr>
                 <td>Opening Trainer</td>
-                <td>—</td><td>✓</td><td>✓</td>
+                <td style={{color:'#5c5a57',fontSize:'0.8rem'}}>Silver+</td><td>✓</td><td>✓</td>
               </tr>
               <tr>
                 <td>Puzzle Trainer</td>
-                <td>—</td><td>✓</td><td>✓</td>
+                <td style={{color:'#5c5a57',fontSize:'0.8rem'}}>Silver+</td><td>✓</td><td>✓</td>
               </tr>
               <tr>
                 <td>Endgame Drills</td>
-                <td>—</td><td>Limited</td><td>✓</td>
+                <td style={{color:'#5c5a57',fontSize:'0.8rem'}}>Silver+</td><td>Limited</td><td>✓</td>
               </tr>
               <tr>
                 <td>Video Lessons</td>
-                <td>—</td><td>—</td><td>✓</td>
+                <td style={{color:'#5c5a57',fontSize:'0.8rem'}}>Gold</td><td style={{color:'#5c5a57',fontSize:'0.8rem'}}>Gold</td><td>✓</td>
               </tr>
             </tbody>
           </table>

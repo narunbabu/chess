@@ -381,12 +381,21 @@ const Dashboard = () => {
     if (totalGames === 0) {
       return {
         totalGames: 0,
+        wins: 0,
+        losses: 0,
+        draws: 0,
         winRate: "0%",
-        averageScore: "0.0"
+        averageScore: "0.0",
+        currentStreak: 0,
       };
     }
 
     const wins = gameHistories.filter((g) => isWin(g.result)).length;
+    const draws = gameHistories.filter((g) => {
+      const status = g.result?.status || g.result;
+      return status === 'draw' || status === 'stalemate';
+    }).length;
+    const losses = totalGames - wins - draws;
     const winRate = `${Math.round((wins / totalGames) * 100)}%`;
 
     const scores = gameHistories.map(game => {
@@ -397,12 +406,27 @@ const Dashboard = () => {
     const avg = sum / totalGames;
     const averageScore = avg.toFixed(1);
 
+    // Calculate current win/loss streak from most recent games
+    let currentStreak = 0;
+    if (gameHistories.length > 0) {
+      const firstResult = isWin(gameHistories[0].result);
+      for (const g of gameHistories) {
+        if (isWin(g.result) === firstResult) currentStreak++;
+        else break;
+      }
+      if (!firstResult) currentStreak = -currentStreak; // negative = losing streak
+    }
+
     debugLog('Stats', `Calculated once - Total games: ${totalGames}, Wins: ${wins}, Average: ${averageScore}`);
 
     return {
       totalGames,
+      wins,
+      losses,
+      draws,
       winRate,
-      averageScore
+      averageScore,
+      currentStreak,
     };
   }, [gameHistories]); // Only recalculate when gameHistories changes
 
@@ -568,7 +592,8 @@ const Dashboard = () => {
           </div>
         </section>
 
-        {/* Active Games Section */}
+        {/* Active Games Section — only render when there are active games */}
+        {activeGames.length > 0 && (
         <section className="unified-section">
           <h2 className="unified-section-header">🎮 Active Games</h2>
           {!user ? (
@@ -654,22 +679,12 @@ const Dashboard = () => {
               </div>
             )}
             </>
-          ) : (
-            <div className="unified-empty-state">
-              <p>🎮 No active games</p>
-              <p>Start a new game from the lobby!</p>
-              <button
-                onClick={() => navigate('/lobby')}
-                className="unified-card-btn primary"
-                style={{ marginTop: '0.75rem' }}
-              >
-                Create Game
-              </button>
-            </div>
-          )}
+          ) : null}
         </section>
+        )}
 
-        {/* Unfinished Games Section */}
+        {/* Unfinished Games Section — only render when there are unfinished games */}
+        {unfinishedGames.length > 0 && (
         <section className="unified-section">
           <h2 className="unified-section-header">⏸️ Unfinished Games</h2>
           {unfinishedGames.length > 0 ? (
@@ -710,13 +725,9 @@ const Dashboard = () => {
                 );
               })}
             </div>
-          ) : (
-            <div className="unified-empty-state">
-              <p>⏸️ No unfinished games</p>
-              <p>Games you leave will appear here for quick resuming!</p>
-            </div>
-          )}
+          ) : null}
         </section>
+        )}
 
         {/* Recent Games Section */}
         <section className="unified-section">
@@ -728,22 +739,26 @@ const Dashboard = () => {
           ) : gameHistories.length > 0 ? (
             <>
             <div className="unified-card-grid cols-1">
-              {gameHistories.slice(0, visibleRecentGames).map((game) => (
+              {gameHistories.slice(0, visibleRecentGames).map((game) => {
+                const resultStatus = game.result?.status || game.result;
+                const isDraw = resultStatus === 'draw' || resultStatus === 'stalemate';
+                const won = isWin(game.result);
+                const resultColor = won ? '#81b64c' : isDraw ? '#e8a93e' : '#e74c3c';
+                const resultLabel = won ? 'Win' : isDraw ? 'Draw' : 'Loss';
+                const opponentName = game.opponent_name || game.opponentName || (game.game_mode === 'computer' ? 'Computer' : null);
+                const colorLabel = game.player_color === 'w' || game.playerColor === 'w' ? '♔ White' : game.player_color === 'b' || game.playerColor === 'b' ? '♟ Black' : null;
+                return (
                 <div key={`history-${game.id}`} className="unified-card horizontal">
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: '54px', padding: '0 8px' }}>
+                    <span style={{ fontSize: '1.1rem', fontWeight: '800', color: resultColor }}>{resultLabel}</span>
+                    {colorLabel && <span style={{ fontSize: '0.65rem', color: '#8b8987', marginTop: '2px' }}>{colorLabel}</span>}
+                  </div>
                   <div className="unified-card-content">
                     <h3 className="unified-card-title">
-                      {new Date(
-                        game.played_at || game.timestamp
-                      ).toLocaleDateString()}
+                      {opponentName ? `vs ${opponentName}` : new Date(game.played_at || game.timestamp).toLocaleDateString()}
                     </h3>
-                    <p
-                      className={`unified-card-subtitle ${
-                        isWin(game.result)
-                          ? "title-success"
-                          : "title-error"
-                      }`}
-                    >
-                      {getResultDisplayText(game.result)}
+                    <p className="unified-card-subtitle" style={{ color: '#8b8987' }}>
+                      {opponentName ? new Date(game.played_at || game.timestamp).toLocaleDateString() : getResultDisplayText(game.result)}
                     </p>
                   </div>
                   <div className="unified-card-actions">
@@ -751,11 +766,12 @@ const Dashboard = () => {
                       onClick={() => handleReviewGame(game)}
                       className="unified-card-btn primary"
                     >
-                      Review Game
+                      Review
                     </button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
             {gameHistories.length > visibleRecentGames && (
               <div style={{ textAlign: 'center', marginTop: '1rem' }}>
@@ -790,6 +806,13 @@ const Dashboard = () => {
               </button>
             )}
           </div>
+          {stats.totalGames === 0 ? (
+            <div className="unified-empty-state">
+              <p>📊 No games played yet</p>
+              <p>Your stats will appear here after your first game!</p>
+            </div>
+          ) : (
+            <>
             <div className="unified-card-grid cols-4">
               <div className="unified-card centered">
                 <div className="unified-card-content">
@@ -812,7 +835,7 @@ const Dashboard = () => {
                   <h3 className="unified-card-title title-large title-accent">
                     {stats.averageScore}
                   </h3>
-                  <p className="unified-card-subtitle">Average Score</p>
+                  <p className="unified-card-subtitle">Avg Score</p>
                 </div>
               </div>
               <div className="unified-card centered">
@@ -824,6 +847,43 @@ const Dashboard = () => {
                 </div>
               </div>
             </div>
+            {/* W/L/D breakdown + streak */}
+            <div className="unified-card-grid cols-4" style={{ marginTop: '0.5rem' }}>
+              <div className="unified-card centered">
+                <div className="unified-card-content">
+                  <h3 className="unified-card-title title-success" style={{ fontSize: '1.25rem' }}>
+                    {stats.wins}
+                  </h3>
+                  <p className="unified-card-subtitle">Wins</p>
+                </div>
+              </div>
+              <div className="unified-card centered">
+                <div className="unified-card-content">
+                  <h3 className="unified-card-title" style={{ fontSize: '1.25rem', color: '#e74c3c' }}>
+                    {stats.losses}
+                  </h3>
+                  <p className="unified-card-subtitle">Losses</p>
+                </div>
+              </div>
+              <div className="unified-card centered">
+                <div className="unified-card-content">
+                  <h3 className="unified-card-title title-accent" style={{ fontSize: '1.25rem' }}>
+                    {stats.draws}
+                  </h3>
+                  <p className="unified-card-subtitle">Draws</p>
+                </div>
+              </div>
+              <div className="unified-card centered">
+                <div className="unified-card-content">
+                  <h3 className="unified-card-title" style={{ fontSize: '1.25rem', color: stats.currentStreak > 0 ? '#81b64c' : stats.currentStreak < 0 ? '#e74c3c' : '#8b8987' }}>
+                    {stats.currentStreak > 0 ? `🔥${stats.currentStreak}W` : stats.currentStreak < 0 ? `❄️${Math.abs(stats.currentStreak)}L` : '—'}
+                  </h3>
+                  <p className="unified-card-subtitle">Streak</p>
+                </div>
+              </div>
+            </div>
+            </>
+          )}
         </section>
         </div>
       </div>
