@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useSubscription } from '../../contexts/SubscriptionContext';
 
 const tierBadgeColors = {
-  free: { bg: '#4a4744', text: '#bababa' },
-  standard: { bg: '#4a3a1a', text: '#e8a93e' },
-  premium: { bg: '#2d1a4a', text: '#a855f7' },
+  free:   { bg: '#4a4744', text: '#bababa' },
+  silver: { bg: '#4a3a1a', text: '#e8a93e' },
+  gold:   { bg: '#2d1a4a', text: '#a855f7' },
 };
 
 const SubscriptionManagement = () => {

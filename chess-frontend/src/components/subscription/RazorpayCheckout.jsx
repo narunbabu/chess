@@ -235,6 +235,14 @@ const RazorpayCheckout = ({ planId, onSuccess, onClose }) => {
           </div>
         )}
 
+        {/* ── fallback for any unhandled step value ── */}
+        {!['init', 'creating_order', 'awaiting_payment', 'verifying', 'success', 'error'].includes(step) && (
+          <div className="razorpay-checkout__step">
+            <div className="razorpay-checkout__spinner" />
+            <p>Processing…</p>
+          </div>
+        )}
+
       </div>
     </div>
   );
