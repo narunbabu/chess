@@ -561,7 +561,10 @@ const Profile = () => {
               />
             </div>
             <div className="form-group profile-field-half">
-              <label>Class of Study</label>
+              <label title="Your school class (Grade 1–12). Used to find age-appropriate opponents and tournaments.">
+                Class of Study
+                <span style={{ marginLeft: '4px', color: '#8b8987', fontSize: '0.8em', cursor: 'help' }} title="Your school class (Grade 1–12). Used to match you with age-appropriate opponents and tournaments.">ⓘ</span>
+              </label>
               <select
                 value={classOfStudy}
                 onChange={(e) => setClassOfStudy(e.target.value)}
@@ -696,8 +699,8 @@ const Profile = () => {
         </p>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
-          gap: '12px',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+          gap: '16px',
         }}>
           {Object.entries(BOARD_THEMES).map(([key, theme]) => {
             const isSelected = (user?.board_theme || 'classic') === key;
@@ -719,37 +722,43 @@ const Profile = () => {
                 }}
                 style={{
                   position: 'relative',
-                  padding: '8px',
-                  borderRadius: '10px',
+                  padding: '10px',
+                  borderRadius: '12px',
                   border: `2px solid ${isSelected ? '#81b64c' : '#4a4744'}`,
-                  backgroundColor: isSelected ? 'rgba(129, 182, 76, 0.1)' : '#2b2927',
-                  cursor: isLocked ? 'pointer' : 'pointer',
-                  opacity: isLocked ? 0.7 : 1,
+                  backgroundColor: isSelected ? 'rgba(129, 182, 76, 0.12)' : '#2b2927',
+                  cursor: 'pointer',
+                  opacity: isLocked ? 0.75 : 1,
                   transition: 'all 0.15s ease',
+                  boxShadow: isSelected ? '0 0 0 1px rgba(129,182,76,0.4)' : 'none',
                 }}
               >
-                {/* Mini board preview: 4x2 grid */}
+                {/* Mini board preview: 8x8 checkerboard */}
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(4, 1fr)',
+                  gridTemplateColumns: 'repeat(8, 1fr)',
                   width: '100%',
-                  aspectRatio: '2 / 1',
+                  aspectRatio: '1 / 1',
                   borderRadius: '4px',
                   overflow: 'hidden',
-                  marginBottom: '6px',
+                  marginBottom: '8px',
+                  border: '1px solid rgba(255,255,255,0.08)',
                 }}>
-                  {Array.from({ length: 8 }).map((_, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        backgroundColor: (Math.floor(i / 4) + i % 4) % 2 === 0 ? theme.light : theme.dark,
-                      }}
-                    />
-                  ))}
+                  {Array.from({ length: 64 }).map((_, i) => {
+                    const row = Math.floor(i / 8);
+                    const col = i % 8;
+                    const isLight = (row + col) % 2 === 0;
+                    return (
+                      <div
+                        key={i}
+                        style={{ backgroundColor: isLight ? theme.light : theme.dark }}
+                      />
+                    );
+                  })}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
                   {isLocked && <span style={{ fontSize: '12px' }}>🔒</span>}
-                  <span style={{ color: '#bababa', fontSize: '12px', fontWeight: isSelected ? 'bold' : 'normal' }}>
+                  {isSelected && <span style={{ fontSize: '10px', color: '#81b64c' }}>✓</span>}
+                  <span style={{ color: isSelected ? '#81b64c' : '#bababa', fontSize: '12px', fontWeight: isSelected ? '700' : '500' }}>
                     {theme.name}
                   </span>
                 </div>
@@ -933,6 +942,45 @@ const Profile = () => {
           </div>
         </section>
       )}
+
+      {/* Account Security */}
+      <section className="profile-section">
+        <h2>🔒 Account Security</h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#2b2927', borderRadius: '10px', border: '1px solid #3d3a37' }}>
+            <div>
+              <div style={{ color: '#e5e7eb', fontWeight: '600', fontSize: '14px' }}>Password</div>
+              <div style={{ color: '#8b8987', fontSize: '12px' }}>Change your account password</div>
+            </div>
+            <button
+              onClick={() => navigate('/settings')}
+              style={{ padding: '6px 14px', borderRadius: '8px', border: '1px solid #4a4744', background: 'transparent', color: '#bababa', fontSize: '13px', cursor: 'pointer' }}
+            >
+              Change
+            </button>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#2b2927', borderRadius: '10px', border: '1px solid #3d3a37' }}>
+            <div>
+              <div style={{ color: '#e5e7eb', fontWeight: '600', fontSize: '14px' }}>Email</div>
+              <div style={{ color: '#8b8987', fontSize: '12px' }}>{user?.email}</div>
+            </div>
+            <span style={{ padding: '4px 10px', borderRadius: '6px', background: 'rgba(129,182,76,0.15)', color: '#81b64c', fontSize: '12px', fontWeight: '600' }}>
+              ✓ Verified
+            </span>
+          </div>
+          {user?.google_id && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#2b2927', borderRadius: '10px', border: '1px solid #3d3a37' }}>
+              <div>
+                <div style={{ color: '#e5e7eb', fontWeight: '600', fontSize: '14px' }}>Google Account</div>
+                <div style={{ color: '#8b8987', fontSize: '12px' }}>Linked for sign-in</div>
+              </div>
+              <span style={{ padding: '4px 10px', borderRadius: '6px', background: 'rgba(129,182,76,0.15)', color: '#81b64c', fontSize: '12px', fontWeight: '600' }}>
+                ✓ Linked
+              </span>
+            </div>
+          )}
+        </div>
+      </section>
 
       {/* Invite Friends via Social Media */}
       <section className="profile-section">

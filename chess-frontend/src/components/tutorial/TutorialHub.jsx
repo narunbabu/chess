@@ -514,6 +514,16 @@ const TutorialHub = () => {
           <p className="text-xl text-[#bababa] font-semibold">Master the game with our interactive tutorials</p>
         </div>
 
+        {/* Cross-link to Training Hub */}
+        <div className="flex justify-center mb-6">
+          <Link
+            to="/training"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#262421] border border-[#3d3a37] text-[#bababa] hover:text-white hover:border-[#e8a93e] hover:bg-[#312e2b] transition-all text-sm font-semibold"
+          >
+            🏋️ Want puzzles &amp; exercises? Try Training Hub →
+          </Link>
+        </div>
+
         {/* Tier Filter */}
         <div className="flex justify-center mb-8">
           <div className="flex space-x-2 bg-[#262421] rounded-xl p-2 shadow-md border-2 border-[#3d3a37]">

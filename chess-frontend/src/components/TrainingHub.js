@@ -66,6 +66,16 @@ const trainingData = {
 const TrainingHub = () => {
   return (
     <div className="training-hub p-6 min-h-screen text-white">
+      {/* Cross-link back to Tutorial Hub */}
+      <div className="flex justify-center mb-6">
+        <Link
+          to="/tutorial"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/10 border border-white/20 text-[#bababa] hover:text-white hover:border-[#81b64c] hover:bg-white/15 transition-all text-sm font-semibold"
+        >
+          ← 🎓 Back to Interactive Lessons
+        </Link>
+      </div>
+
       <h2 className="text-4xl font-bold text-center mb-4 text-white">Training Exercises & Puzzles</h2>
       <p className="text-lg text-center text-[#bababa] mb-10">Select an exercise below to improve your chess skills:</p>
 

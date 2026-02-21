@@ -31,6 +31,7 @@ const GameHistory = () => {
     playerColor: "",
     result: "",
     level: "",
+    gameMode: "",
   });
   const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
   const [boardPosition, setBoardPosition] = useState(null);
@@ -761,9 +762,22 @@ const GameHistory = () => {
       <h2 className="text-2xl sm:text-3xl font-bold text-center mb-4 sm:mb-6">Game History</h2>
       <div className="filters bg-[#312e2b] rounded-2xl border border-[#3d3a37] p-3 lg:p-4 mb-4 lg:mb-6">
         <h3 className="text-lg lg:text-xl font-semibold mb-3 lg:mb-4">Filters</h3>
-        <div className="filter-controls grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+        <div className="filter-controls grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4">
           <div className="filter-group">
-            <label className="block text-sm font-medium mb-1">Player Color</label>
+            <label className="block text-sm font-medium mb-1">Game Mode</label>
+            <select
+              name="gameMode"
+              value={filters.gameMode}
+              onChange={handleFilterChange}
+              className="w-full bg-[#3d3a37] border-2 border-[#4a4744] rounded-lg focus:ring-[#81b64c] focus:border-[#81b64c] transition-all duration-300 text-white placeholder-[#8b8987] py-2 px-3 text-sm"
+            >
+              <option value="">All</option>
+              <option value="computer">🤖 vs Computer</option>
+              <option value="multiplayer">👥 vs Human</option>
+            </select>
+          </div>
+          <div className="filter-group">
+            <label className="block text-sm font-medium mb-1">Color</label>
             <select
               name="playerColor"
               value={filters.playerColor}
@@ -771,8 +785,8 @@ const GameHistory = () => {
               className="w-full bg-[#3d3a37] border-2 border-[#4a4744] rounded-lg focus:ring-[#81b64c] focus:border-[#81b64c] transition-all duration-300 text-white placeholder-[#8b8987] py-2 px-3 text-sm"
             >
               <option value="">All</option>
-              <option value="w">White</option>
-              <option value="b">Black</option>
+              <option value="w">♔ White</option>
+              <option value="b">♟ Black</option>
             </select>
           </div>
           <div className="filter-group">
@@ -784,13 +798,13 @@ const GameHistory = () => {
               className="w-full bg-[#3d3a37] border-2 border-[#4a4744] rounded-lg focus:ring-[#81b64c] focus:border-[#81b64c] transition-all duration-300 text-white placeholder-[#8b8987] py-2 px-3 text-sm"
             >
               <option value="">All</option>
-              <option value="won">Won</option>
-              <option value="lost">Lost</option>
-              <option value="Draw">Draw</option>
+              <option value="won">✅ Won</option>
+              <option value="lost">❌ Lost</option>
+              <option value="Draw">🤝 Draw</option>
             </select>
           </div>
           <div className="filter-group">
-            <label className="block text-sm font-medium mb-1">Computer Level</label>
+            <label className="block text-sm font-medium mb-1">AI Level</label>
             <select
               name="level"
               value={filters.level}
@@ -803,7 +817,7 @@ const GameHistory = () => {
               <option value="3">Hard</option>
             </select>
           </div>
-          <button onClick={clearFilters} className="bg-[#4a4744] hover:bg-[#5c5a57] transition-colors duration-300 px-4 py-2 rounded-lg self-end text-sm text-[#bababa]">Clear Filters</button>
+          <button onClick={clearFilters} className="bg-[#4a4744] hover:bg-[#5c5a57] transition-colors duration-300 px-4 py-2 rounded-lg self-end text-sm text-[#bababa]">Clear</button>
         </div>
       </div>
 

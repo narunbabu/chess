@@ -173,6 +173,11 @@ export const filterGameHistories = (gameHistories, filters = {}) => {
     if (filters.level && game.computer_level !== filters.level) {
       match = false;
     }
+    if (filters.gameMode) {
+      const mode = game.game_mode || game.gameMode || '';
+      if (filters.gameMode === 'computer' && mode !== 'computer') match = false;
+      if (filters.gameMode === 'multiplayer' && mode !== 'multiplayer') match = false;
+    }
     if (filters.dateRange) {
       const gameDate = new Date(game.date || game.played_at);
       if (
