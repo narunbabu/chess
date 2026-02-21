@@ -40,7 +40,7 @@ const BoardCustomizer = ({ boardTheme, pieceStyle, onThemeChange, onPieceStyleCh
   const handleThemeSelect = async (key) => {
     const theme = BOARD_THEMES[key];
     if (theme.tier === 'standard' && !isStandard) {
-      alert('This theme requires a premium subscription. Upgrade in your Profile to unlock it!');
+      alert('This theme requires a Silver subscription. Upgrade at /pricing to unlock it!');
       return;
     }
     // Save to localStorage (works for guests too)
@@ -130,7 +130,7 @@ const BoardCustomizer = ({ boardTheme, pieceStyle, onThemeChange, onPieceStyleCh
                   <button
                     key={key}
                     onClick={() => handleThemeSelect(key)}
-                    title={`${theme.name}${isLocked ? ' (Premium)' : ''}`}
+                    title={`${theme.name}${isLocked ? ' (Silver+)' : ''}`}
                     style={{
                       position: 'relative',
                       padding: '3px',

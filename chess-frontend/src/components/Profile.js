@@ -465,7 +465,7 @@ const Profile = () => {
                            'rgba(100,96,92,0.4)',
               color: currentTier === 'free' ? '#bababa' : '#1a1a18',
             }}>
-              {currentTier === 'premium' ? '★ Premium' : currentTier === 'standard' ? '✓ Standard' : 'Free'}
+              {isPremium ? '★ Gold' : isStandard ? '✓ Silver' : 'Free'}
             </span>
             <span style={{ color: '#8b8987', fontSize: '13px' }}>
               {isPremium ? 'All features unlocked' :
@@ -487,7 +487,7 @@ const Profile = () => {
                 cursor: 'pointer',
               }}
             >
-              {isStandard ? '⬆ Upgrade to Premium' : '⬆ Upgrade Plan'}
+              {isStandard ? '⬆ Upgrade to Gold' : '⬆ Upgrade Plan'}
             </button>
           )}
         </div>
@@ -739,7 +739,7 @@ const Profile = () => {
       <section className="profile-section">
         <h2>Board Theme</h2>
         <p style={{ color: '#bababa', marginBottom: '12px', fontSize: '14px' }}>
-          Choose your board colors. Premium themes require a subscription.
+          Choose your board colors. Themed boards require Silver or higher.
         </p>
         <div style={{
           display: 'grid',
@@ -813,8 +813,8 @@ const Profile = () => {
       </section>
       {showUpgradePrompt && (
         <UpgradePrompt
-          feature="Premium Board Theme"
-          requiredTier="Premium"
+          feature="Custom Board Theme"
+          requiredTier="Silver"
           onDismiss={() => setShowUpgradePrompt(false)}
         />
       )}

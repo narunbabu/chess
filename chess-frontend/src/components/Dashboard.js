@@ -485,7 +485,7 @@ const Dashboard = () => {
               }}>
                 <p style={{ margin: 0, color: '#bababa', fontSize: '14px', textAlign: 'left' }}>
                   You're on the <strong style={{ color: '#e5e7eb' }}>Free plan</strong>.
-                  Upgrade to <strong style={{ color: '#81b64c' }}>Standard ₹99/mo</strong> for unlimited games, tournaments & premium features.
+                  Upgrade to <strong style={{ color: '#81b64c' }}>Silver ₹99/mo</strong> for unlimited games, tournaments & premium features.
                 </p>
                 <button
                   onClick={() => navigate('/pricing')}

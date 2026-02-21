@@ -23,7 +23,7 @@ const Header = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { isAuthenticated, logout, user } = useAuth();
-  const { currentTier } = useSubscription();
+  const { currentTier, isPremium, isStandard } = useSubscription();
   const { activeGame, loading } = useActiveGame();
   const { navigateWithGuard } = useGameNavigation();
   const [showNavPanel, setShowNavPanel] = useState(false);
@@ -464,8 +464,8 @@ const Header = () => {
                   fontWeight: '700',
                   letterSpacing: '0.04em',
                   textTransform: 'uppercase',
-                  background: currentTier === 'premium' ? 'linear-gradient(135deg, #e8a93e, #f0c060)' :
-                               currentTier === 'standard' ? 'linear-gradient(135deg, #81b64c, #a3d160)' :
+                  background: isPremium  ? 'linear-gradient(135deg, #e8a93e, #f0c060)' :
+                               isStandard ? 'linear-gradient(135deg, #81b64c, #a3d160)' :
                                'rgba(100,96,92,0.5)',
                   color: currentTier === 'free' ? '#bababa' : '#1a1a18',
                 }}>
