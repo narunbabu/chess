@@ -56,9 +56,11 @@ class ChampionshipRegistrationController extends Controller
             // Check if registration is allowed
             $this->authorizeRegistration($championship, $user);
 
-            // Check if already registered
+            // Check if already registered (active = not cancelled / not refunded).
+            // Cancelled participants are allowed to re-register, so exclude them.
             $existingParticipant = ChampionshipParticipant::where('championship_id', $championshipId)
                 ->where('user_id', $user->id)
+                ->active()
                 ->first();
 
             if ($existingParticipant) {
@@ -88,8 +90,11 @@ class ChampionshipRegistrationController extends Controller
 
             $validated = $validator->validated();
 
-            // Check championship capacity
-            $currentParticipants = ChampionshipParticipant::where('championship_id', $championshipId)->count();
+            // Check championship capacity — exclude cancelled/refunded so freed slots
+            // can be filled by new registrations (H2 fix).
+            $currentParticipants = ChampionshipParticipant::where('championship_id', $championshipId)
+                ->active()
+                ->count();
             if ($currentParticipants >= $championship->max_participants) {
                 return response()->json([
                     'error' => 'Championship Full',
@@ -97,8 +102,8 @@ class ChampionshipRegistrationController extends Controller
                 ], 422);
             }
 
-            // Handle payment if required
-            $paymentStatus = PaymentStatus::PENDING;
+            // Handle payment if required.
+            // Free entries (entry_fee == 0) are immediately COMPLETED — no payment needed.
             $paymentReference = null;
 
             if ($championship->entry_fee > 0) {
@@ -117,16 +122,21 @@ class ChampionshipRegistrationController extends Controller
 
                 $paymentStatus = $paymentResult['status'];
                 $paymentReference = $paymentResult['reference'];
+            } else {
+                // No entry fee — mark as paid immediately (H1 fix).
+                $paymentStatus = PaymentStatus::COMPLETED;
             }
 
             // Create participant record
             $participant = DB::transaction(function () use ($championship, $user, $validated, $paymentStatus, $paymentReference) {
                 $participant = ChampionshipParticipant::create([
-                    'championship_id' => $championship->id,
-                    'user_id' => $user->id,
-                    'status' => $paymentStatus === PaymentStatus::COMPLETED ? 'registered' : 'payment_pending',
-                    'payment_status' => $paymentStatus,
-                    'payment_reference' => $paymentReference,
+                    'championship_id'     => $championship->id,
+                    'user_id'             => $user->id,
+                    // H1 fix: write registration_status (not the non-fillable 'status')
+                    // and derive the value from the canonical mapping constant.
+                    'registration_status' => ChampionshipParticipant::PAYMENT_TO_REGISTRATION_STATUS[$paymentStatus->value],
+                    'payment_status'      => $paymentStatus,
+                    'payment_reference'   => $paymentReference,
                     'rating_at_registration' => $user->rating ?? 0,
                     'accept_terms' => true,
                     'accept_code_of_conduct' => true,
@@ -270,9 +280,11 @@ class ChampionshipRegistrationController extends Controller
             // Check if cancellation is allowed
             $this->authorizeCancellation($championship, $participant, $user);
 
-            DB::transaction(function () use ($championship, $participant, $user) {
-                // Process refund if applicable
-                if ($participant->payment_status === PaymentStatus::COMPLETED && $championship->entry_fee > 0) {
+            DB::transaction(function () use ($championship, $participant, $user, $request) {
+                // Process refund if applicable.
+                // H1 fix: use isPaid() instead of (payment_status === PaymentStatus::COMPLETED)
+                // — comparing a string accessor to an enum case via === always returns false.
+                if ($participant->isPaid() && $championship->entry_fee > 0) {
                     $refundResult = $this->paymentService->processRefund(
                         $participant->payment_reference,
                         $user,
@@ -283,14 +295,17 @@ class ChampionshipRegistrationController extends Controller
                         $participant->refund_status = $refundResult['status'];
                         $participant->refund_reference = $refundResult['reference'];
                         $participant->refund_processed_at = now();
+                        $participant->save();        // persist refund fields before cancel()
                     }
                 }
 
-                // Update participant status
-                $participant->status = 'cancelled';
+                // H1 fix: use the model's cancel() method so that registration_status
+                // is set atomically via the state machine instead of writing the
+                // non-fillable 'status' field which was silently ignored.
                 $participant->cancelled_at = now();
                 $participant->cancellation_reason = $request->input('reason', 'User cancelled');
                 $participant->save();
+                $participant->cancel();
 
                 // Update championship participant count
                 $championship->decrement('participants_count');
@@ -531,7 +546,7 @@ class ChampionshipRegistrationController extends Controller
                 'type' => 'registration_confirmation',
                 'championship_name' => $championship->name,
                 'championship_id' => $championship->id,
-                'registration_status' => $participant->status,
+                'registration_status' => $participant->registration_status,  // H1 fix
                 'payment_status' => $participant->payment_status,
                 'deadline' => $championship->registration_deadline,
                 'start_date' => $championship->start_date,
@@ -642,7 +657,7 @@ class ChampionshipRegistrationController extends Controller
             ->where('user_id', $user->id)
             ->first();
 
-        return $participant?->status;
+        return $participant?->registration_status;  // H1 fix: was ->status (non-fillable field)
     }
 
     /**
