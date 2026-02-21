@@ -165,7 +165,10 @@ class ChampionshipController extends Controller
             'entry_fee' => 'required|numeric|min:0|max:10000',
             'max_participants' => 'nullable|integer|min:2|max:1024',
             'registration_deadline' => 'required|date|after:now',
-            'start_date' => 'required|date|after:registration_deadline',
+            // H5 fix: start_date must be today or later (not in the past).
+            // after_or_equal:today enforces >= today midnight; keeping
+            // after:registration_deadline ensures correct ordering.
+            'start_date' => ['required', 'date', 'after_or_equal:today', 'after:registration_deadline'],
             'match_time_window_hours' => 'required|integer|min:1|max:168',
             'time_control_minutes' => 'required|integer|min:1|max:180',
             'time_control_increment' => 'required|integer|min:0|max:60',
@@ -477,7 +480,8 @@ class ChampionshipController extends Controller
                 'description' => 'sometimes|nullable|string|max:5000',
                 'max_participants' => 'sometimes|nullable|integer|min:2|max:1024',
                 'registration_deadline' => 'sometimes|required|date|after:now',
-                'start_date' => 'sometimes|required|date|after:registration_deadline',
+                // H5 fix: start_date must be today or later on update too.
+                'start_date' => ['sometimes', 'required', 'date', 'after_or_equal:today', 'after:registration_deadline'],
                 'match_time_window_hours' => 'sometimes|required|integer|min:1|max:168',
                 'time_control_minutes' => 'sometimes|required|integer|min:1|max:180',
                 'time_control_increment' => 'sometimes|required|integer|min:0|max:60',

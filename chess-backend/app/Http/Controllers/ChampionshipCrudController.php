@@ -174,7 +174,8 @@ class ChampionshipCrudController extends Controller
                 'time_control_increment' => 'nullable|integer|min:0|max:60',
                 'total_rounds' => 'required|integer|min:1|max:100',
                 'registration_deadline' => 'nullable|date|after:now',
-                'start_date' => 'nullable|date|after_or_equal:registration_deadline',
+                // H5 fix: start_date must be today or later.
+                'start_date' => ['nullable', 'date', 'after_or_equal:today', 'after_or_equal:registration_deadline'],
                 'organization_id' => 'nullable|exists:organizations,id',
                 'visibility' => 'required|string|in:public,private,unlisted',
                 'allow_public_registration' => 'boolean',
@@ -638,7 +639,8 @@ class ChampionshipCrudController extends Controller
                 'time_control_increment' => 'sometimes|integer|min:0|max:60',
                 'total_rounds' => 'sometimes|integer|min:1|max:100',
                 'registration_deadline' => 'sometimes|date|after:now',
-                'start_date' => 'sometimes|date|after_or_equal:registration_deadline',
+                // H5 fix: start_date must not be in the past on update either.
+                'start_date' => ['sometimes', 'date', 'after_or_equal:today', 'after_or_equal:registration_deadline'],
                 'allow_public_registration' => 'sometimes|boolean',
                 'entry_fee' => 'sometimes|numeric|min:0|max:999999.99',
             ]);
