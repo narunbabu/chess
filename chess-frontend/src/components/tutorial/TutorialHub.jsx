@@ -208,7 +208,7 @@ const TutorialHub = () => {
     );
   };
 
-  const ModuleCard = ({ module }) => {
+  const ModuleCard = ({ module, prerequisiteModule }) => {
     const isLocked = !module.is_unlocked;
     const progress = module.user_progress;
 
@@ -220,9 +220,15 @@ const TutorialHub = () => {
         {/* Lock overlay */}
         {isLocked && (
           <div className="absolute inset-0 bg-gray-900 bg-opacity-70 rounded-2xl flex items-center justify-center z-10">
-            <div className="text-white text-center">
+            <div className="text-white text-center px-4">
               <div className="text-4xl mb-3">🔒</div>
-              <div className="text-base font-bold">Complete previous lessons to unlock</div>
+              {prerequisiteModule ? (
+                <div className="text-base font-bold">
+                  Complete <span style={{ color: '#e8a93e' }}>"{prerequisiteModule.name}"</span> to unlock
+                </div>
+              ) : (
+                <div className="text-base font-bold">Complete previous lessons to unlock</div>
+              )}
             </div>
           </div>
         )}
@@ -554,9 +560,13 @@ const TutorialHub = () => {
           {/* Modules Grid */}
           <div className="order-last lg:order-first lg:col-span-3">
             <div className="tutorial-modules-grid grid grid-cols-1 md:grid-cols-2 gap-6">
-              {filteredModules.map((module) => (
-                <ModuleCard key={module.id} module={module} />
-              ))}
+              {filteredModules.map((module, idx) => {
+                // Find the closest preceding module that is unlocked — that's the prerequisite (T-R4)
+                const prereq = idx > 0 ? filteredModules[idx - 1] : null;
+                return (
+                  <ModuleCard key={module.id} module={module} prerequisiteModule={prereq} />
+                );
+              })}
             </div>
           </div>
         </div>

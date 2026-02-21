@@ -501,6 +501,20 @@ const ChampionshipList = () => {
             <option value="hybrid">Hybrid</option>
             <option value="round_robin">Round Robin</option>
           </select>
+          {/* C-R3: Format description tooltip */}
+          {filters.format && (() => {
+            const desc = {
+              swiss: 'Players are paired based on similar scores. No elimination — everyone plays all rounds.',
+              elimination: 'Lose once and you\'re out. One winner advances from each match.',
+              hybrid: 'Swiss rounds followed by knockout elimination for the top performers.',
+              round_robin: 'Every player faces every other player. The most points at the end wins.',
+            }[filters.format];
+            return desc ? (
+              <p style={{ margin: '4px 0 0', fontSize: '0.76rem', color: '#8b8987', lineHeight: '1.4', maxWidth: '240px' }}>
+                ℹ️ {desc}
+              </p>
+            ) : null;
+          })()}
         </div>
 
         <div className="filter-checkboxes">

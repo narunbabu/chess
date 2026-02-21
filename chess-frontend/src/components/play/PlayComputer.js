@@ -37,6 +37,7 @@ import moveSound from '../../assets/sounds/move.mp3';
 import checkSound from '../../assets/sounds/check.mp3';
 import gameEndSound from '../../assets/sounds/game-end.mp3';
 import { isSoundMuted } from './SoundToggle';
+import { BOARD_THEMES } from '../../config/boardThemes';
 
 // Create audio objects
 const moveSoundEffect = new Audio(moveSound);
@@ -2293,6 +2294,37 @@ const PlayComputer = () => {
               <span className="ml-3">Black</span>
             </label>
           </div>
+          {/* Mini board theme preview (P-R4) */}
+          {(() => {
+            const theme = BOARD_THEMES[boardTheme] || BOARD_THEMES.classic;
+            const rows = Array.from({ length: 4 }, (_, r) => r);
+            const cols = Array.from({ length: 4 }, (_, c) => c);
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', margin: '12px 0 16px' }}>
+                <span style={{ fontSize: '0.75rem', color: '#8b8987', marginBottom: '6px', fontWeight: 600 }}>
+                  Board Preview — {theme.name}
+                </span>
+                <div style={{
+                  display: 'grid', gridTemplateColumns: 'repeat(4, 24px)',
+                  gridTemplateRows: 'repeat(4, 24px)',
+                  borderRadius: '4px', overflow: 'hidden',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
+                  border: '1px solid rgba(255,255,255,0.1)'
+                }}>
+                  {rows.map(r => cols.map(c => (
+                    <div
+                      key={`${r}-${c}`}
+                      style={{
+                        width: 24, height: 24,
+                        background: (r + c) % 2 === 0 ? theme.light : theme.dark,
+                      }}
+                    />
+                  )))}
+                </div>
+              </div>
+            );
+          })()}
+
           {!countdownActive && (
             <button className="start-button large green bg-chess-green hover:bg-chess-hover text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300" onClick={startGame} disabled={countdownActive}>
               Start Game

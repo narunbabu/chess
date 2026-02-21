@@ -43,6 +43,7 @@ const Dashboard = () => {
   const [showSkillAssessment, setShowSkillAssessment] = useState(false);
   const [showDetailedStats, setShowDetailedStats] = useState(false);
   const [showMatchmaking, setShowMatchmaking] = useState(false);
+  const [onlineCount, setOnlineCount] = useState(null);
   const [visibleActiveGames, setVisibleActiveGames] = useState(3);
   const [visibleRecentGames, setVisibleRecentGames] = useState(3);
   const { user } = useAuth();
@@ -104,6 +105,11 @@ const Dashboard = () => {
 
     // Initialize status service immediately
     initializeStatusService();
+
+    // Fetch online player count for social proof (D-R8)
+    userStatusService.getOnlineUsers().then(users => {
+      if (Array.isArray(users)) setOnlineCount(users.length);
+    }).catch(() => {});
 
     // Only log trace on first mount to reduce noise (conditional debug)
     if (mountCountRef.current === 1 && DEBUG_MODE) {
@@ -455,6 +461,12 @@ const Dashboard = () => {
         <div className="dashboard p-6 text-white">
           <header className="dashboard-header text-center mb-10">
             <h1 className="text-4xl font-bold text-white">Welcome, {user?.name || user?.email?.split('@')[0] || "Player"}!</h1>
+            {onlineCount !== null && onlineCount > 0 && (
+              <p style={{ marginTop: '6px', fontSize: '0.85rem', color: '#8b8987' }}>
+                <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#81b64c', marginRight: '6px', verticalAlign: 'middle', boxShadow: '0 0 6px #81b64c' }}></span>
+                {onlineCount} player{onlineCount !== 1 ? 's' : ''} online right now
+              </p>
+            )}
 
             {/* Upgrade Banner for free-tier users */}
             {currentTier === 'free' && (
@@ -493,6 +505,32 @@ const Dashboard = () => {
                 </button>
               </div>
             )}
+
+            {/* Usage vs Limits (S-R2) — show today's game count for free users */}
+            {currentTier === 'free' && gameHistories.length > 0 && (() => {
+              const todayGames = gameHistories.filter(g => {
+                const d = new Date(g.played_at || g.timestamp);
+                const t = new Date();
+                return d.getFullYear() === t.getFullYear() && d.getMonth() === t.getMonth() && d.getDate() === t.getDate();
+              }).length;
+              const limit = 5;
+              const pct = Math.min(100, (todayGames / limit) * 100);
+              const barColor = pct >= 100 ? '#e74c3c' : pct >= 60 ? '#e8a93e' : '#81b64c';
+              return (
+                <div style={{ margin: '10px auto 0', maxWidth: '420px', padding: '10px 16px', borderRadius: '8px', background: '#1a1a18', border: '1px solid #3d3a37' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '0.82rem' }}>
+                    <span style={{ color: '#bababa', fontWeight: 600 }}>Today's games</span>
+                    <span style={{ color: barColor, fontWeight: 700 }}>{todayGames} / {limit}</span>
+                  </div>
+                  <div style={{ height: '6px', background: '#3d3a37', borderRadius: '3px', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', borderRadius: '3px', width: `${pct}%`, background: barColor, transition: 'width 0.4s ease' }} />
+                  </div>
+                  {todayGames >= limit && (
+                    <p style={{ margin: '6px 0 0', fontSize: '0.78rem', color: '#e8a93e' }}>Daily limit reached — <button onClick={() => navigate('/pricing')} style={{ background: 'none', border: 'none', color: '#81b64c', cursor: 'pointer', fontWeight: 700, padding: 0, fontSize: 'inherit' }}>upgrade for unlimited →</button></p>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Skill Assessment Prompt */}
             {shouldShowRatingPrompt && (
@@ -746,19 +784,36 @@ const Dashboard = () => {
                 const resultColor = won ? '#81b64c' : isDraw ? '#e8a93e' : '#e74c3c';
                 const resultLabel = won ? 'Win' : isDraw ? 'Draw' : 'Loss';
                 const opponentName = game.opponent_name || game.opponentName || (game.game_mode === 'computer' ? 'Computer' : null);
-                const colorLabel = game.player_color === 'w' || game.playerColor === 'w' ? '♔ White' : game.player_color === 'b' || game.playerColor === 'b' ? '♟ Black' : null;
+                const opponentRating = game.opponent_rating || null;
+                const colorLabel = game.player_color === 'w' || game.playerColor === 'w' ? '♔' : game.player_color === 'b' || game.playerColor === 'b' ? '♟' : null;
+                const isComputer = game.game_mode === 'computer' || !game.game_mode;
+                const modeLabel = isComputer
+                  ? (game.computer_level ? `CPU Lv.${game.computer_level}` : 'vs Computer')
+                  : 'Multiplayer';
+                const playedDate = new Date(game.played_at || game.timestamp);
+                const now = Date.now();
+                const diffMs = now - playedDate.getTime();
+                const diffMins = Math.floor(diffMs / 60000);
+                const timeAgo = diffMins < 1 ? 'just now'
+                  : diffMins < 60 ? `${diffMins}m ago`
+                  : diffMins < 1440 ? `${Math.floor(diffMins / 60)}h ago`
+                  : diffMins < 10080 ? `${Math.floor(diffMins / 1440)}d ago`
+                  : playedDate.toLocaleDateString();
                 return (
                 <div key={`history-${game.id}`} className="unified-card horizontal">
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: '54px', padding: '0 8px' }}>
                     <span style={{ fontSize: '1.1rem', fontWeight: '800', color: resultColor }}>{resultLabel}</span>
-                    {colorLabel && <span style={{ fontSize: '0.65rem', color: '#8b8987', marginTop: '2px' }}>{colorLabel}</span>}
+                    {colorLabel && <span style={{ fontSize: '0.75rem', color: '#8b8987', marginTop: '2px' }}>{colorLabel}</span>}
                   </div>
                   <div className="unified-card-content">
                     <h3 className="unified-card-title">
-                      {opponentName ? `vs ${opponentName}` : new Date(game.played_at || game.timestamp).toLocaleDateString()}
+                      {opponentName
+                        ? <>vs {opponentName}{opponentRating ? <span style={{ color: '#8b8987', fontWeight: 400, fontSize: '0.85em', marginLeft: '4px' }}>({opponentRating})</span> : null}</>
+                        : timeAgo}
                     </h3>
-                    <p className="unified-card-subtitle" style={{ color: '#8b8987' }}>
-                      {opponentName ? new Date(game.played_at || game.timestamp).toLocaleDateString() : getResultDisplayText(game.result)}
+                    <p className="unified-card-subtitle" style={{ color: '#8b8987', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                      <span style={{ background: isComputer ? '#3d3a37' : '#1a3a2a', color: isComputer ? '#8b8987' : '#81b64c', borderRadius: '4px', padding: '1px 6px', fontSize: '0.75rem', fontWeight: 600 }}>{modeLabel}</span>
+                      <span>{timeAgo}</span>
                     </p>
                   </div>
                   <div className="unified-card-actions">
