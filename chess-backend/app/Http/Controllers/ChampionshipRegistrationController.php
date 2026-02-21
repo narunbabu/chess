@@ -56,22 +56,8 @@ class ChampionshipRegistrationController extends Controller
             // Check if registration is allowed
             $this->authorizeRegistration($championship, $user);
 
-            // Check if already registered (active = not cancelled / not refunded).
-            // Cancelled participants are allowed to re-register, so exclude them.
-            $existingParticipant = ChampionshipParticipant::where('championship_id', $championshipId)
-                ->where('user_id', $user->id)
-                ->active()
-                ->first();
-
-            if ($existingParticipant) {
-                return response()->json([
-                    'error' => 'Already Registered',
-                    'message' => 'You are already registered for this championship',
-                    'participant' => $existingParticipant,
-                ], 409);
-            }
-
-            // Validate registration data
+            // Validate registration data early (before payment) so we fail fast
+            // on bad input without incurring any external calls.
             $validator = Validator::make($request->all(), [
                 'accept_terms' => 'required|accepted',
                 'accept_code_of_conduct' => 'required|accepted',
@@ -89,18 +75,6 @@ class ChampionshipRegistrationController extends Controller
             }
 
             $validated = $validator->validated();
-
-            // Check championship capacity — exclude cancelled/refunded so freed slots
-            // can be filled by new registrations (H2 fix).
-            $currentParticipants = ChampionshipParticipant::where('championship_id', $championshipId)
-                ->active()
-                ->count();
-            if ($currentParticipants >= $championship->max_participants) {
-                return response()->json([
-                    'error' => 'Championship Full',
-                    'message' => 'This championship has reached its maximum capacity',
-                ], 422);
-            }
 
             // Handle payment if required.
             // Free entries (entry_fee == 0) are immediately COMPLETED — no payment needed.
@@ -127,10 +101,45 @@ class ChampionshipRegistrationController extends Controller
                 $paymentStatus = PaymentStatus::COMPLETED;
             }
 
-            // Create participant record
-            $participant = DB::transaction(function () use ($championship, $user, $validated, $paymentStatus, $paymentReference) {
+            // H3 fix: all uniqueness/capacity checks and the participant write happen
+            // inside a single transaction with a row-level lock on the championship.
+            // This eliminates the TOCTOU race condition where two concurrent requests
+            // could both pass the checks and both create participants.
+            $participant = DB::transaction(function () use ($championship, $user, $validated, $paymentStatus, $paymentReference, $championshipId) {
+                // Lock the championship row for the duration of this transaction.
+                // Any concurrent registration for the same championship will block
+                // here until we commit/rollback.
+                $lockedChampionship = Championship::where('id', $championship->id)
+                    ->lockForUpdate()
+                    ->first();
+
+                // Re-check: already registered (active = not cancelled / not refunded).
+                // Cancelled participants are allowed to re-register, so exclude them.
+                $existingParticipant = ChampionshipParticipant::where('championship_id', $championshipId)
+                    ->where('user_id', $user->id)
+                    ->active()
+                    ->first();
+
+                if ($existingParticipant) {
+                    throw new \App\Exceptions\AlreadyRegisteredException(
+                        'You are already registered for this championship'
+                    );
+                }
+
+                // Re-check capacity — exclude cancelled/refunded so freed slots
+                // can be filled by new registrations (H2 fix).
+                $currentParticipants = ChampionshipParticipant::where('championship_id', $championshipId)
+                    ->active()
+                    ->count();
+
+                if ($currentParticipants >= $lockedChampionship->max_participants) {
+                    throw new \App\Exceptions\ChampionshipFullException(
+                        'This championship has reached its maximum capacity'
+                    );
+                }
+
                 $participant = ChampionshipParticipant::create([
-                    'championship_id'     => $championship->id,
+                    'championship_id'     => $lockedChampionship->id,
                     'user_id'             => $user->id,
                     // H1 fix: write registration_status (not the non-fillable 'status')
                     // and derive the value from the canonical mapping constant.
@@ -147,7 +156,7 @@ class ChampionshipRegistrationController extends Controller
                 ]);
 
                 // Update championship participant count
-                $championship->increment('participants_count');
+                $lockedChampionship->increment('participants_count');
 
                 return $participant;
             });
@@ -169,6 +178,16 @@ class ChampionshipRegistrationController extends Controller
                 'message' => $this->getRegistrationSuccessMessage($paymentStatus),
             ], 201);
 
+        } catch (\App\Exceptions\AlreadyRegisteredException $e) {
+            return response()->json([
+                'error' => 'Already Registered',
+                'message' => $e->getMessage(),
+            ], 409);
+        } catch (\App\Exceptions\ChampionshipFullException $e) {
+            return response()->json([
+                'error' => 'Championship Full',
+                'message' => $e->getMessage(),
+            ], 422);
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             return response()->json([
                 'error' => 'Forbidden',

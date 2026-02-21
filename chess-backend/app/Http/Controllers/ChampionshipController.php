@@ -1188,19 +1188,43 @@ class ChampionshipController extends Controller
                 ], 422);
             }
 
+            // H3 fix: lock the championship row and re-check both duplicate and
+            // capacity inside the transaction so concurrent registrations are
+            // serialised at the database level.
             $participant = DB::transaction(function () use ($championship, $user) {
-                // Double-check within transaction
-                $existing = ChampionshipParticipant::where('championship_id', $championship->id)
-                    ->where('user_id', $user->id)
+                // Row-level lock on the championship prevents two concurrent
+                // transactions from both passing the capacity check.
+                $locked = Championship::where('id', $championship->id)
                     ->lockForUpdate()
                     ->first();
 
+                // Re-check duplicate inside the transaction.
+                $existing = ChampionshipParticipant::where('championship_id', $locked->id)
+                    ->where('user_id', $user->id)
+                    ->first();
+
                 if ($existing) {
-                    throw new \Exception('You are already registered for this championship');
+                    throw new \App\Exceptions\AlreadyRegisteredException(
+                        'You are already registered for this championship'
+                    );
+                }
+
+                // Re-check capacity using the actual row count (not the
+                // potentially stale denormalised participants_count).
+                if ($locked->max_participants !== null) {
+                    $actualCount = ChampionshipParticipant::where('championship_id', $locked->id)
+                        ->whereNotIn('registration_status', ['cancelled', 'refunded'])
+                        ->count();
+
+                    if ($actualCount >= $locked->max_participants) {
+                        throw new \App\Exceptions\ChampionshipFullException(
+                            'Championship has reached maximum capacity'
+                        );
+                    }
                 }
 
                 return ChampionshipParticipant::create([
-                    'championship_id'     => $championship->id,
+                    'championship_id'     => $locked->id,
                     'user_id'             => $user->id,
                     'amount_paid'         => 0,
                     'payment_status'      => PaymentStatus::COMPLETED->value,
@@ -1242,24 +1266,35 @@ class ChampionshipController extends Controller
                 ],
             ], 201);
 
+        } catch (\App\Exceptions\AlreadyRegisteredException $e) {
+            return response()->json([
+                'error'   => 'Already Registered',
+                'message' => $e->getMessage(),
+                'code'    => 'ALREADY_REGISTERED',
+            ], 409);
+        } catch (\App\Exceptions\ChampionshipFullException $e) {
+            return response()->json([
+                'error'   => 'Championship Full',
+                'message' => $e->getMessage(),
+            ], 422);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json([
                 'error' => 'Championship not found',
             ], 404);
-              } catch (\Exception $e) {
+        } catch (\Exception $e) {
             Log::error('Championship registration failed', [
                 'error' => $e->getMessage(),
                 'championship_id' => $id,
                 'user_id' => Auth::id(),
             ]);
 
-            // Check if it's a duplicate registration error
+            // Fallback: legacy duplicate check via message string.
             if (str_contains($e->getMessage(), 'already registered')) {
                 return response()->json([
                     'error' => 'Already Registered',
                     'message' => 'You are already registered for this championship. Check your "My Matches" for details.',
                     'code' => 'ALREADY_REGISTERED'
-                ], 409); // 409 Conflict
+                ], 409);
             }
 
             return response()->json([
