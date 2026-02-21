@@ -178,6 +178,10 @@ export const filterGameHistories = (gameHistories, filters = {}) => {
       if (filters.gameMode === 'computer' && mode !== 'computer') match = false;
       if (filters.gameMode === 'multiplayer' && mode !== 'multiplayer') match = false;
     }
+    if (filters.opponentName) {
+      const opp = (game.opponent_name || '').toLowerCase();
+      if (!opp.includes(filters.opponentName.toLowerCase())) match = false;
+    }
     if (filters.dateRange) {
       const gameDate = new Date(game.date || game.played_at);
       if (

@@ -32,6 +32,7 @@ const GameHistory = () => {
     result: "",
     level: "",
     gameMode: "",
+    opponentName: "",
   });
   const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
   const [boardPosition, setBoardPosition] = useState(null);
@@ -692,6 +693,8 @@ const GameHistory = () => {
       playerColor: "",
       result: "",
       level: "",
+      gameMode: "",
+      opponentName: "",
     });
   };
 
@@ -762,7 +765,7 @@ const GameHistory = () => {
       <h2 className="text-2xl sm:text-3xl font-bold text-center mb-4 sm:mb-6">Game History</h2>
       <div className="filters bg-[#312e2b] rounded-2xl border border-[#3d3a37] p-3 lg:p-4 mb-4 lg:mb-6">
         <h3 className="text-lg lg:text-xl font-semibold mb-3 lg:mb-4">Filters</h3>
-        <div className="filter-controls grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4">
+        <div className="filter-controls grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 lg:gap-4">
           <div className="filter-group">
             <label className="block text-sm font-medium mb-1">Game Mode</label>
             <select
@@ -817,12 +820,23 @@ const GameHistory = () => {
               <option value="3">Hard</option>
             </select>
           </div>
+          <div className="filter-group">
+            <label className="block text-sm font-medium mb-1">Opponent</label>
+            <input
+              type="text"
+              name="opponentName"
+              value={filters.opponentName}
+              onChange={handleFilterChange}
+              placeholder="Search opponent…"
+              className="w-full bg-[#3d3a37] border-2 border-[#4a4744] rounded-lg focus:ring-[#81b64c] focus:border-[#81b64c] transition-all duration-300 text-white placeholder-[#8b8987] py-2 px-3 text-sm"
+            />
+          </div>
           <button onClick={clearFilters} className="bg-[#4a4744] hover:bg-[#5c5a57] transition-colors duration-300 px-4 py-2 rounded-lg self-end text-sm text-[#bababa]">Clear</button>
         </div>
       </div>
 
       <div className="game-history-content flex flex-col lg:flex-row gap-4 lg:gap-6">
-        <div className="game-list-container lg:w-1/3 xl:w-1/4 bg-[#312e2b] rounded-2xl border border-[#3d3a37] p-3 lg:p-4 overflow-y-auto max-h-96 lg:max-h-full">
+        <div className="game-list-container lg:w-2/5 xl:w-2/5 bg-[#312e2b] rounded-2xl border border-[#3d3a37] p-3 lg:p-4 overflow-y-auto max-h-96 lg:max-h-full">
           <h3 className="text-lg lg:text-xl font-semibold mb-3 lg:mb-4">Games ({filteredHistories.length})</h3>
           {filteredHistories.length === 0 ? (
             <p className="text-center text-[#8b8987]">No games found.</p>
