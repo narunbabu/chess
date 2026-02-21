@@ -455,14 +455,14 @@ class TournamentGenerationService
                 ];
             }
         } else {
-            // General case: pair top players
-            // For simplicity, pair sequentially: 1v2, 3v4, etc.
-            for ($i = 1; $i <= $topK; $i += 2) {
-                if ($i + 1 <= $topK) {
+            // General case: generate all C(topK, 2) round-robin pairs so every
+            // combination of players gets a match (not just sequential neighbours).
+            for ($i = 1; $i <= $topK; $i++) {
+                for ($j = $i + 1; $j <= $topK; $j++) {
                     $pairings[] = [
                         'is_placeholder' => true,
                         'player1_rank' => $i,
-                        'player2_rank' => $i + 1,
+                        'player2_rank' => $j,
                     ];
                 }
             }
@@ -1388,8 +1388,8 @@ class TournamentGenerationService
         $selection = $roundConfig['participant_selection'];
         $topK = $selection['top_k'] ?? 3;
 
-        if ($topK < 2 || $topK > 6) {
-            throw new \InvalidArgumentException("Round-robin top-K requires 2-6 participants, got {$topK}");
+        if ($topK < 2 || $topK > 64) {
+            throw new \InvalidArgumentException("Round-robin top-K requires 2-64 participants, got {$topK}");
         }
 
         // Generate all possible pairs
@@ -1457,13 +1457,22 @@ class TournamentGenerationService
     }
 
     /**
-     * Calculate remaining rounds from current round configuration
+     * Calculate remaining rounds available for top-K round-robin distribution.
+     *
+     * For K players a complete round-robin needs K−1 rounds (each round
+     * scheduling floor(K/2) simultaneous matches).  We use that as the
+     * distribution window so pairs are spread evenly rather than front-loaded.
      */
     private function calculateRoundsLeft(array $roundConfig): int
     {
-        // For now, assume we have 2 rounds left for round-robin coverage
-        // This could be enhanced to calculate based on tournament structure
-        return 2;
+        $topK = $roundConfig['participant_selection']['top_k'] ?? 3;
+
+        if ($topK < 2) {
+            return 1;
+        }
+
+        // K-1 rounds are needed for a full round-robin of K players.
+        return max(1, $topK - 1);
     }
 
     /**
