@@ -19,7 +19,9 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use App\Enums\ChampionshipMatchStatus;
 use App\Enums\ChampionshipStatus;
+use App\Enums\PaymentStatus;
 
 /**
  * Championship Management Controller
@@ -562,6 +564,347 @@ class ChampionshipManagementController extends Controller
         }
     }
 
-    // Helper Methods (continued in next response due to length limits)
-    // ... (Helper methods will be implemented in a second response)
+    // ─────────────────────────────────────────────────────────────────────────
+    // Authorization helpers
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Assert that $user may manage (start / pause / complete) $championship.
+     *
+     * Allowed roles: platform_admin, organisation admin for the same org, or
+     * the championship creator.
+     *
+     * @throws \Illuminate\Auth\Access\AuthorizationException
+     */
+    private function authorizeManagement(Championship $championship, $user): void
+    {
+        if ($user->hasRole('platform_admin')) {
+            return;
+        }
+
+        if ($user->hasRole('organization_admin') &&
+            $championship->organization_id &&
+            $championship->organization_id === $user->organization_id) {
+            return;
+        }
+
+        if ($championship->created_by === $user->id) {
+            return;
+        }
+
+        throw new \Illuminate\Auth\Access\AuthorizationException(
+            'You do not have permission to manage this championship.'
+        );
+    }
+
+    /**
+     * Assert that $user may archive $championship.
+     *
+     * Only platform_admin or the original creator may archive.
+     *
+     * @throws \Illuminate\Auth\Access\AuthorizationException
+     */
+    private function authorizeArchiveAccess(Championship $championship, $user): void
+    {
+        if ($user->hasRole('platform_admin') || $championship->created_by === $user->id) {
+            return;
+        }
+
+        throw new \Illuminate\Auth\Access\AuthorizationException(
+            'You do not have permission to archive this championship.'
+        );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // State-machine validation helpers
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Assert that the championship is in a state that allows starting.
+     *
+     * @throws \InvalidArgumentException
+     */
+    private function validateChampionshipStart(Championship $championship): void
+    {
+        $allowed = [
+            ChampionshipStatus::UPCOMING->value,
+            ChampionshipStatus::REGISTRATION_OPEN->value,
+        ];
+
+        if (!in_array($championship->status, $allowed, true)) {
+            throw new \InvalidArgumentException(
+                "Championship cannot be started from '{$championship->status}' status. " .
+                "Expected one of: " . implode(', ', $allowed) . '.'
+            );
+        }
+
+        // Need at least 2 paid participants
+        $paidCount = $championship->participants()
+            ->where('payment_status_id', \App\Enums\PaymentStatus::COMPLETED->getId())
+            ->count();
+
+        if ($paidCount < 2) {
+            throw new \InvalidArgumentException(
+                "Championship requires at least 2 paid participants to start. Found {$paidCount}."
+            );
+        }
+    }
+
+    /**
+     * Assert that the championship is in a state that allows pausing.
+     *
+     * @throws \InvalidArgumentException
+     */
+    private function validateChampionshipPause(Championship $championship): void
+    {
+        if ($championship->status !== ChampionshipStatus::IN_PROGRESS->value) {
+            throw new \InvalidArgumentException(
+                "Championship can only be paused when 'in_progress'. " .
+                "Current status: '{$championship->status}'."
+            );
+        }
+    }
+
+    /**
+     * Assert that the championship is in a state that allows completion.
+     *
+     * @throws \InvalidArgumentException
+     */
+    private function validateChampionshipCompletion(Championship $championship): void
+    {
+        $allowed = [
+            ChampionshipStatus::IN_PROGRESS->value,
+            ChampionshipStatus::PAUSED->value,
+        ];
+
+        if (!in_array($championship->status, $allowed, true)) {
+            throw new \InvalidArgumentException(
+                "Championship cannot be completed from '{$championship->status}' status. " .
+                "Expected one of: " . implode(', ', $allowed) . '.'
+            );
+        }
+    }
+
+    /**
+     * Assert that the championship is in a state that allows archiving.
+     *
+     * @throws \InvalidArgumentException
+     */
+    private function validateChampionshipArchive(Championship $championship): void
+    {
+        $allowed = [
+            ChampionshipStatus::COMPLETED->value,
+            ChampionshipStatus::CANCELLED->value,
+        ];
+
+        if (!in_array($championship->status, $allowed, true)) {
+            throw new \InvalidArgumentException(
+                "Championship cannot be archived from '{$championship->status}' status. " .
+                "Expected one of: " . implode(', ', $allowed) . '.'
+            );
+        }
+    }
+
+    /**
+     * Assert that pairings can be generated for the given round.
+     *
+     * @throws \InvalidArgumentException
+     */
+    private function validatePairingGeneration(Championship $championship, int $roundNumber): void
+    {
+        if ($championship->status !== ChampionshipStatus::IN_PROGRESS->value) {
+            throw new \InvalidArgumentException(
+                "Pairings can only be generated for an in-progress championship. " .
+                "Current status: '{$championship->status}'."
+            );
+        }
+
+        // Prevent duplicate round generation
+        $existingMatches = $championship->matches()
+            ->where('round_number', $roundNumber)
+            ->exists();
+
+        if ($existingMatches) {
+            throw new \InvalidArgumentException(
+                "Pairings for round {$roundNumber} already exist."
+            );
+        }
+
+        // Ensure previous round is complete (except for round 1)
+        if ($roundNumber > 1) {
+            $prevIncomplete = $championship->matches()
+                ->where('round_number', $roundNumber - 1)
+                ->where('status_id', '!=', \App\Enums\ChampionshipMatchStatus::COMPLETED->getId())
+                ->where('status_id', '!=', \App\Enums\ChampionshipMatchStatus::CANCELLED->getId())
+                ->exists();
+
+            if ($prevIncomplete) {
+                throw new \InvalidArgumentException(
+                    "Round " . ($roundNumber - 1) . " is not yet complete. " .
+                    "All matches must finish before generating round {$roundNumber} pairings."
+                );
+            }
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Round / pairing helpers
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Generate the first round's matches via the MatchSchedulerService.
+     */
+    private function generateInitialRound(Championship $championship): void
+    {
+        $this->scheduler->scheduleRound($championship, 1);
+    }
+
+    /**
+     * Determine the next round number that needs pairings.
+     */
+    private function getNextRoundNumber(Championship $championship): int
+    {
+        return $this->scheduler->getNextRoundNumber($championship);
+    }
+
+    /**
+     * Generate pairings for a round, delegating to the appropriate service.
+     *
+     * Returns an array of ['white_player_id' => int, 'black_player_id' => int].
+     */
+    private function generateRoundPairings(Championship $championship, int $roundNumber, array $validated): array
+    {
+        // Manual pairings take priority
+        if (!empty($validated['custom_pairings'])) {
+            return array_map(function ($p) {
+                return [
+                    'white_player_id' => $p['white_player_id'],
+                    'black_player_id' => $p['black_player_id'],
+                ];
+            }, $validated['custom_pairings']);
+        }
+
+        $format = $championship->format ?? 'swiss_only';
+        $isElimination = in_array($format, ['elimination_only', 'swiss_elimination'], true);
+
+        if ($isElimination) {
+            $rawPairings = $this->eliminationService->generateEliminationPairings($championship, $roundNumber);
+        } else {
+            $rawPairings = $this->swissService->generatePairings($championship, $roundNumber);
+        }
+
+        // Normalise to {white_player_id, black_player_id}
+        return array_map(function ($p) {
+            return [
+                'white_player_id' => $p['white_player_id'] ?? $p['player1_id'] ?? null,
+                'black_player_id' => $p['black_player_id'] ?? $p['player2_id'] ?? null,
+            ];
+        }, $rawPairings);
+    }
+
+    /**
+     * Determine the ChampionshipRoundType for a given round.
+     */
+    private function getRoundType(Championship $championship, int $roundNumber): \App\Enums\ChampionshipRoundType
+    {
+        $format = $championship->format ?? 'swiss_only';
+        $totalRounds = $championship->total_rounds ?? 1;
+
+        if ($format === 'swiss_only') {
+            return \App\Enums\ChampionshipRoundType::SWISS;
+        }
+
+        // For elimination / hybrid formats, map by position from the end
+        $roundsFromEnd = $totalRounds - $roundNumber;
+
+        return match (true) {
+            $roundsFromEnd === 0 => \App\Enums\ChampionshipRoundType::FINAL,
+            $roundsFromEnd === 1 => \App\Enums\ChampionshipRoundType::SEMI_FINAL,
+            $roundsFromEnd === 2 => \App\Enums\ChampionshipRoundType::QUARTER_FINAL,
+            $roundsFromEnd <= 3 => \App\Enums\ChampionshipRoundType::ROUND_OF_16,
+            default              => \App\Enums\ChampionshipRoundType::SWISS,
+        };
+    }
+
+    /**
+     * Calculate the deadline for matches in the given round.
+     */
+    private function calculateMatchDeadline(Championship $championship, int $roundNumber): \Carbon\Carbon
+    {
+        $windowHours = $championship->match_time_window_hours ?? 24;
+        return now()->addHours($windowHours);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Standings helpers
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Compute and persist final standings.
+     *
+     * Returns a summary array for use in notifications.
+     */
+    private function generateFinalStandings(Championship $championship): array
+    {
+        $this->standingsCalculator->recalculateAllStandings($championship);
+        return $this->standingsCalculator->getStandingsSummary($championship);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Match management helpers
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Cancel all pending match records for a paused championship so that
+     * participants are not left in unresolvable "pending" game states.
+     */
+    private function cancelPendingInvitations(Championship $championship): void
+    {
+        $pendingStatusId = \App\Enums\ChampionshipMatchStatus::PENDING->getId();
+        $cancelledStatusId = \App\Enums\ChampionshipMatchStatus::CANCELLED->getId();
+
+        $championship->matches()
+            ->where('status_id', $pendingStatusId)
+            ->update(['status_id' => $cancelledStatusId]);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Notification helpers (log-based stubs; replace with job dispatches once
+    // SendChampionshipNotificationJob is implemented)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private function sendStartNotifications(Championship $championship, $user, $startTime): void
+    {
+        Log::info('Championship start notifications queued', [
+            'championship_id' => $championship->id,
+            'started_by' => $user->id,
+            'start_time' => $startTime,
+        ]);
+    }
+
+    private function sendPauseNotifications(Championship $championship, $user, ?string $reason): void
+    {
+        Log::info('Championship pause notifications queued', [
+            'championship_id' => $championship->id,
+            'paused_by' => $user->id,
+            'reason' => $reason,
+        ]);
+    }
+
+    private function sendCompletionNotifications(Championship $championship, $user, array $finalStandings): void
+    {
+        Log::info('Championship completion notifications queued', [
+            'championship_id' => $championship->id,
+            'completed_by' => $user->id,
+            'standings_count' => count($finalStandings),
+        ]);
+    }
+
+    private function sendArchiveNotifications(Championship $championship, $user): void
+    {
+        Log::info('Championship archive notifications queued', [
+            'championship_id' => $championship->id,
+            'archived_by' => $user->id,
+        ]);
+    }
 }

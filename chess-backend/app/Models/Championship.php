@@ -653,19 +653,10 @@ class Championship extends Model
             ]);
         }
 
-        // Update from registration_open to upcoming if registration period hasn't started yet
-        elseif ($this->status === 'registration_open' &&
-            $this->registration_start_at &&
-            $this->registration_end_at &&
-            ($now->lt($this->registration_start_at) || $now->gt($this->registration_end_at))) {
-            $this->update(['status' => 'upcoming']);
-            Log::info('Championship status auto-updated to upcoming', [
-                'championship_id' => $this->id,
-                'now' => $now,
-                'registration_start_at' => $this->registration_start_at,
-                'registration_end_at' => $this->registration_end_at,
-            ]);
-        }
+        // NOTE: No backward transition from registration_open → upcoming.
+        // Once a championship enters registration_open it must only move forward
+        // (in_progress, completed, or cancelled).  Reverting to upcoming would
+        // lose registered participants and violate the lifecycle state machine.
     }
 
     /**

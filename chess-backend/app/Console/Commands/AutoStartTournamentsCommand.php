@@ -2,6 +2,8 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\ChampionshipStatus;
+use App\Enums\PaymentStatus;
 use App\Models\Championship;
 use App\Models\ChampionshipParticipant;
 use App\Services\MatchSchedulerService;
@@ -32,15 +34,17 @@ class AutoStartTournamentsCommand extends Command
         $skippedCount = 0;
 
         try {
-            // Find championships ready to auto-start
-            $readyChampionships = Championship::where('status', 'registration_open')
+            // Find championships ready to auto-start.
+            // IMPORTANT: 'status' and 'payment_status' are virtual accessors —
+            // query builder must use the real FK columns (status_id / payment_status_id).
+            $readyChampionships = Championship::where('status_id', ChampionshipStatus::REGISTRATION_OPEN->getId())
                 ->where('registration_deadline', '<', now())
                 ->where('start_date', '<=', now()->addMinutes(5)) // 5-minute grace period
                 ->whereHas('participants', function ($query) {
-                    $query->where('payment_status', 'paid');
+                    $query->where('payment_status_id', PaymentStatus::COMPLETED->getId());
                 }, '>=', 2) // At least 2 paid participants
                 ->with(['participants' => function ($query) {
-                    $query->where('payment_status', 'paid');
+                    $query->where('payment_status_id', PaymentStatus::COMPLETED->getId());
                 }])
                 ->get();
 
@@ -48,17 +52,18 @@ class AutoStartTournamentsCommand extends Command
                 DB::beginTransaction();
 
                 try {
-                    // Double-check status hasn't changed
-                    if ($championship->status !== 'registration_open') {
+                    // Double-check status hasn't changed (re-query to avoid stale reads)
+                    $championship->refresh();
+                    if ($championship->status_id !== ChampionshipStatus::REGISTRATION_OPEN->getId()) {
                         $this->line("Skipping championship {$championship->id} - status changed to {$championship->status}");
                         $skippedCount++;
                         continue;
                     }
 
-                    // Update championship status
+                    // Update championship status using the real FK column
                     $championship->update([
-                        'status' => 'in_progress',
-                        'started_at' => now()
+                        'status_id'  => ChampionshipStatus::IN_PROGRESS->getId(),
+                        'started_at' => now(),
                     ]);
 
                     // Create match scheduler service and schedule first round
