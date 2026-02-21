@@ -258,17 +258,46 @@ class EliminationBracketService
             $seed1 = $seeding[$i];
             $seed2 = $seeding[count($seeding) - 1 - $i];
 
-            if ($seed1['is_bye']) {
-                // Seed 2 gets bye
+            $seed1IsBye = isset($seed1['is_bye']) && $seed1['is_bye'];
+            $seed2IsBye = isset($seed2['is_bye']) && $seed2['is_bye'];
+
+            if ($seed1IsBye && $seed2IsBye) {
+                // Both are byes — skip entirely (shouldn't happen with valid bracket size)
                 continue;
-            } elseif ($seed2['is_bye']) {
-                // Seed 1 gets bye
+            } elseif ($seed1IsBye) {
+                // Seed 2 gets a bye — record the advance so subsequent rounds can track this winner
+                $pairings[] = [
+                    'player1_id' => $seed2['user_id'],
+                    'player2_id' => null,
+                    'is_bye'     => true,
+                    'round_number' => 1,
+                    'round_type' => ChampionshipRoundType::ELIMINATION,
+                    'seed1' => $seed2['seed'],
+                    'seed2' => 'bye',
+                    'scheduled_at' => now(),
+                    'deadline' => now()->addHours($championship->match_time_window_hours),
+                ];
+                continue;
+            } elseif ($seed2IsBye) {
+                // Seed 1 gets a bye — record the advance so subsequent rounds can track this winner
+                $pairings[] = [
+                    'player1_id' => $seed1['user_id'],
+                    'player2_id' => null,
+                    'is_bye'     => true,
+                    'round_number' => 1,
+                    'round_type' => ChampionshipRoundType::ELIMINATION,
+                    'seed1' => $seed1['seed'],
+                    'seed2' => 'bye',
+                    'scheduled_at' => now(),
+                    'deadline' => now()->addHours($championship->match_time_window_hours),
+                ];
                 continue;
             }
 
             $pairings[] = [
                 'player1_id' => $seed1['user_id'],
                 'player2_id' => $seed2['user_id'],
+                'is_bye'     => false,
                 'round_number' => 1,
                 'round_type' => ChampionshipRoundType::ELIMINATION,
                 'seed1' => $seed1['seed'],
@@ -338,17 +367,28 @@ class EliminationBracketService
 
         DB::transaction(function () use ($championship, $pairings, $matches) {
             foreach ($pairings as $pairing) {
-                $match = ChampionshipMatch::create([
-                    'championship_id' => $championship->id,
-                    'round_number' => $pairing['round_number'],
-                    'round_type' => $pairing['round_type'],
-                    'player1_id' => $pairing['player1_id'],
-                    'player2_id' => $pairing['player2_id'],
-                    'scheduled_at' => $pairing['scheduled_at'],
-                    'deadline' => $pairing['deadline'],
-                    'status' => ChampionshipMatchStatus::PENDING,
-                ]);
+                $isByeMatch = $pairing['is_bye'] ?? false;
 
+                $matchData = [
+                    'championship_id' => $championship->id,
+                    'round_number'    => $pairing['round_number'],
+                    'round_type'      => $pairing['round_type'],
+                    'player1_id'      => $pairing['player1_id'],
+                    'player2_id'      => $pairing['player2_id'],
+                    'scheduled_at'    => $pairing['scheduled_at'],
+                    'deadline'        => $pairing['deadline'],
+                    // Bye matches are immediately completed so subsequent rounds
+                    // can count them as winners when deciding pairing eligibility.
+                    'status'          => $isByeMatch
+                        ? ChampionshipMatchStatus::COMPLETED
+                        : ChampionshipMatchStatus::PENDING,
+                ];
+
+                if ($isByeMatch) {
+                    $matchData['winner_id'] = $pairing['player1_id'];
+                }
+
+                $match = ChampionshipMatch::create($matchData);
                 $matches->push($match);
             }
         });
@@ -623,11 +663,14 @@ class EliminationBracketService
         // Check if all matches have valid participants
         foreach ($matches as $round => $roundMatches) {
             foreach ($roundMatches as $match) {
-                if (!$match->player1_id || !$match->player2_id) {
+                // Bye matches legitimately have player2_id = null — skip that check
+                $isByeMatch = is_null($match->player2_id) && !is_null($match->winner_id);
+
+                if (!$match->player1_id || (!$match->player2_id && !$isByeMatch)) {
                     $errors[] = "Match {$match->id}: Missing participants";
                 }
 
-                if ($match->player1_id === $match->player2_id) {
+                if (!$isByeMatch && $match->player1_id === $match->player2_id) {
                     $errors[] = "Match {$match->id}: Player cannot play against themselves";
                 }
             }
