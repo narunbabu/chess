@@ -440,7 +440,8 @@ class Championship extends Model
      */
     public function getRegisteredCountAttribute(): int
     {
-        return $this->participants()->count();
+        // H2 fix: exclude cancelled/refunded rows — they no longer occupy a slot.
+        return $this->participants()->active()->count();
     }
 
     /**
@@ -602,8 +603,10 @@ class Championship extends Model
      */
     public function isUserRegistered(int $userId): bool
     {
+        // H2 fix: cancelled/refunded users should be allowed to re-register.
         return $this->participants()
             ->where('user_id', $userId)
+            ->active()
             ->exists();
     }
 
@@ -721,11 +724,12 @@ class Championship extends Model
      */
     public function canBeDeleted(): bool
     {
-        // Check participant count
-        if ($this->participants()->count() > 0) {
+        // Check participant count — H2 fix: only active (non-cancelled, non-refunded)
+        // participants block deletion; cancelled rows are historical and should not prevent cleanup.
+        if ($this->participants()->active()->count() > 0) {
             Log::info('Cannot delete championship: has participants', [
                 'championship_id' => $this->id,
-                'participant_count' => $this->participants()->count()
+                'participant_count' => $this->participants()->active()->count()
             ]);
             return false;
         }
@@ -892,8 +896,9 @@ class Championship extends Model
             return $this->getTournamentConfig();
         }
 
-        // Determine preset based on participant count
-        $participantCount = $this->participants()->count();
+        // Determine preset based on paid participant count — H2 fix: cancelled/pending
+        // rows must not skew the tournament structure calculation.
+        $participantCount = $this->participants()->paid()->count();
         $preset = $this->determinePreset($participantCount);
 
         // Create default config using actual participant count for proper pairing

@@ -167,6 +167,19 @@ class ChampionshipParticipant extends Model
         return $query->where('payment_status_id', PaymentStatusEnum::FAILED->getId());
     }
 
+    /**
+     * Scope: participants who are still active in the tournament.
+     *
+     * Excludes 'cancelled' and 'refunded' rows — the two terminal lifecycle
+     * states where the participant has definitively left. Use this scope for
+     * capacity counts, duplicate-registration guards, and any query that should
+     * reflect the current roster (i.e. H2 fix).
+     */
+    public function scopeActive($query)
+    {
+        return $query->whereNotIn('registration_status', ['cancelled', 'refunded']);
+    }
+
     // ──────────────────────────────────────────────────────────────────────────
     // State Machine
     // ──────────────────────────────────────────────────────────────────────────

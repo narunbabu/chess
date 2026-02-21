@@ -57,8 +57,10 @@ class TournamentGenerationService
             throw new \InvalidArgumentException('Invalid tournament configuration: ' . implode(', ', $errors));
         }
 
-        // Get participants
-        $participants = $championship->participants()->with('user')->get();
+        // H2 fix: only paid (payment_status_id = COMPLETED) participants should
+        // be included in tournament generation. Cancelled, refunded, or still-pending
+        // rows must not receive match assignments.
+        $participants = $championship->participants()->paid()->with('user')->get();
 
         if ($participants->count() < 2) {
             throw new \InvalidArgumentException('At least 2 participants required to generate tournament');
