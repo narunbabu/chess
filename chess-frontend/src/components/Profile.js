@@ -57,6 +57,9 @@ const Profile = () => {
   const [fileSizeInfo, setFileSizeInfo] = useState(null);
   const fileInputRef = useRef(null);
 
+  // Profile tab navigation (PR-R1)
+  const [profileTab, setProfileTab] = useState(isSetupMode ? 'settings' : 'overview');
+
   // Organization affiliation state
   const [orgSearchQuery, setOrgSearchQuery] = useState('');
   const [orgSearchResults, setOrgSearchResults] = useState([]);
@@ -411,7 +414,41 @@ const Profile = () => {
         )}
       </div>
 
-      {/* Subscription Plan Section */}
+      {/* Tab Navigation (PR-R1) */}
+      {!isSetupMode && (
+        <nav style={{ display: 'flex', gap: '4px', margin: '0 0 24px', borderBottom: '2px solid #3d3a37', flexWrap: 'wrap' }}>
+          {[
+            { key: 'overview', label: '👤 Overview' },
+            { key: 'settings', label: '⚙️ Settings' },
+            { key: 'appearance', label: '🎨 Appearance' },
+            { key: 'friends', label: '🤝 Friends' },
+            { key: 'progress', label: '📊 Progress' },
+          ].map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setProfileTab(tab.key)}
+              style={{
+                padding: '10px 18px',
+                background: 'none',
+                border: 'none',
+                borderBottom: profileTab === tab.key ? '3px solid #81b64c' : '3px solid transparent',
+                color: profileTab === tab.key ? '#fff' : '#8b8987',
+                fontWeight: profileTab === tab.key ? 700 : 500,
+                fontSize: '0.9rem',
+                cursor: 'pointer',
+                marginBottom: '-2px',
+                transition: 'color 0.15s, border-color 0.15s',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+      )}
+
+      {/* Subscription Plan Section — Overview tab */}
+      {!isSetupMode && profileTab === 'overview' && (
       <section className="profile-section">
         <h2>Subscription Plan</h2>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
@@ -455,8 +492,10 @@ const Profile = () => {
           )}
         </div>
       </section>
+      )}
 
-      {/* Profile Update Form */}
+      {/* Profile Update Form — Settings tab (always in setup mode) */}
+      {(isSetupMode || profileTab === 'settings') && (
       <section className="profile-section">
         <h2>{isSetupMode ? 'Your Profile' : 'Edit Profile'}</h2>
         <form onSubmit={handleUpdateProfile} className="profile-form">
@@ -589,9 +628,10 @@ const Profile = () => {
           </button>
         </form>
       </section>
+      )}
 
-      {/* Image Cropping Modal */}
-      {showCropper && selectedImage && (
+      {/* Image Cropping Modal — shown when avatar crop is active in Settings */}
+      {(isSetupMode || profileTab === 'settings') && showCropper && selectedImage && (
         <div className="crop-modal">
           <div className="crop-modal-content">
             <h3>Crop Your Avatar</h3>
@@ -631,7 +671,8 @@ const Profile = () => {
       {/* Hidden canvas for image processing */}
       <canvas ref={canvasRef} style={{ display: 'none' }} />
 
-      {/* School / Organization Affiliation */}
+      {/* School / Organization Affiliation — Settings tab */}
+      {(isSetupMode || profileTab === 'settings') && (
       <section className="profile-section">
         <h2>School / Organization</h2>
         {user.organization ? (
@@ -690,8 +731,11 @@ const Profile = () => {
         )}
         {orgError && <p className="error" style={{ marginTop: '8px' }}>{orgError}</p>}
       </section>
+      )}
 
-      {/* Board Theme Selector */}
+      {/* Board Theme Selector — Appearance tab */}
+      {!isSetupMode && profileTab === 'appearance' && (
+      <>
       <section className="profile-section">
         <h2>Board Theme</h2>
         <p style={{ color: '#bababa', marginBottom: '12px', fontSize: '14px' }}>
@@ -767,8 +811,6 @@ const Profile = () => {
           })}
         </div>
       </section>
-
-      {/* Upgrade Prompt for locked themes */}
       {showUpgradePrompt && (
         <UpgradePrompt
           feature="Premium Board Theme"
@@ -776,8 +818,11 @@ const Profile = () => {
           onDismiss={() => setShowUpgradePrompt(false)}
         />
       )}
+      </>
+      )}
 
-      {/* Friends Management */}
+      {/* Friends Management — Friends tab */}
+      {!isSetupMode && profileTab === 'friends' && (
       <section className="profile-section">
         <h2>Chess Mates (Friends)</h2>
         <div className="friends-list">
@@ -815,8 +860,10 @@ const Profile = () => {
           ))}
         </div>
       </section>
+      )}
 
-      {/* Pending Requests */}
+      {/* Pending Requests — Friends tab */}
+      {!isSetupMode && profileTab === 'friends' && (
       <section className="profile-section">
         <h2>Pending Friend Requests</h2>
         <div className="requests-list">
@@ -834,9 +881,10 @@ const Profile = () => {
           )}
         </div>
       </section>
+      )}
 
-      {/* Tutorial Progress */}
-      {tutorialStats && (
+      {/* Tutorial Progress — Progress tab */}
+      {!isSetupMode && profileTab === 'progress' && tutorialStats && (
         <section className="profile-section">
           <h2>📚 Tutorial Progress</h2>
           <div className="tutorial-stats-grid">
@@ -943,7 +991,8 @@ const Profile = () => {
         </section>
       )}
 
-      {/* Account Security */}
+      {/* Account Security — Settings tab */}
+      {!isSetupMode && profileTab === 'settings' && (
       <section className="profile-section">
         <h2>🔒 Account Security</h2>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -981,8 +1030,10 @@ const Profile = () => {
           )}
         </div>
       </section>
+      )}
 
-      {/* Invite Friends via Social Media */}
+      {/* Invite Friends via Social Media — Friends tab */}
+      {!isSetupMode && profileTab === 'friends' && (
       <section className="profile-section">
         <h2>Invite Friends</h2>
         <p style={{ color: '#bababa', marginBottom: '16px' }}>
@@ -998,6 +1049,7 @@ const Profile = () => {
           onShare={(platform) => console.log(`Shared via ${platform}`)}
         />
       </section>
+      )}
     </div>
   );
 };
