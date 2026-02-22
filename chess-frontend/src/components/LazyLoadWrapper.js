@@ -4,13 +4,13 @@ import React, { Suspense, Component } from 'react';
 class LazyLoadErrorBoundary extends Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, retryCount: 0 };
+    this.state = { hasError: false, isChunkError: false, retryCount: 0 };
   }
 
   static getDerivedStateFromError(error) {
-    // Catch all render errors — chunk load errors get retry logic,
-    // other errors get the final error UI immediately
-    return { hasError: true };
+    const isChunkError = error.name === 'ChunkLoadError' ||
+      (error.message && error.message.includes('Loading chunk'));
+    return { hasError: true, isChunkError };
   }
 
   componentDidCatch(error, errorInfo) {
@@ -24,18 +24,17 @@ class LazyLoadErrorBoundary extends Component {
       setTimeout(() => {
         this.setState(prevState => ({
           hasError: false,
+          isChunkError: false,
           retryCount: prevState.retryCount + 1
         }));
       }, 2000 * (this.state.retryCount + 1)); // Exponential backoff: 2s, 4s, 6s
-    } else if (!isChunkError) {
-      // For non-chunk errors, skip retries and show error UI immediately
-      this.setState({ retryCount: 3 });
     }
   }
 
   render() {
     if (this.state.hasError) {
-      if (this.state.retryCount < 3) {
+      // Chunk load errors: show retry UI
+      if (this.state.isChunkError && this.state.retryCount < 3) {
         return (
           <div className="min-h-screen flex items-center justify-center bg-[#262421]">
             <div className="text-center p-8">
@@ -47,44 +46,69 @@ class LazyLoadErrorBoundary extends Component {
         );
       }
 
-      // Final error state after 3 retries
+      // Chunk load error after all retries failed
+      if (this.state.isChunkError) {
+        return (
+          <div className="min-h-screen flex items-center justify-center bg-[#262421]">
+            <div className="text-center p-8 max-w-md">
+              <div className="text-red-500 mb-4">
+                <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.314 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-semibold text-white mb-2">
+                Unable to Load Component
+              </h2>
+              <p className="text-[#bababa] mb-4">
+                We're having trouble loading this page. This might be due to a network issue or an outdated browser cache.
+              </p>
+              <div className="space-y-2">
+                <button
+                  onClick={() => window.location.reload()}
+                  className="w-full bg-[#81b64c] text-white px-4 py-2 rounded-lg hover:bg-[#a3d160] transition-colors"
+                >
+                  Refresh Page
+                </button>
+                <button
+                  onClick={() => {
+                    if ('caches' in window) {
+                      caches.keys().then(names => {
+                        names.forEach(name => caches.delete(name));
+                      });
+                    }
+                    window.location.reload();
+                  }}
+                  className="w-full bg-[#4a4744] text-white px-4 py-2 rounded-lg hover:bg-[#5c5a57] transition-colors"
+                >
+                  Clear Cache & Refresh
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      // Non-chunk render error: show a simple recovery UI instead of the
+      // misleading "Unable to Load Component" message
       return (
         <div className="min-h-screen flex items-center justify-center bg-[#262421]">
           <div className="text-center p-8 max-w-md">
-            <div className="text-red-500 mb-4">
-              <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.314 16.5c-.77.833.192 2.5 1.732 2.5z" />
-              </svg>
+            <div className="text-[#ff9800] mb-4" style={{ fontSize: '48px' }}>
+              &#9888;
             </div>
             <h2 className="text-xl font-semibold text-white mb-2">
-              Unable to Load Component
+              Something went wrong
             </h2>
             <p className="text-[#bababa] mb-4">
-              We're having trouble loading this page. This might be due to a network issue or an outdated browser cache.
+              An unexpected error occurred. Please refresh to continue.
             </p>
-            <div className="space-y-2">
-              <button
-                onClick={() => window.location.reload()}
-                className="w-full bg-[#81b64c] text-white px-4 py-2 rounded-lg hover:bg-[#a3d160] transition-colors"
-              >
-                Refresh Page
-              </button>
-              <button
-                onClick={() => {
-                  // Clear cache and reload
-                  if ('caches' in window) {
-                    caches.keys().then(names => {
-                      names.forEach(name => caches.delete(name));
-                    });
-                  }
-                  window.location.reload();
-                }}
-                className="w-full bg-[#4a4744] text-white px-4 py-2 rounded-lg hover:bg-[#5c5a57] transition-colors"
-              >
-                Clear Cache & Refresh
-              </button>
-            </div>
+            <button
+              onClick={() => window.location.reload()}
+              className="w-full bg-[#81b64c] text-white px-4 py-2 rounded-lg hover:bg-[#a3d160] transition-colors"
+            >
+              Refresh Page
+            </button>
           </div>
         </div>
       );
