@@ -32,7 +32,9 @@ class CleanupStaleInvitations extends Command
 
         // Clean up invitations linked to finished games
         $finishedGameInvitations = Invitation::whereHas('game', function ($query) {
-            $query->whereIn('status', ['finished', 'aborted', 'completed']);
+            $query->whereHas('statusRelation', function ($q) {
+                $q->whereIn('code', ['finished', 'aborted', 'completed']);
+            });
         });
 
         $finishedCount = $finishedGameInvitations->count();
@@ -60,8 +62,9 @@ class CleanupStaleInvitations extends Command
         $this->info("📊 Deleted {$expiredCount} expired pending invitations");
 
         // Clear resume info from finished games
-        $gamesWithResumeInfo = Game::whereIn('status', ['finished', 'aborted', 'completed'])
-            ->where(function ($query) {
+        $gamesWithResumeInfo = Game::whereHas('statusRelation', function ($q) {
+                $q->whereIn('code', ['finished', 'aborted', 'completed']);
+            })->where(function ($query) {
                 $query->whereNotNull('resume_requested_by')
                       ->orWhereNotNull('resume_requested_at');
             });

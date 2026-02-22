@@ -11,6 +11,7 @@ use App\Models\Game;
 use App\Models\MatchmakingEntry;
 use App\Models\MatchRequest;
 use App\Models\MatchRequestTarget;
+use App\Models\GameStatus;
 use App\Models\SyntheticPlayer;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -269,11 +270,12 @@ class MatchmakingService
         $userRating = $user->rating ?? 1200;
 
         // IDs of users currently in an active game
-        $inActiveGame = Game::where('status', 'active')
+        $activeStatusId = GameStatus::where('code', 'active')->value('id');
+        $inActiveGame = Game::where('status_id', $activeStatusId)
             ->selectRaw('white_player_id as uid')
             ->whereNotNull('white_player_id')
             ->union(
-                Game::where('status', 'active')
+                Game::where('status_id', $activeStatusId)
                     ->selectRaw('black_player_id as uid')
                     ->whereNotNull('black_player_id')
             );

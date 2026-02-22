@@ -31,8 +31,9 @@ class CleanupExpiredResumeRequests extends Command
 
         try {
             // Find all games with expired resume requests
-            $expiredGames = Game::where('status', 'paused')
-                ->where('resume_status', 'pending')
+            $expiredGames = Game::whereHas('statusRelation', function ($q) {
+                    $q->where('code', 'paused');
+                })->where('resume_status', 'pending')
                 ->where('resume_request_expires_at', '<', now())
                 ->get();
 

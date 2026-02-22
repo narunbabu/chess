@@ -27,8 +27,9 @@ class MonitorGameInactivity extends Command
         $this->info('Starting game inactivity monitoring...');
 
         // Get all active or paused games
-        $games = Game::whereIn('status', ['active', 'paused'])
-            ->get();
+        $games = Game::whereHas('statusRelation', function ($q) {
+                $q->whereIn('code', ['active', 'paused']);
+            })->get();
 
         $this->info("Found {$games->count()} games to check");
 

@@ -1162,8 +1162,9 @@ class GameRoomService
         // Cancel any previously paused games for BOTH players in this game
         // Only one paused game per user is allowed at a time
         $bothPlayerIds = [$game->white_player_id, $game->black_player_id];
-        $previousPaused = Game::where('status', 'paused')
-            ->where('id', '!=', $gameId)
+        $previousPaused = Game::whereHas('statusRelation', function ($q) {
+                $q->where('code', 'paused');
+            })->where('id', '!=', $gameId)
             ->where(function ($q) use ($bothPlayerIds) {
                 $q->whereIn('white_player_id', $bothPlayerIds)
                   ->orWhereIn('black_player_id', $bothPlayerIds);

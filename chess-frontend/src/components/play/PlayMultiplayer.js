@@ -408,6 +408,20 @@ const PlayMultiplayer = () => {
     }
   }, [gameId]);
 
+  // Reactive sync: keep boardOrientation in sync with myColor
+  // This handles edge cases where initializeGame doesn't set orientation:
+  // - Same-route navigation (rematch/new game without unmount)
+  // - Rated game early return (confirmation dialog shown before orientation set)
+  useEffect(() => {
+    if (myColor) {
+      const orientation = myColor === 'w' ? 'white' : 'black';
+      if (boardOrientation !== orientation) {
+        console.log('🔄 Syncing boardOrientation from myColor:', myColor, '→', orientation);
+        setBoardOrientation(orientation);
+      }
+    }
+  }, [myColor]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Initialize WebSocket connection and load game data
   const initializeGame = useCallback(async () => {
     if (!gameId || !user) return;
@@ -2280,8 +2294,11 @@ const PlayMultiplayer = () => {
     });
     initializeGame();
 
-    // Cleanup on unmount - ONLY when component actually unmounts, not on status changes
+    // Cleanup on unmount or when gameId changes (same-route navigation)
     return () => {
+      // Allow re-initialization for a different game on the same route
+      didInitRef.current = false;
+
       console.log('🧹 Cleanup: disconnecting WebSocket (component unmounting)');
 
       // Check if we're truly navigating away (not just re-rendering)
