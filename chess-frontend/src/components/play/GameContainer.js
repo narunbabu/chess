@@ -33,7 +33,7 @@ const GameContainer = ({
   // Extract timer data
   const {
     playerTime, computerTime, myMs, oppMs, activeTimer, playerColor,
-    isMyTurn, isTimerRunning,
+    isMyTurn, isTimerRunning, computerMoveInProgress = false,
     playerScore = 0, computerScore = 0,
     playerData = null, opponentData = null
   } = timerData;
@@ -338,6 +338,7 @@ const GameContainer = ({
           isTop={true}
           mode={mode}
           isTimerRunning={mode === 'computer' ? (isTimerRunning && activeTimer !== playerColor) : !isMyTurn}
+          isThinking={mode === 'computer' && computerMoveInProgress}
         />
 
         {/* Board */}

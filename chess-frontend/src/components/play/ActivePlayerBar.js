@@ -38,6 +38,7 @@ const formatTime = (seconds) => {
 const ActivePlayerBar = ({
   name, rating, playerData, time, isActive, isWhite,
   game, isTop = false, mode = 'computer', isTimerRunning = false,
+  isThinking = false,
 }) => {
   const avatarUrl = getPlayerAvatar(playerData);
   const initial = (name || '?')[0].toUpperCase();
@@ -68,6 +69,13 @@ const ActivePlayerBar = ({
         <div className="apb-name-row">
           <span className={`apb-name ${isActive ? 'apb-name-active' : ''}`}>{name || 'Player'}</span>
           {rating != null && <span className="apb-rating">{rating}</span>}
+          {isThinking && (
+            <span className="apb-thinking">
+              <span className="apb-thinking-dot">.</span>
+              <span className="apb-thinking-dot">.</span>
+              <span className="apb-thinking-dot">.</span>
+            </span>
+          )}
         </div>
         {capturedInfo.pieces.length > 0 && (
           <div className="apb-captures">

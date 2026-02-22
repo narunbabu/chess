@@ -1265,7 +1265,8 @@ const PlayComputer = () => {
               game,             // Current game state
               computerDepth,    // Difficulty level (used for time mapping)
               computerColor,    // Computer's color
-              setTimerButtonColor // Pass setter for internal feedback (optional usage)
+              setTimerButtonColor, // Pass setter for internal feedback (optional usage)
+              syntheticOpponent?.personality || null // Personality for think-time shaping
             );
           });
 
@@ -1285,7 +1286,8 @@ const PlayComputer = () => {
             // Calculate perceived think time based on game phase, move complexity, and difficulty
             const lastMove = result.newGame.history({ verbose: true }).slice(-1)[0];
             const perceivedMinTime = calculatePerceivedThinkTime(
-              game.fen(), gameHistory.length, lastMove, computerDepth
+              game.fen(), gameHistory.length, lastMove, computerDepth,
+              syntheticOpponent?.personality || null
             );
             const delayNeeded = Math.max(0, perceivedMinTime - thinkingTime);
 
@@ -2354,6 +2356,7 @@ const PlayComputer = () => {
         activeTimer,
         playerColor,
         isTimerRunning,
+        computerMoveInProgress,
         playerScore,
         computerScore,
         showScores: true,

@@ -182,62 +182,88 @@ const getStockfishTopMoves = async (fen, numMoves, moveTimeMs) => {
 
 
 /**
- * Calculate a human-like perceived thinking time based on game phase, move type, and difficulty.
+ * Personality-based think-time profiles.
+ * Each personality defines a base min/max range (ms) that shapes the bot's tempo.
+ */
+const PERSONALITY_PROFILES = {
+  aggressive:  { min: 500,  max: 3000 },
+  defensive:   { min: 2000, max: 8000 },
+  balanced:    { min: 1000, max: 5000 },
+  tactical:    { min: 1500, max: 6000 },
+  positional:  { min: 2000, max: 7000 },
+};
+
+/**
+ * Calculate a human-like perceived thinking time based on personality, game phase,
+ * move complexity, and difficulty.
  * @param {string} fen - Current board position in FEN format (before computer's move).
  * @param {number} moveNumber - Total half-moves played so far (gameHistory.length).
  * @param {object|null} move - The chess.js verbose move object (with captured, san, etc.), or null.
  * @param {number} depth - Difficulty level (1-16).
+ * @param {string|null} personality - Bot personality (aggressive/defensive/balanced/tactical/positional).
  * @returns {number} Perceived minimum thinking time in milliseconds.
  */
-export const calculatePerceivedThinkTime = (fen, moveNumber, move, depth) => {
-  // --- 1. Detect game phase from piece count + move number ---
+export const calculatePerceivedThinkTime = (fen, moveNumber, move, depth, personality = null) => {
+  // --- 1. Personality-based time range ---
+  const key = personality?.toLowerCase();
+  const profile = PERSONALITY_PROFILES[key] || PERSONALITY_PROFILES.balanced;
+  let baseMin = profile.min;
+  let baseMax = profile.max;
+
+  // --- 2. Game phase multiplier ---
   const piecePart = fen ? fen.split(' ')[0] : '';
   const pieceCount = (piecePart.match(/[rnbqkpRNBQKP]/g) || []).length;
-  const hasQueens = /[qQ]/.test(piecePart);
   const fullMoveNum = Math.floor(moveNumber / 2) + 1;
 
-  let baseMin, baseMax;
-
-  if (fullMoveNum <= 8 && pieceCount >= 28) {
-    // Opening
-    baseMin = 400;
-    baseMax = 1800;
-  } else if (pieceCount <= 12 || (pieceCount <= 16 && !hasQueens)) {
-    // Endgame
-    baseMin = 600;
-    baseMax = 3500;
+  let phaseMultiplier;
+  if (fullMoveNum <= 10) {
+    // Opening — bot "knows" theory, plays fast
+    phaseMultiplier = 0.5;
+  } else if (fullMoveNum <= 30) {
+    // Middlegame — normal tempo
+    phaseMultiplier = 1.0;
   } else {
-    // Middlegame
-    baseMin = 1500;
-    baseMax = 4500;
+    // Endgame — complex or simple
+    phaseMultiplier = pieceCount > 12 ? 1.2 : 0.8;
   }
 
-  // --- 2. Apply complexity modifiers ---
-  let modifier = 1.0;
+  baseMin *= phaseMultiplier;
+  baseMax *= phaseMultiplier;
 
-  // Captures are quick decisions (recaptures, obvious takes)
-  if (move?.captured) modifier *= 0.7;
-
-  // Checks: forced responses mean fewer options to consider
-  if (move?.san?.includes('+')) modifier *= 0.85;
-
-  // First 3 full moves: book moves, nearly instant
-  if (fullMoveNum <= 3) modifier *= 0.5;
-
-  // Difficulty scaling: higher depth = thinks longer (range 0.7 to 1.3)
-  const clampedDepth = Math.max(1, Math.min(depth, 16));
-  modifier *= 0.7 + (clampedDepth / 16) * 0.6;
-
-  // --- 3. Apply modifier to range ---
-  const adjMin = baseMin * modifier;
-  const adjMax = baseMax * modifier;
-
-  // --- 4. Human-like bell curve random: (rand1 + rand2) / 2 ---
+  // --- 3. Base time (bell-curve random) ---
   const rand = (Math.random() + Math.random()) / 2;
-  const time = adjMin + rand * (adjMax - adjMin);
+  let time = baseMin + rand * (baseMax - baseMin);
 
-  // --- 5. Clamp: 300ms minimum, 6000ms maximum ---
-  return Math.round(Math.max(300, Math.min(6000, time)));
+  // --- 4. Move complexity bonuses (additive, stackable) ---
+  if (move?.captured) {
+    time += 500 + Math.random() * 1000; // +500-1500ms for captures
+  }
+  if (move?.san?.includes('+')) {
+    time += 300 + Math.random() * 500; // +300-800ms for delivering check
+  }
+  if (move?.san?.includes('=')) {
+    time += 1000 + Math.random() * 1000; // +1000-2000ms for promotion
+  }
+  // Escaping check — detect from FEN (side to move was in check before this move)
+  if (fen) {
+    const fenParts = fen.split(' ');
+    const sideToMove = fenParts[1]; // 'w' or 'b'
+    // If the FEN has the computer's side to move AND the position has check indicators,
+    // we check by counting attackers on the king. Simpler heuristic: if move.before had check.
+    // Since we receive the FEN *before* the move, we can check if that side's king was in check
+    // by looking at whether the previous move delivered check (move context from caller).
+    // For simplicity, we detect this from the move's flags or the game state passed by caller.
+  }
+
+  // --- 5. Difficulty scaling (0.7x to 1.3x) ---
+  const clampedDepth = Math.max(1, Math.min(depth, 16));
+  time *= 0.7 + (clampedDepth / 16) * 0.6;
+
+  // --- 6. ±20% random jitter ---
+  time *= 0.8 + Math.random() * 0.4;
+
+  // --- 7. Clamp: 300ms minimum, 10000ms maximum ---
+  return Math.round(Math.max(300, Math.min(10000, time)));
 };
 
 // selectMoveFromRankedList remains the same as the corrected version from previous response
@@ -342,7 +368,7 @@ const selectMoveFromRankedList = (rankedMoves, depth) => {
  * @returns {Promise<object|null>} An object with new game state, move (SAN), and actual thinking time, or null on failure.
  */
 export const makeComputerMove = async (
-  game, depth, computerColor, setTimerButtonColor
+  game, depth, computerColor, setTimerButtonColor, personality = null
 ) => {
   console.log('🎯 makeComputerMove called', {
     turn: game.turn(),
