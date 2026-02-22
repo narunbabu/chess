@@ -36,7 +36,7 @@ class MatchmakingService
             'rating_range' => 200,
             'status' => 'searching',
             'queued_at' => $now,
-            'expires_at' => $now->copy()->addSeconds(20),
+            'expires_at' => $now->copy()->addSeconds(15),
             'preferred_color' => $preferences['preferred_color'] ?? 'random',
             'time_control_minutes' => $preferences['time_control_minutes'] ?? 10,
             'increment_seconds' => $preferences['increment_seconds'] ?? 0,

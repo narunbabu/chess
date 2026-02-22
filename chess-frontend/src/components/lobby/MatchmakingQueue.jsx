@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import matchmakingService from '../../services/matchmakingService';
 import '../../styles/UnifiedCards.css';
 
-const QUEUE_TIMEOUT_SECONDS = 20;
+const QUEUE_TIMEOUT_SECONDS = 15;
 const FIND_PLAYERS_TIMEOUT_SECONDS = 15;
+const TOTAL_SEARCH_SECONDS = 30;
 const POLL_INTERVAL_MS = 2000;
 
 const TIME_PRESETS = [
@@ -33,6 +34,7 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
   const pollRef = useRef(null);
   const countdownRef = useRef(null);
   const startTimeRef = useRef(null);
+  const searchStartTimeRef = useRef(null);
   const matchRequestTokenRef = useRef(null);
   const findPlayersTimeoutRef = useRef(null);
   const statusRef = useRef('idle');
@@ -62,6 +64,7 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
       setMatchResult(null);
       setRemainingTargets(0);
       matchRequestTokenRef.current = null;
+      searchStartTimeRef.current = null;
     }
   }, [isOpen, cleanup]);
 
@@ -77,8 +80,7 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
   const fallbackToQueue = useCallback(async () => {
     try {
       setStatus('searching');
-      startTimeRef.current = Date.now();
-      setSecondsLeft(QUEUE_TIMEOUT_SECONDS);
+      // Unified countdown continues from startSearch — don't reset
 
       const data = await matchmakingService.joinQueue({
         preferred_color: preferredColor,
@@ -88,14 +90,7 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
       const id = data.entry.id;
       setEntryId(id);
 
-      // Start countdown timer
-      countdownRef.current = setInterval(() => {
-        const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
-        const remaining = Math.max(0, QUEUE_TIMEOUT_SECONDS - elapsed);
-        setSecondsLeft(remaining);
-      }, 250);
-
-      // Start polling for match
+      // Start polling for match (countdown already running)
       pollRef.current = setInterval(async () => {
         try {
           const result = await matchmakingService.checkStatus(id);
@@ -152,8 +147,15 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
   const startSearch = useCallback(async () => {
     try {
       setStatus('findingPlayers');
-      startTimeRef.current = Date.now();
-      setSecondsLeft(FIND_PLAYERS_TIMEOUT_SECONDS);
+      searchStartTimeRef.current = Date.now();
+      setSecondsLeft(TOTAL_SEARCH_SECONDS);
+
+      // Start unified 30s countdown (runs through both smart match + queue phases)
+      countdownRef.current = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - searchStartTimeRef.current) / 1000);
+        const remaining = Math.max(0, TOTAL_SEARCH_SECONDS - elapsed);
+        setSecondsLeft(remaining);
+      }, 250);
 
       const data = await matchmakingService.findPlayers({
         preferred_color: preferredColor,
@@ -173,22 +175,14 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
         return;
       }
 
-      // Start countdown timer for finding players phase
-      countdownRef.current = setInterval(() => {
-        const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
-        const remaining = Math.max(0, FIND_PLAYERS_TIMEOUT_SECONDS - elapsed);
-        setSecondsLeft(remaining);
-      }, 250);
-
       // Set timeout: after 15s, cancel find and fall back to queue
       findPlayersTimeoutRef.current = setTimeout(async () => {
         // Only fall back if still in findingPlayers state
         if (statusRef.current !== 'findingPlayers') return;
 
         console.log('[Matchmaking] Find players timeout, falling back to queue');
-        cleanup();
 
-        // Cancel the match request
+        // Cancel the match request (countdown keeps running for queue phase)
         if (matchRequestTokenRef.current) {
           try {
             await matchmakingService.cancelFindPlayers(matchRequestTokenRef.current);
@@ -235,10 +229,12 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
         setRemainingTargets(remaining);
         // If all declined, immediately fall back
         if (remaining === 0) {
-          cleanup();
-          if (matchRequestTokenRef.current) {
-            matchRequestTokenRef.current = null;
+          // Clear smart match timeout; countdown keeps running for queue phase
+          if (findPlayersTimeoutRef.current) {
+            clearTimeout(findPlayersTimeoutRef.current);
+            findPlayersTimeoutRef.current = null;
           }
+          matchRequestTokenRef.current = null;
           fallbackToQueue();
         }
       }
@@ -278,8 +274,7 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
 
   if (!isOpen) return null;
 
-  const timeoutForProgress = status === 'findingPlayers' ? FIND_PLAYERS_TIMEOUT_SECONDS : QUEUE_TIMEOUT_SECONDS;
-  const progress = ((timeoutForProgress - secondsLeft) / timeoutForProgress) * 100;
+  const progress = ((TOTAL_SEARCH_SECONDS - secondsLeft) / TOTAL_SEARCH_SECONDS) * 100;
   const categories = [...new Set(TIME_PRESETS.map(p => p.category))];
 
   return (
@@ -387,13 +382,13 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
           </>
         )}
 
-        {/* Finding real players (smart matchmaking phase) */}
-        {status === 'findingPlayers' && (
+        {/* Unified search phase (smart match → queue → bot fallback) */}
+        {(status === 'findingPlayers' || status === 'searching') && (
           <>
             <div className="matchmaking-spinner">
               <div className="chess-piece-spin">&#9812;</div>
             </div>
-            <h2 className="matchmaking-title">Finding players...</h2>
+            <h2 className="matchmaking-title">Looking for an opponent...</h2>
             <p className="matchmaking-subtitle">
               {timeControl}+{increment} &bull; {preferredColor === 'random' ? 'Any color' : preferredColor.charAt(0).toUpperCase() + preferredColor.slice(1)}
             </p>
@@ -404,40 +399,12 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
                 style={{ width: `${progress}%` }}
               />
             </div>
-            <p className="matchmaking-timer">{secondsLeft}s remaining</p>
+            <p className="matchmaking-timer">{secondsLeft}s</p>
             <p className="matchmaking-hint">
-              {remainingTargets > 0
+              {status === 'findingPlayers' && remainingTargets > 0
                 ? `Waiting for ${remainingTargets} player${remainingTargets !== 1 ? 's' : ''} to respond...`
-                : 'Looking for online players...'
+                : 'Searching for the best match...'
               }
-            </p>
-
-            <button className="matchmaking-cancel-btn" onClick={handleCancel}>
-              Cancel
-            </button>
-          </>
-        )}
-
-        {/* Queue-based searching (fallback) */}
-        {status === 'searching' && (
-          <>
-            <div className="matchmaking-spinner">
-              <div className="chess-piece-spin">&#9818;</div>
-            </div>
-            <h2 className="matchmaking-title">Searching for opponent...</h2>
-            <p className="matchmaking-subtitle">
-              {timeControl}+{increment} &bull; {preferredColor === 'random' ? 'Any color' : preferredColor.charAt(0).toUpperCase() + preferredColor.slice(1)}
-            </p>
-
-            <div className="matchmaking-progress-bar">
-              <div
-                className="matchmaking-progress-fill"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            <p className="matchmaking-timer">{secondsLeft}s remaining</p>
-            <p className="matchmaking-hint">
-              Finding the best match for you...
             </p>
 
             <button className="matchmaking-cancel-btn" onClick={handleCancel}>
