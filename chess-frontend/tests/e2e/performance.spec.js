@@ -196,7 +196,7 @@ test.describe('Performance Tests', () => {
     if (interactionTimes.length > 0) {
       const averageTime = interactionTimes.reduce((a, b) => a + b, 0) / interactionTimes.length;
       const maxTime = Math.max(...interactionTimes);
-      const p95 = this.calculatePercentile(interactionTimes, 95);
+      const p95 = calculatePercentile(interactionTimes, 95);
 
       expect(averageTime).toBeLessThan(100); // Average under 100ms
       expect(maxTime).toBeLessThan(300); // Max under 300ms
@@ -286,7 +286,7 @@ test.describe('Performance Tests', () => {
   /**
    * Calculate percentile from array of values
    */
-  calculatePercentile(values, percentile) {
+  function calculatePercentile(values, percentile) {
     values.sort((a, b) => a - b);
     const index = (percentile / 100) * (values.length - 1);
 
