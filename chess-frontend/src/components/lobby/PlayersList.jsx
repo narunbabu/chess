@@ -106,9 +106,23 @@ const PlayersList = ({ players, onChallenge }) => {
                 }} title={status.label} />
               </div>
               <div className="unified-card-content">
-                <h3 className="unified-card-title">{player.name}</h3>
+                <h3 className="unified-card-title">
+                  {player.name}
+                  {player.type === 'synthetic' && (
+                    <span style={{
+                      marginLeft: '6px', fontSize: '0.65rem', fontWeight: 700,
+                      background: 'rgba(129, 182, 76, 0.15)', color: '#81b64c',
+                      padding: '1px 5px', borderRadius: '4px', verticalAlign: 'middle',
+                    }}>BOT</span>
+                  )}
+                </h3>
                 <p className="unified-card-info">
                   Rating: {player.rating || 1200}
+                  {player.personality && (
+                    <span style={{ marginLeft: '8px', color: '#8b8987', fontSize: '0.8rem' }}>
+                      {player.personality}
+                    </span>
+                  )}
                 </p>
                 <span className="unified-card-status online" style={{ color: status.color }}>{status.label}</span>
               </div>

@@ -119,17 +119,23 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
                     gameMode: 'synthetic',
                     syntheticPlayer: entry.opponent,
                     backendGameId: entry.game_id,
+                    preferredColor: preferredColor === 'random'
+                      ? (Math.random() < 0.5 ? 'white' : 'black')
+                      : preferredColor,
+                    ratedMode: 'casual', // AI games never affect leaderboard
+                    timeControl,
+                    increment,
                   },
                 });
               }
             }, 1500);
           } else if (entry.status === 'expired' || entry.status === 'cancelled') {
             cleanup();
-            // AI fallback: no human found → start a computer game automatically
+            // No human or bot found — direct to computer play setup
             setStatus('fallback');
             setTimeout(() => {
               onClose();
-              navigate('/play');
+              navigate('/play/computer');
             }, 2000);
           }
         } catch (err) {

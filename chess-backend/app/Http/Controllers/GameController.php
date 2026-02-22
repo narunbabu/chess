@@ -83,7 +83,7 @@ class GameController extends Controller
             'computer_level' => $computerLevel,
             'synthetic_player_id' => $request->synthetic_player_id,
             'player_color' => $playerColor,
-            'game_mode' => $request->game_mode ?? 'casual',
+            'game_mode' => $request->synthetic_player_id ? 'casual' : ($request->game_mode ?? 'casual'),
             'status' => 'active',
             'result' => 'ongoing',
             'turn' => 'white', // White always starts

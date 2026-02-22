@@ -1674,7 +1674,7 @@ const PlayComputer = () => {
               computer_level: computerDepth,
               time_control: timeControlMin,
               increment: incrementSec,
-              game_mode: effectiveRatedMode,
+              game_mode: syntheticOpponent ? 'casual' : effectiveRatedMode, // AI games never affect leaderboard
               synthetic_player_id: syntheticOpponent?.id || null,
             };
 

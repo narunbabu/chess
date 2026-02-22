@@ -163,6 +163,7 @@ class MatchmakingService
             'computer_level' => $bot->computer_level,
             'synthetic_player_id' => $bot->id,
             'player_color' => $isUserWhite ? 'white' : 'black',
+            'game_mode' => 'casual', // AI games never affect leaderboard
             'status' => 'active',
             'result' => 'ongoing',
             'turn' => 'white',
