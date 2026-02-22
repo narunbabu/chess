@@ -194,23 +194,49 @@ const PERSONALITY_PROFILES = {
 };
 
 /**
- * Calculate a human-like perceived thinking time based on personality, game phase,
- * move complexity, and difficulty.
+ * ELO-based think-time scaling.
+ * Lower-rated bots play impulsively (shorter delays);
+ * higher-rated bots calculate more deliberately (longer delays).
+ *
+ * Mapping (linear, centred at 1800 ELO = 1.0×):
+ *   1370 → 0.64×   1600 → 0.83×   1800 → 1.00×
+ *   2000 → 1.17×   2200 → 1.33×   2440 → 1.53×
+ *
+ * @param {number|null} rating - Bot ELO rating, or null/0 for no scaling.
+ * @returns {number} Multiplier in the range [0.4, 1.8].
+ */
+const getEloThinkMultiplier = (rating) => {
+  if (!rating || rating <= 0) return 1.0;
+  const elo = Math.max(800, Math.min(2800, rating));
+  return Math.max(0.4, Math.min(1.8, 1.0 + ((elo - 1800) / 600) * 0.5));
+};
+
+/**
+ * Calculate a human-like perceived thinking time based on ELO rating, personality,
+ * game phase, move complexity, and difficulty.
  * @param {string} fen - Current board position in FEN format (before computer's move).
  * @param {number} moveNumber - Total half-moves played so far (gameHistory.length).
  * @param {object|null} move - The chess.js verbose move object (with captured, san, etc.), or null.
  * @param {number} depth - Difficulty level (1-16).
  * @param {string|null} personality - Bot personality (aggressive/defensive/balanced/tactical/positional).
+ * @param {number|null} rating - Bot ELO rating for think-time scaling (1370-2440 typical).
  * @returns {number} Perceived minimum thinking time in milliseconds.
  */
-export const calculatePerceivedThinkTime = (fen, moveNumber, move, depth, personality = null) => {
+export const calculatePerceivedThinkTime = (fen, moveNumber, move, depth, personality = null, rating = null) => {
   // --- 1. Personality-based time range ---
   const key = personality?.toLowerCase();
   const profile = PERSONALITY_PROFILES[key] || PERSONALITY_PROFILES.balanced;
   let baseMin = profile.min;
   let baseMax = profile.max;
 
-  // --- 2. Game phase multiplier ---
+  // --- 2. ELO-based scaling ---
+  // Lower-rated bots (1370) → ~0.64× (quick, impulsive)
+  // Higher-rated bots (2440) → ~1.53× (deliberate, deep calculation)
+  const eloMultiplier = getEloThinkMultiplier(rating);
+  baseMin *= eloMultiplier;
+  baseMax *= eloMultiplier;
+
+  // --- 3. Game phase multiplier ---
   const piecePart = fen ? fen.split(' ')[0] : '';
   const pieceCount = (piecePart.match(/[rnbqkpRNBQKP]/g) || []).length;
   const fullMoveNum = Math.floor(moveNumber / 2) + 1;
@@ -230,11 +256,11 @@ export const calculatePerceivedThinkTime = (fen, moveNumber, move, depth, person
   baseMin *= phaseMultiplier;
   baseMax *= phaseMultiplier;
 
-  // --- 3. Base time (bell-curve random) ---
+  // --- 4. Base time (bell-curve random) ---
   const rand = (Math.random() + Math.random()) / 2;
   let time = baseMin + rand * (baseMax - baseMin);
 
-  // --- 4. Move complexity bonuses (additive, stackable) ---
+  // --- 5. Move complexity bonuses (additive, stackable) ---
   if (move?.captured) {
     time += 500 + Math.random() * 1000; // +500-1500ms for captures
   }
@@ -257,14 +283,23 @@ export const calculatePerceivedThinkTime = (fen, moveNumber, move, depth, person
     }
   }
 
-  // --- 5. Difficulty scaling (0.7x to 1.3x) ---
+  // --- 6. Difficulty scaling (0.7x to 1.3x) ---
   const clampedDepth = Math.max(1, Math.min(depth, 16));
   time *= 0.7 + (clampedDepth / 16) * 0.6;
 
-  // --- 6. ±20% random jitter ---
-  time *= 0.8 + Math.random() * 0.4;
+  // --- 7. ELO-aware jitter ---
+  // Low ELO → erratic timing (±30%), high ELO → precise timing (±10%)
+  let jitterHalf;
+  if (rating && rating > 0) {
+    const elo = Math.max(800, Math.min(2800, rating));
+    // 800 → 0.30, 1800 → 0.20, 2800 → 0.10
+    jitterHalf = 0.30 - ((elo - 800) / 2000) * 0.20;
+  } else {
+    jitterHalf = 0.20; // default ±20%
+  }
+  time *= (1.0 - jitterHalf) + Math.random() * (2 * jitterHalf);
 
-  // --- 7. Clamp: 300ms minimum, 10000ms maximum ---
+  // --- 8. Clamp: 300ms minimum, 10000ms maximum ---
   return Math.round(Math.max(300, Math.min(10000, time)));
 };
 
@@ -276,11 +311,12 @@ export const calculatePerceivedThinkTime = (fen, moveNumber, move, depth, person
  * @param {object|null} move - The chess.js verbose move object.
  * @param {number} depth - Difficulty level (1-16).
  * @param {string|null} personality - Bot personality key.
+ * @param {number|null} rating - Bot ELO rating for think-time scaling.
  * @param {number} actualEngineMs - Milliseconds the engine already spent calculating.
  * @returns {Promise<number>} Resolves with the perceived think time (ms) after the delay.
  */
-export const waitForPerceivedThinkTime = (fen, moveNumber, move, depth, personality, actualEngineMs = 0) => {
-  const perceived = calculatePerceivedThinkTime(fen, moveNumber, move, depth, personality);
+export const waitForPerceivedThinkTime = (fen, moveNumber, move, depth, personality, rating = null, actualEngineMs = 0) => {
+  const perceived = calculatePerceivedThinkTime(fen, moveNumber, move, depth, personality, rating);
   const delay = Math.max(0, perceived - actualEngineMs);
   return new Promise(resolve => setTimeout(() => resolve(perceived), delay));
 };

@@ -1288,6 +1288,7 @@ const PlayComputer = () => {
             await waitForPerceivedThinkTime(
               game.fen(), gameHistory.length, lastMove, computerDepth,
               syntheticOpponent?.personality || null,
+              syntheticOpponent?.rating || null,   // ELO-based delay curve
               thinkingTime
             );
 
