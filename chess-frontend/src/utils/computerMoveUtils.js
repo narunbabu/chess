@@ -244,15 +244,17 @@ export const calculatePerceivedThinkTime = (fen, moveNumber, move, depth, person
   if (move?.san?.includes('=')) {
     time += 1000 + Math.random() * 1000; // +1000-2000ms for promotion
   }
-  // Escaping check — detect from FEN (side to move was in check before this move)
+  // Escaping check — the FEN is the position *before* the bot moved.
+  // If the side to move was in check, the bot had to escape → panic delay.
   if (fen) {
-    const fenParts = fen.split(' ');
-    const sideToMove = fenParts[1]; // 'w' or 'b'
-    // If the FEN has the computer's side to move AND the position has check indicators,
-    // we check by counting attackers on the king. Simpler heuristic: if move.before had check.
-    // Since we receive the FEN *before* the move, we can check if that side's king was in check
-    // by looking at whether the previous move delivered check (move context from caller).
-    // For simplicity, we detect this from the move's flags or the game state passed by caller.
+    try {
+      const preMove = new Chess(fen);
+      if (preMove.isCheck()) {
+        time += 1000 + Math.random() * 2000; // +1000-3000ms panic delay
+      }
+    } catch (_) {
+      // invalid FEN — skip check detection
+    }
   }
 
   // --- 5. Difficulty scaling (0.7x to 1.3x) ---
@@ -264,6 +266,23 @@ export const calculatePerceivedThinkTime = (fen, moveNumber, move, depth, person
 
   // --- 7. Clamp: 300ms minimum, 10000ms maximum ---
   return Math.round(Math.max(300, Math.min(10000, time)));
+};
+
+/**
+ * Returns a Promise that resolves after a human-like think delay.
+ * Subtracts actual engine computation time so the total wait feels natural.
+ * @param {string} fen - Board position FEN (before the move).
+ * @param {number} moveNumber - Half-moves played so far.
+ * @param {object|null} move - The chess.js verbose move object.
+ * @param {number} depth - Difficulty level (1-16).
+ * @param {string|null} personality - Bot personality key.
+ * @param {number} actualEngineMs - Milliseconds the engine already spent calculating.
+ * @returns {Promise<number>} Resolves with the perceived think time (ms) after the delay.
+ */
+export const waitForPerceivedThinkTime = (fen, moveNumber, move, depth, personality, actualEngineMs = 0) => {
+  const perceived = calculatePerceivedThinkTime(fen, moveNumber, move, depth, personality);
+  const delay = Math.max(0, perceived - actualEngineMs);
+  return new Promise(resolve => setTimeout(() => resolve(perceived), delay));
 };
 
 // selectMoveFromRankedList remains the same as the corrected version from previous response

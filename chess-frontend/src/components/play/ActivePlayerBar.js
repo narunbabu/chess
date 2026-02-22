@@ -71,6 +71,7 @@ const ActivePlayerBar = ({
           {rating != null && <span className="apb-rating">{rating}</span>}
           {isThinking && (
             <span className="apb-thinking">
+              <span className="apb-thinking-label">Thinking</span>
               <span className="apb-thinking-dot">.</span>
               <span className="apb-thinking-dot">.</span>
               <span className="apb-thinking-dot">.</span>

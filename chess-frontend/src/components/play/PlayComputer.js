@@ -17,7 +17,7 @@ import { pieces3dLanding } from "../../assets/pieces/pieces3d"; // 3D piece rend
 
 // Import Utils & Hooks
 import { useGameTimer } from "../../utils/timerUtils"; // Adjust path if needed
-import { makeComputerMove, calculatePerceivedThinkTime } from "../../utils/computerMoveUtils"; // Adjust path if needed
+import { makeComputerMove, waitForPerceivedThinkTime } from "../../utils/computerMoveUtils"; // Adjust path if needed
 import { updateGameStatus, evaluateMove } from "../../utils/gameStateUtils"; // Adjust paths if needed (ensure evaluateMove exists)
 import { encodeGameHistory, reconstructGameFromHistory } from "../../utils/gameHistoryStringUtils"; // Adjust paths if needed
 import { createResultFromComputerGame } from "../../utils/resultStandardization"; // Standardized result format
@@ -1282,28 +1282,19 @@ const PlayComputer = () => {
             // Move calculation was successful (or fallback occurred)
             const { newGame, thinkingTime } = result; // Get the new game state and actual engine time
 
-            // *** Dynamic Artificial Delay Logic ***
-            // Calculate perceived think time based on game phase, move complexity, and difficulty
+            // *** Dynamic Artificial Delay — Promise-based ***
+            // waitForPerceivedThinkTime resolves after (perceived - actual) ms
             const lastMove = result.newGame.history({ verbose: true }).slice(-1)[0];
-            const perceivedMinTime = calculatePerceivedThinkTime(
+            await waitForPerceivedThinkTime(
               game.fen(), gameHistory.length, lastMove, computerDepth,
-              syntheticOpponent?.personality || null
+              syntheticOpponent?.personality || null,
+              thinkingTime
             );
-            const delayNeeded = Math.max(0, perceivedMinTime - thinkingTime);
 
-            if (delayNeeded > 0) {
-              
-              // Wait for the calculated delay duration
-              await new Promise((res) => setTimeout(res, delayNeeded));
-
-               // Check state *again* after the artificial delay
-               if (gameOver || !gameStarted || isReplayMode) {
-                    
-                    setComputerMoveInProgress(false);
-                    return; // Exit early
-               }
-            } else {
-                // console.log(`No artificial delay needed (Actual: ${thinkingTime}ms >= MinPerceived: ${MIN_PERCEIVED_COMPUTER_THINK_TIME}ms)`);
+            // Check state *again* after the artificial delay
+            if (gameOver || !gameStarted || isReplayMode) {
+                 setComputerMoveInProgress(false);
+                 return; // Exit early
             }
 
             // --- Apply the move and update game state ---

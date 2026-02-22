@@ -647,11 +647,19 @@
   50% { border-color: rgba(76, 175, 80, 0.6); box-shadow: 0 0 16px rgba(76, 175, 80, 0.18); }
 }
 
-/* Thinking dots indicator */
+/* Thinking indicator (label + animated dots) */
 .apb-thinking {
   margin-left: 6px;
   display: inline-flex;
-  gap: 1px;
+  align-items: baseline;
+  gap: 0;
+}
+.apb-thinking-label {
+  font-size: 0.72em;
+  font-style: italic;
+  color: #81b64c;
+  opacity: 0.85;
+  margin-right: 1px;
 }
 .apb-thinking-dot {
   animation: apbThinkingPulse 1.4s infinite;
@@ -661,6 +669,7 @@
 }
 .apb-thinking-dot:nth-child(2) { animation-delay: 0.2s; }
 .apb-thinking-dot:nth-child(3) { animation-delay: 0.4s; }
+.apb-thinking-dot:nth-child(4) { animation-delay: 0.6s; }
 @keyframes apbThinkingPulse {
   0%, 80%, 100% { opacity: 0.3; }
   40% { opacity: 1; }
