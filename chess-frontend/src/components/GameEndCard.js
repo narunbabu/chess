@@ -46,7 +46,8 @@ const GameEndCard = React.forwardRef(({
     resultText,
     icon,
     title,
-    gameDurationText
+    gameDurationText,
+    winnerName
   } = useMemo(() => {
     // Debug logging to understand user data issues
     console.log('GameEndCard user data debug:', {
