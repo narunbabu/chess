@@ -24,6 +24,131 @@
   margin: 0 auto;
 }
 
+/* ==========================================
+   Upgrade Strip — compact inline bar for free users
+   ========================================== */
+.upgrade-strip {
+  margin: 14px auto 0;
+  max-width: 520px;
+  padding: 7px 14px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, rgba(129,182,76,0.08), rgba(129,182,76,0.03));
+  border: 1px solid rgba(129,182,76,0.25);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.upgrade-strip:hover {
+  border-color: rgba(129,182,76,0.5);
+  background: linear-gradient(135deg, rgba(129,182,76,0.14), rgba(129,182,76,0.07));
+}
+
+.upgrade-strip-tier {
+  padding: 2px 10px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  background: rgba(100,96,92,0.5);
+  color: #bababa;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.upgrade-strip-usage {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.upgrade-strip-count {
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.upgrade-strip-bar {
+  flex: 1;
+  height: 5px;
+  background: #3d3a37;
+  border-radius: 3px;
+  overflow: hidden;
+  min-width: 36px;
+}
+
+.upgrade-strip-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+.upgrade-strip-label {
+  font-size: 11px;
+  color: #8b8987;
+  white-space: nowrap;
+}
+
+.upgrade-strip-cta {
+  padding: 4px 14px;
+  border-radius: 16px;
+  border: none;
+  background: linear-gradient(135deg, #81b64c, #a3d160);
+  color: #fff;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.upgrade-strip-cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(129,182,76,0.3);
+}
+
+@media (max-width: 480px) {
+  .upgrade-strip {
+    padding: 6px 10px;
+    gap: 8px;
+    border-radius: 12px;
+    max-width: 100%;
+  }
+
+  .upgrade-strip-tier {
+    font-size: 10px;
+    padding: 2px 8px;
+  }
+
+  .upgrade-strip-cta {
+    font-size: 11px;
+    padding: 4px 10px;
+  }
+
+  .upgrade-strip-label {
+    display: none;
+  }
+}
+
+@media (max-width: 360px) {
+  .upgrade-strip {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    border-radius: 10px;
+  }
+
+  .upgrade-strip-usage {
+    flex: 1 1 auto;
+    min-width: 80px;
+  }
+}
+
 /* Rating Prompt Banner */
 .rating-prompt-banner {
   background: linear-gradient(135deg, rgba(129, 182, 76, 0.15) 0%, rgba(78, 120, 55, 0.15) 100%);

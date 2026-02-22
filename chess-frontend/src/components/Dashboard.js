@@ -468,46 +468,8 @@ const Dashboard = () => {
               </p>
             )}
 
-            {/* Upgrade Banner for free-tier users */}
-            {currentTier === 'free' && (
-              <div style={{
-                margin: '16px auto 0',
-                maxWidth: '640px',
-                padding: '12px 20px',
-                borderRadius: '10px',
-                background: 'linear-gradient(135deg, rgba(129,182,76,0.12), rgba(129,182,76,0.06))',
-                border: '1px solid rgba(129,182,76,0.35)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '12px',
-                flexWrap: 'wrap',
-              }}>
-                <p style={{ margin: 0, color: '#bababa', fontSize: '14px', textAlign: 'left' }}>
-                  You're on the <strong style={{ color: '#e5e7eb' }}>Free plan</strong>.
-                  Upgrade to <strong style={{ color: '#81b64c' }}>Silver ₹99/mo</strong> for unlimited games, tournaments & premium features.
-                </p>
-                <button
-                  onClick={() => navigate('/pricing')}
-                  style={{
-                    flexShrink: 0,
-                    padding: '6px 18px',
-                    borderRadius: '20px',
-                    border: 'none',
-                    background: 'linear-gradient(135deg, #81b64c, #a3d160)',
-                    color: '#fff',
-                    fontWeight: '700',
-                    fontSize: '13px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Upgrade Now
-                </button>
-              </div>
-            )}
-
-            {/* Usage vs Limits (S-R2) — show today's game count for free users */}
-            {currentTier === 'free' && gameHistories.length > 0 && (() => {
+            {/* Compact upgrade strip for free-tier users — tier badge + usage bar + CTA */}
+            {currentTier === 'free' && (() => {
               const todayGames = gameHistories.filter(g => {
                 const d = new Date(g.played_at || g.timestamp);
                 const t = new Date();
@@ -517,17 +479,18 @@ const Dashboard = () => {
               const pct = Math.min(100, (todayGames / limit) * 100);
               const barColor = pct >= 100 ? '#e74c3c' : pct >= 60 ? '#e8a93e' : '#81b64c';
               return (
-                <div style={{ margin: '10px auto 0', maxWidth: '420px', padding: '10px 16px', borderRadius: '8px', background: '#1a1a18', border: '1px solid #3d3a37' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '0.82rem' }}>
-                    <span style={{ color: '#bababa', fontWeight: 600 }}>Today's games</span>
-                    <span style={{ color: barColor, fontWeight: 700 }}>{todayGames} / {limit}</span>
+                <div className="upgrade-strip" onClick={() => navigate('/pricing')}>
+                  <span className="upgrade-strip-tier">FREE</span>
+                  <div className="upgrade-strip-usage">
+                    <span className="upgrade-strip-count" style={{ color: barColor }}>{todayGames}/{limit}</span>
+                    <div className="upgrade-strip-bar">
+                      <div className="upgrade-strip-fill" style={{ width: `${pct}%`, background: barColor }} />
+                    </div>
+                    <span className="upgrade-strip-label">today</span>
                   </div>
-                  <div style={{ height: '6px', background: '#3d3a37', borderRadius: '3px', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', borderRadius: '3px', width: `${pct}%`, background: barColor, transition: 'width 0.4s ease' }} />
-                  </div>
-                  {todayGames >= limit && (
-                    <p style={{ margin: '6px 0 0', fontSize: '0.78rem', color: '#e8a93e' }}>Daily limit reached — <button onClick={() => navigate('/pricing')} style={{ background: 'none', border: 'none', color: '#81b64c', cursor: 'pointer', fontWeight: 700, padding: 0, fontSize: 'inherit' }}>upgrade for unlimited →</button></p>
-                  )}
+                  <button className="upgrade-strip-cta" onClick={(e) => { e.stopPropagation(); navigate('/pricing'); }}>
+                    ⬆ Go Silver — ₹99/mo
+                  </button>
                 </div>
               );
             })()}
