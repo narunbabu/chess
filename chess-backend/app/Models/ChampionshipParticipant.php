@@ -48,6 +48,7 @@ class ChampionshipParticipant extends Model
     protected $fillable = [
         'championship_id',
         'user_id',
+        'active_unique_key',
         'razorpay_order_id',
         'razorpay_payment_id',
         'razorpay_signature',
@@ -76,6 +77,20 @@ class ChampionshipParticipant extends Model
     protected $appends = [
         'payment_status',
     ];
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Boot — keep active_unique_key in sync with registration_status (C2 fix)
+    // ──────────────────────────────────────────────────────────────────────────
+
+    protected static function booted(): void
+    {
+        static::saving(function (ChampionshipParticipant $participant) {
+            $inactive = ['cancelled', 'refunded'];
+            $participant->active_unique_key = in_array($participant->registration_status, $inactive)
+                ? null
+                : $participant->user_id;
+        });
+    }
 
     // ──────────────────────────────────────────────────────────────────────────
     // Relationships

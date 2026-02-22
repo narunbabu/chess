@@ -13,10 +13,12 @@ const PricingCard = ({ plan, isCurrentPlan, isPopular, onSubscribe, loading, int
   const colors = tierColors[plan.tier] || tierColors.free;
   const isFree = plan.tier === 'free';
 
-  // Find the plan matching the selected interval
-  const displayPlan = Array.isArray(plan.plans)
+  // Find the plan matching the selected interval (null-safe for empty arrays)
+  const displayPlan = Array.isArray(plan.plans) && plan.plans.length > 0
     ? plan.plans.find(p => p.interval === interval) || plan.plans[0]
     : plan;
+
+  if (!displayPlan) return null;
 
   const price = displayPlan.price || 0;
   const features = displayPlan.features || [];
