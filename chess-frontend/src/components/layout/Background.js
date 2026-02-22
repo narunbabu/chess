@@ -55,7 +55,7 @@ const FloatingChessPiece = ({ Piece, delay = 0, duration = 6, style = {} }) => (
 
 const Background = () => {
   return (
-    <div data-page="landing" className="fixed inset-0 w-screen h-screen bg-gradient-to-br from-[#1a1a18] via-[#262421] to-[#262421] font-display overflow-hidden">
+    <div data-page="landing" className="fixed inset-0 w-screen h-screen bg-gradient-to-br from-[#1a1a18] via-[#262421] to-[#262421] font-display overflow-hidden" style={{ zIndex: -1, pointerEvents: 'none' }}>
       {/* Chess Board Pattern Background */}
       <div className="absolute inset-0" style={{ opacity: 0.08 }}>
         <div className="grid grid-cols-8 grid-rows-8 h-full">

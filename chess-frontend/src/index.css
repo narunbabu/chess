@@ -423,6 +423,7 @@
     overflow-x: hidden;
     padding: 0;
     display: flex;
+    flex-direction: column;
     width: 100%;
     max-width: 100%;
     -webkit-overflow-scrolling: touch; /* smooth scrolling on iOS */
@@ -434,6 +435,7 @@
     padding: 0; /* No padding here, add to specific sections if needed */
     box-sizing: border-box;
     display: flex;
+    flex-direction: column;
     flex-grow: 1;
   }
 

@@ -5,11 +5,13 @@
 
 /* ── Pricing Page ── */
 .pricing-page {
-  width: 100%;            /* fill the flex container (.main-content display:flex) */
+  width: 100%;
   max-width: 1440px;
   margin: 0 auto;
   padding: 2rem 1rem 4rem;
   box-sizing: border-box;
+  flex: 1 1 auto;         /* grow/shrink properly as a flex child */
+  min-height: 0;          /* prevent flex overflow */
 }
 
 .pricing-page__header {
