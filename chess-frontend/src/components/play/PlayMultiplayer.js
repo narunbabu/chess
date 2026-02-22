@@ -77,6 +77,7 @@ const PlayMultiplayer = () => {
   const gameRegisteredRef = useRef(false);
   const evaluatedMovesRef = useRef(new Set());
   const hasReinitializedAfterRatedConfirm = useRef(false);
+  const timerFlagHandledRef = useRef(false); // Prevent duplicate timer flag handling
   const didInitRef = useRef(false);
   const turnRef = useRef(gameState.gameInfo.turn);
   const myColorRef = useRef(gameState.gameInfo.playerColor);
@@ -232,6 +233,12 @@ const PlayMultiplayer = () => {
 
   // Timer flag callback
   const handleTimerFlag = useCallback(async (who) => {
+    // Prevent duplicate handling (timer can fire multiple times before state updates)
+    if (timerFlagHandledRef.current) {
+      console.log('[Timer] Flag already handled, ignoring duplicate:', who);
+      return;
+    }
+    timerFlagHandledRef.current = true;
     console.log('[Timer] Flag - time ran out:', who);
 
     // Immediately update local status to prevent further moves
@@ -4178,6 +4185,64 @@ const PlayMultiplayer = () => {
         performanceData: ratedMode === 'rated' ? performanceData : null,
         showPerformance: ratedMode === 'rated' && gameInfo.status === 'active'
       }}
+      actionBar={
+        <>
+          {gameInfo.status === 'active' && (
+            <div className="gc-action-bar">
+              <button onClick={handleResign} className="gc-action-btn gc-action-danger">
+                ⚑ Resign
+              </button>
+
+              {/* Undo Button - Casual Mode Only */}
+              {ratedMode === 'casual' && (
+                <button
+                  onClick={handleUndo}
+                  disabled={!canUndo || undoChancesRemaining <= 0 || undoRequestPending}
+                  className={`gc-action-btn gc-action-info ${(!canUndo || undoChancesRemaining <= 0) ? 'gc-action-disabled' : ''}`}
+                  title={
+                    undoRequestPending
+                      ? 'Waiting for opponent response...'
+                      : !canUndo
+                      ? 'Undo not available'
+                      : undoChancesRemaining <= 0
+                      ? 'No undo chances remaining'
+                      : `Undo last move (${undoChancesRemaining} remaining)`
+                  }
+                >
+                  {undoRequestPending ? '↩ Pending...' : `↩ Undo (${undoChancesRemaining})`}
+                </button>
+              )}
+
+              <DrawButton
+                gameId={gameId}
+                gameMode={ratedMode}
+                isComputerGame={false}
+                onDrawOffered={() => {
+                  setDrawState({ offered: true, pending: true, byPlayer: 'me' });
+                  setDrawOfferedByMe(true);
+                }}
+                onDrawAccepted={(result) => {
+                  console.log('✅ Draw accepted:', result);
+                  setDrawState({ offered: false, pending: false, byPlayer: null });
+                  setDrawOfferedByMe(false);
+                }}
+                disabled={gameInfo.status !== 'active'}
+                drawStatus={drawOfferedByMe ? { status: 'pending' } : null}
+              />
+            </div>
+          )}
+          {gameInfo.status === 'finished' && (
+            <div className="gc-action-bar">
+              <button onClick={() => handleNewGame(true)} className="gc-action-btn gc-action-primary">
+                ♟ Rematch
+              </button>
+              <button onClick={() => handleNewGame(false)} className="gc-action-btn gc-action-neutral">
+                ♟ New Game
+              </button>
+            </div>
+          )}
+        </>
+      }
     >
       <div className="chessboard-wrapper">
         <Chessboard
@@ -4190,7 +4255,7 @@ const PlayMultiplayer = () => {
           customLightSquareStyle={{ backgroundColor: getTheme(boardTheme).light }}
           {...(pieceStyle === '3d' ? { customPieces: pieces3dLanding } : {})}
           customSquareStyles={{
-            ...lastMoveHighlights, // Base layer: last move highlights
+            ...lastMoveHighlights,
             [selectedSquare]: {
               backgroundColor: 'rgba(255, 255, 0, 0.4)'
             },
@@ -4202,74 +4267,6 @@ const PlayMultiplayer = () => {
             })
           }}
         />
-      </div>
-
-      <div className="game-controls" style={{ marginTop: '12px' }}>
-        {gameInfo.status === 'active' && (
-          <>
-            <button onClick={handleResign} className="resign-button">
-              Resign
-            </button>
-
-            {/* Undo Button - Casual Mode Only */}
-            {ratedMode === 'casual' && (
-              <button
-                onClick={handleUndo}
-                disabled={!canUndo || undoChancesRemaining <= 0 || undoRequestPending}
-                className="undo-button"
-                style={{
-                  opacity: (!canUndo || undoChancesRemaining <= 0) ? 0.5 : 1,
-                  cursor: (!canUndo || undoChancesRemaining <= 0) ? 'not-allowed' : 'pointer',
-                  backgroundColor: undoRequestPending ? '#fbbf24' : undefined
-                }}
-                title={
-                  undoRequestPending
-                    ? 'Waiting for opponent response...'
-                    : !canUndo
-                    ? 'Undo not available'
-                    : undoChancesRemaining <= 0
-                    ? 'No undo chances remaining'
-                    : `Undo last move (${undoChancesRemaining} remaining)`
-                }
-              >
-                {undoRequestPending ? (
-                  '↶ Undo Pending...'
-                ) : (
-                  `↶ Undo (${undoChancesRemaining})`
-                )}
-              </button>
-            )}
-
-            <DrawButton
-              gameId={gameId}
-              gameMode={ratedMode}
-              isComputerGame={false}
-              onDrawOffered={() => {
-                setDrawState({ offered: true, pending: true, byPlayer: 'me' });
-                setDrawOfferedByMe(true);
-              }}
-              onDrawAccepted={(result) => {
-                console.log('✅ Draw accepted:', result);
-                setDrawState({ offered: false, pending: false, byPlayer: null });
-                setDrawOfferedByMe(false);
-                // The game will end via WebSocket event
-              }}
-              disabled={gameInfo.status !== 'active'}
-              drawStatus={drawOfferedByMe ? { status: 'pending' } : null}
-            />
-          </>
-        )}
-        {/* Resume button removed - paused overlay handles resume requests */}
-        {gameInfo.status === 'finished' && (
-          <div className="game-ended-controls">
-            <button onClick={() => handleNewGame(true)} className="rematch-button">
-              Rematch
-            </button>
-            <button onClick={() => handleNewGame(false)} className="new-game-button">
-              New Game
-            </button>
-          </div>
-        )}
       </div>
     </GameContainer>
   );

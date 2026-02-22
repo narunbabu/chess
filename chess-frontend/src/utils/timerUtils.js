@@ -24,6 +24,7 @@ export const useMultiplayerTimer = ({
   const lastServerTurnRef = useRef(serverTurn);
   const onFlagRef = useRef(onFlag);
   const currentTurnRef = useRef({ serverTurn, myColor });
+  const flagFiredRef = useRef(false); // Prevent onFlag from firing more than once
 
   useEffect(() => { onFlagRef.current = onFlag; }, [onFlag]);
 
@@ -52,15 +53,16 @@ export const useMultiplayerTimer = ({
 
   // ── Core countdown with Date.now() anchoring ──
   useEffect(() => {
-    // Casual games: stop when paused/finished
-    if (!isRated && (gameStatus === 'finished' || gameStatus === 'paused')) {
+    // Stop timer when game is finished (both casual and rated)
+    if (gameStatus === 'finished') {
       if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
       return;
     }
 
-    // Rated games: timer NEVER stops (log only)
-    if (isRated && (gameStatus === 'paused' || gameStatus === 'finished')) {
-      console.log('[Timer] Rated game — timer continues despite status:', gameStatus);
+    // Casual games: also stop when paused
+    if (!isRated && gameStatus === 'paused') {
+      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+      return;
     }
 
     const turnChanged = currentTurnRef.current.serverTurn !== serverTurn ||
@@ -85,13 +87,19 @@ export const useMultiplayerTimer = ({
         if (isMyTurn) {
           setMyMs(prev => {
             const t = Math.max(0, prev - elapsed);
-            if (t === 0 && onFlagRef.current) onFlagRef.current('player');
+            if (t === 0 && onFlagRef.current && !flagFiredRef.current) {
+              flagFiredRef.current = true;
+              onFlagRef.current('player');
+            }
             return t;
           });
         } else {
           setOppMs(prev => {
             const t = Math.max(0, prev - elapsed);
-            if (t === 0 && onFlagRef.current) onFlagRef.current('opponent');
+            if (t === 0 && onFlagRef.current && !flagFiredRef.current) {
+              flagFiredRef.current = true;
+              onFlagRef.current('opponent');
+            }
             return t;
           });
         }
@@ -117,13 +125,19 @@ export const useMultiplayerTimer = ({
           if (isMyTurn) {
             setMyMs(prev => {
               const t = Math.max(0, prev - elapsed);
-              if (t === 0 && onFlagRef.current) onFlagRef.current('player');
+              if (t === 0 && onFlagRef.current && !flagFiredRef.current) {
+                flagFiredRef.current = true;
+                onFlagRef.current('player');
+              }
               return t;
             });
           } else {
             setOppMs(prev => {
               const t = Math.max(0, prev - elapsed);
-              if (t === 0 && onFlagRef.current) onFlagRef.current('opponent');
+              if (t === 0 && onFlagRef.current && !flagFiredRef.current) {
+                flagFiredRef.current = true;
+                onFlagRef.current('opponent');
+              }
               return t;
             });
           }
