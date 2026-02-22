@@ -40,8 +40,9 @@ export const SubscriptionProvider = ({ children }) => {
       setPlans(response.data.plans || {});
     } catch (err) {
       console.error('[Subscription] Failed to fetch plans:', err);
-      // Don't set an error for timeouts — fallback plans will render automatically
-      if (err.code !== 'ECONNABORTED') {
+      if (err.code === 'ECONNABORTED') {
+        setPlansError('Connection timed out. Showing standard pricing.');
+      } else {
         setPlansError('Unable to load subscription plans. Please try again.');
       }
     } finally {

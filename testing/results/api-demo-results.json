@@ -1,0 +1,14 @@
+{
+  "testName": "API Time Control Availability",
+  "timestamp": "2026-02-10T02:25:40.422Z",
+  "checks": [
+    {
+      "endpoint": "/api/games",
+      "note": "Game creation endpoint"
+    },
+    {
+      "endpoint": "/api/health",
+      "note": "Health check"
+    }
+  ]
+}

@@ -13,12 +13,35 @@ const PricingCard = ({ plan, isCurrentPlan, isPopular, onSubscribe, loading, int
   const colors = tierColors[plan.tier] || tierColors.free;
   const isFree = plan.tier === 'free';
 
-  // Find the plan matching the selected interval (null-safe for empty arrays)
-  const displayPlan = Array.isArray(plan.plans) && plan.plans.length > 0
-    ? plan.plans.find(p => p.interval === interval) || plan.plans[0]
-    : plan;
+  // Find the plan matching the selected interval.
+  // plan.plans is an array of actual plan objects; plan itself is a wrapper {tier, tierLabel, plans}.
+  // Guard against empty/missing plans and wrapper-object fallthrough.
+  let displayPlan = null;
+  if (Array.isArray(plan.plans) && plan.plans.length > 0) {
+    displayPlan = plan.plans.find(p => p.interval === interval) || plan.plans[0];
+  } else if (plan.price !== undefined || plan.features) {
+    // plan itself is a valid plan object (direct usage, not a wrapper)
+    displayPlan = plan;
+  }
 
-  if (!displayPlan) return null;
+  // If we still have no displayPlan, render a placeholder card (never return null)
+  if (!displayPlan) {
+    return (
+      <div
+        className="pricing-card"
+        style={{ background: colors.gradient, borderColor: 'var(--border-subtle)', borderWidth: '1px' }}
+      >
+        <div className="pricing-card__header">
+          <h3 className="pricing-card__tier" style={{ color: colors.badge }}>
+            {plan.tierLabel || plan.tier || 'Plan'}
+          </h3>
+          <p style={{ color: '#999', fontSize: '0.85rem', padding: '1rem 0' }}>
+            Plan details unavailable. Please refresh the page.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const price = displayPlan.price || 0;
   const features = displayPlan.features || [];

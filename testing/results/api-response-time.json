@@ -1,0 +1,47 @@
+{
+  "testName": "API Response Time",
+  "measurements": [
+    {
+      "iteration": 1,
+      "durationMs": 507
+    },
+    {
+      "iteration": 2,
+      "durationMs": 498
+    },
+    {
+      "iteration": 3,
+      "durationMs": 486
+    },
+    {
+      "iteration": 4,
+      "durationMs": 466
+    },
+    {
+      "iteration": 5,
+      "durationMs": 497
+    },
+    {
+      "iteration": 6,
+      "durationMs": 468
+    },
+    {
+      "iteration": 7,
+      "durationMs": 439
+    },
+    {
+      "iteration": 8,
+      "durationMs": 447
+    },
+    {
+      "iteration": 9,
+      "durationMs": 476
+    },
+    {
+      "iteration": 10,
+      "durationMs": 456
+    }
+  ],
+  "avgResponseTime": 474,
+  "passed": true
+}

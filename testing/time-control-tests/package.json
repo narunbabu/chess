@@ -1,0 +1,20 @@
+{
+  "name": "chess-web-time-control-tests",
+  "version": "1.0.0",
+  "description": "Chess-Web Phase 2 - Time Control Testing Suite",
+  "scripts": {
+    "test": "playwright test",
+    "test:accuracy": "playwright test 1-time-control-accuracy.spec.js",
+    "test:sync": "playwright test 2-multi-browser-sync.spec.js",
+    "test:edge": "playwright test 3-edge-cases.spec.js",
+    "test:all": "playwright test --workers=1",
+    "test:report": "playwright show-report",
+    "test:ui": "playwright test --ui"
+  },
+  "keywords": ["chess", "testing", "playwright", "time-control"],
+  "author": "Chess-Web Testing Team",
+  "license": "MIT",
+  "dependencies": {
+    "@playwright/test": "^1.58.2"
+  }
+}

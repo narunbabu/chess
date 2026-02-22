@@ -55,11 +55,16 @@ const PricingPage = () => {
   const usingFallback = !plansLoading && !hasApiPlans;
   const effectivePlans = hasApiPlans ? normalizedPlans : FALLBACK_PLANS;
 
-  // Build tier display data from grouped plans
+  // Build tier display data from grouped plans.
+  // Always show all 3 tiers — fall back to FALLBACK_PLANS for any tier that has no plans.
   const tierData = useMemo(() => {
     const tiers = ['free', 'silver', 'gold'];
     return tiers.map(tier => {
-      const tierPlans = effectivePlans[tier] || [];
+      let tierPlans = effectivePlans[tier] || [];
+      // If API returned an empty array for this tier, fall back to static data
+      if (tierPlans.length === 0) {
+        tierPlans = FALLBACK_PLANS[tier] || [];
+      }
       if (tierPlans.length === 0) return null;
 
       return {
