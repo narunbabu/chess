@@ -15,7 +15,7 @@ test.describe('Interactive Chess Lessons', () => {
 
   test('should load interactive lesson page and display chess board', async ({ page }) => {
     // Navigate to interactive lesson page
-    await page.goto('/tutorial/interactive/1');
+    await page.goto('/tutorial/lesson/1');
 
     // Wait for page to load
     await page.waitForLoadState('networkidle');
@@ -28,7 +28,7 @@ test.describe('Interactive Chess Lessons', () => {
   });
 
   test('should display lesson stages and progress', async ({ page }) => {
-    await page.goto('/tutorial/interactive/1');
+    await page.goto('/tutorial/lesson/1');
     await page.waitForLoadState('networkidle');
 
     // Check for stage indicators
@@ -39,7 +39,7 @@ test.describe('Interactive Chess Lessons', () => {
   });
 
   test('should handle chess piece moves correctly', async ({ page }) => {
-    await page.goto('/tutorial/interactive/1');
+    await page.goto('/tutorial/lesson/1');
     await page.waitForLoadState('networkidle');
 
     // Get the chess board
@@ -57,7 +57,7 @@ test.describe('Interactive Chess Lessons', () => {
   });
 
   test('should show feedback when moves are made', async ({ page }) => {
-    await page.goto('/tutorial/interactive/1');
+    await page.goto('/tutorial/lesson/1');
     await page.waitForLoadState('networkidle');
 
     // Mock making a move by clicking two squares
@@ -77,7 +77,7 @@ test.describe('Interactive Chess Lessons', () => {
   });
 
   test('should display and handle hints correctly', async ({ page }) => {
-    await page.goto('/tutorial/interactive/1');
+    await page.goto('/tutorial/lesson/1');
     await page.waitForLoadState('networkidle');
 
     // Look for hint button
@@ -92,7 +92,7 @@ test.describe('Interactive Chess Lessons', () => {
   });
 
   test('should track and display progress correctly', async ({ page }) => {
-    await page.goto('/tutorial/interactive/1');
+    await page.goto('/tutorial/lesson/1');
     await page.waitForLoadState('networkidle');
 
     // Check for progress indicators
@@ -127,7 +127,7 @@ test.describe('Interactive Chess Lessons', () => {
   });
 
   test('should handle lesson completion', async ({ page }) => {
-    await page.goto('/tutorial/interactive/1');
+    await page.goto('/tutorial/lesson/1');
     await page.waitForLoadState('networkidle');
 
     // Look for completion state or success message
@@ -176,7 +176,7 @@ test.describe('Interactive Chess Lessons', () => {
   test('should be responsive on mobile devices', async ({ page }) => {
     // Set mobile viewport
     await page.setViewportSize({ width: 375, height: 667 });
-    await page.goto('/tutorial/interactive/1');
+    await page.goto('/tutorial/lesson/1');
     await page.waitForLoadState('networkidle');
 
     // Check that chess board is visible and properly sized
@@ -208,7 +208,7 @@ test.describe('Interactive Chess Lessons', () => {
       });
     });
 
-    await page.goto('/tutorial/interactive/1');
+    await page.goto('/tutorial/lesson/1');
     await page.waitForLoadState('networkidle');
 
     // Check for error handling
@@ -235,7 +235,7 @@ test.describe('Interactive Chess Lessons', () => {
   });
 
   test('should maintain state during page reload', async ({ page }) => {
-    await page.goto('/tutorial/interactive/1');
+    await page.goto('/tutorial/lesson/1');
     await page.waitForLoadState('networkidle');
 
     // Make some initial interactions
@@ -291,7 +291,7 @@ test.describe('Interactive Lesson API Integration', () => {
       });
     });
 
-    await page.goto('/tutorial/interactive/1');
+    await page.goto('/tutorial/lesson/1');
     await page.waitForLoadState('networkidle');
 
     // Make a move
@@ -326,7 +326,7 @@ test.describe('Interactive Lesson API Integration', () => {
       });
     });
 
-    await page.goto('/tutorial/interactive/1');
+    await page.goto('/tutorial/lesson/1');
     await page.waitForLoadState('networkidle');
 
     // Click hint button if available
@@ -348,7 +348,7 @@ test.describe('Performance and Accessibility', () => {
   test('should load within acceptable time limits', async ({ page }) => {
     const startTime = Date.now();
 
-    await page.goto('/tutorial/interactive/1');
+    await page.goto('/tutorial/lesson/1');
     await page.waitForLoadState('networkidle');
 
     const loadTime = Date.now() - startTime;
@@ -358,7 +358,7 @@ test.describe('Performance and Accessibility', () => {
   });
 
   test('should have proper accessibility attributes', async ({ page }) => {
-    await page.goto('/tutorial/interactive/1');
+    await page.goto('/tutorial/lesson/1');
     await page.waitForLoadState('networkidle');
 
     // Check for ARIA labels and roles
@@ -377,7 +377,7 @@ test.describe('Performance and Accessibility', () => {
     // Simulate high contrast preference
     await page.emulateMedia({ reducedMotion: 'reduce', colorScheme: 'dark' });
 
-    await page.goto('/tutorial/interactive/1');
+    await page.goto('/tutorial/lesson/1');
     await page.waitForLoadState('networkidle');
 
     // Check that elements are still visible and usable

@@ -14,7 +14,7 @@ test.describe('Chess Board Interaction', () => {
   });
 
   test('should render chess board with correct pieces', async ({ page }) => {
-    await page.goto('/tutorial/interactive/1');
+    await page.goto('/tutorial/lesson/1');
     await page.waitForLoadState('networkidle');
 
     // Check that chess board exists
@@ -39,7 +39,7 @@ test.describe('Chess Board Interaction', () => {
   });
 
   test('should highlight squares on hover', async ({ page }) => {
-    await page.goto('/tutorial/interactive/1');
+    await page.goto('/tutorial/lesson/1');
     await page.waitForLoadState('networkidle');
 
     const squares = page.locator('.square, [data-square], .board-square');
@@ -58,7 +58,7 @@ test.describe('Chess Board Interaction', () => {
   });
 
   test('should select pieces when clicked', async ({ page }) => {
-    await page.goto('/tutorial/interactive/1');
+    await page.goto('/tutorial/lesson/1');
     await page.waitForLoadState('networkidle');
 
     const pieces = page.locator('[data-piece], .piece');
@@ -75,7 +75,7 @@ test.describe('Chess Board Interaction', () => {
   });
 
   test('should show valid move destinations after piece selection', async ({ page }) => {
-    await page.goto('/tutorial/interactive/1');
+    await page.goto('/tutorial/lesson/1');
     await page.waitForLoadState('networkidle');
 
     const pieces = page.locator('[data-piece], .piece');
@@ -92,7 +92,7 @@ test.describe('Chess Board Interaction', () => {
   });
 
   test('should make moves by clicking source and destination', async ({ page }) => {
-    await page.goto('/tutorial/interactive/1');
+    await page.goto('/tutorial/lesson/1');
     await page.waitForLoadState('networkidle');
 
     const squares = page.locator('.square, [data-square], .board-square');
@@ -128,7 +128,7 @@ test.describe('Chess Board Interaction', () => {
   });
 
   test('should handle pawn moves specifically', async ({ page }) => {
-    await page.goto('/tutorial/interactive/1');
+    await page.goto('/tutorial/lesson/1');
     await page.waitForLoadState('networkidle');
 
     // Find pawns (usually on the second rank for white, seventh for black)
@@ -181,7 +181,7 @@ test.describe('Move Validation API', () => {
       });
     });
 
-    await page.goto('/tutorial/interactive/1');
+    await page.goto('/tutorial/lesson/1');
     await page.waitForLoadState('networkidle');
 
     // Make a move
@@ -224,7 +224,7 @@ test.describe('Move Validation API', () => {
       });
     });
 
-    await page.goto('/tutorial/interactive/1');
+    await page.goto('/tutorial/lesson/1');
     await page.waitForLoadState('networkidle');
 
     // Attempt to make an invalid move
@@ -252,7 +252,7 @@ test.describe('Move Validation API', () => {
       });
     });
 
-    await page.goto('/tutorial/interactive/1');
+    await page.goto('/tutorial/lesson/1');
     await page.waitForLoadState('networkidle');
 
     // Make a move
@@ -272,7 +272,7 @@ test.describe('Move Validation API', () => {
 
 test.describe('Board Orientation and Controls', () => {
   test('should support both white and black perspectives', async ({ page }) => {
-    await page.goto('/tutorial/interactive/1');
+    await page.goto('/tutorial/lesson/1');
     await page.waitForLoadState('networkidle');
 
     // Look for orientation controls
@@ -293,12 +293,12 @@ test.describe('Board Orientation and Controls', () => {
   });
 
   test('should have proper board coordinates', async ({ page }) => {
-    await page.goto('/tutorial/interactive/1');
+    await page.goto('/tutorial/lesson/1');
     await page.waitForLoadState('networkidle');
 
     // Check for rank and file labels (1-8, a-h)
     const rankLabels = page.locator('[data-rank], .rank, .board-label:has-text(/^[1-8]$/)');
-    const fileLabels = page.locator('[data-file], .file, .board-label:has-text(/^[a-h]$/)]');
+    const fileLabels = page.locator('[data-file], .file, .board-label:has-text(/^[a-h]$/)');
 
     // These might not always be visible, so we just check if they exist
     const rankCount = await rankLabels.count();
@@ -314,7 +314,7 @@ test.describe('Board Orientation and Controls', () => {
   });
 
   test('should support keyboard navigation', async ({ page }) => {
-    await page.goto('/tutorial/interactive/1');
+    await page.goto('/tutorial/lesson/1');
     await page.waitForLoadState('networkidle');
 
     // Focus on the board

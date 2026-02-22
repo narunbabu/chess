@@ -1,7 +1,6 @@
 // Authenticated lobby test - tests tabs, friends, badge CSS
 const { test, expect } = require('@playwright/test');
 
-const BASE_URL = 'https://chess99.com';
 // Use test account credentials from environment or defaults
 const TEST_EMAIL = process.env.TEST_EMAIL || 'test@chess99.com';
 const TEST_PASSWORD = process.env.TEST_PASSWORD || 'test1234';
@@ -9,7 +8,7 @@ const TEST_PASSWORD = process.env.TEST_PASSWORD || 'test1234';
 test.describe('Lobby Authenticated Tests', () => {
   test.beforeEach(async ({ page }) => {
     // Login first
-    await page.goto(`${BASE_URL}/login`, { waitUntil: 'networkidle', timeout: 15000 });
+    await page.goto(`/login`, { waitUntil: 'networkidle', timeout: 15000 });
 
     // Fill login form
     const emailInput = page.locator('input[type="email"], input[name="email"], input[placeholder*="email" i]');
@@ -31,7 +30,7 @@ test.describe('Lobby Authenticated Tests', () => {
   });
 
   test('lobby shows Players and Friends tabs, no Games tab', async ({ page }) => {
-    await page.goto(`${BASE_URL}/lobby`, { waitUntil: 'networkidle', timeout: 15000 });
+    await page.goto(`/lobby`, { waitUntil: 'networkidle', timeout: 15000 });
 
     // Screenshot the lobby
     await page.screenshot({ path: 'tests/e2e/screenshots/lobby-authenticated.png', fullPage: true });

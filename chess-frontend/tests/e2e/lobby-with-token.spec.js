@@ -1,8 +1,7 @@
 // Lobby test with pre-injected auth token
 const { test, expect } = require('@playwright/test');
 
-const BASE_URL = 'https://chess99.com';
-const AUTH_TOKEN = '146|0uHTEJS2PMsYMlrlm8zxYT7PWw9jMAFqHjYyJU6rbd2a6b3a';
+const AUTH_TOKEN = 'test_token_lobby_e2e_123';
 
 test.describe('Lobby Authenticated via Token', () => {
   test('lobby renders Players and Friends tabs, no Games tab, badges inline', async ({ page }) => {
@@ -12,7 +11,7 @@ test.describe('Lobby Authenticated via Token', () => {
     }, AUTH_TOKEN);
 
     // Use domcontentloaded instead of networkidle (WebSocket keeps network busy)
-    await page.goto(`${BASE_URL}/lobby`, { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.goto(`/lobby`, { waitUntil: 'domcontentloaded', timeout: 15000 });
 
     // Wait for the lobby to render - look for tab buttons or lobby content
     await page.waitForSelector('.tab-button, .lobby-tabs, .authentication-required', { timeout: 15000 });

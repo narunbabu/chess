@@ -17,7 +17,7 @@ test.describe('Performance Tests', () => {
     const startTime = Date.now();
 
     // Navigate to the page
-    await page.goto('/tutorial/interactive/1');
+    await page.goto('/tutorial/lesson/1');
 
     // Wait for the page to be fully loaded
     await page.waitForLoadState('networkidle');
@@ -35,7 +35,7 @@ test.describe('Performance Tests', () => {
   });
 
   test('should render chess board quickly', async ({ page }) => {
-    await page.goto('/tutorial/interactive/1');
+    await page.goto('/tutorial/lesson/1');
     await page.waitForLoadState('networkidle');
 
     const startTime = Date.now();
@@ -55,7 +55,7 @@ test.describe('Performance Tests', () => {
   });
 
   test('should handle piece interactions with low latency', async ({ page }) => {
-    await page.goto('/tutorial/interactive/1');
+    await page.goto('/tutorial/lesson/1');
     await page.waitForLoadState('networkidle');
 
     // Wait for board to be ready
@@ -127,7 +127,7 @@ test.describe('Performance Tests', () => {
       apiCallCount++;
     });
 
-    await page.goto('/tutorial/interactive/1');
+    await page.goto('/tutorial/lesson/1');
     await page.waitForLoadState('networkidle');
 
     // Wait for board to be ready
@@ -163,7 +163,7 @@ test.describe('Performance Tests', () => {
   });
 
   test('should maintain performance during continuous interactions', async ({ page }) => {
-    await page.goto('/tutorial/interactive/1');
+    await page.goto('/tutorial/lesson/1');
     await page.waitForLoadState('networkidle');
 
     // Wait for board to be ready
@@ -210,7 +210,7 @@ test.describe('Performance Tests', () => {
   });
 
   test('should have efficient memory usage', async ({ page }) => {
-    await page.goto('/tutorial/interactive/1');
+    await page.goto('/tutorial/lesson/1');
     await page.waitForLoadState('networkidle');
 
     // Get initial memory usage
@@ -252,7 +252,7 @@ test.describe('Performance Tests', () => {
 
     const startTime = Date.now();
 
-    await page.goto('/tutorial/interactive/1');
+    await page.goto('/tutorial/lesson/1');
     await page.waitForLoadState('networkidle');
 
     // Wait for chess board
@@ -302,7 +302,7 @@ test.describe('Performance Tests', () => {
 
 test.describe('Core Web Vitals', () => {
   test('should meet Core Web Vitals thresholds', async ({ page }) => {
-    await page.goto('/tutorial/interactive/1');
+    await page.goto('/tutorial/lesson/1');
 
     // Wait for page to fully load
     await page.waitForLoadState('networkidle');
