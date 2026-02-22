@@ -24,6 +24,7 @@ const LobbyPage = () => {
   const [players, setPlayers] = useState([]);
   const [inviteStatus, setInviteStatus] = useState(null);
   const [redirectMessage, setRedirectMessage] = useState(null);
+  const [pausedGameId, setPausedGameId] = useState(null);
   const [invitedPlayer, setInvitedPlayer] = useState(null);
   const [showColorModal, setShowColorModal] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState(null);
@@ -62,16 +63,21 @@ const LobbyPage = () => {
 
       return () => clearTimeout(timer);
     }
-    // Handle legacy message format
+    // Handle legacy message format (including paused game redirect)
     else if (location.state?.message) {
       setRedirectMessage(location.state.message);
-      // Auto-clear after 8 seconds
-      const timer = setTimeout(() => setRedirectMessage(null), 8000);
+      // Capture pausedGameId for resume button
+      if (location.state.pausedGameId) {
+        setPausedGameId(location.state.pausedGameId);
+      }
+      // Don't auto-clear paused game messages (user needs to act on them)
+      const hasPausedGame = !!location.state.pausedGameId;
+      const timer = hasPausedGame ? null : setTimeout(() => setRedirectMessage(null), 8000);
 
       // Clear the location state to prevent message from reappearing on refresh
       navigate(location.pathname, { replace: true, state: {} });
 
-      return () => clearTimeout(timer);
+      return () => { if (timer) clearTimeout(timer); };
     }
   }, [location.state, location.pathname, navigate]);
 
@@ -456,25 +462,63 @@ const LobbyPage = () => {
           <div style={{
             backgroundColor: '#e8a93e',
             color: '#1a1a18',
-            padding: '16px',
+            padding: '12px 16px',
             borderRadius: '8px',
             marginBottom: '20px',
             display: 'flex',
-            justifyContent: 'space-between',
             alignItems: 'center',
+            gap: '12px',
             fontWeight: 'bold',
-            boxShadow: '0 4px 6px rgba(0,0,0,0.4)'
+            boxShadow: '0 4px 6px rgba(0,0,0,0.4)',
+            flexWrap: 'wrap'
           }}>
-            <span>{redirectMessage}</span>
+            <span style={{ flex: 1, minWidth: '150px' }}>{redirectMessage}</span>
+            {pausedGameId && (
+              <button
+                onClick={() => {
+                  // Navigate to the paused game with lobby-resume flag
+                  sessionStorage.setItem('lobbyResumeInitiated', 'true');
+                  sessionStorage.setItem('lobbyResumeGameId', pausedGameId.toString());
+                  navigate(`/play/multiplayer/${pausedGameId}`);
+                }}
+                style={{
+                  backgroundColor: '#1a1a18',
+                  color: '#e8a93e',
+                  border: '2px solid #1a1a18',
+                  borderRadius: '6px',
+                  padding: '8px 16px',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = '#333';
+                  e.target.style.borderColor = '#333';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = '#1a1a18';
+                  e.target.style.borderColor = '#1a1a18';
+                }}
+              >
+                Resume Game
+              </button>
+            )}
             <button
-              onClick={() => setRedirectMessage(null)}
+              onClick={() => {
+                setRedirectMessage(null);
+                setPausedGameId(null);
+              }}
               style={{
                 backgroundColor: 'transparent',
                 border: 'none',
                 color: '#1a1a18',
                 fontSize: '20px',
                 cursor: 'pointer',
-                padding: '0 8px'
+                padding: '0 4px',
+                lineHeight: '1',
+                flexShrink: 0
               }}
             >
               &times;
