@@ -151,16 +151,9 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('user', JSON.stringify(response.data));
 
       const userData = response.data;
-      setUser(userData);
-      setIsAuthenticated(true);
 
-      // Check for and save any pending games after successful authentication
-      await checkAndSavePendingGames();
-
-      // Migrate guest unfinished games to backend
-      await migrateGuestUnfinishedGames();
-
-      // Initialize Echo singleton after successful auth
+      // Initialize Echo singleton BEFORE setUser so that GlobalInvitationContext
+      // can subscribe to channels immediately when its useEffect fires
       const wsConfig = {
         key: process.env.REACT_APP_REVERB_APP_KEY,
         wsHost: process.env.REACT_APP_REVERB_HOST || 'localhost',
@@ -170,6 +163,17 @@ export const AuthProvider = ({ children }) => {
 
       logger.debug('Auth', 'Initializing WebSocket connection');
       const echoInstance = initEcho({ token, wsConfig });
+
+      // Now set user state — this triggers GlobalInvitationContext's useEffect
+      // which will find Echo already initialized via getEcho()
+      setUser(userData);
+      setIsAuthenticated(true);
+
+      // Check for and save any pending games after successful authentication
+      await checkAndSavePendingGames();
+
+      // Migrate guest unfinished games to backend
+      await migrateGuestUnfinishedGames();
       if (echoInstance) {
         logger.websocket('initialized', 'Echo singleton ready');
 

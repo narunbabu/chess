@@ -57,34 +57,43 @@ export const GlobalInvitationProvider = ({ children }) => {
       return;
     }
 
-    // Try to get Echo with retry logic
+    // Try to get Echo with robust retry logic
     let echo = getEcho();
 
     if (!echo) {
-      console.warn('[GlobalInvitation] Echo not immediately available, will retry in 500ms...');
+      console.warn('[GlobalInvitation] Echo not immediately available, starting retry loop...');
 
       // Track cleanup state
       let cleanupCalled = false;
       let cleanupFunction = null;
+      let retryCount = 0;
+      const maxRetries = 10;
+      let retryTimer = null;
 
-      // Retry after a short delay to allow Echo to initialize
-      const retryTimeout = setTimeout(() => {
-        if (cleanupCalled) {
-          return;
-        }
+      // Retry with increasing intervals until Echo is available
+      const tryConnect = () => {
+        if (cleanupCalled) return;
 
+        retryCount++;
         echo = getEcho();
 
         if (echo) {
+          console.log(`[GlobalInvitation] Echo available after ${retryCount} retries`);
           cleanupFunction = setupListeners(echo);
+        } else if (retryCount < maxRetries) {
+          // Retry: 500ms, 500ms, 1000ms, 1000ms, 2000ms... (doubles every 2 attempts)
+          const delay = 500 * Math.pow(2, Math.floor(retryCount / 2));
+          retryTimer = setTimeout(tryConnect, Math.min(delay, 3000));
         } else {
-          console.error('[GlobalInvitation] Echo still not available after retry, invitation dialogs will not work');
+          console.error('[GlobalInvitation] Echo not available after', maxRetries, 'retries. Invitation dialogs will not work.');
         }
-      }, 500);
+      };
+
+      retryTimer = setTimeout(tryConnect, 300);
 
       return () => {
         cleanupCalled = true;
-        clearTimeout(retryTimeout);
+        if (retryTimer) clearTimeout(retryTimer);
         if (cleanupFunction) {
           cleanupFunction();
         }
