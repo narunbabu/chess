@@ -661,7 +661,7 @@ class SwissPairingService
                 'championship_id' => $championship->id,
                 'round' => $roundNumber,
                 'group_size' => $group->count(),
-                'total_players' => $championship->participants()->count(),
+                'total_players' => $championship->participants()->paid()->count(),
             ]);
         }
 

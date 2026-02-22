@@ -84,7 +84,7 @@ class TournamentVisualizerController extends Controller
                 Log::info("🏆 [TOURNAMENT] Using existing championship", [
                     'championship_id' => $championship->id,
                     'title' => $championship->title,
-                    'current_participants' => $championship->participants()->count()
+                    'current_participants' => $championship->participants()->paid()->count()
                 ]);
 
                 // Safety check: Reset tournament_generated flag if no matches exist
@@ -791,7 +791,7 @@ class TournamentVisualizerController extends Controller
 
     private function calculateStandingsUpToRound(Championship $championship, int $roundNumber): array
     {
-        $participants = $championship->participants()->with('user')->get();
+        $participants = $championship->participants()->paid()->with('user')->get();
         $matches = $championship->matches()
             ->where('round_number', '<=', $roundNumber)
             ->where('status_id', \App\Enums\ChampionshipMatchStatus::COMPLETED->getId())
@@ -941,7 +941,7 @@ class TournamentVisualizerController extends Controller
                 'championship_id' => $championship->id,
                 'name' => $championship->name,
                 'status' => $championship->status,
-                'current_participants' => $championship->participants()->count()
+                'current_participants' => $championship->participants()->paid()->count()
             ]);
 
             // Check if championship is in a state that allows player assignment
@@ -1022,14 +1022,14 @@ class TournamentVisualizerController extends Controller
                 'championship_id' => $championshipId,
                 'assigned_count' => $assignedCount,
                 'duplicate_count' => $duplicateCount,
-                'total_participants' => $championship->participants()->count()
+                'total_participants' => $championship->participants()->paid()->count()
             ]);
 
             return response()->json([
                 'message' => 'Players assigned successfully',
                 'assigned_count' => $assignedCount,
                 'duplicate_count' => $duplicateCount,
-                'total_participants' => $championship->participants()->count(),
+                'total_participants' => $championship->participants()->paid()->count(),
                 'championship_id' => $championshipId
             ]);
 

@@ -1103,7 +1103,7 @@ class TournamentGenerationService
             $config = $championship->getOrCreateTournamentConfig();
         }
 
-        $participants = $championship->participants()->count();
+        $participants = $championship->participants()->paid()->count();
 
         // Guard against zero participants
         if ($participants === 0) {

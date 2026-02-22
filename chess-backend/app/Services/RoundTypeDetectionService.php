@@ -37,7 +37,7 @@ class RoundTypeDetectionService
      */
     private function calculateSwissRounds(Championship $championship): int
     {
-        $participantCount = $championship->participants()->count();
+        $participantCount = $championship->participants()->paid()->count();
 
         // Standard Swiss formula: log2(participants) rounded
         return (int) ceil(log($participantCount, 2));
@@ -89,7 +89,7 @@ class RoundTypeDetectionService
         // - Round 4: Semi-finals (4 participants)
         // - Round 5: Finals (2 participants)
 
-        $totalParticipants = $championship->participants()->count();
+        $totalParticipants = $championship->participants()->paid()->count();
 
         if ($totalParticipants <= 8) {
             // Small tournaments: Top 4 advance
@@ -140,7 +140,7 @@ class RoundTypeDetectionService
     {
         $errors = [];
         $config = $championship->tournament_configuration ?? [];
-        $participantCount = $championship->participants()->count();
+        $participantCount = $championship->participants()->paid()->count();
 
         // Check if swiss_rounds is reasonable
         $swissRounds = $config['swiss_rounds'] ?? $this->calculateSwissRounds($championship);

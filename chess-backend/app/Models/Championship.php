@@ -1076,7 +1076,7 @@ class Championship extends Model
         }
 
         // Default: Use standard Swiss formula
-        $participantCount = $this->participants()->count();
+        $participantCount = $this->participants()->paid()->count();
         return (int) ceil(log($participantCount, 2));
     }
 
@@ -1115,7 +1115,7 @@ class Championship extends Model
 
         $swissRounds = $this->getSwissRoundsCount();
         $eliminationRound = $roundNumber - $swissRounds;
-        $totalParticipants = $this->participants()->count();
+        $totalParticipants = $this->participants()->paid()->count();
 
         if ($totalParticipants <= 8) {
             return match($eliminationRound) {
@@ -1146,7 +1146,7 @@ class Championship extends Model
      */
     public function updateSwissEliminationConfig(): void
     {
-        $participantCount = $this->participants()->count();
+        $participantCount = $this->participants()->paid()->count();
         $swissRounds = (int) ceil(log($participantCount, 2));
         $totalRounds = $swissRounds + 2; // Swiss rounds + semi-final + final
 

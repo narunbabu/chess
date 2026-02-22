@@ -278,9 +278,9 @@ class ChampionshipValidator
                 }
             }
 
-            // Cannot reduce max participants below current participants
+            // Cannot reduce max participants below current active participants
             if (isset($data['max_participants'])) {
-                $currentParticipants = $championship->participants()->count();
+                $currentParticipants = $championship->participants()->active()->count();
                 if ($data['max_participants'] < $currentParticipants) {
                     $validator->errors()->add('max_participants', 'Cannot reduce max participants below current participant count');
                 }

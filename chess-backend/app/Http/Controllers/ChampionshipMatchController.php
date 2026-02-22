@@ -574,8 +574,8 @@ class ChampionshipMatchController extends Controller
                 'force_regenerate' => 'nullable|boolean',
             ]);
 
-            // Check participant count first
-            $participantCount = $championship->participants()->count();
+            // Check participant count first — only paid participants count
+            $participantCount = $championship->participants()->paid()->count();
             if ($participantCount < 2) {
                 return response()->json([
                     'error' => 'Cannot generate tournament: At least 2 participants are required.',
@@ -649,7 +649,7 @@ class ChampionshipMatchController extends Controller
             if (isset($validated['config'])) {
                 $config = TournamentConfig::fromArray($validated['config']);
             } elseif (isset($validated['preset'])) {
-                $participantCount = $championship->participants()->count();
+                $participantCount = $championship->participants()->paid()->count();
                 $config = TournamentConfig::fromPreset(
                     $validated['preset'],
                     $championship->total_rounds ?? 5,
@@ -882,7 +882,7 @@ class ChampionshipMatchController extends Controller
                 'championship' => [
                     'id' => $championship->id,
                     'title' => $championship->title,
-                    'participants_count' => $championship->participants()->count(),
+                    'participants_count' => $championship->participants()->paid()->count(),
                     'tournament_generated' => $championship->isTournamentGenerated(),
                 ],
             ]);

@@ -726,7 +726,7 @@ class ChampionshipController extends Controller
                     'error' => 'Cannot permanently delete championship',
                     'message' => 'Championship has participants, matches, or payments. Only empty championships can be permanently deleted.',
                     'details' => [
-                        'participant_count' => $championship->participants()->count(),
+                        'participant_count' => $championship->participants()->paid()->count(),
                         'match_count' => $championship->matches()->count(),
                         'status' => $championship->status,
                     ]
