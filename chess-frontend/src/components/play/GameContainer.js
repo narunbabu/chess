@@ -21,6 +21,7 @@ const GameContainer = ({
   gameData = {},
   sidebarData = {},
   controlsData = null,
+  actionBar = null,
   boardTheme,
   pieceStyle,
   onBoardThemeChange,
@@ -358,8 +359,8 @@ const GameContainer = ({
           isTimerRunning={mode === 'computer' ? (isTimerRunning && activeTimer === playerColor) : isMyTurn}
         />
 
-        {/* Action bar / Replay bar */}
-        {renderActionBar()}
+        {/* Action bar / Replay bar — custom actionBar prop takes priority */}
+        {actionBar || renderActionBar()}
         {renderReplayBar()}
       </div>
 
