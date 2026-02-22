@@ -1,8 +1,42 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
-const UpgradePrompt = ({ feature, requiredTier = 'Premium', onDismiss }) => {
+const TIER_CONFIG = {
+  standard: {
+    label: 'Silver',
+    price: '99/mo',
+    color: '#e8a93e',
+    icon: '\uD83D\uDD12',
+    benefits: [
+      'All 10 board themes unlocked',
+      'Detailed game analytics & ACPL',
+      'Ad-free experience',
+    ],
+  },
+  gold: {
+    label: 'Gold',
+    price: '299/mo',
+    color: '#a855f7',
+    icon: '\uD83D\uDC51',
+    benefits: [
+      'Exclusive board themes (Neon, Obsidian)',
+      'AI opponents matched to your skill',
+      'Everything in Silver, plus more',
+    ],
+  },
+};
+
+const UpgradePrompt = ({ feature, requiredTier = 'standard', onDismiss, tierHighlight }) => {
   const navigate = useNavigate();
+  const tier = TIER_CONFIG[requiredTier] || TIER_CONFIG.standard;
+
+  const handleUpgrade = () => {
+    const params = new URLSearchParams();
+    if (tierHighlight || requiredTier) {
+      params.set('highlight', tierHighlight || requiredTier);
+    }
+    navigate(`/pricing?${params.toString()}`);
+  };
 
   return (
     <div style={{
@@ -18,20 +52,62 @@ const UpgradePrompt = ({ feature, requiredTier = 'Premium', onDismiss }) => {
         backgroundColor: '#2b2927',
         borderRadius: '12px',
         padding: '32px',
-        maxWidth: '360px',
+        maxWidth: '380px',
+        width: '90%',
         textAlign: 'center',
-        border: '1px solid #4a4744',
+        border: `1px solid ${tier.color}33`,
+        boxShadow: `0 0 40px ${tier.color}15`,
       }} onClick={(e) => e.stopPropagation()}>
-        <div style={{ fontSize: '48px', marginBottom: '12px' }}>🔒</div>
-        <h3 style={{ color: '#ffffff', marginBottom: '8px', fontSize: '18px' }}>Premium Feature</h3>
-        <p style={{ color: '#bababa', marginBottom: '20px', fontSize: '14px' }}>
-          "{feature}" requires a {requiredTier} subscription.
+        <div style={{ fontSize: '48px', marginBottom: '12px' }}>{tier.icon}</div>
+        <h3 style={{ color: '#ffffff', marginBottom: '4px', fontSize: '18px' }}>
+          {tier.label} Feature
+        </h3>
+        <div style={{
+          display: 'inline-block',
+          padding: '2px 10px',
+          borderRadius: '10px',
+          fontSize: '11px',
+          fontWeight: 700,
+          letterSpacing: '0.06em',
+          backgroundColor: `${tier.color}22`,
+          color: tier.color,
+          marginBottom: '12px',
+        }}>
+          {tier.label} — ₹{tier.price}
+        </div>
+        <p style={{ color: '#bababa', marginBottom: '16px', fontSize: '14px' }}>
+          "{feature}" requires a {tier.label} subscription.
         </p>
+
+        {/* Benefits */}
+        <div style={{
+          textAlign: 'left',
+          marginBottom: '20px',
+          padding: '12px 16px',
+          backgroundColor: 'rgba(255,255,255,0.04)',
+          borderRadius: '8px',
+          border: '1px solid #3d3a37',
+        }}>
+          {tier.benefits.map((b, i) => (
+            <div key={i} style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              marginBottom: i < tier.benefits.length - 1 ? '8px' : 0,
+              fontSize: '13px',
+              color: '#d0d0d0',
+            }}>
+              <span style={{ color: tier.color, flexShrink: 0 }}>&#10003;</span>
+              {b}
+            </div>
+          ))}
+        </div>
+
         <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
           <button
-            onClick={() => navigate('/pricing')}
+            onClick={handleUpgrade}
             style={{
-              backgroundColor: '#81b64c',
+              backgroundColor: tier.color,
               color: '#ffffff',
               border: 'none',
               borderRadius: '8px',
@@ -39,9 +115,10 @@ const UpgradePrompt = ({ feature, requiredTier = 'Premium', onDismiss }) => {
               fontWeight: 'bold',
               cursor: 'pointer',
               fontSize: '14px',
+              flex: 1,
             }}
           >
-            Upgrade Now
+            Upgrade to {tier.label}
           </button>
           <button
             onClick={onDismiss}

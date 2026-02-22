@@ -200,7 +200,7 @@ class AppServiceProvider extends ServiceProvider
         });
 
         Gate::define('access-synthetic-opponents', function ($user) {
-            return $user->hasSubscriptionTier('premium');
+            return $user->hasSubscriptionTier('gold');
         });
 
         // Super Admin Gate (bypass all checks)

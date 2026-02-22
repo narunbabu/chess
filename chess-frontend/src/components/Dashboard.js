@@ -12,6 +12,7 @@ import { getPlayerAvatar } from "../utils/playerDisplayUtils";
 import { isWin, getResultDisplayText } from "../utils/resultStandardization";
 import { getUnfinishedGame, getUnfinishedGames, deleteUnfinishedGame } from "../services/unfinishedGameService";
 import MatchmakingQueue from "./lobby/MatchmakingQueue";
+import AdBanner from "./common/AdBanner";
 import "./Dashboard.css";
 import "../styles/UnifiedCards.css"; // Import unified card styles
 
@@ -510,6 +511,8 @@ const Dashboard = () => {
               </div>
             )}
           </header>
+
+        <AdBanner />
 
         <div className="dashboard-grid">
         {/* Quick Actions Section — single primary CTA with secondaries */}

@@ -59,9 +59,15 @@ class MatchmakingService
             return $entry->fresh()->load(['matchedUser', 'game']);
         }
 
-        // If expired, match with a synthetic player
+        // If expired, match with a synthetic player (Gold tier only)
         if ($entry->isExpired()) {
-            return $this->matchWithSynthetic($entry);
+            $user = $entry->user;
+            if ($user && $user->hasSubscriptionTier('gold')) {
+                return $this->matchWithSynthetic($entry);
+            }
+            // Non-Gold users: no bot fallback, just expire
+            $entry->update(['status' => 'expired']);
+            return $entry;
         }
 
         return $entry;

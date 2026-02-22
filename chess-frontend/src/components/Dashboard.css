@@ -222,6 +222,27 @@
   }
 }
 
+/* ==========================================
+   Ad Banner — self-promo for free users
+   ========================================== */
+.ad-banner:hover {
+  border-color: rgba(232,169,62,0.45) !important;
+  background: linear-gradient(135deg, rgba(232,169,62,0.15), rgba(232,169,62,0.07)) !important;
+}
+
+@media (max-width: 480px) {
+  .ad-banner {
+    padding: 8px 12px !important;
+    gap: 8px !important;
+    min-height: 40px !important;
+    border-radius: 8px !important;
+  }
+
+  .ad-banner span:first-child {
+    font-size: 14px !important;
+  }
+}
+
 .dashboard-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));

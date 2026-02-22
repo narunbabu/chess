@@ -1,5 +1,7 @@
 // src/components/game/PerformanceDisplay.jsx
-import React from 'react';
+import React, { useState } from 'react';
+import { useSubscription } from '../../contexts/SubscriptionContext';
+import UpgradePrompt from '../common/UpgradePrompt';
 
 /**
  * PerformanceDisplay Component
@@ -11,6 +13,9 @@ import React from 'react';
  * @param {boolean} props.compact - Whether to show compact view
  */
 const PerformanceDisplay = ({ performanceData, showRealtime = false, compact = false }) => {
+  const { isStandard } = useSubscription();
+  const [showUpgrade, setShowUpgrade] = useState(false);
+
   if (!performanceData) {
     return null;
   }
@@ -53,6 +58,7 @@ const PerformanceDisplay = ({ performanceData, showRealtime = false, compact = f
     return 'bg-red-100 text-red-800';
   };
 
+  // Compact view — always shown (free tier fallback + explicit compact prop)
   if (compact) {
     return (
       <div className="performance-display-compact bg-white rounded-lg border border-gray-200 p-3">
@@ -67,16 +73,113 @@ const PerformanceDisplay = ({ performanceData, showRealtime = false, compact = f
             </div>
           </div>
           <div className="flex gap-2 text-sm">
-            {brilliant_moves > 0 && <span title="Brilliant moves">💎 {brilliant_moves}</span>}
-            {excellent_moves > 0 && <span title="Excellent moves">⭐ {excellent_moves}</span>}
-            {mistakes > 0 && <span title="Mistakes">⚠️ {mistakes}</span>}
-            {blunders > 0 && <span title="Blunders">❌ {blunders}</span>}
+            {brilliant_moves > 0 && <span title="Brilliant moves">&#128142; {brilliant_moves}</span>}
+            {excellent_moves > 0 && <span title="Excellent moves">&#11088; {excellent_moves}</span>}
+            {mistakes > 0 && <span title="Mistakes">&#9888;&#65039; {mistakes}</span>}
+            {blunders > 0 && <span title="Blunders">&#10060; {blunders}</span>}
           </div>
         </div>
       </div>
     );
   }
 
+  // Free tier: show compact summary + locked overlay for detailed analytics
+  if (!isStandard) {
+    return (
+      <div className="performance-display">
+        {showUpgrade && (
+          <UpgradePrompt
+            feature="Detailed Game Analytics"
+            requiredTier="standard"
+            onDismiss={() => setShowUpgrade(false)}
+          />
+        )}
+
+        {/* Compact summary — always visible */}
+        <div style={{
+          backgroundColor: '#2b2927',
+          borderRadius: '12px',
+          border: '1px solid #3d3a37',
+          padding: '16px',
+          marginBottom: '12px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#81b64c' }}>
+                {performance_score.toFixed(1)}
+              </div>
+              <div>
+                <div style={{ color: '#e0e0e0', fontSize: '14px', fontWeight: 600 }}>Performance Score</div>
+                <div style={{ color: '#8b8987', fontSize: '12px' }}>{grade}</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', fontSize: '13px', color: '#bababa' }}>
+              {brilliant_moves > 0 && <span title="Brilliant">&#128142; {brilliant_moves}</span>}
+              {excellent_moves > 0 && <span title="Excellent">&#11088; {excellent_moves}</span>}
+              {mistakes > 0 && <span title="Mistakes">&#9888;&#65039; {mistakes}</span>}
+              {blunders > 0 && <span title="Blunders">&#10060; {blunders}</span>}
+            </div>
+          </div>
+        </div>
+
+        {/* Locked detailed analytics card */}
+        <div
+          style={{
+            position: 'relative',
+            backgroundColor: '#2b2927',
+            borderRadius: '12px',
+            border: '1px solid #3d3a37',
+            padding: '24px',
+            overflow: 'hidden',
+            cursor: 'pointer',
+          }}
+          onClick={() => setShowUpgrade(true)}
+        >
+          {/* Blurred placeholder content */}
+          <div style={{ filter: 'blur(4px)', opacity: 0.4, pointerEvents: 'none' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+              <div style={{ background: '#3d3a37', borderRadius: '8px', padding: '12px' }}>
+                <div style={{ fontSize: '11px', color: '#8b8987' }}>Move Accuracy</div>
+                <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#4b8ef7' }}>{move_accuracy.toFixed(1)}%</div>
+              </div>
+              <div style={{ background: '#3d3a37', borderRadius: '8px', padding: '12px' }}>
+                <div style={{ fontSize: '11px', color: '#8b8987' }}>Avg Centipawn Loss</div>
+                <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#a855f7' }}>{acpl.toFixed(1)}</div>
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <div style={{ background: '#3d3a37', borderRadius: '6px', padding: '8px', fontSize: '12px', color: '#bababa' }}>&#128142; Brilliant: {brilliant_moves}</div>
+              <div style={{ background: '#3d3a37', borderRadius: '6px', padding: '8px', fontSize: '12px', color: '#bababa' }}>&#11088; Excellent: {excellent_moves}</div>
+              <div style={{ background: '#3d3a37', borderRadius: '6px', padding: '8px', fontSize: '12px', color: '#bababa' }}>&#9888;&#65039; Mistakes: {mistakes}</div>
+              <div style={{ background: '#3d3a37', borderRadius: '6px', padding: '8px', fontSize: '12px', color: '#bababa' }}>&#10060; Blunders: {blunders}</div>
+            </div>
+          </div>
+
+          {/* Overlay CTA */}
+          <div style={{
+            position: 'absolute',
+            top: 0, left: 0, right: 0, bottom: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(0,0,0,0.3)',
+            borderRadius: '12px',
+          }}>
+            <div style={{ fontSize: '28px', marginBottom: '8px' }}>&#128274;</div>
+            <div style={{ color: '#e8a93e', fontWeight: 700, fontSize: '14px', marginBottom: '4px' }}>
+              Unlock Detailed Analytics
+            </div>
+            <div style={{ color: '#bababa', fontSize: '12px' }}>
+              Silver — &#8377;99/mo
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Silver+ users: full detailed view (original behavior)
   return (
     <div className="performance-display bg-white rounded-lg shadow-md border border-gray-200 p-6">
       {/* Header */}
@@ -132,19 +235,19 @@ const PerformanceDisplay = ({ performanceData, showRealtime = false, compact = f
           <div className="space-y-2">
             {brilliant_moves > 0 && (
               <div className="flex items-center justify-between bg-purple-50 rounded px-3 py-2">
-                <span className="text-sm text-gray-700">💎 Brilliant</span>
+                <span className="text-sm text-gray-700">&#128142; Brilliant</span>
                 <span className="text-sm font-bold text-purple-600">{brilliant_moves}</span>
               </div>
             )}
             {excellent_moves > 0 && (
               <div className="flex items-center justify-between bg-green-50 rounded px-3 py-2">
-                <span className="text-sm text-gray-700">⭐ Excellent</span>
+                <span className="text-sm text-gray-700">&#11088; Excellent</span>
                 <span className="text-sm font-bold text-green-600">{excellent_moves}</span>
               </div>
             )}
             {good_moves > 0 && (
               <div className="flex items-center justify-between bg-blue-50 rounded px-3 py-2">
-                <span className="text-sm text-gray-700">✓ Good</span>
+                <span className="text-sm text-gray-700">&#10003; Good</span>
                 <span className="text-sm font-bold text-blue-600">{good_moves}</span>
               </div>
             )}
@@ -154,19 +257,19 @@ const PerformanceDisplay = ({ performanceData, showRealtime = false, compact = f
           <div className="space-y-2">
             {inaccuracies > 0 && (
               <div className="flex items-center justify-between bg-yellow-50 rounded px-3 py-2">
-                <span className="text-sm text-gray-700">⚡ Inaccuracy</span>
+                <span className="text-sm text-gray-700">&#9889; Inaccuracy</span>
                 <span className="text-sm font-bold text-yellow-600">{inaccuracies}</span>
               </div>
             )}
             {mistakes > 0 && (
               <div className="flex items-center justify-between bg-orange-50 rounded px-3 py-2">
-                <span className="text-sm text-gray-700">⚠️ Mistake</span>
+                <span className="text-sm text-gray-700">&#9888;&#65039; Mistake</span>
                 <span className="text-sm font-bold text-orange-600">{mistakes}</span>
               </div>
             )}
             {blunders > 0 && (
               <div className="flex items-center justify-between bg-red-50 rounded px-3 py-2">
-                <span className="text-sm text-gray-700">❌ Blunder</span>
+                <span className="text-sm text-gray-700">&#10060; Blunder</span>
                 <span className="text-sm font-bold text-red-600">{blunders}</span>
               </div>
             )}
@@ -178,7 +281,7 @@ const PerformanceDisplay = ({ performanceData, showRealtime = false, compact = f
       {feedback_message && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
           <p className="text-sm text-blue-800">
-            <span className="font-medium">💡 Tip:</span> {feedback_message}
+            <span className="font-medium">&#128161; Tip:</span> {feedback_message}
           </p>
         </div>
       )}

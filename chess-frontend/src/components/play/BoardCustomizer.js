@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { BOARD_THEMES } from '../../config/boardThemes';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSubscription } from '../../contexts/SubscriptionContext';
+import UpgradePrompt from '../common/UpgradePrompt';
 import api from '../../services/api';
 
 // --- Exported helpers (reusable from other files) ---
@@ -17,10 +18,11 @@ export const getPieceStyle = () =>
 
 const BoardCustomizer = ({ boardTheme, pieceStyle, onThemeChange, onPieceStyleChange }) => {
   const [open, setOpen] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState(null); // null or { tier: 'standard'|'gold', themeName: string }
   const popoverRef = useRef(null);
   const buttonRef = useRef(null);
   const { isAuthenticated, user, fetchUser } = useAuth();
-  const { isStandard } = useSubscription();
+  const { isStandard, isPremium } = useSubscription();
 
   // Close on click outside
   useEffect(() => {
@@ -39,8 +41,12 @@ const BoardCustomizer = ({ boardTheme, pieceStyle, onThemeChange, onPieceStyleCh
 
   const handleThemeSelect = async (key) => {
     const theme = BOARD_THEMES[key];
+    if (theme.tier === 'gold' && !isPremium) {
+      setShowUpgrade({ tier: 'gold', themeName: theme.name });
+      return;
+    }
     if (theme.tier === 'standard' && !isStandard) {
-      alert('This theme requires a Silver subscription. Upgrade at /pricing to unlock it!');
+      setShowUpgrade({ tier: 'standard', themeName: theme.name });
       return;
     }
     // Save to localStorage (works for guests too)
@@ -66,6 +72,15 @@ const BoardCustomizer = ({ boardTheme, pieceStyle, onThemeChange, onPieceStyleCh
 
   return (
     <div style={{ position: 'relative' }}>
+      {/* Upgrade prompt modal */}
+      {showUpgrade && (
+        <UpgradePrompt
+          feature={`${showUpgrade.themeName} board theme`}
+          requiredTier={showUpgrade.tier}
+          onDismiss={() => setShowUpgrade(null)}
+        />
+      )}
+
       {/* Toggle button — styled like SoundToggle */}
       <button
         ref={buttonRef}
@@ -125,12 +140,15 @@ const BoardCustomizer = ({ boardTheme, pieceStyle, onThemeChange, onPieceStyleCh
               {themeKeys.map((key) => {
                 const theme = BOARD_THEMES[key];
                 const isSelected = boardTheme === key;
-                const isLocked = theme.tier === 'standard' && !isStandard;
+                const isGoldLocked = theme.tier === 'gold' && !isPremium;
+                const isSilverLocked = theme.tier === 'standard' && !isStandard;
+                const isLocked = isGoldLocked || isSilverLocked;
+                const lockLabel = isGoldLocked ? 'Gold' : 'Silver+';
                 return (
                   <button
                     key={key}
                     onClick={() => handleThemeSelect(key)}
-                    title={`${theme.name}${isLocked ? ' (Silver+)' : ''}`}
+                    title={`${theme.name}${isLocked ? ` (${lockLabel})` : ''}`}
                     style={{
                       position: 'relative',
                       padding: '3px',
@@ -149,13 +167,13 @@ const BoardCustomizer = ({ boardTheme, pieceStyle, onThemeChange, onPieceStyleCh
                       <div style={{ backgroundColor: theme.dark }} />
                       <div style={{ backgroundColor: theme.light }} />
                     </div>
-                    {/* Lock icon for premium */}
+                    {/* Lock icon — crown for gold, lock for silver */}
                     {isLocked && (
                       <div style={{
                         position: 'absolute', top: '-2px', right: '-2px',
                         fontSize: '10px', lineHeight: 1,
                       }}>
-                        {'\uD83D\uDD12'}
+                        {isGoldLocked ? '\uD83D\uDC51' : '\uD83D\uDD12'}
                       </div>
                     )}
                     {/* Theme name */}

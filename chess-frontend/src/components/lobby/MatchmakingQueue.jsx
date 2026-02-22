@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import matchmakingService from '../../services/matchmakingService';
+import { useSubscription } from '../../contexts/SubscriptionContext';
+import UpgradePrompt from '../common/UpgradePrompt';
 import '../../styles/UnifiedCards.css';
 
 const QUEUE_TIMEOUT_SECONDS = 15;
@@ -26,6 +28,8 @@ const TIME_PRESETS = [
  */
 const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
   const navigate = useNavigate();
+  const { isPremium } = useSubscription();
+  const [showUpgrade, setShowUpgrade] = useState(false);
   const [status, setStatus] = useState('idle'); // idle | findingPlayers | searching | matched | fallback | error
   const [entryId, setEntryId] = useState(null);
   const [secondsLeft, setSecondsLeft] = useState(QUEUE_TIMEOUT_SECONDS);
@@ -126,12 +130,17 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
             }, 1500);
           } else if (entry.status === 'expired' || entry.status === 'cancelled') {
             cleanup();
-            // No human or bot found — direct to computer play setup
             setStatus('fallback');
-            setTimeout(() => {
-              onClose();
-              navigate('/play/computer');
-            }, 2000);
+            if (!isPremium) {
+              // Non-Gold: no bot fallback, show the fallback screen with upgrade CTA
+              // Don't auto-navigate — let user choose
+            } else {
+              // Gold user but no bot available — direct to computer play setup
+              setTimeout(() => {
+                onClose();
+                navigate('/play/computer');
+              }, 2000);
+            }
           }
         } catch (err) {
           console.error('[Matchmaking] Poll error:', err);
@@ -434,14 +443,65 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
           </>
         )}
 
-        {/* AI fallback: no human found, starting computer game */}
+        {/* Fallback: no human found */}
         {status === 'fallback' && (
           <>
+            {showUpgrade && (
+              <UpgradePrompt
+                feature="AI Opponents"
+                requiredTier="gold"
+                onDismiss={() => setShowUpgrade(false)}
+              />
+            )}
             <div className="matchmaking-spinner">
               <div className="chess-piece-spin">&#9820;</div>
             </div>
             <h2 className="matchmaking-title">No opponent found</h2>
-            <p className="matchmaking-subtitle">Starting a game vs computer...</p>
+            {isPremium ? (
+              <p className="matchmaking-subtitle">Starting a game vs computer...</p>
+            ) : (
+              <>
+                <p className="matchmaking-subtitle" style={{ marginBottom: '12px' }}>
+                  No human opponents available right now.
+                </p>
+                <button
+                  onClick={() => setShowUpgrade(true)}
+                  style={{
+                    backgroundColor: '#a855f7',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '10px 24px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    marginBottom: '8px',
+                    width: '100%',
+                  }}
+                >
+                  &#128081; Upgrade to Gold for AI opponents
+                </button>
+                <button
+                  onClick={() => { onClose(); navigate('/play/computer'); }}
+                  style={{
+                    backgroundColor: 'transparent',
+                    color: '#bababa',
+                    border: '1px solid #4a4744',
+                    borderRadius: '8px',
+                    padding: '8px 24px',
+                    cursor: 'pointer',
+                    fontSize: '13px',
+                    width: '100%',
+                    marginBottom: '8px',
+                  }}
+                >
+                  Play vs Computer instead
+                </button>
+                <button className="matchmaking-cancel-btn" onClick={onClose}>
+                  Close
+                </button>
+              </>
+            )}
           </>
         )}
 
