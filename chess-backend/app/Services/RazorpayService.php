@@ -298,38 +298,46 @@ class RazorpayService
             $payment = $payload['payload']['payment']['entity'];
             $orderId = $payment['order_id'];
 
-            // Find participant by order ID
-            $participant = ChampionshipParticipant::where('razorpay_order_id', $orderId)->first();
+            // Lock row inside transaction to prevent concurrent webhook race
+            $processed = \Illuminate\Support\Facades\DB::transaction(function () use ($orderId, $payment) {
+                $participant = ChampionshipParticipant::where('razorpay_order_id', $orderId)
+                    ->lockForUpdate()
+                    ->first();
 
-            if (!$participant) {
-                Log::warning('Participant not found for webhook payment', [
+                if (!$participant) {
+                    Log::warning('Participant not found for webhook payment', [
+                        'order_id' => $orderId,
+                        'payment_id' => $payment['id'],
+                    ]);
+                    return null;
+                }
+
+                // Thread-safe check: already completed?
+                if ($participant->isPaid()) {
+                    Log::info('Payment already processed', [
+                        'order_id' => $orderId,
+                        'participant_id' => $participant->id,
+                    ]);
+                    return null;
+                }
+
+                // Process payment (markAsPaid opens its own nested transaction)
+                $this->processSuccessfulPayment(
+                    $participant,
+                    $payment['id'],
+                    '' // Signature not available in webhook
+                );
+
+                return $participant;
+            });
+
+            if ($processed) {
+                Log::info('Webhook payment processed', [
                     'order_id' => $orderId,
                     'payment_id' => $payment['id'],
+                    'participant_id' => $processed->id,
                 ]);
-                return;
             }
-
-            // If already completed, skip
-            if ($participant->isPaid()) {
-                Log::info('Payment already processed', [
-                    'order_id' => $orderId,
-                    'participant_id' => $participant->id,
-                ]);
-                return;
-            }
-
-            // Process payment
-            $this->processSuccessfulPayment(
-                $participant,
-                $payment['id'],
-                '' // Signature not available in webhook
-            );
-
-            Log::info('Webhook payment processed', [
-                'order_id' => $orderId,
-                'payment_id' => $payment['id'],
-                'participant_id' => $participant->id,
-            ]);
         } catch (\Exception $e) {
             Log::error('Webhook payment processing failed', [
                 'error' => $e->getMessage(),
@@ -352,25 +360,40 @@ class RazorpayService
             $payment = $payload['payload']['payment']['entity'];
             $orderId = $payment['order_id'];
 
-            $participant = ChampionshipParticipant::where('razorpay_order_id', $orderId)->first();
+            // Lock row inside transaction to prevent concurrent webhook race
+            \Illuminate\Support\Facades\DB::transaction(function () use ($orderId, $payment) {
+                $participant = ChampionshipParticipant::where('razorpay_order_id', $orderId)
+                    ->lockForUpdate()
+                    ->first();
 
-            if (!$participant) {
-                Log::warning('Participant not found for failed payment webhook', [
+                if (!$participant) {
+                    Log::warning('Participant not found for failed payment webhook', [
+                        'order_id' => $orderId,
+                    ]);
+                    return;
+                }
+
+                // Already in a terminal/non-pending state? Skip.
+                if ($participant->payment_status !== 'pending') {
+                    Log::info('Payment already transitioned, skipping failure webhook', [
+                        'order_id' => $orderId,
+                        'participant_id' => $participant->id,
+                        'current_status' => $participant->payment_status,
+                    ]);
+                    return;
+                }
+
+                $this->handleFailedPayment(
+                    $participant,
+                    $payment['error_code'] ?? null,
+                    $payment['error_description'] ?? null
+                );
+
+                Log::info('Webhook payment failure processed', [
                     'order_id' => $orderId,
+                    'participant_id' => $participant->id,
                 ]);
-                return;
-            }
-
-            $this->handleFailedPayment(
-                $participant,
-                $payment['error_code'] ?? null,
-                $payment['error_description'] ?? null
-            );
-
-            Log::info('Webhook payment failure processed', [
-                'order_id' => $orderId,
-                'participant_id' => $participant->id,
-            ]);
+            });
         } catch (\Exception $e) {
             Log::error('Webhook payment failure processing failed', [
                 'error' => $e->getMessage(),

@@ -65,9 +65,10 @@ class ChampionshipPaymentController extends Controller
 
             // Create participant record
             $participant = DB::transaction(function () use ($championship, $user) {
-                // Double-check within transaction
+                // Double-check within transaction — only active registrations block
                 $existing = ChampionshipParticipant::where('championship_id', $championship->id)
                     ->where('user_id', $user->id)
+                    ->active()
                     ->lockForUpdate()
                     ->first();
 
@@ -77,22 +78,30 @@ class ChampionshipPaymentController extends Controller
                     ]);
                 }
 
+                // Free entry: mark as completed + registered atomically
+                if ($championship->entry_fee == 0) {
+                    return ChampionshipParticipant::create([
+                        'championship_id' => $championship->id,
+                        'user_id' => $user->id,
+                        'amount_paid' => 0,
+                        'payment_status' => PaymentStatus::COMPLETED->value,
+                        'registration_status' => 'registered',
+                        'registered_at' => now(),
+                    ]);
+                }
+
                 return ChampionshipParticipant::create([
                     'championship_id' => $championship->id,
                     'user_id' => $user->id,
                     'amount_paid' => 0,
                     'payment_status' => PaymentStatus::PENDING->value,
+                    'registration_status' => 'payment_pending',
                     'registered_at' => now(),
                 ]);
             });
 
-            // If entry fee is 0, mark as paid immediately
+            // If free entry, already completed — return immediately
             if ($championship->entry_fee == 0) {
-                $participant->update([
-                    'amount_paid' => 0,
-                    'payment_status' => PaymentStatus::COMPLETED->value,
-                ]);
-
                 return response()->json([
                     'message' => 'Registration successful (free entry)',
                     'participant_id' => $participant->id,
