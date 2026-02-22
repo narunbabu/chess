@@ -436,19 +436,8 @@ const Header = () => {
             {currentTier === 'free' && (
               <Link
                 to="/pricing"
+                className="upgrade-btn"
                 onClick={() => { setShowNavPanel(false); trackNavigation('pricing', 'header'); }}
-                style={{
-                  marginRight: '6px',
-                  padding: '3px 10px',
-                  borderRadius: '20px',
-                  fontSize: '11px',
-                  fontWeight: '700',
-                  background: 'linear-gradient(135deg, #81b64c, #a3d160)',
-                  color: '#fff',
-                  textDecoration: 'none',
-                  whiteSpace: 'nowrap',
-                  letterSpacing: '0.02em',
-                }}
               >
                 ⬆ Upgrade
               </Link>
