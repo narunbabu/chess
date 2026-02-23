@@ -14,7 +14,9 @@ use App\Models\MatchRequestTarget;
 use App\Models\GameStatus;
 use App\Models\SyntheticPlayer;
 use App\Models\User;
+use App\Models\UserPresence;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class MatchmakingService
@@ -60,15 +62,9 @@ class MatchmakingService
             return $entry->fresh()->load(['matchedUser', 'game']);
         }
 
-        // If expired, match with a synthetic player (Gold tier only)
+        // If expired, match with a synthetic player (all tiers get a bot fallback)
         if ($entry->isExpired()) {
-            $user = $entry->user;
-            if ($user && $user->hasSubscriptionTier('gold')) {
-                return $this->matchWithSynthetic($entry);
-            }
-            // Non-Gold users: no bot fallback, just expire
-            $entry->update(['status' => 'expired']);
-            return $entry;
+            return $this->matchWithSynthetic($entry);
         }
 
         return $entry;
@@ -284,9 +280,17 @@ class MatchmakingService
             ->pluck('uid')
             ->toArray();
 
-        // Find suitable online players: active within 2 min, within rating range, not in active game
+        // Get IDs of users with an active presence record in the last 5 minutes.
+        // user_presence.last_activity is updated on connect and on each heartbeat (60s interval),
+        // making it more reliable than users.last_activity_at which required a separate heartbeat call.
+        $activeUserIds = UserPresence::whereIn('status', ['online', 'away'])
+            ->where('last_activity', '>=', now()->subMinutes(5))
+            ->pluck('user_id')
+            ->toArray();
+
+        // Find suitable online players: within rating range, not in active game
         $candidates = User::where('id', '!=', $user->id)
-            ->where('last_activity_at', '>=', now()->subMinutes(2))
+            ->whereIn('id', $activeUserIds)
             ->whereBetween('rating', [$userRating - 200, $userRating + 200])
             ->whereNotIn('id', $busyUserIds)
             ->inRandomOrder()
@@ -299,7 +303,7 @@ class MatchmakingService
 
             $extraCandidates = User::where('id', '!=', $user->id)
                 ->whereNotIn('id', array_merge($existingIds, $busyUserIds))
-                ->where('last_activity_at', '>=', now()->subMinutes(2))
+                ->whereIn('id', $activeUserIds)
                 ->whereBetween('rating', [$userRating - 400, $userRating + 400])
                 ->inRandomOrder()
                 ->limit(3 - $candidates->count())
@@ -316,7 +320,14 @@ class MatchmakingService
                 'status' => 'pending',
             ]);
 
-            broadcast(new MatchRequestReceived($matchRequest, $candidate->id));
+            try {
+                broadcast(new MatchRequestReceived($matchRequest, $candidate->id));
+            } catch (\Throwable $e) {
+                Log::warning('MatchmakingService: broadcast MatchRequestReceived failed', [
+                    'target_user_id' => $candidate->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
 
         // If no targets found, immediately expire
@@ -392,11 +403,25 @@ class MatchmakingService
                 ->update(['status' => 'expired', 'responded_at' => now()]);
 
             // Broadcast accepted to requester
-            broadcast(new MatchRequestAccepted($matchRequest->fresh(), $game));
+            try {
+                broadcast(new MatchRequestAccepted($matchRequest->fresh(), $game));
+            } catch (\Throwable $e) {
+                Log::warning('MatchmakingService: broadcast MatchRequestAccepted failed', [
+                    'requester_id' => $matchRequest->requester_id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
 
             // Broadcast cancelled to other targets
             foreach ($otherTargets as $otherTarget) {
-                broadcast(new MatchRequestCancelled($matchRequest->token, $otherTarget->target_user_id));
+                try {
+                    broadcast(new MatchRequestCancelled($matchRequest->token, $otherTarget->target_user_id));
+                } catch (\Throwable $e) {
+                    Log::warning('MatchmakingService: broadcast MatchRequestCancelled failed', [
+                        'target_user_id' => $otherTarget->target_user_id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
 
             return ['game' => $game];
@@ -428,7 +453,14 @@ class MatchmakingService
             ->count();
 
         // Broadcast decline to requester
-        broadcast(new MatchRequestDeclined($matchRequest->token, $matchRequest->requester_id, $remaining));
+        try {
+            broadcast(new MatchRequestDeclined($matchRequest->token, $matchRequest->requester_id, $remaining));
+        } catch (\Throwable $e) {
+            Log::warning('MatchmakingService: broadcast MatchRequestDeclined failed', [
+                'requester_id' => $matchRequest->requester_id,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         // If all targets have declined, expire the request
         if ($remaining === 0) {
@@ -459,7 +491,14 @@ class MatchmakingService
 
         // Broadcast cancellation to all pending targets
         foreach ($pendingTargets as $target) {
-            broadcast(new MatchRequestCancelled($matchRequest->token, $target->target_user_id));
+            try {
+                broadcast(new MatchRequestCancelled($matchRequest->token, $target->target_user_id));
+            } catch (\Throwable $e) {
+                Log::warning('MatchmakingService: broadcast MatchRequestCancelled failed', [
+                    'target_user_id' => $target->target_user_id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
     }
 }

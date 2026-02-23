@@ -178,25 +178,28 @@ class PresenceService {
   }
 
   /**
-   * Send heartbeat to maintain connection
-   * NOTE: Heartbeat is now handled automatically by WebSocket presence channels.
-   * Laravel Reverb automatically tracks online/offline status.
+   * Send heartbeat to keep user_presence.last_activity fresh.
+   * Called every 60 seconds so the presence/stats and matchmaking queries
+   * (both use a 5-minute window on user_presence.last_activity) stay accurate.
    */
   async sendHeartbeat() {
-    // WebSocket presence channels handle heartbeat automatically
-    // No HTTP polling needed - this saves significant server resources
-    return true;
+    return this.updatePresence('online', this.echo?.socketId());
   }
 
   /**
-   * Start heartbeat interval
-   * NOTE: Disabled - WebSocket presence channels handle this automatically
+   * Start heartbeat interval — fires every 60 seconds.
+   * Keeps user_presence.last_activity current so that:
+   *  - GET /presence/stats returns correct online counts in the Header
+   *  - POST /matchmaking/find-players can find this user as a candidate
    */
   startHeartbeat() {
-    // Heartbeat now handled automatically by WebSocket presence channels
-    // Laravel Reverb tracks user presence without HTTP polling
-    console.log('[Presence] Heartbeat managed by WebSocket presence channels');
-    this.heartbeatInterval = null;
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+    }
+    this.heartbeatInterval = setInterval(() => {
+      this.sendHeartbeat();
+    }, 60000); // 60 seconds
+    console.log('[Presence] Heartbeat started (60s interval)');
   }
 
   /**
