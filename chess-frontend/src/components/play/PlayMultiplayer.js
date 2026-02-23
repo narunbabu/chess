@@ -739,7 +739,7 @@ const PlayMultiplayer = () => {
       try {
         // IMPORTANT: Use consistent time control from game data for both players
         const timeControlMinutes = data.time_control_minutes || 10;
-        const timeControlIncrement = data.time_control_increment || 0; // Backend provides in seconds
+        const timeControlIncrement = data.increment_seconds || 0; // Backend provides in seconds
         const incrementMs = timeControlIncrement * 1000; // Convert to milliseconds
 
         // Calculate initial time once to ensure consistency
@@ -1070,7 +1070,7 @@ const PlayMultiplayer = () => {
         const movesData = await movesResponse.json();
         const timeControlMinutes = movesData.time_control_minutes || 10;
         const initialTimeMs = timeControlMinutes * 60 * 1000;
-        const incrementMs = (movesData.time_control_increment || 0) * 1000; // Convert to ms
+        const incrementMs = (movesData.increment_seconds || 0) * 1000; // Convert to ms
 
         // Debug: Log the actual moves data structure on resume
         console.log('[Timer] DEBUG - Resume - Moves data from API:', {
@@ -1451,6 +1451,15 @@ const PlayMultiplayer = () => {
             console.warn('Could not evaluate opponent move:', evalError);
           }
         }
+      }
+
+      // Sync clocks from move event to eliminate drift between clients
+      if (event.move?.white_time_remaining_ms != null && event.move?.black_time_remaining_ms != null) {
+        const playerColor = playerColorRef.current;
+        const myTimeMs = playerColor === 'white' ? event.move.white_time_remaining_ms : event.move.black_time_remaining_ms;
+        const oppTimeMs = playerColor === 'white' ? event.move.black_time_remaining_ms : event.move.white_time_remaining_ms;
+        setMyMs(myTimeMs);
+        setOppMs(oppTimeMs);
       }
 
       // Get turn from server state (already in 'white'/'black' format)
@@ -4171,7 +4180,7 @@ const PlayMultiplayer = () => {
       {gameData && (
         <div className="time-control-display">
           Time Control: {gameData.time_control_minutes || 10}min
-          {gameData.time_control_increment > 0 && ` +${gameData.time_control_increment}s`}
+          {gameData.increment_seconds > 0 && ` +${gameData.increment_seconds}s`}
           {championshipContext && ' • Tournament'}
         </div>
       )}
