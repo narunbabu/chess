@@ -191,6 +191,24 @@ const PlayMultiplayer = () => {
   const [chatUnread, setChatUnread] = useState(0);
   const chatTabOpenRef = useRef(false);
 
+  const handleSendChat = useCallback(async (message) => {
+    if (!wsService.current) return;
+    // Optimistic update
+    const optimistic = {
+      id: `local-${Date.now()}`,
+      sender_id: user?.id,
+      sender_name: user?.name,
+      message,
+      created_at: new Date().toISOString(),
+    };
+    setChatMessages(prev => [...prev, optimistic]);
+    try {
+      await wsService.current.sendChatMessage(message);
+    } catch (err) {
+      console.error('Failed to send chat message:', err);
+    }
+  }, [user]);
+
   // Destructure pause/resume state
   const {
     showPresenceDialog,
@@ -4182,24 +4200,6 @@ const PlayMultiplayer = () => {
       </div>
     </div>
   );
-
-  const handleSendChat = useCallback(async (message) => {
-    if (!wsService.current) return;
-    // Optimistic update
-    const optimistic = {
-      id: `local-${Date.now()}`,
-      sender_id: user?.id,
-      sender_name: user?.name,
-      message,
-      created_at: new Date().toISOString(),
-    };
-    setChatMessages(prev => [...prev, optimistic]);
-    try {
-      await wsService.current.sendChatMessage(message);
-    } catch (err) {
-      console.error('❌ Failed to send chat message:', err);
-    }
-  }, [user]);
 
   const gameContainerSection = (
     <GameContainer

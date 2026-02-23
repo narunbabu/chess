@@ -265,13 +265,26 @@ class MatchmakingService
 
         $userRating = $user->rating ?? 1200;
 
-        // IDs of users currently in an active game
+        // IDs of users currently in an active human-vs-human game with recent activity.
+        // Excludes computer games (players should be available for matchmaking while playing bots)
+        // and stale games with no moves in the last 30 minutes (ghost/abandoned games).
         $activeStatusId = GameStatus::where('code', 'active')->value('id');
+        $thirtyMinAgo = now()->subMinutes(30);
         $inActiveGame = Game::where('status_id', $activeStatusId)
+            ->whereNull('computer_player_id')
+            ->where(function ($q) use ($thirtyMinAgo) {
+                $q->where('last_move_at', '>=', $thirtyMinAgo)
+                  ->orWhere('created_at', '>=', $thirtyMinAgo);
+            })
             ->selectRaw('white_player_id as uid')
             ->whereNotNull('white_player_id')
             ->union(
                 Game::where('status_id', $activeStatusId)
+                    ->whereNull('computer_player_id')
+                    ->where(function ($q) use ($thirtyMinAgo) {
+                        $q->where('last_move_at', '>=', $thirtyMinAgo)
+                          ->orWhere('created_at', '>=', $thirtyMinAgo);
+                    })
                     ->selectRaw('black_player_id as uid')
                     ->whereNotNull('black_player_id')
             );
@@ -310,6 +323,17 @@ class MatchmakingService
                 ->get();
 
             $candidates = $candidates->merge($extraCandidates);
+        }
+
+        // Final fallback: if still no candidates, match any active online player regardless of rating.
+        // This prevents dead lobbies when few players are online with large rating gaps.
+        if ($candidates->isEmpty()) {
+            $candidates = User::where('id', '!=', $user->id)
+                ->whereIn('id', $activeUserIds)
+                ->whereNotIn('id', $busyUserIds)
+                ->inRandomOrder()
+                ->limit(3)
+                ->get();
         }
 
         // Create target rows and broadcast to each

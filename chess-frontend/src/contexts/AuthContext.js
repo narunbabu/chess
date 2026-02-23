@@ -233,6 +233,17 @@ export const AuthProvider = ({ children }) => {
     return await fetchUser();
   }, [fetchUser]);
 
+  // Lightweight user-data patcher – avoids the full fetchUser() round-trip
+  // which re-initialises Echo, presence, status services and causes visible remounts.
+  const updateUser = useCallback((patch) => {
+    setUser(prev => {
+      if (!prev) return prev;
+      const updated = { ...prev, ...patch };
+      localStorage.setItem('user', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
   // Logout function
   const logout = useCallback(async () => {
     // Disconnect presence service before logout
@@ -263,8 +274,9 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     loading,
-    fetchUser
-  }), [isAuthenticated, user, login, logout, loading, fetchUser]);
+    fetchUser,
+    updateUser
+  }), [isAuthenticated, user, login, logout, loading, fetchUser, updateUser]);
 
   return (
     <AuthContext.Provider value={value}>

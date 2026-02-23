@@ -20,6 +20,7 @@ const RazorpayCheckout = ({ planId, onSuccess, onClose }) => {
   const [error, setError]       = useState(null);
   const [orderData, setOrderData] = useState(null);
   const mountedRef              = useRef(true);
+  const rzpRef                  = useRef(null); // persists the Razorpay instance for manual re-open
 
   useEffect(() => {
     return () => { mountedRef.current = false; };
@@ -113,6 +114,7 @@ const RazorpayCheckout = ({ planId, onSuccess, onClose }) => {
       };
 
       const rzp = new window.Razorpay(options);
+      rzpRef.current = rzp;
       rzp.open();
     } catch (err) {
       console.error('[RazorpayCheckout] Failed to open payment modal:', err);
@@ -189,6 +191,14 @@ const RazorpayCheckout = ({ planId, onSuccess, onClose }) => {
             <p className="razorpay-checkout__note">
               Do not close this window until payment is confirmed.
             </p>
+            {/* Fallback for browsers that silently block rzp.open() (e.g. popup blockers) */}
+            <button
+              className="razorpay-checkout__btn razorpay-checkout__btn--retry"
+              style={{ marginTop: '1rem' }}
+              onClick={() => rzpRef.current?.open()}
+            >
+              Payment window didn&apos;t open? Click here
+            </button>
           </div>
         )}
 

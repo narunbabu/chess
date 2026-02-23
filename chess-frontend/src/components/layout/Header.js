@@ -11,6 +11,7 @@ import { BACKEND_URL } from '../../config';
 import { MdDashboard } from 'react-icons/md';
 import { IoGameController, IoSchool, IoTrophy, IoPlay } from 'react-icons/io5';
 import presenceService from '../../services/presenceService';
+import MatchmakingQueue from '../lobby/MatchmakingQueue';
 import './Header.css';
 
 /**
@@ -27,6 +28,7 @@ const Header = () => {
   const { activeGame, loading } = useActiveGame();
   const { navigateWithGuard } = useGameNavigation();
   const [showNavPanel, setShowNavPanel] = useState(false);
+  const [showMatchmaking, setShowMatchmaking] = useState(false);
   const [onlineStats, setOnlineStats] = useState({ onlineCount: 0, availablePlayers: 0 });
   const [recentChampionship, setRecentChampionship] = useState(null);
   const userMenuRef = useRef(null);
@@ -327,20 +329,16 @@ const Header = () => {
 
       {isAuthenticated && (
         <div className="center-section">
-          <Link
-            to="/play"
-            className={`nav-link nav-icon-link${location.pathname === '/play' ? ' active' : ''}`}
-            onClick={(e) => {
-              e.preventDefault();
-              handleNavItemClick(() => navigate('/play'), '/play');
-            }}
-            title="Play"
-            aria-label="Play"
-            style={{ color: '#81b64c', fontWeight: '700' }}
+          <button
+            className={`nav-link nav-icon-link${showMatchmaking ? ' active' : ''}`}
+            onClick={() => setShowMatchmaking(true)}
+            title="Play Now"
+            aria-label="Play Now"
+            style={{ color: '#81b64c', fontWeight: '700', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
           >
             <IoPlay size={24} />
             <span className="nav-text">Play</span>
-          </Link>
+          </button>
           <Link
             to="/dashboard"
             className="nav-link nav-icon-link"
@@ -625,6 +623,15 @@ const Header = () => {
           />
         </>,
         document.body || document.createElement('div')
+      )}
+
+      {/* Matchmaking modal — opened by the Play nav button */}
+      {isAuthenticated && (
+        <MatchmakingQueue
+          isOpen={showMatchmaking}
+          onClose={() => setShowMatchmaking(false)}
+          autoStart={true}
+        />
       )}
     </>
   );

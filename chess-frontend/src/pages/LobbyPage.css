@@ -1133,9 +1133,11 @@
 }
 
 .lobby-hero-btn:hover {
-  transform: translateY(-2px);
+  transform: translateY(-2px) !important; /* override global button:hover:not(:disabled) specificity (0,2,1 vs 0,2,0) */
   box-shadow: 0 6px 24px rgba(129,182,76,0.45);
-  background: linear-gradient(135deg, #93c860, #81b64c);
+  background: linear-gradient(135deg, #93c860, #81b64c) !important;
+  background-color: transparent !important; /* prevent global orange #FF7C2A bleed-through */
+  border-color: transparent !important;
 }
 
 .lobby-hero-btn:active {
@@ -1255,13 +1257,16 @@
   position: fixed;
   top: 0; right: 0; bottom: 0; left: 0; /* fallback for Safari < 14.1 */
   inset: 0;
-  background: rgba(0,0,0,0.75);
+  /* Slightly darker background instead of backdrop-filter:
+     backdrop-filter on a position:fixed element can create a compositing
+     layer that traps it within an ancestor stacking context in Safari,
+     causing the overlay to be clipped rather than covering the full viewport.
+     The opaque background provides sufficient visual separation. */
+  background: rgba(0,0,0,0.82);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000001; /* Must exceed header (999997) and nav panel (999999) */
-  -webkit-backdrop-filter: blur(4px);
-  backdrop-filter: blur(4px);
 }
 
 .matchmaking-modal {

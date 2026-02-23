@@ -47,7 +47,7 @@ const matchmakingService = {
    * Find online players and send match requests
    */
   findPlayers: async (preferences = {}) => {
-    const response = await api.post('/matchmaking/find-players', preferences);
+    const response = await api.post('/v1/matchmaking/find-players', preferences);
     return response.data;
   },
 
@@ -55,7 +55,7 @@ const matchmakingService = {
    * Accept a match request (as a target player)
    */
   acceptMatchRequest: async (token) => {
-    const response = await api.post(`/matchmaking/accept/${token}`);
+    const response = await api.post(`/v1/matchmaking/accept/${token}`);
     return response.data;
   },
 
@@ -63,7 +63,7 @@ const matchmakingService = {
    * Decline a match request (as a target player)
    */
   declineMatchRequest: async (token) => {
-    const response = await api.post(`/matchmaking/decline/${token}`);
+    const response = await api.post(`/v1/matchmaking/decline/${token}`);
     return response.data;
   },
 
@@ -71,7 +71,7 @@ const matchmakingService = {
    * Cancel finding players (as the requester)
    */
   cancelFindPlayers: async (token) => {
-    const response = await api.post(`/matchmaking/cancel-find/${token}`);
+    const response = await api.post(`/v1/matchmaking/cancel-find/${token}`);
     return response.data;
   },
 };

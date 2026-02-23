@@ -51,11 +51,10 @@ const GameCompletionAnimation = ({
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
   const [videoProgress, setVideoProgress] = useState(0);
   const [showFormatPicker, setShowFormatPicker] = useState(false);
-  const { isAuthenticated, user, fetchUser } = useAuth();
+  const { isAuthenticated, user, updateUser } = useAuth();
   const navigate = useNavigate();
   const gameEndCardRef = useRef(null); // Ref for wrapper (used for layout)
   const gameEndCardContentRef = useRef(null); // Ref for actual GameEndCard component (used for sharing)
-  const fetchUserCalledRef = useRef(false); // Track if fetchUser has been called to prevent re-render loop
 
   // Media generation derived state
   const isMediaGenerating = isGeneratingGif || isGeneratingVideo;
@@ -96,9 +95,14 @@ const GameCompletionAnimation = ({
   // Handle rating update
   useEffect(() => {
     const handleRatingUpdate = async () => {
+      // Use sessionStorage to persist across component remounts (prevents infinite loop
+      // when fetchUser triggers AuthContext re-render → PlayMultiplayer remount → fresh state)
+      const ratingKey = `rating_updated_game_${gameId}`;
+      const alreadyUpdated = sessionStorage.getItem(ratingKey);
+
       // Only update rating if user is authenticated and we haven't processed yet
-      if (!isAuthenticated || !user || hasProcessedRating) {
-        if (hasProcessedRating) {
+      if (!isAuthenticated || !user || hasProcessedRating || alreadyUpdated) {
+        if (hasProcessedRating || alreadyUpdated) {
           setRatingUpdate(prev => ({ ...prev, isLoading: false }));
         }
         return;
@@ -160,15 +164,14 @@ const GameCompletionAnimation = ({
             error: null
           });
 
-          // Mark as processed to prevent duplicate requests
+          // Mark as processed to prevent duplicate requests (both in state and sessionStorage)
           setHasProcessedRating(true);
+          sessionStorage.setItem(ratingKey, 'true');
 
-          // Refresh user data to sync the updated rating across the app
-          // Use ref to prevent re-render loop (fetchUser updates user object causing re-renders)
-          if (fetchUser && !fetchUserCalledRef.current) {
-            fetchUserCalledRef.current = true;
-            await fetchUser();
-            console.log('✅ User rating refreshed in AuthContext (one-time only)');
+          // Patch the rating directly in AuthContext — no API round-trip,
+          // no Echo/presence re-init, no visible remount blink.
+          if (updateUser) {
+            updateUser({ rating: response.data.new_rating });
           }
         } else {
           throw new Error('Rating update failed');
@@ -183,11 +186,12 @@ const GameCompletionAnimation = ({
           error: error.message || 'Failed to update rating'
         });
         setHasProcessedRating(true); // Mark as processed even on error to prevent retries
+        sessionStorage.setItem(ratingKey, 'true');
       }
     };
 
     handleRatingUpdate();
-  }, [isAuthenticated, user, fetchUser, isPlayerWin, isDraw, isMultiplayer, computerLevel, opponentRating, opponentId, gameId, hasProcessedRating]);
+  }, [isAuthenticated, user, updateUser, isPlayerWin, isDraw, isMultiplayer, computerLevel, opponentRating, opponentId, gameId, hasProcessedRating]);
 
   // Handle Share Replay — generates animated GIF of the game
   const handleShareReplay = async () => {

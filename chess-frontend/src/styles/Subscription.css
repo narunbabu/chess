@@ -350,13 +350,15 @@
   position: fixed;
   top: 0; right: 0; bottom: 0; left: 0;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7);
+  /* Darker background instead of backdrop-filter:
+     backdrop-filter creates a new compositing layer that can prevent the
+     Razorpay SDK iframe (injected at document.body level) from appearing
+     on top in Safari / older WebKit browsers. */
+  background: rgba(0, 0, 0, 0.88);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000000; /* Must exceed header (999997) and nav panel (999999) */
-  -webkit-backdrop-filter: blur(4px);
-  backdrop-filter: blur(4px);
 }
 
 .razorpay-checkout-modal {
