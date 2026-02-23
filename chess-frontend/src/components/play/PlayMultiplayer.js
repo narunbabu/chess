@@ -186,6 +186,11 @@ const PlayMultiplayer = () => {
     if (user?.board_theme) setBoardTheme(user.board_theme);
   }, [user?.board_theme]);
 
+  // Chat state
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatUnread, setChatUnread] = useState(0);
+  const chatTabOpenRef = useRef(false);
+
   // Destructure pause/resume state
   const {
     showPresenceDialog,
@@ -841,6 +846,14 @@ const PlayMultiplayer = () => {
       // Fetch championship context (non-intrusive - only for championship games)
       fetchChampionshipContext();
 
+      // Load chat history (non-blocking)
+      fetch(`${BACKEND_URL}/websocket/games/${gameId}/chat`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+      })
+        .then(r => r.json())
+        .then(d => { if (d.messages) setChatMessages(d.messages); })
+        .catch(() => {}); // silent fail — chat is non-critical
+
       // Initialize WebSocket connection
       // Check if there's an existing wsService that's already connected to the right game
       if (wsService.current && wsService.current.isConnected && wsService.current.gameId === parseInt(gameId)) {
@@ -934,6 +947,14 @@ const PlayMultiplayer = () => {
       wsService.current.on('undoDeclined', (event) => {
         console.log('❌ Undo declined event received:', event);
         handleUndoDeclined(event);
+      });
+
+      wsService.current.on('chatMessage', (event) => {
+        console.log('💬 Chat message received:', event);
+        setChatMessages(prev => [...prev, event]);
+        if (!chatTabOpenRef.current) {
+          setChatUnread(prev => prev + 1);
+        }
       });
 
       wsService.current.on('gameConnection', (event) => {
@@ -4162,6 +4183,24 @@ const PlayMultiplayer = () => {
     </div>
   );
 
+  const handleSendChat = useCallback(async (message) => {
+    if (!wsService.current) return;
+    // Optimistic update
+    const optimistic = {
+      id: `local-${Date.now()}`,
+      sender_id: user?.id,
+      sender_name: user?.name,
+      message,
+      created_at: new Date().toISOString(),
+    };
+    setChatMessages(prev => [...prev, optimistic]);
+    try {
+      await wsService.current.sendChatMessage(message);
+    } catch (err) {
+      console.error('❌ Failed to send chat message:', err);
+    }
+  }, [user]);
+
   const gameContainerSection = (
     <GameContainer
       mode="multiplayer"
@@ -4170,6 +4209,17 @@ const PlayMultiplayer = () => {
       pieceStyle={pieceStyle}
       onBoardThemeChange={setBoardTheme}
       onPieceStyleChange={setPieceStyle}
+      chatData={{
+        messages: chatMessages,
+        onSend: handleSendChat,
+        myUserId: user?.id,
+        unreadCount: chatUnread,
+        onTabOpen: () => {
+          chatTabOpenRef.current = true;
+          setChatUnread(0);
+        },
+        disabled: connectionStatus !== 'connected',
+      }}
       timerData={{
         myMs,
         oppMs,

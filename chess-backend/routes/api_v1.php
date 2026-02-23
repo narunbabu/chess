@@ -219,6 +219,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/games/{gameId}/undo/decline', [WebSocketController::class, 'declineUndo']);
         Route::get('/games/{gameId}/moves', [WebSocketController::class, 'getMoves']);
         Route::get('/games/{gameId}/championship-context', [WebSocketController::class, 'getChampionshipContext']);
+        Route::get('/games/{gameId}/chat', [WebSocketController::class, 'getChatHistory']);
+        Route::post('/games/{gameId}/chat', [WebSocketController::class, 'sendChatMessage']);
     });
 
     // Broadcasting auth (standard Laravel pattern, outside websocket prefix)

@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Http\Middleware\WebSocketAuth;
 use App\Models\Game;
+use App\Models\GameChatMessage;
+use App\Events\GameChatMessageSent;
 use App\Services\GameRoomService;
 use App\Services\HandshakeProtocol;
 use Illuminate\Http\Request;
@@ -1623,6 +1625,72 @@ class WebSocketController extends Controller
                 'message' => $e->getMessage()
             ], 400);
         }
+    }
+
+    /**
+     * Get chat history for a game
+     */
+    public function getChatHistory(Request $request, int $gameId): JsonResponse
+    {
+        $user = Auth::user();
+        $game = Game::findOrFail($gameId);
+
+        if ($game->white_player_id !== $user->id && $game->black_player_id !== $user->id) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $messages = GameChatMessage::where('game_id', $gameId)
+            ->with('user:id,name')
+            ->orderBy('created_at')
+            ->get()
+            ->map(fn($m) => [
+                'id'          => $m->id,
+                'sender_id'   => $m->user_id,
+                'sender_name' => $m->user->name,
+                'message'     => $m->message,
+                'created_at'  => $m->created_at->toISOString(),
+            ]);
+
+        return response()->json(['messages' => $messages]);
+    }
+
+    /**
+     * Send a chat message in a game
+     */
+    public function sendChatMessage(Request $request, int $gameId): JsonResponse
+    {
+        $request->validate([
+            'message' => 'required|string|max:500',
+        ]);
+
+        $user = Auth::user();
+        $game = Game::findOrFail($gameId);
+
+        if ($game->white_player_id !== $user->id && $game->black_player_id !== $user->id) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $chatMessage = GameChatMessage::create([
+            'game_id' => $gameId,
+            'user_id' => $user->id,
+            'message' => $request->input('message'),
+        ]);
+
+        broadcast(new GameChatMessageSent($game, $user, $chatMessage))->toOthers();
+
+        Log::info('Chat message sent', [
+            'game_id' => $gameId,
+            'user_id' => $user->id,
+            'message_id' => $chatMessage->id,
+        ]);
+
+        return response()->json([
+            'id'          => $chatMessage->id,
+            'sender_id'   => $user->id,
+            'sender_name' => $user->name,
+            'message'     => $chatMessage->message,
+            'created_at'  => $chatMessage->created_at->toISOString(),
+        ], 201);
     }
 
     /**

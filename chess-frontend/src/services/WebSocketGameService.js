@@ -240,6 +240,10 @@ class WebSocketGameService {
         .listen('.undo.declined', (event) => {
             console.log('Undo declined event received:', event);
             this.emit('undoDeclined', event);
+        })
+        .listen('.game.chat', (event) => {
+            console.log('Chat message received:', event);
+            this.emit('chatMessage', event);
         });
 
       // Wait for connection
@@ -1556,6 +1560,32 @@ class WebSocketGameService {
       console.error('❌ Failed to decline undo:', error);
       throw error;
     }
+  }
+
+  /**
+   * Send a chat message in the current game
+   */
+  async sendChatMessage(message) {
+    if (!this.gameId || !this.user) {
+      throw new Error('Game ID or user not set');
+    }
+
+    const token = localStorage.getItem('auth_token');
+    const response = await fetch(`${BACKEND_URL}/websocket/games/${this.gameId}/chat`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(this.buildRequestBody({ message })),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to send message');
+    }
+
+    return data;
   }
 
   /**

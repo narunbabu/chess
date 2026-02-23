@@ -6,6 +6,7 @@ import ActivePlayerBar from './ActivePlayerBar';
 import SoundToggle from './SoundToggle';
 import BoardCustomizer from './BoardCustomizer';
 import PerformanceDisplay from '../game/PerformanceDisplay';
+import ChatPanel from './ChatPanel';
 
 /**
  * GameContainer - Premium 3-zone game layout
@@ -25,7 +26,8 @@ const GameContainer = ({
   boardTheme,
   pieceStyle,
   onBoardThemeChange,
-  onPieceStyleChange
+  onPieceStyleChange,
+  chatData = null,
 }) => {
   const [rightTab, setRightTab] = useState('moves');
   const moveListRef = useRef(null);
@@ -249,28 +251,70 @@ const GameContainer = ({
     </div>
   );
 
-  // ----- RIGHT PANEL -----
-  const renderRightPanel = () => (
-    <div className="gc-right-panel">
-      {/* Tabs */}
-      <div className="gc-tabs">
-        {['moves', 'info'].map((tab) => (
-          <button
-            key={tab}
-            className={`gc-tab ${rightTab === tab ? 'gc-tab-active' : ''}`}
-            onClick={() => setRightTab(tab)}
-          >
-            {tab === 'moves' ? 'Moves' : 'Game Info'}
-          </button>
-        ))}
-      </div>
-      {/* Tab content */}
-      <div className="gc-tab-content">
-        {rightTab === 'moves' && renderMoveList()}
-        {rightTab === 'info' && renderGameInfo()}
-      </div>
-    </div>
+  // ----- CHAT PANEL -----
+  const renderChatPanel = () => (
+    <ChatPanel
+      messages={chatData.messages}
+      onSend={chatData.onSend}
+      myUserId={chatData.myUserId}
+      disabled={chatData.disabled}
+    />
   );
+
+  // ----- RIGHT PANEL -----
+  const renderRightPanel = () => {
+    const tabs = chatData
+      ? ['moves', 'info', 'chat']
+      : ['moves', 'info'];
+
+    return (
+      <div className="gc-right-panel">
+        {/* Tabs */}
+        <div className="gc-tabs">
+          {tabs.map((tab) => (
+            <button
+              key={tab}
+              className={`gc-tab ${rightTab === tab ? 'gc-tab-active' : ''}`}
+              onClick={() => {
+                setRightTab(tab);
+                if (tab === 'chat') {
+                  chatData?.onTabOpen?.();
+                }
+              }}
+            >
+              {tab === 'moves' ? 'Moves'
+                : tab === 'info' ? 'Game Info'
+                : (
+                  <>
+                    Chat
+                    {chatData.unreadCount > 0 && (
+                      <span style={{
+                        marginLeft: 4,
+                        background: '#e04040',
+                        color: '#fff',
+                        borderRadius: '50%',
+                        fontSize: '0.65rem',
+                        padding: '1px 5px',
+                        verticalAlign: 'middle',
+                      }}>
+                        {chatData.unreadCount}
+                      </span>
+                    )}
+                  </>
+                )
+              }
+            </button>
+          ))}
+        </div>
+        {/* Tab content */}
+        <div className="gc-tab-content">
+          {rightTab === 'moves' && renderMoveList()}
+          {rightTab === 'info' && renderGameInfo()}
+          {rightTab === 'chat' && chatData && renderChatPanel()}
+        </div>
+      </div>
+    );
+  };
 
   // ----- LEFT PANEL -----
   const renderLeftPanel = () => (
