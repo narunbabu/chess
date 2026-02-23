@@ -8,6 +8,18 @@ import BoardCustomizer from './BoardCustomizer';
 import PerformanceDisplay from '../game/PerformanceDisplay';
 import ChatPanel from './ChatPanel';
 
+// Extract SAN from any gameHistory entry format:
+//   PlayComputer objects: { move: { san: "e4" }, ... }
+//   Backend move objects:  { san: "e4", from: "e2", ... }
+//   Compact strings:       "e4,3.45"
+const extractSan = (entry) => {
+  if (!entry) return null;
+  if (typeof entry === 'string') return entry.split(',')[0];
+  if (entry.move?.san) return entry.move.san;
+  if (entry.san) return entry.san;
+  return null;
+};
+
 /**
  * GameContainer - Premium 3-zone game layout
  *
@@ -72,9 +84,9 @@ const GameContainer = ({
     for (let i = 0; i < gameHistory.length; i += 2) {
       pairs.push({
         num: Math.floor(i / 2) + 1,
-        white: gameHistory[i]?.move?.san || '...',
+        white: extractSan(gameHistory[i]) || '...',
         whiteIdx: i,
-        black: gameHistory[i + 1]?.move?.san || null,
+        black: extractSan(gameHistory[i + 1]) || null,
         blackIdx: i + 1,
       });
     }

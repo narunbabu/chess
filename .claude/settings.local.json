@@ -8,7 +8,8 @@
       "Bash(identify:*)",
       "Bash(grep:*)",
       "Bash(Select-String -Pattern \"game_statuses|GameStatus\")",
-      "Bash(sqlite3:*)"
+      "Bash(sqlite3:*)",
+      "Bash(ls:*)"
     ],
     "deny": [],
     "ask": []

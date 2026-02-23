@@ -432,9 +432,11 @@
     margin-left: auto;
   }
 
-  /* Hide Upgrade button on small screens — accessible from nav panel "Pricing & Plans" */
+  /* Compact Upgrade button on small screens */
   .upgrade-btn {
-    display: none !important;
+    padding: 2px 8px;
+    font-size: 10px;
+    margin-right: 4px;
   }
 
   .stats-row.compact {
@@ -566,6 +568,13 @@
   .user-avatar img {
     width: 26px;
     height: 26px;
+  }
+
+  /* Even more compact upgrade button */
+  .upgrade-btn {
+    padding: 2px 6px;
+    font-size: 9px;
+    margin-right: 2px;
   }
 }
 

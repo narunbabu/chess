@@ -462,12 +462,6 @@ const Dashboard = () => {
         <div className="dashboard p-6 text-white">
           <header className="dashboard-header text-center mb-10">
             <h1 className="text-4xl font-bold text-white">Welcome, {user?.name || user?.email?.split('@')[0] || "Player"}!</h1>
-            {onlineCount !== null && onlineCount > 0 && (
-              <p style={{ marginTop: '6px', fontSize: '0.85rem', color: '#8b8987' }}>
-                <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#81b64c', marginRight: '6px', verticalAlign: 'middle', boxShadow: '0 0 6px #81b64c' }}></span>
-                {onlineCount} player{onlineCount !== 1 ? 's' : ''} online right now
-              </p>
-            )}
 
             {/* Compact upgrade strip for free-tier users — tier badge + usage bar + CTA */}
             {currentTier === 'free' && (() => {
@@ -694,17 +688,18 @@ const Dashboard = () => {
           {unfinishedGames.length > 0 ? (
             <div className="unified-card-grid cols-1">
               {unfinishedGames.map((game, index) => {
-                const gameMode = game.gameMode === 'computer' ? '🤖 vs Computer' : '👥 vs Human';
-                const opponent = game.opponentName || (game.gameMode === 'computer' ? 'Computer' : 'Opponent');
+                // Only show "vs Computer" for explicit computer games (not synthetic opponents)
+                const isExplicitComputer = game.gameMode === 'computer' && !game.opponentName;
+                const opponent = game.opponentName || (isExplicitComputer ? 'Computer' : 'Opponent');
                 const moveCount = game.moves ? game.moves.length : 0;
-                const lastMoveTime = game.lastMoveAt ? new Date(game.lastMoveAt).toLocaleString() : 'Unknown';
+                const lastMoveTime = game.lastMoveAt ? new Date(game.lastMoveAt).toLocaleString() : null;
 
                 return (
                   <div key={`unfinished-${game.gameId}-${index}`} className="unified-card horizontal">
                     <div className="unified-card-content">
-                      <h3 className="unified-card-title">{gameMode} - vs {opponent}</h3>
+                      <h3 className="unified-card-title">vs {opponent}</h3>
                       <p className="unified-card-subtitle">
-                        {moveCount} moves • Last played: {lastMoveTime}
+                        {moveCount} moves{lastMoveTime ? ` • Last played: ${lastMoveTime}` : ''}
                       </p>
                       <p className="unified-card-meta">
                         Playing as {game.playerColor === 'w' ? 'White' : 'Black'}

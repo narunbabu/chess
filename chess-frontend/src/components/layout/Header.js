@@ -563,20 +563,6 @@ const Header = () => {
                       : recentChampionship.name}
                   </button>
                 )}
-                {location.pathname.includes('/lobby') && (
-                  <>
-                    <div className="nav-stats">
-                      <div className="nav-stat-item">
-                        <span>🟢</span>
-                        <span>Online: {onlineStats.onlineCount}</span>
-                      </div>
-                      <div className="nav-stat-item">
-                        <span>⚡</span>
-                        <span>Available: {onlineStats.availablePlayers}</span>
-                      </div>
-                    </div>
-                  </>
-                )}
                 {!loading && activeGame && (
                   <button
                     className="nav-item nav-item-resume"

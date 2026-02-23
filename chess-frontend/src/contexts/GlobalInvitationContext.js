@@ -110,7 +110,9 @@ export const GlobalInvitationProvider = ({ children }) => {
       }
 
     // Subscribe to user-specific channel (shared for all invitation types)
+    console.log('[GIC:TRACE] subscribing to private channel:', `App.Models.User.${user.id}`);
     const userChannel = echo.private(`App.Models.User.${user.id}`);
+    console.log('[GIC:TRACE] channel object:', userChannel ? 'OK' : 'NULL');
 
     // Add subscription success confirmation
     if (userChannel) {
@@ -365,13 +367,17 @@ export const GlobalInvitationProvider = ({ children }) => {
     // ─── Smart Match Request Listeners ────────────────────────────────
 
     // Listen for incoming match requests (target receives this)
+    console.log('[GIC:TRACE] registering .match.request.received listener on channel App.Models.User.' + user.id);
     userChannel.listen('.match.request.received', (data) => {
+      console.log('[GIC:TRACE] .match.request.received FIRED', data);
       // Don't show dialog if user is in active game
       if (isInActiveGameRef.current()) {
+        console.log('[GIC:TRACE] suppressed — user is in active game');
         return;
       }
 
       if (data.match_request) {
+        console.log('[GIC:TRACE] setting pendingMatchRequest', data.match_request);
         setPendingMatchRequest(data.match_request);
       }
     });
@@ -384,7 +390,9 @@ export const GlobalInvitationProvider = ({ children }) => {
     });
 
     // Listen for match request accepted (requester receives this when a target accepts)
+    console.log('[GIC:TRACE] registering .match.request.accepted listener');
     userChannel.listen('.match.request.accepted', (data) => {
+      console.log('[GIC:TRACE] .match.request.accepted FIRED', data);
       // Dispatch DOM event for MatchmakingQueue to navigate
       if (data.game && data.game.id) {
         const acceptedEvent = new CustomEvent('matchRequestAccepted', {

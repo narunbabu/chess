@@ -542,7 +542,11 @@ const handleShare = async () => {
 
     // Generate friendly share message
     const opponentName = playersInfo.opponentPlayer?.name || 'opponent';
-    const shareText = `${isPlayerWin ? '🏆 I defeated' : isDraw ? '🤝 I drew against' : '♟️ I played against'} ${opponentName} in chess!\n\n🎯 It is fun to play chess at www.chess99.com, Join me! ♟️`;
+    const shareText = isPlayerWin
+      ? `🏆 I defeated ${opponentName} in chess!\n\n🎯 It is fun to play chess at www.chess99.com, Join me! ♟️`
+      : isDraw
+      ? `🤝 I drew against ${opponentName} in chess!\n\n🎯 It is fun to play chess at www.chess99.com, Join me! ♟️`
+      : `⚔️ ${opponentName} got me this time! Think you can avenge my defeat?\n\n♟️ Challenge me at www.chess99.com`;
 
     // Copy message to clipboard for easy pasting (WhatsApp workaround)
     try {
@@ -613,7 +617,11 @@ const handleShare = async () => {
 
       // Generate friendly share message
       const opponentName = playersInfo.opponentPlayer?.name || 'opponent';
-      const shareText = `${isPlayerWin ? '🏆 I defeated' : isDraw ? '🤝 I drew against' : '♟️ I played against'} ${opponentName} in chess!\n\n🎯 It is fun to play chess at www.chess99.com, Join me! ♟️`;
+      const shareText = isPlayerWin
+        ? `🏆 I defeated ${opponentName} in chess!\n\n🎯 It is fun to play chess at www.chess99.com, Join me! ♟️`
+        : isDraw
+        ? `🤝 I drew against ${opponentName} in chess!\n\n🎯 It is fun to play chess at www.chess99.com, Join me! ♟️`
+        : `⚔️ ${opponentName} got me this time! Think you can avenge my defeat?\n\n♟️ Challenge me at www.chess99.com`;
 
       // Copy message to clipboard for easy pasting (WhatsApp workaround)
       try {
@@ -761,13 +769,20 @@ const handleShare = async () => {
           )}
         </div>
 
-        {/* Winner name banner near logo */}
-        {winnerName && !isDraw && (
+        {/* Result banner near logo */}
+        {!isDraw && (
           <div className="text-center mb-1">
-            <span className="text-xs font-bold px-3 py-0.5 rounded-full"
-                  style={{ backgroundColor: 'rgba(255,215,0,0.15)', color: '#FFD700', border: '1px solid rgba(255,215,0,0.3)' }}>
-              ⭐ {winnerName} wins!
-            </span>
+            {isPlayerWin ? (
+              <span className="text-xs font-bold px-3 py-0.5 rounded-full"
+                    style={{ backgroundColor: 'rgba(255,215,0,0.15)', color: '#FFD700', border: '1px solid rgba(255,215,0,0.3)' }}>
+                ⭐ {winnerName} wins!
+              </span>
+            ) : (
+              <span className="text-xs font-bold px-3 py-0.5 rounded-full"
+                    style={{ backgroundColor: 'rgba(255,107,107,0.15)', color: '#FF6B6B', border: '1px solid rgba(255,107,107,0.3)' }}>
+                ⚔️ Can you avenge my defeat?
+              </span>
+            )}
           </div>
         )}
 
@@ -779,11 +794,17 @@ const handleShare = async () => {
           <h1 className="text-3xl font-extrabold mb-1 tracking-tight" style={{ color: cardTheme.accent, textShadow: '0 2px 10px rgba(0,0,0,0.3)' }}>
             {title}
           </h1>
-          {/* Winner name highlight */}
+          {/* Winner/defeat name highlight */}
           {winnerName && !isDraw && (
-            <div className="text-base font-extrabold mb-1" style={{ color: '#FFD700', textShadow: '0 1px 6px rgba(255,215,0,0.3)' }}>
-              👑 {winnerName}
-            </div>
+            isPlayerWin ? (
+              <div className="text-base font-extrabold mb-1" style={{ color: '#FFD700', textShadow: '0 1px 6px rgba(255,215,0,0.3)' }}>
+                👑 {winnerName}
+              </div>
+            ) : (
+              <div className="text-sm font-bold mb-1" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                Think you can beat {playersInfo.opponentPlayer?.name || winnerName}?
+              </div>
+            )
           )}
           <p className="text-xs max-w-xs mx-auto" style={{ color: cardTheme.sub }}>
             {resultText}
@@ -943,10 +964,12 @@ const handleShare = async () => {
           >
             <div style={{ textAlign: 'center', marginBottom: '20px' }}>
               <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#81b64c', marginBottom: '10px' }}>
-                Share Your Game Result
+                {isPlayerWin ? 'Share Your Victory' : isDraw ? 'Share Your Game' : 'Challenge Your Friends'}
               </h2>
               <p style={{ color: '#6B7280', fontSize: '14px' }}>
-                Share your achievement with WhatsApp, Facebook, and more!
+                {isPlayerWin ? 'Share your achievement with WhatsApp, Facebook, and more!'
+                  : isDraw ? 'Share this game with your friends!'
+                  : 'Send this to a friend who can avenge your defeat!'}
               </p>
             </div>
 

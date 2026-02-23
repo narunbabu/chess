@@ -9,6 +9,8 @@ class PresenceService {
     this.currentUser = null;
     this.presenceChannel = null;
     this.heartbeatInterval = null;
+    this.initialHeartbeatTimeout = null;
+    this.echoRetryTimeout = null;
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
     this.reconnectDelay = 1000;
@@ -26,17 +28,29 @@ class PresenceService {
   async initialize(user, authToken) {
     this.currentUser = user;
 
+    // Write presence to DB and start heartbeat immediately so the user is
+    // visible to matchmaking regardless of whether the WebSocket presence
+    // channel join succeeds. Previously both were gated behind connect(),
+    // so a channel-join failure left user_presence unpopulated and caused
+    // findAndBroadcastPlayers() to always return 0 candidates.
+    await this.updatePresence('online');
+    this.startHeartbeat();
+
     try {
       // Use singleton Echo instance
       this.echo = getEcho();
       if (!this.echo) {
-        console.error('[Presence] Echo singleton not available');
+        // Echo not yet initialised at component mount — queue a non-blocking
+        // retry so WebSocket channels connect once the singleton is ready.
+        // DB presence write and heartbeat are already running above, so
+        // matchmaking can find this user without waiting for the retry.
+        console.warn('[Presence] Echo not ready — queuing WebSocket connect retry');
+        this._scheduleEchoRetry();
         return false;
       }
 
       await this.connect();
       this.setupEventListeners();
-      this.startHeartbeat();
 
       console.log('[Presence] Service initialized successfully');
       return true;
@@ -44,6 +58,39 @@ class PresenceService {
       console.error('[Presence] Failed to initialize:', error);
       return false;
     }
+  }
+
+  /**
+   * Retry the Echo/WebSocket connection with linear back-off (500 ms → 5 s).
+   * Only the channel-subscription step is pending at this point — the DB
+   * presence write and heartbeat are already running.
+   */
+  _scheduleEchoRetry(attempt = 0) {
+    const MAX_ATTEMPTS = 10;
+    const DELAY_MS = Math.min(500 * (attempt + 1), 5000);
+
+    if (attempt >= MAX_ATTEMPTS) {
+      console.error('[Presence] Echo never became available — WebSocket channels not subscribed');
+      return;
+    }
+
+    this.echoRetryTimeout = setTimeout(async () => {
+      // Bail if the service was disconnected (logout) while waiting
+      if (!this.currentUser) return;
+
+      this.echo = getEcho();
+      if (this.echo) {
+        console.log(`[Presence] Echo available on retry ${attempt + 1}, connecting channels`);
+        try {
+          await this.connect();
+          this.setupEventListeners();
+        } catch (err) {
+          console.error('[Presence] Echo retry connect failed:', err);
+        }
+      } else {
+        this._scheduleEchoRetry(attempt + 1);
+      }
+    }, DELAY_MS);
   }
 
   /**
@@ -179,15 +226,16 @@ class PresenceService {
 
   /**
    * Send heartbeat to keep user_presence.last_activity fresh.
-   * Called every 60 seconds so the presence/stats and matchmaking queries
-   * (both use a 5-minute window on user_presence.last_activity) stay accurate.
+   * First beat fires at 5 s after initialize(); subsequent beats every 30 s.
+   * Both intervals are well within the 5-minute matchmaking window.
    */
   async sendHeartbeat() {
     return this.updatePresence('online', this.echo?.socketId());
   }
 
   /**
-   * Start heartbeat interval — fires every 60 seconds.
+   * Start heartbeat — first beat fires after 5 s (closes the race window
+   * for users who click Play Now immediately after login), then every 30 s.
    * Keeps user_presence.last_activity current so that:
    *  - GET /presence/stats returns correct online counts in the Header
    *  - POST /matchmaking/find-players can find this user as a candidate
@@ -195,11 +243,24 @@ class PresenceService {
   startHeartbeat() {
     if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
     }
-    this.heartbeatInterval = setInterval(() => {
-      this.sendHeartbeat();
-    }, 60000); // 60 seconds
-    console.log('[Presence] Heartbeat started (60s interval)');
+    if (this.initialHeartbeatTimeout) {
+      clearTimeout(this.initialHeartbeatTimeout);
+      this.initialHeartbeatTimeout = null;
+    }
+
+    // First beat fires quickly to establish freshness before the 15 s
+    // smart-match window expires; subsequent beats maintain it every 30 s.
+    this.initialHeartbeatTimeout = setTimeout(async () => {
+      this.initialHeartbeatTimeout = null;
+      await this.sendHeartbeat();
+      this.heartbeatInterval = setInterval(() => {
+        this.sendHeartbeat();
+      }, 30000); // 30 seconds
+    }, 5000);
+
+    console.log('[Presence] Heartbeat started (5s initial, then 30s interval)');
   }
 
   /**
@@ -322,9 +383,17 @@ class PresenceService {
    */
   disconnect() {
     try {
+      if (this.initialHeartbeatTimeout) {
+        clearTimeout(this.initialHeartbeatTimeout);
+        this.initialHeartbeatTimeout = null;
+      }
       if (this.heartbeatInterval) {
         clearInterval(this.heartbeatInterval);
         this.heartbeatInterval = null;
+      }
+      if (this.echoRetryTimeout) {
+        clearTimeout(this.echoRetryTimeout);
+        this.echoRetryTimeout = null;
       }
 
       if (this.presenceChannel) {

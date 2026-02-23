@@ -174,22 +174,24 @@ export const AuthProvider = ({ children }) => {
 
       // Migrate guest unfinished games to backend
       await migrateGuestUnfinishedGames();
+      // Presence: always initialize regardless of Echo status.
+      // DB write + heartbeat run immediately; if Echo is not ready the
+      // WebSocket channel connect is retried internally by presenceService.
+      try {
+        const presenceInitialized = await presenceService.initialize(response.data, token);
+        if (presenceInitialized) {
+          console.log('[Auth] ✅ Presence service initialized successfully');
+        } else {
+          console.warn('[Auth] ⚠️ Presence service initialization returned false (WebSocket retry queued)');
+        }
+      } catch (presenceError) {
+        console.error('[Auth] ❌ Presence service initialization failed:', presenceError);
+      }
+
       if (echoInstance) {
         logger.websocket('initialized', 'Echo singleton ready');
 
-        // Initialize presence service after Echo is ready
-        try {
-          const presenceInitialized = await presenceService.initialize(response.data, token);
-          if (presenceInitialized) {
-            console.log('[Auth] ✅ Presence service initialized successfully');
-          } else {
-            console.warn('[Auth] ⚠️ Presence service initialization returned false');
-          }
-        } catch (presenceError) {
-          console.error('[Auth] ❌ Presence service initialization failed:', presenceError);
-        }
-
-        // Initialize database-backed user status service
+        // Initialize database-backed user status service (requires Echo)
         console.log('[Auth] Initializing user status service...');
         try {
           window.userStatusService = userStatusService; // Expose for debugging
@@ -203,7 +205,7 @@ export const AuthProvider = ({ children }) => {
           console.error('[Auth] ❌ User status service initialization error:', statusError);
         }
       } else {
-        console.error('[Auth] ❌ Echo singleton initialization failed!');
+        console.warn('[Auth] ⚠️ Echo singleton not available — user status service skipped');
       }
 
       return userData;

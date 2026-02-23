@@ -1,9 +1,9 @@
 import React from 'react';
 
 const TIME_PRESETS = [
-  { minutes: 3, increment: 0, label: '3 min', category: 'Blitz' },
+  { minutes: 3, increment: 1, label: '3|1', category: 'Blitz' },
   { minutes: 3, increment: 2, label: '3|2', category: 'Blitz' },
-  { minutes: 5, increment: 0, label: '5 min', category: 'Blitz' },
+  { minutes: 5, increment: 2, label: '5|2', category: 'Blitz' },
   { minutes: 5, increment: 3, label: '5|3', category: 'Blitz' },
   { minutes: 10, increment: 0, label: '10 min', category: 'Rapid' },
   { minutes: 10, increment: 5, label: '10|5', category: 'Rapid' },
@@ -41,7 +41,7 @@ const ChallengeModal = ({
 }) => {
   const [gameMode, setGameMode] = React.useState('casual');
   const [timeControl, setTimeControl] = React.useState(10);
-  const [increment, setIncrement] = React.useState(0);
+  const [increment, setIncrement] = React.useState(5);
 
   // Color Choice Modal (when sending challenge)
   if (showColorModal && selectedPlayer) {

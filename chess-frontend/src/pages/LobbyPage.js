@@ -433,21 +433,18 @@ const LobbyPage = () => {
   }
 
   // Tab configuration
-  const onlineFriendsCount = friends.filter(f => f.is_online).length;
   const tabs = [
     {
       id: 'players',
-      label: 'Online',
-      short: 'Online',
+      label: 'Players',
+      short: 'Players',
       icon: '👥',
-      badge: players.length
     },
     {
       id: 'friends',
       label: 'Friends',
       short: 'Friends',
       icon: '👫',
-      badge: onlineFriendsCount
     },
   ];
 
@@ -477,8 +474,9 @@ const LobbyPage = () => {
               <button
                 onClick={() => {
                   // Navigate to the paused game with lobby-resume flag
-                  sessionStorage.setItem('lobbyResumeInitiated', 'true');
-                  sessionStorage.setItem('lobbyResumeGameId', pausedGameId.toString());
+                  sessionStorage.setItem('lastInvitationAction', 'resume_game');
+                  sessionStorage.setItem('lastInvitationTime', Date.now().toString());
+                  sessionStorage.setItem('lastGameId', pausedGameId.toString());
                   navigate(`/play/multiplayer/${pausedGameId}`);
                 }}
                 style={{

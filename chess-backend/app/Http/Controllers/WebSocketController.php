@@ -25,9 +25,46 @@ class WebSocketController extends Controller
 
     /**
      * Handle WebSocket authentication request
+     *
+     * This route sits OUTSIDE the auth:sanctum middleware group so that
+     * pusher-js can reach the controller even when Sanctum's middleware
+     * layer would otherwise silently return 401 before the controller fires.
+     * We authenticate manually here using the Bearer token from the request.
      */
     public function authenticate(Request $request): JsonResponse
     {
+        // TRACE: log every auth attempt so we confirm the request arrived
+        Log::info('[WS:AUTH] authenticate() called', [
+            'has_bearer'   => !empty($request->bearerToken()),
+            'socket_id'    => $request->input('socket_id', '(missing)'),
+            'channel_name' => $request->input('channel_name', '(missing)'),
+            'ip'           => $request->ip(),
+        ]);
+
+        // Manually authenticate via Sanctum Bearer token.
+        // The route is intentionally outside auth:sanctum middleware — we do
+        // the token lookup here so the auth POST always reaches this method.
+        if (!Auth::check()) {
+            $bearerToken = $request->bearerToken();
+            if ($bearerToken) {
+                $tokenModel = \Laravel\Sanctum\PersonalAccessToken::findToken($bearerToken);
+                if ($tokenModel && $tokenModel->tokenable) {
+                    Auth::setUser($tokenModel->tokenable);
+                    $tokenModel->forceFill(['last_used_at' => now()])->save();
+                }
+            }
+        }
+
+        if (!Auth::check()) {
+            Log::warning('[WS:AUTH] Unauthenticated — no valid Bearer token provided', [
+                'has_bearer' => !empty($request->bearerToken()),
+                'ip'         => $request->ip(),
+            ]);
+            return response()->json(['error' => 'Unauthenticated'], 401);
+        }
+
+        Log::info('[WS:AUTH] authenticated as user_id=' . Auth::id());
+
         $request->validate([
             'socket_id' => 'required|string',
             'channel_name' => 'required|string',
@@ -1303,6 +1340,7 @@ class WebSocketController extends Controller
             return response()->json([
                 'moves' => $moves,
                 'time_control_minutes' => $game->time_control_minutes,
+                'increment_seconds' => $game->increment_seconds,
                 'white_player_score' => $game->white_player_score,
                 'black_player_score' => $game->black_player_score,
                 'white_player_id' => $game->white_player_id,

@@ -185,8 +185,6 @@ Route::middleware('auth:sanctum')->group(function () {
         // WebSocket API routes for real-time game connections
         Route::prefix('websocket')->group(function () {
             Route::post('/authenticate', [WebSocketController::class, 'authenticate']);
-            // Alternative Laravel standard broadcasting auth route
-            Route::post('/broadcasting/auth', [WebSocketController::class, 'authenticate']);
             Route::post('/handshake', [WebSocketController::class, 'handshake']);
             Route::post('/acknowledge-handshake', [WebSocketController::class, 'acknowledgeHandshake']);
             Route::get('/handshake', [WebSocketController::class, 'getHandshake']);
@@ -242,9 +240,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/games/{gameId}/championship-context', [WebSocketController::class, 'getChampionshipContext']);
     });
 
-    // Laravel Broadcasting Authentication Route (standard Laravel pattern)
-    // This must be outside the websocket prefix to match Laravel Echo's default endpoint
-    Route::post('/broadcasting/auth', [WebSocketController::class, 'authenticate']);
+    // NOTE: /broadcasting/auth is registered OUTSIDE auth:sanctum below — see end of file.
 
     // Championship routes (authenticated only)
     Route::prefix('championships')->group(function () {
@@ -387,7 +383,11 @@ Route::prefix('subscriptions')->group(function () {
     });
 });
 
-// routes/api.php
+// WebSocket broadcasting auth routes — MUST be outside auth:sanctum.
+// pusher-js POSTs here when subscribing to private/presence channels.
+// WebSocketController::authenticate() handles Sanctum token auth manually.
+Route::post('/websocket/broadcasting/auth', [WebSocketController::class, 'authenticate']);
+Route::post('/broadcasting/auth', [WebSocketController::class, 'authenticate']);
 
 Route::get('/public-test', function () {
     Log::info('=== PUBLIC TEST ENDPOINT HIT ===');

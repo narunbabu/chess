@@ -92,7 +92,7 @@
   padding: 8px 16px;
   height: calc(100vh - 56px); /* Fill viewport minus header */
   align-items: center; /* Center content vertically */
-  overflow: hidden;
+  overflow: hidden auto; /* clip horizontal, scroll vertical as safety valve */
   box-sizing: border-box;
 }
 
@@ -182,7 +182,7 @@
   align-self: stretch;       /* Fill full grid height */
   justify-content: center;   /* Center content vertically */
   gap: 2px;
-  min-width: 0;
+  min-width: 0;              /* Prevent grid blowout — lets grid enforce column widths */
   min-height: 0;
   padding: 8px 0;
 }
@@ -192,7 +192,7 @@
   justify-content: flex-end;
   align-items: center;
   gap: 4px;
-  width: min(100%, 70vh);
+  width: min(100%, 70vh, calc(100vh - 300px));
   padding: 0 0 4px;
   margin: 0 auto;
   opacity: 0.6;
@@ -204,7 +204,7 @@
 }
 
 .gc-board-wrapper {
-  width: min(100%, 70vh);     /* Board = min(column width, 70% viewport height) */
+  width: min(100%, 70vh, calc(100vh - 300px));  /* Board = min(column, 70vh, room for bars) */
   aspect-ratio: 1;           /* Keep it square */
   margin: 0 auto;
   background: #1e1e1e;
@@ -219,7 +219,7 @@
 .gc-action-bar {
   display: flex;
   gap: 8px;
-  width: min(100%, 70vh);
+  width: min(100%, 70vh, calc(100vh - 300px));
   margin: 0 auto;
   padding: 10px 0 0;
   justify-content: center;
@@ -318,6 +318,7 @@
   overflow: hidden;
   align-self: center;
   max-height: min(70vh, 480px);
+  min-width: 0;              /* Prevent grid blowout */
 }
 
 .gc-tabs {
@@ -474,7 +475,7 @@
   gap: 10px;
   padding: 6px 10px;
   border-radius: 8px;
-  width: min(100%, 70vh);    /* Match board width */
+  width: min(100%, 70vh, calc(100vh - 300px));  /* Match board width, height-aware */
   transition: all 0.3s ease;
   border: 2px solid transparent;
   flex-shrink: 0;            /* Prevent player bar from being compressed */
@@ -835,7 +836,7 @@
   }
 
   .gc-board-wrapper {
-    width: min(100%, 90vh);
+    width: min(100%, 90vh, calc(100vh - 160px));
     padding: 2px;
     border-radius: 6px;
   }
@@ -847,7 +848,7 @@
     font-size: 11px;
   }
 
-  .gc-toolbar { padding: 0; width: min(100%, 90vh); }
+  .gc-toolbar { padding: 0; width: min(100%, 90vh, calc(100vh - 160px)); }
 
   .apb {
     padding: 2px 4px;
@@ -864,7 +865,7 @@
   .apb-captures { display: none; }
   .apb-rating { display: none; }
 
-  .gc-action-bar { padding: 2px 0 0; gap: 4px; width: min(100%, 90vh); }
+  .gc-action-bar { padding: 2px 0 0; gap: 4px; width: min(100%, 90vh, calc(100vh - 160px)); }
   .gc-action-btn { padding: 3px 6px; font-size: 9px; }
 }
 

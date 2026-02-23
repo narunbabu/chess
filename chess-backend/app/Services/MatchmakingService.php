@@ -26,6 +26,20 @@ class MatchmakingService
      */
     public function joinQueue(User $user, array $preferences = []): MatchmakingEntry
     {
+        // If a MatchmakingEntry was created during the smart-match phase and was
+        // already queue-matched by another user's findHumanMatch() poll, return it
+        // so the frontend navigates to the game immediately instead of starting a
+        // fresh search that would cancel the matched entry.
+        $alreadyMatched = MatchmakingEntry::where('user_id', $user->id)
+            ->where('status', 'matched')
+            ->whereNotNull('game_id')
+            ->latest('matched_at')
+            ->first();
+
+        if ($alreadyMatched) {
+            return $alreadyMatched->load(['matchedUser', 'game']);
+        }
+
         // Cancel any existing searching entries for this user
         MatchmakingEntry::where('user_id', $user->id)
             ->where('status', 'searching')
@@ -263,6 +277,25 @@ class MatchmakingService
             'expires_at' => $expiresAt,
         ]);
 
+        // Add the requesting user to matchmaking_entries so traditional queue
+        // users running findHumanMatch() can discover and match with them.
+        // Uses the same 15-second window as the smart-match phase.
+        MatchmakingEntry::where('user_id', $user->id)
+            ->where('status', 'searching')
+            ->update(['status' => 'cancelled']);
+
+        MatchmakingEntry::create([
+            'user_id'              => $user->id,
+            'rating'               => $user->rating ?? 1200,
+            'rating_range'         => 200,
+            'status'               => 'searching',
+            'queued_at'            => now(),
+            'expires_at'           => $expiresAt,
+            'preferred_color'      => $prefs['preferred_color'] ?? 'random',
+            'time_control_minutes' => $prefs['time_control_minutes'] ?? 10,
+            'increment_seconds'    => $prefs['increment_seconds'] ?? 0,
+        ]);
+
         $userRating = $user->rating ?? 1200;
 
         // IDs of users currently in an active human-vs-human game with recent activity.
@@ -301,6 +334,19 @@ class MatchmakingService
             ->pluck('user_id')
             ->toArray();
 
+        // Also include users currently searching in the traditional queue — they
+        // are guaranteed to be online and actively looking for a game, so they
+        // are valid smart-match candidates even when user_presence is sparse.
+        $queueUserIds = MatchmakingEntry::where('status', 'searching')
+            ->where('user_id', '!=', $user->id)
+            ->where('expires_at', '>=', now())
+            ->pluck('user_id')
+            ->toArray();
+
+        if (!empty($queueUserIds)) {
+            $activeUserIds = array_unique(array_merge($activeUserIds, $queueUserIds));
+        }
+
         // Find suitable online players: within rating range, not in active game
         $candidates = User::where('id', '!=', $user->id)
             ->whereIn('id', $activeUserIds)
@@ -337,6 +383,14 @@ class MatchmakingService
         }
 
         // Create target rows and broadcast to each
+        Log::info('[MM:TRACE] broadcasting MatchRequestReceived to candidates', [
+            'requester_id'  => $user->id,
+            'match_request_token' => $matchRequest->token,
+            'candidate_count' => $candidates->count(),
+            'candidate_ids' => $candidates->pluck('id')->toArray(),
+            'channel_prefix' => 'private-App.Models.User.{id}',
+        ]);
+
         foreach ($candidates as $candidate) {
             MatchRequestTarget::create([
                 'match_request_id' => $matchRequest->id,
@@ -345,9 +399,14 @@ class MatchmakingService
             ]);
 
             try {
+                Log::info('[MM:TRACE] broadcasting to candidate', [
+                    'target_user_id' => $candidate->id,
+                    'channel' => 'private-App.Models.User.' . $candidate->id,
+                ]);
                 broadcast(new MatchRequestReceived($matchRequest, $candidate->id));
+                Log::info('[MM:TRACE] broadcast sent OK', ['target_user_id' => $candidate->id]);
             } catch (\Throwable $e) {
-                Log::warning('MatchmakingService: broadcast MatchRequestReceived failed', [
+                Log::warning('[MM:TRACE] broadcast MatchRequestReceived FAILED', [
                     'target_user_id' => $candidate->id,
                     'error' => $e->getMessage(),
                 ]);
@@ -356,6 +415,9 @@ class MatchmakingService
 
         // If no targets found, immediately expire
         if ($candidates->isEmpty()) {
+            Log::warning('[MM:TRACE] no candidates — expiring match request immediately', [
+                'requester_id' => $user->id,
+            ]);
             $matchRequest->update(['status' => 'expired']);
         }
 
@@ -427,10 +489,17 @@ class MatchmakingService
                 ->update(['status' => 'expired', 'responded_at' => now()]);
 
             // Broadcast accepted to requester
+            Log::info('[MM:TRACE] broadcasting MatchRequestAccepted to requester', [
+                'requester_id' => $matchRequest->requester_id,
+                'acceptor_id'  => $acceptor->id,
+                'game_id'      => $game->id,
+                'channel'      => 'private-App.Models.User.' . $matchRequest->requester_id,
+            ]);
             try {
                 broadcast(new MatchRequestAccepted($matchRequest->fresh(), $game));
+                Log::info('[MM:TRACE] MatchRequestAccepted broadcast OK', ['game_id' => $game->id]);
             } catch (\Throwable $e) {
-                Log::warning('MatchmakingService: broadcast MatchRequestAccepted failed', [
+                Log::warning('[MM:TRACE] broadcast MatchRequestAccepted FAILED', [
                     'requester_id' => $matchRequest->requester_id,
                     'error' => $e->getMessage(),
                 ]);

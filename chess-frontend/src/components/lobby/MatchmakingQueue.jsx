@@ -9,14 +9,14 @@ const TOTAL_SEARCH_SECONDS = 30;
 const POLL_INTERVAL_MS = 2000;
 
 const TIME_PRESETS = [
-  { minutes: 3, increment: 0, label: '3 min', category: 'Blitz' },
+  { minutes: 3, increment: 1, label: '3|1', category: 'Blitz' },
   { minutes: 3, increment: 2, label: '3|2', category: 'Blitz' },
-  { minutes: 5, increment: 0, label: '5 min', category: 'Blitz' },
+  { minutes: 5, increment: 2, label: '5|2', category: 'Blitz' },
   { minutes: 5, increment: 3, label: '5|3', category: 'Blitz' },
   { minutes: 10, increment: 0, label: '10 min', category: 'Rapid' },
   { minutes: 10, increment: 5, label: '10|5', category: 'Rapid' },
   { minutes: 15, increment: 10, label: '15|10', category: 'Rapid' },
-  { minutes: 30, increment: 0, label: '30 min', category: 'Classical' },
+  { minutes: 30, increment: 10, label: '30|10', category: 'Classical' },
 ];
 
 /**
@@ -43,7 +43,7 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
   // Pre-search preferences
   const [preferredColor, setPreferredColor] = useState('random');
   const [timeControl, setTimeControl] = useState(10);
-  const [increment, setIncrement] = useState(0);
+  const [increment, setIncrement] = useState(5);
 
   const cleanup = useCallback(() => {
     if (pollRef.current) clearInterval(pollRef.current);

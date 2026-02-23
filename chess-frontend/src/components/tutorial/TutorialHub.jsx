@@ -533,19 +533,28 @@ const TutorialHub = () => {
         {/* Tier Filter */}
         <div className="flex justify-center mb-8">
           <div className="flex space-x-2 bg-[#262421] rounded-xl p-2 shadow-md border-2 border-[#3d3a37]">
-            {['beginner', 'intermediate', 'advanced'].map((tier) => (
-              <button
-                key={tier}
-                onClick={() => setSelectedTier(tier)}
-                className={`px-6 py-3 rounded-lg font-bold transition-all ${
-                  selectedTier === tier
-                    ? 'bg-[#81b64c] shadow-lg text-white transform scale-105'
-                    : 'text-[#bababa] hover:text-white hover:bg-[#3d3a37]'
-                }`}
-              >
-                {getTierName(tier)}
-              </button>
-            ))}
+            {['beginner', 'intermediate', 'advanced'].map((tier) => {
+              const isActive = selectedTier === tier;
+              const tierStyles = {
+                beginner:     { bg: '#2a4a1e', border: '#81b64c', text: '#a3d160' },
+                intermediate: { bg: '#1e3a5a', border: '#4a90d9', text: '#6db3f8' },
+                advanced:     { bg: '#3a1e5a', border: '#9b59b6', text: '#c084fc' },
+              };
+              const ts = tierStyles[tier];
+              return (
+                <button
+                  key={tier}
+                  onClick={() => setSelectedTier(tier)}
+                  className="px-6 py-3 rounded-lg font-bold transition-all"
+                  style={isActive
+                    ? { background: '#81b64c', color: '#fff', boxShadow: '0 4px 12px rgba(129,182,76,0.3)', transform: 'scale(1.05)' }
+                    : { background: ts.bg, color: ts.text, border: `1px solid ${ts.border}40` }
+                  }
+                >
+                  {getTierName(tier)}
+                </button>
+              );
+            })}
           </div>
         </div>
 
