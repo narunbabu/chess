@@ -109,10 +109,15 @@ class User extends Authenticatable implements MustVerifyEmail
         if ($value) {
             // Check if it's a local storage path (e.g., 'avatars/123_1234567890.jpg')
             if (str_starts_with($value, 'avatars/')) {
-                // Return full URL to storage
-                return asset('storage/' . $value);
+                // Use /api/avatars/ route which serves files directly from storage
+                // (avoids dependency on storage:link symlink and Nginx config)
+                return url('/api/avatars/' . basename($value));
             }
-            // Otherwise, return as-is (for external URLs or backward compatibility)
+            // Convert old /storage/ URLs to /api/avatars/ route
+            if (str_contains($value, '/storage/avatars/')) {
+                return url('/api/avatars/' . basename($value));
+            }
+            // Otherwise, return as-is (for external URLs like DiceBear, Google, etc.)
             return $value;
         }
 
