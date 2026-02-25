@@ -616,7 +616,6 @@ const Header = () => {
         <MatchmakingQueue
           isOpen={showMatchmaking}
           onClose={() => setShowMatchmaking(false)}
-          autoStart={true}
         />
       )}
     </>

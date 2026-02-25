@@ -455,7 +455,6 @@ const Dashboard = () => {
       <MatchmakingQueue
         isOpen={showMatchmaking}
         onClose={() => setShowMatchmaking(false)}
-        autoStart={true}
       />
 
       <div className="dashboard-container">

@@ -120,7 +120,7 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
                     preferredColor: preferredColor === 'random'
                       ? (Math.random() < 0.5 ? 'white' : 'black')
                       : preferredColor,
-                    ratedMode: 'casual', // AI games never affect leaderboard
+                    ratedMode: gameMode, // Respect user's rated/casual selection
                     timeControl,
                     increment,
                   },
