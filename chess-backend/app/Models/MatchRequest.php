@@ -15,6 +15,7 @@ class MatchRequest extends Model
         'preferred_color',
         'time_control_minutes',
         'increment_seconds',
+        'game_mode',
         'game_id',
         'accepted_by_user_id',
         'expires_at',

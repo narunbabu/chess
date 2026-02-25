@@ -746,6 +746,47 @@ class WebSocketController extends Controller
     }
 
     /**
+     * Claim timeout win when opponent's clock expires.
+     * Unlike forfeitGame, this correctly identifies the timed-out player.
+     */
+    public function claimTimeout(Request $request, int $gameId): JsonResponse
+    {
+        $request->validate([
+            'timed_out_color' => 'required|in:white,black'
+        ]);
+
+        try {
+            $result = $this->gameRoomService->claimTimeout(
+                $gameId,
+                Auth::id(),
+                $request->input('timed_out_color')
+            );
+
+            Log::info('Timeout claimed', [
+                'user_id' => Auth::id(),
+                'game_id' => $gameId,
+                'timed_out_color' => $request->input('timed_out_color'),
+                'result' => $result['result'] ?? null,
+                'winner' => $result['winner'] ?? null
+            ]);
+
+            return response()->json($result);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to claim timeout', [
+                'user_id' => Auth::id(),
+                'game_id' => $gameId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to claim timeout',
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
      * Handle mutual abort request
      */
     public function requestAbort(Request $request, int $gameId): JsonResponse

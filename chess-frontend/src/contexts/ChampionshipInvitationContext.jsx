@@ -271,11 +271,11 @@ export const ChampionshipInvitationProvider = ({ children }) => {
               break;
             case 'imminent':
               notificationTitle = 'Match Starting Now';
-              notificationBody = 'Your scheduled match is starting! Join immediately or risk forfeit.';
+              notificationBody = 'Your scheduled match is starting! Join immediately or you will lose.';
               break;
             case 'expired':
               notificationTitle = 'Match Deadline Passed';
-              notificationBody = 'The scheduled time has passed. Join quickly to avoid forfeit.';
+              notificationBody = 'The scheduled time has passed. Join quickly or you will lose.';
               break;
           }
 

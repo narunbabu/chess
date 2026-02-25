@@ -126,7 +126,19 @@ const PlayerBar = ({ name, rating, avatarUrl, isWhite, isTop, time, score }) => 
 const ResultBadge = ({ result, gameHistory }) => {
   const playerWon = isWin(result);
   const drawResult = isDraw(result);
-  const endReason = typeof result === 'object' ? (result?.end_reason || result?.details || '') : '';
+  const rawEndReason = typeof result === 'object' ? (result?.end_reason || result?.details || '') : '';
+  const endReasonMap = {
+    'checkmate': 'Checkmate',
+    'resignation': 'Resignation',
+    'timeout': 'Time out',
+    'forfeit': 'Resignation',
+    'stalemate': 'Stalemate',
+    'insufficient_material': 'Insufficient material',
+    'threefold_repetition': 'Threefold repetition',
+    'fifty_move_rule': 'Fifty move rule',
+    'agreement': 'Mutual agreement',
+  };
+  const endReason = endReasonMap[rawEndReason] || rawEndReason;
   const resultText = playerWon ? 'Victory' : drawResult ? 'Draw' : 'Defeat';
   const bgColor = playerWon ? 'bg-[#81b64c]' : drawResult ? 'bg-[#e8a93e]' : 'bg-[#c33a3a]';
   const icon = playerWon ? '🏆' : drawResult ? '🤝' : '💔';

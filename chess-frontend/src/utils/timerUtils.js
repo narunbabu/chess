@@ -51,6 +51,10 @@ export const useMultiplayerTimer = ({
     lastServerTurnRef.current = serverTurn;
   }, [serverTurn, myColor, incrementMs]);
 
+  // Track isRated in a ref so changes don't kill the interval
+  const isRatedRef = useRef(isRated);
+  useEffect(() => { isRatedRef.current = isRated; }, [isRated]);
+
   // ── Core countdown with Date.now() anchoring ──
   useEffect(() => {
     // Stop timer when game is finished (both casual and rated)
@@ -59,16 +63,14 @@ export const useMultiplayerTimer = ({
       return;
     }
 
-    // Casual games: also stop when paused
-    if (!isRated && gameStatus === 'paused') {
+    // Casual games: also stop when paused (use ref so isRated changes don't kill timer)
+    if (!isRatedRef.current && gameStatus === 'paused') {
       if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
       return;
     }
 
-    const turnChanged = currentTurnRef.current.serverTurn !== serverTurn ||
-                       currentTurnRef.current.myColor !== myColor;
-
-    if (gameStatus === 'active' && serverTurn && turnChanged) {
+    // Always restart timer when game is active and we know the turn
+    if (gameStatus === 'active' && serverTurn) {
       currentTurnRef.current = { serverTurn, myColor };
 
       if (timerRef.current) clearInterval(timerRef.current);
@@ -107,7 +109,7 @@ export const useMultiplayerTimer = ({
     }
 
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [gameStatus, serverTurn, myColor, isRated]);
+  }, [gameStatus, serverTurn, myColor]);
 
   // ── Visibility catch-up (Feature 2) ──
   // When the tab becomes visible after being hidden, the interval may not

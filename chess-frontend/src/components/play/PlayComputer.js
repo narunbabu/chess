@@ -643,7 +643,7 @@ const PlayComputer = () => {
 
             // Show warning message
             event.preventDefault();
-            event.returnValue = '⚠️ RATED GAME FORFEITED!\n\nYou have forfeited this rated game by closing/leaving.\nThis counts as a LOSS and will affect your rating.';
+            event.returnValue = '⚠️ RATED GAME — YOU WILL LOSE!\n\nLeaving this rated game counts as a LOSS and will lower your rating.';
             return event.returnValue;
           }
 

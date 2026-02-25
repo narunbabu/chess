@@ -49,6 +49,23 @@ learn-laravel.zip
 chess-frontend/fix-js-files.ps1
 chess-frontend/fix-js-files.sh
 
+# Android build artifacts and local config
+chess99-android/.gradle/
+chess99-android/local.properties
+chess99-android/app/google-services.json
+
+# Debug/test scripts
+chess-backend/diag.php
+chess-backend/schema_check.php
+chess-backend/test_mm*.php
+
+# Generated reports
+chess-frontend/playwright-report/
+
+# Misc
+error.log
+images/
+
 # OS generated files
 .DS_Store
 ehthumbs.db

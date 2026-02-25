@@ -1371,6 +1371,41 @@ class WebSocketGameService {
   }
 
   /**
+   * Claim timeout win when opponent's clock expires
+   * Unlike forfeitGame (which forfeits the caller), this correctly
+   * identifies which player timed out.
+   */
+  async claimTimeout(timedOutColor) {
+    if (!this.gameId || !this.user) {
+      throw new Error('Game ID or user not set');
+    }
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${BACKEND_URL}/websocket/games/${this.gameId}/claim-timeout`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ timed_out_color: timedOutColor })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to claim timeout');
+      }
+
+      console.log('✅ Timeout claim successful:', data);
+      return data;
+    } catch (error) {
+      console.error('❌ Failed to claim timeout:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Offer a draw to the opponent
    */
   async offerDraw() {

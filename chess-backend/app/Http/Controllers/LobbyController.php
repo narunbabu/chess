@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Game;
+use App\Models\GameStatus;
 use App\Models\SyntheticPlayer;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -20,12 +22,36 @@ class LobbyController extends Controller
 
         // Get real online users (users active within last 5 minutes)
         $onlineThreshold = now()->subMinutes(5);
+
+        // Find users currently in active games (busy — should show "Playing" status)
+        $activeStatusId = GameStatus::where('code', 'active')->value('id');
+        $busyUserIds = [];
+        if ($activeStatusId) {
+            $thirtyMinAgo = now()->subMinutes(30);
+            $whiteIds = Game::where('status_id', $activeStatusId)
+                ->where(function ($q) use ($thirtyMinAgo) {
+                    $q->where('last_move_at', '>=', $thirtyMinAgo)
+                      ->orWhere('created_at', '>=', $thirtyMinAgo);
+                })
+                ->whereNotNull('white_player_id')
+                ->pluck('white_player_id');
+            $blackIds = Game::where('status_id', $activeStatusId)
+                ->where(function ($q) use ($thirtyMinAgo) {
+                    $q->where('last_move_at', '>=', $thirtyMinAgo)
+                      ->orWhere('created_at', '>=', $thirtyMinAgo);
+                })
+                ->whereNotNull('black_player_id')
+                ->pluck('black_player_id');
+            $busyUserIds = $whiteIds->merge($blackIds)->unique()->toArray();
+        }
+
         $realPlayers = User::where('id', '!=', $user->id)
             ->where('last_activity_at', '>=', $onlineThreshold)
             ->orderBy('rating', 'desc')
             ->limit(50)
             ->get(['id', 'name', 'email', 'avatar_url', 'rating'])
-            ->map(function ($player) {
+            ->map(function ($player) use ($busyUserIds) {
+                $inGame = in_array($player->id, $busyUserIds);
                 return [
                     'id' => $player->id,
                     'name' => $player->name,
@@ -34,6 +60,8 @@ class LobbyController extends Controller
                     'avatar_url' => $player->avatar_url,
                     'type' => 'human',
                     'is_online' => true,
+                    'in_game' => $inGame,
+                    'status' => $inGame ? 'playing' : 'online',
                 ];
             });
 

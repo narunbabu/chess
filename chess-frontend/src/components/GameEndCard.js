@@ -173,7 +173,15 @@ const GameEndCard = React.forwardRef(({
 
     let resultText;
     if (isDraw) {
-      resultText = `${userPlayer.name} and ${opponentPlayer.name} drew by ${result.end_reason}`;
+      const drawReasonMap = {
+        'stalemate': 'stalemate',
+        'insufficient_material': 'insufficient material',
+        'threefold_repetition': 'threefold repetition',
+        'fifty_move_rule': 'fifty move rule',
+        'agreement': 'mutual agreement',
+      };
+      const drawReason = drawReasonMap[result.end_reason] || result.end_reason || 'agreement';
+      resultText = `${userPlayer.name} and ${opponentPlayer.name} drew by ${drawReason}`;
     } else {
       // Determine winner and loser names
       let winnerName, loserName;
@@ -198,7 +206,22 @@ const GameEndCard = React.forwardRef(({
         winnerName = isPlayerWin ? userPlayer.name : opponentPlayer.name;
         loserName = isPlayerWin ? opponentPlayer.name : userPlayer.name;
       }
-      const reasonText = result.end_reason || result.result?.details || 'game completion';
+      const rawReason = result.end_reason || result.result?.details || 'game completion';
+      // Map technical end_reason to user-friendly text
+      const reasonMap = {
+        'checkmate': 'checkmate',
+        'resignation': 'resignation',
+        'timeout': 'time out',
+        'forfeit': 'resignation',
+        'stalemate': 'stalemate',
+        'insufficient_material': 'insufficient material',
+        'threefold_repetition': 'threefold repetition',
+        'fifty_move_rule': 'fifty move rule',
+        'agreement': 'mutual agreement',
+        'aborted': 'game aborted',
+        'killed': 'game ended',
+      };
+      const reasonText = reasonMap[rawReason] || rawReason;
       // Clear, straightforward statement using both names
       resultText = `${winnerName} defeated ${loserName} by ${reasonText}`;
     }

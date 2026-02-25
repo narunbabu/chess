@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Invitation;
 use App\Models\Game;
+use App\Models\GameStatus;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -51,6 +52,29 @@ class InvitationController extends Controller
                 'user_id' => $inviterId
             ]);
             return response()->json(['error' => 'Cannot invite yourself'], 400);
+        }
+
+        // Check if invited player is currently in an active game
+        $activeStatusId = GameStatus::where('code', 'active')->value('id');
+        if ($activeStatusId) {
+            $thirtyMinAgo = now()->subMinutes(30);
+            $isInGame = Game::where('status_id', $activeStatusId)
+                ->where(function ($q) use ($thirtyMinAgo) {
+                    $q->where('last_move_at', '>=', $thirtyMinAgo)
+                      ->orWhere('created_at', '>=', $thirtyMinAgo);
+                })
+                ->where(function ($q) use ($invitedId) {
+                    $q->where('white_player_id', $invitedId)
+                      ->orWhere('black_player_id', $invitedId);
+                })
+                ->exists();
+
+            if ($isInGame) {
+                return response()->json([
+                    'error' => 'Player is currently in a game',
+                    'code' => 'player_busy'
+                ], 409);
+            }
         }
 
         // Check for existing pending invitation and replace it

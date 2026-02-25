@@ -43,6 +43,7 @@ class MatchRequestReceived implements ShouldBroadcastNow
                 ],
                 'time_control_minutes' => $this->matchRequest->time_control_minutes,
                 'increment_seconds' => $this->matchRequest->increment_seconds,
+                'game_mode' => $this->matchRequest->game_mode ?? 'rated',
                 'expires_at' => $this->matchRequest->expires_at->toISOString(),
             ],
         ];

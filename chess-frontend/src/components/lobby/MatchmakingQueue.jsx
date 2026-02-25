@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import matchmakingService from '../../services/matchmakingService';
+import { getPreferredGameMode, setPreferredGameMode } from '../../utils/gamePreferences';
 import '../../styles/UnifiedCards.css';
 
 const QUEUE_TIMEOUT_SECONDS = 15;
@@ -44,6 +45,7 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
   const [preferredColor, setPreferredColor] = useState('random');
   const [timeControl, setTimeControl] = useState(10);
   const [increment, setIncrement] = useState(5);
+  const [gameMode, setGameMode] = useState(() => getPreferredGameMode());
 
   const cleanup = useCallback(() => {
     if (pollRef.current) clearInterval(pollRef.current);
@@ -86,6 +88,7 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
         preferred_color: preferredColor,
         time_control_minutes: timeControl,
         increment_seconds: increment,
+        game_mode: gameMode,
       });
       const id = data.entry.id;
       setEntryId(id);
@@ -141,7 +144,7 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
       console.error('[Matchmaking] Failed to join queue:', err);
       setStatus('error');
     }
-  }, [preferredColor, timeControl, increment, cleanup, navigate]);
+  }, [preferredColor, timeControl, increment, gameMode, cleanup, navigate]);
 
   // Start smart matchmaking: try findPlayers first, then fall back
   const startSearch = useCallback(async () => {
@@ -161,6 +164,7 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
         preferred_color: preferredColor,
         time_control_minutes: timeControl,
         increment_seconds: increment,
+        game_mode: gameMode,
       });
 
       const targetsCount = data.match_request?.targets_count || 0;
@@ -199,7 +203,7 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
       // Fall back to queue on error
       fallbackToQueue();
     }
-  }, [preferredColor, timeControl, increment, cleanup, fallbackToQueue]);
+  }, [preferredColor, timeControl, increment, gameMode, cleanup, fallbackToQueue]);
 
   // Listen for matchRequestAccepted DOM event (from GlobalInvitationContext)
   useEffect(() => {
@@ -319,6 +323,46 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
               ))}
             </div>
 
+            {/* Game Mode */}
+            <div style={{ marginBottom: '16px', textAlign: 'left' }}>
+              <p style={{ marginBottom: '8px', fontWeight: 'bold', color: '#bababa', fontSize: '14px' }}>Game Mode:</p>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {[
+                  { value: 'rated', label: 'Rated', desc: 'Rating changes' },
+                  { value: 'casual', label: 'Casual', desc: 'No rating change' },
+                ].map(opt => {
+                  const isSelected = gameMode === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      onClick={() => {
+                        setGameMode(opt.value);
+                        setPreferredGameMode(opt.value);
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '10px 8px',
+                        borderRadius: '8px',
+                        border: `2px solid ${isSelected ? (opt.value === 'rated' ? '#e8a735' : '#81b64c') : '#4a4744'}`,
+                        backgroundColor: isSelected
+                          ? (opt.value === 'rated' ? 'rgba(232, 167, 53, 0.2)' : 'rgba(129, 182, 76, 0.2)')
+                          : 'transparent',
+                        color: isSelected ? (opt.value === 'rated' ? '#e8a735' : '#81b64c') : '#bababa',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        fontWeight: isSelected ? 'bold' : 'normal',
+                        transition: 'all 0.15s ease',
+                        textAlign: 'center',
+                      }}
+                    >
+                      <div>{opt.value === 'rated' ? '⭐' : '📋'} {opt.label}</div>
+                      <div style={{ fontSize: '11px', opacity: 0.7, marginTop: '2px' }}>{opt.desc}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Color Preference */}
             <div style={{ marginBottom: '20px', textAlign: 'left' }}>
               <p style={{ marginBottom: '8px', fontWeight: 'bold', color: '#bababa', fontSize: '14px' }}>Color Preference:</p>
@@ -390,7 +434,7 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
             </div>
             <h2 className="matchmaking-title">Looking for an opponent...</h2>
             <p className="matchmaking-subtitle">
-              {timeControl}+{increment} &bull; {preferredColor === 'random' ? 'Any color' : preferredColor.charAt(0).toUpperCase() + preferredColor.slice(1)}
+              {timeControl}+{increment} &bull; {gameMode === 'rated' ? '⭐ Rated' : 'Casual'} &bull; {preferredColor === 'random' ? 'Any color' : preferredColor.charAt(0).toUpperCase() + preferredColor.slice(1)}
             </p>
 
             <div className="matchmaking-progress-bar">

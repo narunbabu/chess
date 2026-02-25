@@ -43,8 +43,8 @@ const GameControls = ({
       const confirmed = window.confirm(
         '⚠️ RATED GAME WARNING\n\n' +
         'You cannot pause a rated game!\n\n' +
-        'If you pause or exit, you will FORFEIT this game and it will count as a LOSS.\n\n' +
-        'Do you want to resign and forfeit this game?'
+        'If you leave, you will LOSE this game and your rating will go down.\n\n' +
+        'Do you want to resign this game?'
       );
 
       if (confirmed && handleResign) {
@@ -82,7 +82,7 @@ const GameControls = ({
           </div>
           {!isMobile && (
             <p style={{ margin: '8px 0 0 0', fontSize: '14px', color: '#bababa' }}>
-              You cannot pause or exit this game. Closing the browser or leaving will result in automatic forfeiture and count as a LOSS.
+              You cannot pause or exit this game. Closing the browser or leaving will count as a LOSS and lower your rating.
             </p>
           )}
         </div>

@@ -6,6 +6,7 @@ use App\Events\GameConnectionEvent;
 use App\Events\GameEndedEvent;
 use App\Models\Game;
 use App\Models\GameConnection;
+use App\Models\GameHistory;
 use App\Models\User;
 use App\Services\ChessRulesService;
 use Illuminate\Support\Facades\Auth;
@@ -872,6 +873,9 @@ class GameRoomService
             $championshipMatch->markAsCompleted($winnerId, $resultType);
         }
 
+        // Create game_history records for both players (server-side backup)
+        $this->createGameHistoryRecords($game, $attrs);
+
         // Broadcast game ended event
         Log::info('Broadcasting GameEndedEvent', [
             'game_id' => $game->id,
@@ -881,6 +885,98 @@ class GameRoomService
         ]);
 
         $this->broadcastGameEnded($game);
+    }
+
+    /**
+     * Create game_history records for both players when a game ends.
+     * This is the server-side backup — the frontend also saves, but this
+     * ensures history is recorded even when the frontend call fails (500, offline, etc.).
+     */
+    private function createGameHistoryRecords(Game $game, array $attrs): void
+    {
+        try {
+            // Only create for multiplayer games with real players
+            if (!$game->white_player_id || !$game->black_player_id) {
+                return;
+            }
+
+            // Convert moves array to compact string format: "san,time;san,time;..."
+            $movesCompact = '';
+            $moves = $game->moves;
+            if (is_array($moves) && count($moves) > 0) {
+                $parts = [];
+                foreach ($moves as $move) {
+                    $san = $move['san'] ?? $move['move'] ?? '';
+                    $time = isset($move['move_time_ms'])
+                        ? number_format($move['move_time_ms'] / 1000, 2, '.', '')
+                        : (isset($move['timeSpent']) ? number_format($move['timeSpent'], 2, '.', '') : '0.00');
+                    if ($san) {
+                        $parts[] = "{$san},{$time}";
+                    }
+                }
+                $movesCompact = implode(';', $parts);
+            }
+
+            // Build result JSON
+            $resultJson = json_encode([
+                'status' => ($attrs['winner_user_id'] ?? null) ? 'ended' : 'draw',
+                'end_reason' => $attrs['end_reason'] ?? 'unknown',
+                'details' => 'Game ended by ' . ($attrs['end_reason'] ?? 'unknown'),
+            ]);
+
+            $whitePlayer = $game->whitePlayer;
+            $blackPlayer = $game->blackPlayer;
+
+            // Create record for white player (skip if already exists for this game)
+            if (!GameHistory::where('user_id', $game->white_player_id)->where('game_id', $game->id)->exists()) {
+                GameHistory::create([
+                    'user_id' => $game->white_player_id,
+                    'game_id' => $game->id,
+                    'played_at' => $game->created_at ?? now(),
+                    'player_color' => 'w',
+                    'computer_level' => 0,
+                    'moves' => $movesCompact ?: null,
+                    'final_score' => $game->white_player_score ?? 0,
+                    'opponent_score' => $game->black_player_score ?? 0,
+                    'result' => $resultJson,
+                    'opponent_name' => $blackPlayer->name ?? 'Unknown',
+                    'opponent_avatar_url' => $blackPlayer->avatar_url ?? null,
+                    'opponent_rating' => $blackPlayer->rating ?? null,
+                    'game_mode' => 'multiplayer',
+                ]);
+            }
+
+            // Create record for black player (skip if already exists for this game)
+            if (!GameHistory::where('user_id', $game->black_player_id)->where('game_id', $game->id)->exists()) {
+                GameHistory::create([
+                    'user_id' => $game->black_player_id,
+                    'game_id' => $game->id,
+                    'played_at' => $game->created_at ?? now(),
+                    'player_color' => 'b',
+                    'computer_level' => 0,
+                    'moves' => $movesCompact ?: null,
+                    'final_score' => $game->black_player_score ?? 0,
+                    'opponent_score' => $game->white_player_score ?? 0,
+                    'result' => $resultJson,
+                    'opponent_name' => $whitePlayer->name ?? 'Unknown',
+                    'opponent_avatar_url' => $whitePlayer->avatar_url ?? null,
+                    'opponent_rating' => $whitePlayer->rating ?? null,
+                    'game_mode' => 'multiplayer',
+                ]);
+            }
+
+            Log::info('Created server-side game_history records', [
+                'game_id' => $game->id,
+                'white_player_id' => $game->white_player_id,
+                'black_player_id' => $game->black_player_id,
+            ]);
+        } catch (\Exception $e) {
+            // Non-fatal: log error but don't fail the game finalization
+            Log::error('Failed to create server-side game_history records', [
+                'game_id' => $game->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**
@@ -942,7 +1038,7 @@ class GameRoomService
             throw new \Exception('Game is already finished');
         }
 
-        if ($game->status !== 'active') {
+        if (!in_array($game->status, ['active', 'paused'])) {
             throw new \Exception('Game is not active, current status: ' . $game->status);
         }
 
@@ -1009,6 +1105,57 @@ class GameRoomService
             return [
                 'success' => true,
                 'message' => $endReason === 'timeout' ? 'Game ended by timeout' : 'Game forfeited',
+                'result' => $result,
+                'winner' => $winnerColor
+            ];
+        });
+    }
+
+    /**
+     * Claim timeout win when opponent's clock expires.
+     * The claiming user must be the opponent of the timed-out color.
+     */
+    public function claimTimeout(int $gameId, int $claimingUserId, string $timedOutColor): array
+    {
+        return \DB::transaction(function () use ($gameId, $claimingUserId, $timedOutColor) {
+            $game = Game::lockForUpdate()->findOrFail($gameId);
+            $user = User::findOrFail($claimingUserId);
+
+            if (!$this->canUserJoinGame($user, $game)) {
+                throw new \Exception('User not authorized for this game');
+            }
+
+            if ($game->isFinished()) {
+                throw new \Exception('Game is already finished');
+            }
+
+            // Validate: claimer must be the OPPONENT of the timed-out color
+            $claimerColor = $this->getUserRole($user, $game);
+            if ($claimerColor === $timedOutColor) {
+                throw new \Exception('Cannot claim timeout on yourself');
+            }
+
+            // The timed-out color loses
+            $result = ($timedOutColor === 'white') ? '0-1' : '1-0';
+            $winnerUserId = ($timedOutColor === 'white')
+                ? $game->black_player_id
+                : $game->white_player_id;
+            $winnerColor = ($timedOutColor === 'white') ? 'black' : 'white';
+
+            $game->update([
+                'status' => 'finished',
+                'result' => $result,
+                'end_reason' => 'timeout',
+                'winner_user_id' => $winnerUserId,
+                'winner_player' => $winnerColor,
+                'ended_at' => now()
+            ]);
+
+            $this->broadcastGameEnded($game->fresh());
+
+            return [
+                'success' => true,
+                'message' => 'Game ended by timeout',
                 'result' => $result,
                 'winner' => $winnerColor
             ];

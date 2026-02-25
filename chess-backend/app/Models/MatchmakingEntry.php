@@ -23,6 +23,7 @@ class MatchmakingEntry extends Model
         'preferred_color',
         'time_control_minutes',
         'increment_seconds',
+        'game_mode',
     ];
 
     protected $casts = [

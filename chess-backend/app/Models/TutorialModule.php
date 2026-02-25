@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\SubscriptionTier;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -15,6 +16,7 @@ class TutorialModule extends Model
         'name',
         'slug',
         'skill_tier',
+        'required_tier',
         'description',
         'icon',
         'sort_order',
@@ -27,6 +29,7 @@ class TutorialModule extends Model
         'is_active' => 'boolean',
         'estimated_duration_minutes' => 'integer',
         'sort_order' => 'integer',
+        'required_tier' => SubscriptionTier::class,
     ];
 
     protected $appends = [
@@ -133,6 +136,18 @@ class TutorialModule extends Model
         }
 
         return $requirementModule->getUserProgress($userId)['is_completed'];
+    }
+
+    /**
+     * Check if module is accessible for user's subscription tier
+     */
+    public function isAccessibleForUser(User $user): bool
+    {
+        $requiredTier = $this->required_tier ?? SubscriptionTier::FREE;
+        if (is_string($requiredTier)) {
+            $requiredTier = SubscriptionTier::from($requiredTier);
+        }
+        return $user->hasSubscriptionTier($requiredTier);
     }
 
     /**

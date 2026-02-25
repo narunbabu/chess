@@ -270,44 +270,55 @@ const PlayMultiplayer = () => {
       status: 'finished'
     }));
 
-    // Call server to forfeit game due to timeout
+    // Build local result immediately (don't wait for server)
+    const isPlayerTimeout = who === 'player';
+    const winnerUserId = isPlayerTimeout
+      ? (gameData?.white_player_id === user?.id ? gameData?.black_player_id : gameData?.white_player_id)
+      : user?.id;
+
+    const localResultData = {
+      game_over: true,
+      result: isPlayerTimeout ? (myColor === 'w' ? '0-1' : '1-0') : (myColor === 'w' ? '1-0' : '0-1'),
+      end_reason: 'timeout',
+      winner_user_id: winnerUserId,
+      winner_player: isPlayerTimeout ? (myColor === 'w' ? 'black' : 'white') : (myColor === 'w' ? 'white' : 'black'),
+      fen_final: game.fen(),
+      move_count: game.history().length,
+      ended_at: new Date().toISOString(),
+      white_player: gameData?.white_player,
+      black_player: gameData?.black_player,
+      white_player_score: 0,
+      black_player_score: 0,
+      isPlayerWin: !isPlayerTimeout,
+      isPlayerDraw: false
+    };
+
+    // Show end card immediately so the game never looks stuck
+    setGameResult(localResultData);
+    setGameComplete(true);
+
+    // Notify server about the timeout (best-effort, game already shows result locally)
     try {
       if (wsService.current) {
-        console.log('[Timer] Sending forfeit request to server (timeout)...');
-        await wsService.current.forfeitGame('timeout');
-        console.log('[Timer] ✅ Forfeit request sent successfully');
-        // The gameEnd event from server will trigger handleGameEnd and show the modal
+        if (isPlayerTimeout) {
+          // I timed out → forfeit myself (correct behavior)
+          console.log('[Timer] Sending forfeit request to server (player timeout)...');
+          await wsService.current.forfeitGame('timeout');
+          console.log('[Timer] ✅ Forfeit request sent successfully');
+        } else {
+          // Opponent timed out → claim timeout win
+          console.log('[Timer] Sending timeout claim to server (opponent timeout)...');
+          await wsService.current.claimTimeout(myColor === 'w' ? 'black' : 'white');
+          console.log('[Timer] ✅ Timeout claim sent successfully');
+        }
       }
     } catch (error) {
-      console.error('[Timer] ❌ Failed to send forfeit request:', error);
-
-      // Fallback: Show end modal manually if server call fails
-      const isPlayerTimeout = who === 'player';
-      const winnerUserId = isPlayerTimeout
-        ? (gameData?.white_player_id === user?.id ? gameData?.black_player_id : gameData?.white_player_id)
-        : user?.id;
-
-      const resultData = {
-        game_over: true,
-        result: isPlayerTimeout ? (myColor === 'w' ? '0-1' : '1-0') : (myColor === 'w' ? '1-0' : '0-1'),
-        end_reason: 'timeout',
-        winner_user_id: winnerUserId,
-        winner_player: isPlayerTimeout ? (myColor === 'w' ? 'black' : 'white') : myColor === 'w' ? 'white' : 'black',
-        fen_final: game.fen(),
-        move_count: game.history().length,
-        ended_at: new Date().toISOString(),
-        white_player: gameData?.white_player, // ✅ Fixed: Use snake_case from backend
-        black_player: gameData?.black_player, // ✅ Fixed: Use snake_case from backend
-        white_player_score: 0, // Will be updated by backend
-        black_player_score: 0, // Will be updated by backend
-        isPlayerWin: !isPlayerTimeout,
-        isPlayerDraw: false
-      };
-
-      setGameResult(resultData);
-      setGameComplete(true);
+      console.error('[Timer] ❌ Failed to notify server of timeout:', error);
+      // End card is already showing from localResultData above, so this is non-fatal
     }
   }, [wsService, gameData, user, myColor, game]);
+
+
 
   // New simplified timer hook with calculated initial values and increment support
   const { myMs, oppMs, setMyMs, setOppMs } = useMultiplayerTimer({
@@ -1853,20 +1864,56 @@ const PlayMultiplayer = () => {
       return;
     }
 
-    const confirmed = window.confirm('Are you sure you want to resign?');
+    const confirmed = window.confirm('Are you sure you want to resign? This counts as a loss.');
     if (!confirmed) {
       return;
     }
 
     try {
       console.log('🏳️ Resigning game...');
-      await wsService.current.resignGame();
-      console.log('✅ Resignation successful');
+      const response = await wsService.current.resignGame();
+      console.log('✅ Resignation successful:', response);
+
+      // Show end card immediately (don't wait for WebSocket event)
+      const myColor = gameInfo.playerColor;
+      const winnerColor = myColor === 'w' ? 'black' : 'white';
+      const winnerId = myColor === 'w'
+        ? (gameData?.black_player_id || gameData?.black_player?.id)
+        : (gameData?.white_player_id || gameData?.white_player?.id);
+
+      const localResult = {
+        game_over: true,
+        result: myColor === 'w' ? '0-1' : '1-0',
+        end_reason: 'resignation',
+        winner_user_id: winnerId,
+        winner_player: winnerColor,
+        fen_final: game?.fen(),
+        move_count: game?.history()?.length || 0,
+        ended_at: new Date().toISOString(),
+        white_player: gameData?.white_player,
+        black_player: gameData?.black_player,
+        white_player_score: gameData?.white_player_score || 0,
+        black_player_score: gameData?.black_player_score || 0,
+        isPlayerWin: false,
+        isPlayerDraw: false
+      };
+
+      setGameResult(localResult);
+      setGameComplete(true);
+      setGameInfo(prev => ({ ...prev, status: 'finished' }));
+
+      // Unregister from navigation guard
+      if (gameRegisteredRef.current) {
+        unregisterActiveGame();
+        gameRegisteredRef.current = false;
+      }
+
+      console.log('🏁 End card shown for resignation');
     } catch (error) {
       console.error('❌ Failed to resign:', error);
       setError('Failed to resign: ' + error.message);
     }
-  }, [gameComplete]);
+  }, [gameComplete, gameInfo.playerColor, gameData, game, unregisterActiveGame]);
 
   // Handle undo move request (for casual mode only)
   const handleUndo = useCallback(async () => {
@@ -2424,7 +2471,7 @@ const PlayMultiplayer = () => {
     const handlePauseRequest = async (event) => {
       console.log('[PlayMultiplayer] Received pause request:', event.detail);
 
-      // RATED GAME: Block pause and show forfeit warning
+      // RATED GAME: Block pause and show resign warning
       if (ratedMode === 'rated' && gameInfo.status === 'active' && !gameComplete) {
         console.log('[PlayMultiplayer] 🚫 Pause blocked - rated game');
 
@@ -5254,10 +5301,10 @@ const PlayMultiplayer = () => {
             <div style={{ textAlign: 'center', marginBottom: '24px' }}>
               <div style={{ fontSize: '48px', marginBottom: '16px' }}>⚠️</div>
               <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#dc2626', marginBottom: '12px' }}>
-                RATED GAME FORFEIT WARNING
+                Leave Rated Game?
               </h2>
               <p style={{ fontSize: '16px', color: '#4b5563', marginBottom: '16px' }}>
-                Leaving this page will FORFEIT the rated game!
+                Leaving this page will end the game as a loss!
               </p>
               <div style={{
                 backgroundColor: '#fef2f2',
@@ -5270,10 +5317,10 @@ const PlayMultiplayer = () => {
                   ⚠️ This will count as a LOSS
                 </p>
                 <p style={{ fontSize: '14px', color: '#991b1b', marginBottom: '8px' }}>
-                  📉 Your rating will be affected
+                  📉 Your rating will go down
                 </p>
                 <p style={{ fontSize: '14px', color: '#991b1b' }}>
-                  🏳️ You must RESIGN or complete the game
+                  🏳️ You must resign or complete the game
                 </p>
               </div>
             </div>
@@ -5299,16 +5346,24 @@ const PlayMultiplayer = () => {
               </button>
               <button
                 onClick={async () => {
-                  console.log('[PlayMultiplayer] User confirmed forfeit and navigation');
+                  console.log('[PlayMultiplayer] User confirmed resign and navigation');
 
-                  // Forfeit the game
+                  // Resign the game
                   try {
                     if (wsService.current) {
                       await wsService.current.resignGame();
-                      console.log('[PlayMultiplayer] 🏳️ Game forfeited via resignation');
+                      console.log('[PlayMultiplayer] 🏳️ Game resigned via HTTP');
                     }
                   } catch (error) {
-                    console.error('[PlayMultiplayer] ❌ Failed to forfeit:', error);
+                    console.error('[PlayMultiplayer] ❌ Failed to resign:', error);
+                  }
+
+                  // Mark game as complete locally (don't wait for WebSocket)
+                  setGameComplete(true);
+                  setGameInfo(prev => ({ ...prev, status: 'finished' }));
+                  if (gameRegisteredRef.current) {
+                    unregisterActiveGame();
+                    gameRegisteredRef.current = false;
                   }
 
                   // Close dialog
@@ -5331,7 +5386,7 @@ const PlayMultiplayer = () => {
                   cursor: 'pointer'
                 }}
               >
-                🏳️ Forfeit & Leave
+                🏳️ Resign & Leave
               </button>
             </div>
           </div>

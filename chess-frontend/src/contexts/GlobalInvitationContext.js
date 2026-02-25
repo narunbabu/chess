@@ -43,9 +43,11 @@ export const GlobalInvitationProvider = ({ children }) => {
 
   const isInActiveGame = useCallback(() => {
     const path = location.pathname;
-    // Only block dialogs when user is in an active multiplayer game
-    // Allow dialogs on single player pages, computer games, or when just viewing a board
-    return path.startsWith('/play/multiplayer/');
+    // Block all challenge dialogs when user is on any play page
+    // (multiplayer, computer, synthetic opponents)
+    // Allow dialogs on game review pages and non-play pages
+    if (path.startsWith('/play/review/')) return false;
+    return path.startsWith('/play');
   }, [location.pathname]);
 
   // Update ref whenever callback changes

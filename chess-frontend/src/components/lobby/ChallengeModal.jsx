@@ -1,4 +1,5 @@
 import React from 'react';
+import { getPreferredGameMode } from '../../utils/gamePreferences';
 
 const TIME_PRESETS = [
   { minutes: 3, increment: 1, label: '3|1', category: 'Blitz' },
@@ -39,7 +40,7 @@ const ChallengeModal = ({
   inviteStatus,
   invitedPlayer,
 }) => {
-  const [gameMode, setGameMode] = React.useState('casual');
+  const [gameMode, setGameMode] = React.useState(() => getPreferredGameMode());
   const [timeControl, setTimeControl] = React.useState(10);
   const [increment, setIncrement] = React.useState(5);
 

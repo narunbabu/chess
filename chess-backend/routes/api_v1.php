@@ -186,7 +186,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // ── WebSocket API ─────────────────────────────────────────────────────
     Route::prefix('websocket')->group(function () {
         Route::post('/authenticate', [WebSocketController::class, 'authenticate']);
-        Route::post('/broadcasting/auth', [WebSocketController::class, 'authenticate']);
         Route::post('/handshake', [WebSocketController::class, 'handshake']);
         Route::post('/acknowledge-handshake', [WebSocketController::class, 'acknowledgeHandshake']);
         Route::get('/handshake', [WebSocketController::class, 'getHandshake']);
@@ -202,6 +201,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/games/{gameId}/resign', [WebSocketController::class, 'resignGame']);
         Route::post('/games/{gameId}/status', [WebSocketController::class, 'updateGameStatus']);
         Route::post('/games/{gameId}/forfeit', [WebSocketController::class, 'forfeitGame']);
+        Route::post('/games/{gameId}/claim-timeout', [WebSocketController::class, 'claimTimeout']);
         Route::post('/games/{gameId}/abort/request', [WebSocketController::class, 'requestAbort']);
         Route::post('/games/{gameId}/abort/respond', [WebSocketController::class, 'respondToAbort']);
         Route::post('/games/{gameId}/heartbeat', [WebSocketController::class, 'gameHeartbeat']);
@@ -222,9 +222,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/games/{gameId}/chat', [WebSocketController::class, 'getChatHistory']);
         Route::post('/games/{gameId}/chat', [WebSocketController::class, 'sendChatMessage']);
     });
-
-    // Broadcasting auth (standard Laravel pattern, outside websocket prefix)
-    Route::post('/broadcasting/auth', [WebSocketController::class, 'authenticate']);
 
     // ── Lobby ─────────────────────────────────────────────────────────────
     Route::get('/lobby/players', [LobbyController::class, 'players']);
@@ -336,6 +333,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/{organizationId}/members/{userId}', [\App\Http\Controllers\OrganizationController::class, 'removeMember']);
     });
 });
+
+// ─── WebSocket Broadcasting Auth ──────────────────────────────────────────────
+// MUST be outside auth:sanctum — pusher-js POSTs here when subscribing to
+// private/presence channels. WebSocketController::authenticate() handles
+// Sanctum token auth manually.
+Route::post('/websocket/broadcasting/auth', [WebSocketController::class, 'authenticate']);
+Route::post('/broadcasting/auth', [WebSocketController::class, 'authenticate']);
 
 // ─── Public Championship Routes ───────────────────────────────────────────────
 Route::prefix('championships')->group(function () {

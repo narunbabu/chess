@@ -20,9 +20,12 @@ const AuthCallback = () => {
           localStorage.removeItem('pending_login_redirect');
         }
 
-        // Redirect new users to profile setup
+        // Redirect new users to profile setup, preserving where they wanted to go
         if (userData && userData.profile_completed === false) {
-          navigate("/profile?setup=true");
+          const setupUrl = pendingRedirect
+            ? `/profile?setup=true&redirect=${encodeURIComponent(pendingRedirect)}`
+            : "/profile?setup=true";
+          navigate(setupUrl);
         } else {
           navigate(pendingRedirect || "/lobby");
         }

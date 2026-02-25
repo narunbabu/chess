@@ -63,10 +63,14 @@ class TutorialController extends Controller
                 ]);
             });
 
+            $isTierLocked = !$module->isAccessibleForUser($user);
+
             $moduleData = $module->toArray();
             $moduleData['lessons'] = $lessonsWithProgress->toArray(); // Add lessons with progress
             $moduleData['user_progress'] = $progress;
             $moduleData['is_unlocked'] = $isUnlocked;
+            $moduleData['is_tier_locked'] = $isTierLocked;
+            $moduleData['required_tier'] = $module->required_tier?->value ?? 'free';
             $moduleData['total_xp'] = $module->total_xp;
             $moduleData['formatted_duration'] = $module->formatted_duration;
 
@@ -95,6 +99,16 @@ class TutorialController extends Controller
             ->with(['unlockRequirement'])
             ->where('slug', $slug)
             ->firstOrFail();
+
+        // Check subscription tier access
+        if (!$module->isAccessibleForUser($user)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This module requires a ' . ($module->required_tier?->label() ?? 'Silver') . ' subscription.',
+                'required_tier' => $module->required_tier?->value ?? 'silver',
+                'upgrade_url' => '/pricing',
+            ], 403);
+        }
 
         // Add unlock status and progress info to lessons
         $lessonsWithProgress = $module->activeLessons->map(function ($lesson) use ($user) {
@@ -130,6 +144,16 @@ class TutorialController extends Controller
         $lesson = TutorialLesson::active()
             ->with(['module', 'unlockRequirement'])
             ->findOrFail($id);
+
+        // Check subscription tier access
+        if (!$lesson->module->isAccessibleForUser($user)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This lesson requires a ' . ($lesson->module->required_tier?->label() ?? 'Silver') . ' subscription.',
+                'required_tier' => $lesson->module->required_tier?->value ?? 'silver',
+                'upgrade_url' => '/pricing',
+            ], 403);
+        }
 
         // Check if lesson is unlocked for user
         if (!$lesson->isUnlockedFor($user->id)) {
@@ -173,7 +197,16 @@ class TutorialController extends Controller
     {
         $user = Auth::user();
 
-        $lesson = TutorialLesson::active()->findOrFail($id);
+        $lesson = TutorialLesson::active()->with('module')->findOrFail($id);
+
+        // Check subscription tier access
+        if (!$lesson->module->isAccessibleForUser($user)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This lesson requires a higher subscription tier.',
+                'required_tier' => $lesson->module->required_tier?->value ?? 'silver',
+            ], 403);
+        }
 
         if (!$lesson->isUnlockedFor($user->id)) {
             return response()->json([
@@ -465,6 +498,20 @@ class TutorialController extends Controller
             ]);
         }
 
+        // Daily puzzle cap info for free users
+        $dailyPuzzleCap = null;
+        if (!$user->hasSubscriptionTier(\App\Enums\SubscriptionTier::SILVER)) {
+            $todayCompletions = UserDailyChallengeCompletion::where('user_id', $user->id)
+                ->where('completed', true)
+                ->whereDate('created_at', today())
+                ->count();
+            $dailyPuzzleCap = [
+                'limit' => 3,
+                'used' => $todayCompletions,
+                'remaining' => max(0, 3 - $todayCompletions),
+            ];
+        }
+
         return response()->json([
             'success' => true,
             'data' => array_merge($challenge->toArray(), [
@@ -474,6 +521,7 @@ class TutorialController extends Controller
                 'tier_color_class' => $challenge->tier_color_class,
                 'completion_count' => $challenge->completion_count,
                 'success_rate' => $challenge->success_rate,
+                'daily_puzzle_cap' => $dailyPuzzleCap,
             ]),
         ]);
     }
@@ -489,6 +537,22 @@ class TutorialController extends Controller
         ]);
 
         $user = Auth::user();
+
+        // Daily puzzle cap for free users (3 per day)
+        if (!$user->hasSubscriptionTier(\App\Enums\SubscriptionTier::SILVER)) {
+            $todayCompletions = UserDailyChallengeCompletion::where('user_id', $user->id)
+                ->where('completed', true)
+                ->whereDate('created_at', today())
+                ->count();
+            if ($todayCompletions >= 3) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Free users can solve up to 3 daily puzzles. Upgrade to Silver for unlimited puzzles!',
+                    'upgrade_url' => '/pricing',
+                ], 429);
+            }
+        }
+
         $challenge = DailyChallenge::current()->firstOrFail();
 
         if ($challenge->isCompletedBy($user->id)) {
@@ -703,6 +767,15 @@ class TutorialController extends Controller
             }])
             ->findOrFail($id);
 
+        // Check subscription tier access
+        if (!$lesson->module->isAccessibleForUser($user)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This lesson requires a higher subscription tier.',
+                'required_tier' => $lesson->module->required_tier?->value ?? 'silver',
+            ], 403);
+        }
+
         // Check if lesson is unlocked for user
         if (!$lesson->isUnlockedFor($user->id)) {
             return response()->json([
@@ -771,7 +844,16 @@ class TutorialController extends Controller
         ]);
 
         $user = Auth::user();
-        $lesson = TutorialLesson::active()->findOrFail($id);
+        $lesson = TutorialLesson::active()->with('module')->findOrFail($id);
+
+        // Check subscription tier access
+        if (!$lesson->module->isAccessibleForUser($user)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This lesson requires a higher subscription tier.',
+                'required_tier' => $lesson->module->required_tier?->value ?? 'silver',
+            ], 403);
+        }
 
         // Verify lesson belongs to user and is unlocked
         if (!$lesson->isUnlockedFor($user->id)) {
@@ -836,7 +918,16 @@ class TutorialController extends Controller
         ]);
 
         $user = Auth::user();
-        $lesson = TutorialLesson::active()->findOrFail($id);
+        $lesson = TutorialLesson::active()->with('module')->findOrFail($id);
+
+        // Check subscription tier access
+        if (!$lesson->module->isAccessibleForUser($user)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This lesson requires a higher subscription tier.',
+                'required_tier' => $lesson->module->required_tier?->value ?? 'silver',
+            ], 403);
+        }
 
         if (!$lesson->isUnlockedFor($user->id)) {
             return response()->json([
@@ -902,7 +993,16 @@ class TutorialController extends Controller
         ]);
 
         $user = Auth::user();
-        $lesson = TutorialLesson::active()->findOrFail($id);
+        $lesson = TutorialLesson::active()->with('module')->findOrFail($id);
+
+        // Check subscription tier access
+        if (!$lesson->module->isAccessibleForUser($user)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This lesson requires a higher subscription tier.',
+                'required_tier' => $lesson->module->required_tier?->value ?? 'silver',
+            ], 403);
+        }
 
         if (!$lesson->isUnlockedFor($user->id)) {
             return response()->json([
@@ -954,7 +1054,16 @@ class TutorialController extends Controller
     public function getInteractiveProgress($id): JsonResponse
     {
         $user = Auth::user();
-        $lesson = TutorialLesson::active()->findOrFail($id);
+        $lesson = TutorialLesson::active()->with('module')->findOrFail($id);
+
+        // Check subscription tier access
+        if (!$lesson->module->isAccessibleForUser($user)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This lesson requires a higher subscription tier.',
+                'required_tier' => $lesson->module->required_tier?->value ?? 'silver',
+            ], 403);
+        }
 
         if (!$lesson->isUnlockedFor($user->id)) {
             return response()->json([

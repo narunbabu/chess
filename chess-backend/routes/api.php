@@ -202,8 +202,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/games/{gameId}/resign', [WebSocketController::class, 'resignGame']);
         Route::post('/games/{gameId}/status', [WebSocketController::class, 'updateGameStatus']);
 
-        // Game termination endpoints (forfeit, mutual abort, inactivity)
+        // Game termination endpoints (forfeit, timeout claim, mutual abort, inactivity)
         Route::post('/games/{gameId}/forfeit', [WebSocketController::class, 'forfeitGame']);
+        Route::post('/games/{gameId}/claim-timeout', [WebSocketController::class, 'claimTimeout']);
         Route::post('/games/{gameId}/abort/request', [WebSocketController::class, 'requestAbort']);
         Route::post('/games/{gameId}/abort/respond', [WebSocketController::class, 'respondToAbort']);
         Route::post('/games/{gameId}/heartbeat', [WebSocketController::class, 'gameHeartbeat']);

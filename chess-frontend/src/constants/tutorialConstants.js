@@ -86,7 +86,7 @@ export const getTierName = (tier) => {
 
 // Default values
 export const DEFAULTS = {
-  TOTAL_LESSONS: 9,
+  TOTAL_LESSONS: 80,
   COMPLETION_PERCENTAGE: 0,
   AVERAGE_SCORE: 0,
   CURRENT_STREAK: 0,

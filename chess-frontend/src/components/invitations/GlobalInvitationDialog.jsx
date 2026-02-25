@@ -168,6 +168,17 @@ const GlobalInvitationDialog = () => {
                       {pendingInvitation.inviter_preferred_color === 'random' && ' (Random colors)'}
                     </p>
                   )}
+                  {/* Show game settings from invitation metadata */}
+                  {pendingInvitation.metadata && (
+                    <p className="invitation-meta" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      {pendingInvitation.metadata.time_control_minutes && (
+                        <span>⏱️ {pendingInvitation.metadata.time_control_minutes}+{pendingInvitation.metadata.increment_seconds || 0}</span>
+                      )}
+                      {pendingInvitation.metadata.game_mode && (
+                        <span>{pendingInvitation.metadata.game_mode === 'rated' ? '⭐ Rated' : '📋 Casual'}</span>
+                      )}
+                    </p>
+                  )}
                   <p className="invitation-meta">
                     {new Date(pendingInvitation.created_at).toLocaleTimeString()}
                   </p>
@@ -317,7 +328,9 @@ const GlobalInvitationDialog = () => {
                     Rating: {pendingMatchRequest.requester.rating || '?'}
                   </p>
                   <p className="invitation-meta">
-                    {pendingMatchRequest.time_control_minutes}+{pendingMatchRequest.increment_seconds}
+                    ⏱️ {pendingMatchRequest.time_control_minutes}+{pendingMatchRequest.increment_seconds}
+                    {' '}&bull;{' '}
+                    {pendingMatchRequest.game_mode === 'rated' ? '⭐ Rated' : pendingMatchRequest.game_mode === 'casual' ? '📋 Casual' : '⭐ Rated'}
                   </p>
                   {matchRequestSecondsLeft > 0 && (
                     <p className="invitation-meta" style={{ color: matchRequestSecondsLeft <= 5 ? '#e74c3c' : '#f39c12', fontWeight: 'bold' }}>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSubscription } from '../../contexts/SubscriptionContext';
 import api from '../../services/api';
 import logger from '../../utils/logger';
 import { DEFAULTS, TIMING, getTierColor, getTierIcon, getTierName } from '../../constants/tutorialConstants';
@@ -9,6 +10,7 @@ import '../../styles/UnifiedCards.css';
 
 const TutorialHub = () => {
   const { user } = useAuth();
+  const { subscription } = useSubscription();
   const navigate = useNavigate();
   const location = useLocation();
   const [modules, setModules] = useState([]);
@@ -208,8 +210,13 @@ const TutorialHub = () => {
     );
   };
 
+  const tierEmoji = { silver: '🥈', gold: '🥇' };
+  const tierLabel = { free: 'Free', silver: 'Silver', gold: 'Gold' };
+
   const ModuleCard = ({ module, prerequisiteModule }) => {
-    const isLocked = !module.is_unlocked;
+    const isTierLocked = module.is_tier_locked;
+    const isPrereqLocked = !module.is_unlocked;
+    const isLocked = isTierLocked || isPrereqLocked;
     const progress = module.user_progress;
 
     return (
@@ -217,8 +224,37 @@ const TutorialHub = () => {
         key={module.id}
         className={`tutorial-module-card bg-[#312e2b] rounded-2xl shadow-lg border-2 border-[#3d3a37] hover:border-[#81b64c] hover:shadow-2xl transition-all p-6 relative ${isLocked ? 'opacity-75' : ''}`}
       >
-        {/* Lock overlay */}
-        {isLocked && (
+        {/* Tier lock overlay — takes priority over prerequisite lock */}
+        {isTierLocked && (
+          <div className="absolute inset-0 bg-gray-900 bg-opacity-80 rounded-2xl flex items-center justify-center z-10">
+            <div className="text-white text-center px-6">
+              <div className="text-5xl mb-3">{tierEmoji[module.required_tier] || '👑'}</div>
+              <div className="text-lg font-bold mb-2">
+                {tierLabel[module.required_tier] || 'Premium'} Content
+              </div>
+              <div className="text-sm text-[#bababa] mb-4">
+                Upgrade to {tierLabel[module.required_tier] || 'Premium'} to access this module
+              </div>
+              <Link
+                to="/pricing"
+                className="inline-block px-6 py-3 rounded-xl font-bold text-white text-sm transition-all hover:scale-105"
+                style={{
+                  background: module.required_tier === 'gold'
+                    ? 'linear-gradient(135deg, #e8a93e, #f4c66a)'
+                    : 'linear-gradient(135deg, #9b9b9b, #d1d1d1)',
+                  boxShadow: module.required_tier === 'gold'
+                    ? '0 4px 15px rgba(232,169,62,0.5)'
+                    : '0 4px 15px rgba(155,155,155,0.4)',
+                }}
+              >
+                Upgrade →
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {/* Prerequisite lock overlay — only if NOT tier-locked */}
+        {!isTierLocked && isPrereqLocked && (
           <div className="absolute inset-0 bg-gray-900 bg-opacity-70 rounded-2xl flex items-center justify-center z-10">
             <div className="text-white text-center px-4">
               <div className="text-4xl mb-3">🔒</div>

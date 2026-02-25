@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSubscription } from '../../contexts/SubscriptionContext';
 import api from '../../services/api';
 import ErrorBoundary from './ErrorBoundary';
 import '../../styles/UnifiedCards.css';
@@ -8,9 +9,11 @@ import '../../styles/UnifiedCards.css';
 const ModuleDetail = () => {
   const { slug } = useParams();
   const { user } = useAuth();
+  const { subscription } = useSubscription();
   const navigate = useNavigate();
   const [module, setModule] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [tierLocked, setTierLocked] = useState(null);
 
   useEffect(() => {
     loadModuleData();
@@ -37,7 +40,14 @@ const ModuleDetail = () => {
         console.log(`  - calculated isLocked: ${!lesson.is_unlocked}`);
       });
     } catch (error) {
-      console.error('Error loading module:', error);
+      if (error.response?.status === 403 && error.response?.data?.required_tier) {
+        setTierLocked({
+          requiredTier: error.response.data.required_tier,
+          message: error.response.data.message,
+        });
+      } else {
+        console.error('Error loading module:', error);
+      }
     } finally {
       setLoading(false);
     }
@@ -104,6 +114,45 @@ const ModuleDetail = () => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#81b64c] mx-auto mb-4"></div>
           <div className="text-lg font-medium text-[#bababa]">Loading Module...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (tierLocked) {
+    const tierEmoji = { silver: '🥈', gold: '🥇' };
+    const tierLabel = { free: 'Free', silver: 'Silver', gold: 'Gold' };
+    const tier = tierLocked.requiredTier;
+
+    return (
+      <div className="tutorial-module-container flex-grow bg-[#1a1a18] min-h-[calc(100vh-120px)] md:min-h-[calc(100vh-140px)] flex items-center justify-center">
+        <div className="text-center bg-[#312e2b] rounded-2xl shadow-lg p-10 max-w-md mx-4 border-2 border-[#3d3a37]">
+          <div className="text-6xl mb-4">{tierEmoji[tier] || '👑'}</div>
+          <h2 className="text-2xl font-bold text-white mb-3">
+            {tierLabel[tier] || 'Premium'} Content
+          </h2>
+          <p className="text-[#bababa] mb-6 text-base">
+            {tierLocked.message || `This module requires a ${tierLabel[tier]} subscription.`}
+          </p>
+          <Link
+            to="/pricing"
+            className="inline-block px-8 py-4 rounded-xl font-bold text-white text-lg transition-all hover:scale-105 mb-4"
+            style={{
+              background: tier === 'gold'
+                ? 'linear-gradient(135deg, #e8a93e, #f4c66a)'
+                : 'linear-gradient(135deg, #9b9b9b, #d1d1d1)',
+              boxShadow: tier === 'gold'
+                ? '0 4px 15px rgba(232,169,62,0.5)'
+                : '0 4px 15px rgba(155,155,155,0.4)',
+            }}
+          >
+            Upgrade to {tierLabel[tier]} →
+          </Link>
+          <div>
+            <Link to="/tutorial" className="text-[#81b64c] hover:text-[#a3d160] font-semibold text-sm">
+              ← Back to Tutorial Hub
+            </Link>
+          </div>
         </div>
       </div>
     );

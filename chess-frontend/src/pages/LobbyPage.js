@@ -394,11 +394,14 @@ const LobbyPage = () => {
       console.error('Failed to send invitation:', error);
 
       const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message;
+      const errorCode = error.response?.data?.code;
 
       // If it's a duplicate invitation error, refresh the data to sync state
       if (errorMessage === 'Invitation already sent') {
         fetchData(true);
         alert(`You already have a pending invitation to ${selectedPlayer.name}. The page will refresh to show the current status.`);
+      } else if (errorCode === 'player_busy') {
+        alert(`${selectedPlayer.name} is currently in a game. Try again later.`);
       } else {
         alert(`Failed to send invitation: ${errorMessage}`);
       }

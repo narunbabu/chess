@@ -36,6 +36,7 @@ const Profile = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isSetupMode = searchParams.get('setup') === 'true';
+  const postSetupRedirect = searchParams.get('redirect');
   const [friends, setFriends] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -373,9 +374,9 @@ const Profile = () => {
       setSelectedDiceBear(null);
       setLoading(false);
 
-      // In setup mode, navigate to lobby after saving
+      // In setup mode, navigate to pending redirect (e.g. /pricing) or lobby
       if (isSetupMode) {
-        navigate('/lobby');
+        navigate(postSetupRedirect || '/lobby');
       }
     } catch (err) {
       console.error('Profile update error:', err);

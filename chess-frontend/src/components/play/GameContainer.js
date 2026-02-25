@@ -246,7 +246,7 @@ const GameContainer = ({
       {/* Rated warning */}
       {isRated && gameStarted && !gameOver && (
         <div className="gc-rated-badge">
-          ⚠ Rated — no pause, no undo, closing forfeits
+          ⚠ Rated — no pause, no undo, leaving = loss
         </div>
       )}
       {/* Performance */}

@@ -59,11 +59,7 @@ class GameHistoryController extends Controller
     // Save a new game history record (authenticated users)
     public function store(Request $request)
     {
-        Log::info("Game history request received");
         $user = $request->user();
-        Log::info("User:");
-        Log::info($user);
-        Log::info($request);
 
         $validated = $request->validate([
             'played_at'           => 'required|date_format:Y-m-d H:i:s',
@@ -85,6 +81,22 @@ class GameHistoryController extends Controller
         $userId = Auth::check() ? Auth::id() : null;
 
         try {
+            // For multiplayer games, check if server already created a record
+            $gameId = $validated['game_id'] ?? null;
+            if ($gameId && $userId) {
+                $existing = GameHistory::where('user_id', $userId)
+                    ->where('game_id', $gameId)
+                    ->first();
+                if ($existing) {
+                    Log::info('Game history already exists (server-side), returning existing record', [
+                        'game_history_id' => $existing->id,
+                        'game_id' => $gameId,
+                        'user_id' => $userId
+                    ]);
+                    return response()->json(['success' => true, 'data' => $existing], 200);
+                }
+            }
+
             // Extract scores from moves string if not provided or if provided scores are 0
             $extractedScores = $this->extractScoresFromMoves($validated['moves'], $validated['player_color']);
 
@@ -101,21 +113,12 @@ class GameHistoryController extends Controller
                     $finalScore = $extractedScores['black_score'];
                     $opponentScore = $extractedScores['white_score'];
                 }
-                Log::info('Updated scores from moves extraction', [
-                    'final_score' => $finalScore,
-                    'opponent_score' => $opponentScore
-                ]);
             }
 
             // Handle result field - accept both string and object formats
             $resultValue = $validated['result'];
             if (is_array($resultValue) || is_object($resultValue)) {
-                // New standardized format (object) - store as JSON
                 $resultValue = json_encode($resultValue);
-                Log::info('Converted result object to JSON for storage:', ['result' => $resultValue]);
-            } else {
-                // Legacy format (string) - store as-is
-                Log::info('Storing legacy string result format:', ['result' => $resultValue]);
             }
 
             $game = new GameHistory();
@@ -136,7 +139,11 @@ class GameHistoryController extends Controller
 
             return response()->json(['success' => true, 'data' => $game], 201);
         } catch (\Exception $e) {
-            Log::error("Failed to save game history: " . $e->getMessage());
+            Log::error("Failed to save game history: " . $e->getMessage(), [
+                'user_id' => $userId,
+                'game_id' => $validated['game_id'] ?? null,
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json(['error' => 'Failed to save game', 'message' => $e->getMessage()], 500);
         }
     }
@@ -241,8 +248,6 @@ class GameHistoryController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        Log::info("User:");
-        Log::info($user);
         if (!$user) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }

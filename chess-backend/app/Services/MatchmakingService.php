@@ -57,6 +57,7 @@ class MatchmakingService
             'preferred_color' => $preferences['preferred_color'] ?? 'random',
             'time_control_minutes' => $preferences['time_control_minutes'] ?? 10,
             'increment_seconds' => $preferences['increment_seconds'] ?? 0,
+            'game_mode' => $preferences['game_mode'] ?? 'rated',
         ]);
     }
 
@@ -117,14 +118,15 @@ class MatchmakingService
                 return null;
             }
 
-            // Create a multiplayer game with color and time preferences
+            // Create a multiplayer game with color, time, and mode preferences
             $game = $this->createMultiplayerGame(
                 $lockedEntry->user_id,
                 $opponent->user_id,
                 $lockedEntry->preferred_color ?? 'random',
                 $opponent->preferred_color ?? 'random',
                 $lockedEntry->time_control_minutes ?? 10,
-                $lockedEntry->increment_seconds ?? 0
+                $lockedEntry->increment_seconds ?? 0,
+                $lockedEntry->game_mode ?? 'rated'
             );
 
             $matchedAt = now();
@@ -212,7 +214,8 @@ class MatchmakingService
         string $color1 = 'random',
         string $color2 = 'random',
         int $timeControl = 10,
-        int $increment = 0
+        int $increment = 0,
+        string $gameMode = 'rated'
     ): Game {
         // Resolve colors: honor explicit preferences, randomize otherwise
         if ($color1 === 'white' || $color2 === 'black') {
@@ -237,6 +240,7 @@ class MatchmakingService
             'moves' => [],
             'time_control_minutes' => $timeControl,
             'increment_seconds' => $increment,
+            'game_mode' => $gameMode,
         ]);
     }
 
@@ -274,6 +278,7 @@ class MatchmakingService
             'preferred_color' => $prefs['preferred_color'] ?? 'random',
             'time_control_minutes' => $prefs['time_control_minutes'] ?? 10,
             'increment_seconds' => $prefs['increment_seconds'] ?? 0,
+            'game_mode' => $prefs['game_mode'] ?? 'rated',
             'expires_at' => $expiresAt,
         ]);
 
@@ -461,7 +466,8 @@ class MatchmakingService
                 $matchRequest->preferred_color ?? 'random',
                 'random',
                 $matchRequest->time_control_minutes ?? 10,
-                $matchRequest->increment_seconds ?? 0
+                $matchRequest->increment_seconds ?? 0,
+                $matchRequest->game_mode ?? 'rated'
             );
 
             // Update match request
