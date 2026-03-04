@@ -196,12 +196,43 @@ const PlayComputer = () => {
     if (user?.board_theme) setBoardTheme(user.board_theme);
   }, [user?.board_theme]);
 
+  // --- Timer flag handler: ends game when time runs out ---
+  // Use a ref to avoid circular dependency with handleGameComplete (defined later)
+  const handleGameCompleteRef = useRef(null);
+  const gameHistoryRef = useRef(gameHistory);
+  const playerScoreRef = useRef(playerScore);
+  const computerScoreRef = useRef(computerScore);
+  useEffect(() => { gameHistoryRef.current = gameHistory; }, [gameHistory]);
+  useEffect(() => { playerScoreRef.current = playerScore; }, [playerScore]);
+  useEffect(() => { computerScoreRef.current = computerScore; }, [computerScore]);
+
+  const handleTimerFlag = useCallback((who) => {
+    // 'who' is 'player' or 'computer'
+    const playerColorChess = playerColor === 'white' || playerColor === 'w' ? 'w' : 'b';
+    const loserIsPlayer = who === 'player';
+    const winnerColor = loserIsPlayer
+      ? (playerColorChess === 'w' ? 'Black' : 'White')
+      : (playerColorChess === 'w' ? 'White' : 'Black');
+    const statusText = `${winnerColor} wins on time!`;
+    setGameStatus(statusText);
+    setGameOver(true);
+    // Call handleGameComplete via ref (avoids circular dependency)
+    if (handleGameCompleteRef.current) {
+      handleGameCompleteRef.current(
+        gameHistoryRef.current,
+        { gameOver: true, text: statusText, reason: 'timeout' },
+        playerScoreRef.current,
+        computerScoreRef.current
+      );
+    }
+  }, [playerColor, setGameStatus, setGameOver]);
+
   // --- Custom timer hook ---
   const {
     playerTime, computerTime, activeTimer, isTimerRunning, timerRef,
     setActiveTimer, setIsTimerRunning, setPlayerTime, setComputerTime,
     handleTimer: startTimerInterval, pauseTimer, switchTimer, resetTimer
-  } = useGameTimer(playerColor, game, setGameStatus, timeControlMin * 60, incrementSec);
+  } = useGameTimer(playerColor, game, handleTimerFlag, timeControlMin * 60, incrementSec);
 
   // --- Restore active game from localStorage on mount (refresh persistence) ---
   useEffect(() => {
@@ -279,13 +310,13 @@ const PlayComputer = () => {
         startTimerInterval();
         moveStartTimeRef.current = Date.now();
       } else {
+        // It's the computer's turn — set activeTimer to computer color.
+        // The computer turn useEffect will auto-trigger when it sees:
+        //   gameStarted && activeTimer === computerColor && game.turn() === computerColor && !computerMoveInProgress
+        // IMPORTANT: Do NOT set computerMoveInProgress=true here — that BLOCKS the useEffect from firing.
         setActiveTimer(computerColor);
         setIsTimerRunning(true);
         startTimerInterval();
-        // Trigger computer move after a short delay
-        setTimeout(() => {
-          setComputerMoveInProgress(true);
-        }, 500);
       }
 
       // Auto-dismiss the "Game restored" toast after 3 seconds
@@ -428,7 +459,8 @@ const PlayComputer = () => {
             {
                 in_checkmate: status.reason === 'checkmate',
                 in_stalemate: status.reason === 'stalemate',
-                in_draw: status.outcome === 'draw'
+                in_draw: status.outcome === 'draw',
+                in_timeout: status.reason === 'timeout'
             }
         );
 
@@ -541,6 +573,9 @@ const PlayComputer = () => {
      invalidateGameHistory, // Query invalidation
      // Note: gameEndSoundEffect are constants/imports, typically stable
    ]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Keep handleGameCompleteRef in sync for timer flag handler
+  useEffect(() => { handleGameCompleteRef.current = handleGameComplete; }, [handleGameComplete]);
 
   // --- Effects ---
 
@@ -1028,14 +1063,11 @@ const PlayComputer = () => {
         startTimerInterval();
         moveStartTimeRef.current = performance.now();
       } else {
-        // Computer's turn - trigger computer move
+        // Computer's turn — set timer and let the computer turn useEffect auto-trigger.
+        // Do NOT set computerMoveInProgress=true — that blocks the useEffect from firing.
         setActiveTimer(computerColor);
         setIsTimerRunning(true);
         startTimerInterval();
-        // Trigger computer move after a short delay
-        setTimeout(() => {
-          setComputerMoveInProgress(true);
-        }, 500);
       }
 
         } catch (error) {
@@ -1631,26 +1663,9 @@ const PlayComputer = () => {
   // --- Game Start/Reset/Load/Replay Logic Callbacks ---
 
    const startGame = useCallback(() => {
-        // Show pre-game confirmation for rated mode
-        if (ratedMode === 'rated') {
-          const confirmed = window.confirm(
-            '⚠️ RATED GAME RULES\n\n' +
-            '1. You CANNOT pause the game\n' +
-            '2. You CANNOT undo moves\n' +
-            '3. Closing the browser will FORFEIT the game\n' +
-            '4. This game will affect your rating\n\n' +
-            'Do you want to start this rated game?'
-          );
-
-          if (!confirmed) {
-            console.log('[PlayComputer] 🚫 User canceled rated game start');
-            return; // User canceled, don't start the game
-          }
-        }
-
         // Starts the countdown if game not already started
         if (!gameStarted && !countdownActive) setCountdownActive(true);
-    }, [gameStarted, countdownActive, ratedMode]); // Correct dependencies
+    }, [gameStarted, countdownActive]); // Correct dependencies
 
    const onCountdownFinish = useCallback(async (overrideRatedMode) => {
         // Initializes game state when countdown finishes
@@ -1659,33 +1674,7 @@ const PlayComputer = () => {
         console.log("Starting game...", { effectiveRatedMode });
         setCountdownActive(false);
 
-        // For authenticated users, create a backend game
-        if (user) {
-          try {
-            setGameStatus("Creating game on server...");
-            const gameData = {
-              player_color: playerColor === 'w' ? 'white' : 'black',
-              computer_level: computerDepth,
-              time_control: timeControlMin,
-              increment: incrementSec,
-              game_mode: syntheticOpponent ? 'casual' : effectiveRatedMode, // AI games never affect leaderboard
-              synthetic_player_id: syntheticOpponent?.id || null,
-            };
-
-            const response = await gameService.createComputerGame(gameData);
-            console.log('[PlayComputer] 🎮 Backend game created:', response);
-
-            setBackendGame(response.game);
-            setCurrentGameId(response.game.id);
-            setSearchParams({ gameId: response.game.id.toString() }, { replace: true });
-            setGameStatus(`Game created! Playing vs ${response.computer_opponent.name}`);
-          } catch (error) {
-            console.error('[PlayComputer] ❌ Failed to create backend game:', error);
-            setGameStatus("Failed to create game. Playing offline...");
-            // Continue with offline game if backend fails
-          }
-        }
-
+        // Start the game immediately — don't wait for backend API
         setGameStarted(true);
         previousGameStateRef.current = new Chess(); // Initial state for history
         setGameHistory([]);
@@ -1734,6 +1723,30 @@ const PlayComputer = () => {
           undoChancesRemaining: initialUndoChances,
           currentGameId: currentGameId || null,
         });
+
+        // Create backend game asynchronously — don't block game start
+        if (user) {
+          (async () => {
+            try {
+              const gameData = {
+                player_color: playerColor === 'w' ? 'white' : 'black',
+                computer_level: computerDepth,
+                time_control: timeControlMin,
+                increment: incrementSec,
+                game_mode: syntheticOpponent ? 'casual' : effectiveRatedMode,
+                synthetic_player_id: syntheticOpponent?.id || null,
+              };
+              const response = await gameService.createComputerGame(gameData);
+              console.log('[PlayComputer] 🎮 Backend game created:', response);
+              setBackendGame(response.game);
+              setCurrentGameId(response.game.id);
+              setSearchParams({ gameId: response.game.id.toString() }, { replace: true });
+            } catch (error) {
+              console.error('[PlayComputer] ❌ Failed to create backend game:', error);
+              // Game continues offline — no blocking
+            }
+          })();
+        }
 
     }, [ // Dependencies for onCountdownFinish
         playerColor, computerDepth, user, ratedMode, // Read

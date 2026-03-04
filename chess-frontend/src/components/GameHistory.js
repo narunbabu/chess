@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import ReactDOM from 'react-dom'; // Import ReactDOM
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAppData } from "../contexts/AppDataContext";
 import {
   getGameHistories,
   getGameHistoryById,
+  getGameHistoriesPaginated,
 } from "../services/gameHistoryService";
 import {
   extractGameSummary,

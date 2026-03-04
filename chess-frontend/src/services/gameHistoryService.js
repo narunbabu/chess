@@ -220,6 +220,50 @@ export const getGameHistories = async () => {
   return gameHistoriesRequest;
 };
 
+/**
+ * Fetch game histories with server-side pagination and date filters
+ * @param {Object} params - Query parameters
+ * @param {number} params.page - Page number (default 1)
+ * @param {number} params.per_page - Items per page (default 15)
+ * @param {string} params.date_from - ISO date string for start filter
+ * @param {string} params.date_to - ISO date string for end filter
+ * @param {string} params.game_mode - Filter by game mode (computer/multiplayer)
+ * @returns {Promise<{data: Array, pagination: Object}>}
+ */
+export const getGameHistoriesPaginated = async (params = {}) => {
+  try {
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.set('page', params.page);
+    if (params.per_page) queryParams.set('per_page', params.per_page);
+    if (params.date_from) queryParams.set('date_from', params.date_from);
+    if (params.date_to) queryParams.set('date_to', params.date_to);
+    if (params.game_mode) queryParams.set('game_mode', params.game_mode);
+
+    const url = `/game-history?${queryParams.toString()}`;
+    const res = await api.get(url);
+
+    const games = (res.data.data || []).map(game => {
+      const raw = game.finalScore ?? game.final_score ?? game.score;
+      const finalScore = raw == null ? null : (typeof raw === 'string' ? parseFloat(raw) : raw);
+      return { ...game, finalScore };
+    });
+
+    return {
+      data: games,
+      pagination: res.data.pagination || {
+        current_page: 1,
+        last_page: 1,
+        per_page: params.per_page || 15,
+        total: games.length,
+        has_more: false,
+      },
+    };
+  } catch (error) {
+    console.error('[gameHistoryService] Paginated fetch failed:', error);
+    return { data: [], pagination: { current_page: 1, last_page: 1, per_page: 15, total: 0, has_more: false } };
+  }
+};
+
 export const getGameHistoryById = async (id) => {
   try {
     const token = localStorage.getItem("auth_token");

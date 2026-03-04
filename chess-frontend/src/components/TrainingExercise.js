@@ -84,8 +84,10 @@ const TrainingExercise = () => {
       if (move === null) return false;
       
       // Check if the move is the solution
+      // Compare using both coordinate format (e.g., "g7g8") and with promotion (e.g., "g7g8=Q")
       const moveString = sourceSquare + targetSquare;
-      if (exercise.solution.includes(moveString)) {
+      const moveWithPromotion = move.promotion ? `${moveString}=${move.promotion.toUpperCase()}` : moveString;
+      if (exercise.solution.includes(moveString) || exercise.solution.includes(moveWithPromotion)) {
         setMessage(exercise.successMessage);
         setMessageType('success');
       } else {

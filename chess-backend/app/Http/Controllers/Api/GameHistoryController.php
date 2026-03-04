@@ -252,37 +252,58 @@ class GameHistoryController extends Controller
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
-        // Select summary fields and join with games table to get player scores and opponent info for multiplayer games
-        $games = GameHistory::where('game_histories.user_id', $user->id)
+        // Build query with joins
+        $query = GameHistory::where('game_histories.user_id', $user->id)
             ->leftJoin('games', 'game_histories.game_id', '=', 'games.id')
             ->leftJoin('users as white_player', 'games.white_player_id', '=', 'white_player.id')
-            ->leftJoin('users as black_player', 'games.black_player_id', '=', 'black_player.id')
-            ->orderBy('game_histories.played_at', 'desc')
-            ->get([
-                'game_histories.id',
-                'game_histories.played_at',
-                'game_histories.player_color',
-                'game_histories.computer_level',
-                'game_histories.final_score',
-                'game_histories.opponent_score',
-                'game_histories.result',
-                'game_histories.game_id',
-                'game_histories.game_mode',
-                'game_histories.moves',
-                'game_histories.opponent_name',
-                'game_histories.opponent_avatar_url',
-                'game_histories.opponent_rating',
-                'games.white_player_id',
-                'games.black_player_id',
-                'games.white_player_score',
-                'games.black_player_score',
-                'white_player.name as white_player_name',
-                'white_player.avatar_url as white_player_avatar',
-                'white_player.rating as white_player_rating',
-                'black_player.name as black_player_name',
-                'black_player.avatar_url as black_player_avatar',
-                'black_player.rating as black_player_rating',
-            ])
+            ->leftJoin('users as black_player', 'games.black_player_id', '=', 'black_player.id');
+
+        // Date range filters (ISO 8601 format)
+        if ($request->has('date_from')) {
+            $query->where('game_histories.played_at', '>=', $request->get('date_from'));
+        }
+        if ($request->has('date_to')) {
+            $query->where('game_histories.played_at', '<=', $request->get('date_to'));
+        }
+
+        // Game mode filter (computer / multiplayer)
+        if ($request->has('game_mode')) {
+            $query->where('game_histories.game_mode', $request->get('game_mode'));
+        }
+
+        $query->orderBy('game_histories.played_at', 'desc');
+
+        $columns = [
+            'game_histories.id',
+            'game_histories.played_at',
+            'game_histories.player_color',
+            'game_histories.computer_level',
+            'game_histories.final_score',
+            'game_histories.opponent_score',
+            'game_histories.result',
+            'game_histories.game_id',
+            'game_histories.game_mode',
+            'game_histories.moves',
+            'game_histories.opponent_name',
+            'game_histories.opponent_avatar_url',
+            'game_histories.opponent_rating',
+            'games.white_player_id',
+            'games.black_player_id',
+            'games.white_player_score',
+            'games.black_player_score',
+            'white_player.name as white_player_name',
+            'white_player.avatar_url as white_player_avatar',
+            'white_player.rating as white_player_rating',
+            'black_player.name as black_player_name',
+            'black_player.avatar_url as black_player_avatar',
+            'black_player.rating as black_player_rating',
+        ];
+
+        // Paginate (default 15 per page, max 100)
+        $perPage = min((int) $request->get('per_page', 15), 100);
+        $paginated = $query->paginate($perPage, $columns);
+
+        $games = collect($paginated->items())
             ->map(function ($game) use ($user) {
                 // Calculate the correct final_score for multiplayer games
                 if ($game->game_mode === 'multiplayer' && $game->game_id) {
@@ -376,8 +397,17 @@ class GameHistoryController extends Controller
                 return $game;
             });
 
-        Log::info("Games summary:", $games->toArray());
-        return response()->json(['success' => true, 'data' => $games], 200);
+        return response()->json([
+            'success' => true,
+            'data' => $games,
+            'pagination' => [
+                'current_page' => $paginated->currentPage(),
+                'last_page' => $paginated->lastPage(),
+                'per_page' => $paginated->perPage(),
+                'total' => $paginated->total(),
+                'has_more' => $paginated->hasMorePages(),
+            ]
+        ], 200);
     }
 
     // Return full game details (including moves) for a given id

@@ -264,6 +264,8 @@ export const createResultFromComputerGame = (resultText, playerColor, gameStatus
     else if (lowerResult.includes('threefold')) endReason = END_REASON.THREEFOLD_REPETITION;
     else if (lowerResult.includes('fifty')) endReason = END_REASON.FIFTY_MOVE_RULE;
     else endReason = END_REASON.AGREEMENT;
+  } else if (gameStatus.in_timeout || lowerResult.includes('on time')) {
+    endReason = END_REASON.TIMEOUT;
   }
 
   // Determine status and winner

@@ -34,7 +34,7 @@ export const trainingExercises = {
       title: "Back Rank Checkmate",
       description:
         "Black’s king is trapped on the back rank. Find the mating rook move!",
-      position: "5rk1/5ppp/8/8/8/8/5PPP/6K1 w - - 0 1",
+      position: "5rk1/5ppp/8/8/8/8/5PPP/5RK1 w - - 0 1",
       solution: ["f1f8"],
       successMessage: "Perfect! Rf8# is a classic back rank mate.",
     },

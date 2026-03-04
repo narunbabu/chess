@@ -530,13 +530,10 @@ const PlayMultiplayer = () => {
       setRatedMode(gameMode);
       console.log('🎮 Game Mode:', gameMode);
 
-      // Show pre-game confirmation for rated mode
+      // Rated game — auto-confirm (rules shown via info button during gameplay)
       if (gameMode === 'rated' && !ratedGameConfirmed) {
-        console.log('[PlayMultiplayer] ⚠️ Rated game detected - showing confirmation');
-        setLoading(false); // Stop loading so confirmation dialog can be shown
-        setShowRatedGameConfirmation(true);
-        // Don't proceed with initialization until confirmed
-        return;
+        setRatedGameConfirmed(true);
+        hasReinitializedAfterRatedConfirm.current = true; // Skip re-init effect — already initializing
       }
 
       // Initialize undo chances based on game mode
@@ -5168,114 +5165,6 @@ const PlayMultiplayer = () => {
           }
         }}
       />
-
-      {/* Rated Game Pre-Confirmation Dialog */}
-      {showRatedGameConfirmation && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.85)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 10000
-        }}>
-          <div style={{
-            backgroundColor: '#fff',
-            borderRadius: '16px',
-            padding: '40px',
-            maxWidth: '550px',
-            boxShadow: '0 12px 48px rgba(0, 0, 0, 0.4)'
-          }}>
-            <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-              <div style={{ fontSize: '64px', marginBottom: '20px' }}>⚠️</div>
-              <h2 style={{ fontSize: '28px', fontWeight: 'bold', color: '#dc2626', marginBottom: '16px' }}>
-                RATED GAME RULES
-              </h2>
-              <p style={{ fontSize: '16px', color: '#6b7280', marginBottom: '24px' }}>
-                This is a <strong style={{ color: '#dc2626' }}>RATED</strong> game. Please read the rules carefully:
-              </p>
-              <div style={{
-                backgroundColor: '#fef2f2',
-                border: '2px solid #fca5a5',
-                borderRadius: '12px',
-                padding: '24px',
-                textAlign: 'left',
-                marginBottom: '20px'
-              }}>
-                <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'start' }}>
-                  <span style={{ fontSize: '20px', marginRight: '12px' }}>🚫</span>
-                  <p style={{ fontSize: '15px', color: '#991b1b', fontWeight: '500', margin: 0 }}>
-                    You CANNOT pause the game
-                  </p>
-                </div>
-                <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'start' }}>
-                  <span style={{ fontSize: '20px', marginRight: '12px' }}>↶</span>
-                  <p style={{ fontSize: '15px', color: '#991b1b', fontWeight: '500', margin: 0 }}>
-                    You CANNOT undo moves
-                  </p>
-                </div>
-                <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'start' }}>
-                  <span style={{ fontSize: '20px', marginRight: '12px' }}>🏳️</span>
-                  <p style={{ fontSize: '15px', color: '#991b1b', fontWeight: '500', margin: 0 }}>
-                    Closing the browser will FORFEIT the game
-                  </p>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'start' }}>
-                  <span style={{ fontSize: '20px', marginRight: '12px' }}>📊</span>
-                  <p style={{ fontSize: '15px', color: '#991b1b', fontWeight: '500', margin: 0 }}>
-                    This game will affect your rating
-                  </p>
-                </div>
-              </div>
-              <p style={{ fontSize: '16px', color: '#374151', fontWeight: '600' }}>
-                Do you want to start this rated game?
-              </p>
-            </div>
-            <div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }}>
-              <button
-                onClick={handleCancelRatedGame}
-                style={{
-                  padding: '14px 32px',
-                  backgroundColor: '#6b7280',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '16px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'background-color 0.2s'
-                }}
-                onMouseEnter={(e) => e.target.style.backgroundColor = '#4b5563'}
-                onMouseLeave={(e) => e.target.style.backgroundColor = '#6b7280'}
-              >
-                ❌ Cancel
-              </button>
-              <button
-                onClick={handleConfirmRatedGame}
-                style={{
-                  padding: '14px 32px',
-                  backgroundColor: '#10b981',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '16px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'background-color 0.2s'
-                }}
-                onMouseEnter={(e) => e.target.style.backgroundColor = '#059669'}
-                onMouseLeave={(e) => e.target.style.backgroundColor = '#10b981'}
-              >
-                ✅ I Understand - Start Game
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Rated Game Navigation Warning Dialog */}
       {showRatedNavigationWarning && (

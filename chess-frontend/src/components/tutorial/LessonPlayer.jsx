@@ -24,6 +24,9 @@ const LessonPlayer = () => {
   const [attempts, setAttempts] = useState(0);
   const [playerColor, setPlayerColor] = useState('white');
   const [chessGame, setChessGame] = useState(null);
+  const [moveFrom, setMoveFrom] = useState('');
+  const [moveSquares, setMoveSquares] = useState({});
+  const [rightClickedSquares, setRightClickedSquares] = useState({});
   const [quizAnswers, setQuizAnswers] = useState({}); // Track quiz answers: {questionIndex: selectedOptionIndex}
   const [totalQuizQuestions, setTotalQuizQuestions] = useState(0); // Total quiz questions across all slides
 
@@ -95,9 +98,15 @@ const LessonPlayer = () => {
     }
 
     if (lesson.lesson_type === 'practice_game') {
-      // Create new game for practice
-      const game = new Chess();
-      setChessGame(game);
+      // Use custom starting position from practice_config if available
+      const startingFen = lesson.content_data?.practice_config?.starting_position;
+      try {
+        const game = startingFen ? new Chess(startingFen) : new Chess();
+        setChessGame(game);
+      } catch (error) {
+        console.error('Invalid practice game FEN:', startingFen, error);
+        setChessGame(new Chess());
+      }
     }
 
     if (lesson.lesson_type === 'interactive') {
@@ -308,47 +317,70 @@ const LessonPlayer = () => {
             <div className="text-center text-base font-bold text-white mb-4">
               📋 Board Position
             </div>
+            {chessGame && (
+              <div className="text-center mb-2 text-sm font-semibold" style={{ color: chessGame.turn() === 'w' ? '#f0f0f0' : '#a0a0a0' }}>
+                {chessGame.turn() === 'w' ? '⬜ White' : '⬛ Black'} to move
+              </div>
+            )}
             <div className="flex justify-center items-center">
               <div style={{ width: '500px', height: '500px' }}>
                 <ChessBoard
                   game={chessGame}
                   boardOrientation="white"
                   playerColor="white"
-                  isReplayMode={slide.highlights ? false : true}
-                  onDrop={slide.highlights ? (sourceSquare, targetSquare) => {
-                    const move = `${sourceSquare}${targetSquare}`;
-                    // For interactive theory lessons, allow any move and provide feedback
-                    console.log('Interactive move attempted:', move);
-                    // Reset the position to the original diagram
-                    try {
-                      const newGame = new Chess(slide.diagram);
-                      setChessGame(newGame);
-                    } catch (error) {
-                      console.error('Error resetting position:', error);
+                  isReplayMode={false}
+                  allowAllMoves={true}
+                  onDrop={(sourceSquare, targetSquare) => {
+                    // Allow exploratory moves on theory diagrams
+                    const tempGame = new Chess(chessGame.fen());
+                    const moveResult = tempGame.move({
+                      from: sourceSquare,
+                      to: targetSquare,
+                      promotion: 'q'
+                    });
+                    if (moveResult) {
+                      setChessGame(tempGame);
                     }
-                    return true;
-                  } : undefined}
-                  moveFrom=""
-                  setMoveFrom={() => {}}
-                  rightClickedSquares={{}}
-                  setRightClickedSquares={() => {}}
-                  moveSquares={slide.highlights ? slide.highlights.reduce((acc, square) => {
-                    acc[square] = { backgroundColor: 'rgba(255, 255, 0, 0.5)' };
-                    return acc;
-                  }, {}) : {}}
-                  setMoveSquares={() => {}}
+                    return !!moveResult;
+                  }}
+                  moveFrom={moveFrom}
+                  setMoveFrom={setMoveFrom}
+                  rightClickedSquares={rightClickedSquares}
+                  setRightClickedSquares={setRightClickedSquares}
+                  moveSquares={{
+                    ...moveSquares,
+                    ...(slide.highlights ? slide.highlights.reduce((acc, square) => {
+                      acc[square] = { backgroundColor: 'rgba(255, 255, 0, 0.5)' };
+                      return acc;
+                    }, {}) : {})
+                  }}
+                  setMoveSquares={setMoveSquares}
                 />
               </div>
             </div>
-            {slide.highlights && (
-              <div className="text-center text-sm text-[#e8a93e] mt-4 font-semibold bg-[#3d3a37] p-3 rounded-lg border border-[#4a4744]">
-                💡 Try moving the pieces on the board above!
-              </div>
-            )}
+            <div className="flex justify-center items-center gap-3 mt-4">
+              {slide.highlights && (
+                <span className="text-sm text-[#e8a93e] font-semibold">
+                  💡 Try moving the pieces!
+                </span>
+              )}
+              <button
+                onClick={() => {
+                  try {
+                    setChessGame(new Chess(slide.diagram));
+                    setMoveFrom('');
+                    setMoveSquares({});
+                  } catch (e) {}
+                }}
+                className="px-3 py-1 text-xs bg-[#3d3a37] text-[#bababa] rounded hover:bg-[#4a4744] transition-colors"
+              >
+                ↺ Reset Board
+              </button>
+            </div>
           </div>
         )}
 
-        {slide.quiz && (
+        {Array.isArray(slide.quiz) && slide.quiz.length > 0 && (
           <div className="rounded-lg p-5 border-2" style={{
             background: '#262421',
             borderColor: '#3d3a37',
@@ -425,7 +457,7 @@ const LessonPlayer = () => {
             </div>
 
             {/* Quiz completion status */}
-            {slide.quiz && (() => {
+            {Array.isArray(slide.quiz) && slide.quiz.length > 0 && (() => {
               const allQuestionsAnswered = slide.quiz.every((_, qIndex) => {
                 const answerKey = `${index}-${qIndex}`;
                 return quizAnswers[answerKey] !== undefined;
@@ -490,12 +522,22 @@ const LessonPlayer = () => {
         <div className="mb-6 bg-[#262421] p-6 rounded-xl border-2 border-[#3d3a37]">
           <h3 className="text-2xl font-bold mb-3 text-white">🎮 Practice Game</h3>
           <p className="text-[#bababa] font-semibold text-lg">
-            Play against AI to practice what you've learned!
+            {lesson.content_data?.practice_config?.objective || 'Play both sides to practice what you\'ve learned!'}
+          </p>
+          <p className="text-[#e8a93e] text-sm mt-2">
+            💡 You control both White and Black pieces — try to find the best moves for each side.
           </p>
         </div>
 
         <div className="mb-6 bg-[#262421] p-6 rounded-xl border-2 border-[#3d3a37]">
           {chessGame && (
+            <>
+            <div className="text-center mb-3 text-sm font-semibold" style={{ color: chessGame.turn() === 'w' ? '#f0f0f0' : '#a0a0a0' }}>
+              {chessGame.turn() === 'w' ? '⬜ White' : '⬛ Black'} to move
+              {chessGame.isCheck() && ' — Check!'}
+              {chessGame.isCheckmate() && ' — Checkmate!'}
+              {chessGame.isStalemate() && ' — Stalemate!'}
+            </div>
             <div className="flex justify-center items-center">
               <div style={{ width: '500px', height: '500px' }}>
                 <ChessBoard
@@ -503,29 +545,55 @@ const LessonPlayer = () => {
                   boardOrientation={playerColor}
                   playerColor={playerColor}
                   isReplayMode={false}
+                  allowAllMoves={true}
                   onDrop={(sourceSquare, targetSquare) => {
-                    // Handle practice game moves
-                    console.log('Practice game move:', sourceSquare, targetSquare);
-                    return true;
+                    // Handle practice game moves — update game state
+                    const tempGame = new Chess(chessGame.fen());
+                    const moveResult = tempGame.move({
+                      from: sourceSquare,
+                      to: targetSquare,
+                      promotion: 'q'
+                    });
+                    if (moveResult) {
+                      setChessGame(tempGame);
+                    }
+                    return !!moveResult;
                   }}
-                  moveFrom=""
-                  setMoveFrom={() => {}}
-                  rightClickedSquares={{}}
-                  setRightClickedSquares={() => {}}
-                  moveSquares={{}}
-                  setMoveSquares={() => {}}
+                  moveFrom={moveFrom}
+                  setMoveFrom={setMoveFrom}
+                  rightClickedSquares={rightClickedSquares}
+                  setRightClickedSquares={setRightClickedSquares}
+                  moveSquares={moveSquares}
+                  setMoveSquares={setMoveSquares}
                 />
               </div>
             </div>
+            </>
           )}
         </div>
 
-        <div className="flex justify-between">
+        <div className="flex justify-between flex-wrap gap-2">
           <button
             onClick={() => setPlayerColor(playerColor === 'white' ? 'black' : 'white')}
             className="px-4 py-2 bg-[#81b64c] text-white rounded-lg hover:bg-[#a3d160] transition-colors"
           >
-            Play as {playerColor === 'white' ? 'Black' : 'White'}
+            Flip Board
+          </button>
+
+          <button
+            onClick={() => {
+              const startingFen = lesson.content_data?.practice_config?.starting_position;
+              try {
+                setChessGame(startingFen ? new Chess(startingFen) : new Chess());
+              } catch (e) {
+                setChessGame(new Chess());
+              }
+              setMoveFrom('');
+              setMoveSquares({});
+            }}
+            className="px-4 py-2 bg-[#3d3a37] text-[#bababa] rounded-lg hover:bg-[#4a4744] transition-colors"
+          >
+            ↺ Reset Position
           </button>
 
           <button
@@ -758,7 +826,7 @@ const LessonPlayer = () => {
               if (lesson.lesson_type === 'theory') {
                 const slides = lesson.content_data?.slides || [];
                 const currentSlide = slides[currentStep];
-                if (currentSlide?.quiz) {
+                if (Array.isArray(currentSlide?.quiz) && currentSlide.quiz.length > 0) {
                   // Disable if not all quiz questions are answered
                   return !currentSlide.quiz.every((_, qIndex) => {
                     const answerKey = `${currentStep}-${qIndex}`;

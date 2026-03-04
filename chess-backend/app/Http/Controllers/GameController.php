@@ -130,7 +130,7 @@ class GameController extends Controller
 
     public function show($id)
     {
-        $game = Game::with(['whitePlayer', 'blackPlayer', 'statusRelation', 'endReasonRelation'])->find($id);
+        $game = Game::with(['whitePlayer', 'blackPlayer', 'computerPlayer', 'syntheticPlayer', 'statusRelation', 'endReasonRelation'])->find($id);
 
         if (!$game) {
             return response()->json(['error' => 'Game not found'], 404);
@@ -159,47 +159,126 @@ class GameController extends Controller
         }
 
         // Determine player color
+        $isComputerGame = $game->computer_player_id !== null;
         $playerColor = (int) $game->white_player_id === (int) $user->id ? 'white' : 'black';
 
-        \Log::info('🎮 Game show response:', [
-            'game_id' => $id,
-            'user_id' => $user->id,
-            'user_id_type' => gettype($user->id),
-            'white_player_id' => $game->white_player_id,
-            'white_player_id_type' => gettype($game->white_player_id),
-            'black_player_id' => $game->black_player_id,
-            'black_player_id_type' => gettype($game->black_player_id),
-            'comparison_white' => (int) $game->white_player_id === (int) $user->id,
-            'comparison_black' => (int) $game->black_player_id === (int) $user->id,
-            'calculated_player_color' => $playerColor
-        ]);
+        // Build player data (handles computer/synthetic opponents)
+        $computerData = null;
+        if ($isComputerGame && $game->syntheticPlayer) {
+            $computerData = [
+                'id' => 'synthetic_' . $game->syntheticPlayer->id,
+                'name' => $game->syntheticPlayer->name,
+                'email' => null,
+                'avatar' => $game->syntheticPlayer->avatar_url,
+                'rating' => $game->syntheticPlayer->rating,
+                'is_provisional' => false
+            ];
+        } elseif ($isComputerGame && $game->computerPlayer) {
+            $computerData = [
+                'id' => 'computer_' . $game->computerPlayer->id,
+                'name' => $game->computerPlayer->name,
+                'email' => null,
+                'avatar' => null,
+                'rating' => $game->computerPlayer->rating,
+                'is_provisional' => false
+            ];
+        }
+
+        $whitePlayerData = $game->whitePlayer ? [
+            'id' => $game->whitePlayer->id,
+            'name' => $game->whitePlayer->name,
+            'email' => $game->whitePlayer->email,
+            'avatar' => $game->whitePlayer->avatar_url,
+            'rating' => $game->whitePlayer->rating,
+            'is_provisional' => $game->whitePlayer->is_provisional
+        ] : ($computerData ?? ['id' => null, 'name' => 'Computer', 'email' => null, 'avatar' => null, 'rating' => null, 'is_provisional' => false]);
+
+        $blackPlayerData = $game->blackPlayer ? [
+            'id' => $game->blackPlayer->id,
+            'name' => $game->blackPlayer->name,
+            'email' => $game->blackPlayer->email,
+            'avatar' => $game->blackPlayer->avatar_url,
+            'rating' => $game->blackPlayer->rating,
+            'is_provisional' => $game->blackPlayer->is_provisional
+        ] : ($computerData ?? ['id' => null, 'name' => 'Computer', 'email' => null, 'avatar' => null, 'rating' => null, 'is_provisional' => false]);
+
+        // Detect opening name from first few moves
+        $openingName = $this->detectOpening($game->moves ?? []);
 
         $response = [
             ...$game->toArray(),
             'player_color' => $playerColor,
-            'white_player' => [
-                'id' => $game->whitePlayer->id,
-                'name' => $game->whitePlayer->name,
-                'email' => $game->whitePlayer->email,
-                'avatar' => $game->whitePlayer->avatar_url,
-                'rating' => $game->whitePlayer->rating,
-                'is_provisional' => $game->whitePlayer->is_provisional
+            'white_player' => $whitePlayerData,
+            'black_player' => $blackPlayerData,
+            'time_control' => [
+                'minutes' => $game->time_control_minutes,
+                'increment' => $game->increment_seconds,
             ],
-            'black_player' => [
-                'id' => $game->blackPlayer->id,
-                'name' => $game->blackPlayer->name,
-                'email' => $game->blackPlayer->email,
-                'avatar' => $game->blackPlayer->avatar_url,
-                'rating' => $game->blackPlayer->rating,
-                'is_provisional' => $game->blackPlayer->is_provisional
-            ]
+            'opening_name' => $openingName,
+            'move_count' => count($game->moves ?? []),
         ];
 
-        \Log::info('🎮 Final response player_color:', ['player_color' => $response['player_color']]);
-        \Log::info('🎮 Final response white_player:', ['white_player' => $response['white_player']]);
-        \Log::info('🎮 Final response black_player:', ['black_player' => $response['black_player']]);
-
         return response()->json($response);
+    }
+
+    /**
+     * Detect chess opening name from moves list
+     * Returns null if no known opening is matched
+     */
+    private function detectOpening(array $moves): ?string
+    {
+        if (empty($moves)) {
+            return null;
+        }
+
+        // Extract SAN notation from first few moves
+        $sans = [];
+        foreach (array_slice($moves, 0, 6) as $move) {
+            $san = $move['san'] ?? $move['move'] ?? null;
+            if ($san) {
+                $sans[] = $san;
+            }
+        }
+
+        if (empty($sans)) {
+            return null;
+        }
+
+        $moveStr = implode(' ', $sans);
+
+        // Common openings lookup (first moves → name), ordered longest prefix first
+        $openings = [
+            'e4 e5 Nf3 Nc6 Bb5' => 'Ruy López',
+            'e4 e5 Nf3 Nc6 Bc4' => 'Italian Game',
+            'e4 e5 Nf3 Nc6 d4' => 'Scotch Game',
+            'e4 e5 Nf3 Nc6' => 'Four Knights / Open Game',
+            'e4 e5 Nf3 Nf6' => 'Petrov\'s Defense',
+            'd4 d5 c4 dxc4' => 'Queen\'s Gambit Accepted',
+            'd4 d5 c4 e6' => 'Queen\'s Gambit Declined',
+            'd4 Nf6 c4 g6' => 'King\'s Indian Defense',
+            'd4 Nf6 c4 e6' => 'Nimzo-Indian Defense',
+            'e4 e5 f4' => 'King\'s Gambit',
+            'd4 d5 c4' => 'Queen\'s Gambit',
+            'd4 d5 Bf4' => 'London System',
+            'Nf3 d5 g3' => 'Réti Opening',
+            'e4 c5' => 'Sicilian Defense',
+            'e4 e6' => 'French Defense',
+            'e4 c6' => 'Caro-Kann Defense',
+            'e4 d5' => 'Scandinavian Defense',
+            'e4 e5' => 'Open Game',
+            'd4 d5' => 'Closed Game',
+            'd4 Nf6' => 'Indian Defense',
+            'c4' => 'English Opening',
+        ];
+
+        // Match against move string (longest prefixes checked first due to array order)
+        foreach ($openings as $prefix => $name) {
+            if (str_starts_with($moveStr, $prefix)) {
+                return $name;
+            }
+        }
+
+        return null;
     }
 
     public function move(Request $request, $id)
@@ -444,15 +523,33 @@ class GameController extends Controller
             }
         }
 
-        // Apply limit
-        $limit = $request->get('limit', 50);
-        $query->limit(min($limit, 100)); // Cap at 100 for performance
+        // Date range filters (ISO 8601 format: YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)
+        if ($request->has('date_from')) {
+            $query->where('created_at', '>=', $request->get('date_from'));
+        }
+        if ($request->has('date_to')) {
+            $query->where('created_at', '<=', $request->get('date_to'));
+        }
 
-        $games = $query->with(['whitePlayer', 'blackPlayer', 'computerPlayer', 'syntheticPlayer', 'statusRelation', 'endReasonRelation'])
-        ->orderBy('last_move_at', 'desc')
-        ->orderBy('created_at', 'desc')
-        ->get()
-        ->map(function($game) {
+        // Opponent player filter
+        if ($request->has('opponent_id')) {
+            $opponentId = $request->get('opponent_id');
+            $query->where(function ($q) use ($opponentId) {
+                $q->where('white_player_id', $opponentId)
+                  ->orWhere('black_player_id', $opponentId);
+            });
+        }
+
+        $query->with(['whitePlayer', 'blackPlayer', 'computerPlayer', 'syntheticPlayer', 'statusRelation', 'endReasonRelation'])
+            ->orderBy('last_move_at', 'desc')
+            ->orderBy('created_at', 'desc');
+
+        // Paginate (default 15 per page, max 100)
+        $perPage = min((int) $request->get('per_page', 15), 100);
+        $paginated = $query->paginate($perPage);
+
+        // Transform each game in the paginated results
+        $transformed = collect($paginated->items())->map(function($game) {
             $gameArray = $game->toArray();
             $isComputerGame = $game->computer_player_id !== null;
 
@@ -492,7 +589,16 @@ class GameController extends Controller
             return $gameArray;
         });
 
-        return response()->json($games);
+        return response()->json([
+            'data' => $transformed,
+            'pagination' => [
+                'current_page' => $paginated->currentPage(),
+                'last_page' => $paginated->lastPage(),
+                'per_page' => $paginated->perPage(),
+                'total' => $paginated->total(),
+                'has_more' => $paginated->hasMorePages(),
+            ]
+        ]);
     }
 
     /**

@@ -42,6 +42,7 @@ const GameContainer = ({
   chatData = null,
 }) => {
   const [rightTab, setRightTab] = useState('moves');
+  const [showRatedRules, setShowRatedRules] = useState(false);
   const moveListRef = useRef(null);
 
   // Extract timer data
@@ -148,6 +149,38 @@ const GameContainer = ({
           >
             ↩ Undo{undoChancesRemaining > 0 ? ` (${undoChancesRemaining})` : ''}
           </button>
+        )}
+        {/* Rated Rules Info */}
+        {isRated && !gameOver && (
+          <div style={{ position: 'relative', display: 'inline-block' }}>
+            <button
+              className="gc-action-btn gc-action-neutral"
+              onClick={() => setShowRatedRules(prev => !prev)}
+              title="Rated game rules"
+              style={{ minWidth: 'auto', padding: '6px 10px' }}
+            >
+              ℹ Rules
+            </button>
+            {showRatedRules && (
+              <div style={{
+                position: 'absolute', bottom: '110%', left: '50%', transform: 'translateX(-50%)',
+                backgroundColor: '#1a1a2e', border: '1px solid #fca5a5', borderRadius: '10px',
+                padding: '14px 16px', width: '240px', zIndex: 100, boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+                fontSize: '13px', color: '#e5e5e5', lineHeight: 1.5
+              }}>
+                <div style={{ fontWeight: 700, color: '#fca5a5', marginBottom: '8px', fontSize: '14px' }}>⚠️ Rated Game Rules</div>
+                <div>🚫 No pausing</div>
+                <div>↶ No undo</div>
+                <div>🏳️ Leaving = forfeit</div>
+                <div>📊 Affects your rating</div>
+                <div style={{ marginTop: '8px', textAlign: 'right' }}>
+                  <button onClick={() => setShowRatedRules(false)} style={{
+                    background: 'none', border: 'none', color: '#93c5fd', cursor: 'pointer', fontSize: '12px'
+                  }}>Got it</button>
+                </div>
+              </div>
+            )}
+          </div>
         )}
         {/* Draw */}
         {handleDrawOffer && !gameOver && (

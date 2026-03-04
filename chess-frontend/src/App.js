@@ -57,6 +57,7 @@ const ModuleDetail = createLazyComponent(() => import("./components/tutorial/Mod
 const LessonPlayer = createLazyComponent(() => import("./components/tutorial/LessonPlayer"), { componentName: "LessonPlayer" });
 const GameHistory = createLazyComponent(() => import("./components/GameHistory"), { componentName: "GameHistory" });
 const GameReview = createLazyComponent(() => import("./components/GameReview"), { componentName: "GameReview" });
+const GameDetailPage = createLazyComponent(() => import("./pages/GameDetailPage"), { componentName: "GameDetailPage" });
 
 // Championship Components (lazy-loaded with error handling)
 const ChampionshipList = createLazyComponent(() => import("./components/championship/ChampionshipList"), { componentName: "ChampionshipList" });
@@ -227,6 +228,14 @@ const AppContent = () => {
               element={
                 <RouteGuard>
                   <GameReview />
+                </RouteGuard>
+              }
+            />
+            <Route
+              path="/game/:id"
+              element={
+                <RouteGuard>
+                  <GameDetailPage />
                 </RouteGuard>
               }
             />

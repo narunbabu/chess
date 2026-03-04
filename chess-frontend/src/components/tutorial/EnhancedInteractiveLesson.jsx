@@ -593,7 +593,7 @@ const EnhancedInteractiveLesson = ({ lesson, user, onLessonComplete }) => {
                     boardOrientation={currentStage.orientation || 'white'}
                     playerColor={currentStage.orientation || 'white'}
                     isReplayMode={false}
-                    allowAllMoves={false}
+                    allowAllMoves={true}
                     onDrop={handleInteractiveMove}
                     moveFrom={moveFrom}
                     setMoveFrom={setMoveFrom}
