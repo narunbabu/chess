@@ -596,27 +596,16 @@ export const shareGameVideo = async ({
 
     const ext = videoBlob.type.includes('mp4') ? 'mp4' : 'webm';
     const filename = `chess99-replay-${Date.now()}.${ext}`;
-
-    // Try native share with video file
     const videoFile = new File([videoBlob], filename, { type: videoBlob.type });
-    if (navigator.share && navigator.canShare?.({ files: [videoFile] })) {
-      try {
-        await navigator.share({
-          title: 'Chess99 Game Replay',
-          text: shareMessage,
-          files: [videoFile]
-        });
-        console.log('✅ Native video share completed');
-        return;
-      } catch (err) {
-        if (err.name === 'AbortError') return;
-        console.warn('Native share failed, falling back:', err);
-      }
-    }
 
-    // Desktop fallback: share menu
+    // Check if native share with files is supported (mobile browsers)
+    const nativeShareSupported = navigator.share && navigator.canShare?.({ files: [videoFile] });
+
+    // Always go through onShareReady so the user can tap "Share" in a direct
+    // click handler — navigator.share() requires a live user gesture and the
+    // async video generation consumes the original gesture.
     if (onShareReady) {
-      onShareReady({ blob: videoBlob, message: shareMessage, filename });
+      onShareReady({ blob: videoBlob, message: shareMessage, filename, videoFile, nativeShareSupported });
       return;
     }
 

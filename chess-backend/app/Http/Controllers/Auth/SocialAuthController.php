@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Services\ReferralService;
 use Laravel\Socialite\Facades\Socialite;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
@@ -61,6 +62,11 @@ class SocialAuthController extends Controller
         Log::info('Request URL: ' . request()->fullUrl());
         Log::info('Request IP: ' . request()->ip());
         Log::info('User Agent: ' . request()->userAgent());
+
+        // Store referral code in session so it survives the OAuth round-trip
+        if (request()->has('ref')) {
+            session(['referral_code' => request()->input('ref')]);
+        }
 
         // Get the Socialite driver configuration
         $driver = Socialite::driver($provider);
@@ -135,7 +141,15 @@ class SocialAuthController extends Controller
                     'email' => $socialUser->getEmail(),
                     'provider' => $provider,
                     'provider_id' => $socialUser->getId(),
+                    'referral_code' => strtoupper(Str::random(8)),
                 ]);
+
+                // Link referral if code was stored in session before OAuth redirect
+                $referralCode = session('referral_code');
+                if ($referralCode) {
+                    app(ReferralService::class)->linkReferral($user, $referralCode);
+                    session()->forget('referral_code');
+                }
             }
 
             Log::info('=== USER CREATED/UPDATED ===');

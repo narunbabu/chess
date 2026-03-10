@@ -57,6 +57,8 @@ export const useGameState = ({ user }) => {
   // Draw offer state
   const [drawOfferPending, setDrawOfferPending] = useState(false);
   const [drawOfferedByMe, setDrawOfferedByMe] = useState(false);
+  const [drawOfferFromName, setDrawOfferFromName] = useState('');
+  const [drawDeclinedNotice, setDrawDeclinedNotice] = useState(false);
   const [drawState, setDrawState] = useState({
     offered: false,
     pending: false,
@@ -162,6 +164,8 @@ export const useGameState = ({ user }) => {
     setSavedGameHistoryId(null);
     setDrawOfferPending(false);
     setDrawOfferedByMe(false);
+    setDrawOfferFromName('');
+    setDrawDeclinedNotice(false);
     setDrawState({ offered: false, pending: false, byPlayer: null });
     setCanUndo(false);
     setUndoChancesRemaining(0);
@@ -250,6 +254,10 @@ export const useGameState = ({ user }) => {
     setDrawOfferPending,
     drawOfferedByMe,
     setDrawOfferedByMe,
+    drawOfferFromName,
+    setDrawOfferFromName,
+    drawDeclinedNotice,
+    setDrawDeclinedNotice,
     drawState,
     setDrawState,
 

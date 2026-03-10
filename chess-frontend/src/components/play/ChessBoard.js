@@ -31,32 +31,29 @@ const ChessBoard = ({
 }) => {
   const boardBoxRef = useRef(null);       // <── renamed for clarity
   const [boardSize, setBoardSize] = useState(0);
-  const resizeTimeoutRef = useRef(null);  // For debouncing resize events
+  const boardSizeRef = useRef(0);          // Track current size without re-creating observer
+  const resizeTimeoutRef = useRef(null);   // For debouncing resize events
 
   useEffect(() => {
     if (!boardBoxRef.current) return;
 
-    // Store the current board size to compare with new sizes
-    const currentSize = boardSize;
-
     const ro = new ResizeObserver(([entry]) => {
-      /* 15 px padding above & below for safety */
       const { width, height } = entry.contentRect;
-      // Use the smaller dimension to ensure square board fits within container
       const newSize = Math.floor(Math.min(width, height));
 
-      // Debounce rapid resize events to prevent flickering
       if (resizeTimeoutRef.current) {
         clearTimeout(resizeTimeoutRef.current);
       }
 
       resizeTimeoutRef.current = setTimeout(() => {
-        // Only update if size actually changed and is valid (prevent unnecessary re-renders)
-        if (newSize !== currentSize && newSize > 0) {
+        // Compare against ref (always current) instead of stale closure
+        if (newSize !== boardSizeRef.current && newSize > 0) {
+          const prevSize = boardSizeRef.current;
+          boardSizeRef.current = newSize;
           setBoardSize(newSize);
-          logBoardResize(currentSize, newSize, { width, height });
+          logBoardResize(prevSize, newSize, { width, height });
         }
-      }, 50); // 50ms debounce to prevent rapid recalculations
+      }, 100); // 100ms debounce to prevent mid-interaction layout thrash
     });
 
     ro.observe(boardBoxRef.current);
@@ -68,7 +65,7 @@ const ChessBoard = ({
         clearTimeout(resizeTimeoutRef.current);
       }
     };
-  }, [boardSize]); // Add boardSize dependency to prevent re-creating observer on every render
+  }, []); // Empty deps: observer created once, never torn down/recreated
 
   // Helper to check if the game prop is a valid Chess instance
   const isValidChessInstance = (g) => g && g instanceof Chess;

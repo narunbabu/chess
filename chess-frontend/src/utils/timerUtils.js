@@ -165,12 +165,14 @@ export const useGameTimer = (playerColor, game, onFlag, initialTimeSec = 600, in
   const timerRef = useRef(null);
   const lastTickRef = useRef(Date.now());
   const activeTimerRef = useRef(activeTimer);
+  const playerColorRef = useRef(playerColor); // Track current playerColor without stale closure
   const onFlagRef = useRef(onFlag);
   // Store initial values in refs so resetTimer always has the right values
   const initialTimeRef = useRef(initialTimeSec);
   const incrementRef = useRef(incrementSec);
 
   useEffect(() => { activeTimerRef.current = activeTimer; }, [activeTimer]);
+  useEffect(() => { playerColorRef.current = playerColor; }, [playerColor]);
   useEffect(() => { onFlagRef.current = onFlag; }, [onFlag]);
 
   // Sync refs when props change (e.g. game restart with different time)
@@ -199,7 +201,9 @@ export const useGameTimer = (playerColor, game, onFlag, initialTimeSec = 600, in
       const elapsedSec = (now - lastTickRef.current) / 1000;
       lastTickRef.current = now;
 
-      if (activeTimerRef.current === playerColor) {
+      // Use refs to always read the current playerColor (avoids stale closure)
+      const pc = playerColorRef.current;
+      if (activeTimerRef.current === pc) {
         setPlayerTime(prev => {
           const t = Math.max(0, prev - elapsedSec);
           if (t <= 0) {
@@ -210,7 +214,7 @@ export const useGameTimer = (playerColor, game, onFlag, initialTimeSec = 600, in
           }
           return t;
         });
-      } else if (activeTimerRef.current === (playerColor === 'w' ? 'b' : 'w')) {
+      } else if (activeTimerRef.current === (pc === 'w' ? 'b' : 'w')) {
         setComputerTime(prev => {
           const t = Math.max(0, prev - elapsedSec);
           if (t <= 0) {
@@ -223,13 +227,14 @@ export const useGameTimer = (playerColor, game, onFlag, initialTimeSec = 600, in
         });
       }
     }, 200); // 200ms ticks for good precision + low overhead
-  }, [game, playerColor]);
+  }, [game]);
 
   // Switch active timer + apply Fischer increment to the player who just moved
   const switchTimer = useCallback((newActiveTimer) => {
-    // Apply increment to the player who just finished moving
+    // Apply increment to the player who just finished moving (use ref for current value)
+    const pc = playerColorRef.current;
     if (incrementRef.current > 0 && activeTimerRef.current) {
-      if (activeTimerRef.current === playerColor) {
+      if (activeTimerRef.current === pc) {
         setPlayerTime(prev => prev + incrementRef.current);
       } else {
         setComputerTime(prev => prev + incrementRef.current);
@@ -237,7 +242,7 @@ export const useGameTimer = (playerColor, game, onFlag, initialTimeSec = 600, in
     }
     setActiveTimer(newActiveTimer);
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
-  }, [playerColor]);
+  }, []);
 
   const pauseTimer = useCallback(() => {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
@@ -260,7 +265,8 @@ export const useGameTimer = (playerColor, game, onFlag, initialTimeSec = 600, in
         lastTickRef.current = now;
 
         if (elapsedSec > 0.5) { // Meaningful hidden time
-          if (activeTimerRef.current === playerColor) {
+          const pc = playerColorRef.current;
+          if (activeTimerRef.current === pc) {
             setPlayerTime(prev => {
               const t = Math.max(0, prev - elapsedSec);
               if (t <= 0 && onFlagRef.current) onFlagRef.current('player');
@@ -278,7 +284,7 @@ export const useGameTimer = (playerColor, game, onFlag, initialTimeSec = 600, in
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [isTimerRunning, playerColor]);
+  }, [isTimerRunning]);
 
   return {
     playerTime,

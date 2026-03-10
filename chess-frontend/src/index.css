@@ -2100,6 +2100,9 @@
   aspect-ratio: 1/1;
   width: min(85vh, 90vw);
   max-width: 600px;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 @media (orientation: portrait) {

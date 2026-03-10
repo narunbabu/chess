@@ -943,6 +943,7 @@ const PlayComputer = () => {
       if (location.state.preferredColor) {
         const color = location.state.preferredColor === 'black' ? 'b' : 'w';
         setPlayerColor(color);
+        setBoardOrientation(color === 'w' ? 'white' : 'black');
         localStorage.setItem('playerColor', color);
       }
 
@@ -952,8 +953,10 @@ const PlayComputer = () => {
         setSearchParams({ gameId: location.state.backendGameId.toString() }, { replace: true });
       }
 
-      // Skip countdown — go straight into the game (pass ratedMode to bypass stale closure)
-      onCountdownFinish(lobbyRatedMode);
+      // Skip countdown — go straight into the game
+      // Pass overrides for ratedMode and playerColor to bypass stale closures
+      const effectiveColor = location.state.preferredColor === 'black' ? 'b' : 'w';
+      onCountdownFinish(lobbyRatedMode, effectiveColor);
 
       // Save active game state with synthetic opponent identity for refresh persistence
       // Use setTimeout to ensure state updates from above have been queued
@@ -1472,7 +1475,9 @@ const PlayComputer = () => {
             startTimerInterval();
         }
 
-        // Prevent move if game over, replay mode, not player's turn, or computer is thinking
+        // Prevent move if game not started, over, replay mode, not player's turn, or computer is thinking
+        if (!gameStarted) return false;
+
         // Allow moves if game is started but timer hasn't been set yet (fallback for timer issues)
         const isTimerIssue = !activeTimer && gameStarted;
         // Simplified condition: check turn, game state, and timer issues
@@ -1650,7 +1655,7 @@ const PlayComputer = () => {
         }
         return true; // Indicate move was successful
     }, [ // Dependencies for onDrop useCallback
-        game, gameOver, isReplayMode, activeTimer, playerColor, computerMoveInProgress, computerDepth,
+        game, gameStarted, gameOver, isReplayMode, activeTimer, playerColor, computerMoveInProgress, computerDepth,
         gameHistory, settings.requireDoneButton, computerScore, playerScore, user?.rating, currentGameId, setCurrentGameId, // State reads
         playSound, handleGameComplete, switchTimer, startTimerInterval, // Stable callbacks/timer fns
         setIsTimerRunning, setLastMoveEvaluation, setPlayerScore, setGameHistory, // Stable setters
@@ -1667,12 +1672,22 @@ const PlayComputer = () => {
         if (!gameStarted && !countdownActive) setCountdownActive(true);
     }, [gameStarted, countdownActive]); // Correct dependencies
 
-   const onCountdownFinish = useCallback(async (overrideRatedMode) => {
+   const onCountdownFinish = useCallback(async (overrideRatedMode, overridePlayerColor) => {
         // Initializes game state when countdown finishes
-        // overrideRatedMode bypasses stale closure when called from synthetic player setup
+        // overrideRatedMode/overridePlayerColor bypass stale closures when called from synthetic setup
         const effectiveRatedMode = overrideRatedMode || ratedMode;
+        const effectivePlayerColor = overridePlayerColor || playerColor;
         console.log("Starting game...", { effectiveRatedMode });
         setCountdownActive(false);
+
+        // Clear any stale localStorage game to prevent restore-on-refresh loading old state
+        clearActiveGameState();
+
+        // Clear selection state from any pre-game interactions
+        setMoveFrom("");
+        setMoveSquares({});
+        setLastMoveHighlights({});
+        setComputerMoveInProgress(false);
 
         // Start the game immediately — don't wait for backend API
         setGameStarted(true);
@@ -1693,7 +1708,7 @@ const PlayComputer = () => {
         // White always starts in chess, so set active timer to white
         setActiveTimer("w"); // White always starts
         startTimerInterval(); // Start the first timer (White's timer)
-        if (playerColor === "w") {
+        if (effectivePlayerColor === "w") {
             // If player is White, record their move start time immediately
             moveStartTimeRef.current = Date.now();
         }
@@ -1709,7 +1724,7 @@ const PlayComputer = () => {
         saveActiveGameState({
           fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
           gameStarted: true,
-          playerColor,
+          playerColor: effectivePlayerColor,
           computerDepth,
           ratedMode: effectiveRatedMode,
           timeControlMin,
@@ -1729,7 +1744,7 @@ const PlayComputer = () => {
           (async () => {
             try {
               const gameData = {
-                player_color: playerColor === 'w' ? 'white' : 'black',
+                player_color: effectivePlayerColor === 'w' ? 'white' : 'black',
                 computer_level: computerDepth,
                 time_control: timeControlMin,
                 increment: incrementSec,
@@ -2268,14 +2283,16 @@ const PlayComputer = () => {
         <div className="pre-game-setup bg-surface-card backdrop-blur-lg rounded-2xl border border-white/10 p-6 text-center">
           <h2 className="text-3xl font-bold mb-2 text-gold">Play Against Computer</h2>
 
-          {/* Game Mode Selector */}
-          <div className="mode-selection mb-4">
-            <GameModeSelector
-              selectedMode={ratedMode}
-              onModeChange={handleModeChange}
-              disabled={countdownActive}
-            />
-          </div>
+          {/* Game Mode Selector — only for logged-in users (guests always play casual) */}
+          {user && (
+            <div className="mode-selection mb-4">
+              <GameModeSelector
+                selectedMode={ratedMode}
+                onModeChange={handleModeChange}
+                disabled={countdownActive}
+              />
+            </div>
+          )}
 
           <div className="difficulty-selection mb-2">
             <DifficultyMeter
@@ -2301,8 +2318,9 @@ const PlayComputer = () => {
               <span className="ml-3">Black</span>
             </label>
           </div>
-          {/* Mini board theme preview (P-R4) */}
-          {(() => {
+
+          {/* Board theme preview — only for logged-in users */}
+          {user && (() => {
             const theme = BOARD_THEMES[boardTheme] || BOARD_THEMES.classic;
             const rows = Array.from({ length: 4 }, (_, r) => r);
             const cols = Array.from({ length: 4 }, (_, c) => c);
@@ -2333,14 +2351,29 @@ const PlayComputer = () => {
           })()}
 
           {!countdownActive && (
-            <button className="start-button large green bg-chess-green hover:bg-chess-hover text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300" onClick={startGame} disabled={countdownActive}>
-              Start Game
+            <button className="start-button large green bg-chess-green hover:bg-chess-hover text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300 mt-4" onClick={startGame} disabled={countdownActive}>
+              Play
             </button>
           )}
           {countdownActive && (
             <div className="countdown-in-setup">
               <p className="text-xl mb-2">Starting in...</p>
               <Countdown startValue={3} onCountdownFinish={onCountdownFinish} />
+            </div>
+          )}
+
+          {/* Login nudge for guest users */}
+          {!user && !countdownActive && (
+            <div className="mt-4 pt-4 border-t border-white/10">
+              <button
+                onClick={() => navigate('/login')}
+                className="text-sm font-semibold text-[#81b64c] hover:text-[#a3d160] transition-colors"
+              >
+                Login &amp; Play
+              </button>
+              <p className="text-[#8b8987] text-xs mt-1">
+                Track your rating, save games, and unlock rated mode
+              </p>
             </div>
           )}
         </div>

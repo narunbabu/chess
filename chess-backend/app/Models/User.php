@@ -52,6 +52,9 @@ class User extends Authenticatable implements MustVerifyEmail
         'role',
         'reset_token',
         'reset_token_expires_at',
+        'referral_code',
+        'referred_by_user_id',
+        'referred_by_code_id',
     ];
 
     protected $hidden = [
@@ -453,6 +456,50 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->roles()
                     ->orderByDesc('hierarchy_level')
                     ->first();
+    }
+
+    // -------------------------------------------------------------------------
+    // REFERRAL SYSTEM RELATIONSHIPS
+    // -------------------------------------------------------------------------
+
+    /**
+     * User who referred this user
+     */
+    public function referrer()
+    {
+        return $this->belongsTo(User::class, 'referred_by_user_id');
+    }
+
+    /**
+     * Users referred by this user
+     */
+    public function referredUsers()
+    {
+        return $this->hasMany(User::class, 'referred_by_user_id');
+    }
+
+    /**
+     * Referral codes created by this user
+     */
+    public function referralCodes()
+    {
+        return $this->hasMany(ReferralCode::class);
+    }
+
+    /**
+     * Referral earnings (as referrer)
+     */
+    public function referralEarnings()
+    {
+        return $this->hasMany(ReferralEarning::class, 'referrer_user_id');
+    }
+
+    /**
+     * Referral payouts
+     */
+    public function referralPayouts()
+    {
+        return $this->hasMany(ReferralPayout::class, 'referrer_user_id');
     }
 
     // -------------------------------------------------------------------------

@@ -7,6 +7,9 @@
   background: #312e2b;
   border-radius: 8px;
   overflow: hidden;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 /* Override react-chessboard default styles to show proper checkerboard */

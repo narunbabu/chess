@@ -28,7 +28,7 @@ import { getPreferredGameMode, setPreferredGameMode } from '../../utils/gamePref
 import { getTheme } from '../../config/boardThemes';
 import { getBoardTheme, getPieceStyle } from './BoardCustomizer';
 import { pieces3dLanding } from '../../assets/pieces/pieces3d';
-import DrawButton from '../game/DrawButton';
+
 import PerformanceDisplay from '../game/PerformanceDisplay';
 import RatingChangeDisplay from '../game/RatingChangeDisplay';
 import { performanceService } from '../../services/performanceService';
@@ -128,6 +128,10 @@ const PlayMultiplayer = () => {
     setDrawOfferPending,
     drawOfferedByMe,
     setDrawOfferedByMe,
+    drawOfferFromName,
+    setDrawOfferFromName,
+    drawDeclinedNotice,
+    setDrawDeclinedNotice,
     drawState,
     setDrawState,
     canUndo,
@@ -182,6 +186,9 @@ const PlayMultiplayer = () => {
   // Board customization state
   const [boardTheme, setBoardTheme] = useState(() => getBoardTheme(user));
   const [pieceStyle, setPieceStyle] = useState(() => getPieceStyle());
+
+  // Legal move highlight dots (shown when a piece is selected via click/tap)
+  const [optionSquares, setOptionSquares] = useState({});
   useEffect(() => {
     if (user?.board_theme) setBoardTheme(user.board_theme);
   }, [user?.board_theme]);
@@ -1228,13 +1235,16 @@ const PlayMultiplayer = () => {
     console.log('🤝 Handling draw offer received:', event);
     setDrawOfferPending(true);
     setDrawOfferedByMe(false);
-  }, []);
+    setDrawOfferFromName(event?.offerer?.name || event?.from_user?.name || 'Your opponent');
+  }, [setDrawOfferFromName]);
 
   // Handle draw offer declined by opponent
   const handleDrawOfferDeclined = useCallback((event) => {
     console.log('❌ Handling draw offer declined:', event);
     setDrawOfferedByMe(false);
-    alert('Your draw offer was declined.');
+    setDrawDeclinedNotice(true);
+    // Auto-dismiss after 4 seconds
+    setTimeout(() => setDrawDeclinedNotice(false), 4000);
   }, []);
 
   // Handle undo request received from opponent
@@ -1334,6 +1344,10 @@ const PlayMultiplayer = () => {
   const handleOfferDraw = useCallback(async () => {
     if (!wsService.current || drawOfferedByMe) return;
 
+    // Confirmation before sending
+    const confirmed = window.confirm('Offer a draw to your opponent?\n\nThey can accept or decline.');
+    if (!confirmed) return;
+
     try {
       await wsService.current.offerDraw();
       setDrawOfferedByMe(true);
@@ -1388,6 +1402,10 @@ const PlayMultiplayer = () => {
       const newGame = new Chess();
       newGame.load(event.fen);
       setGame(newGame);
+
+      // Clear any piece selection / legal move highlights on board update
+      setSelectedSquare(null);
+      setOptionSquares({});
 
       // Only add to history if this is a move from another player
       // (our own moves are already in history from makeMove)
@@ -3752,10 +3770,13 @@ const PlayMultiplayer = () => {
       return false;
     }
 
-    // Check actual WebSocket connection state
+    // Check actual WebSocket connection state — show feedback if disconnected
     const isWsConnected = wsService.current?.isWebSocketConnected?.() || connectionStatus === 'connected';
     if (!isWsConnected) {
       console.log('WebSocket not connected. Status:', connectionStatus, 'Actual:', wsService.current?.isConnected);
+      setErrorMessage('Connection lost — reconnecting...');
+      setShowError(true);
+      setTimeout(() => setShowError(false), 3000);
       return false;
     }
 
@@ -3934,6 +3955,9 @@ const PlayMultiplayer = () => {
       return false;
     }
 
+    // Clear click-selection state after drag-drop
+    setSelectedSquare(null);
+    setOptionSquares({});
     return performMove(sourceSquare, targetSquare);
   };
 
@@ -3943,18 +3967,65 @@ const PlayMultiplayer = () => {
       return;
     }
 
+    // Not player's turn — ignore
+    if (gameInfo.turn !== gameInfo.playerColor) return;
+
+    const myColorChar = gameInfo.playerColor.charAt(0);
+    const piece = game.get(square);
+
+    // CASE 1: A piece is already selected
     if (selectedSquare) {
+      // 1a: Tapping the same square — deselect
       if (selectedSquare === square) {
         setSelectedSquare(null);
-      } else {
-        performMove(selectedSquare, square);
-        setSelectedSquare(null);
+        setOptionSquares({});
+        return;
       }
-    } else {
-      const piece = game.get(square);
-      if (piece && piece.color === gameInfo.playerColor.charAt(0)) {
-        setSelectedSquare(square);
+
+      // 1b: Tapping another of your own pieces — switch selection
+      if (piece && piece.color === myColorChar) {
+        const moves = game.moves({ square, verbose: true });
+        if (moves.length > 0) {
+          const newOptions = {};
+          moves.forEach((m) => {
+            const target = game.get(m.to);
+            newOptions[m.to] = {
+              background: target && target.color !== myColorChar
+                ? 'radial-gradient(circle, rgba(0,0,0,.1) 85%, transparent 85%)'
+                : 'radial-gradient(circle, rgba(0,0,0,.1) 25%, transparent 25%)',
+              borderRadius: '50%',
+            };
+          });
+          setSelectedSquare(square);
+          setOptionSquares(newOptions);
+        }
+        return;
       }
+
+      // 1c: Tapping a target square — attempt the move
+      const moveResult = performMove(selectedSquare, square);
+      setSelectedSquare(null);
+      setOptionSquares({});
+      return;
+    }
+
+    // CASE 2: No piece selected yet — select own piece and show legal moves
+    if (piece && piece.color === myColorChar) {
+      const moves = game.moves({ square, verbose: true });
+      if (moves.length === 0) return; // No legal moves from this square
+
+      const newOptions = {};
+      moves.forEach((m) => {
+        const target = game.get(m.to);
+        newOptions[m.to] = {
+          background: target && target.color !== myColorChar
+            ? 'radial-gradient(circle, rgba(0,0,0,.1) 85%, transparent 85%)'
+            : 'radial-gradient(circle, rgba(0,0,0,.1) 25%, transparent 25%)',
+          borderRadius: '50%',
+        };
+      });
+      setSelectedSquare(square);
+      setOptionSquares(newOptions);
     }
   };
 
@@ -4333,22 +4404,14 @@ const PlayMultiplayer = () => {
                 </button>
               )}
 
-              <DrawButton
-                gameId={gameId}
-                gameMode={ratedMode}
-                isComputerGame={false}
-                onDrawOffered={() => {
-                  setDrawState({ offered: true, pending: true, byPlayer: 'me' });
-                  setDrawOfferedByMe(true);
-                }}
-                onDrawAccepted={(result) => {
-                  console.log('✅ Draw accepted:', result);
-                  setDrawState({ offered: false, pending: false, byPlayer: null });
-                  setDrawOfferedByMe(false);
-                }}
-                disabled={gameInfo.status !== 'active'}
-                drawStatus={drawOfferedByMe ? { status: 'pending' } : null}
-              />
+              <button
+                onClick={handleOfferDraw}
+                disabled={drawOfferedByMe}
+                className={`gc-action-btn ${drawOfferedByMe ? 'gc-action-disabled' : 'gc-action-neutral'}`}
+                title={drawOfferedByMe ? 'Draw offer sent — waiting for opponent' : 'Offer a draw to your opponent'}
+              >
+                {drawOfferedByMe ? '⏳ Draw Offered' : '🤝 Draw'}
+              </button>
             </div>
           )}
           {gameInfo.status === 'finished' && (
@@ -4370,15 +4433,20 @@ const PlayMultiplayer = () => {
           onPieceDrop={onDrop}
           onSquareClick={handleSquareClick}
           boardOrientation={boardOrientation}
+          animationDuration={200}
+          arePiecesDraggable={!gameComplete && gameInfo.status === 'active' && gameInfo.turn === gameInfo.playerColor}
           areArrowsAllowed={false}
           customDarkSquareStyle={{ backgroundColor: getTheme(boardTheme).dark }}
           customLightSquareStyle={{ backgroundColor: getTheme(boardTheme).light }}
           {...(pieceStyle === '3d' ? { customPieces: pieces3dLanding } : {})}
           customSquareStyles={{
             ...lastMoveHighlights,
-            [selectedSquare]: {
-              backgroundColor: 'rgba(255, 255, 0, 0.4)'
-            },
+            ...optionSquares,
+            ...(selectedSquare && {
+              [selectedSquare]: {
+                backgroundColor: 'rgba(255, 255, 0, 0.4)'
+              }
+            }),
             ...(kingInDangerSquare && {
               [kingInDangerSquare]: {
                 animation: 'kingFlicker 0.5s ease-in-out 3',
@@ -4409,61 +4477,126 @@ const PlayMultiplayer = () => {
           left: '0',
           right: '0',
           bottom: '0',
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          backgroundColor: 'rgba(0, 0, 0, 0.6)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 10000
+          zIndex: 10000,
+          animation: 'fadeIn 0.2s ease-out'
         }}>
           <div style={{
-            backgroundColor: '#2a2a2a',
+            backgroundColor: '#302e2b',
             color: 'white',
-            padding: '24px',
-            borderRadius: '12px',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+            padding: '28px 32px',
+            borderRadius: '16px',
+            boxShadow: '0 12px 40px rgba(0, 0, 0, 0.5)',
             textAlign: 'center',
-            minWidth: '300px',
-            maxWidth: '400px'
+            minWidth: '320px',
+            maxWidth: '420px',
+            border: '2px solid #e8a93e'
           }}>
-            <h3 style={{ marginBottom: '16px', fontSize: '20px', fontWeight: '600' }}>
-              Draw Offer
+            {/* Handshake icon */}
+            <div style={{
+              fontSize: '48px',
+              marginBottom: '12px',
+              lineHeight: '1'
+            }}>🤝</div>
+            <h3 style={{
+              marginBottom: '8px',
+              fontSize: '22px',
+              fontWeight: '700',
+              color: '#e8a93e'
+            }}>
+              Draw Offered
             </h3>
-            <p style={{ marginBottom: '24px', fontSize: '16px', color: '#ccc' }}>
-              Your opponent offers a draw
+            <p style={{
+              marginBottom: '24px',
+              fontSize: '16px',
+              color: '#bababa',
+              lineHeight: '1.5'
+            }}>
+              <strong style={{ color: '#fff' }}>{drawOfferFromName || 'Your opponent'}</strong> is offering a draw.
+              <br />
+              <span style={{ fontSize: '14px' }}>The game will end as ½–½ if you accept.</span>
             </p>
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
               <button
                 onClick={handleAcceptDraw}
                 style={{
-                  backgroundColor: '#4CAF50',
+                  backgroundColor: '#81b64c',
                   color: 'white',
                   border: 'none',
-                  padding: '12px 24px',
+                  padding: '14px 28px',
                   borderRadius: '8px',
                   fontSize: '16px',
                   cursor: 'pointer',
-                  fontWeight: '500'
+                  fontWeight: '600',
+                  transition: 'background-color 0.15s',
+                  minWidth: '140px'
                 }}
+                onMouseOver={e => e.target.style.backgroundColor = '#6fa33b'}
+                onMouseOut={e => e.target.style.backgroundColor = '#81b64c'}
               >
-                Accept Draw
+                ✓ Accept Draw
               </button>
               <button
                 onClick={handleDeclineDraw}
                 style={{
-                  backgroundColor: '#f44336',
+                  backgroundColor: '#c33',
                   color: 'white',
                   border: 'none',
-                  padding: '12px 24px',
+                  padding: '14px 28px',
                   borderRadius: '8px',
                   fontSize: '16px',
                   cursor: 'pointer',
-                  fontWeight: '500'
+                  fontWeight: '600',
+                  transition: 'background-color 0.15s',
+                  minWidth: '140px'
                 }}
+                onMouseOver={e => e.target.style.backgroundColor = '#a22'}
+                onMouseOut={e => e.target.style.backgroundColor = '#c33'}
               >
-                Decline
+                ✗ Decline
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Draw Offer Declined Toast */}
+      {drawDeclinedNotice && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          backgroundColor: '#302e2b',
+          color: '#f0f0f0',
+          padding: '14px 28px',
+          borderRadius: '10px',
+          border: '2px solid #c33',
+          boxShadow: '0 6px 20px rgba(0, 0, 0, 0.4)',
+          zIndex: 10001,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          fontSize: '15px',
+          fontWeight: '500'
+        }}>
+          <span style={{ fontSize: '20px' }}>✗</span>
+          Draw offer was declined — game continues
+          <button
+            onClick={() => setDrawDeclinedNotice(false)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#888',
+              cursor: 'pointer',
+              fontSize: '18px',
+              marginLeft: '8px',
+              padding: '0 4px'
+            }}
+          >×</button>
         </div>
       )}
 

@@ -690,11 +690,54 @@ const GameCompletionAnimation = ({
           }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🎬</div>
             <h3 style={{ color: '#fff', margin: '0 0 6px', fontSize: '1.15rem', fontWeight: '700' }}>
-              Share Game Replay
+              Video Ready!
             </h3>
-            <p style={{ color: '#999', margin: '0 0 22px', fontSize: '0.82rem', lineHeight: '1.4' }}>
-              Your GIF is ready! Choose where to share:
+            <p style={{ color: '#999', margin: '0 0 16px', fontSize: '0.82rem', lineHeight: '1.4' }}>
+              {shareMenuData.nativeShareSupported
+                ? 'Tap Share to send to WhatsApp, Instagram, YouTube & more'
+                : 'Choose where to share:'}
             </p>
+
+            {/* Native share button — calls navigator.share synchronously in click handler */}
+            {shareMenuData.nativeShareSupported && (
+              <button onClick={() => {
+                // Recreate File fresh in gesture context to avoid stale reference issues
+                const freshFile = new File([shareMenuData.blob], shareMenuData.filename, {
+                  type: shareMenuData.blob.type
+                });
+                // Call navigator.share synchronously (no async/await) to preserve user gesture
+                navigator.share({
+                  title: 'Chess99 Game Replay',
+                  text: shareMenuData.message,
+                  files: [freshFile]
+                }).then(() => {
+                  setShareMenuData(null);
+                }).catch(err => {
+                  if (err.name !== 'AbortError') {
+                    console.warn('Native share failed, falling back to download:', err);
+                    // Fallback: download the video + show instruction
+                    downloadBlob(shareMenuData.blob, shareMenuData.filename);
+                    setShareMenuData(null);
+                    alert('Video saved to Downloads!\nOpen it from your gallery to share to WhatsApp, Instagram, or YouTube.');
+                  }
+                });
+              }} style={{
+                background: 'linear-gradient(135deg, #81b64c 0%, #5a9e2f 100%)',
+                color: '#fff', border: 'none', borderRadius: '14px',
+                padding: '16px', fontSize: '1rem', fontWeight: '700',
+                cursor: 'pointer', width: '100%', marginBottom: '16px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                boxShadow: '0 4px 16px rgba(129,182,76,0.4)',
+                transition: 'transform 0.15s'
+              }}
+              onMouseDown={e => e.currentTarget.style.transform = 'scale(0.97)'}
+              onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                <span style={{ fontSize: '1.3rem' }}>📤</span>
+                Share
+              </button>
+            )}
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <button onClick={handleShareToWhatsApp} style={{
                 background: '#25D366', color: '#fff', border: 'none',

@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\URL;
 use App\Models\User;
+use App\Services\ReferralService;
 
 class AuthController extends Controller
 {
@@ -55,6 +56,7 @@ class AuthController extends Controller
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
             'captcha_token' => 'required|string',
+            'referral_code' => 'nullable|string|max:20',
         ]);
 
         // Verify reCAPTCHA token with Google
@@ -78,8 +80,14 @@ class AuthController extends Controller
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => bcrypt($validated['password']),
+            'referral_code' => strtoupper(\Illuminate\Support\Str::random(8)),
             // email_verified_at is null by default — user must verify
         ]);
+
+        // Link referral if code was provided
+        if (!empty($validated['referral_code'])) {
+            app(ReferralService::class)->linkReferral($user, $validated['referral_code']);
+        }
 
         // Send verification email
         event(new Registered($user));
@@ -172,6 +180,7 @@ class AuthController extends Controller
 
         $request->validate([
             'idToken' => 'required|string',
+            'referral_code' => 'nullable|string|max:20',
         ]);
 
         $idToken = $request->input('idToken');
@@ -247,7 +256,13 @@ class AuthController extends Controller
                     'provider' => 'google',
                     'provider_id' => $googleId,
                     'email_verified_at' => ($payload['email_verified'] ?? false) ? now() : null,
+                    'referral_code' => strtoupper(\Illuminate\Support\Str::random(8)),
                 ]);
+
+                // Link referral if code was provided
+                if ($request->referral_code) {
+                    app(ReferralService::class)->linkReferral($user, $request->referral_code);
+                }
             }
 
             Log::info('=== USER CREATED/UPDATED ===');
@@ -361,6 +376,7 @@ class AuthController extends Controller
             'authorization_code' => 'nullable|string',
             'user_name' => 'nullable|string|max:255',
             'user_email' => 'nullable|email|max:255',
+            'referral_code' => 'nullable|string|max:20',
         ]);
 
         try {
@@ -453,7 +469,13 @@ class AuthController extends Controller
                         'provider' => 'apple',
                         'provider_id' => $appleUserId,
                         'email_verified_at' => now(),
+                        'referral_code' => strtoupper(\Illuminate\Support\Str::random(8)),
                     ]);
+
+                    // Link referral if code was provided
+                    if ($request->referral_code) {
+                        app(ReferralService::class)->linkReferral($user, $request->referral_code);
+                    }
                 }
             }
 

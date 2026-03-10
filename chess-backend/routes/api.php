@@ -20,6 +20,7 @@ use App\Http\Controllers\WebSocketController;
 use App\Http\Controllers\RatingController;
 use App\Http\Controllers\SharedResultController;
 use App\Http\Controllers\SubscriptionController;
+use App\Http\Controllers\ReferralController;
 use App\Http\Controllers\TutorialController;
 use App\Http\Controllers\LobbyController;
 use App\Http\Controllers\MatchmakingController;
@@ -382,6 +383,25 @@ Route::prefix('subscriptions')->group(function () {
         Route::post('/verify-payment', [SubscriptionController::class, 'verifyPayment']);
         Route::post('/cancel', [SubscriptionController::class, 'cancel']);
     });
+});
+
+// Referral routes
+Route::get('/referrals/validate/{code}', [ReferralController::class, 'validateCode']); // Public
+Route::middleware('auth:sanctum')->prefix('referrals')->group(function () {
+    Route::get('/my-codes', [ReferralController::class, 'myCodes']);
+    Route::post('/generate', [ReferralController::class, 'generate']);
+    Route::get('/stats', [ReferralController::class, 'stats']);
+    Route::get('/referred-users', [ReferralController::class, 'referredUsers']);
+    Route::get('/earnings', [ReferralController::class, 'earnings']);
+    Route::get('/payouts', [ReferralController::class, 'payouts']);
+});
+
+// Referral admin routes (restricted to admin emails inside controller)
+Route::middleware('auth:sanctum')->prefix('admin/referrals')->group(function () {
+    Route::get('/overview', [ReferralController::class, 'adminOverview']);
+    Route::post('/calculate-payouts', [ReferralController::class, 'calculatePayouts']);
+    Route::post('/payouts/{id}/mark-paid', [ReferralController::class, 'markPaid']);
+    Route::get('/payouts', [ReferralController::class, 'adminPayouts']);
 });
 
 // WebSocket broadcasting auth routes — MUST be outside auth:sanctum.

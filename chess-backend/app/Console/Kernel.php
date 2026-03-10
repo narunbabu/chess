@@ -41,6 +41,11 @@ class Kernel extends ConsoleKernel
         $schedule->command('championships:cleanup-pending')
                  ->hourly()
                  ->description('Mark stale pending championship registrations as failed');
+
+        // Calculate referral payouts on the 1st of each month at 01:00
+        $schedule->command('referrals:calculate-payouts')
+                 ->monthlyOn(1, '01:00')
+                 ->description('Calculate monthly referral revenue share payouts');
     }
 
     /**

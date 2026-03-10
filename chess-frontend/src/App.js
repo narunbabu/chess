@@ -70,6 +70,9 @@ const PricingPage = createLazyComponent(() => import("./pages/PricingPage"), { c
 const SubscriptionManagement = createLazyComponent(() => import("./components/subscription/SubscriptionManagement"), { componentName: "SubscriptionManagement" });
 const ForgotPasswordPage = createLazyComponent(() => import("./pages/ForgotPasswordPage"), { componentName: "ForgotPasswordPage" });
 const ResetPasswordPage = createLazyComponent(() => import("./pages/ResetPasswordPage"), { componentName: "ResetPasswordPage" });
+const JoinRedirect = createLazyComponent(() => import("./pages/JoinRedirect"), { componentName: "JoinRedirect" });
+const ReferralDashboard = createLazyComponent(() => import("./pages/ReferralDashboard"), { componentName: "ReferralDashboard" });
+const AdminReferralDashboard = createLazyComponent(() => import("./pages/AdminReferralDashboard"), { componentName: "AdminReferralDashboard" });
 const App = () => {
   useEffect(()=> {
     const mq = window.matchMedia("(orientation:landscape)");
@@ -116,7 +119,7 @@ const App = () => {
 // Component to add full-bleed class for landing/login pages
 const AppContent = () => {
   const location = useLocation();
-  const isFullBleed = ['/', '/login', '/forgot-password', '/reset-password'].includes(location.pathname);
+  const isFullBleed = ['/', '/login', '/forgot-password', '/reset-password'].includes(location.pathname) || location.pathname.startsWith('/join/');
 
   return (
     <div className={`app-container ${isFullBleed ? 'full-bleed' : ''} flex flex-col min-h-screen`}>
@@ -133,6 +136,7 @@ const AppContent = () => {
             <Route path="/learn" element={<Learn />} />
             <Route path="/coming-soon" element={<ComingSoon />} />
             <Route path="/pricing" element={<PricingPage />} />
+            <Route path="/join/:code" element={<JoinRedirect />} />
             <Route path="/share/result/:uniqueId" element={<SharedResultPage />} />
 
             {/* Play computer - No auth required */}
@@ -239,6 +243,25 @@ const AppContent = () => {
                 </RouteGuard>
               }
             />
+            {/* Referral Dashboard - Auth required */}
+            <Route
+              path="/referrals"
+              element={
+                <RouteGuard>
+                  <ReferralDashboard />
+                </RouteGuard>
+              }
+            />
+            {/* Admin Referral Dashboard - Auth required (admin check inside component) */}
+            <Route
+              path="/admin/referrals"
+              element={
+                <RouteGuard>
+                  <AdminReferralDashboard />
+                </RouteGuard>
+              }
+            />
+
             {/* Subscription Management - Auth required */}
             <Route
               path="/account/subscription"

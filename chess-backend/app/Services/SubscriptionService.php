@@ -12,12 +12,32 @@ use Illuminate\Support\Str;
 
 class SubscriptionService
 {
+    public function __construct(
+        protected ReferralService $referralService
+    ) {}
+
     /**
      * Check if running in mock mode (no real Razorpay)
      */
     public function isMockMode(): bool
     {
         return config('services.razorpay.mock_mode', true);
+    }
+
+    /**
+     * Record referral earning for a completed payment (if user was referred).
+     */
+    protected function recordReferralEarning(SubscriptionPayment $payment): void
+    {
+        try {
+            $this->referralService->recordEarning($payment);
+        } catch (\Exception $e) {
+            // Never let referral recording break the payment flow
+            Log::error('Failed to record referral earning', [
+                'payment_id' => $payment->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**
@@ -221,6 +241,12 @@ class SubscriptionService
         // Activate the subscription (store order_id in razorpay_subscription_id for reference)
         $user->activateSubscription($plan, $orderId);
         $user->refresh();
+
+        // Record referral earning (10% commission)
+        $paymentRecord = $existing ?? SubscriptionPayment::where('razorpay_payment_id', $paymentId)->first();
+        if ($paymentRecord) {
+            $this->recordReferralEarning($paymentRecord);
+        }
 
         Log::info('Subscription activated via order payment', [
             'user_id'    => $user->id,
@@ -533,6 +559,9 @@ class SubscriptionService
 
         $user->activateSubscription($plan, $orderId);
 
+        // Record referral earning (10% commission)
+        $this->recordReferralEarning($record);
+
         Log::info('Subscription activated via payment.captured webhook', [
             'user_id'    => $user->id,
             'tier'       => $plan->tier,
@@ -584,6 +613,9 @@ class SubscriptionService
 
         // Activate user subscription
         $user->activateSubscription($plan, $razorpaySubId);
+
+        // Record referral earning (10% commission)
+        $this->recordReferralEarning($payment);
 
         Log::info('Subscription activated for user', [
             'user_id' => $user->id,
@@ -637,6 +669,12 @@ class SubscriptionService
 
         // Extend user subscription
         $user->extendSubscription($plan->interval);
+
+        // Record referral earning on renewal too (10% commission)
+        $renewalPayment = SubscriptionPayment::where('razorpay_payment_id', $razorpayPaymentId)->first();
+        if ($renewalPayment) {
+            $this->recordReferralEarning($renewalPayment);
+        }
 
         Log::info('Subscription renewed for user', [
             'user_id' => $user->id,
@@ -699,6 +737,9 @@ class SubscriptionService
         ]);
 
         $user->activateSubscription($plan, $payment->razorpay_subscription_id);
+
+        // Record referral earning (10% commission)
+        $this->recordReferralEarning($payment);
 
         Log::info('Mock subscription checkout completed', [
             'user_id' => $user->id,

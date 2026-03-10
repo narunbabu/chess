@@ -83,11 +83,13 @@ const AuthGateModal = ({ reason = 'this feature', returnTo = '/dashboard', onClo
           return;
         }
 
+        const referralCode = localStorage.getItem('chess99_referral_code');
         const response = await api.post('/auth/register', {
           name,
           email,
           password,
-          password_confirmation: confirmPassword
+          password_confirmation: confirmPassword,
+          ...(referralCode ? { referral_code: referralCode } : {}),
         });
 
         if (response.data.status === 'success') {

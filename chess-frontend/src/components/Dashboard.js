@@ -11,6 +11,7 @@ import DetailedStatsModal from "./DetailedStatsModal";
 import { getPlayerAvatar } from "../utils/playerDisplayUtils";
 import { isWin, getResultDisplayText } from "../utils/resultStandardization";
 import { getUnfinishedGame, getUnfinishedGames, deleteUnfinishedGame } from "../services/unfinishedGameService";
+import { isPlatformAdmin, canCreateChampionship } from "../utils/permissionHelpers";
 import MatchmakingQueue from "./lobby/MatchmakingQueue";
 import AdBanner from "./common/AdBanner";
 import "./Dashboard.css";
@@ -588,6 +589,37 @@ const Dashboard = () => {
             </button>
           </div>
         </section>
+
+        {/* Admin Section — visible only for admins/organizers */}
+        {canCreateChampionship(user) && (
+        <section className="unified-section">
+          <h2 className="unified-section-header">🛡️ Admin</h2>
+          <div className="unified-card-grid cols-2">
+            <button
+              onClick={() => navigate('/championships')}
+              className="unified-card centered"
+              style={{ background: 'rgba(232,169,62,0.08)', border: '1px solid #e8a93e' }}
+            >
+              <div className="unified-card-content">
+                <h3 className="unified-card-title" style={{ fontSize: '15px' }}>🏆 Manage Tournaments</h3>
+                <p className="unified-card-subtitle">Create, edit & run championships</p>
+              </div>
+            </button>
+            {isPlatformAdmin(user) && (
+              <button
+                onClick={() => navigate('/championships')}
+                className="unified-card centered"
+                style={{ background: 'rgba(232,169,62,0.08)', border: '1px solid #e8a93e' }}
+              >
+                <div className="unified-card-content">
+                  <h3 className="unified-card-title" style={{ fontSize: '15px' }}>⚙️ Platform Admin</h3>
+                  <p className="unified-card-subtitle">Full platform oversight</p>
+                </div>
+              </button>
+            )}
+          </div>
+        </section>
+        )}
 
         {/* Active Games Section — only render when there are active games */}
         {activeGames.length > 0 && (

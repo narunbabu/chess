@@ -213,6 +213,9 @@
   padding: 8px;
   position: relative;
   flex-shrink: 0;
+  touch-action: manipulation;  /* Eliminate 300ms tap delay on mobile */
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 /* --- Action bar (bottom of center) --- */

@@ -30,6 +30,8 @@ const LoginPage = () => {
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMessage, setResendMessage] = useState('');
   const [captchaToken, setCaptchaToken] = useState(null);
+  const [referralCode, setReferralCode] = useState(null);
+  const [referrerName, setReferrerName] = useState(null);
   const recaptchaRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
@@ -46,7 +48,7 @@ const LoginPage = () => {
     return '/lobby';
   };
 
-  // Handle URL parameters for educational resources and email verification
+  // Handle URL parameters for educational resources, email verification, and referrals
   useEffect(() => {
     const resource = searchParams.get('resource');
     if (resource) {
@@ -63,6 +65,24 @@ const LoginPage = () => {
     if (reset === 'success') {
       setError('');
       setResendMessage('Password updated successfully. Please sign in with your new password.');
+    }
+    // Referral code from URL (?ref=CODE) or localStorage (from /join/:code route)
+    const ref = searchParams.get('ref') || localStorage.getItem('chess99_referral_code');
+    if (ref) {
+      setReferralCode(ref);
+      setIsLogin(false); // Switch to register mode for referred users
+      setShowEmailForm(true);
+      // Validate the code and show referrer name
+      api.get(`/referrals/validate/${ref}`).then(res => {
+        if (res.data.valid) {
+          setReferrerName(res.data.referrer_name);
+        } else {
+          setReferralCode(null);
+          localStorage.removeItem('chess99_referral_code');
+        }
+      }).catch(() => {
+        // Silently ignore validation errors
+      });
     }
   }, [searchParams]);
 
@@ -113,10 +133,12 @@ const LoginPage = () => {
         const response = await api.post('/auth/register', {
           name, email, password, password_confirmation: confirmPassword,
           captcha_token: captchaToken,
+          ...(referralCode ? { referral_code: referralCode } : {}),
         });
         if (response.data.requires_verification) {
           setRegistrationSuccess(true);
           setRegisteredEmail(email);
+          localStorage.removeItem('chess99_referral_code');
           setIsLoading(false);
           return;
         }
@@ -196,6 +218,15 @@ const LoginPage = () => {
             )}
           </div>
 
+          {/* Referral banner */}
+          {referrerName && (
+            <div className="mb-6 px-4 py-3 bg-[#262421] rounded-lg border border-[#81b64c]/40 text-center">
+              <p className="text-sm text-[#bababa]">
+                Invited by <span className="text-white font-medium">{referrerName}</span>
+              </p>
+            </div>
+          )}
+
           {/* Resource banner */}
           {requestedResource && (
             <div className="mb-6 px-4 py-3 bg-[#262421] rounded-lg border border-[#81b64c]/30 text-center">
@@ -271,7 +302,7 @@ const LoginPage = () => {
             ) : !showEmailForm ? (
               <div className="space-y-5">
                 <a
-                  href={`${BASE_URL}/auth/google/redirect`}
+                  href={`${BASE_URL}/auth/google/redirect${referralCode ? `?ref=${referralCode}` : ''}`}
                   onClick={() => {
                     // Save redirect path so AuthCallback can return user to the right page
                     const redirectPath = getRedirectPath();

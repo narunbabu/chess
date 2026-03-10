@@ -239,17 +239,19 @@ const LandingPage = () => {
                   >
                     Play Now
                   </button>
+                  {!isAuthenticated && (
+                    <button
+                      onClick={() => navigate('/login')}
+                      className="bg-[#312e2b] text-white px-8 py-3 rounded-lg text-lg font-semibold hover:bg-[#3d3a37] transition-all shadow-lg border border-[#4a4744] hover:border-[#81b64c]/40"
+                    >
+                      Login &amp; Play
+                    </button>
+                  )}
                 </div>
 
                 <p className="text-[#8b8987] text-sm mt-3">
                   🌐 Join <span className="text-[#81b64c] font-semibold">1,000+ players</span> — safe for all ages, no account needed
                 </p>
-
-                {!isAuthenticated && (
-                  <p className="mt-1 text-[#8b8987] text-sm">
-                    No account needed to play vs computer
-                  </p>
-                )}
               </div>
 
               {/* Right: Animated Chessboard */}
