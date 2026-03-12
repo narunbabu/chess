@@ -41,7 +41,7 @@ class UserPresence extends Model
     {
         return $this->status === 'online' &&
                $this->last_activity &&
-               $this->last_activity->gt(now()->subMinutes(5));
+               $this->last_activity->gt(now()->subMinutes(2));
     }
 
     /**
@@ -83,7 +83,7 @@ class UserPresence extends Model
     public static function getOnlineUsers()
     {
         return static::where('status', 'online')
-            ->where('last_activity', '>', now()->subMinutes(5))
+            ->where('last_activity', '>', now()->subMinutes(2))
             ->with('user')
             ->get();
     }

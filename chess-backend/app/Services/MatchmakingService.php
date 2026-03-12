@@ -339,11 +339,15 @@ class MatchmakingService
             ->pluck('uid')
             ->toArray();
 
-        // Get IDs of users with an active presence record in the last 5 minutes.
-        // user_presence.last_activity is updated on connect and on each heartbeat (60s interval),
-        // making it more reliable than users.last_activity_at which required a separate heartbeat call.
+        // Get IDs of users with an active presence record in the last 2 minutes.
+        // user_presence.last_activity is updated on connect and on each heartbeat (60s interval).
+        // A 2-minute window balances responsiveness with avoiding ghost invitations to users
+        // who have closed their browser but whose presence hasn't yet expired.
+        // IMPORTANT: Require socket_id to be non-null, which indicates an active WebSocket
+        // connection. This prevents inviting ghost users who have stale presence records.
         $activeUserIds = UserPresence::whereIn('status', ['online', 'away'])
-            ->where('last_activity', '>=', now()->subMinutes(5))
+            ->where('last_activity', '>=', now()->subMinutes(2))
+            ->whereNotNull('socket_id')
             ->pluck('user_id')
             ->toArray();
 
