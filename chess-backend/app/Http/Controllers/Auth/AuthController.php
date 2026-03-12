@@ -22,6 +22,9 @@ class AuthController extends Controller
             'password' => 'required'
         ]);
 
+        // Normalize email to lowercase — email addresses are case-insensitive
+        $credentials['email'] = strtolower($credentials['email']);
+
         if (!Auth::attempt($credentials)) {
             return response()->json([
                 'status' => 'error',
@@ -78,7 +81,7 @@ class AuthController extends Controller
 
         $user = User::create([
             'name' => $validated['name'],
-            'email' => $validated['email'],
+            'email' => strtolower($validated['email']),
             'password' => bcrypt($validated['password']),
             'referral_code' => strtoupper(\Illuminate\Support\Str::random(8)),
             // email_verified_at is null by default — user must verify
@@ -130,7 +133,7 @@ class AuthController extends Controller
             'email' => 'required|email',
         ]);
 
-        $user = User::where('email', $request->email)->first();
+        $user = User::where('email', strtolower($request->email))->first();
 
         if (!$user) {
             // Don't reveal whether email exists

@@ -477,6 +477,44 @@ class GameRoomService
     }
 
     /**
+     * Record a synthetic (AI) player's move for computer games.
+     * Skips the turn-ownership check since the authenticated user acts on behalf of the bot.
+     */
+    public function recordSyntheticMove(int $gameId, int $actorUserId, array $move): array
+    {
+        $game = Game::findOrFail($gameId);
+
+        if (!$game->computer_player_id) {
+            throw new \Exception('Not a computer game');
+        }
+
+        $newFen = $move['next_fen'] ?? $game->fen;
+
+        $optimizedMove = $move;
+        unset($optimizedMove['prev_fen'], $optimizedMove['next_fen']);
+
+        $moves = $game->moves ?? [];
+        $moves[] = array_merge($optimizedMove, ['user_id' => 'synthetic']);
+
+        $newTurn = $game->turn === 'white' ? 'black' : 'white';
+
+        $game->update([
+            'fen'          => $newFen,
+            'turn'         => $newTurn,
+            'moves'        => $moves,
+            'move_count'   => count($moves),
+            'last_move_at' => now(),
+        ]);
+
+        // Check for game-end conditions (checkmate, stalemate, etc.)
+        $this->maybeFinalizeGame($game, $actorUserId, $move);
+
+        $game->refresh();
+
+        return ['turn' => $newTurn, 'game_status' => $game->status];
+    }
+
+    /**
      * Broadcast move to all players
      */
     public function broadcastMove(int $gameId, int $userId, array $move, string $socketId): array

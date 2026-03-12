@@ -839,31 +839,26 @@ const PlayComputer = () => {
       let isNavigationClick = false;
       let navigationPath = null;
 
-      // Traverse up the DOM tree to find navigation elements
+      // Traverse up the DOM tree to find navigation anchor links only.
+      // IMPORTANT: Do NOT check textContent — ancestor elements contain all descendant
+      // text (e.g. "Game History" section), which falsely matches nav patterns and
+      // intercepts legitimate button clicks like Draw / Resign.
       while (target && target !== document.documentElement) {
-        // Check for navigation buttons, links, or elements with navigation keywords
-        const elementText = target.textContent?.toLowerCase() || '';
-        // SVG elements have className as SVGAnimatedString (an object), not a string
-        const rawClassName = target.className;
-        const className = (typeof rawClassName === 'string' ? rawClassName : rawClassName?.baseVal || '').toLowerCase();
-        const href = target.href || target.getAttribute('href') || '';
+        const href = target.getAttribute('href') || '';
 
-        // Navigation patterns to detect
+        // Navigation patterns to detect in href only
         const navPatterns = [
-          'dashboard', 'lobby', 'learn', 'championship', 'profile',
-          'settings', 'history', 'home', 'leaderboard'
+          '/dashboard', '/lobby', '/learn', '/championship', '/profile',
+          '/settings', '/history', '/home', '/leaderboard'
         ];
 
-        const isNavElement = navPatterns.some(pattern =>
-          elementText.includes(pattern) ||
-          className.includes(pattern) ||
+        const isNavHref = target.tagName === 'A' && navPatterns.some(pattern =>
           href.includes(pattern)
         );
 
-        // Only treat <a> tags as navigation — generic buttons are not navigation
-        if (isNavElement || target.tagName === 'A') {
+        if (isNavHref) {
           isNavigationClick = true;
-          navigationPath = href || elementText || 'page';
+          navigationPath = href || 'page';
           break;
         }
 
@@ -2440,7 +2435,7 @@ const PlayComputer = () => {
         handleUndo,
         canUndo,
         undoChancesRemaining,
-        handleDrawOffer,
+        handleDrawOffer: null, // Draw vs computer not implemented — hide the button
         handleDrawAccept,
         handleDrawDecline,
         handleDrawCancel,

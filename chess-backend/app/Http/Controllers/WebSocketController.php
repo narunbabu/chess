@@ -620,6 +620,67 @@ class WebSocketController extends Controller
     }
 
     /**
+     * Record a synthetic (AI) player's move.
+     * Called by the frontend after it computes the bot's move via Stockfish.
+     */
+    public function broadcastSyntheticMove(Request $request, int $gameId): JsonResponse
+    {
+        $game = Game::findOrFail($gameId);
+
+        if ($game->status === 'finished') {
+            return response()->json(['error' => 'Game finished'], 409);
+        }
+
+        if (!$game->computer_player_id) {
+            return response()->json(['error' => 'Not a computer game'], 400);
+        }
+
+        $user = Auth::user();
+        $userRole = $game->white_player_id === $user->id ? 'white' : 'black';
+
+        // Validate it is actually the synthetic player's turn
+        if ($game->turn === $userRole) {
+            return response()->json(['error' => 'Not synthetic player\'s turn'], 400);
+        }
+
+        $request->validate([
+            'move'               => 'required|array',
+            'move.from'          => 'required|string',
+            'move.to'            => 'required|string',
+            'move.san'           => 'required|string',
+            'move.uci'           => 'required|string',
+            'move.is_mate_hint'  => 'required|boolean',
+            'move.is_check'      => 'required|boolean',
+            'move.is_stalemate'  => 'required|boolean',
+        ]);
+
+        try {
+            $result = $this->gameRoomService->recordSyntheticMove(
+                $gameId,
+                $user->id,
+                $request->input('move')
+            );
+
+            Log::info('Synthetic move recorded', [
+                'game_id' => $gameId,
+                'user_id' => $user->id,
+                'move'    => $request->input('move.san'),
+                'new_turn' => $result['turn'],
+            ]);
+
+            return response()->json($result);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to record synthetic move', [
+                'game_id' => $gameId,
+                'error'   => $e->getMessage(),
+            ]);
+
+            return response()->json(['error' => $e->getMessage()], 400);
+        }
+    }
+
+    /**
      * Handle player resignation
      */
     public function resignGame(Request $request, int $gameId): JsonResponse

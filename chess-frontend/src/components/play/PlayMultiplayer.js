@@ -17,6 +17,7 @@ import WebSocketGameService from '../../services/WebSocketGameService';
 import globalWebSocketManager from '../../services/GlobalWebSocketManager';
 import { getEcho } from '../../services/echoSingleton';
 import { evaluateMove } from '../../utils/gameStateUtils';
+import { makeComputerMove } from '../../utils/computerMoveUtils';
 import { encodeGameHistory } from '../../utils/gameHistoryStringUtils';
 import { saveGameHistory } from '../../services/gameHistoryService';
 import { createResultFromMultiplayerGame } from '../../utils/resultStandardization';
@@ -182,6 +183,11 @@ const PlayMultiplayer = () => {
     serverTurn,
     isMyTurn,
   } = gameState;
+
+  // Synthetic (computer) player state — used when PlayMultiplayer hosts a human-vs-bot game
+  const [isSyntheticGame, setIsSyntheticGame] = useState(false);
+  const [syntheticLevel, setSyntheticLevel] = useState(5);
+  const [syntheticMoveInProgress, setSyntheticMoveInProgress] = useState(false);
 
   // Board customization state
   const [boardTheme, setBoardTheme] = useState(() => getBoardTheme(user));
@@ -501,6 +507,11 @@ const PlayMultiplayer = () => {
 
 
 
+    // Bug fix: clear any stale end-card state from a previous game so it doesn't
+    // flash when starting a new game with the same opponent.
+    setGameComplete(false);
+    setGameResult(null);
+
     try {
       setLoading(true);
       setError(null);
@@ -531,6 +542,14 @@ const PlayMultiplayer = () => {
       console.log('🎨 WHITE PLAYER ID:', data.white_player_id);
       console.log('🎨 BLACK PLAYER ID:', data.black_player_id);
       setGameData(data);
+
+      // Detect if this is a synthetic (AI opponent) game
+      const synGame = !!(data.computer_player_id);
+      setIsSyntheticGame(synGame);
+      if (synGame) {
+        setSyntheticLevel(data.computer_level || 5);
+        console.log('🤖 Synthetic game detected, level:', data.computer_level || 5);
+      }
 
       // Detect game mode (rated or casual)
       const gameMode = data.game_mode || 'casual';
@@ -3755,6 +3774,105 @@ const PlayMultiplayer = () => {
     };
   }, [gameComplete, gameInfo.status, gameData, game, myColor, gameInfo.opponentName, myMs, oppMs, initialTimerState, user]);
 
+  // ─── Synthetic (AI) player move logic ────────────────────────────────────
+  // When the opponent is a bot, the frontend computes the move via Stockfish
+  // and persists it via the synthetic-move endpoint so the server's turn counter
+  // stays in sync (allowing the human's next move to pass the turn check).
+  const performSyntheticMove = useCallback(async () => {
+    if (!game || !isSyntheticGame || syntheticMoveInProgress || gameComplete) return;
+
+    const syntheticChessColor = gameInfo.playerColor === 'white' ? 'b' : 'w';
+    if (game.turn() !== syntheticChessColor || game.isGameOver()) return;
+
+    setSyntheticMoveInProgress(true);
+    console.log('🤖 Computing synthetic move…');
+
+    try {
+      const result = await makeComputerMove(
+        game,
+        syntheticLevel,
+        syntheticChessColor,
+        () => {} // no-op — we don't need the timer colour indicator here
+      );
+
+      if (!result) return;
+
+      const newGame = result.newGame;
+      const lastMove = newGame.history({ verbose: true }).slice(-1)[0];
+      if (!lastMove) return;
+
+      const prevFen = game.fen();
+      const nextFen = newGame.fen();
+
+      // Apply the move locally
+      setGame(newGame);
+      setLastMoveHighlights({
+        [lastMove.from]: { background: 'rgba(255, 255, 0, 0.4)' },
+        [lastMove.to]:   { background: 'rgba(255, 255, 0, 0.4)' },
+      });
+      setGameInfo(prev => ({
+        ...prev,
+        turn: newGame.turn() === 'w' ? 'white' : 'black',
+      }));
+      setGameHistory(prev => [...prev, `${lastMove.san},1.00`]);
+
+      // Play move sound
+      if (!isSoundMuted()) moveSoundEffect.play().catch(() => {});
+
+      // Check for check/checkmate
+      checkForCheckmate(newGame);
+
+      // Persist to server so the human's next move passes the turn check
+      const token = localStorage.getItem('auth_token');
+      await fetch(`${BACKEND_URL}/websocket/games/${gameId}/synthetic-move`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          move: {
+            from:         lastMove.from,
+            to:           lastMove.to,
+            san:          lastMove.san,
+            uci:          `${lastMove.from}${lastMove.to}${lastMove.promotion || ''}`,
+            piece:        lastMove.piece || null,
+            color:        lastMove.color || null,
+            captured:     lastMove.captured || null,
+            flags:        lastMove.flags || null,
+            prev_fen:     prevFen,
+            next_fen:     nextFen,
+            is_mate_hint: newGame.isCheckmate(),
+            is_check:     newGame.inCheck(),
+            is_stalemate: newGame.isStalemate(),
+            move_time_ms: 1000,
+          },
+        }),
+      });
+
+      console.log('🤖 Synthetic move applied:', lastMove.san);
+    } catch (err) {
+      console.error('Synthetic move error:', err);
+    } finally {
+      setSyntheticMoveInProgress(false);
+    }
+  }, [game, isSyntheticGame, syntheticLevel, syntheticMoveInProgress, gameComplete,
+      gameInfo.playerColor, gameId, checkForCheckmate,
+      setGame, setGameInfo, setGameHistory, setLastMoveHighlights]);
+
+  // Trigger synthetic move whenever it becomes the bot's turn
+  useEffect(() => {
+    if (!isSyntheticGame || gameComplete || !game) return;
+
+    const syntheticChessColor = gameInfo.playerColor === 'white' ? 'b' : 'w';
+    if (game.turn() === syntheticChessColor && !syntheticMoveInProgress) {
+      // Small delay so the human can see their move land on the board first
+      const t = setTimeout(() => performSyntheticMove(), 500);
+      return () => clearTimeout(t);
+    }
+  }, [game, gameInfo.playerColor, isSyntheticGame, syntheticMoveInProgress, gameComplete, performSyntheticMove]);
+  // ─────────────────────────────────────────────────────────────────────────
+
   const performMove = (source, target) => {
     if (gameComplete || gameInfo.status === 'finished') return false;
 
@@ -4404,14 +4522,17 @@ const PlayMultiplayer = () => {
                 </button>
               )}
 
-              <button
-                onClick={handleOfferDraw}
-                disabled={drawOfferedByMe}
-                className={`gc-action-btn ${drawOfferedByMe ? 'gc-action-disabled' : 'gc-action-neutral'}`}
-                title={drawOfferedByMe ? 'Draw offer sent — waiting for opponent' : 'Offer a draw to your opponent'}
-              >
-                {drawOfferedByMe ? '⏳ Draw Offered' : '🤝 Draw'}
-              </button>
+              {/* Draw button: only show for human vs human games — AI opponents cannot respond */}
+              {!isSyntheticGame && (
+                <button
+                  onClick={handleOfferDraw}
+                  disabled={drawOfferedByMe}
+                  className={`gc-action-btn ${drawOfferedByMe ? 'gc-action-disabled' : 'gc-action-neutral'}`}
+                  title={drawOfferedByMe ? 'Draw offer sent — waiting for opponent' : 'Offer a draw to your opponent'}
+                >
+                  {drawOfferedByMe ? '⏳ Draw Offered' : '🤝 Draw'}
+                </button>
+              )}
             </div>
           )}
           {gameInfo.status === 'finished' && (

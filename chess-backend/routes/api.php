@@ -200,6 +200,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/games/{gameId}/resume', [WebSocketController::class, 'resumeGame']);
             Route::post('/games/{gameId}/new-game', [WebSocketController::class, 'newGame']);
             Route::post('/games/{gameId}/move', [WebSocketController::class, 'broadcastMove']);
+            Route::post('/games/{gameId}/synthetic-move', [WebSocketController::class, 'broadcastSyntheticMove']);
         Route::post('/games/{gameId}/resign', [WebSocketController::class, 'resignGame']);
         Route::post('/games/{gameId}/status', [WebSocketController::class, 'updateGameStatus']);
 
