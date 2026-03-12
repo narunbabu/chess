@@ -21,6 +21,7 @@ import { GameNavigationProvider } from "./contexts/GameNavigationContext";
 import GlobalInvitationDialog from "./components/invitations/GlobalInvitationDialog";
 import { GameNavigationWarningDialogWrapper } from "./components/game/GameNavigationWarningDialog";
 import Layout from "./components/layout/Layout";
+import ActiveGameBanner from "./components/layout/ActiveGameBanner";
 import Footer from "./components/layout/Footer";
 import RouteGuard from "./components/routing/RouteGuard";
 import { requireAuth } from "./utils/guards";
@@ -123,6 +124,7 @@ const AppContent = () => {
 
   return (
     <div className={`app-container ${isFullBleed ? 'full-bleed' : ''} flex flex-col min-h-screen`}>
+      <ActiveGameBanner />
       <div className="content-wrapper flex-grow">
         <main className="main-content">
           <Routes>
