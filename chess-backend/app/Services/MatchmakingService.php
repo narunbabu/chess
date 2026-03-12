@@ -30,9 +30,17 @@ class MatchmakingService
         // already queue-matched by another user's findHumanMatch() poll, return it
         // so the frontend navigates to the game immediately instead of starting a
         // fresh search that would cancel the matched entry.
+        // IMPORTANT: Only consider entries matched within the last 60 seconds AND
+        // whose associated game is still active (not completed/drawn/abandoned).
+        $activeStatusId = GameStatus::where('code', 'active')->value('id');
         $alreadyMatched = MatchmakingEntry::where('user_id', $user->id)
             ->where('status', 'matched')
             ->whereNotNull('game_id')
+            ->where('matched_at', '>=', now()->subSeconds(60))
+            ->whereHas('game', function ($q) use ($activeStatusId) {
+                $q->where('status_id', $activeStatusId)
+                  ->where('result', 'ongoing');
+            })
             ->latest('matched_at')
             ->first();
 
