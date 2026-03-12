@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
+import { isGameEnded } from '../../utils/endedGamesTracker';
 
 const POLL_INTERVAL_MS = 15000; // re-check every 15 s
 
@@ -37,9 +38,10 @@ const ActiveGameBanner = () => {
         : (res.data?.data ?? res.data?.games ?? []);
 
       // Pick the first truly active game (status can be string or nested object)
+      // Also filter out any game that the user has already seen end (localStorage tracker)
       const active = list.find(g => {
         const s = g.status || g.status_code || g.statusRelation?.code || '';
-        return ['active', 'in_progress', 'waiting'].includes(s);
+        return ['active', 'in_progress', 'waiting'].includes(s) && !isGameEnded(g.id);
       });
 
       setActiveGame(prev => {

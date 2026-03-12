@@ -26,6 +26,7 @@ import { calculateRemainingTime } from '../../utils/timerCalculator';
 import { saveUnfinishedGame } from '../../services/unfinishedGameService';
 import { getMovePath, createPathHighlights, mergeHighlights } from '../../utils/movePathUtils'; // Move path utilities
 import { getPreferredGameMode, setPreferredGameMode } from '../../utils/gamePreferences'; // Game preferences
+import { markGameEnded, isGameEnded } from '../../utils/endedGamesTracker';
 import { getTheme } from '../../config/boardThemes';
 import { getBoardTheme, getPieceStyle } from './BoardCustomizer';
 import { pieces3dLanding } from '../../assets/pieces/pieces3d';
@@ -309,6 +310,8 @@ const PlayMultiplayer = () => {
     // Show end card immediately so the game never looks stuck
     setGameResult(localResultData);
     setGameComplete(true);
+    markGameEnded(gameId);
+    sessionStorage.removeItem('lastGameId');
 
     // Notify server about the timeout (best-effort, game already shows result locally)
     try {
@@ -584,6 +587,18 @@ const PlayMultiplayer = () => {
 
       if (isGameFinished) {
         console.log('🚫 Game is already finished, status:', data.status);
+
+        // If we've already seen this game's end card before, go straight to review
+        if (isGameEnded(gameId)) {
+          console.log('🔁 Game already seen as ended — redirecting to review');
+          navigate(`/play/review/${gameId}`, { replace: true });
+          return;
+        }
+
+        // First time we're loading a finished game: mark it and show the end card
+        markGameEnded(data.id);
+        sessionStorage.removeItem('lastGameId');
+
         setGameComplete(true);
         setGameInfo(p => ({...p, status: 'finished', ...data}));
         setLoading(false); // Stop loading if game is already finished
@@ -1628,6 +1643,8 @@ const PlayMultiplayer = () => {
     // Update game completion state
     setGameComplete(true);
     setLoading(false); // Ensure loading is false when game ends
+    markGameEnded(gameId);
+    sessionStorage.removeItem('lastGameId');
 
     // Unregister from navigation guard — game is no longer active
     if (gameRegisteredRef.current) {
@@ -1935,6 +1952,8 @@ const PlayMultiplayer = () => {
       setGameResult(localResult);
       setGameComplete(true);
       setGameInfo(prev => ({ ...prev, status: 'finished' }));
+      markGameEnded(gameId);
+      sessionStorage.removeItem('lastGameId');
 
       // Unregister from navigation guard
       if (gameRegisteredRef.current) {
@@ -5504,6 +5523,8 @@ const PlayMultiplayer = () => {
                   // Mark game as complete locally (don't wait for WebSocket)
                   setGameComplete(true);
                   setGameInfo(prev => ({ ...prev, status: 'finished' }));
+                  markGameEnded(gameId);
+                  sessionStorage.removeItem('lastGameId');
                   if (gameRegisteredRef.current) {
                     unregisterActiveGame();
                     gameRegisteredRef.current = false;
