@@ -1344,30 +1344,8 @@ class GameRoomService
             ];
         }
 
-        // Cancel any previously paused games for BOTH players in this game
-        // Only one paused game per user is allowed at a time
-        $bothPlayerIds = [$game->white_player_id, $game->black_player_id];
-        $previousPaused = Game::whereHas('statusRelation', function ($q) {
-                $q->where('code', 'paused');
-            })->where('id', '!=', $gameId)
-            ->where(function ($q) use ($bothPlayerIds) {
-                $q->whereIn('white_player_id', $bothPlayerIds)
-                  ->orWhereIn('black_player_id', $bothPlayerIds);
-            })
-            ->get();
-
-        foreach ($previousPaused as $oldGame) {
-            Log::info('Forfeiting previous paused game (only one allowed)', [
-                'old_game_id' => $oldGame->id,
-                'new_game_id' => $gameId,
-            ]);
-            $oldGame->update([
-                'status' => 'finished',
-                'result' => 'draw',
-                'end_reason' => 'abandoned',
-                'ended_at' => now(),
-            ]);
-        }
+        // Multiple paused games per user are allowed.
+        // Paused games are strictly expired after 1 hour by the cleanup cron.
 
         // Use provided time data if available, otherwise fallback to existing values in DB
         $whiteTimeRemaining = $whiteTimeMs ?? $game->white_time_paused_ms ?? 600000; // Default 10 minutes

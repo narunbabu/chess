@@ -19,12 +19,13 @@ class CleanupAbandonedGames extends Command
                             {--dry-run : Show what would be cleaned without making changes}
                             {--zero-move-hours=1 : Hours of inactivity before cleaning 0-move games}
                             {--active-days=7 : Days of inactivity before cleaning games with moves}
+                            {--paused-hours=1 : Hours before paused games are expired (strict limit)}
                             {--skip-championship : Skip games linked to championship matches}';
 
     /**
      * The console command description.
      */
-    protected $description = 'Clean up abandoned games: 0-move games after 1h, 1+ move games after 7d of inactivity';
+    protected $description = 'Clean up abandoned games: 0-move games after 1h, paused games after 1h, 1+ move games after 7d';
 
     /**
      * Execute the console command.
@@ -34,6 +35,7 @@ class CleanupAbandonedGames extends Command
         $dryRun = $this->option('dry-run');
         $zeroMoveHours = (int) $this->option('zero-move-hours');
         $activeDays = (int) $this->option('active-days');
+        $pausedHours = (int) $this->option('paused-hours');
         $skipChampionship = $this->option('skip-championship');
 
         $this->info('Starting abandoned game cleanup...');
@@ -42,10 +44,11 @@ class CleanupAbandonedGames extends Command
             $this->warn('DRY RUN MODE - No changes will be made');
         }
 
-        $this->line("  Thresholds: 0-move games > {$zeroMoveHours}h, 1+ move games > {$activeDays}d");
+        $this->line("  Thresholds: 0-move > {$zeroMoveHours}h, paused > {$pausedHours}h, 1+ move active > {$activeDays}d");
 
         $zeroMoveCutoff = Carbon::now()->subHours($zeroMoveHours);
         $activeMoveCutoff = Carbon::now()->subDays($activeDays);
+        $pausedCutoff = Carbon::now()->subHours($pausedHours);
 
         $waitingStatusId = GameStatus::WAITING->getId();
         $activeStatusId = GameStatus::ACTIVE->getId();
@@ -56,10 +59,8 @@ class CleanupAbandonedGames extends Command
 
         $pausedStatusId = GameStatus::PAUSED->getId();
 
-        $targetStatusIds = [$waitingStatusId, $activeStatusId, $pausedStatusId];
-
-        // --- Phase 1: 0-move games older than threshold ---
-        $zeroMoveQuery = Game::whereIn('status_id', $targetStatusIds)
+        // --- Phase 1: 0-move games (waiting/active/paused) older than threshold ---
+        $zeroMoveQuery = Game::whereIn('status_id', [$waitingStatusId, $activeStatusId, $pausedStatusId])
             ->where(function ($q) {
                 $q->whereNull('move_count')->orWhere('move_count', 0);
             })
@@ -71,8 +72,31 @@ class CleanupAbandonedGames extends Command
 
         $zeroMoveGames = $zeroMoveQuery->get();
 
-        // --- Phase 2: 1+ move games older than threshold ---
-        $activeMoveQuery = Game::whereIn('status_id', $targetStatusIds)
+        // --- Phase 2: Paused games — strict 1-hour limit regardless of move count ---
+        // Paused games cannot stay paused for more than the threshold.
+        // Uses paused_at if available, otherwise updated_at.
+        $pausedQuery = Game::where('status_id', $pausedStatusId)
+            ->where('move_count', '>=', 1) // 0-move paused games handled in Phase 1
+            ->where(function ($q) use ($pausedCutoff) {
+                $q->where(function ($inner) use ($pausedCutoff) {
+                    $inner->whereNotNull('paused_at')
+                          ->where('paused_at', '<', $pausedCutoff);
+                })->orWhere(function ($inner) use ($pausedCutoff) {
+                    $inner->whereNull('paused_at')
+                          ->where('updated_at', '<', $pausedCutoff);
+                });
+            });
+
+        if ($skipChampionship) {
+            $pausedQuery->whereDoesntHave('championshipMatch');
+        }
+
+        // Exclude paused games already captured in Phase 1
+        $pausedGames = $pausedQuery->whereNotIn('id', $zeroMoveGames->pluck('id'))->get();
+
+        // --- Phase 3: 1+ move active/waiting games older than threshold ---
+        // Excludes paused games (handled in Phase 2 with stricter threshold)
+        $activeMoveQuery = Game::whereIn('status_id', [$waitingStatusId, $activeStatusId])
             ->where('move_count', '>=', 1)
             ->where('updated_at', '<', $activeMoveCutoff);
 
@@ -82,8 +106,8 @@ class CleanupAbandonedGames extends Command
 
         $activeMoveGames = $activeMoveQuery->get();
 
-        $totalCandidates = $zeroMoveGames->count() + $activeMoveGames->count();
-        $this->info("Found {$zeroMoveGames->count()} zero-move games and {$activeMoveGames->count()} stale active games ({$totalCandidates} total)");
+        $totalCandidates = $zeroMoveGames->count() + $pausedGames->count() + $activeMoveGames->count();
+        $this->info("Found {$zeroMoveGames->count()} zero-move, {$pausedGames->count()} expired paused, {$activeMoveGames->count()} stale active ({$totalCandidates} total)");
 
         if ($totalCandidates === 0) {
             $this->info('No abandoned games to clean up.');
@@ -92,6 +116,7 @@ class CleanupAbandonedGames extends Command
         }
 
         $cleanedZero = 0;
+        $cleanedPaused = 0;
         $cleanedActive = 0;
         $errors = 0;
 
@@ -111,7 +136,23 @@ class CleanupAbandonedGames extends Command
             }
         }
 
-        // Process 1+ move games (timeout inactivity)
+        // Process expired paused games (strict 1-hour limit)
+        foreach ($pausedGames as $game) {
+            try {
+                $this->processGame($game, 'expired-paused', $abortedStatusId, $timeoutInactivityEndReasonId, $dryRun);
+                $cleanedPaused++;
+            } catch (\Exception $e) {
+                $errors++;
+                $this->error("  Failed game #{$game->id}: {$e->getMessage()}");
+                Log::error('Game cleanup failed', [
+                    'game_id' => $game->id,
+                    'category' => 'expired-paused',
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        // Process 1+ move active games (timeout inactivity)
         foreach ($activeMoveGames as $game) {
             try {
                 $this->processGame($game, 'stale-active', $abortedStatusId, $timeoutInactivityEndReasonId, $dryRun);
@@ -127,8 +168,9 @@ class CleanupAbandonedGames extends Command
             }
         }
 
-        // --- Phase 3: Clean up stale game_connections for cleaned games ---
+        // --- Phase 4: Clean up stale game_connections for cleaned games ---
         $cleanedGameIds = $zeroMoveGames->pluck('id')
+            ->merge($pausedGames->pluck('id'))
             ->merge($activeMoveGames->pluck('id'))
             ->unique()
             ->values();
@@ -188,11 +230,12 @@ class CleanupAbandonedGames extends Command
         $headers = ['Category', 'Count'];
         $rows = [
             ['Zero-move games cleaned', $cleanedZero],
+            ['Expired paused games cleaned', $cleanedPaused],
             ['Stale active games cleaned', $cleanedActive],
             ['Connections for cleaned games', $cleanedConnections],
             ['Orphaned connections removed', $orphanedConnections],
             ['Errors', $errors],
-            ['Total games processed', $cleanedZero + $cleanedActive],
+            ['Total games processed', $cleanedZero + $cleanedPaused + $cleanedActive],
         ];
         $this->table($headers, $rows);
 
@@ -203,12 +246,14 @@ class CleanupAbandonedGames extends Command
         Log::info('Game cleanup completed', [
             'dry_run' => $dryRun,
             'zero_move_cleaned' => $cleanedZero,
+            'expired_paused_cleaned' => $cleanedPaused,
             'stale_active_cleaned' => $cleanedActive,
             'connections_cleaned' => $cleanedConnections,
             'orphaned_connections' => $orphanedConnections,
             'errors' => $errors,
             'thresholds' => [
                 'zero_move_hours' => $zeroMoveHours,
+                'paused_hours' => $pausedHours,
                 'active_days' => $activeDays,
             ],
         ]);

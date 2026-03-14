@@ -32,10 +32,10 @@ class Kernel extends ConsoleKernel
                  ->at('02:00')
                  ->description('Clean up stale invitations from finished games');
 
-        // Clean up abandoned games hourly (0-move after 1h, 1+ moves after 7d)
-        $schedule->command('games:cleanup-abandoned --skip-championship')
+        // Clean up abandoned games hourly (0-move after 1h, paused after 1h, active after 7d)
+        $schedule->command('games:cleanup-abandoned --skip-championship --paused-hours=1')
                  ->hourly()
-                 ->description('Clean up abandoned games based on inactivity thresholds');
+                 ->description('Clean up abandoned games: 0-move 1h, paused 1h strict, active 7d');
 
         // Clean up orphaned pending tournament registrations (C3 fix)
         $schedule->command('championships:cleanup-pending')
