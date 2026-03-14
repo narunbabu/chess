@@ -18,6 +18,16 @@ class GameController extends Controller
         ]);
 
         $user = Auth::user();
+
+        // Enforce max 3 pending games per user
+        [$allowed, $count] = Game::canUserStartGame($user->id);
+        if (!$allowed) {
+            return response()->json([
+                'error' => "You already have {$count} pending games. Please finish or resign existing games before starting a new one.",
+                'pending_count' => $count,
+            ], 429);
+        }
+
         $opponent = User::find($request->opponent_id);
 
         if ($user->id === $opponent->id) {
@@ -58,6 +68,15 @@ class GameController extends Controller
         ]);
 
         $user = Auth::user();
+
+        // Enforce max 3 pending games per user
+        [$allowed, $count] = Game::canUserStartGame($user->id);
+        if (!$allowed) {
+            return response()->json([
+                'error' => "You already have {$count} pending games. Please finish or resign existing games before starting a new one.",
+                'pending_count' => $count,
+            ], 429);
+        }
         $playerColor = $request->player_color;
         $computerLevel = $request->computer_level;
         $timeControl = $request->time_control ?? 10; // Default 10 minutes

@@ -358,6 +358,34 @@ class Game extends Model
     }
 
     /**
+     * Count pending (active/paused/waiting) games for a user.
+     * Used to enforce the max-3 pending games limit.
+     */
+    public static function pendingCountForUser(int $userId): int
+    {
+        return static::whereIn('status_id', [
+                GameStatus::ACTIVE->getId(),
+                GameStatus::PAUSED->getId(),
+                GameStatus::WAITING->getId(),
+            ])
+            ->where(function ($q) use ($userId) {
+                $q->where('white_player_id', $userId)
+                  ->orWhere('black_player_id', $userId);
+            })
+            ->count();
+    }
+
+    /**
+     * Check if user can start a new game (max 3 pending).
+     * Returns [bool $allowed, int $count].
+     */
+    public static function canUserStartGame(int $userId, int $max = 3): array
+    {
+        $count = static::pendingCountForUser($userId);
+        return [$count < $max, $count];
+    }
+
+    /**
      * Check if this is a computer game
      */
     public function isComputerGame(): bool

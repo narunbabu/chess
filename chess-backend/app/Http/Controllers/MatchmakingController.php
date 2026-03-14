@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Game;
 use App\Models\MatchmakingEntry;
 use App\Services\MatchmakingService;
 use Illuminate\Http\Request;
@@ -31,6 +32,15 @@ class MatchmakingController extends Controller
         ]);
 
         $user = Auth::user();
+
+        // Enforce max 3 pending games per user
+        [$allowed, $count] = Game::canUserStartGame($user->id);
+        if (!$allowed) {
+            return response()->json([
+                'error' => "You already have {$count} pending games. Please finish or resign existing games before starting a new one.",
+                'pending_count' => $count,
+            ], 429);
+        }
 
         $entry = $this->matchmaking->joinQueue($user, $validated);
 

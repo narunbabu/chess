@@ -7,6 +7,18 @@ import api from '../../services/api';
 import { isGameEnded } from '../../utils/endedGamesTracker';
 
 const POLL_INTERVAL_MS = 15000; // re-check every 15 s
+const MAX_BANNERS = 3; // show at most 3 banners
+
+function formatTimeAgo(date) {
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (seconds < 60) return 'just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
 
 const ActiveGameBanner = () => {
   const { isAuthenticated, user } = useAuth();
@@ -83,7 +95,7 @@ const ActiveGameBanner = () => {
   const visibleGames = activeGames.filter(g => {
     const isOnThisGame = location.pathname === `/play/multiplayer/${g.id}`;
     return !isOnThisGame && !dismissedIds.has(g.id);
-  });
+  }).slice(0, MAX_BANNERS);
 
   if (!isAuthenticated || visibleGames.length === 0) return null;
 
@@ -114,6 +126,10 @@ const ActiveGameBanner = () => {
         const isPaused = status === 'paused';
         const opponentName = getOpponentName(game);
         const gamePath = `/play/multiplayer/${game.id}`;
+
+        // Format when game was started
+        const startedAt = game.created_at ? new Date(game.created_at) : null;
+        const timeAgo = startedAt ? formatTimeAgo(startedAt) : null;
 
         return (
           <div
@@ -160,11 +176,11 @@ const ActiveGameBanner = () => {
             }}>
               {isPaused
                 ? (opponentName
-                    ? <>Paused game vs <strong style={{ color: '#fef3c7' }}>{opponentName}</strong></>
-                    : 'Paused game')
+                    ? <>Paused game vs <strong style={{ color: '#fef3c7' }}>{opponentName}</strong>{timeAgo && <span style={{ opacity: 0.7, fontSize: '12px' }}> · started {timeAgo}</span>}</>
+                    : <>Paused game{timeAgo && <span style={{ opacity: 0.7, fontSize: '12px' }}> · started {timeAgo}</span>}</>)
                 : (opponentName
-                    ? <>Active game vs <strong style={{ color: '#bbf7d0' }}>{opponentName}</strong> in progress</>
-                    : 'Active game in progress')}
+                    ? <>Active game vs <strong style={{ color: '#bbf7d0' }}>{opponentName}</strong>{timeAgo && <span style={{ opacity: 0.7, fontSize: '12px' }}> · started {timeAgo}</span>}</>
+                    : <>Active game in progress{timeAgo && <span style={{ opacity: 0.7, fontSize: '12px' }}> · started {timeAgo}</span>}</>)}
             </span>
 
             {/* main CTA button */}
