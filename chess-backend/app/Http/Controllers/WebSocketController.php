@@ -1795,6 +1795,38 @@ class WebSocketController extends Controller
     }
 
     /**
+     * Get chat messages for a game
+     */
+    public function getChatMessages(Request $request, int $gameId): JsonResponse
+    {
+        $user = Auth::user();
+        $game = Game::find($gameId);
+
+        if (!$game) {
+            return response()->json(['messages' => []], 200);
+        }
+
+        if ($game->white_player_id !== $user->id && $game->black_player_id !== $user->id) {
+            return response()->json(['messages' => []], 200);
+        }
+
+        $messages = GameChatMessage::where('game_id', $gameId)
+            ->join('users', 'game_chat_messages.user_id', '=', 'users.id')
+            ->select('game_chat_messages.*', 'users.name as sender_name')
+            ->orderBy('game_chat_messages.created_at', 'asc')
+            ->get()
+            ->map(fn($msg) => [
+                'id'          => $msg->id,
+                'sender_id'   => $msg->user_id,
+                'sender_name' => $msg->sender_name,
+                'message'     => $msg->message,
+                'created_at'  => $msg->created_at->toISOString(),
+            ]);
+
+        return response()->json(['messages' => $messages]);
+    }
+
+    /**
      * Send a chat message in a game
      */
     public function sendChatMessage(Request $request, int $gameId): JsonResponse

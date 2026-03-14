@@ -241,6 +241,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Get championship context for a game
         Route::get('/games/{gameId}/championship-context', [WebSocketController::class, 'getChampionshipContext']);
+
+        // Chat messages
+        Route::get('/games/{gameId}/chat', [WebSocketController::class, 'getChatMessages']);
+        Route::post('/games/{gameId}/chat', [WebSocketController::class, 'sendChatMessage']);
     });
 
     // NOTE: /broadcasting/auth is registered OUTSIDE auth:sanctum below — see end of file.

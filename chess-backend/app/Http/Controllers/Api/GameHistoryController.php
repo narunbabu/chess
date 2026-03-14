@@ -418,9 +418,11 @@ class GameHistoryController extends Controller
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
-        // Ensure the game belongs to the user and join with games table if it's a multiplayer game
-        $game = GameHistory::where('game_histories.user_id', $user->id)
-            ->where('game_histories.id', $id)
+        // Look up by game_histories.id first, then fall back to game_id.
+        // The frontend often passes the games.id (e.g. /game-history/183) but
+        // game_histories has its own auto-increment id which may differ.
+        $baseQuery = fn($idColumn, $idValue) => GameHistory::where('game_histories.user_id', $user->id)
+            ->where($idColumn, $idValue)
             ->leftJoin('games', 'game_histories.game_id', '=', 'games.id')
             ->leftJoin('users as white_player', 'games.white_player_id', '=', 'white_player.id')
             ->leftJoin('users as black_player', 'games.black_player_id', '=', 'black_player.id')
@@ -438,6 +440,9 @@ class GameHistoryController extends Controller
                 'black_player.rating as black_player_rating',
             ])
             ->first();
+
+        $game = $baseQuery('game_histories.id', $id)
+            ?? $baseQuery('game_histories.game_id', $id);
 
         if (!$game) {
             Log::warning("Game history not found", [
