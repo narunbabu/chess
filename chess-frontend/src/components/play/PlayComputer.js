@@ -32,10 +32,15 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useAppData } from "../../contexts/AppDataContext";
 
 
-// Import sound files (ensure paths are correct)
+// Import sound files
 import moveSound from '../../assets/sounds/move.mp3';
 import checkSound from '../../assets/sounds/check.mp3';
 import gameEndSound from '../../assets/sounds/game-end.mp3';
+import captureSound from '../../assets/sounds/capture.mp3';
+import castleSound from '../../assets/sounds/castle.mp3';
+import victorySound from '../../assets/sounds/victory.mp3';
+import defeatSound from '../../assets/sounds/defeat.mp3';
+import gameStartSound from '../../assets/sounds/game-start.mp3';
 import { isSoundMuted } from './SoundToggle';
 import { BOARD_THEMES } from '../../config/boardThemes';
 
@@ -43,6 +48,11 @@ import { BOARD_THEMES } from '../../config/boardThemes';
 const moveSoundEffect = new Audio(moveSound);
 const checkSoundEffect = new Audio(checkSound);
 const gameEndSoundEffect = new Audio(gameEndSound);
+const captureSoundEffect = new Audio(captureSound);
+const castleSoundEffect = new Audio(castleSound);
+const victorySoundEffect = new Audio(victorySound);
+const defeatSoundEffect = new Audio(defeatSound);
+const gameStartSoundEffect = new Audio(gameStartSound);
 
 // --- Constants ---
 const MIN_DEPTH = 1;
@@ -477,14 +487,26 @@ const PlayComputer = () => {
         setGameResult(standardizedResult);
 
         // Remove current game from unfinished storage (completed games are stored separately)
-        if (!user && gameHistory.length > 0) {
-            try {
-                const currentGameId = `local_${gameHistory[0]?.timestamp || Date.now()}`;
-                clearUnfinishedGame(currentGameId);
-                console.log('[PlayComputer] 🗑️ Removed current game from unfinished storage:', currentGameId);
-            } catch (error) {
-                console.error('[PlayComputer] ❌ Failed to clear unfinished game:', error);
+        try {
+            // Clear by local ID
+            if (gameHistory.length > 0) {
+                const localId = `local_${gameHistory[0]?.timestamp || Date.now()}`;
+                clearUnfinishedGame(localId);
+                console.log('[PlayComputer] 🗑️ Removed unfinished game (local):', localId);
             }
+            // Clear by current tracked game ID
+            if (currentGameId) {
+                clearUnfinishedGame(currentGameId);
+                console.log('[PlayComputer] 🗑️ Removed unfinished game (tracked):', currentGameId);
+            }
+            // Clear by backend game ID (from URL or matchmaking)
+            const backendGameId = searchParams.get('gameId');
+            if (backendGameId) {
+                clearUnfinishedGame(backendGameId);
+                console.log('[PlayComputer] 🗑️ Removed unfinished game (backend):', backendGameId);
+            }
+        } catch (error) {
+            console.error('[PlayComputer] ❌ Failed to clear unfinished game:', error);
         }
 
         // Save game history (handles both local and online save)
@@ -555,7 +577,14 @@ const PlayComputer = () => {
             }
         }
 
-        playSound(gameEndSoundEffect); // Play end sound
+        // Play victory or defeat sound based on outcome
+        if (standardizedResult.winner === 'player') {
+          playSound(victorySoundEffect);
+        } else if (standardizedResult.winner === 'computer' || standardizedResult.winner === 'opponent') {
+          playSound(defeatSoundEffect);
+        } else {
+          playSound(gameEndSoundEffect); // Draw or unknown
+        }
 
         // Store the saved game ID for history navigation
         const savedGameId = gameHistoryData?.id;
@@ -1330,9 +1359,16 @@ const PlayComputer = () => {
 
             // --- Apply the move and update game state ---
             setGame(newGame); // Update the board state
-            playSound(moveSoundEffect); // Play move sound
+            // Play appropriate sound based on move type
+            if (bestMove.captured) {
+              playSound(captureSoundEffect);
+            } else if (bestMove.flags && (bestMove.flags.includes('k') || bestMove.flags.includes('q'))) {
+              playSound(castleSoundEffect);
+            } else {
+              playSound(moveSoundEffect);
+            }
             if (newGame.isCheck()) {
-              playSound(checkSoundEffect); // Play check sound if applicable
+              playSound(checkSoundEffect);
             }
 
             // Update game status message and check for game over
@@ -1520,9 +1556,16 @@ const PlayComputer = () => {
         if (timerRef.current) clearInterval(timerRef.current); // Stop player's timer immediately
         setIsTimerRunning(false);
 
-        playSound(moveSoundEffect); // Play move sound
+        // Play appropriate sound based on move type
+        if (moveResult.captured) {
+          playSound(captureSoundEffect);
+        } else if (moveResult.flags && (moveResult.flags.includes('k') || moveResult.flags.includes('q'))) {
+          playSound(castleSoundEffect);
+        } else {
+          playSound(moveSoundEffect);
+        }
         if (gameCopy.isCheck()) {
-             playSound(checkSoundEffect); // Play check sound
+          playSound(checkSoundEffect);
         }
 
         // Calculate time taken for the move
@@ -2865,8 +2908,8 @@ const PlayComputer = () => {
                   navigate(navPath);
                 }, 100);
               } else {
-                // Navigate to lobby after game ends
-                navigate('/lobby');
+                // Navigate to dashboard after game ends
+                navigate('/');
               }
             }}
           />

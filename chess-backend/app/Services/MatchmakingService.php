@@ -111,9 +111,11 @@ class MatchmakingService
                 return null; // Entry was already matched by another request
             }
 
-            // Find another searching player within rating range
+            // Find another searching player within rating range.
+            // Only match with non-expired entries to avoid stale queue records.
             $opponent = MatchmakingEntry::where('status', 'searching')
                 ->where('user_id', '!=', $lockedEntry->user_id)
+                ->where('expires_at', '>=', now())
                 ->whereBetween('rating', [
                     $lockedEntry->rating - $lockedEntry->rating_range,
                     $lockedEntry->rating + $lockedEntry->rating_range,
@@ -163,13 +165,30 @@ class MatchmakingService
      */
     private function matchWithSynthetic(MatchmakingEntry $entry): MatchmakingEntry
     {
+        Log::info('[MM:SYNTHETIC] Attempting synthetic match', [
+            'entry_id' => $entry->id,
+            'user_id' => $entry->user_id,
+            'rating' => $entry->rating,
+        ]);
+
         $bot = SyntheticPlayer::findClosestToRating($entry->rating);
 
         if (!$bot) {
             // No bots available — mark expired
+            Log::warning('[MM:SYNTHETIC] No active synthetic players found', [
+                'entry_id' => $entry->id,
+                'user_rating' => $entry->rating,
+            ]);
             $entry->update(['status' => 'expired']);
             return $entry;
         }
+
+        Log::info('[MM:SYNTHETIC] Found bot', [
+            'bot_id' => $bot->id,
+            'bot_name' => $bot->name,
+            'bot_rating' => $bot->rating,
+            'bot_level' => $bot->computer_level,
+        ]);
 
         // Create a computer game using the bot's level
         $user = $entry->user;
@@ -209,6 +228,14 @@ class MatchmakingService
 
         // Increment bot's cosmetic game count
         $bot->increment('games_played_count');
+
+        Log::info('[MM:SYNTHETIC] Successfully matched with synthetic player', [
+            'entry_id' => $entry->id,
+            'user_id' => $entry->user_id,
+            'game_id' => $game->id,
+            'bot_id' => $bot->id,
+            'bot_name' => $bot->name,
+        ]);
 
         return $entry->fresh()->load(['matchedSynthetic', 'game']);
     }
@@ -290,24 +317,15 @@ class MatchmakingService
             'expires_at' => $expiresAt,
         ]);
 
-        // Add the requesting user to matchmaking_entries so traditional queue
-        // users running findHumanMatch() can discover and match with them.
-        // Uses the same 15-second window as the smart-match phase.
+        // Cancel any stale searching entries for this user (from previous
+        // queue joins that were never cleaned up). Do NOT create a new
+        // MatchmakingEntry here — smart-match users must only be matched
+        // via explicit accept/decline through the MatchRequest flow.
+        // Creating a queue entry here caused findHumanMatch() to auto-match
+        // real users without their approval, and blocked the synthetic fallback.
         MatchmakingEntry::where('user_id', $user->id)
             ->where('status', 'searching')
             ->update(['status' => 'cancelled']);
-
-        MatchmakingEntry::create([
-            'user_id'              => $user->id,
-            'rating'               => $user->rating ?? 1200,
-            'rating_range'         => 200,
-            'status'               => 'searching',
-            'queued_at'            => now(),
-            'expires_at'           => $expiresAt,
-            'preferred_color'      => $prefs['preferred_color'] ?? 'random',
-            'time_control_minutes' => $prefs['time_control_minutes'] ?? 10,
-            'increment_seconds'    => $prefs['increment_seconds'] ?? 0,
-        ]);
 
         $userRating = $user->rating ?? 1200;
 

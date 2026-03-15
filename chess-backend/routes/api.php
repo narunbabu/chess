@@ -341,6 +341,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/health', [\App\Http\Controllers\TournamentAdminController::class, 'getSystemHealth']);
     });
 
+    // Admin dashboard routes
+    Route::prefix('admin/dashboard')->middleware(['admin.dashboard'])->group(function () {
+        Route::get('/organizations', [\App\Http\Controllers\AdminDashboardController::class, 'organizations']);
+    });
+
     // Lobby routes
     Route::get('/lobby/players', [LobbyController::class, 'players']);
 

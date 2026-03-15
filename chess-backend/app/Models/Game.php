@@ -358,19 +358,34 @@ class Game extends Model
     }
 
     /**
-     * Count pending (active/paused/waiting) games for a user.
+     * Count pending (active/paused/waiting) MULTIPLAYER games for a user.
      * Used to enforce the max-3 pending games limit.
+     * Excludes computer/synthetic games (no real opponent waiting) and
+     * games paused for more than 1 hour (effectively abandoned).
      */
     public static function pendingCountForUser(int $userId): int
     {
         return static::whereIn('status_id', [
-                GameStatus::ACTIVE->getId(),
-                GameStatus::PAUSED->getId(),
-                GameStatus::WAITING->getId(),
+                GameStatusEnum::ACTIVE->getId(),
+                GameStatusEnum::PAUSED->getId(),
+                GameStatusEnum::WAITING->getId(),
             ])
             ->where(function ($q) use ($userId) {
                 $q->where('white_player_id', $userId)
                   ->orWhere('black_player_id', $userId);
+            })
+            // Don't count computer/synthetic games — no real opponent waiting
+            ->whereNull('computer_player_id')
+            // Don't count games paused for more than 1 hour — effectively abandoned
+            ->where(function ($q) {
+                $q->where('status_id', '!=', GameStatusEnum::PAUSED->getId())
+                  ->orWhere(function ($q2) {
+                      $q2->where('status_id', GameStatusEnum::PAUSED->getId())
+                         ->where(function ($q3) {
+                             $q3->where('paused_at', '>=', now()->subHour())
+                                ->orWhereNull('paused_at');
+                         });
+                  });
             })
             ->count();
     }

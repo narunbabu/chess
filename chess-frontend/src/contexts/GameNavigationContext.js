@@ -20,6 +20,9 @@ export const GameNavigationProvider = ({ children }) => {
   const gameIdRef = useRef(null);
   const lastValidLocationRef = useRef(location.pathname);
 
+  // Track whether we've pushed a guard entry into history
+  const historyGuardPushedRef = useRef(false);
+
   // Prevent accidental navigation away from active games
   useEffect(() => {
     const handleBeforeUnload = (e) => {
@@ -30,13 +33,19 @@ export const GameNavigationProvider = ({ children }) => {
       }
     };
 
-    const handlePopState = (e) => {
+    // popstate fires AFTER the browser has already navigated back.
+    // e.preventDefault() does NOT work on popstate events.
+    // Instead, we push an extra history entry when a game is active,
+    // so pressing "back" consumes it and stays on the same page.
+    const handlePopState = () => {
       if (gameActiveRef.current && !gamePausedRef.current) {
-        console.log('[GameNavigation] Detected browser back navigation during active game');
-        e.preventDefault();
-        window.history.pushState(null, '', location.pathname);
+        console.log('[GameNavigation] Browser back during active game — blocking');
+        // Re-push guard entry so the next back press is also caught
+        window.history.pushState({ gameGuard: true }, '', location.pathname);
+        historyGuardPushedRef.current = true;
         setShowWarningDialog(true);
-        setPendingNavigation(window.location.pathname);
+        // Browser back doesn't tell us the target — default to dashboard
+        setPendingNavigation('/');
       }
     };
 
@@ -64,6 +73,13 @@ export const GameNavigationProvider = ({ children }) => {
       state: gameState,
       isRated: isRated
     });
+
+    // Push a guard history entry so browser back doesn't leave the page
+    if (gameState !== 'paused' && !historyGuardPushedRef.current) {
+      window.history.pushState({ gameGuard: true }, '', window.location.pathname);
+      historyGuardPushedRef.current = true;
+      console.log('[GameNavigation] Pushed history guard entry');
+    }
   }, []);
 
   // Unregister game when leaving
@@ -74,6 +90,7 @@ export const GameNavigationProvider = ({ children }) => {
     gamePausedRef.current = false;
     setIsRatedGame(false);
     setActiveGame(null);
+    historyGuardPushedRef.current = false;
   }, []);
 
   // Update game state (e.g., when paused/resumed)

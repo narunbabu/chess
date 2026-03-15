@@ -49,10 +49,14 @@ const ActiveGameBanner = () => {
       const list = Array.isArray(res.data) ? res.data
         : (res.data?.data ?? res.data?.games ?? []);
 
-      // Include active, waiting, AND paused games
+      // Include active, waiting, AND paused MULTIPLAYER games only.
+      // Exclude computer/synthetic games — no real opponent is waiting.
       const games = list.filter(g => {
         const s = getGameStatus(g);
-        return ['active', 'in_progress', 'waiting', 'paused'].includes(s) && !isGameEnded(g.id);
+        if (!['active', 'in_progress', 'waiting', 'paused'].includes(s)) return false;
+        if (isGameEnded(g.id)) return false;
+        if (g.computer_player_id || g.synthetic_player_id) return false;
+        return true;
       });
 
       setActiveGames(prev => {
@@ -94,7 +98,8 @@ const ActiveGameBanner = () => {
   // ── filter out games user is currently viewing + dismissed ───────────────
   const visibleGames = activeGames.filter(g => {
     const isOnThisGame = location.pathname === `/play/multiplayer/${g.id}`;
-    return !isOnThisGame && !dismissedIds.has(g.id);
+    const isOnPlayPage = location.pathname === '/play';
+    return !isOnThisGame && !isOnPlayPage && !dismissedIds.has(g.id);
   }).slice(0, MAX_BANNERS);
 
   if (!isAuthenticated || visibleGames.length === 0) return null;

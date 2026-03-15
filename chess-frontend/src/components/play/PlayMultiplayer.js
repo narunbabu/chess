@@ -47,12 +47,20 @@ import {
 import moveSound from '../../assets/sounds/move.mp3';
 import checkSound from '../../assets/sounds/check.mp3';
 import gameEndSound from '../../assets/sounds/game-end.mp3';
+import captureSound from '../../assets/sounds/capture.mp3';
+import castleSound from '../../assets/sounds/castle.mp3';
+import victorySound from '../../assets/sounds/victory.mp3';
+import defeatSound from '../../assets/sounds/defeat.mp3';
 import { isSoundMuted } from './SoundToggle';
 
 // Create audio objects
 const moveSoundEffect = new Audio(moveSound);
 const checkSoundEffect = new Audio(checkSound);
 const gameEndSoundEffect = new Audio(gameEndSound);
+const captureSoundEffect = new Audio(captureSound);
+const castleSoundEffect = new Audio(castleSound);
+const victorySoundEffect = new Audio(victorySound);
+const defeatSoundEffect = new Audio(defeatSound);
 
 const PlayMultiplayer = () => {
   // ========================================
@@ -313,6 +321,13 @@ const PlayMultiplayer = () => {
     markGameEnded(gameId);
     sessionStorage.removeItem('lastGameId');
 
+    // Play victory or defeat sound
+    if (isPlayerTimeout) {
+      playSound(defeatSoundEffect);
+    } else {
+      playSound(victorySoundEffect);
+    }
+
     // Notify server about the timeout (best-effort, game already shows result locally)
     try {
       if (wsService.current) {
@@ -409,12 +424,20 @@ const PlayMultiplayer = () => {
       setShowCheckmate(true);
 
       return true;
-    } else if (gameInstance.isCheck()) {
-      // Play check sound
-      playSound(checkSoundEffect);
     } else {
-      // Play regular move sound
-      playSound(moveSoundEffect);
+      // Determine sound from last move
+      const history = gameInstance.history({ verbose: true });
+      const lastMove = history.length > 0 ? history[history.length - 1] : null;
+
+      if (gameInstance.isCheck()) {
+        playSound(checkSoundEffect);
+      } else if (lastMove?.captured) {
+        playSound(captureSoundEffect);
+      } else if (lastMove?.flags && (lastMove.flags.includes('k') || lastMove.flags.includes('q'))) {
+        playSound(castleSoundEffect);
+      } else {
+        playSound(moveSoundEffect);
+      }
     }
 
     return false;
@@ -588,10 +611,10 @@ const PlayMultiplayer = () => {
       if (isGameFinished) {
         console.log('🚫 Game is already finished, status:', data.status);
 
-        // If we've already seen this game's end card before, go straight to review
+        // If we've already seen this game's end card before, go to dashboard
         if (isGameEnded(gameId)) {
-          console.log('🔁 Game already seen as ended — redirecting to review');
-          navigate(`/play/review/${gameId}`, { replace: true });
+          console.log('🔁 Game already seen as ended — redirecting to dashboard');
+          navigate('/', { replace: true });
           return;
         }
 
@@ -4796,26 +4819,18 @@ const PlayMultiplayer = () => {
             championshipId: championshipContext.championship_id
           } : null}
           onClose={() => {
-            // X button should navigate to lobby
+            // X button should navigate to dashboard
             sessionStorage.removeItem('lastInvitationAction');
             sessionStorage.removeItem('lastInvitationTime');
             sessionStorage.removeItem('lastGameId');
-            sessionStorage.setItem('intentionalLobbyVisit', 'true');
-            sessionStorage.setItem('intentionalLobbyVisitTime', Date.now().toString());
-            navigate('/lobby');
+            navigate('/');
           }}
           onNewGame={handleNewGame}
           onBackToLobby={() => {
-            // Clear invitation-related session storage to prevent auto-navigation
             sessionStorage.removeItem('lastInvitationAction');
             sessionStorage.removeItem('lastInvitationTime');
             sessionStorage.removeItem('lastGameId');
-
-            // Set flag to indicate intentional lobby visit
-            sessionStorage.setItem('intentionalLobbyVisit', 'true');
-            sessionStorage.setItem('intentionalLobbyVisitTime', Date.now().toString());
-
-            navigate('/lobby');
+            navigate('/');
           }}
           onPreview={() => {
             // Navigate to game review using game ID with multiplayer mode for correct score display
@@ -5239,26 +5254,18 @@ const PlayMultiplayer = () => {
             championshipId: championshipContext.championship_id
           } : null}
           onClose={() => {
-            // X button should navigate to lobby
+            // X button should navigate to dashboard
             sessionStorage.removeItem('lastInvitationAction');
             sessionStorage.removeItem('lastInvitationTime');
             sessionStorage.removeItem('lastGameId');
-            sessionStorage.setItem('intentionalLobbyVisit', 'true');
-            sessionStorage.setItem('intentionalLobbyVisitTime', Date.now().toString());
-            navigate('/lobby');
+            navigate('/');
           }}
           onNewGame={handleNewGame}
           onBackToLobby={() => {
-            // Clear invitation-related session storage to prevent auto-navigation
             sessionStorage.removeItem('lastInvitationAction');
             sessionStorage.removeItem('lastInvitationTime');
             sessionStorage.removeItem('lastGameId');
-
-            // Set flag to indicate intentional lobby visit
-            sessionStorage.setItem('intentionalLobbyVisit', 'true');
-            sessionStorage.setItem('intentionalLobbyVisitTime', Date.now().toString());
-
-            navigate('/lobby');
+            navigate('/');
           }}
           onPreview={() => {
             // Navigate to game review/preview page using saved game_history ID

@@ -407,7 +407,71 @@ const GameReview = () => {
           setGameHistory(formattedGameHistory);
         } else {
           gameData = await getGameHistoryById(effectiveGameId);
+
+          // Fallback: if local game history not found, try loading from
+          // multiplayer API. This handles cases where a player never visited
+          // the game page (e.g., opponent timed out before they joined).
           if (!gameData) {
+            try {
+              const fallbackResponse = await api.get(`/games/${effectiveGameId}`);
+              if (fallbackResponse.data?.id) {
+                console.log('[GameReview] Local history not found, loaded from multiplayer API');
+                isMultiplayer = true;
+                gameData = fallbackResponse.data;
+
+                const playerColor = gameData.player_color;
+                const formattedGameHistory = {
+                  id: gameData.id,
+                  played_at: gameData.ended_at || new Date().toISOString(),
+                  player_color: playerColor,
+                  game_mode: 'multiplayer',
+                  opponent_name: playerColor === 'w' ? gameData.black_player?.name : gameData.white_player?.name,
+                  moves: gameData.moves,
+                  final_score: playerColor === 'w' ? parseFloat(gameData.white_player_score || 0) : parseFloat(gameData.black_player_score || 0),
+                  opponent_score: playerColor === 'w' ? parseFloat(gameData.black_player_score || 0) : parseFloat(gameData.white_player_score || 0),
+                  result: {
+                    details: gameData.end_reason,
+                    end_reason: gameData.end_reason,
+                    status: gameData.result
+                  },
+                  white_time_remaining_ms: gameData.white_time_remaining_ms,
+                  black_time_remaining_ms: gameData.black_time_remaining_ms,
+                  white_player: gameData.white_player,
+                  black_player: gameData.black_player,
+                  winner_user_id: gameData.winner_user_id,
+                  computer_level: 0
+                };
+
+                let convertedMoves = [{ move: { san: 'Start' }, fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1' }];
+                if (typeof gameData.moves === 'string' && gameData.moves.length > 0) {
+                  const tempGame = new Chess();
+                  gameData.moves.split(';').forEach(moveStr => {
+                    const [notation, time] = moveStr.split(',');
+                    if (notation && notation.trim()) {
+                      try {
+                        const move = tempGame.move(notation.trim());
+                        if (move) {
+                          convertedMoves.push({ move: { san: move.san }, fen: tempGame.fen(), time: parseFloat(time) || undefined });
+                        }
+                      } catch { /* skip invalid move */ }
+                    }
+                  });
+                  formattedGameHistory.moves = convertedMoves;
+                } else if (Array.isArray(gameData.moves)) {
+                  if (gameData.moves.length > 0 && gameData.moves[0]?.move?.san) {
+                    formattedGameHistory.moves = gameData.moves;
+                  } else {
+                    formattedGameHistory.moves = convertedMoves;
+                  }
+                } else {
+                  formattedGameHistory.moves = convertedMoves;
+                }
+
+                setGameHistory(formattedGameHistory);
+                return; // Skip the non-multiplayer path below
+              }
+            } catch { /* multiplayer fallback also failed */ }
+
             setError('Game not found');
             setGameHistory({ moves: [] });
             setLoading(false);
@@ -468,6 +532,18 @@ const GameReview = () => {
     setGame(newGame);
     setCurrentMoveIndex(0);
   }, [gameHistory]);
+
+  // Auto-show end card when loading a finished game (once per game)
+  useEffect(() => {
+    if (loading || !gameHistory?.id) return;
+    const result = gameHistory.result || gameHistory.outcome;
+    // Only show for finished games with a result
+    if (!result || result === 'ongoing') return;
+    // Check if user already dismissed this end card
+    const dismissKey = `endcard_dismissed_${gameHistory.id}`;
+    if (sessionStorage.getItem(dismissKey)) return;
+    setShowEndCard(true);
+  }, [loading, gameHistory]);
 
   // ═══ Board sizing ═══
 
@@ -1162,10 +1238,19 @@ const GameReview = () => {
             padding: '20px', paddingTop: '80px', paddingBottom: '140px',
             overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch'
           }}
-          onClick={(e) => { if (e.target === e.currentTarget) setShowEndCard(false); }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowEndCard(false);
+              if (gameHistory?.id) sessionStorage.setItem(`endcard_dismissed_${gameHistory.id}`, '1');
+            }
+          }}
         >
           <button
-            onClick={(e) => { e.stopPropagation(); setShowEndCard(false); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowEndCard(false);
+              if (gameHistory?.id) sessionStorage.setItem(`endcard_dismissed_${gameHistory.id}`, '1');
+            }}
             style={{
               position: 'fixed', top: '20px', right: '20px',
               background: 'rgba(255,255,255,0.9)', border: 'none', borderRadius: '50%',

@@ -27,7 +27,7 @@ const Header = () => {
   const { isAuthenticated, logout, user } = useAuth();
   const { currentTier, isPremium, isStandard } = useSubscription();
   const { activeGame, loading } = useActiveGame();
-  const { navigateWithGuard } = useGameNavigation();
+  const { navigateWithGuard, activeGame: navActiveGame, isRatedGame, handleNavigationAttempt } = useGameNavigation();
   const [showNavPanel, setShowNavPanel] = useState(false);
   const [showMatchmaking, setShowMatchmaking] = useState(false);
   const [onlineStats, setOnlineStats] = useState({ onlineCount: 0, availablePlayers: 0 });
@@ -282,12 +282,30 @@ const Header = () => {
     window.location.href = '/';
   };
 
+  // Helper: check if user is currently on a game page
+  const isOnGamePage = location.pathname === '/play' || location.pathname.startsWith('/play/multiplayer/');
+
   const handleUserMenuClick = () => {
+    // Block opening menu during active games
+    if (isOnGamePage) {
+      if (navActiveGame?.isActive && !navActiveGame?.isPaused) {
+        handleNavigationAttempt('/');
+      }
+      return;
+    }
     setShowNavPanel(!showNavPanel);
   };
 
   const handleNavItemClick = (action, targetPath = null) => {
     setShowNavPanel(false);
+
+    // Block navigation when on any game page (computer/synthetic has no guard registered)
+    if (isOnGamePage) {
+      if (navActiveGame?.isActive && !navActiveGame?.isPaused) {
+        handleNavigationAttempt(targetPath || '/');
+      }
+      return;
+    }
 
     // Track navigation
     if (targetPath) {
@@ -332,7 +350,18 @@ const Header = () => {
         <div className="center-section">
           <button
             className={`nav-link nav-icon-link${showMatchmaking ? ' active' : ''}`}
-            onClick={() => setShowMatchmaking(true)}
+            onClick={() => {
+              // Block starting a new game during an active multiplayer game
+              if (navActiveGame?.isActive && !navActiveGame?.isPaused) {
+                handleNavigationAttempt('/');
+                return;
+              }
+              // Block starting a new game while on the /play page (computer/synthetic game in progress)
+              if (location.pathname === '/play' || location.pathname.startsWith('/play/multiplayer/')) {
+                return; // Already playing — ignore
+              }
+              setShowMatchmaking(true);
+            }}
             title="Play Now"
             aria-label="Play Now"
             style={{ color: '#81b64c', fontWeight: '700', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
@@ -436,7 +465,14 @@ const Header = () => {
               <Link
                 to="/pricing"
                 className="upgrade-btn"
-                onClick={() => { setShowNavPanel(false); trackNavigation('pricing', 'header'); }}
+                onClick={(e) => {
+                  if (isOnGamePage) {
+                    e.preventDefault();
+                    return;
+                  }
+                  setShowNavPanel(false);
+                  trackNavigation('pricing', 'header');
+                }}
               >
                 ⬆ Upgrade
               </Link>

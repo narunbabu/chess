@@ -93,6 +93,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => \App\Http\Middleware\CheckRole::class,
             'permission' => \App\Http\Middleware\CheckPermission::class,
             'admin.auth' => \App\Http\Middleware\AdminAuthMiddleware::class,
+            'admin.dashboard' => \App\Http\Middleware\AdminDashboardAccess::class,
             'subscription' => \App\Http\Middleware\CheckSubscription::class,
         ]);
 
