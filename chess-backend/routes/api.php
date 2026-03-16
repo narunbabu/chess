@@ -24,6 +24,7 @@ use App\Http\Controllers\ReferralController;
 use App\Http\Controllers\TutorialController;
 use App\Http\Controllers\LobbyController;
 use App\Http\Controllers\MatchmakingController;
+use App\Http\Controllers\LeaderboardController;
 // use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 
@@ -55,6 +56,7 @@ Route::group(['middleware' => 'api', 'prefix' => 'auth'], function () {
 
 // Public routes
 Route::get('/users', [UserController::class, 'index']);
+Route::get('/leaderboard', [LeaderboardController::class, 'index']);
 
 // Protected routes for authenticated users (use a middleware like auth:sanctum or auth:api)
 Route::middleware('auth:sanctum')->group(function () {
@@ -346,6 +348,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('admin/dashboard')->middleware(['admin.dashboard'])->group(function () {
         Route::get('/overview', [\App\Http\Controllers\AdminDashboardController::class, 'overview']);
         Route::get('/organizations', [\App\Http\Controllers\AdminDashboardController::class, 'organizations']);
+        Route::get('/user/{id}', [\App\Http\Controllers\AdminDashboardController::class, 'userDetail']);
     });
 
     // Ambassador routes (any authenticated user)

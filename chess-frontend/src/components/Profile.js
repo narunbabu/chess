@@ -59,7 +59,7 @@ const Profile = () => {
   const fileInputRef = useRef(null);
 
   // Profile tab navigation (PR-R1)
-  const [profileTab, setProfileTab] = useState(isSetupMode ? 'settings' : 'overview');
+  const [profileTab, setProfileTab] = useState('settings');
 
   // Organization affiliation state
   const [orgSearchQuery, setOrgSearchQuery] = useState('');
@@ -419,7 +419,6 @@ const Profile = () => {
       {!isSetupMode && (
         <nav style={{ display: 'flex', gap: '4px', margin: '0 0 24px', borderBottom: '2px solid #3d3a37', flexWrap: 'wrap' }}>
           {[
-            { key: 'overview', label: '👤 Overview' },
             { key: 'settings', label: '⚙️ Settings' },
             { key: 'appearance', label: '🎨 Appearance' },
             { key: 'friends', label: '🤝 Friends' },
@@ -448,8 +447,8 @@ const Profile = () => {
         </nav>
       )}
 
-      {/* Subscription Plan Section — Overview tab */}
-      {!isSetupMode && profileTab === 'overview' && (
+      {/* Subscription Plan Section — Settings tab */}
+      {!isSetupMode && profileTab === 'settings' && (
       <section className="profile-section">
         <h2>Subscription Plan</h2>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>

@@ -10,7 +10,7 @@ import { trackAuth, trackNavigation } from '../../utils/analytics';
 import { isPlatformAdmin, isOrganizationAdmin, isAmbassador } from '../../utils/permissionHelpers';
 import { BACKEND_URL } from '../../config';
 import { MdDashboard } from 'react-icons/md';
-import { IoGameController, IoSchool, IoTrophy, IoPlay } from 'react-icons/io5';
+import { IoGameController, IoSchool, IoTrophy, IoPlay, IoStatsChart } from 'react-icons/io5';
 import presenceService from '../../services/presenceService';
 import MatchmakingQueue from '../lobby/MatchmakingQueue';
 import './Header.css';
@@ -421,6 +421,19 @@ const Header = () => {
             <IoTrophy size={24} />
             <span className="nav-text">Championships</span>
           </Link>
+          <Link
+            to="/leaderboard"
+            className="nav-link nav-icon-link"
+            onClick={(e) => {
+              e.preventDefault();
+              handleNavItemClick(() => navigate('/leaderboard'), '/leaderboard');
+            }}
+            title="Leaderboard"
+            aria-label="Leaderboard"
+          >
+            <IoStatsChart size={24} />
+            <span className="nav-text">Leaderboard</span>
+          </Link>
           {!loading && activeGame && (
             <button
               onClick={handleResumeGame}
@@ -459,6 +472,12 @@ const Header = () => {
           </div>
         )} */}
 
+        {!isAuthenticated && (
+          <Link to="/leaderboard" className="nav-link nav-icon-link" title="Leaderboard" aria-label="Leaderboard">
+            <IoStatsChart size={20} />
+            <span className="nav-text">Leaderboard</span>
+          </Link>
+        )}
         {isAuthenticated ? (
           <div className="user-compact" ref={userMenuRef}>
             {currentTier === 'free' && (
@@ -582,6 +601,12 @@ const Header = () => {
                   onClick={() => handleNavItemClick(() => navigate('/championships'), '/championships')}
                 >
                   🏆 Championships
+                </button>
+                <button
+                  className="nav-item"
+                  onClick={() => handleNavItemClick(() => navigate('/leaderboard'), '/leaderboard')}
+                >
+                  📊 Leaderboard
                 </button>
                 {(isPlatformAdmin(user) || isOrganizationAdmin(user)) && (
                   <button

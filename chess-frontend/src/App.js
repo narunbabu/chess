@@ -76,6 +76,7 @@ const ReferralDashboard = createLazyComponent(() => import("./pages/ReferralDash
 const AdminReferralDashboard = createLazyComponent(() => import("./pages/AdminReferralDashboard"), { componentName: "AdminReferralDashboard" });
 const AdminDashboard = createLazyComponent(() => import("./pages/AdminDashboard"), { componentName: "AdminDashboard" });
 const AmbassadorDashboard = createLazyComponent(() => import("./pages/AmbassadorDashboard"), { componentName: "AmbassadorDashboard" });
+const LeaderboardPage = createLazyComponent(() => import("./pages/LeaderboardPage"), { componentName: "LeaderboardPage" });
 const App = () => {
   useEffect(()=> {
     const mq = window.matchMedia("(orientation:landscape)");
@@ -142,6 +143,7 @@ const AppContent = () => {
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="/join/:code" element={<JoinRedirect />} />
             <Route path="/share/result/:uniqueId" element={<SharedResultPage />} />
+            <Route path="/leaderboard" element={<LeaderboardPage />} />
 
             {/* Play computer - No auth required */}
             <Route path="/play" element={<GameErrorBoundary><PlayComputer /></GameErrorBoundary>} />
