@@ -434,6 +434,34 @@ const PlayComputer = () => {
         if (timerRef.current) clearInterval(timerRef.current);
         setIsTimerRunning(false);
         setActiveTimer(null);
+
+        // --- Mark backend game as finished BEFORE showing end card ---
+        if (backendGame?.id && user) {
+          try {
+            // Derive chess result string from status
+            let chessResult = '1/2-1/2'; // default draw
+            if (status.reason === 'checkmate' || status.reason === 'timeout' || status.reason === 'resignation') {
+              // Determine who won based on status text
+              if (status.text?.includes('White wins')) {
+                chessResult = '1-0';
+              } else if (status.text?.includes('Black wins')) {
+                chessResult = '0-1';
+              }
+            }
+
+            const endReason = status.reason || 'checkmate';
+            await gameService.completeGame(backendGame.id, {
+              result: chessResult,
+              endReason,
+              moveCount: finalHistory?.length || 0,
+            });
+            console.log('[PlayComputer] ✅ Backend game marked as finished:', backendGame.id);
+          } catch (err) {
+            console.error('[PlayComputer] ⚠️ Failed to mark backend game as finished:', err);
+            // Non-blocking — game UI still shows end card
+          }
+        }
+
         setGameOver(true);
         setShowGameCompletion(true); // Show completion modal
         setCanUndo(false); // Disable undo after game ends
@@ -520,6 +548,7 @@ const PlayComputer = () => {
             final_score: positiveScore,
             opponent_score: Math.abs(capturedComputerScore), // Save computer score as positive
             result: standardizedResult, // Use standardized result object
+            game_id: backendGame?.id || null, // Link to games table
             // Synthetic opponent identity — persisted so game review shows correct name/avatar
             opponent_name: syntheticOpponent?.name || null,
             opponent_avatar_url: syntheticOpponent?.avatar_url || null,
@@ -596,6 +625,7 @@ const PlayComputer = () => {
 
    }, [ // Dependencies for handleGameComplete
      playerColor, computerDepth, playerScore, computerScore, isOnlineGame, players, // State variables read
+     backendGame, user, // Needed for backend game completion
      setActiveTimer, setIsTimerRunning, // State setters (stable)
      playSound, // Stable callback
      timerRef, // Timer ref

@@ -421,6 +421,68 @@ class GameController extends Controller
         return implode(';', $compactParts);
     }
 
+    /**
+     * Mark a computer/synthetic game as completed.
+     *
+     * POST /games/{id}/complete
+     */
+    public function completeGame(Request $request, $id)
+    {
+        $game = Game::find($id);
+
+        if (!$game) {
+            return response()->json(['error' => 'Game not found'], 404);
+        }
+
+        $user = Auth::user();
+        $userColor = $game->getPlayerColor($user->id);
+
+        if (!$userColor) {
+            return response()->json(['error' => 'You are not a participant in this game'], 403);
+        }
+
+        // Only allow completing active games
+        if ($game->status_id !== \App\Models\GameStatus::getIdByCode('active')) {
+            return response()->json(['error' => 'Game is not active'], 422);
+        }
+
+        $request->validate([
+            'result'     => 'required|in:1-0,0-1,1/2-1/2',
+            'end_reason' => 'required|string',
+            'move_count' => 'nullable|integer|min:0',
+        ]);
+
+        $result = $request->input('result');
+        $endReason = $request->input('end_reason');
+        $moveCount = $request->input('move_count', 0);
+
+        // Determine winner
+        $winnerColor = null;
+        $winnerId = null;
+        if ($result === '1-0') {
+            $winnerColor = 'white';
+            $winnerId = $game->white_player_id;
+        } elseif ($result === '0-1') {
+            $winnerColor = 'black';
+            $winnerId = $game->black_player_id;
+        }
+
+        $game->update([
+            'status'         => 'finished',
+            'result'         => $result,
+            'end_reason'     => $endReason,
+            'winner_user_id' => $winnerId,
+            'winner_player'  => $winnerColor,
+            'move_count'     => $moveCount,
+            'ended_at'       => now(),
+        ]);
+
+        return response()->json([
+            'message' => 'Game completed',
+            'game'    => $game,
+        ]);
+    }
+
     public function resign($id)
     {
         $game = Game::find($id);

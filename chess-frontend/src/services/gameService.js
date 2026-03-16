@@ -52,6 +52,18 @@ export const gameService = {
   },
 
   /**
+   * Mark a game as completed (finished)
+   */
+  completeGame: async (gameId, { result, endReason, moveCount }) => {
+    const response = await api.post(`/games/${gameId}/complete`, {
+      result,
+      end_reason: endReason,
+      move_count: moveCount,
+    });
+    return response.data;
+  },
+
+  /**
    * Resign from a game
    */
   resign: async (gameId) => {

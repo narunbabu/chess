@@ -105,6 +105,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/games/{id}/moves', [GameController::class, 'moves']);
     Route::post('/games/{id}/move', [GameController::class, 'move']);
     Route::post('/games/{id}/resign', [GameController::class, 'resign']);
+    Route::post('/games/{id}/complete', [GameController::class, 'completeGame']);
     Route::post('/games/{id}/pause-navigation', [GameController::class, 'pauseNavigation']);
     Route::delete('/games/{id}/unfinished', [GameController::class, 'deleteUnfinished']);
     Route::get('/games', [GameController::class, 'userGames']);
