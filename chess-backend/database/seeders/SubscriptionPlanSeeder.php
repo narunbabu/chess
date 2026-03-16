@@ -32,14 +32,14 @@ class SubscriptionPlanSeeder extends Seeder
                 ],
             ],
 
-            // ── Silver monthly (₹99) ──────────────────────────────────────────
+            // ── Silver monthly (₹199) ─────────────────────────────────────────
             [
                 'tier'                  => 'silver',
                 'name'                  => 'Silver Monthly',
                 'interval'              => 'monthly',
-                'price'                 => 99,
+                'price'                 => 199,
                 'is_active'             => true,
-                'razorpay_plan_id'      => env('RAZORPAY_PLAN_SILVER_MONTHLY', 'plan_SHvIP5LGojTzsx'),
+                'razorpay_plan_id'      => env('RAZORPAY_PLAN_SILVER_MONTHLY', 'plan_SRlxAPlHQecBKX'),
                 'undo_limit'            => null,
                 'ad_free'               => true,
                 'priority_matchmaking'  => true,
@@ -57,14 +57,14 @@ class SubscriptionPlanSeeder extends Seeder
                 ],
             ],
 
-            // ── Silver yearly (₹999) ──────────────────────────────────────────
+            // ── Silver yearly (₹1999) ─────────────────────────────────────────
             [
                 'tier'                  => 'silver',
                 'name'                  => 'Silver Yearly',
                 'interval'              => 'yearly',
-                'price'                 => 999,
+                'price'                 => 1999,
                 'is_active'             => true,
-                'razorpay_plan_id'      => env('RAZORPAY_PLAN_SILVER_YEARLY', 'plan_SHvJYPNUsEgLve'),
+                'razorpay_plan_id'      => env('RAZORPAY_PLAN_SILVER_YEARLY', 'plan_SRly4c2XgSVW08'),
                 'undo_limit'            => null,
                 'ad_free'               => true,
                 'priority_matchmaking'  => true,

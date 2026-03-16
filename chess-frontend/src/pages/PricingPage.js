@@ -13,9 +13,9 @@ const FALLBACK_PLANS = {
     features: ['Play vs computer', '5 games/day online', 'Public tournaments', 'Basic game stats', '5 undos per game'],
   }],
   silver: [
-    { id: null, tier: 'silver', name: 'Silver Monthly', interval: 'monthly', price: 99,
+    { id: null, tier: 'silver', name: 'Silver Monthly', interval: 'monthly', price: 199,
       features: ['Unlimited games', 'All tournaments', 'ELO tracking', 'Full game history', 'Ad-free experience', 'Unlimited undos', 'Priority matchmaking', 'Custom board themes'] },
-    { id: null, tier: 'silver', name: 'Silver Yearly', interval: 'yearly', price: 999,
+    { id: null, tier: 'silver', name: 'Silver Yearly', interval: 'yearly', price: 1999,
       features: ['Unlimited games', 'All tournaments', 'ELO tracking', 'Full game history', 'Ad-free experience', 'Unlimited undos', 'Priority matchmaking', 'Custom board themes', 'Save 16% vs monthly'] },
   ],
   gold: [

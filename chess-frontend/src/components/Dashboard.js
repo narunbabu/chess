@@ -484,7 +484,7 @@ const Dashboard = () => {
                     <span className="upgrade-strip-label">today</span>
                   </div>
                   <button className="upgrade-strip-cta" onClick={(e) => { e.stopPropagation(); navigate('/pricing'); }}>
-                    ⬆ Go Silver — ₹99/mo
+                    ⬆ Go Silver — ₹199/mo
                   </button>
                 </div>
               );

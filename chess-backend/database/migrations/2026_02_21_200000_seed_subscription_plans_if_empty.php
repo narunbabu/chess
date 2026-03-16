@@ -51,12 +51,12 @@ return new class extends Migration
                 'updated_at'             => $now,
             ],
 
-            // ── Silver Monthly (₹99) ─────────────────────────────────────
+            // ── Silver Monthly (₹199) ────────────────────────────────────
             [
                 'tier'                   => 'silver',
                 'name'                   => 'Silver Monthly',
                 'interval'               => 'monthly',
-                'price'                  => '99.00',
+                'price'                  => '199.00',
                 'currency'               => 'INR',
                 'razorpay_plan_id'       => env('RAZORPAY_PLAN_SILVER_MONTHLY'),
                 'undo_limit'             => null,
@@ -79,12 +79,12 @@ return new class extends Migration
                 'updated_at'             => $now,
             ],
 
-            // ── Silver Yearly (₹999) ─────────────────────────────────────
+            // ── Silver Yearly (₹1999) ────────────────────────────────────
             [
                 'tier'                   => 'silver',
                 'name'                   => 'Silver Yearly',
                 'interval'               => 'yearly',
-                'price'                  => '999.00',
+                'price'                  => '1999.00',
                 'currency'               => 'INR',
                 'razorpay_plan_id'       => env('RAZORPAY_PLAN_SILVER_YEARLY'),
                 'undo_limit'             => null,

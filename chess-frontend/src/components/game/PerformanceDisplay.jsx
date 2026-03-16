@@ -171,7 +171,7 @@ const PerformanceDisplay = ({ performanceData, showRealtime = false, compact = f
               Unlock Detailed Analytics
             </div>
             <div style={{ color: '#bababa', fontSize: '12px' }}>
-              Silver — &#8377;99/mo
+              Silver — &#8377;199/mo
             </div>
           </div>
         </div>

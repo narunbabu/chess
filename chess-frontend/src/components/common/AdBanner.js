@@ -37,7 +37,7 @@ const AdBanner = () => {
     >
       <span style={{ fontSize: '18px' }}>&#9813;</span>
       <span style={{ color: '#d0d0d0', fontSize: '13px', fontWeight: 500 }}>
-        Go ad-free with Silver — only &#8377;99/mo
+        Go ad-free with Silver — only &#8377;199/mo
       </span>
       <span style={{
         padding: '3px 12px',

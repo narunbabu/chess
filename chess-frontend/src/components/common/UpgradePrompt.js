@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 const TIER_CONFIG = {
   standard: {
     label: 'Silver',
-    price: '99/mo',
+    price: '199/mo',
     color: '#e8a93e',
     icon: '\uD83D\uDD12',
     benefits: [
@@ -15,7 +15,7 @@ const TIER_CONFIG = {
   },
   gold: {
     label: 'Gold',
-    price: '299/mo',
+    price: '499/mo',
     color: '#a855f7',
     icon: '\uD83D\uDC51',
     benefits: [
