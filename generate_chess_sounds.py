@@ -19,7 +19,7 @@ import subprocess
 from google import genai
 from google.genai import types
 
-API_KEY = os.environ.get("GOOGLE_API_KEY", "")
+API_KEY = os.environ.get("GEMINI_API_KEY", "")
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "chess-frontend", "src", "assets", "sounds")
 TEMP_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "temp_sounds")
 
