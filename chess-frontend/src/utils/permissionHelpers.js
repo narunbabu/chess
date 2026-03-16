@@ -89,6 +89,24 @@ export const isTournamentOrganizer = (user) => {
 };
 
 /**
+ * Check if user is an ambassador
+ * @param {Object} user - User object from AuthContext
+ * @returns {boolean}
+ */
+export const isAmbassador = (user) => {
+  return hasRole(user, 'ambassador');
+};
+
+/**
+ * Check if user has any admin-like role (for admin dashboard access)
+ * @param {Object} user - User object from AuthContext
+ * @returns {boolean}
+ */
+export const canAccessAdminDashboard = (user) => {
+  return hasRole(user, ['platform_admin', 'organization_admin']);
+};
+
+/**
  * Get user's highest role by checking in priority order
  * @param {Object} user - User object from AuthContext
  * @returns {string|null} - Role name or null

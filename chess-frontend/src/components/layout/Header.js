@@ -7,7 +7,7 @@ import { useSubscription } from '../../contexts/SubscriptionContext';
 import { useActiveGame } from '../../hooks/useActiveGame';
 import { useGameNavigation } from '../../contexts/GameNavigationContext';
 import { trackAuth, trackNavigation } from '../../utils/analytics';
-import { isPlatformAdmin } from '../../utils/permissionHelpers';
+import { isPlatformAdmin, isOrganizationAdmin, isAmbassador } from '../../utils/permissionHelpers';
 import { BACKEND_URL } from '../../config';
 import { MdDashboard } from 'react-icons/md';
 import { IoGameController, IoSchool, IoTrophy, IoPlay } from 'react-icons/io5';
@@ -583,15 +583,22 @@ const Header = () => {
                 >
                   🏆 Championships
                 </button>
-                {isPlatformAdmin(user) && (
+                {(isPlatformAdmin(user) || isOrganizationAdmin(user)) && (
                   <button
                     className="nav-item"
-                    onClick={() => handleNavItemClick(() => navigate('/championships'), '/championships')}
+                    onClick={() => handleNavItemClick(() => navigate('/admin/dashboard'), '/admin/dashboard')}
                     style={{ color: '#e8a93e' }}
                   >
-                    🛡️ Admin
+                    🛡️ Admin Dashboard
                   </button>
                 )}
+                <button
+                  className="nav-item"
+                  onClick={() => handleNavItemClick(() => navigate('/ambassador'), '/ambassador')}
+                  style={{ color: isAmbassador(user) ? '#81b64c' : undefined }}
+                >
+                  {isAmbassador(user) ? '🌟 Ambassador Dashboard' : '🌟 Become Ambassador'}
+                </button>
                 <button
                   className="nav-item"
                   onClick={() => handleNavItemClick(() => navigate('/history'), '/history')}

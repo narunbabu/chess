@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\AmbassadorTier;
 use App\Models\ReferralCode;
 use App\Models\ReferralEarning;
 use App\Models\ReferralPayout;
@@ -13,7 +14,7 @@ use Illuminate\Support\Str;
 
 class ReferralService
 {
-    const COMMISSION_RATE = 0.10; // 10%
+    const COMMISSION_RATE = 0.10; // 10% fallback when no tiers configured
 
     /**
      * Generate a new referral code for a user.
@@ -64,11 +65,20 @@ class ReferralService
             return false;
         }
 
-        // Link the user
-        $newUser->update([
+        // Build update data
+        $updateData = [
             'referred_by_user_id' => $referralCode->user_id,
             'referred_by_code_id' => $referralCode->id,
-        ]);
+        ];
+
+        // Auto-assign organization if the referrer is an org admin
+        $referrer = User::find($referralCode->user_id);
+        if ($referrer && $referrer->organization_id && $referrer->hasRole('organization_admin')) {
+            $updateData['organization_id'] = $referrer->organization_id;
+        }
+
+        // Link the user
+        $newUser->update($updateData);
 
         // Increment code usage
         $referralCode->incrementUsage();
@@ -83,7 +93,72 @@ class ReferralService
     }
 
     /**
+     * Get the current commission rate for a referrer based on their ambassador tier.
+     * Tier is determined by the number of paid subscribers they've referred.
+     */
+    public function getCommissionRate(User $referrer): float
+    {
+        $paidCount = User::where('referred_by_user_id', $referrer->id)
+            ->where('subscription_tier', '!=', 'free')
+            ->whereNotNull('subscription_tier')
+            ->count();
+
+        $tier = AmbassadorTier::getTierForCount($paidCount);
+
+        return $tier ? $tier->commission_rate : self::COMMISSION_RATE;
+    }
+
+    /**
+     * Get the tier info for a referrer (current tier, next tier, progress).
+     */
+    public function getTierInfo(User $referrer): array
+    {
+        $paidCount = User::where('referred_by_user_id', $referrer->id)
+            ->where('subscription_tier', '!=', 'free')
+            ->whereNotNull('subscription_tier')
+            ->count();
+
+        $currentTier = AmbassadorTier::getTierForCount($paidCount);
+        $nextTier = AmbassadorTier::getNextTier($paidCount);
+        $allTiers = AmbassadorTier::allOrdered();
+
+        $progress = null;
+        if ($nextTier && $currentTier) {
+            $rangeStart = $currentTier->min_paid_referrals;
+            $rangeEnd = $nextTier->min_paid_referrals;
+            $range = $rangeEnd - $rangeStart;
+            $progress = $range > 0 ? round(($paidCount - $rangeStart) / $range * 100, 1) : 100;
+        } elseif (!$nextTier) {
+            $progress = 100; // At max tier
+        }
+
+        return [
+            'paid_referrals' => $paidCount,
+            'current_tier' => $currentTier ? [
+                'name' => $currentTier->name,
+                'commission_rate' => $currentTier->commission_rate,
+                'min_paid_referrals' => $currentTier->min_paid_referrals,
+            ] : null,
+            'next_tier' => $nextTier ? [
+                'name' => $nextTier->name,
+                'commission_rate' => $nextTier->commission_rate,
+                'min_paid_referrals' => $nextTier->min_paid_referrals,
+                'referrals_needed' => $nextTier->min_paid_referrals - $paidCount,
+            ] : null,
+            'progress_to_next' => $progress,
+            'all_tiers' => $allTiers->map(fn($t) => [
+                'id' => $t->id,
+                'name' => $t->name,
+                'min_paid_referrals' => $t->min_paid_referrals,
+                'commission_rate' => $t->commission_rate,
+                'is_current' => $currentTier && $t->id === $currentTier->id,
+            ]),
+        ];
+    }
+
+    /**
      * Record a referral earning when a referred user makes a subscription payment.
+     * Uses the referrer's current tier commission rate.
      * Called from SubscriptionService after successful payment.
      */
     public function recordEarning(SubscriptionPayment $payment): ?ReferralEarning
@@ -101,7 +176,10 @@ class ReferralService
             return $existing;
         }
 
-        $earningAmount = round($payment->amount * self::COMMISSION_RATE, 2);
+        // Use tier-based commission rate for the referrer
+        $referrer = User::find($user->referred_by_user_id);
+        $commissionRate = $referrer ? $this->getCommissionRate($referrer) : self::COMMISSION_RATE;
+        $earningAmount = round($payment->amount * $commissionRate, 2);
 
         $earning = ReferralEarning::create([
             'referral_code_id' => $user->referred_by_code_id,
@@ -109,7 +187,7 @@ class ReferralService
             'referred_user_id' => $user->id,
             'subscription_payment_id' => $payment->id,
             'payment_amount' => $payment->amount,
-            'commission_rate' => self::COMMISSION_RATE,
+            'commission_rate' => $commissionRate,
             'earning_amount' => $earningAmount,
             'currency' => $payment->currency ?? 'INR',
             'status' => 'pending',
@@ -120,6 +198,7 @@ class ReferralService
             'referrer_id' => $user->referred_by_user_id,
             'referred_id' => $user->id,
             'payment_id' => $payment->id,
+            'commission_rate' => $commissionRate,
             'earning_amount' => $earningAmount,
         ]);
 
@@ -219,14 +298,17 @@ class ReferralService
 
         $codes = ReferralCode::where('user_id', $user->id)->get();
 
+        $tierInfo = $this->getTierInfo($user);
+
         return [
             'referred_users_count' => $referredCount,
             'total_earnings' => round($totalEarnings, 2),
             'pending_earnings' => round($pendingEarnings, 2),
             'paid_earnings' => round($paidEarnings, 2),
-            'commission_rate' => self::COMMISSION_RATE * 100 . '%',
+            'commission_rate' => ($tierInfo['current_tier']['commission_rate'] ?? self::COMMISSION_RATE) * 100 . '%',
             'codes' => $codes,
             'user_referral_code' => $user->referral_code,
+            'tier' => $tierInfo,
         ];
     }
 

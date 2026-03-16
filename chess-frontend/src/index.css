@@ -340,7 +340,8 @@
 
 
   /* --- Consolidated Button Styles --- */
-  button, .auth-button, .game-mode-button { /* Base style for all buttons */
+  /* Base: layout & interaction only — no colors so Tailwind classes work */
+  button {
     padding: 8px 16px;
     border-radius: 4px;
     cursor: pointer;
@@ -348,20 +349,29 @@
     font-weight: 500;
     transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.1s ease;
     border: 1px solid transparent;
+    background-color: transparent;
+    color: inherit;
+    text-decoration: none;
+    text-align: center;
+    line-height: 1.4;
+  }
+  button:active:not(:disabled) {
+    transform: translateY(0px);
+  }
+
+  /* Primary orange button — use className="btn-primary" or .auth-button */
+  .btn-primary, .auth-button {
     background-color: #FFA640;
     color: #FFFFFF;
-    text-decoration: none;
     display: inline-block;
-    text-align: center;
-    line-height: 1.4; /* Ensure text vertical center */
   }
-  button:hover:not(:disabled), .auth-button:hover, .game-mode-button:hover {
+  .btn-primary:hover:not(:disabled), .auth-button:hover {
     background-color: #FF7C2A;
     border-color: #FF7C2A;
-    transform: translateY(-1px); /* Subtle hover effect */
+    transform: translateY(-1px);
   }
-  button:active:not(:disabled), .auth-button:active, .game-mode-button:active {
-      transform: translateY(0px); /* Press effect */
+  .btn-primary:active:not(:disabled), .auth-button:active {
+    transform: translateY(0px);
   }
   button:disabled {
     background-color: #4a4744 !important;

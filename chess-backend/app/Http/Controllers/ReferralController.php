@@ -69,9 +69,24 @@ class ReferralController extends Controller
             ]);
         }
 
+        $referrer = $referralCode->user;
+        $orgData = null;
+
+        // If the referrer is an org admin, include org info for auto-selection
+        if ($referrer->organization_id && $referrer->hasRole('organization_admin')) {
+            $org = $referrer->organization;
+            if ($org) {
+                $orgData = [
+                    'id' => $org->id,
+                    'name' => $org->name,
+                ];
+            }
+        }
+
         return response()->json([
             'valid' => true,
-            'referrer_name' => $referralCode->user->name,
+            'referrer_name' => $referrer->name,
+            'organization' => $orgData,
         ]);
     }
 

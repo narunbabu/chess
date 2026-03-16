@@ -619,7 +619,7 @@ const Profile = () => {
           </div>
 
           {error && <p className="error">{error}</p>}
-          <button type="submit" disabled={loading}>
+          <button className="btn-primary" type="submit" disabled={loading}>
             {loading
               ? 'Saving...'
               : isSetupMode
@@ -832,7 +832,7 @@ const Profile = () => {
               <div key={friend.id} className="friend-item">
                 <img src={getPlayerAvatar(friend)} alt={friend.name} />
                 <span>{friend.name} (Rating: {friend.rating})</span>
-                <button onClick={() => handleRemoveFriend(friend.id)}>Remove</button>
+                <button className="btn-primary" onClick={() => handleRemoveFriend(friend.id)}>Remove</button>
               </div>
             ))
           ) : (
@@ -848,7 +848,7 @@ const Profile = () => {
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search users by name..."
           />
-          <button type="submit">Search</button>
+          <button className="btn-primary" type="submit">Search</button>
         </form>
 
         <div className="search-results">
@@ -856,7 +856,7 @@ const Profile = () => {
             <div key={result.id} className="search-item">
               <img src={getPlayerAvatar(result)} alt={result.name} />
               <span>{result.name} (Rating: {result.rating})</span>
-              <button onClick={() => handleAddFriend(result.id)}>Add Friend</button>
+              <button className="btn-primary" onClick={() => handleAddFriend(result.id)}>Add Friend</button>
             </div>
           ))}
         </div>
@@ -873,8 +873,8 @@ const Profile = () => {
               <div key={req.id} className="request-item">
                 <img src={getPlayerAvatar(req)} alt={req.name} />
                 <span>{req.name} wants to be friends</span>
-                <button onClick={() => handleAcceptRequest(req.id)}>Accept</button>
-                <button onClick={() => handleRejectRequest(req.id)}>Reject</button>
+                <button className="btn-primary" onClick={() => handleAcceptRequest(req.id)}>Accept</button>
+                <button className="btn-primary" onClick={() => handleRejectRequest(req.id)}>Reject</button>
               </div>
             ))
           ) : (

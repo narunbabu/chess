@@ -343,7 +343,28 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Admin dashboard routes
     Route::prefix('admin/dashboard')->middleware(['admin.dashboard'])->group(function () {
+        Route::get('/overview', [\App\Http\Controllers\AdminDashboardController::class, 'overview']);
         Route::get('/organizations', [\App\Http\Controllers\AdminDashboardController::class, 'organizations']);
+    });
+
+    // Ambassador routes (any authenticated user)
+    Route::prefix('ambassador')->group(function () {
+        Route::get('/dashboard', [\App\Http\Controllers\AmbassadorController::class, 'dashboard']);
+        Route::post('/self-assign', [\App\Http\Controllers\AmbassadorController::class, 'selfAssign']);
+    });
+
+    // Admin ambassador management routes
+    Route::prefix('admin/ambassadors')->middleware(['admin.dashboard'])->group(function () {
+        Route::get('/', [\App\Http\Controllers\AmbassadorController::class, 'adminList']);
+        Route::get('/search-users', [\App\Http\Controllers\AmbassadorController::class, 'searchUsers']);
+        Route::post('/{userId}/assign', [\App\Http\Controllers\AmbassadorController::class, 'assign']);
+        Route::delete('/{userId}/remove', [\App\Http\Controllers\AmbassadorController::class, 'remove']);
+    });
+
+    // Admin ambassador tier management
+    Route::prefix('admin/ambassador-tiers')->middleware(['admin.dashboard'])->group(function () {
+        Route::get('/', [\App\Http\Controllers\AmbassadorController::class, 'getTiers']);
+        Route::put('/', [\App\Http\Controllers\AmbassadorController::class, 'updateTiers']);
     });
 
     // Lobby routes

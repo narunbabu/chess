@@ -129,7 +129,7 @@ const ChampionshipAdminDashboard = () => {
       <div className="championship-dashboard-error">
         <h3>Error Loading Championship</h3>
         <p>{error}</p>
-        <button onClick={() => navigate('/championships')}>
+        <button className="btn-primary" onClick={() => navigate('/championships')}>
           Back to Championships
         </button>
       </div>

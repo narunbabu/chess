@@ -74,6 +74,8 @@ const ResetPasswordPage = createLazyComponent(() => import("./pages/ResetPasswor
 const JoinRedirect = createLazyComponent(() => import("./pages/JoinRedirect"), { componentName: "JoinRedirect" });
 const ReferralDashboard = createLazyComponent(() => import("./pages/ReferralDashboard"), { componentName: "ReferralDashboard" });
 const AdminReferralDashboard = createLazyComponent(() => import("./pages/AdminReferralDashboard"), { componentName: "AdminReferralDashboard" });
+const AdminDashboard = createLazyComponent(() => import("./pages/AdminDashboard"), { componentName: "AdminDashboard" });
+const AmbassadorDashboard = createLazyComponent(() => import("./pages/AmbassadorDashboard"), { componentName: "AmbassadorDashboard" });
 const App = () => {
   useEffect(()=> {
     const mq = window.matchMedia("(orientation:landscape)");
@@ -251,6 +253,24 @@ const AppContent = () => {
               element={
                 <RouteGuard>
                   <ReferralDashboard />
+                </RouteGuard>
+              }
+            />
+            {/* Ambassador Dashboard - Auth required (role check inside component) */}
+            <Route
+              path="/ambassador"
+              element={
+                <RouteGuard>
+                  <AmbassadorDashboard />
+                </RouteGuard>
+              }
+            />
+            {/* Admin Dashboard - Auth required (admin check inside component) */}
+            <Route
+              path="/admin/dashboard"
+              element={
+                <RouteGuard>
+                  <AdminDashboard />
                 </RouteGuard>
               }
             />
