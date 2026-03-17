@@ -955,12 +955,29 @@ class GameRoomService
                 $movesCompact = implode(';', $parts);
             }
 
-            // Build result JSON
-            $resultJson = json_encode([
-                'status' => ($attrs['winner_user_id'] ?? null) ? 'ended' : 'draw',
-                'end_reason' => $attrs['end_reason'] ?? 'unknown',
-                'details' => 'Game ended by ' . ($attrs['end_reason'] ?? 'unknown'),
-            ]);
+            // Build player-specific result JSON
+            $winnerId = $attrs['winner_user_id'] ?? null;
+            $endReason = $attrs['end_reason'] ?? 'unknown';
+
+            $buildResultJson = function ($playerId) use ($winnerId, $endReason) {
+                if (!$winnerId) {
+                    // Draw
+                    return json_encode([
+                        'status' => 'draw',
+                        'end_reason' => $endReason,
+                        'details' => 'Game ended in a draw by ' . $endReason,
+                    ]);
+                }
+                $isWinner = (int) $playerId === (int) $winnerId;
+                return json_encode([
+                    'status' => $isWinner ? 'won' : 'lost',
+                    'end_reason' => $endReason,
+                    'details' => $isWinner
+                        ? 'You won by ' . $endReason . '!'
+                        : 'You lost by ' . $endReason,
+                    'winner' => $isWinner ? 'player' : 'opponent',
+                ]);
+            };
 
             $whitePlayer = $game->whitePlayer;
             $blackPlayer = $game->blackPlayer;
@@ -976,7 +993,7 @@ class GameRoomService
                     'moves' => $movesCompact ?: null,
                     'final_score' => $game->white_player_score ?? 0,
                     'opponent_score' => $game->black_player_score ?? 0,
-                    'result' => $resultJson,
+                    'result' => $buildResultJson($game->white_player_id),
                     'opponent_name' => $blackPlayer->name ?? 'Unknown',
                     'opponent_avatar_url' => $blackPlayer->avatar_url ?? null,
                     'opponent_rating' => $blackPlayer->rating ?? null,
@@ -995,7 +1012,7 @@ class GameRoomService
                     'moves' => $movesCompact ?: null,
                     'final_score' => $game->black_player_score ?? 0,
                     'opponent_score' => $game->white_player_score ?? 0,
-                    'result' => $resultJson,
+                    'result' => $buildResultJson($game->black_player_id),
                     'opponent_name' => $whitePlayer->name ?? 'Unknown',
                     'opponent_avatar_url' => $whitePlayer->avatar_url ?? null,
                     'opponent_rating' => $whitePlayer->rating ?? null,

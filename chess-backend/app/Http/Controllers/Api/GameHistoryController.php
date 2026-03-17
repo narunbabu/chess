@@ -289,6 +289,7 @@ class GameHistoryController extends Controller
             'game_histories.opponent_rating',
             'games.white_player_id',
             'games.black_player_id',
+            'games.winner_user_id',
             'games.white_player_score',
             'games.black_player_score',
             'white_player.name as white_player_name',
@@ -324,7 +325,12 @@ class GameHistoryController extends Controller
                 if ($game->result && is_string($game->result)) {
                     $decoded = json_decode($game->result, true);
                     if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
-                        // Successfully decoded JSON - return as object
+                        // Fix legacy "ended" status → determine "won"/"lost" from winner_user_id
+                        if (($decoded['status'] ?? '') === 'ended' && $game->winner_user_id) {
+                            $isWinner = (int) $user->id === (int) $game->winner_user_id;
+                            $decoded['status'] = $isWinner ? 'won' : 'lost';
+                            $decoded['winner'] = $isWinner ? 'player' : 'opponent';
+                        }
                         $game->result = $decoded;
                     }
                     // If not JSON or decode fails, keep as string (legacy format)
