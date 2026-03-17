@@ -504,44 +504,55 @@ export async function getUnfinishedGames(isAuthenticated = false) {
   // For authenticated users, validate localStorage multiplayer games against the backend.
   // Games that ended while the user wasn't on the page (e.g., timeout) leave stale entries.
   if (isAuthenticated && games.length > 0) {
+    const staleIds = [];
+
+    // 1) Remove multiplayer localStorage games older than 1 hour — the backend cleanup
+    //    cron expires paused games after 1h, so these are certainly stale.
+    const ONE_HOUR_MS = 60 * 60 * 1000;
     const multiplayerLocalGames = games.filter(g =>
       g.source === 'localStorage' && g.gameId && !String(g.gameId).startsWith('local_')
     );
-    if (multiplayerLocalGames.length > 0) {
+    multiplayerLocalGames.forEach(g => {
+      if (g.timestamp && (Date.now() - g.timestamp) > ONE_HOUR_MS) {
+        staleIds.push(g.id);
+      }
+    });
+
+    // 2) For recently-paused multiplayer games (< 1h), check against /games/active.
+    //    If the game isn't active on backend, it was finished or aborted.
+    const recentMultiplayerGames = multiplayerLocalGames.filter(g => !staleIds.includes(g.id));
+    if (recentMultiplayerGames.length > 0) {
       try {
         const activeRes = await api.get('/games/active?limit=50');
         const activeList = Array.isArray(activeRes.data) ? activeRes.data
           : (activeRes.data?.data ?? activeRes.data?.games ?? []);
         const activeIds = new Set(activeList.map(g => g.id));
 
-        const staleIds = [];
-        multiplayerLocalGames.forEach(g => {
+        recentMultiplayerGames.forEach(g => {
           const numId = parseInt(g.gameId, 10);
           if (!isNaN(numId) && !activeIds.has(numId)) {
             staleIds.push(g.id);
           }
         });
-
-        if (staleIds.length > 0) {
-          console.log('[UnfinishedGame] 🧹 Removing', staleIds.length, 'stale localStorage games (finished on backend):', staleIds);
-          // Remove from the games array
-          const staleSet = new Set(staleIds);
-          const beforeCount = games.length;
-          games.splice(0, games.length, ...games.filter(g => !staleSet.has(g.id)));
-
-          // Also clean localStorage
-          try {
-            const localData = localStorage.getItem(UNFINISHED_GAMES_KEY);
-            if (localData) {
-              const localGames = JSON.parse(localData);
-              const cleaned = localGames.filter(g => !staleSet.has(g.id));
-              localStorage.setItem(UNFINISHED_GAMES_KEY, JSON.stringify(cleaned));
-            }
-          } catch { /* ignore */ }
-        }
       } catch (error) {
         console.error('[UnfinishedGame] ⚠️ Failed to validate localStorage games against backend:', error);
       }
+    }
+
+    if (staleIds.length > 0) {
+      console.log('[UnfinishedGame] 🧹 Removing', staleIds.length, 'stale localStorage games:', staleIds);
+      const staleSet = new Set(staleIds);
+      games.splice(0, games.length, ...games.filter(g => !staleSet.has(g.id)));
+
+      // Also clean localStorage
+      try {
+        const localData = localStorage.getItem(UNFINISHED_GAMES_KEY);
+        if (localData) {
+          const localGames = JSON.parse(localData);
+          const cleaned = localGames.filter(g => !staleSet.has(g.id));
+          localStorage.setItem(UNFINISHED_GAMES_KEY, JSON.stringify(cleaned));
+        }
+      } catch { /* ignore */ }
     }
   }
 

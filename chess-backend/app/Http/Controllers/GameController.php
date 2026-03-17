@@ -726,6 +726,10 @@ class GameController extends Controller
     {
         $user = Auth::user();
 
+        // Only return games paused within the last hour.
+        // Games paused longer are expired (cleanup cron handles them).
+        $pausedCutoff = now()->subHour();
+
         $games = Game::where(function($query) use ($user) {
             $query->where('white_player_id', $user->id)
                   ->orWhere('black_player_id', $user->id);
@@ -738,6 +742,14 @@ class GameController extends Controller
             $query->where('paused_reason', 'navigation')
                   ->orWhere('paused_reason', 'inactivity')
                   ->orWhere('paused_reason', 'beforeunload');
+        })
+        ->where(function($query) use ($pausedCutoff) {
+            // Exclude games paused more than 1 hour ago (stale/expired)
+            $query->where('paused_at', '>=', $pausedCutoff)
+                  ->orWhere(function($q) use ($pausedCutoff) {
+                      $q->whereNull('paused_at')
+                        ->where('updated_at', '>=', $pausedCutoff);
+                  });
         })
         ->with(['whitePlayer', 'blackPlayer', 'statusRelation', 'endReasonRelation'])
         ->orderBy('paused_at', 'desc')

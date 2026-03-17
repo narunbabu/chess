@@ -30,6 +30,7 @@ use App\Http\Controllers\EmailPreferenceController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\LobbyController;
 use App\Http\Controllers\MatchmakingController;
+use App\Http\Controllers\LeaderboardController;
 use Illuminate\Support\Facades\Route;
 
 // ─── Health Check (public) ────────────────────────────────────────────────────
@@ -58,6 +59,7 @@ Route::prefix('auth')->middleware('throttle:mobile-auth')->group(function () {
 
 // ─── Public routes ────────────────────────────────────────────────────────────
 Route::get('/users', [UserController::class, 'index']);
+Route::get('/leaderboard', [LeaderboardController::class, 'index']);
 
 // ─── Protected routes ─────────────────────────────────────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
