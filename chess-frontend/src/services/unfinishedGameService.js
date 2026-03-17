@@ -501,26 +501,47 @@ export async function getUnfinishedGames(isAuthenticated = false) {
     localStorage.removeItem(UNFINISHED_GAMES_KEY);
   }
 
-  // For authenticated users, validate localStorage multiplayer games against the backend.
-  // Games that ended while the user wasn't on the page (e.g., timeout) leave stale entries.
+  // For authenticated users, validate localStorage games against staleness.
+  // Games that ended while the user wasn't on the page leave stale entries.
   if (isAuthenticated && games.length > 0) {
     const staleIds = [];
-
-    // 1) Remove multiplayer localStorage games older than 1 hour — the backend cleanup
-    //    cron expires paused games after 1h, so these are certainly stale.
     const ONE_HOUR_MS = 60 * 60 * 1000;
-    const multiplayerLocalGames = games.filter(g =>
-      g.source === 'localStorage' && g.gameId && !String(g.gameId).startsWith('local_')
-    );
-    multiplayerLocalGames.forEach(g => {
-      if (g.timestamp && (Date.now() - g.timestamp) > ONE_HOUR_MS) {
+    const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
+
+    games.forEach(g => {
+      if (g.source !== 'localStorage') return;
+      const age = g.timestamp ? (Date.now() - g.timestamp) : Infinity;
+      const isMultiplayer = g.gameId && !String(g.gameId).startsWith('local_');
+
+      // 1) Multiplayer games older than 1h are stale (backend cron cleans paused games after 1h)
+      if (isMultiplayer && age > ONE_HOUR_MS) {
         staleIds.push(g.id);
+        return;
+      }
+
+      // 2) Computer/local games older than 4h are stale (abandoned sessions)
+      if (!isMultiplayer && age > FOUR_HOURS_MS) {
+        staleIds.push(g.id);
+        return;
+      }
+
+      // 3) Any game with a terminal FEN (checkmate/stalemate) is finished
+      if (g.fen) {
+        try {
+          const chess = new Chess(g.fen);
+          if (chess.isGameOver()) {
+            staleIds.push(g.id);
+            return;
+          }
+        } catch { /* ignore parse errors */ }
       }
     });
 
-    // 2) For recently-paused multiplayer games (< 1h), check against /games/active.
-    //    If the game isn't active on backend, it was finished or aborted.
-    const recentMultiplayerGames = multiplayerLocalGames.filter(g => !staleIds.includes(g.id));
+    // 4) For recent multiplayer games (< 1h), check against /games/active.
+    const recentMultiplayerGames = games.filter(g =>
+      g.source === 'localStorage' && g.gameId && !String(g.gameId).startsWith('local_')
+      && !staleIds.includes(g.id)
+    );
     if (recentMultiplayerGames.length > 0) {
       try {
         const activeRes = await api.get('/games/active?limit=50');
