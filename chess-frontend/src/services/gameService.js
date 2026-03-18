@@ -189,6 +189,15 @@ export const gameService = {
   validateDrawOffer: async (gameId) => {
     const response = await api.get(`/games/${gameId}/draw/validate`);
     return response.data;
+  },
+
+  /**
+   * Get daily game quota (online games) for current user
+   * Returns { tier, unlimited, daily_limit, games_today, remaining }
+   */
+  getDailyQuota: async () => {
+    const response = await api.get('/games/daily-quota');
+    return response.data;
   }
 };
 

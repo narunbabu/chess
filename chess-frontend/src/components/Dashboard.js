@@ -46,6 +46,8 @@ const Dashboard = () => {
   const [showDetailedStats, setShowDetailedStats] = useState(false);
   const [showMatchmaking, setShowMatchmaking] = useState(false);
   const [onlineCount, setOnlineCount] = useState(null);
+  const [dailyChallenge, setDailyChallenge] = useState(null);
+  const [dailyQuota, setDailyQuota] = useState(null);
   const [visibleActiveGames, setVisibleActiveGames] = useState(3);
   const [visibleRecentGames, setVisibleRecentGames] = useState(3);
   const { user } = useAuth();
@@ -180,6 +182,15 @@ const Dashboard = () => {
         setGameHistories(correctedHistories);
         setActiveGames(activeGamesResponse.data || []);
         setUnfinishedGames(uniqueUnfinishedGames);
+        // Load daily challenge and daily game quota (non-blocking)
+        if (user) {
+          api.get('/tutorial/daily-challenge')
+            .then(res => setDailyChallenge(res.data.data || res.data))
+            .catch(() => {}); // Silently fail — widget just won't show
+          api.get('/games/daily-quota')
+            .then(res => setDailyQuota(res.data))
+            .catch(() => {}); // Silently fail — strip uses fallback
+        }
       } catch (error) {
         console.error("[Dashboard] ❌ Error loading data:", error);
         setGameHistories([]);
@@ -465,12 +476,12 @@ const Dashboard = () => {
 
             {/* Compact upgrade strip for free-tier users — tier badge + usage bar + CTA */}
             {currentTier === 'free' && (() => {
-              const todayGames = gameHistories.filter(g => {
+              const todayGames = dailyQuota?.games_today ?? gameHistories.filter(g => {
                 const d = new Date(g.played_at || g.timestamp);
                 const t = new Date();
                 return d.getFullYear() === t.getFullYear() && d.getMonth() === t.getMonth() && d.getDate() === t.getDate();
               }).length;
-              const limit = 5;
+              const limit = dailyQuota?.daily_limit ?? 5;
               const pct = Math.min(100, (todayGames / limit) * 100);
               const barColor = pct >= 100 ? '#e74c3c' : pct >= 60 ? '#e8a93e' : '#81b64c';
               return (
@@ -481,7 +492,7 @@ const Dashboard = () => {
                     <div className="upgrade-strip-bar">
                       <div className="upgrade-strip-fill" style={{ width: `${pct}%`, background: barColor }} />
                     </div>
-                    <span className="upgrade-strip-label">today</span>
+                    <span className="upgrade-strip-label">online today</span>
                   </div>
                   <button className="upgrade-strip-cta" onClick={(e) => { e.stopPropagation(); navigate('/pricing'); }}>
                     ⬆ Go Silver — ₹199/mo
@@ -617,6 +628,47 @@ const Dashboard = () => {
                 </div>
               </button>
             )}
+          </div>
+        </section>
+        )}
+
+        {/* Daily Challenge Widget */}
+        {dailyChallenge && (
+        <section className="unified-section">
+          <h2 className="unified-section-header">🧩 Today's Challenge</h2>
+          <div
+            className="unified-card horizontal"
+            onClick={() => navigate('/daily-challenge')}
+            style={{ cursor: 'pointer', background: dailyChallenge.user_completion?.completed ? 'rgba(76,175,80,0.08)' : 'rgba(129,182,76,0.08)', border: dailyChallenge.user_completion?.completed ? '1px solid #4CAF50' : '1px solid #81b64c' }}
+          >
+            <div className="unified-card-content">
+              <h3 className="unified-card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {dailyChallenge.challenge_data?.title || 'Daily Puzzle'}
+                <span style={{
+                  fontSize: 11, padding: '1px 8px', borderRadius: 10, fontWeight: 600,
+                  background: dailyChallenge.skill_tier === 'beginner' ? '#4CAF50' : dailyChallenge.skill_tier === 'intermediate' ? '#2196F3' : '#9C27B0',
+                  color: '#fff',
+                }}>
+                  {dailyChallenge.skill_tier}
+                </span>
+              </h3>
+              <p className="unified-card-subtitle">
+                {dailyChallenge.user_completion?.completed
+                  ? '✅ Completed! Come back tomorrow.'
+                  : (dailyChallenge.challenge_data?.description || 'Find the best move.')}
+              </p>
+              <p className="unified-card-meta">
+                +{dailyChallenge.xp_reward} XP • {dailyChallenge.completion_count || 0} players solved
+              </p>
+            </div>
+            <div className="unified-card-actions">
+              <button
+                onClick={(e) => { e.stopPropagation(); navigate('/daily-challenge'); }}
+                className={`unified-card-btn ${dailyChallenge.user_completion?.completed ? 'secondary' : 'primary'}`}
+              >
+                {dailyChallenge.user_completion?.completed ? '👁️ Review' : '🧩 Solve Now'}
+              </button>
+            </div>
           </div>
         </section>
         )}
@@ -776,12 +828,15 @@ const Dashboard = () => {
                 const resultColor = won ? '#81b64c' : isDraw ? '#e8a93e' : '#e74c3c';
                 const resultLabel = won ? 'Win' : isDraw ? 'Draw' : 'Loss';
                 const opponentName = game.opponent_name || game.opponentName || (game.game_mode === 'computer' ? 'Computer' : null);
-                const opponentRating = game.opponent_rating || null;
+                const opponentRating = game.opponent_rating || game.opponentRating || null;
                 const colorLabel = game.player_color === 'w' || game.playerColor === 'w' ? '♔' : game.player_color === 'b' || game.playerColor === 'b' ? '♟' : null;
-                const isComputer = game.game_mode === 'computer' || !game.game_mode;
-                const modeLabel = isComputer
-                  ? (game.computer_level ? `CPU Lv.${game.computer_level}` : 'vs Computer')
-                  : 'Multiplayer';
+                const hasSyntheticOpponent = !!(game.opponent_name || game.opponentName);
+                const isComputer = (game.game_mode === 'computer' || !game.game_mode) && !hasSyntheticOpponent;
+                const modeLabel = hasSyntheticOpponent
+                  ? (opponentRating ? `Rating ${opponentRating}` : 'Online')
+                  : isComputer
+                    ? (game.computer_level ? `CPU Lv.${game.computer_level}` : 'vs Computer')
+                    : 'Multiplayer';
                 const playedDate = new Date(game.played_at || game.timestamp);
                 const now = Date.now();
                 const diffMs = now - playedDate.getTime();
@@ -804,7 +859,7 @@ const Dashboard = () => {
                         : timeAgo}
                     </h3>
                     <p className="unified-card-subtitle" style={{ color: '#8b8987', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                      <span style={{ background: isComputer ? '#3d3a37' : '#1a3a2a', color: isComputer ? '#8b8987' : '#81b64c', borderRadius: '4px', padding: '1px 6px', fontSize: '0.75rem', fontWeight: 600 }}>{modeLabel}</span>
+                      <span style={{ background: (isComputer && !hasSyntheticOpponent) ? '#3d3a37' : '#1a3a2a', color: (isComputer && !hasSyntheticOpponent) ? '#8b8987' : '#81b64c', borderRadius: '4px', padding: '1px 6px', fontSize: '0.75rem', fontWeight: 600 }}>{modeLabel}</span>
                       <span>{timeAgo}</span>
                     </p>
                   </div>

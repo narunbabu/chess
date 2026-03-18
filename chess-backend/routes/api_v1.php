@@ -35,6 +35,7 @@ use Illuminate\Support\Facades\Route;
 
 // ─── Health Check (public) ────────────────────────────────────────────────────
 Route::get('/health', [HealthController::class, 'index']);
+Route::get('/status', [HealthController::class, 'status']);
 
 // ─── Authentication ───────────────────────────────────────────────────────────
 Route::prefix('auth')->middleware('throttle:mobile-auth')->group(function () {
@@ -98,6 +99,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/invitations/{id}', [InvitationController::class, 'cancel']);
 
     // ── Games ─────────────────────────────────────────────────────────────
+    Route::get('/games/daily-quota', [GameController::class, 'dailyQuota']);
     Route::post('/games', [GameController::class, 'create']);
     Route::post('/games/computer', [GameController::class, 'createComputerGame']);
     Route::get('/games/active', [GameController::class, 'activeGames']);

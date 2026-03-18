@@ -401,6 +401,22 @@ class Game extends Model
     }
 
     /**
+     * Count online (multiplayer) games created today by a user.
+     * Used to enforce the daily game limit for free-tier users.
+     * Excludes computer/synthetic games (those are unlimited for all tiers).
+     */
+    public static function dailyOnlineGameCountForUser(int $userId): int
+    {
+        return static::where(function ($q) use ($userId) {
+                $q->where('white_player_id', $userId)
+                  ->orWhere('black_player_id', $userId);
+            })
+            ->whereNull('computer_player_id')
+            ->whereDate('created_at', today())
+            ->count();
+    }
+
+    /**
      * Check if this is a computer game
      */
     public function isComputerGame(): bool

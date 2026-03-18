@@ -82,6 +82,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/invitations/{id}', [InvitationController::class, 'cancel']);
 
     // Game routes
+    Route::get('/games/daily-quota', [GameController::class, 'dailyQuota']);
     Route::post('/games', [GameController::class, 'create']);
     Route::post('/games/computer', [GameController::class, 'createComputerGame']);
     Route::get('/games/active', [GameController::class, 'activeGames']);

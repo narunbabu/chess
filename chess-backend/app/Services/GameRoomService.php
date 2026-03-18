@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\SubscriptionTier;
 use App\Events\GameConnectionEvent;
 use App\Events\GameEndedEvent;
 use App\Models\Game;
@@ -397,6 +398,15 @@ class GameRoomService
 
         if (!$this->canUserJoinGame($user, $originalGame)) {
             throw new \Exception('User not authorized to create new game from this game');
+        }
+
+        // Enforce daily game limit for free-tier users (5 online games/day)
+        if (!$user->hasSubscriptionTier(SubscriptionTier::SILVER)) {
+            $dailyLimit = 5;
+            $todayCount = Game::dailyOnlineGameCountForUser($userId);
+            if ($todayCount >= $dailyLimit) {
+                throw new \Exception("Free plan allows {$dailyLimit} online games per day. Upgrade to Silver for unlimited games.");
+            }
         }
 
         // Determine color assignments based on preference

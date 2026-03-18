@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\SubscriptionTier;
 use App\Events\GameEndedEvent;
 use App\Models\Game;
 use App\Models\User;
@@ -26,6 +27,20 @@ class GameController extends Controller
                 'error' => "You already have {$count} pending games. Please finish or resign existing games before starting a new one.",
                 'pending_count' => $count,
             ], 429);
+        }
+
+        // Enforce daily game limit for free-tier users (5 online games/day)
+        if (!$user->hasSubscriptionTier(SubscriptionTier::SILVER)) {
+            $dailyLimit = 5;
+            $todayCount = Game::dailyOnlineGameCountForUser($user->id);
+            if ($todayCount >= $dailyLimit) {
+                return response()->json([
+                    'error' => "Free plan allows {$dailyLimit} online games per day. Upgrade to Silver for unlimited games.",
+                    'daily_limit' => $dailyLimit,
+                    'games_today' => $todayCount,
+                    'upgrade_url' => '/pricing',
+                ], 429);
+            }
         }
 
         $opponent = User::find($request->opponent_id);
@@ -199,6 +214,18 @@ class GameController extends Controller
                 'email' => null,
                 'avatar' => null,
                 'rating' => $game->computerPlayer->rating,
+                'is_provisional' => false
+            ];
+        }
+
+        // Fallback for when neither syntheticPlayer nor computerPlayer relationships exist
+        if (!$computerData && $game->computer_level) {
+            $computerData = [
+                'id' => 'computer_level_' . $game->computer_level,
+                'name' => 'Computer Lv.' . $game->computer_level,
+                'email' => null,
+                'avatar' => null,
+                'rating' => 800 + ($game->computer_level * 100),
                 'is_provisional' => false
             ];
         }
@@ -508,16 +535,29 @@ class GameController extends Controller
         ]);
 
         // Reload relationships
-        $game->load(['whitePlayer', 'blackPlayer', 'computerPlayer']);
+        $game->load(['whitePlayer', 'blackPlayer', 'computerPlayer', 'syntheticPlayer']);
 
         // Build player data, handling computer games where one side has no User
-        $computerData = $isComputerGame && $game->computerPlayer ? [
+        $synth = $game->syntheticPlayer;
+        $computerData = $isComputerGame && $synth ? [
+            'id' => 'synthetic_' . $synth->id,
+            'name' => $synth->name,
+            'email' => null,
+            'avatar' => $synth->avatar_url,
+            'rating' => $synth->rating
+        ] : ($isComputerGame && $game->computerPlayer ? [
             'id' => 'computer_' . $game->computerPlayer->id,
             'name' => $game->computerPlayer->name,
             'email' => null,
             'avatar' => null,
             'rating' => $game->computerPlayer->rating
-        ] : null;
+        ] : ($game->computer_level ? [
+            'id' => 'computer_level_' . $game->computer_level,
+            'name' => 'Computer Lv.' . $game->computer_level,
+            'email' => null,
+            'avatar' => null,
+            'rating' => 800 + ($game->computer_level * 100)
+        ] : null));
 
         $whitePlayerData = $game->whitePlayer ? [
             'id' => $game->whitePlayer->id,
@@ -1051,6 +1091,37 @@ class GameController extends Controller
                 'expected_score' => $ratingHistory->expected_score,
                 'actual_score' => $ratingHistory->actual_score
             ]
+        ]);
+    }
+
+    /**
+     * Get daily game quota for the current user.
+     * Returns today's online game count and limit based on subscription tier.
+     *
+     * GET /api/games/daily-quota
+     */
+    public function dailyQuota()
+    {
+        $user = Auth::user();
+        $tier = $user->getSubscriptionTierEnum();
+        $todayCount = Game::dailyOnlineGameCountForUser($user->id);
+
+        if ($tier->isAtLeast(SubscriptionTier::SILVER)) {
+            return response()->json([
+                'tier' => $tier->value,
+                'unlimited' => true,
+                'games_today' => $todayCount,
+            ]);
+        }
+
+        $dailyLimit = 5;
+
+        return response()->json([
+            'tier' => $tier->value,
+            'unlimited' => false,
+            'daily_limit' => $dailyLimit,
+            'games_today' => $todayCount,
+            'remaining' => max(0, $dailyLimit - $todayCount),
         ]);
     }
 }
