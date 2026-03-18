@@ -182,15 +182,8 @@ const Dashboard = () => {
         setGameHistories(correctedHistories);
         setActiveGames(activeGamesResponse.data || []);
         setUnfinishedGames(uniqueUnfinishedGames);
-        // Load daily challenge and daily game quota (non-blocking)
-        if (user) {
-          api.get('/tutorial/daily-challenge')
-            .then(res => setDailyChallenge(res.data.data || res.data))
-            .catch(() => {}); // Silently fail — widget just won't show
-          api.get('/games/daily-quota')
-            .then(res => setDailyQuota(res.data))
-            .catch(() => {}); // Silently fail — strip uses fallback
-        }
+        // Daily challenge and quota are fetched in a separate useEffect
+        // to avoid being blocked by the didFetchRef guard when user loads async
       } catch (error) {
         console.error("[Dashboard] ❌ Error loading data:", error);
         setGameHistories([]);
@@ -293,6 +286,18 @@ const Dashboard = () => {
       }
     };
   }, [getGameHistory, user?.id]);
+
+  // Fetch daily challenge & game quota once user is available
+  // Separate from main effect so it's not blocked by didFetchRef
+  useEffect(() => {
+    if (!user) return;
+    api.get('/tutorial/daily-challenge')
+      .then(res => setDailyChallenge(res.data.data || res.data))
+      .catch(() => {});
+    api.get('/games/daily-quota')
+      .then(res => setDailyQuota(res.data))
+      .catch(() => {});
+  }, [user]);
 
   const handleReviewGame = (game) => {
     navigate(`/play/review/${game.id}`);
