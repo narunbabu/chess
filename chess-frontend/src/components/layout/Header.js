@@ -12,6 +12,7 @@ import { BACKEND_URL } from '../../config';
 import { MdDashboard } from 'react-icons/md';
 import { IoGameController, IoSchool, IoTrophy, IoPlay, IoStatsChart } from 'react-icons/io5';
 import presenceService from '../../services/presenceService';
+import { getEcho } from '../../services/echoSingleton';
 import MatchmakingQueue from '../lobby/MatchmakingQueue';
 import './Header.css';
 
@@ -32,10 +33,23 @@ const Header = () => {
   const [showMatchmaking, setShowMatchmaking] = useState(false);
   const [onlineStats, setOnlineStats] = useState({ onlineCount: 0, availablePlayers: 0 });
   const [recentChampionship, setRecentChampionship] = useState(null);
+  const [wsConnected, setWsConnected] = useState(false);
   const userMenuRef = useRef(null);
   const hideTimeoutRef = useRef(null);
   const lastStatsRef = useRef(null); // Cache last stats to prevent redundant updates
   const pollIntervalRef = useRef(null);
+
+  // Track WebSocket (Echo/Reverb) connection state
+  useEffect(() => {
+    if (!isAuthenticated) { setWsConnected(false); return; }
+    const check = () => {
+      const echo = getEcho();
+      setWsConnected(!!echo?.connector?.pusher?.connection?.state?.match?.('connected'));
+    };
+    check();
+    const id = setInterval(check, 5000);
+    return () => clearInterval(id);
+  }, [isAuthenticated]);
 
   // Load recent championship from localStorage
   useEffect(() => {
@@ -368,6 +382,19 @@ const Header = () => {
           >
             <IoPlay size={24} />
             <span className="nav-text">Play</span>
+            <span
+              title={wsConnected ? 'Live — real-time matchmaking active' : 'Connecting...'}
+              style={{
+                display: 'inline-block',
+                width: 7,
+                height: 7,
+                borderRadius: '50%',
+                backgroundColor: wsConnected ? '#4caf50' : '#f44336',
+                marginLeft: 4,
+                flexShrink: 0,
+                transition: 'background-color 0.3s',
+              }}
+            />
           </button>
           <Link
             to="/dashboard"
@@ -433,6 +460,19 @@ const Header = () => {
           >
             <IoStatsChart size={24} />
             <span className="nav-text">Leaderboard</span>
+          </Link>
+          <Link
+            to="/daily-challenge"
+            className="nav-link nav-icon-link"
+            onClick={(e) => {
+              e.preventDefault();
+              handleNavItemClick(() => navigate('/daily-challenge'), '/daily-challenge');
+            }}
+            title="Daily Challenge"
+            aria-label="Daily Challenge"
+          >
+            <span style={{ fontSize: 20 }}>🧩</span>
+            <span className="nav-text">Daily</span>
           </Link>
           {!loading && activeGame && (
             <button

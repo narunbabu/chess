@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { trackSocial } from '../utils/analytics';
@@ -6,7 +6,8 @@ import api from '../services/api';
 import matchmakingService from '../services/matchmakingService';
 import WebSocketGameService from '../services/WebSocketGameService';
 import { getEcho } from '../services/echoSingleton';
-import { BACKEND_URL } from '../config';
+import presenceService from '../services/presenceService';
+import { BACKEND_URL, BASE_URL } from '../config';
 import './LobbyPage.css';
 
 // Lobby components
@@ -37,6 +38,53 @@ const LobbyPage = () => {
   const [showFriendSearch, setShowFriendSearch] = useState(false); // Play Friends toggle
   const [friends, setFriends] = useState([]);
   const [friendsLoading, setFriendsLoading] = useState(false);
+
+  // Online player count for Play Online button badge
+  const [onlineCount, setOnlineCount] = useState(null);
+  useEffect(() => {
+    const fetchCount = async () => {
+      try {
+        const res = await fetch(`${BASE_URL}/api/v1/status`);
+        if (res.ok) {
+          const data = await res.json();
+          setOnlineCount(data.players?.recently_active ?? 0);
+        }
+      } catch {}
+    };
+    fetchCount();
+    const id = setInterval(fetchCount, 30000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Debug panel (localhost only)
+  const isDev = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+  const [debugOpen, setDebugOpen] = useState(false);
+  const [debugInfo, setDebugInfo] = useState({ socketId: null, presenceMembers: 0, lastMmResponse: null });
+
+  const refreshDebugInfo = useCallback(async () => {
+    if (!isDev) return;
+    const echo = getEcho();
+    const socketId = echo?.socketId?.() || null;
+    const presenceMembers = presenceService?.presenceChannel?.subscription?.members?.count ?? '?';
+    setDebugInfo(prev => ({ ...prev, socketId, presenceMembers }));
+  }, [isDev]);
+
+  useEffect(() => {
+    if (!isDev) return;
+    refreshDebugInfo();
+    const id = setInterval(refreshDebugInfo, 3000);
+    return () => clearInterval(id);
+  }, [isDev, refreshDebugInfo]);
+
+  // Listen for matchmaking API responses to display in debug panel
+  useEffect(() => {
+    if (!isDev) return;
+    const handleMmEvent = (e) => {
+      setDebugInfo(prev => ({ ...prev, lastMmResponse: e.detail }));
+    };
+    window.addEventListener('mm:debug', handleMmEvent);
+    return () => window.removeEventListener('mm:debug', handleMmEvent);
+  }, [isDev]);
 
   // Polling control refs
   const pollTimerRef = React.useRef(null);
@@ -527,14 +575,105 @@ const LobbyPage = () => {
           </div>
         )}
 
+        {/* Debug Panel — localhost only */}
+        {isDev && (
+          <div style={{
+            margin: '0 0 12px',
+            border: '1px solid #555',
+            borderRadius: '8px',
+            backgroundColor: '#1e1e1e',
+            fontSize: '12px',
+            fontFamily: 'monospace',
+            overflow: 'hidden',
+          }}>
+            <button
+              onClick={() => { setDebugOpen(p => !p); refreshDebugInfo(); }}
+              style={{
+                width: '100%',
+                background: 'none',
+                border: 'none',
+                color: '#81b64c',
+                padding: '6px 12px',
+                cursor: 'pointer',
+                textAlign: 'left',
+                fontSize: '12px',
+                fontFamily: 'monospace',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <span>{debugOpen ? '▼' : '▶'} Debug Panel (dev only)</span>
+              <span style={{ color: debugInfo.socketId ? '#4caf50' : '#f44336' }}>
+                WS: {debugInfo.socketId ? '●' : '○'}
+              </span>
+            </button>
+            {debugOpen && (
+              <div style={{ padding: '8px 12px', borderTop: '1px solid #333', color: '#bababa' }}>
+                <div style={{ marginBottom: '6px' }}>
+                  <span style={{ color: '#8b8987' }}>socket_id: </span>
+                  <span style={{ color: debugInfo.socketId ? '#81b64c' : '#f44336' }}>
+                    {debugInfo.socketId || 'not connected'}
+                  </span>
+                </div>
+                <div style={{ marginBottom: '6px' }}>
+                  <span style={{ color: '#8b8987' }}>presence members: </span>
+                  <span style={{ color: '#81b64c' }}>{debugInfo.presenceMembers}</span>
+                </div>
+                <div style={{ marginBottom: '6px' }}>
+                  <span style={{ color: '#8b8987' }}>user_id: </span>
+                  <span>{user?.id || 'not logged in'}</span>
+                </div>
+                <div>
+                  <span style={{ color: '#8b8987' }}>last mm response: </span>
+                  {debugInfo.lastMmResponse ? (
+                    <pre style={{
+                      margin: '4px 0 0',
+                      padding: '6px',
+                      backgroundColor: '#111',
+                      borderRadius: '4px',
+                      color: '#d4d4d4',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      maxHeight: '120px',
+                      overflow: 'auto',
+                      fontSize: '11px',
+                    }}>
+                      {JSON.stringify(debugInfo.lastMmResponse, null, 2)}
+                    </pre>
+                  ) : (
+                    <span style={{ color: '#6b6966' }}>none yet</span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Hero Section — Play Online + Play Friends */}
         <div className="lobby-hero">
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
             <button
               className="lobby-hero-btn"
+              disabled={showMatchmaking}
               onClick={() => setShowMatchmaking(true)}
+              style={showMatchmaking ? { opacity: 0.6, cursor: 'not-allowed' } : {}}
             >
-              Play Online
+              {showMatchmaking ? 'Finding Match…' : 'Play Online'}
+              {!showMatchmaking && onlineCount !== null && onlineCount > 0 && (
+                <span style={{
+                  marginLeft: 8,
+                  fontSize: '0.7rem',
+                  backgroundColor: '#4caf50',
+                  color: '#fff',
+                  padding: '2px 7px',
+                  borderRadius: 10,
+                  fontWeight: 600,
+                  verticalAlign: 'middle',
+                }}>
+                  {onlineCount} online
+                </span>
+              )}
             </button>
             <button
               className="lobby-hero-btn"

@@ -171,8 +171,18 @@ const GameEndCard = React.forwardRef(({
 
     const playersInfo = { white_player, black_player, userPlayer, opponentPlayer, isUserWhite, isUserBlack, hasUser };
 
+    // Check for cancelled/aborted games (no result, no winner)
+    const isCancelled = result.result === '*' || result.end_reason === 'cancelled_inactivity' || result.end_reason === 'abandoned_mutual';
+
     let resultText;
-    if (isDraw) {
+    if (isCancelled) {
+      const cancelReasonMap = {
+        'cancelled_inactivity': 'opponent inactivity',
+        'abandoned_mutual': 'mutual agreement',
+      };
+      const cancelReason = cancelReasonMap[result.end_reason] || 'cancellation';
+      resultText = `Game cancelled — ${cancelReason}. No rating impact.`;
+    } else if (isDraw) {
       const drawReasonMap = {
         'stalemate': 'stalemate',
         'insufficient_material': 'insufficient material',
@@ -206,12 +216,12 @@ const GameEndCard = React.forwardRef(({
         winnerName = isPlayerWin ? userPlayer.name : opponentPlayer.name;
         loserName = isPlayerWin ? opponentPlayer.name : userPlayer.name;
       }
-      const rawReason = result.end_reason || result.result?.details || 'game completion';
+      const rawReason = result.end_reason || result.result?.details || result.result?.end_reason || 'game completion';
       // Map technical end_reason to user-friendly text
       const reasonMap = {
         'checkmate': 'checkmate',
         'resignation': 'resignation',
-        'timeout': 'time out',
+        'timeout': 'timeout',
         'forfeit': 'resignation',
         'stalemate': 'stalemate',
         'insufficient_material': 'insufficient material',
@@ -221,13 +231,24 @@ const GameEndCard = React.forwardRef(({
         'aborted': 'game aborted',
         'killed': 'game ended',
       };
-      const reasonText = reasonMap[rawReason] || rawReason;
+      // Normalize rawReason: handle full-text statuses like "Black wins on time!" or "White wins by checkmate"
+      let reasonText = reasonMap[rawReason];
+      if (!reasonText) {
+        const lower = rawReason.toLowerCase();
+        if (lower.includes('time')) reasonText = 'timeout';
+        else if (lower.includes('checkmate')) reasonText = 'checkmate';
+        else if (lower.includes('resign')) reasonText = 'resignation';
+        else if (lower.includes('stalemate')) reasonText = 'stalemate';
+        else if (lower.includes('draw')) reasonText = 'draw';
+        else if (lower.includes('abort')) reasonText = 'game aborted';
+        else reasonText = rawReason;
+      }
       // Clear, straightforward statement using both names
       resultText = `${winnerName} defeated ${loserName} by ${reasonText}`;
     }
 
-    const icon = isDraw ? "🤝" : (isPlayerWin ? "🏆" : "💔");
-    const title = isDraw ? "Draw!" : (isPlayerWin ? "Victory!" : "Defeat");
+    const icon = isCancelled ? "🚫" : isDraw ? "🤝" : (isPlayerWin ? "🏆" : "💔");
+    const title = isCancelled ? "Game Cancelled" : isDraw ? "Draw!" : (isPlayerWin ? "Victory!" : "Defeat");
 
     // Handle duration calculation with fallbacks
     let gameDurationText = '0m 0s';

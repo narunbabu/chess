@@ -28,12 +28,20 @@ class PresenceService {
   async initialize(user, authToken) {
     this.currentUser = user;
 
-    // Write presence to DB and start heartbeat immediately so the user is
-    // visible to matchmaking regardless of whether the WebSocket presence
-    // channel join succeeds. Previously both were gated behind connect(),
-    // so a channel-join failure left user_presence unpopulated and caused
-    // findAndBroadcastPlayers() to always return 0 candidates.
-    await this.updatePresence('online');
+    // Write presence to DB immediately so the user is visible to matchmaking
+    // regardless of whether the WebSocket presence channel join succeeds.
+    // Previously both were gated behind connect(), so a channel-join failure
+    // left user_presence unpopulated and caused findAndBroadcastPlayers()
+    // to always return 0 candidates.
+    //
+    // Try to grab socket_id from an already-initialized Echo instance so the
+    // first presence write includes it (satisfies the "strongly online" tier
+    // in findAndBroadcastPlayers). If Echo isn't ready yet, the socket_id
+    // will be sent on the next heartbeat or on connect().
+    const earlyEcho = getEcho();
+    const earlySocketId = earlyEcho?.socketId?.() || null;
+    console.log('[Presence] Early socket_id captured:', earlySocketId);
+    await this.updatePresence('online', earlySocketId);
     this.startHeartbeat();
 
     try {
@@ -256,7 +264,7 @@ class PresenceService {
       this.initialHeartbeatTimeout = null;
       await this.sendHeartbeat();
       this.heartbeatInterval = setInterval(() => {
-        this.sendHeartbeat();
+        this.sendHeartbeat().catch(() => {});
       }, 30000); // 30 seconds
     }, 5000);
 
@@ -298,9 +306,9 @@ class PresenceService {
     // Handle page visibility changes
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
-        this.updatePresence('online');
+        this.updatePresence('online').catch(() => {});
       } else {
-        this.updatePresence('away');
+        this.updatePresence('away').catch(() => {});
       }
     });
 

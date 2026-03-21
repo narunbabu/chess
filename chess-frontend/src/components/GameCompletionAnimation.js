@@ -108,6 +108,14 @@ const GameCompletionAnimation = ({
         return;
       }
 
+      // Skip rating update for cancelled/aborted games (no rating impact)
+      const isCancelled = result?.result === '*' || result?.end_reason === 'cancelled_inactivity' || result?.end_reason === 'abandoned_mutual';
+      if (isCancelled) {
+        setRatingUpdate({ isLoading: false, oldRating: null, newRating: null, ratingChange: null, error: null });
+        setHasProcessedRating(true);
+        return;
+      }
+
       try {
         // Determine game result
         const gameResult = isPlayerWin ? 'win' : (isDraw ? 'draw' : 'loss');
@@ -211,6 +219,8 @@ const GameCompletionAnimation = ({
       : (championshipData
           ? (playerColor === 'w' ? result?.black_player?.name : result?.white_player?.name)
           : (result?.opponent_name || `Computer Lv.${computerLevel || '?'}`));
+    // Override game type when synthetic opponent is present
+    if (!isMultiplayer && !championshipData && result?.opponent_name) gameType = 'online';
 
     let gameType = 'computer';
     if (championshipData) gameType = 'championship';
@@ -288,6 +298,8 @@ const GameCompletionAnimation = ({
       : (championshipData
           ? (playerColor === 'w' ? result?.black_player?.name : result?.white_player?.name)
           : (result?.opponent_name || `Computer Lv.${computerLevel || '?'}`));
+    // Override game type when synthetic opponent is present
+    if (!isMultiplayer && !championshipData && result?.opponent_name) gameType = 'online';
 
     let gameType = 'computer';
     if (championshipData) gameType = 'championship';
@@ -414,6 +426,8 @@ const GameCompletionAnimation = ({
       : (championshipData
           ? (playerColor === 'w' ? result?.black_player?.name : result?.white_player?.name)
           : (result?.opponent_name || 'Computer'));
+
+    if (!isMultiplayer && !championshipData && result?.opponent_name) gameType = 'online';
 
     const gameData = {
       gameId,

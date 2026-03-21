@@ -7,6 +7,7 @@ import SoundToggle from './SoundToggle';
 import BoardCustomizer from './BoardCustomizer';
 import PerformanceDisplay from '../game/PerformanceDisplay';
 import ChatPanel from './ChatPanel';
+import GameChat from './GameChat';
 
 // Extract SAN from any gameHistory entry format:
 //   PlayComputer objects: { move: { san: "e4" }, ... }
@@ -297,14 +298,29 @@ const GameContainer = ({
   );
 
   // ----- CHAT PANEL -----
-  const renderChatPanel = () => (
-    <ChatPanel
-      messages={chatData.messages}
-      onSend={chatData.onSend}
-      myUserId={chatData.myUserId}
-      disabled={chatData.disabled}
-    />
-  );
+  const renderChatPanel = () => {
+    if (mode === 'computer' && chatData) {
+      return (
+        <GameChat
+          messages={chatData.messages}
+          opponentName={chatData.opponentName}
+          isOpponentThinking={chatData.isOpponentThinking}
+          gameOver={chatData.gameOver}
+          gameStarted={chatData.gameStarted}
+          onSendMessage={chatData.onSendMessage}
+          onPing={chatData.onPing}
+        />
+      );
+    }
+    return (
+      <ChatPanel
+        messages={chatData.messages}
+        onSend={chatData.onSend}
+        myUserId={chatData.myUserId}
+        disabled={chatData.disabled}
+      />
+    );
+  };
 
   // ----- RIGHT PANEL -----
   const renderRightPanel = () => {
@@ -321,9 +337,12 @@ const GameContainer = ({
               key={tab}
               className={`gc-tab ${rightTab === tab ? 'gc-tab-active' : ''}`}
               onClick={() => {
+                const prevTab = rightTab;
                 setRightTab(tab);
                 if (tab === 'chat') {
                   chatData?.onTabOpen?.();
+                } else if (prevTab === 'chat') {
+                  chatData?.onTabClose?.();
                 }
               }}
             >

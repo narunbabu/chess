@@ -42,6 +42,74 @@ export const setPreferredGameMode = (mode) => {
 };
 
 /**
+ * Get the user's preferred time control
+ * @returns {{ minutes: number, increment: number }}
+ */
+export const getPreferredTimeControl = () => {
+  try {
+    const preferences = localStorage.getItem(STORAGE_KEY);
+    if (preferences) {
+      const parsed = JSON.parse(preferences);
+      if (parsed.timeControl && parsed.increment !== undefined) {
+        return { minutes: parsed.timeControl, increment: parsed.increment };
+      }
+    }
+    return { minutes: 10, increment: 5 }; // Default 10|5 Rapid
+  } catch (error) {
+    return { minutes: 10, increment: 5 };
+  }
+};
+
+/**
+ * Save the user's preferred time control
+ * @param {number} minutes
+ * @param {number} increment
+ */
+export const setPreferredTimeControl = (minutes, increment) => {
+  try {
+    const preferences = localStorage.getItem(STORAGE_KEY);
+    const parsed = preferences ? JSON.parse(preferences) : {};
+    parsed.timeControl = minutes;
+    parsed.increment = increment;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+  } catch (error) {
+    // silently fail
+  }
+};
+
+/**
+ * Get the user's preferred color
+ * @returns {string} 'white', 'black', or 'random'
+ */
+export const getPreferredColor = () => {
+  try {
+    const preferences = localStorage.getItem(STORAGE_KEY);
+    if (preferences) {
+      const parsed = JSON.parse(preferences);
+      return parsed.preferredColor || 'random';
+    }
+    return 'random';
+  } catch (error) {
+    return 'random';
+  }
+};
+
+/**
+ * Save the user's preferred color
+ * @param {string} color - 'white', 'black', or 'random'
+ */
+export const setPreferredColor = (color) => {
+  try {
+    const preferences = localStorage.getItem(STORAGE_KEY);
+    const parsed = preferences ? JSON.parse(preferences) : {};
+    parsed.preferredColor = color;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+  } catch (error) {
+    // silently fail
+  }
+};
+
+/**
  * Clear all game preferences
  */
 export const clearGamePreferences = () => {

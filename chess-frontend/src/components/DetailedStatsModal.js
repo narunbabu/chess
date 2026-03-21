@@ -158,16 +158,15 @@ const DetailedStatsModal = ({ isOpen, onClose, gameHistories, user }) => {
                 const playerScore = game.final_score ?? game.finalScore ?? game.score ?? 0;
                 const opponentScore = game.opponent_score ?? 0;
 
-                // Opponent info
+                // Opponent info — prefer synthetic name over generic "Computer"
                 let opponentName = 'Unknown';
                 let opponentAvatar = null;
 
-                if (game.game_mode === 'computer') {
+                if (game.opponent_name || game.opponentName) {
+                  opponentName = game.opponent_name || game.opponentName;
+                  opponentAvatar = game.opponent_avatar || game.opponent_avatar_url || null;
+                } else if (game.game_mode === 'computer') {
                   opponentName = `Computer (Lv ${game.computer_level || game.computer_depth || 1})`;
-                  opponentAvatar = null; // Computer doesn't have avatar
-                } else if (game.opponent_name) {
-                  opponentName = game.opponent_name;
-                  opponentAvatar = game.opponent_avatar;
                 }
 
                 const color = game.player_color === 'w' ? '⚪ White' : '⚫ Black';

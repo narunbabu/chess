@@ -31,6 +31,7 @@ const AdminDashboard = () => {
   const [order, setOrder] = useState('desc');
   const [page, setPage] = useState(1);
   const [activeTab, setActiveTab] = useState('overview');
+  const [selectedUserId, setSelectedUserId] = useState(null);
 
   const isAdmin = isPlatformAdmin(user) || isOrganizationAdmin(user);
   const isPlatAdmin = isPlatformAdmin(user);
@@ -283,8 +284,12 @@ const AdminDashboard = () => {
                   </thead>
                   <tbody>
                     {data.users.data.map(u => (
-                      <tr key={u.id} className="border-b border-[#3d3a36] hover:bg-[#3d3a36]">
-                        <td className="py-2 pr-4 text-white">{u.name}</td>
+                      <tr
+                        key={u.id}
+                        className="border-b border-[#3d3a36] hover:bg-[#3d3a36] cursor-pointer"
+                        onClick={() => setSelectedUserId(selectedUserId === u.id ? null : u.id)}
+                      >
+                        <td className="py-2 pr-4 text-white">{u.name} {selectedUserId === u.id ? '\u25B2' : ''}</td>
                         <td className="py-2 pr-4 hidden md:table-cell text-[#9b9895]">{u.email}</td>
                         <td className="py-2 pr-4 text-right font-mono">{u.rating ?? '-'}</td>
                         <td className="py-2 pr-4 text-right font-mono">{u.games_played ?? 0}</td>
@@ -319,6 +324,11 @@ const AdminDashboard = () => {
             </div>
           )}
 
+          {/* User Detail Panel — shown below users table when a user is selected */}
+          {activeTab === 'users' && selectedUserId && (
+            <UserDetailPanel userId={selectedUserId} period={period} onClose={() => setSelectedUserId(null)} />
+          )}
+
           {/* ==================== AMBASSADORS TAB ==================== */}
           {activeTab === 'ambassadors' && data.meta?.is_platform_admin && (
             <>
@@ -340,6 +350,163 @@ const AdminDashboard = () => {
             </>
           )}
         </>
+      )}
+    </div>
+  );
+};
+
+/* ─── User Detail Panel ─── */
+
+const UserDetailPanel = ({ userId, period, onClose }) => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [userPeriod, setUserPeriod] = useState(period);
+
+  useEffect(() => { setUserPeriod(period); }, [period]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    fetch(`${BACKEND_URL}/admin/dashboard/user/${userId}?period=${userPeriod}`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}`, Accept: 'application/json' },
+    })
+      .then(r => r.json())
+      .then(d => { if (!cancelled) setData(d); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [userId, userPeriod]);
+
+  if (loading) return (
+    <div className="bg-[#312e2b] rounded-lg p-6 mb-6 text-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#81b64c] mx-auto" />
+    </div>
+  );
+  if (!data?.profile) return null;
+
+  const p = data.profile;
+  const o = data.overview;
+  const formColors = { W: '#81b64c', L: '#e74c3c', D: '#e8a93e' };
+  const daysSinceJoin = Math.floor((Date.now() - new Date(p.created_at).getTime()) / 86400000);
+
+  return (
+    <div className="bg-[#312e2b] rounded-lg p-4 mb-6 border border-[#81b64c]/30">
+      {/* Header */}
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h2 className="text-xl font-bold text-white">{p.name}</h2>
+          <p className="text-[#9b9895] text-sm">{p.email}</p>
+          <div className="flex flex-wrap gap-3 mt-2 text-xs">
+            <span className="px-2 py-0.5 rounded bg-[#262421] text-[#81b64c]">Rating: {p.rating}</span>
+            <span className="px-2 py-0.5 rounded bg-[#262421] text-[#e8a93e]">{p.subscription_tier || 'free'}</span>
+            <span className="text-[#9b9895]">Joined {daysSinceJoin}d ago ({new Date(p.created_at).toLocaleDateString()})</span>
+            {p.last_activity_at && <span className="text-[#9b9895]">Last seen: {new Date(p.last_activity_at).toLocaleDateString()}</span>}
+          </div>
+        </div>
+        <button onClick={onClose} className="text-[#9b9895] hover:text-white text-xl leading-none">&times;</button>
+      </div>
+
+      {/* Period filter for this panel */}
+      <div className="flex gap-2 mb-4">
+        {PERIODS.map(pr => (
+          <button
+            key={pr.value}
+            onClick={() => setUserPeriod(pr.value)}
+            className={`px-3 py-1 rounded text-xs font-medium transition ${
+              userPeriod === pr.value ? 'bg-[#81b64c] text-white' : 'bg-[#262421] text-[#bababa] hover:bg-[#3d3a36]'
+            }`}
+          >{pr.label}</button>
+        ))}
+      </div>
+
+      {/* Key Stats Row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 mb-4">
+        {[
+          { label: 'Games', value: o.total_games, color: '#5ba4cf' },
+          { label: 'Wins', value: o.wins, color: '#81b64c' },
+          { label: 'Losses', value: o.losses, color: '#e74c3c' },
+          { label: 'Draws', value: o.draws, color: '#e8a93e' },
+          { label: 'Win Rate', value: o.win_rate + '%', color: o.win_rate >= 50 ? '#81b64c' : '#e74c3c' },
+          { label: 'Avg Moves', value: o.avg_moves, color: '#9b59b6' },
+          { label: 'Streak', value: o.streak, color: o.streak?.endsWith('W') ? '#81b64c' : '#e74c3c' },
+          { label: 'Tutorials', value: `${data.tutorial?.completed || 0}/${data.tutorial?.started || 0}`, color: '#f39c12' },
+        ].map((c, i) => (
+          <div key={i} className="bg-[#262421] rounded p-3 border-l-2" style={{ borderColor: c.color }}>
+            <p className="text-[#9b9895] text-xs">{c.label}</p>
+            <p className="text-lg font-bold text-white">{c.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Recent Form */}
+      {o.recent_form?.length > 0 && (
+        <div className="mb-4">
+          <p className="text-xs text-[#9b9895] mb-1">Last {o.recent_form.length} games:</p>
+          <div className="flex gap-1">
+            {o.recent_form.map((r, i) => (
+              <span key={i} className="w-7 h-7 rounded flex items-center justify-center text-xs font-bold text-white"
+                style={{ backgroundColor: formColors[r] || '#464340' }}>{r}</span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Game breakdowns */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+        <StatsSection title="By Outcome" items={(data.games_by_outcome || []).map(i => ({ label: i.label, count: i.count }))} />
+        <StatsSection title="By Mode" items={(data.games_by_mode || []).map(i => ({ label: i.label, count: i.count }))} />
+        <StatsSection title="By Time Control" items={(data.games_by_time_control || []).map(i => ({ label: i.label, count: i.count }))} />
+      </div>
+
+      {/* Recent Games */}
+      {data.recent_games?.length > 0 && (
+        <div className="bg-[#262421] rounded p-3">
+          <h3 className="text-sm font-semibold text-white mb-2">Recent Games</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-[#9b9895] border-b border-[#3d3a36]">
+                  <th className="py-1.5 pr-2 text-left">Result</th>
+                  <th className="py-1.5 pr-2 text-left">Opponent</th>
+                  <th className="py-1.5 pr-2 text-left hidden sm:table-cell">End Reason</th>
+                  <th className="py-1.5 pr-2 hidden sm:table-cell">Mode</th>
+                  <th className="py-1.5 pr-2 text-right">Moves</th>
+                  <th className="py-1.5 text-right hidden sm:table-cell">When</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.recent_games.map(g => {
+                  const isDraw = g.result === '1/2-1/2';
+                  const won = g.user_won;
+                  const opponent = g.user_color === 'white' ? g.black : g.white;
+                  return (
+                    <tr key={g.id} className="border-b border-[#3d3a36]/50">
+                      <td className="py-1.5 pr-2">
+                        <span className="font-bold" style={{ color: won ? '#81b64c' : isDraw ? '#e8a93e' : '#e74c3c' }}>
+                          {won ? 'Win' : isDraw ? 'Draw' : 'Loss'}
+                        </span>
+                      </td>
+                      <td className="py-1.5 pr-2 text-white">
+                        {opponent?.name || 'Unknown'}
+                        <span className="text-[#9b9895] ml-1">({opponent?.rating || '?'})</span>
+                      </td>
+                      <td className="py-1.5 pr-2 text-[#9b9895] hidden sm:table-cell">{g.end_reason || '-'}</td>
+                      <td className="py-1.5 pr-2 hidden sm:table-cell">
+                        <span className={`px-1.5 py-0.5 rounded ${
+                          g.game_mode === 'rated' ? 'bg-[#81b64c]/20 text-[#81b64c]' : 'bg-[#3d3a36] text-[#9b9895]'
+                        }`}>{g.game_mode || 'casual'}</span>
+                      </td>
+                      <td className="py-1.5 pr-2 text-right font-mono">{g.move_count}</td>
+                      <td className="py-1.5 text-right text-[#9b9895] hidden sm:table-cell">
+                        {g.ended_at ? new Date(g.ended_at).toLocaleDateString() : '-'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
     </div>
   );

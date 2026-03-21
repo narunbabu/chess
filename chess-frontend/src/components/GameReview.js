@@ -152,20 +152,35 @@ const ResultBadge = ({ result, gameHistory }) => {
   );
 };
 
-const MoveCell = ({ san, isActive, onClick, dataIndex }) => (
-  <span
-    onClick={onClick}
-    data-active={isActive || undefined}
-    data-move-index={dataIndex}
-    className={`cursor-pointer px-1.5 py-0.5 rounded text-sm font-mono transition-colors
-      ${isActive
-        ? 'bg-[#81b64c]/25 text-[#a3d160] font-semibold'
-        : 'text-[#bababa] hover:bg-[#3d3a37] hover:text-white'
-      }`}
-  >
-    {san}
-  </span>
-);
+const EVAL_BADGE_STYLES = {
+  excellent: { icon: '⭐', color: '#81b64c' },
+  great: { icon: '🔥', color: '#81b64c' },
+  good: { icon: '✓', color: '#a3d160' },
+  inaccuracy: { icon: '?!', color: '#e8a93e' },
+  mistake: { icon: '?', color: '#e8a93e' },
+  blunder: { icon: '??', color: '#c33a3a' },
+};
+
+const MoveCell = ({ san, isActive, onClick, dataIndex, evaluation }) => {
+  const badge = evaluation?.moveClassification
+    ? EVAL_BADGE_STYLES[evaluation.moveClassification.toLowerCase()]
+    : null;
+  return (
+    <span
+      onClick={onClick}
+      data-active={isActive || undefined}
+      data-move-index={dataIndex}
+      className={`cursor-pointer px-1.5 py-0.5 rounded text-sm font-mono transition-colors
+        ${isActive
+          ? 'bg-[#81b64c]/25 text-[#a3d160] font-semibold'
+          : 'text-[#bababa] hover:bg-[#3d3a37] hover:text-white'
+        }`}
+    >
+      {san}
+      {badge && <span style={{ color: badge.color, fontSize: '10px', marginLeft: '2px' }} title={evaluation.moveClassification}>{badge.icon}</span>}
+    </span>
+  );
+};
 
 // ═══ Main Component ═══
 
@@ -237,8 +252,10 @@ const GameReview = () => {
         num: Math.floor(i / 2) + 1,
         white: moves[i]?.move?.san || '',
         whiteIdx: i + 1, // +1 because we skipped Start
+        whiteEval: moves[i]?.evaluation || null,
         black: moves[i + 1]?.move?.san || null,
         blackIdx: moves[i + 1] ? i + 2 : null,
+        blackEval: moves[i + 1]?.evaluation || null,
       });
     }
     return pairs;
@@ -257,7 +274,7 @@ const GameReview = () => {
     if (playerColor === 'w') {
       // Player is white → opponent (black) on top, player (white) on bottom
       topName = gameHistory.opponent_name || (isMultiplayer ? blackPlayer?.name : 'Computer');
-      topRating = isMultiplayer ? blackPlayer?.rating : (gameHistory.opponent_rating || (gameHistory.computer_level ? `Level ${gameHistory.computer_level}` : null));
+      topRating = isMultiplayer ? blackPlayer?.rating : (gameHistory.opponent_rating || (!gameHistory.opponent_name && gameHistory.computer_level ? `Level ${gameHistory.computer_level}` : null));
       topAvatar = isMultiplayer ? blackPlayer?.avatar_url : (gameHistory.opponent_avatar || gameHistory.opponent_avatar_url || null);
       topTime = gameHistory.black_time_remaining_ms;
       topScore = gameHistory.opponent_score;
@@ -272,7 +289,7 @@ const GameReview = () => {
     } else {
       // Player is black → opponent (white) on top, player (black) on bottom
       topName = gameHistory.opponent_name || (isMultiplayer ? whitePlayer?.name : 'Computer');
-      topRating = isMultiplayer ? whitePlayer?.rating : (gameHistory.opponent_rating || (gameHistory.computer_level ? `Level ${gameHistory.computer_level}` : null));
+      topRating = isMultiplayer ? whitePlayer?.rating : (gameHistory.opponent_rating || (!gameHistory.opponent_name && gameHistory.computer_level ? `Level ${gameHistory.computer_level}` : null));
       topAvatar = isMultiplayer ? whitePlayer?.avatar_url : (gameHistory.opponent_avatar || gameHistory.opponent_avatar_url || null);
       topTime = gameHistory.white_time_remaining_ms;
       topScore = gameHistory.opponent_score;
@@ -327,6 +344,20 @@ const GameReview = () => {
         let gameData;
         let isMultiplayer = mode === 'multiplayer';
 
+        // Auto-detect multiplayer/synthetic games when mode not explicitly set
+        if (!mode && effectiveGameId && !isNaN(effectiveGameId)) {
+          try {
+            const peekResp = await api.get(`/games/${effectiveGameId}`);
+            if (peekResp.data?.id) {
+              const gd = peekResp.data;
+              // Synthetic games have synthetic_player_id set — treat as multiplayer for review
+              if (gd.synthetic_player_id || (!gd.computer_player_id && gd.black_player_id && gd.white_player_id)) {
+                isMultiplayer = true;
+              }
+            }
+          } catch { /* ignore — will fall through to normal loading */ }
+        }
+
         if (isMultiplayer) {
           const response = await api.get(`/games/${effectiveGameId}`);
           gameData = response.data;
@@ -366,12 +397,21 @@ const GameReview = () => {
           if (typeof gameData.moves === 'string' && gameData.moves.length > 0) {
             const tempGame = new Chess();
             gameData.moves.split(';').forEach(moveStr => {
-              const [notation, time] = moveStr.split(',');
+              const fields = moveStr.split(',');
+              const notation = fields[0];
+              const time = fields[1];
+              const evalTotal = fields.length > 2 && fields[2] !== '' ? parseFloat(fields[2]) : null;
+              const moveClass = fields.length > 3 ? fields[3] : null;
               if (notation && notation.trim()) {
                 try {
                   const move = tempGame.move(notation.trim());
                   if (move) {
-                    convertedMoves.push({ move: { san: move.san }, fen: tempGame.fen(), time: parseFloat(time) || undefined });
+                    convertedMoves.push({
+                      move: { san: move.san },
+                      fen: tempGame.fen(),
+                      time: parseFloat(time) || undefined,
+                      evaluation: evalTotal != null ? { total: evalTotal, moveClassification: moveClass } : null,
+                    });
                   }
                 } catch (moveError) { console.error('Error processing move:', notation, moveError); }
               }
@@ -484,12 +524,21 @@ const GameReview = () => {
           if (typeof gameData.moves === 'string' && gameData.moves.length > 0) {
             const tempGame = new Chess();
             gameData.moves.split(';').forEach(moveStr => {
-              const [notation, time] = moveStr.split(',');
+              const fields = moveStr.split(',');
+              const notation = fields[0];
+              const time = fields[1];
+              const evalTotal = fields.length > 2 && fields[2] !== '' ? parseFloat(fields[2]) : null;
+              const moveClass = fields.length > 3 ? fields[3] : null;
               if (notation && notation.trim()) {
                 try {
                   const move = tempGame.move(notation.trim());
                   if (move) {
-                    convertedMoves.push({ move: { san: move.san }, fen: tempGame.fen(), time: parseFloat(time) || undefined });
+                    convertedMoves.push({
+                      move: { san: move.san },
+                      fen: tempGame.fen(),
+                      time: parseFloat(time) || undefined,
+                      evaluation: evalTotal != null ? { total: evalTotal, moveClassification: moveClass } : null,
+                    });
                   }
                 } catch (moveError) { console.error('Error processing move:', notation, moveError); }
               }
@@ -680,8 +729,8 @@ const GameReview = () => {
     }
     const playerColor = gameHistory.player_color || 'w';
     const isMP = gameHistory.game_mode === 'multiplayer';
-    const whiteName = playerColor === 'w' ? (user?.name || 'Player') : (gameHistory.opponent_name || (isMP ? 'Opponent' : 'Computer'));
-    const blackName = playerColor === 'b' ? (user?.name || 'Player') : (gameHistory.opponent_name || (isMP ? 'Opponent' : 'Computer'));
+    const whiteName = playerColor === 'w' ? (user?.name || 'Player') : (gameHistory.opponent_name || (isMP ? 'Opponent' : `Computer Lv.${gameHistory.computer_level || '?'}`));
+    const blackName = playerColor === 'b' ? (user?.name || 'Player') : (gameHistory.opponent_name || (isMP ? 'Opponent' : `Computer Lv.${gameHistory.computer_level || '?'}`));
     const dateStr = gameHistory.played_at ? new Date(gameHistory.played_at).toISOString().split('T')[0].replace(/-/g, '.') : '????.??.??';
 
     let resultStr = '*';
@@ -1147,6 +1196,7 @@ const GameReview = () => {
                           isActive={currentMoveIndex === pair.whiteIdx}
                           onClick={() => jumpToMove(pair.whiteIdx)}
                           dataIndex={pair.whiteIdx}
+                          evaluation={pair.whiteEval}
                         />
                         {pair.black ? (
                           <MoveCell
@@ -1154,6 +1204,7 @@ const GameReview = () => {
                             isActive={currentMoveIndex === pair.blackIdx}
                             onClick={() => jumpToMove(pair.blackIdx)}
                             dataIndex={pair.blackIdx}
+                            evaluation={pair.blackEval}
                           />
                         ) : <span />}
                       </div>

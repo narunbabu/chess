@@ -48,6 +48,7 @@ const GameHistoryPage = createLazyComponent(() => import("./pages/GameHistoryPag
 const ComingSoon = createLazyComponent(() => import("./pages/ComingSoon"), { componentName: "ComingSoon" });
 const SharedResultPage = createLazyComponent(() => import("./pages/SharedResultPage"), { componentName: "SharedResultPage" });
 const Puzzles = createLazyComponent(() => import("./components/Puzzles"), { componentName: "Puzzles" });
+const DailyChallengePage = createLazyComponent(() => import("./pages/DailyChallengePage"), { componentName: "DailyChallengePage" });
 const Learn = createLazyComponent(() => import("./components/Learn"), { componentName: "Learn" });
 const Profile = createLazyComponent(() => import("./components/Profile"), { componentName: "Profile" });
 const Dashboard = createLazyComponent(() => import("./components/Dashboard"), { componentName: "Dashboard" });
@@ -77,6 +78,7 @@ const AdminReferralDashboard = createLazyComponent(() => import("./pages/AdminRe
 const AdminDashboard = createLazyComponent(() => import("./pages/AdminDashboard"), { componentName: "AdminDashboard" });
 const AmbassadorDashboard = createLazyComponent(() => import("./pages/AmbassadorDashboard"), { componentName: "AmbassadorDashboard" });
 const LeaderboardPage = createLazyComponent(() => import("./pages/LeaderboardPage"), { componentName: "LeaderboardPage" });
+const SystemStatusPage = createLazyComponent(() => import("./pages/SystemStatusPage"), { componentName: "SystemStatusPage" });
 const App = () => {
   useEffect(()=> {
     const mq = window.matchMedia("(orientation:landscape)");
@@ -144,6 +146,7 @@ const AppContent = () => {
             <Route path="/join/:code" element={<JoinRedirect />} />
             <Route path="/share/result/:uniqueId" element={<SharedResultPage />} />
             <Route path="/leaderboard" element={<LeaderboardPage />} />
+            <Route path="/system-status" element={<SystemStatusPage />} />
 
             {/* Play computer - No auth required */}
             <Route path="/play" element={<GameErrorBoundary><PlayComputer /></GameErrorBoundary>} />
@@ -176,7 +179,11 @@ const AppContent = () => {
             />
             <Route
               path="/tutorial/daily"
-              element={requireAuth(<div className="min-h-screen flex items-center justify-center"><div className="text-center"><h1 className="text-4xl font-bold mb-4">🏅 Daily Challenge</h1><p className="text-gray-600">Coming Soon!</p></div></div>, 'tutorial')}
+              element={requireAuth(<DailyChallengePage />, 'tutorial')}
+            />
+            <Route
+              path="/daily-challenge"
+              element={requireAuth(<DailyChallengePage />, 'daily-challenge')}
             />
 
             {/* Lobby - Auth required */}

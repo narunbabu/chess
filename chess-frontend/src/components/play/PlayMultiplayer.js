@@ -213,6 +213,15 @@ const PlayMultiplayer = () => {
   const [chatUnread, setChatUnread] = useState(0);
   const chatTabOpenRef = useRef(false);
 
+  // Nudge opponent state (30s cooldown)
+  const [nudgeCooldown, setNudgeCooldown] = useState(false);
+  const [nudgeMessage, setNudgeMessage] = useState('');
+
+  // Opponent inactivity tracking for cancel game feature
+  const [opponentInactiveSec, setOpponentInactiveSec] = useState(0);
+  const opponentLastMoveTimeRef = useRef(Date.now());
+  const inactivityTimerRef = useRef(null);
+
   const handleSendChat = useCallback(async (message) => {
     if (!wsService.current) return;
     // Optimistic update
@@ -400,8 +409,45 @@ const PlayMultiplayer = () => {
     return null;
   }, []);
 
-  // Checkmate detection and notification
+  // Checkmate detection, notification, and local game-over fallback
+  // The server should broadcast a 'gameEnded' WebSocket event, but if WebSocket
+  // is down or flaky, this provides a 3-second fallback to show the end card locally.
   const checkForCheckmate = useCallback((gameInstance) => {
+    // Helper: build a local game-end result and show the end card if the
+    // WebSocket 'gameEnded' event hasn't arrived within 3 seconds.
+    const scheduleLocalGameEnd = (result, endReason, winnerPlayer) => {
+      setTimeout(() => {
+        // Only fire if gameComplete hasn't been set by the WebSocket event
+        // We check the DOM state via a fresh read of gameComplete
+        // Using functional setState to read the latest value without a ref
+        setGameComplete(prev => {
+          if (prev) return prev; // Already completed via WebSocket — skip
+
+          console.warn('⚠️ [Fallback] gameEnded event not received — showing end card locally');
+          const localResult = {
+            game_over: true,
+            result,
+            end_reason: endReason,
+            winner_user_id: winnerPlayer === playerColorRef.current
+              ? user?.id
+              : (gameData?.white_player_id === user?.id ? gameData?.black_player_id : gameData?.white_player_id),
+            winner_player: winnerPlayer,
+            fen_final: gameInstance.fen(),
+            move_count: gameInstance.history().length,
+            ended_at: new Date().toISOString(),
+            white_player: gameData?.white_player,
+            black_player: gameData?.black_player,
+            isPlayerWin: winnerPlayer === playerColorRef.current,
+            isPlayerDraw: !winnerPlayer,
+          };
+          setGameResult(localResult);
+          markGameEnded(gameId);
+          sessionStorage.removeItem('lastGameId');
+          return true; // Set gameComplete = true
+        });
+      }, 3000);
+    };
+
     if (gameInstance.isCheckmate()) {
       const loserColor = gameInstance.turn(); // Current turn is the loser
       const winnerColor = loserColor === 'w' ? 'black' : 'white';
@@ -412,17 +458,28 @@ const PlayMultiplayer = () => {
       const kingSquare = findKingSquare(gameInstance, loserColor);
       if (kingSquare) {
         setKingInDangerSquare(kingSquare);
-        // Clear the flicker effect after animation completes (3 flickers * 0.5s)
         setTimeout(() => setKingInDangerSquare(null), 1500);
       }
 
-      // Play checkmate sound
       playSound(gameEndSoundEffect);
-
-      // Show notification
       setCheckmateWinner(winnerColor);
       setShowCheckmate(true);
 
+      // Fallback: show end card if WebSocket gameEnded event doesn't arrive
+      const chessResult = winnerColor === 'white' ? '1-0' : '0-1';
+      scheduleLocalGameEnd(chessResult, 'checkmate', winnerColor);
+
+      return true;
+    } else if (gameInstance.isStalemate()) {
+      playSound(gameEndSoundEffect);
+      scheduleLocalGameEnd('1/2-1/2', 'stalemate', null);
+      return true;
+    } else if (gameInstance.isDraw()) {
+      playSound(gameEndSoundEffect);
+      const reason = gameInstance.isThreefoldRepetition() ? 'threefold_repetition'
+        : gameInstance.isInsufficientMaterial() ? 'insufficient_material'
+        : 'draw';
+      scheduleLocalGameEnd('1/2-1/2', reason, null);
       return true;
     } else {
       // Determine sound from last move
@@ -441,7 +498,7 @@ const PlayMultiplayer = () => {
     }
 
     return false;
-  }, [findKingSquare, playSound]);
+  }, [findKingSquare, playSound, user?.id, gameData, gameId]);
 
   // Fetch championship context (non-intrusive - only activates for championship games)
   const fetchChampionshipContext = useCallback(async () => {
@@ -1041,9 +1098,28 @@ const PlayMultiplayer = () => {
 
       wsService.current.on('chatMessage', (event) => {
         console.log('💬 Chat message received:', event);
-        setChatMessages(prev => [...prev, event]);
+        // Deduplicate: if this is our own message echoed back, replace the optimistic entry
+        setChatMessages(prev => {
+          if (event.sender_id === user?.id) {
+            const optimisticIdx = prev.findIndex(m =>
+              m.id?.toString().startsWith('local-') && m.sender_id === event.sender_id
+            );
+            if (optimisticIdx !== -1) {
+              // Replace optimistic with server-confirmed message
+              const updated = [...prev];
+              updated[optimisticIdx] = event;
+              return updated;
+            }
+            // No optimistic found — likely a genuine duplicate, skip
+            return prev;
+          }
+          return [...prev, event];
+        });
         if (!chatTabOpenRef.current) {
-          setChatUnread(prev => prev + 1);
+          // Only increment unread for opponent messages
+          if (event.sender_id !== user?.id) {
+            setChatUnread(prev => prev + 1);
+          }
         }
       });
 
@@ -1278,14 +1354,17 @@ const PlayMultiplayer = () => {
     console.log('✅ Game paused - showing paused UI to both players, move timer reset, resume state cleared');
   }, [user, gameInfo?.id, gameId]);
 
-  // Handle opponent ping notification
+  // Handle opponent ping notification (nudge received)
   const handleOpponentPing = useCallback((event) => {
     console.log('🔔 Handling opponent ping:', event);
-
-    // Show a brief notification to the player
-    // You can use a toast notification library or a simple alert
-    alert(`${event.pinged_by_user_name || 'Your opponent'} is waiting for your move!`);
-  }, []);
+    const name = event.pinged_by_user_name || 'Your opponent';
+    setNotificationMessage(`🔔 ${name} is waiting for your move!`);
+    setShowNotification(true);
+    // Play check sound as an audible nudge
+    playSound(checkSoundEffect);
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => setShowNotification(false), 5000);
+  }, [playSound]);
 
   // Handle draw offer received from opponent
   const handleDrawOfferReceived = useCallback((event) => {
@@ -1661,32 +1740,8 @@ const PlayMultiplayer = () => {
   // Handle game completion
   const handleGameEnd = useCallback(async (event) => {
     console.log('🏁 Processing game end event:', event);
-    console.log('🏁 About to set gameComplete to true');
 
-    // Update game completion state
-    setGameComplete(true);
-    setLoading(false); // Ensure loading is false when game ends
-    markGameEnded(gameId);
-    sessionStorage.removeItem('lastGameId');
-
-    // Unregister from navigation guard — game is no longer active
-    if (gameRegisteredRef.current) {
-      unregisterActiveGame();
-      gameRegisteredRef.current = false;
-      console.log('[PlayMultiplayer] Unregistered from navigation guard on game end');
-    }
-
-    // Auto-report result to championship system (non-intrusive - only for championship games)
-    if (championshipContext && championshipContext.match_id) {
-      try {
-        await reportChampionshipResult(event);
-      } catch (error) {
-        console.error('[Championship] Failed to report result to championship system:', error);
-        // Don't show error to user - this is background functionality
-      }
-    }
-
-    // Prepare result data for modal
+    // Prepare result data FIRST (before setting gameComplete)
     const resultData = {
       game_over: true,
       result: event.result,
@@ -1706,9 +1761,27 @@ const PlayMultiplayer = () => {
       isPlayerDraw: !event.winner_user_id && event.result === '1/2-1/2'
     };
 
+    // CRITICAL: Set result BEFORE gameComplete so render never sees gameComplete=true with null result
     setGameResult(resultData);
+    setGameComplete(true);
+    setLoading(false);
+    markGameEnded(gameId);
+    sessionStorage.removeItem('lastGameId');
     console.log('🎮 Game completed - result set:', { winner: resultData.winner_player, reason: resultData.end_reason });
-    console.log('🎮 State after game end:', { gameComplete: true, gameResult: !!resultData });
+
+    // Unregister from navigation guard — game is no longer active
+    if (gameRegisteredRef.current) {
+      unregisterActiveGame();
+      gameRegisteredRef.current = false;
+      console.log('[PlayMultiplayer] Unregistered from navigation guard on game end');
+    }
+
+    // Auto-report result to championship system (non-intrusive, non-blocking)
+    if (championshipContext && championshipContext.match_id) {
+      reportChampionshipResult(event).catch(error => {
+        console.error('[Championship] Failed to report result:', error);
+      });
+    }
 
     // Update game info status
     setGameInfo(prev => ({
@@ -1990,6 +2063,111 @@ const PlayMultiplayer = () => {
       setError('Failed to resign: ' + error.message);
     }
   }, [gameComplete, gameInfo.playerColor, gameData, game, unregisterActiveGame]);
+
+  // Handle nudge opponent (ping to remind them it's their turn)
+  const handleNudgeOpponent = useCallback(async () => {
+    if (!wsService.current || gameComplete || nudgeCooldown) return;
+    try {
+      await wsService.current.pingOpponent();
+      setNudgeMessage('Nudge sent!');
+      setNudgeCooldown(true);
+      setTimeout(() => setNudgeMessage(''), 3000);
+      setTimeout(() => setNudgeCooldown(false), 30000); // 30s cooldown
+    } catch (error) {
+      console.error('❌ Failed to nudge opponent:', error);
+      setNudgeMessage(error.message || 'Failed to nudge');
+      setTimeout(() => setNudgeMessage(''), 3000);
+    }
+  }, [gameComplete, nudgeCooldown]);
+
+  // Handle cancel game due to opponent inactivity (no rating impact)
+  const handleCancelInactiveGame = useCallback(async () => {
+    if (!wsService.current || gameComplete) return;
+
+    const confirmed = window.confirm(
+      'Cancel this game due to opponent inactivity? This will NOT affect ratings or points for either player.'
+    );
+    if (!confirmed) return;
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${BACKEND_URL}/websocket/games/${gameId}/cancel-inactivity`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ socket_id: wsService.current.getSocketId() }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || data.message || 'Failed to cancel game');
+      }
+
+      // Show end card immediately
+      const localResult = {
+        game_over: true,
+        result: '*',
+        end_reason: 'cancelled_inactivity',
+        winner_user_id: null,
+        winner_player: null,
+        fen_final: game?.fen(),
+        move_count: game?.history()?.length || 0,
+        ended_at: new Date().toISOString(),
+        white_player: gameData?.white_player,
+        black_player: gameData?.black_player,
+        white_player_score: 0,
+        black_player_score: 0,
+        isPlayerWin: false,
+        isPlayerDraw: false
+      };
+
+      setGameResult(localResult);
+      setGameComplete(true);
+      setGameInfo(prev => ({ ...prev, status: 'finished' }));
+      markGameEnded(gameId);
+      sessionStorage.removeItem('lastGameId');
+
+      if (gameRegisteredRef.current) {
+        unregisterActiveGame();
+        gameRegisteredRef.current = false;
+      }
+
+      console.log('🚫 Game cancelled due to opponent inactivity — no rating impact');
+    } catch (error) {
+      console.error('❌ Failed to cancel game:', error);
+      setError('Failed to cancel: ' + error.message);
+    }
+  }, [gameComplete, gameId, game, gameData, unregisterActiveGame]);
+
+  // Track opponent inactivity timer
+  useEffect(() => {
+    if (gameComplete || gameInfo.status !== 'active') {
+      if (inactivityTimerRef.current) clearInterval(inactivityTimerRef.current);
+      return;
+    }
+
+    // Reset timer whenever opponent makes a move (i.e. it becomes our turn)
+    if (isMyTurn) {
+      opponentLastMoveTimeRef.current = Date.now();
+      setOpponentInactiveSec(0);
+    }
+
+    inactivityTimerRef.current = setInterval(() => {
+      if (!isMyTurn) {
+        // It's opponent's turn — track how long they've been idle
+        const elapsed = Math.floor((Date.now() - opponentLastMoveTimeRef.current) / 1000);
+        setOpponentInactiveSec(elapsed);
+      } else {
+        setOpponentInactiveSec(0);
+      }
+    }, 1000);
+
+    return () => {
+      if (inactivityTimerRef.current) clearInterval(inactivityTimerRef.current);
+    };
+  }, [gameComplete, gameInfo.status, isMyTurn]);
 
   // Handle undo move request (for casual mode only)
   const handleUndo = useCallback(async () => {
@@ -3018,6 +3196,50 @@ const PlayMultiplayer = () => {
       });
     }
   }, [gameComplete, gameResult]);
+
+  // Polling fallback: if WebSocket is unreliable, periodically check if the game ended server-side
+  useEffect(() => {
+    if (gameComplete || !gameId || !user || loading) return;
+
+    const pollGameStatus = async () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch(`${BACKEND_URL}/games/${gameId}`, {
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (data.status === 'finished' && !gameComplete) {
+          console.warn('⚠️ [Polling Fallback] Server says game is finished but no WebSocket event received — showing end card');
+          const resultData = {
+            game_over: true,
+            result: data.result || 'unknown',
+            end_reason: data.end_reason || 'game_ended',
+            winner_user_id: data.winner_user_id,
+            winner_player: data.winner_user_id === data.white_player?.id ? 'white' : (data.winner_user_id === data.black_player?.id ? 'black' : null),
+            fen_final: data.fen,
+            move_count: data.move_count,
+            ended_at: data.ended_at,
+            white_player: data.white_player,
+            black_player: data.black_player,
+            white_player_score: data.white_player_score || 0,
+            black_player_score: data.black_player_score || 0,
+            isPlayerWin: data.winner_user_id === user?.id,
+            isPlayerDraw: !data.winner_user_id && data.result === '1/2-1/2'
+          };
+          setGameResult(resultData);
+          setGameComplete(true);
+          markGameEnded(gameId);
+          sessionStorage.removeItem('lastGameId');
+        }
+      } catch {
+        // Silent fail — polling is best-effort
+      }
+    };
+
+    const pollTimer = setInterval(pollGameStatus, 5000);
+    return () => clearInterval(pollTimer);
+  }, [gameId, user, gameComplete, loading]);
 
   // NOTE: startResumeCountdown is now provided by usePauseResume hook (destructured at line 209)
 
@@ -4101,6 +4323,13 @@ const PlayMultiplayer = () => {
       turn: gameCopy.turn() === 'w' ? 'white' : 'black'
     }));
 
+    // CRITICAL: Check for checkmate/stalemate/draw after player's own move.
+    // The backend will broadcast gameEnded via WebSocket, but if WS is flaky,
+    // this starts the 3-second fallback timer to show the end card locally.
+    // Without this call, a player who delivers checkmate with a broken WS
+    // connection would never see the game end card.
+    checkForCheckmate(gameCopy);
+
     return true;
     } catch (error) {
       console.error('Invalid move error:', error.message);
@@ -4575,6 +4804,39 @@ const PlayMultiplayer = () => {
                   {drawOfferedByMe ? '⏳ Draw Offered' : '🤝 Draw'}
                 </button>
               )}
+
+              {/* Nudge opponent button — show when it's opponent's turn (human games only) */}
+              {!isSyntheticGame && !isMyTurn && (
+                <button
+                  onClick={handleNudgeOpponent}
+                  disabled={nudgeCooldown}
+                  className={`gc-action-btn ${nudgeCooldown ? 'gc-action-disabled' : 'gc-action-info'}`}
+                  title={nudgeCooldown ? 'Nudge on cooldown (30s)' : 'Remind opponent to make their move'}
+                >
+                  {nudgeCooldown ? '🔔 Nudged' : '🔔 Nudge'}
+                </button>
+              )}
+
+              {/* Cancel game — show after 30s of opponent inactivity */}
+              {!isMyTurn && opponentInactiveSec >= 30 && (
+                <button
+                  onClick={handleCancelInactiveGame}
+                  className="gc-action-btn gc-action-warning"
+                  title="Cancel game due to opponent inactivity — no rating impact"
+                >
+                  ✕ Cancel ({opponentInactiveSec}s idle)
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Nudge feedback message */}
+          {nudgeMessage && (
+            <div style={{
+              textAlign: 'center', padding: '4px 8px', fontSize: '12px',
+              color: '#10b981', fontWeight: 500
+            }}>
+              {nudgeMessage}
             </div>
           )}
           {gameInfo.status === 'finished' && (

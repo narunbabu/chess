@@ -22,9 +22,13 @@ export function encodeGameHistory(gameHistory) {
     if (typeof entry === 'string') {
       parts.push(entry);
     }
-    // Format 2: Computer game format { move: { san }, timeSpent }
+    // Format 2: Computer game format { move: { san }, timeSpent, evaluation? }
     else if (entry.move && entry.move.san && entry.timeSpent !== undefined) {
-      parts.push(entry.move.san + "," + entry.timeSpent.toFixed(2));
+      let part = entry.move.san + "," + entry.timeSpent.toFixed(2);
+      if (entry.evaluation && entry.evaluation.total != null) {
+        part += "," + entry.evaluation.total.toFixed(1) + "," + (entry.evaluation.moveClassification || '');
+      }
+      parts.push(part);
     }
     // Format 3: Server/multiplayer format { san, move_time_ms }
     else if (entry.san && entry.move_time_ms !== undefined) {
@@ -54,8 +58,14 @@ export function decodeGameHistory(gameString) {
   let moves = [];
   parts.forEach((part) => {
     if (part) {
-      const [san, timeStr] = part.split(",");
-      moves.push({ san: san, timeSpent: parseFloat(timeStr) });
+      const fields = part.split(",");
+      const entry = { san: fields[0], timeSpent: parseFloat(fields[1]) };
+      // New format: san,time,evalTotal,classification (backwards-compatible)
+      if (fields.length > 2 && fields[2] !== '') {
+        entry.evalTotal = parseFloat(fields[2]);
+        entry.moveClassification = fields[3] || null;
+      }
+      moves.push(entry);
     }
   });
   return moves;
@@ -123,7 +133,10 @@ export function reconstructGameFromHistory(gameString) {
       },
       playerColor: moveObj.color,
       timeSpent: moveData.timeSpent,
-      evaluation: null, // Evaluation can be recalculated on replay if desired.
+      evaluation: moveData.evalTotal != null ? {
+        total: moveData.evalTotal,
+        moveClassification: moveData.moveClassification,
+      } : null,
     });
   });
 

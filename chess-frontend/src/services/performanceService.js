@@ -9,7 +9,7 @@ export const performanceService = {
    * @returns {Promise<Object>} Performance metrics
    */
   getGamePerformance: async (gameId) => {
-    const response = await api.get(`/performance/game/${gameId}`);
+    const response = await api.get(`/games/${gameId}/performance`);
     return response.data;
   },
 
@@ -19,7 +19,7 @@ export const performanceService = {
    * @returns {Promise<Object>} Move analysis data
    */
   getMoveAnalysis: async (gameId) => {
-    const response = await api.get(`/performance/game/${gameId}/moves`);
+    const response = await api.get(`/games/${gameId}/analysis`);
     return response.data;
   },
 

@@ -5,8 +5,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
 import { isGameEnded } from '../../utils/endedGamesTracker';
+import { getEcho } from '../../services/echoSingleton';
 
-const POLL_INTERVAL_MS = 15000; // re-check every 15 s
+const POLL_INTERVAL_MS = 5000; // re-check every 5s for prompt game notifications
 const MAX_BANNERS = 3; // show at most 3 banners
 
 function formatTimeAgo(date) {
@@ -69,6 +70,12 @@ const ActiveGameBanner = () => {
             newGameIds.forEach(id => next.delete(id));
             return next;
           });
+          // Play notification sound for new games
+          try {
+            const audio = new Audio('/sounds/check.mp3');
+            audio.volume = 0.5;
+            audio.play().catch(() => {});
+          } catch { /* silent */ }
         }
         return games;
       });
@@ -85,6 +92,31 @@ const ActiveGameBanner = () => {
     const t = setInterval(fetchActiveGames, POLL_INTERVAL_MS);
     return () => clearInterval(t);
   }, [isAuthenticated, fetchActiveGames]);
+
+  // Listen for invitation/game events on user's private channel for instant notification
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) return;
+    const echo = getEcho();
+    if (!echo) return;
+
+    const channelName = `App.Models.User.${user.id}`;
+    const channel = echo.private(channelName);
+
+    const handleInvitation = () => {
+      // Immediately re-fetch active games when an invitation arrives
+      fetchActiveGames();
+    };
+
+    channel.listen('.InvitationSent', handleInvitation);
+    channel.listen('.game.activated', handleInvitation);
+    channel.listen('.game.created', handleInvitation);
+
+    return () => {
+      channel.stopListening('.InvitationSent', handleInvitation);
+      channel.stopListening('.game.activated', handleInvitation);
+      channel.stopListening('.game.created', handleInvitation);
+    };
+  }, [isAuthenticated, user?.id, fetchActiveGames]);
 
   // Re-fetch immediately whenever user navigates away FROM a game page
   useEffect(() => {

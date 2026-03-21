@@ -289,14 +289,29 @@ const Dashboard = () => {
 
   // Fetch daily challenge & game quota once user is available
   // Separate from main effect so it's not blocked by didFetchRef
+  // Also re-fetch when page becomes visible (user returns from a game)
   useEffect(() => {
     if (!user) return;
-    api.get('/tutorial/daily-challenge')
-      .then(res => setDailyChallenge(res.data.data || res.data))
-      .catch(() => {});
-    api.get('/games/daily-quota')
-      .then(res => setDailyQuota(res.data))
-      .catch(() => {});
+
+    const fetchQuotaAndChallenge = () => {
+      api.get('/tutorial/daily-challenge')
+        .then(res => setDailyChallenge(res.data.data || res.data))
+        .catch(() => {});
+      api.get('/games/daily-quota')
+        .then(res => setDailyQuota(res.data))
+        .catch(() => {});
+    };
+
+    fetchQuotaAndChallenge();
+
+    // Re-fetch when user returns to this tab/page
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        fetchQuotaAndChallenge();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [user]);
 
   const handleReviewGame = (game) => {

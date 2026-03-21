@@ -439,7 +439,7 @@ const GameHistoryPage = () => {
                           ...game,
                           result: game.result || 'unknown',
                           playerColor: (game.playerColor || 'white').toLowerCase(),
-                          opponentName: game.opponentName || 'Unknown',
+                          opponentName: game.opponentName || game.opponent_name || 'Unknown',
                           endTime: game.endTime || Date.now(),
                           startTime: game.startTime || Date.now(),
                           moves: Array.isArray(game.moves) ? game.moves : [],

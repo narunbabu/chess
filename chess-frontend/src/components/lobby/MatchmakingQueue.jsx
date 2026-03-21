@@ -1,8 +1,15 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import matchmakingService from '../../services/matchmakingService';
-import { getPreferredGameMode, setPreferredGameMode } from '../../utils/gamePreferences';
+import {
+  getPreferredGameMode, setPreferredGameMode,
+  getPreferredTimeControl, setPreferredTimeControl,
+  getPreferredColor as getSavedColor, setPreferredColor as saveColor,
+} from '../../utils/gamePreferences';
+import { BASE_URL } from '../../config';
 import '../../styles/UnifiedCards.css';
+import '../../pages/LobbyPage.css'; // Matchmaking overlay/modal styles
 
 const QUEUE_TIMEOUT_SECONDS = 15;
 const FIND_PLAYERS_TIMEOUT_SECONDS = 15;
@@ -41,10 +48,33 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
   const statusRef = useRef('idle');
   statusRef.current = status;
 
-  // Pre-search preferences
-  const [preferredColor, setPreferredColor] = useState('random');
-  const [timeControl, setTimeControl] = useState(10);
-  const [increment, setIncrement] = useState(5);
+  // Live online count during search (polls /api/v1/status every 5s while searching)
+  const [liveOnline, setLiveOnline] = useState(null);
+  useEffect(() => {
+    if (status !== 'findingPlayers' && status !== 'searching') {
+      setLiveOnline(null);
+      return;
+    }
+    const fetchCount = async () => {
+      try {
+        const res = await fetch(`${BASE_URL}/api/v1/status`);
+        if (res.ok) {
+          const data = await res.json();
+          const count = data.players?.recently_active ?? 0;
+          console.log('[Matchmaking] Online players:', count, '(strongly:', data.players?.strongly_online, ')');
+          setLiveOnline(count);
+        }
+      } catch {}
+    };
+    fetchCount();
+    const id = setInterval(fetchCount, 5000);
+    return () => clearInterval(id);
+  }, [status]);
+
+  // Pre-search preferences (restored from localStorage)
+  const [preferredColor, setPreferredColor] = useState(() => getSavedColor());
+  const [timeControl, setTimeControl] = useState(() => getPreferredTimeControl().minutes);
+  const [increment, setIncrement] = useState(() => getPreferredTimeControl().increment);
   const [gameMode, setGameMode] = useState(() => getPreferredGameMode());
 
   const cleanup = useCallback(() => {
@@ -93,6 +123,9 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
       const id = data.entry.id;
       setEntryId(id);
 
+      // Emit debug event for dev panel
+      window.dispatchEvent(new CustomEvent('mm:debug', { detail: { phase: 'joinQueue', entryId: id, status: data.entry.status } }));
+
       // Start polling for match (countdown already running)
       pollRef.current = setInterval(async () => {
         try {
@@ -104,8 +137,9 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
             setStatus('matched');
             setMatchResult(entry);
 
-            // Navigate after brief celebration
+            // Navigate after brief celebration — close modal first to prevent overlay persisting
             setTimeout(() => {
+              onClose(); // Close modal before navigation to remove Portal overlay
               if (entry.match_type === 'human') {
                 sessionStorage.setItem('lastInvitationAction', 'matchmaking_matched');
                 sessionStorage.setItem('lastInvitationTime', Date.now().toString());
@@ -144,7 +178,7 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
       console.error('[Matchmaking] Failed to join queue:', err);
       setStatus('error');
     }
-  }, [preferredColor, timeControl, increment, gameMode, cleanup, navigate]);
+  }, [preferredColor, timeControl, increment, gameMode, cleanup, navigate, onClose]);
 
   // Start smart matchmaking: try findPlayers first, then fall back
   const startSearch = useCallback(async () => {
@@ -170,6 +204,9 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
       const targetsCount = data.match_request?.targets_count || 0;
       matchRequestTokenRef.current = data.match_request?.token;
       setRemainingTargets(targetsCount);
+
+      // Emit debug event for dev panel
+      window.dispatchEvent(new CustomEvent('mm:debug', { detail: { phase: 'findPlayers', targets: targetsCount, token: data.match_request?.token, status: data.match_request?.status } }));
 
       // If no targets found, immediately fall back to queue
       if (targetsCount === 0) {
@@ -200,8 +237,14 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
       }, FIND_PLAYERS_TIMEOUT_SECONDS * 1000);
     } catch (err) {
       console.error('[Matchmaking] Failed to find players:', err);
-      // Fall back to queue on error
-      fallbackToQueue();
+      // Fall back to queue on error — if that also fails, cleanup + error state
+      try {
+        await fallbackToQueue();
+      } catch (fallbackErr) {
+        console.error('[Matchmaking] Queue fallback also failed:', fallbackErr);
+        cleanup();
+        setStatus('error');
+      }
     }
   }, [preferredColor, timeControl, increment, gameMode, cleanup, fallbackToQueue]);
 
@@ -219,6 +262,7 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
         });
 
         setTimeout(() => {
+          onClose(); // Close modal before navigation to remove Portal overlay
           sessionStorage.setItem('lastInvitationAction', 'smart_match_accepted');
           sessionStorage.setItem('lastInvitationTime', Date.now().toString());
           sessionStorage.setItem('lastGameId', gameId.toString());
@@ -250,7 +294,7 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
       window.removeEventListener('matchRequestAccepted', handleMatchAccepted);
       window.removeEventListener('matchRequestDeclined', handleMatchDeclined);
     };
-  }, [cleanup, navigate, fallbackToQueue]);
+  }, [cleanup, navigate, fallbackToQueue, onClose]);
 
   const handleCancel = async () => {
     cleanup();
@@ -281,7 +325,7 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
   const progress = ((TOTAL_SEARCH_SECONDS - secondsLeft) / TOTAL_SEARCH_SECONDS) * 100;
   const categories = [...new Set(TIME_PRESETS.map(p => p.category))];
 
-  return (
+  return createPortal(
     <div className="matchmaking-overlay" onClick={handleCancel}>
       <div className="matchmaking-modal" onClick={(e) => e.stopPropagation()}>
         {/* Pre-search options screen */}
@@ -301,7 +345,7 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
                       return (
                         <button
                           key={`${preset.minutes}-${preset.increment}`}
-                          onClick={() => { setTimeControl(preset.minutes); setIncrement(preset.increment); }}
+                          onClick={() => { setTimeControl(preset.minutes); setIncrement(preset.increment); setPreferredTimeControl(preset.minutes, preset.increment); }}
                           style={{
                             padding: '5px 12px',
                             borderRadius: '16px',
@@ -376,7 +420,7 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
                   return (
                     <button
                       key={opt.value}
-                      onClick={() => setPreferredColor(opt.value)}
+                      onClick={() => { setPreferredColor(opt.value); saveColor(opt.value); }}
                       style={{
                         flex: 1,
                         padding: '10px 8px',
@@ -444,10 +488,17 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
               />
             </div>
             <p className="matchmaking-timer">{secondsLeft}s</p>
+            {liveOnline !== null && (
+              <p style={{ fontSize: '0.78rem', color: liveOnline > 0 ? '#4caf50' : '#8b8987', margin: '4px 0 8px', textAlign: 'center' }}>
+                {liveOnline > 0 ? `${liveOnline} player${liveOnline !== 1 ? 's' : ''} online` : 'No other players online right now'}
+              </p>
+            )}
             <p className="matchmaking-hint">
               {status === 'findingPlayers' && remainingTargets > 0
                 ? `Waiting for ${remainingTargets} player${remainingTargets !== 1 ? 's' : ''} to respond...`
-                : 'Searching for the best match...'
+                : status === 'searching'
+                  ? 'No players responded — finding you a worthy opponent...'
+                  : 'Searching for online players...'
               }
             </p>
 
@@ -461,6 +512,11 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
           <>
             <div className="matchmaking-matched-icon">&#9876;&#65039;</div>
             <h2 className="matchmaking-title">Match Found!</h2>
+            {matchResult.match_type !== 'human' && (
+              <p style={{ fontSize: '0.8rem', color: '#e8a93e', margin: '-4px 0 8px' }}>
+                No players online — matched with AI opponent
+              </p>
+            )}
             <div className="matchmaking-opponent-card">
               {matchResult.opponent?.avatar_url && (
                 <img
@@ -481,11 +537,12 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
         {/* Fallback: no human and no bot available — redirecting to computer setup */}
         {status === 'fallback' && (
           <>
-            <div className="matchmaking-spinner">
-              <div className="chess-piece-spin">&#9820;</div>
-            </div>
-            <h2 className="matchmaking-title">No opponent found</h2>
-            <p className="matchmaking-subtitle">Starting a game vs computer...</p>
+            <div style={{ fontSize: '3rem', marginBottom: '12px' }}>&#9820;</div>
+            <h2 className="matchmaking-title">No players online right now</h2>
+            <p className="matchmaking-subtitle">Redirecting you to play vs computer...</p>
+            <p style={{ fontSize: '0.78rem', color: '#8b8987', marginTop: '8px' }}>
+              Tip: Try again during peak hours for human opponents
+            </p>
           </>
         )}
 
@@ -500,7 +557,8 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
