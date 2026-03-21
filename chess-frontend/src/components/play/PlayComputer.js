@@ -21,6 +21,8 @@ import { makeComputerMove, waitForPerceivedThinkTime } from "../../utils/compute
 import { updateGameStatus, evaluateMove } from "../../utils/gameStateUtils"; // Adjust paths if needed (ensure evaluateMove exists)
 import { encodeGameHistory, reconstructGameFromHistory } from "../../utils/gameHistoryStringUtils"; // Adjust paths if needed
 import { createResultFromComputerGame } from "../../utils/resultStandardization"; // Standardized result format
+import { getRatingFromLevel } from "../../utils/eloUtils"; // Level-to-rating mapping
+import { getOpponentResponse, shouldAutoRespond, resolveQuickMessageTrigger } from "../../utils/syntheticChatUtils";
 import { monitorPerformance } from "../../utils/devLogger";
 import { getMovePath, createPathHighlights, mergeHighlights } from "../../utils/movePathUtils"; // Move path utilities
 
@@ -127,6 +129,37 @@ const loadActiveGameState = () => {
   }
 };
 
+/**
+ * Generate a synthetic opponent identity for regular computer games.
+ * Uses random Indian names + DiceBear avatar + level-based rating.
+ */
+const SYNTH_FIRST_NAMES = [
+  'Aarav', 'Aditi', 'Aditya', 'Akash', 'Amit', 'Ananya', 'Anjali', 'Arjun',
+  'Ashwin', 'Deepa', 'Deepak', 'Devika', 'Dhruv', 'Divya', 'Gaurav',
+  'Hari', 'Ishaan', 'Kabir', 'Kavya', 'Kiran', 'Krishna', 'Madhav', 'Meera',
+  'Naveen', 'Neha', 'Nikhil', 'Pranav', 'Priya', 'Rahul', 'Rohan', 'Sakshi',
+  'Siddharth', 'Sneha', 'Tanvi', 'Varun', 'Vijay', 'Vikram',
+];
+const SYNTH_LAST_NAMES = [
+  'Agarwal', 'Bhat', 'Das', 'Desai', 'Ghosh', 'Gupta', 'Jain', 'Joshi',
+  'Kapoor', 'Khan', 'Kumar', 'Mehta', 'Mishra', 'Nair', 'Patel', 'Rao',
+  'Reddy', 'Shah', 'Sharma', 'Singh', 'Verma',
+];
+const generateLocalSyntheticOpponent = (level) => {
+  const firstName = SYNTH_FIRST_NAMES[Math.floor(Math.random() * SYNTH_FIRST_NAMES.length)];
+  const lastName = SYNTH_LAST_NAMES[Math.floor(Math.random() * SYNTH_LAST_NAMES.length)];
+  const name = `${firstName} ${lastName}`;
+  const avatarSeed = `${firstName.toLowerCase()}_${lastName.toLowerCase()}_${level}`;
+  return {
+    name,
+    avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${avatarSeed}`,
+    rating: getRatingFromLevel(level),
+    computer_level: level,
+    personality: null,
+    id: null,
+  };
+};
+
 const PlayComputer = () => {
   // --- State variables ---
   const [game, setGame] = useState(new Chess());
@@ -168,6 +201,11 @@ const PlayComputer = () => {
   const [moveCount, setMoveCount] = useState(0); // Simple move counter
   const [timerButtonColor, setTimerButtonColor] = useState("grey"); // Color of the TimerButton
   const [timerButtonText, setTimerButtonText] = useState("Your Turn"); // Text of the TimerButton
+  const [chatMessages, setChatMessages] = useState([]); // In-game chat messages
+  const [chatUnread, setChatUnread] = useState(0); // Unread chat message counter
+  const chatTabOpenRef = useRef(false); // Whether chat tab is currently visible
+  const chatIdRef = useRef(0); // Chat message ID counter
+  const autoResponseTimerRef = useRef(null); // Pending synthetic response timeout
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth); // For layout adjustments
   const navigate = useNavigate(); // For navigation buttons
   const location = useLocation();
@@ -189,6 +227,7 @@ const PlayComputer = () => {
 
   const [currentGameId, setCurrentGameId] = useState(null);
   const [backendGame, setBackendGame] = useState(null); // Store backend game data
+  const backendGameRef = useRef(null); // Ref to avoid stale closure in resign/complete
   const [canUndo, setCanUndo] = useState(false); // Track if undo is available
   const [undoChancesRemaining, setUndoChancesRemaining] = useState(0); // Track remaining undo chances
   const [pendingNavigation, setPendingNavigation] = useState(null); // Store navigation path when blocked
@@ -196,6 +235,9 @@ const PlayComputer = () => {
   const [syntheticOpponent, setSyntheticOpponent] = useState(
     location.state?.gameMode === 'synthetic' ? location.state.syntheticPlayer : null
   ); // Synthetic bot identity from lobby matchmaking
+  const syntheticOpponentRef = useRef(syntheticOpponent);
+  useEffect(() => { syntheticOpponentRef.current = syntheticOpponent; }, [syntheticOpponent]);
+  useEffect(() => { backendGameRef.current = backendGame; }, [backendGame]);
   const [restoredFromRefresh, setRestoredFromRefresh] = useState(false); // Show "Game restored" toast
 
   // Board customization state
@@ -435,8 +477,14 @@ const PlayComputer = () => {
         setIsTimerRunning(false);
         setActiveTimer(null);
 
+        // Set game over IMMEDIATELY to prevent computer turn useEffect from firing
+        // during the async backend call below (race condition fix)
+        setGameOver(true);
+
         // --- Mark backend game as finished BEFORE showing end card ---
-        if (backendGame?.id && user) {
+        // Use ref to avoid stale closure (backendGame may not be in useCallback deps)
+        const activeBackendGame = backendGameRef.current || backendGame;
+        if (activeBackendGame?.id && user) {
           try {
             // Derive chess result string from status
             let chessResult = '1/2-1/2'; // default draw
@@ -450,19 +498,17 @@ const PlayComputer = () => {
             }
 
             const endReason = status.reason || 'checkmate';
-            await gameService.completeGame(backendGame.id, {
+            await gameService.completeGame(activeBackendGame.id, {
               result: chessResult,
               endReason,
               moveCount: finalHistory?.length || 0,
             });
-            console.log('[PlayComputer] ✅ Backend game marked as finished:', backendGame.id);
+            console.log('[PlayComputer] ✅ Backend game marked as finished:', activeBackendGame.id);
           } catch (err) {
             console.error('[PlayComputer] ⚠️ Failed to mark backend game as finished:', err);
             // Non-blocking — game UI still shows end card
           }
         }
-
-        setGameOver(true);
         setShowGameCompletion(true); // Show completion modal
         setCanUndo(false); // Disable undo after game ends
         setSearchParams({}, { replace: true }); // Clear gameId from URL
@@ -503,10 +549,12 @@ const PlayComputer = () => {
         );
 
         // Attach synthetic opponent data so GameEndCard can display name/avatar
-        if (syntheticOpponent) {
-            standardizedResult.opponent_name = syntheticOpponent.name;
-            standardizedResult.opponent_avatar_url = syntheticOpponent.avatar_url;
-            standardizedResult.opponent_rating = syntheticOpponent.rating;
+        // Use ref to avoid stale closure (syntheticOpponent is not in useCallback deps)
+        const currentSyntheticOpponent = syntheticOpponentRef.current;
+        if (currentSyntheticOpponent) {
+            standardizedResult.opponent_name = currentSyntheticOpponent.name;
+            standardizedResult.opponent_avatar_url = currentSyntheticOpponent.avatar_url;
+            standardizedResult.opponent_rating = currentSyntheticOpponent.rating;
         }
 
         console.log('🎯 [PlayComputer] Created standardized result:', standardizedResult);
@@ -515,24 +563,11 @@ const PlayComputer = () => {
         setGameResult(standardizedResult);
 
         // Remove current game from unfinished storage (completed games are stored separately)
+        // Clear ALL localStorage unfinished games — for logged-in users, the auto-save
+        // stores games with id=null which can't be cleared by specific ID.
         try {
-            // Clear by local ID
-            if (gameHistory.length > 0) {
-                const localId = `local_${gameHistory[0]?.timestamp || Date.now()}`;
-                clearUnfinishedGame(localId);
-                console.log('[PlayComputer] 🗑️ Removed unfinished game (local):', localId);
-            }
-            // Clear by current tracked game ID
-            if (currentGameId) {
-                clearUnfinishedGame(currentGameId);
-                console.log('[PlayComputer] 🗑️ Removed unfinished game (tracked):', currentGameId);
-            }
-            // Clear by backend game ID (from URL or matchmaking)
-            const backendGameId = searchParams.get('gameId');
-            if (backendGameId) {
-                clearUnfinishedGame(backendGameId);
-                console.log('[PlayComputer] 🗑️ Removed unfinished game (backend):', backendGameId);
-            }
+            clearUnfinishedGame(); // Clears all localStorage unfinished games
+            console.log('[PlayComputer] 🗑️ Cleared all unfinished games from localStorage');
         } catch (error) {
             console.error('[PlayComputer] ❌ Failed to clear unfinished game:', error);
         }
@@ -548,11 +583,11 @@ const PlayComputer = () => {
             final_score: positiveScore,
             opponent_score: Math.abs(capturedComputerScore), // Save computer score as positive
             result: standardizedResult, // Use standardized result object
-            game_id: backendGame?.id || null, // Link to games table
+            game_id: activeBackendGame?.id || null, // Link to games table
             // Synthetic opponent identity — persisted so game review shows correct name/avatar
-            opponent_name: syntheticOpponent?.name || null,
-            opponent_avatar_url: syntheticOpponent?.avatar_url || null,
-            opponent_rating: syntheticOpponent?.rating || null,
+            opponent_name: currentSyntheticOpponent?.name || null,
+            opponent_avatar_url: currentSyntheticOpponent?.avatar_url || null,
+            opponent_rating: currentSyntheticOpponent?.rating || null,
         };
 
         // Save completed game to the correct storage location
@@ -1374,6 +1409,11 @@ const PlayComputer = () => {
             // *** Dynamic Artificial Delay — Promise-based ***
             // waitForPerceivedThinkTime resolves after (perceived - actual) ms
             const lastMove = result.newGame.history({ verbose: true }).slice(-1)[0];
+            if (!lastMove) {
+              console.error('[PlayComputer] No last move found after computer move - skipping turn');
+              setComputerMoveInProgress(false);
+              return;
+            }
             await waitForPerceivedThinkTime(
               game.fen(), gameHistory.length, lastMove, computerDepth,
               syntheticOpponent?.personality || null,
@@ -1390,9 +1430,9 @@ const PlayComputer = () => {
             // --- Apply the move and update game state ---
             setGame(newGame); // Update the board state
             // Play appropriate sound based on move type
-            if (bestMove.captured) {
+            if (lastMove.captured) {
               playSound(captureSoundEffect);
-            } else if (bestMove.flags && (bestMove.flags.includes('k') || bestMove.flags.includes('q'))) {
+            } else if (lastMove.flags && (lastMove.flags.includes('k') || lastMove.flags.includes('q'))) {
               playSound(castleSoundEffect);
             } else {
               playSound(moveSoundEffect);
@@ -1501,6 +1541,7 @@ const PlayComputer = () => {
     if (
       gameStarted &&
       !gameOver &&
+      !game.isGameOver() && // Extra safety: check chess.js directly (handles race with async setGameOver)
       !isReplayMode &&
       !isOnlineGame &&
       !computerMoveInProgress && // Ensure previous move isn't still processing
@@ -1737,8 +1778,15 @@ const PlayComputer = () => {
 
    const startGame = useCallback(() => {
         // Starts the countdown if game not already started
-        if (!gameStarted && !countdownActive) setCountdownActive(true);
-    }, [gameStarted, countdownActive]); // Correct dependencies
+        if (!gameStarted && !countdownActive) {
+          // Auto-assign synthetic opponent for regular computer games
+          if (!syntheticOpponent) {
+            const generated = generateLocalSyntheticOpponent(computerDepth);
+            setSyntheticOpponent(generated);
+          }
+          setCountdownActive(true);
+        }
+    }, [gameStarted, countdownActive, syntheticOpponent, computerDepth]);
 
    const onCountdownFinish = useCallback(async (overrideRatedMode, overridePlayerColor) => {
         // Initializes game state when countdown finishes
@@ -1802,7 +1850,7 @@ const PlayComputer = () => {
           computerScore: 0,
           playerTime: timeControlMin * 60,
           computerTime: timeControlMin * 60,
-          syntheticOpponent: syntheticOpponent || null,
+          syntheticOpponent: syntheticOpponentRef.current || null,
           undoChancesRemaining: initialUndoChances,
           currentGameId: currentGameId || null,
         });
@@ -1811,13 +1859,14 @@ const PlayComputer = () => {
         if (user) {
           (async () => {
             try {
+              const effectiveSynth = syntheticOpponentRef.current;
               const gameData = {
                 player_color: effectivePlayerColor === 'w' ? 'white' : 'black',
                 computer_level: computerDepth,
                 time_control: timeControlMin,
                 increment: incrementSec,
-                game_mode: syntheticOpponent ? 'casual' : effectiveRatedMode,
-                synthetic_player_id: syntheticOpponent?.id || null,
+                game_mode: effectiveSynth ? 'casual' : effectiveRatedMode,
+                synthetic_player_id: effectiveSynth?.id || null,
               };
               const response = await gameService.createComputerGame(gameData);
               console.log('[PlayComputer] 🎮 Backend game created:', response);
@@ -1872,8 +1921,62 @@ const PlayComputer = () => {
         setSearchParams({}, { replace: true }); // Clear gameId from URL
         setCanUndo(false); // Reset undo availability
         setUndoChancesRemaining(0); // Reset undo chances
+        setSyntheticOpponent(null); // Reset so next game gets a fresh opponent name
+        setChatMessages([]); // Clear chat on reset
         // Note: Does not reset playerColor, computerDepth, or ratedMode, keeping user selections
     }, [resetTimer, timerRef, replayTimerRef]); // Dependencies: stable hook fn and refs accessed
+
+    // --- Chat handlers for synthetic opponent ---
+    const addChatMessage = useCallback((sender, message, isPlayer, type = 'message') => {
+      chatIdRef.current += 1;
+      setChatMessages(prev => [...prev, {
+        id: chatIdRef.current,
+        sender,
+        message,
+        isPlayer,
+        type,
+        created_at: new Date().toISOString(),
+      }]);
+      // Increment unread badge if opponent message and chat tab not open
+      if (!isPlayer && type !== 'system' && !chatTabOpenRef.current) {
+        setChatUnread(prev => prev + 1);
+      }
+    }, []);
+
+    const scheduleOpponentResponse = useCallback((trigger) => {
+      const personality = syntheticOpponentRef.current?.personality || null;
+      const result = shouldAutoRespond(personality, { type: trigger });
+      if (!result.shouldRespond) return;
+      const response = getOpponentResponse(personality, result.trigger);
+      if (!response) return;
+      if (autoResponseTimerRef.current) clearTimeout(autoResponseTimerRef.current);
+      autoResponseTimerRef.current = setTimeout(() => {
+        addChatMessage(syntheticOpponentRef.current?.name || 'Opponent', response, false);
+      }, result.delay);
+    }, [addChatMessage]);
+
+    const handleChatSend = useCallback((message, type = 'message') => {
+      const playerName = user?.name || 'You';
+      addChatMessage(playerName, message, true, type);
+      // Schedule synthetic opponent response
+      if (type === 'emoji') {
+        scheduleOpponentResponse('player_chat');
+      } else {
+        const trigger = resolveQuickMessageTrigger(message);
+        scheduleOpponentResponse(trigger ? trigger.replace('onPlayerChat_', 'player_chat_') : 'player_chat');
+      }
+    }, [user?.name, addChatMessage, scheduleOpponentResponse]);
+
+    const handlePing = useCallback(() => {
+      const opName = syntheticOpponentRef.current?.name || 'Opponent';
+      addChatMessage('System', `You nudged ${opName} 🔔`, false, 'system');
+      scheduleOpponentResponse('player_ping');
+    }, [addChatMessage, scheduleOpponentResponse]);
+
+    // Cleanup auto-response timer on unmount
+    useEffect(() => {
+      return () => { if (autoResponseTimerRef.current) clearTimeout(autoResponseTimerRef.current); };
+    }, []);
 
     const handleResign = useCallback(async () => {
         // Handle player resignation
@@ -1888,6 +1991,17 @@ const PlayComputer = () => {
 
         // Stop timers
         clearActiveGameState(); // Clear refresh persistence — player resigned
+
+        // Clear ALL unfinished games from localStorage.
+        // For logged-in users, the auto-save stores games with id=null (not a trackable ID),
+        // so targeted clearUnfinishedGame(specificId) can't find them. Since only one game
+        // can be active at a time, clearing all is safe on resign.
+        try {
+            clearUnfinishedGame(); // Clears all localStorage unfinished games
+        } catch (error) {
+            console.error('[PlayComputer] ❌ Failed to clear unfinished game on resign:', error);
+        }
+
         if (timerRef.current) clearInterval(timerRef.current);
         setIsTimerRunning(false);
         setActiveTimer(null);
@@ -1896,11 +2010,12 @@ const PlayComputer = () => {
         setCanUndo(false); // Disable undo after resignation
         setSearchParams({}, { replace: true }); // Clear gameId from URL
 
-        // Resign from backend game if we have one
-        if (backendGame && user) {
+        // Resign from backend game if we have one (use ref to avoid stale closure)
+        const activeBackendGame = backendGameRef.current || backendGame;
+        if (activeBackendGame && user) {
           try {
-            await gameService.resign(backendGame.id);
-            console.log('[PlayComputer] 🏳️ Resigned from backend game:', backendGame.id);
+            await gameService.resign(activeBackendGame.id);
+            console.log('[PlayComputer] 🏳️ Resigned from backend game:', activeBackendGame.id);
           } catch (error) {
             console.error('[PlayComputer] ❌ Failed to resign from backend game:', error);
             // Continue with local resignation even if backend fails
@@ -1937,16 +2052,21 @@ const PlayComputer = () => {
         // Store the standardized result for GameCompletionAnimation
         setGameResult(standardizedResult);
 
-        // Save game history
+        // Save game history (must match handleGameComplete format for backend)
         const gameHistoryData = {
             id: `local_${Date.now()}`,
             date: now.toISOString(),
-            moves: gameHistory,
-            conciseGameString,
+            played_at: now.toISOString(),
+            player_color: playerColor,
+            computer_depth: computerDepth,
+            moves: conciseGameString,
+            final_score: playerScore || 0,
+            opponent_score: computerScore || 0,
             result: standardizedResult,
-            finalScore: playerScore || 0,
-            computerDepth,
-            playerColor,
+            game_id: activeBackendGame?.id || null,
+            opponent_name: syntheticOpponent?.name || null,
+            opponent_avatar_url: syntheticOpponent?.avatar_url || null,
+            opponent_rating: syntheticOpponent?.rating || null,
         };
 
         saveGameHistory(gameHistoryData);
@@ -1955,7 +2075,7 @@ const PlayComputer = () => {
     }, [
         gameOver, gameStarted, isReplayMode, timerRef, gameHistory, playerColor,
         playerScore, computerScore, computerDepth, user?.rating, invalidateGameHistory,
-        backendGame, user, syntheticOpponent
+        backendGame, user, syntheticOpponent, currentGameId, searchParams
     ]);
 
      const resetCurrentGameSetup = useCallback(() => {
@@ -2496,6 +2616,18 @@ const PlayComputer = () => {
       sidebarData={{
         lastMoveEvaluation,
         lastComputerEvaluation
+      }}
+      chatData={{
+        messages: chatMessages,
+        opponentName: syntheticOpponent?.name || 'Computer',
+        isOpponentThinking: computerMoveInProgress,
+        gameOver,
+        gameStarted,
+        onSendMessage: handleChatSend,
+        onPing: handlePing,
+        unreadCount: chatUnread,
+        onTabOpen: () => { chatTabOpenRef.current = true; setChatUnread(0); },
+        onTabClose: () => { chatTabOpenRef.current = false; },
       }}
       controlsData={{
         gameStarted,
