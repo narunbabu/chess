@@ -27,6 +27,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 @Composable
 fun LoginScreen(
     onNavigateToRegister: () -> Unit,
+    onNavigateToForgotPassword: () -> Unit = {},
     onLoginSuccess: () -> Unit,
     viewModel: AuthViewModel = hiltViewModel(),
 ) {
@@ -149,7 +150,18 @@ fun LoginScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Forgot password link
+        TextButton(onClick = onNavigateToForgotPassword) {
+            Text(
+                "Forgot password?",
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         // Google Sign-In button
         OutlinedButton(

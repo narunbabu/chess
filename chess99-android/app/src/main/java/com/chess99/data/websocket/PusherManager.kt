@@ -70,13 +70,23 @@ class PusherManager @Inject constructor(
 
         pusher = Pusher(BuildConfig.WS_KEY, options).apply {
             connect(object : ConnectionEventListener {
-                override fun connectionEstablished(change: ConnectionStateChange) {
-                    val socketId = connection.socketId
-                    Timber.d("WebSocket connected, socketId: $socketId")
-                    connectionListener?.onConnected(socketId)
+                override fun onConnectionStateChange(change: ConnectionStateChange) {
+                    Timber.d("WebSocket state: ${change.previousState} -> ${change.currentState}")
+                    when (change.currentState) {
+                        ConnectionState.CONNECTED -> {
+                            val socketId = connection.socketId
+                            Timber.d("WebSocket connected, socketId: $socketId")
+                            connectionListener?.onConnected(socketId)
+                        }
+                        ConnectionState.DISCONNECTED -> {
+                            Timber.d("WebSocket disconnected")
+                            connectionListener?.onDisconnected()
+                        }
+                        else -> {}
+                    }
                 }
 
-                override fun connectionError(
+                override fun onError(
                     message: String,
                     code: String?,
                     e: Exception?,

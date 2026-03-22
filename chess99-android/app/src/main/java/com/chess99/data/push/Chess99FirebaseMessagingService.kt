@@ -22,6 +22,9 @@ class Chess99FirebaseMessagingService : FirebaseMessagingService() {
     @Inject
     lateinit var deviceApi: DeviceApi
 
+    @Inject
+    lateinit var notificationHelper: NotificationHelper
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onNewToken(token: String) {
@@ -63,27 +66,33 @@ class Chess99FirebaseMessagingService : FirebaseMessagingService() {
     }
 
     private fun handleGameMoveNotification(data: Map<String, String>) {
-        val gameId = data["game_id"]
-        Timber.d("Your turn notification for game: $gameId")
-        // TODO: Show notification with deep link to game
+        val gameId = data["game_id"]?.toIntOrNull() ?: return
+        val opponentName = data["opponent_name"] ?: "Opponent"
+        val isYourTurn = data["is_your_turn"]?.toBoolean() ?: true
+        Timber.d("Game move notification for game: $gameId, yourTurn=$isYourTurn")
+        notificationHelper.showGameMoveNotification(gameId, opponentName, isYourTurn)
     }
 
     private fun handleInvitationNotification(data: Map<String, String>) {
-        val invitationId = data["invitation_id"]
-        Timber.d("Game invitation notification: $invitationId")
-        // TODO: Show notification with accept/decline actions
+        val invitationId = data["invitation_id"]?.toIntOrNull() ?: return
+        val fromPlayer = data["from_player"] ?: data["sender_name"] ?: "Someone"
+        Timber.d("Game invitation notification: $invitationId from $fromPlayer")
+        notificationHelper.showInvitationNotification(invitationId, fromPlayer)
     }
 
     private fun handleTournamentNotification(data: Map<String, String>) {
-        val championshipId = data["championship_id"]
+        val championshipId = data["championship_id"]?.toIntOrNull() ?: return
+        val title = data["title"] ?: "Tournament Update"
+        val message = data["message"] ?: "Check your tournament for updates."
         Timber.d("Tournament notification for: $championshipId")
-        // TODO: Show notification with deep link to tournament
+        notificationHelper.showTournamentNotification(championshipId, title, message)
     }
 
     private fun handleGenericNotification(message: RemoteMessage) {
-        message.notification?.let { notification ->
-            Timber.d("Generic notification: ${notification.title} - ${notification.body}")
-            // TODO: Show system notification
-        }
+        val notification = message.notification
+        val title = notification?.title ?: message.data["title"] ?: "Chess99"
+        val body = notification?.body ?: message.data["body"] ?: ""
+        Timber.d("Generic notification: $title - $body")
+        notificationHelper.showGenericNotification(title, body)
     }
 }

@@ -495,24 +495,21 @@ const Dashboard = () => {
             <h1 className="text-4xl font-bold text-white">Welcome, {user?.name || user?.email?.split('@')[0] || "Player"}!</h1>
 
             {/* Compact upgrade strip for free-tier users — tier badge + usage bar + CTA */}
-            {currentTier === 'free' && (() => {
-              const todayGames = dailyQuota?.games_today ?? gameHistories.filter(g => {
-                const d = new Date(g.played_at || g.timestamp);
-                const t = new Date();
-                return d.getFullYear() === t.getFullYear() && d.getMonth() === t.getMonth() && d.getDate() === t.getDate();
-              }).length;
-              const limit = dailyQuota?.daily_limit ?? 5;
+            {currentTier === 'free' && dailyQuota !== null && (() => {
+              const todayGames = dailyQuota.games_today ?? 0;
+              const limit = dailyQuota.daily_limit ?? 5;
+              const remaining = dailyQuota.remaining ?? Math.max(0, limit - todayGames);
               const pct = Math.min(100, (todayGames / limit) * 100);
               const barColor = pct >= 100 ? '#e74c3c' : pct >= 60 ? '#e8a93e' : '#81b64c';
               return (
                 <div className="upgrade-strip" onClick={() => navigate('/pricing')}>
                   <span className="upgrade-strip-tier">FREE</span>
                   <div className="upgrade-strip-usage">
-                    <span className="upgrade-strip-count" style={{ color: barColor }}>{todayGames}/{limit}</span>
+                    <span className="upgrade-strip-count" style={{ color: barColor }}>{remaining} left</span>
                     <div className="upgrade-strip-bar">
                       <div className="upgrade-strip-fill" style={{ width: `${pct}%`, background: barColor }} />
                     </div>
-                    <span className="upgrade-strip-label">online today</span>
+                    <span className="upgrade-strip-label">of {limit} online today</span>
                   </div>
                   <button className="upgrade-strip-cta" onClick={(e) => { e.stopPropagation(); navigate('/pricing'); }}>
                     ⬆ Go Silver — ₹199/mo

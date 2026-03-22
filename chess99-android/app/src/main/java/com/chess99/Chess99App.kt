@@ -37,8 +37,25 @@ class Chess99App : Application() {
             description = "Notifications for tournament updates and reminders"
         }
 
+        val socialChannel = NotificationChannel(
+            "chess99_social",
+            "Social Notifications",
+            NotificationManager.IMPORTANCE_LOW
+        ).apply {
+            description = "Notifications for friend requests and social events"
+        }
+
+        val systemChannel = NotificationChannel(
+            "chess99_system",
+            "System Notifications",
+            NotificationManager.IMPORTANCE_MIN
+        ).apply {
+            description = "System maintenance and informational messages"
+        }
+
         val manager = getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(gameChannel)
-        manager.createNotificationChannel(tournamentChannel)
+        manager.createNotificationChannels(
+            listOf(gameChannel, tournamentChannel, socialChannel, systemChannel)
+        )
     }
 }

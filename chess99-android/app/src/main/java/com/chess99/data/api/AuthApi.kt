@@ -33,4 +33,10 @@ interface AuthApi {
 
     @GET("health")
     suspend fun getHealth(): Response<HealthResponse>
+
+    @POST("auth/forgot-password")
+    suspend fun forgotPassword(@Body request: com.google.gson.JsonObject): Response<com.google.gson.JsonObject>
+
+    @POST("auth/reset-password")
+    suspend fun resetPassword(@Body request: com.google.gson.JsonObject): Response<com.google.gson.JsonObject>
 }

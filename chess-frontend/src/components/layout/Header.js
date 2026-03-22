@@ -461,19 +461,6 @@ const Header = () => {
             <IoStatsChart size={24} />
             <span className="nav-text">Leaderboard</span>
           </Link>
-          <Link
-            to="/daily-challenge"
-            className="nav-link nav-icon-link"
-            onClick={(e) => {
-              e.preventDefault();
-              handleNavItemClick(() => navigate('/daily-challenge'), '/daily-challenge');
-            }}
-            title="Daily Challenge"
-            aria-label="Daily Challenge"
-          >
-            <span style={{ fontSize: 20 }}>🧩</span>
-            <span className="nav-text">Daily</span>
-          </Link>
           {!loading && activeGame && (
             <button
               onClick={handleResumeGame}

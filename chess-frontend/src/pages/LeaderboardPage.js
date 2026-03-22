@@ -286,6 +286,7 @@ const LeaderboardPage = () => {
   const [error, setError] = useState(null);
   const [period, setPeriod] = useState('7d');
   const [category, setCategory] = useState('most_games');
+  const [lastFetched, setLastFetched] = useState(null);
 
   // Share state
   const [shareEntry, setShareEntry] = useState(null);       // single-player card
@@ -299,10 +300,12 @@ const LeaderboardPage = () => {
   const fetchLeaderboard = useCallback(async (p) => {
     setLoading(true);
     setError(null);
+    setData(null);
     try {
       const res = await fetch(`${BACKEND_URL}/leaderboard?period=${p}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setData(await res.json());
+      setLastFetched(new Date());
     } catch (err) {
       setError(err.message);
     } finally {
@@ -439,7 +442,20 @@ const LeaderboardPage = () => {
         {shareEntry && <LeaderboardShareCard ref={shareCardRef} entry={shareEntry} category={category} period={period} />}
         {shareOverview && <LeaderboardOverviewCard ref={overviewCardRef} entries={entries} category={category} period={period} />}
 
-        <h1 style={S.title}>Leaderboard</h1>
+        <div style={S.titleRow}>
+          <h1 style={S.title}>Leaderboard</h1>
+          <button
+            onClick={() => fetchLeaderboard(period)}
+            disabled={loading}
+            style={{ ...S.refreshBtn, ...(loading ? { opacity: 0.5 } : {}) }}
+            title="Refresh leaderboard"
+          >
+            {loading ? '⏳' : '🔄'}
+          </button>
+        </div>
+        {lastFetched && !loading && (
+          <p style={S.lastFetched}>Updated {lastFetched.toLocaleTimeString()}</p>
+        )}
 
         {/* ─── Invite Banner ─── */}
         <div style={S.inviteBanner}>
@@ -450,7 +466,7 @@ const LeaderboardPage = () => {
               <div style={S.inviteSubtext}>Share the leaderboard card and invite them to compete</div>
             </div>
           </div>
-          <button onClick={handleShareInvite} disabled={isCapturing || entries.length === 0} style={{ ...S.inviteBtn, ...(isCapturing ? { opacity: 0.6 } : {}) }}>
+          <button onClick={handleShareInvite} disabled={isCapturing || entries.length === 0 || loading} style={{ ...S.inviteBtn, ...((isCapturing || loading) ? { opacity: 0.6 } : {}) }}>
             {isCapturing && shareOverview ? '⏳ Creating...' : '📤 Share Card'}
           </button>
         </div>
@@ -560,7 +576,10 @@ const LeaderboardPage = () => {
 const S = {
   page: { minHeight: '100vh', background: '#262421', padding: '20px 12px' },
   container: { maxWidth: 700, margin: '0 auto' },
-  title: { color: '#fff', fontSize: 28, fontWeight: 700, textAlign: 'center', marginBottom: 16 },
+  titleRow: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 4 },
+  title: { color: '#fff', fontSize: 28, fontWeight: 700, textAlign: 'center', margin: 0 },
+  refreshBtn: { background: 'none', border: '1px solid #464340', borderRadius: 8, cursor: 'pointer', fontSize: 18, padding: '4px 8px', color: '#bababa' },
+  lastFetched: { color: '#7a7572', fontSize: 11, textAlign: 'center', marginBottom: 12, marginTop: 0 },
 
   inviteBanner: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '14px 18px', marginBottom: 20, borderRadius: 12, background: 'linear-gradient(135deg, #2a3a1e 0%, #1e2d16 100%)', border: '1px solid #81b64c50', flexWrap: 'wrap' },
   inviteContent: { display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 200 },

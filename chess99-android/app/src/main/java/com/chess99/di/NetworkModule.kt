@@ -63,4 +63,52 @@ object NetworkModule {
     fun provideDeviceApi(retrofit: Retrofit): DeviceApi {
         return retrofit.create(DeviceApi::class.java)
     }
+
+    @Provides
+    @Singleton
+    fun provideWebSocketApi(retrofit: Retrofit): WebSocketApi {
+        return retrofit.create(WebSocketApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideMatchmakingApi(retrofit: Retrofit): MatchmakingApi {
+        return retrofit.create(MatchmakingApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideProfileApi(retrofit: Retrofit): ProfileApi {
+        return retrofit.create(ProfileApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideChampionshipApi(retrofit: Retrofit): ChampionshipApi {
+        return retrofit.create(ChampionshipApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideTutorialApi(retrofit: Retrofit): TutorialApi {
+        return retrofit.create(TutorialApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideSocialApi(retrofit: Retrofit): SocialApi {
+        return retrofit.create(SocialApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun providePaymentApi(retrofit: Retrofit): PaymentApi {
+        return retrofit.create(PaymentApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideReferralApi(retrofit: Retrofit): ReferralApi {
+        return retrofit.create(ReferralApi::class.java)
+    }
 }

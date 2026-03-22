@@ -4,6 +4,12 @@ sealed class Screen(val route: String) {
     // Auth
     data object Login : Screen("login")
     data object Register : Screen("register")
+    data object ForgotPassword : Screen("forgot_password")
+    data object ResetPassword : Screen("reset_password?token={token}&email={email}") {
+        fun createRoute(token: String, email: String) =
+            "reset_password?token=$token&email=$email"
+    }
+    data object SkillAssessment : Screen("skill_assessment")
 
     // Main tabs
     data object Home : Screen("home")
@@ -25,15 +31,41 @@ sealed class Screen(val route: String) {
     data object ChampionshipDetail : Screen("championships/{id}") {
         fun createRoute(id: Int) = "championships/$id"
     }
+    data object ChampionshipInvitations : Screen("championship_invitations")
 
-    // Tutorial
+    // Tutorial & Learning
     data object TutorialModules : Screen("tutorial/modules")
     data object TutorialLesson : Screen("tutorial/lesson/{lessonId}") {
         fun createRoute(lessonId: Int) = "tutorial/lesson/$lessonId"
+    }
+    data object Puzzles : Screen("puzzles")
+    data object TrainingExercise : Screen("training/{exerciseId}") {
+        fun createRoute(exerciseId: String) = "training/$exerciseId"
     }
 
     // Profile
     data object RatingHistory : Screen("rating_history")
     data object GameHistory : Screen("game_history")
     data object Leaderboard : Screen("leaderboard")
+
+    // Payment & Subscription
+    data object Pricing : Screen("pricing")
+    data object Subscription : Screen("subscription")
+
+    // Social
+    data object ReferralDashboard : Screen("referrals")
+    data object SharedResult : Screen("shared_result/{uniqueId}") {
+        fun createRoute(uniqueId: String) = "shared_result/$uniqueId"
+    }
+
+    // Game Detail & Public Viewer
+    data object GameDetail : Screen("game_detail/{gameId}") {
+        fun createRoute(gameId: Int) = "game_detail/$gameId"
+    }
+    data object PublicGameViewer : Screen("public_game/{gameId}") {
+        fun createRoute(gameId: Int) = "public_game/$gameId"
+    }
+
+    // Dashboard
+    data object Dashboard : Screen("dashboard")
 }

@@ -8,6 +8,12 @@ class ChessGame(fen: String = STARTING_FEN) {
 
     companion object {
         const val STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+
+        val KNIGHT_OFFSETS = intArrayOf(-33, -31, -18, -14, 14, 18, 31, 33)
+        val BISHOP_OFFSETS = intArrayOf(-17, -15, 15, 17)
+        val ROOK_OFFSETS = intArrayOf(-16, -1, 1, 16)
+        val QUEEN_OFFSETS = intArrayOf(-17, -16, -15, -1, 1, 15, 16, 17)
+        val PROMO_PIECES = intArrayOf(Piece.QUEEN, Piece.ROOK, Piece.BISHOP, Piece.KNIGHT)
     }
 
     // Board representation: 0x88 mailbox for efficient off-board detection
@@ -147,7 +153,7 @@ class ChessGame(fen: String = STARTING_FEN) {
 
     fun get(square: String): Int = board[Square.fromAlgebraic(square)]
 
-    fun get(square: Int): Int = if (square and 0x88 == 0) board[square] else Piece.NONE
+    fun get(square: Int): Int = if ((square and 0x88) == 0) board[square] else Piece.NONE
 
     fun turnChar(): Char = if (turn == Color.WHITE) 'w' else 'b'
 
@@ -195,7 +201,7 @@ class ChessGame(fen: String = STARTING_FEN) {
 
         // Single push
         val oneStep = sq + direction
-        if (oneStep and 0x88 == 0 && board[oneStep] == Piece.NONE) {
+        if ((oneStep and 0x88) == 0 && board[oneStep] == Piece.NONE) {
             if (Square.rank(oneStep) == promoRank) {
                 for (promo in PROMO_PIECES) moves.add(Move(sq, oneStep, piece, Piece.NONE, promotion = promo))
             } else {
@@ -213,7 +219,7 @@ class ChessGame(fen: String = STARTING_FEN) {
         // Captures
         for (offset in intArrayOf(direction - 1, direction + 1)) {
             val target = sq + offset
-            if (target and 0x88 != 0) continue
+            if ((target and 0x88) != 0) continue
             val captured = board[target]
             if (captured != Piece.NONE && Piece.color(captured) != color) {
                 if (Square.rank(target) == promoRank) {
@@ -234,7 +240,7 @@ class ChessGame(fen: String = STARTING_FEN) {
         val color = Piece.color(piece)
         for (offset in offsets) {
             var target = sq + offset
-            while (target and 0x88 == 0) {
+            while ((target and 0x88) == 0) {
                 val captured = board[target]
                 if (captured == Piece.NONE) {
                     moves.add(Move(sq, target, piece, Piece.NONE))
@@ -256,14 +262,14 @@ class ChessGame(fen: String = STARTING_FEN) {
         val piece = board[sq]
         if (color == Color.WHITE) {
             // Kingside (K)
-            if (castlingRights and 1 != 0 &&
+            if ((castlingRights and 1) != 0 &&
                 board[sq + 1] == Piece.NONE && board[sq + 2] == Piece.NONE &&
                 !isSquareAttacked(sq + 1, Color.BLACK) && !isSquareAttacked(sq + 2, Color.BLACK)
             ) {
                 moves.add(Move(sq, sq + 2, piece, Piece.NONE, isCastling = true))
             }
             // Queenside (Q)
-            if (castlingRights and 2 != 0 &&
+            if ((castlingRights and 2) != 0 &&
                 board[sq - 1] == Piece.NONE && board[sq - 2] == Piece.NONE && board[sq - 3] == Piece.NONE &&
                 !isSquareAttacked(sq - 1, Color.BLACK) && !isSquareAttacked(sq - 2, Color.BLACK)
             ) {
@@ -271,14 +277,14 @@ class ChessGame(fen: String = STARTING_FEN) {
             }
         } else {
             // Kingside (k)
-            if (castlingRights and 4 != 0 &&
+            if ((castlingRights and 4) != 0 &&
                 board[sq + 1] == Piece.NONE && board[sq + 2] == Piece.NONE &&
                 !isSquareAttacked(sq + 1, Color.WHITE) && !isSquareAttacked(sq + 2, Color.WHITE)
             ) {
                 moves.add(Move(sq, sq + 2, piece, Piece.NONE, isCastling = true))
             }
             // Queenside (q)
-            if (castlingRights and 8 != 0 &&
+            if ((castlingRights and 8) != 0 &&
                 board[sq - 1] == Piece.NONE && board[sq - 2] == Piece.NONE && board[sq - 3] == Piece.NONE &&
                 !isSquareAttacked(sq - 1, Color.WHITE) && !isSquareAttacked(sq - 2, Color.WHITE)
             ) {
@@ -478,7 +484,7 @@ class ChessGame(fen: String = STARTING_FEN) {
         val pawnDir = if (byColor == Color.WHITE) 16 else -16
         for (offset in intArrayOf(-1, 1)) {
             val attackerSq = square + pawnDir + offset
-            if (attackerSq and 0x88 == 0) {
+            if ((attackerSq and 0x88) == 0) {
                 val p = board[attackerSq]
                 if (p != Piece.NONE && Piece.type(p) == Piece.PAWN && Piece.color(p) == byColor) {
                     // Check direction: pawn attacks upward for black, downward for white
@@ -496,7 +502,7 @@ class ChessGame(fen: String = STARTING_FEN) {
         // Knight attacks
         for (offset in KNIGHT_OFFSETS) {
             val attackerSq = square + offset
-            if (attackerSq and 0x88 == 0) {
+            if ((attackerSq and 0x88) == 0) {
                 val p = board[attackerSq]
                 if (p != Piece.NONE && Piece.type(p) == Piece.KNIGHT && Piece.color(p) == byColor) return true
             }
@@ -504,7 +510,7 @@ class ChessGame(fen: String = STARTING_FEN) {
         // King attacks
         for (offset in QUEEN_OFFSETS) {
             val attackerSq = square + offset
-            if (attackerSq and 0x88 == 0) {
+            if ((attackerSq and 0x88) == 0) {
                 val p = board[attackerSq]
                 if (p != Piece.NONE && Piece.type(p) == Piece.KING && Piece.color(p) == byColor) return true
             }
@@ -512,7 +518,7 @@ class ChessGame(fen: String = STARTING_FEN) {
         // Sliding attacks (bishop/queen diagonals, rook/queen lines)
         for (offset in BISHOP_OFFSETS) {
             var sq = square + offset
-            while (sq and 0x88 == 0) {
+            while ((sq and 0x88) == 0) {
                 val p = board[sq]
                 if (p != Piece.NONE) {
                     if (Piece.color(p) == byColor && (Piece.type(p) == Piece.BISHOP || Piece.type(p) == Piece.QUEEN)) return true
@@ -523,7 +529,7 @@ class ChessGame(fen: String = STARTING_FEN) {
         }
         for (offset in ROOK_OFFSETS) {
             var sq = square + offset
-            while (sq and 0x88 == 0) {
+            while ((sq and 0x88) == 0) {
                 val p = board[sq]
                 if (p != Piece.NONE) {
                     if (Piece.color(p) == byColor && (Piece.type(p) == Piece.ROOK || Piece.type(p) == Piece.QUEEN)) return true
@@ -596,10 +602,10 @@ class ChessGame(fen: String = STARTING_FEN) {
         sb.append(if (turn == Color.WHITE) " w " else " b ")
 
         var castle = ""
-        if (castlingRights and 1 != 0) castle += "K"
-        if (castlingRights and 2 != 0) castle += "Q"
-        if (castlingRights and 4 != 0) castle += "k"
-        if (castlingRights and 8 != 0) castle += "q"
+        if ((castlingRights and 1) != 0) castle += "K"
+        if ((castlingRights and 2) != 0) castle += "Q"
+        if ((castlingRights and 4) != 0) castle += "k"
+        if ((castlingRights and 8) != 0) castle += "q"
         sb.append(castle.ifEmpty { "-" })
 
         sb.append(' ')
@@ -631,7 +637,7 @@ class ChessGame(fen: String = STARTING_FEN) {
                 hash = hash xor (piece.toLong() * 6364136223846793005L + sq.toLong() * 1442695040888963407L)
             }
         }
-        if (turn == Color.BLACK) hash = hash xor 0x9E3779B97F4A7C15L
+        if (turn == Color.BLACK) hash = hash xor -7046029254386353131L // 0x9E3779B97F4A7C15 as signed Long
         hash = hash xor (castlingRights.toLong() * 2862933555777941757L)
         if (enPassantSquare != -1) hash = hash xor (enPassantSquare.toLong() * 3037000499L)
         return hash
@@ -645,13 +651,6 @@ class ChessGame(fen: String = STARTING_FEN) {
 
     private fun squareColor(sq: Int): Int = (Square.rank(sq) + Square.file(sq)) % 2
 
-    companion object Offsets {
-        val KNIGHT_OFFSETS = intArrayOf(-33, -31, -18, -14, 14, 18, 31, 33)
-        val BISHOP_OFFSETS = intArrayOf(-17, -15, 15, 17)
-        val ROOK_OFFSETS = intArrayOf(-16, -1, 1, 16)
-        val QUEEN_OFFSETS = intArrayOf(-17, -16, -15, -1, 1, 15, 16, 17)
-        val PROMO_PIECES = intArrayOf(Piece.QUEEN, Piece.ROOK, Piece.BISHOP, Piece.KNIGHT)
-    }
 }
 
 // ── Supporting Types ────────────────────────────────────────────────────
@@ -676,7 +675,7 @@ object Piece {
 
     fun make(type: Int, color: Color) = type or (if (color == Color.WHITE) WHITE_FLAG else BLACK_FLAG)
     fun type(piece: Int) = piece and 0x07
-    fun color(piece: Int): Color = if (piece and BLACK_FLAG == 0) Color.WHITE else Color.BLACK
+    fun color(piece: Int): Color = if ((piece and BLACK_FLAG) == 0) Color.WHITE else Color.BLACK
 
     fun fromChar(ch: Char): Int {
         val color = if (ch.isUpperCase()) Color.WHITE else Color.BLACK

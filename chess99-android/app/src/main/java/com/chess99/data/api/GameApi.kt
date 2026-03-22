@@ -23,6 +23,9 @@ interface GameApi {
     @GET("games/{id}")
     suspend fun getGame(@Path("id") id: Int): Response<JsonObject>
 
+    @GET("games/public/{id}")
+    suspend fun getPublicGame(@Path("id") id: Int): Response<JsonObject>
+
     @GET("games/{id}/moves")
     suspend fun getGameMoves(@Path("id") id: Int): Response<JsonObject>
 

@@ -115,6 +115,9 @@ dependencies {
     // WebSocket (Pusher - Reverb compatible)
     implementation(libs.pusher.java.client)
 
+    // Razorpay Payment SDK
+    implementation("com.razorpay:checkout:1.6.40")
+
     // Coroutines
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)

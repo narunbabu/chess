@@ -145,13 +145,12 @@ class PlayComputerViewModel @Inject constructor(
                     depth = _uiState.value.difficulty,
                 )
 
-                val move = game.moveUci(result.bestMove)
-                if (move == null) {
+                val move = game.moveUci(result.bestMove) ?: run {
                     // Engine returned invalid move, try any legal move
                     val legal = game.legalMoves().firstOrNull()
-                    if (legal != null) game.moveSan(legal.san(game))
-                    else return@launch
-                }
+                        ?: return@launch
+                    game.moveSan(legal.san(game))
+                } ?: return@launch
 
                 val sound = when {
                     game.isCheck() -> MoveSound.CHECK

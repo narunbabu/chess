@@ -16,6 +16,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ShowChart
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -306,8 +309,8 @@ private fun SettingsTab(state: ProfileUiState, viewModel: ProfileViewModel) {
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            if (state.isSoundMuted) Icons.Default.VolumeOff
-                            else Icons.Default.VolumeUp,
+                            if (state.isSoundMuted) Icons.AutoMirrored.Filled.VolumeOff
+                            else Icons.AutoMirrored.Filled.VolumeUp,
                             null,
                             modifier = Modifier.size(24.dp),
                         )
@@ -796,7 +799,7 @@ private fun StatsTab(state: ProfileUiState, viewModel: ProfileViewModel, onNavig
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(
-                                    Icons.Default.ShowChart,
+                                    Icons.AutoMirrored.Filled.ShowChart,
                                     null,
                                     modifier = Modifier.size(40.dp),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
