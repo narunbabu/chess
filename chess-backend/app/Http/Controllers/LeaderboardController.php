@@ -45,10 +45,11 @@ class LeaderboardController extends Controller
 
             $limit = 20;
 
-            // 1. Most Games — from game_histories, grouped by user_id
+            // 1. Most Games — multiplayer only (exclude computer games)
             $mostGamesQuery = DB::table('game_histories')
                 ->select('user_id', DB::raw('COUNT(*) as value'))
-                ->whereNotNull('user_id');
+                ->whereNotNull('user_id')
+                ->where('game_mode', 'multiplayer');
             if ($periodStart) {
                 $mostGamesQuery->where('played_at', '>=', $periodStart);
             }
@@ -58,11 +59,12 @@ class LeaderboardController extends Controller
                 ->limit($limit)
                 ->get();
 
-            // 2. Most Wins — from games, grouped by winner_user_id where status_id=3 (finished)
+            // 2. Most Wins — multiplayer only (exclude computer games via computer_player_id IS NULL)
             $mostWinsQuery = DB::table('games')
                 ->select('winner_user_id as user_id', DB::raw('COUNT(*) as value'))
                 ->whereNotNull('winner_user_id')
-                ->where('status_id', 3);
+                ->where('status_id', 3)
+                ->whereNull('computer_player_id');
             if ($periodStart) {
                 $mostWinsQuery->where('ended_at', '>=', $periodStart);
             }
@@ -72,10 +74,11 @@ class LeaderboardController extends Controller
                 ->limit($limit)
                 ->get();
 
-            // 3. Highest Points — from game_histories, SUM(final_score)
+            // 3. Highest Points — multiplayer only (exclude computer games)
             $highestPointsQuery = DB::table('game_histories')
                 ->select('user_id', DB::raw('ROUND(SUM(final_score), 1) as value'))
-                ->whereNotNull('user_id');
+                ->whereNotNull('user_id')
+                ->where('game_mode', 'multiplayer');
             if ($periodStart) {
                 $highestPointsQuery->where('played_at', '>=', $periodStart);
             }

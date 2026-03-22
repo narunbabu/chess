@@ -171,6 +171,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Daily Challenge routes
         Route::get('/daily-challenge', [TutorialController::class, 'getDailyChallenge']);
         Route::post('/daily-challenge/submit', [TutorialController::class, 'submitDailyChallenge']);
+        Route::get('/daily-challenge/leaderboard', [TutorialController::class, 'getDailyChallengeLeaderboard']);
 
         // Practice Game routes
         Route::post('/practice-game/create', [TutorialController::class, 'createPracticeGame']);
@@ -213,6 +214,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/games/{gameId}/claim-timeout', [WebSocketController::class, 'claimTimeout']);
         Route::post('/games/{gameId}/abort/request', [WebSocketController::class, 'requestAbort']);
         Route::post('/games/{gameId}/abort/respond', [WebSocketController::class, 'respondToAbort']);
+        Route::post('/games/{gameId}/cancel-inactivity', [WebSocketController::class, 'cancelGameInactivity']);
         Route::post('/games/{gameId}/heartbeat', [WebSocketController::class, 'gameHeartbeat']);
         
         // Game pause/resume functionality

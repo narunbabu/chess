@@ -235,21 +235,33 @@ class DailyChallenge extends Model
     }
 
     /**
-     * Generate challenge data based on type and tier
+     * Generate challenge data by picking a random future puzzle.
+     * Falls back to a default puzzle if no unused puzzles remain.
      */
     private static function generateChallengeData($type, $tier): array
     {
-        // This would typically pull from a database of puzzles or generate them
-        // For now, we'll return a sample structure
+        // Pick a random puzzle from future-dated challenges that haven't been used yet.
+        // If the seeder has pre-populated dates, grab from the nearest unused one.
+        $unused = static::where('date', '>', now()->format('Y-m-d'))
+            ->inRandomOrder()
+            ->first();
+
+        if ($unused) {
+            return $unused->challenge_data;
+        }
+
+        // Fallback: a simple beginner puzzle
         return [
-            'fen' => 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1',
-            'solution' => ['e5'],
+            'fen' => '6k1/5ppp/8/8/8/8/8/R3K3 w - - 0 1',
+            'solution' => ['Ra8#'],
             'hints' => [
-                'Control the center',
-                'Develop your pieces',
+                'The king is trapped on the back rank.',
+                'Use your rook to deliver mate.',
             ],
             'difficulty' => $tier,
             'category' => $type,
+            'title' => 'Back Rank Mate',
+            'description' => 'White to move — deliver checkmate in one move.',
         ];
     }
 }

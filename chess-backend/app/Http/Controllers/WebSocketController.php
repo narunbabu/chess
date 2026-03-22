@@ -1892,4 +1892,32 @@ class WebSocketController extends Controller
             ], 400);
         }
     }
+
+    /**
+     * Cancel game due to opponent inactivity — NO rating impact for either player
+     */
+    public function cancelGameInactivity(Request $request, int $gameId): JsonResponse
+    {
+        try {
+            $result = $this->gameRoomService->cancelGameInactivity($gameId, Auth::id());
+
+            if (!$result['success']) {
+                return response()->json($result, 400);
+            }
+
+            return response()->json($result);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to cancel game for inactivity', [
+                'user_id' => Auth::id(),
+                'game_id' => $gameId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to cancel game',
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
 }

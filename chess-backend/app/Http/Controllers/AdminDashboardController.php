@@ -353,7 +353,13 @@ class AdminDashboardController extends Controller
         // ----- 10. Recent finished games (last 20) -----
         $recentQuery = Game::query()
             ->where('status_id', $finishedStatusId)
-            ->with(['whitePlayer:id,name,rating', 'blackPlayer:id,name,rating', 'endReasonRelation:id,code,label']);
+            ->with([
+                'whitePlayer:id,name,rating',
+                'blackPlayer:id,name,rating',
+                'syntheticPlayer:id,name,rating',
+                'computerPlayer:id,name,rating',
+                'endReasonRelation:id,code,label',
+            ]);
         if ($orgId) {
             $recentQuery->where(function ($q) use ($orgId) {
                 $q->whereHas('whitePlayer', fn($u) => $u->where('organization_id', $orgId))
@@ -369,10 +375,26 @@ class AdminDashboardController extends Controller
                 if ($game->ended_at && $game->created_at) {
                     $duration = Carbon::parse($game->created_at)->diffInMinutes(Carbon::parse($game->ended_at));
                 }
+
+                // For computer/synthetic games, fill in the missing side
+                $synth = $game->syntheticPlayer;
+                $comp  = $game->computerPlayer;
+                $botData = $synth
+                    ? ['id' => 'synthetic_' . $synth->id, 'name' => $synth->name, 'rating' => $synth->rating]
+                    : ($comp
+                        ? ['id' => 'computer_' . $comp->id, 'name' => $comp->name, 'rating' => $comp->rating]
+                        : ($game->computer_level
+                            ? ['id' => 'computer_level_' . $game->computer_level, 'name' => 'Computer Lv.' . $game->computer_level, 'rating' => 800 + ($game->computer_level * 100)]
+                            : null));
+
                 return [
                     'id'           => $game->id,
-                    'white'        => $game->whitePlayer ? ['id' => $game->whitePlayer->id, 'name' => $game->whitePlayer->name, 'rating' => $game->whitePlayer->rating] : null,
-                    'black'        => $game->blackPlayer ? ['id' => $game->blackPlayer->id, 'name' => $game->blackPlayer->name, 'rating' => $game->blackPlayer->rating] : null,
+                    'white'        => $game->whitePlayer
+                        ? ['id' => $game->whitePlayer->id, 'name' => $game->whitePlayer->name, 'rating' => $game->whitePlayer->rating]
+                        : $botData,
+                    'black'        => $game->blackPlayer
+                        ? ['id' => $game->blackPlayer->id, 'name' => $game->blackPlayer->name, 'rating' => $game->blackPlayer->rating]
+                        : $botData,
                     'result'       => $game->result,
                     'end_reason'   => $game->endReasonRelation ? $game->endReasonRelation->label : null,
                     'game_mode'    => $game->game_mode,
@@ -453,6 +475,213 @@ class AdminDashboardController extends Controller
                 'org_id'           => $orgId,
                 'is_platform_admin' => $isPlatformAdmin,
             ],
+        ]);
+    }
+
+    /**
+     * Detailed stats for a single user.
+     *
+     * GET /admin/dashboard/user/{id}?period=30d
+     */
+    public function userDetail(Request $request, $id): JsonResponse
+    {
+        $target = User::find($id);
+        if (!$target) {
+            return response()->json(['error' => 'User not found'], 404);
+        }
+
+        $period = $request->input('period', '30d');
+        $periodStart = match ($period) {
+            'today' => Carbon::today(),
+            '7d'    => Carbon::now()->subDays(7),
+            '30d'   => Carbon::now()->subDays(30),
+            default => null,
+        };
+
+        $finishedStatusId = \App\Models\GameStatus::getIdByCode('finished');
+        $endReasons = \App\Models\GameEndReason::all()->keyBy('id');
+
+        // --- Profile ---
+        $profile = [
+            'id'               => $target->id,
+            'name'             => $target->name,
+            'email'            => $target->email,
+            'rating'           => $target->rating,
+            'games_played'     => $target->games_played,
+            'created_at'       => $target->created_at,
+            'last_activity_at' => $target->last_activity_at,
+            'subscription_tier' => $target->subscription_tier ?? 'free',
+            'organization_id'  => $target->organization_id,
+            'referral_code'    => $target->referral_code,
+            'referred_by_user_id' => $target->referred_by_user_id,
+        ];
+
+        // --- Games query scoped to this user + period ---
+        $userGameQuery = fn() => Game::where('status_id', $finishedStatusId)
+            ->where(function ($q) use ($id) {
+                $q->where('white_player_id', $id)->orWhere('black_player_id', $id);
+            });
+
+        $periodGameQuery = function () use ($userGameQuery, $periodStart) {
+            $q = $userGameQuery();
+            if ($periodStart) $q->where('created_at', '>=', $periodStart);
+            return $q;
+        };
+
+        // --- Overview stats ---
+        $totalGames = $periodGameQuery()->count();
+
+        $wins = $periodGameQuery()->where('winner_user_id', $id)->count();
+        $draws = $periodGameQuery()->where('result', '1/2-1/2')->count();
+        $losses = $totalGames - $wins - $draws;
+
+        $winRate = $totalGames > 0 ? round(($wins / $totalGames) * 100, 1) : 0;
+
+        $totalMoves = $periodGameQuery()->sum('move_count');
+        $avgMoves = $totalGames > 0 ? round($totalMoves / $totalGames) : 0;
+
+        // Streak (last 10 games)
+        $recentResults = $userGameQuery()->orderByDesc('ended_at')->limit(10)
+            ->get(['winner_user_id', 'result'])->map(function ($g) use ($id) {
+                if ($g->winner_user_id == $id) return 'W';
+                if ($g->result === '1/2-1/2') return 'D';
+                return 'L';
+            })->toArray();
+
+        $currentStreak = 0;
+        $streakType = $recentResults[0] ?? null;
+        foreach ($recentResults as $r) {
+            if ($r === $streakType) $currentStreak++;
+            else break;
+        }
+
+        $overview = [
+            'total_games' => $totalGames,
+            'wins'        => $wins,
+            'losses'      => $losses,
+            'draws'       => $draws,
+            'win_rate'    => $winRate,
+            'avg_moves'   => $avgMoves,
+            'streak'      => ($streakType ? $currentStreak . $streakType : '0'),
+            'recent_form' => array_slice($recentResults, 0, 10),
+        ];
+
+        // --- Games by outcome ---
+        $outcomeCounts = $periodGameQuery()
+            ->select('end_reason_id', DB::raw('COUNT(*) as count'))
+            ->groupBy('end_reason_id')
+            ->pluck('count', 'end_reason_id');
+
+        $gamesByOutcome = [];
+        foreach ($outcomeCounts as $reasonId => $count) {
+            $reason = $endReasons->get($reasonId);
+            $gamesByOutcome[] = [
+                'code'  => $reason ? $reason->code : 'unknown',
+                'label' => $reason ? $reason->label : 'Unknown',
+                'count' => $count,
+            ];
+        }
+        usort($gamesByOutcome, fn($a, $b) => $b['count'] <=> $a['count']);
+
+        // --- Games by mode ---
+        $computerGames = $periodGameQuery()->where(function ($q) {
+            $q->whereNotNull('computer_player_id')->orWhereNotNull('synthetic_player_id');
+        })->count();
+        $humanGames = $periodGameQuery()->whereNull('computer_player_id')->whereNull('synthetic_player_id');
+        $ratedGames = (clone $humanGames)->where('game_mode', 'rated')->count();
+        $casualGames = (clone $humanGames)->where('game_mode', 'casual')->count();
+
+        $gamesByMode = [
+            ['mode' => 'rated',    'label' => 'Rated',    'count' => $ratedGames],
+            ['mode' => 'casual',   'label' => 'Casual',   'count' => $casualGames],
+            ['mode' => 'computer', 'label' => 'Computer', 'count' => $computerGames],
+        ];
+
+        // --- Games by time control ---
+        $tcCounts = $periodGameQuery()
+            ->select('time_control_minutes', DB::raw('COUNT(*) as count'))
+            ->groupBy('time_control_minutes')
+            ->orderByDesc('count')
+            ->get();
+
+        $gamesByTimeControl = $tcCounts->map(function ($row) {
+            $mins = $row->time_control_minutes;
+            $label = match (true) {
+                $mins <= 2  => 'Bullet',
+                $mins <= 5  => 'Blitz',
+                $mins <= 15 => 'Rapid',
+                default     => 'Classical',
+            };
+            return ['minutes' => $mins, 'label' => $label . " ({$mins}m)", 'count' => $row->count];
+        })->values();
+
+        // --- Recent games (last 15) ---
+        $recentGames = $userGameQuery()
+            ->with([
+                'whitePlayer:id,name,rating',
+                'blackPlayer:id,name,rating',
+                'syntheticPlayer:id,name,rating',
+                'computerPlayer:id,name,rating',
+                'endReasonRelation:id,code,label',
+            ])
+            ->orderByDesc('ended_at')
+            ->limit(15)
+            ->get()
+            ->map(function ($game) use ($id) {
+                $synth = $game->syntheticPlayer;
+                $comp  = $game->computerPlayer;
+                $botData = $synth
+                    ? ['id' => 'synthetic_' . $synth->id, 'name' => $synth->name, 'rating' => $synth->rating]
+                    : ($comp
+                        ? ['id' => 'computer_' . $comp->id, 'name' => $comp->name, 'rating' => $comp->rating]
+                        : null);
+
+                $userIsWhite = $game->white_player_id == $id;
+
+                return [
+                    'id'           => $game->id,
+                    'white'        => $game->whitePlayer
+                        ? ['name' => $game->whitePlayer->name, 'rating' => $game->whitePlayer->rating]
+                        : $botData,
+                    'black'        => $game->blackPlayer
+                        ? ['name' => $game->blackPlayer->name, 'rating' => $game->blackPlayer->rating]
+                        : $botData,
+                    'result'       => $game->result,
+                    'user_won'     => $game->winner_user_id == $id,
+                    'user_color'   => $userIsWhite ? 'white' : 'black',
+                    'end_reason'   => $game->endReasonRelation?->label,
+                    'game_mode'    => $game->game_mode,
+                    'move_count'   => $game->move_count,
+                    'ended_at'     => $game->ended_at,
+                ];
+            });
+
+        // --- Tutorial progress ---
+        $tutorialProgress = DB::table('user_tutorial_progress')
+            ->where('user_id', $id)
+            ->count();
+        $tutorialCompleted = DB::table('user_tutorial_progress')
+            ->where('user_id', $id)
+            ->where('status', 'completed')
+            ->count();
+        $tutorialMastered = DB::table('user_tutorial_progress')
+            ->where('user_id', $id)
+            ->where('status', 'mastered')
+            ->count();
+
+        return response()->json([
+            'profile'              => $profile,
+            'overview'             => $overview,
+            'games_by_outcome'     => $gamesByOutcome,
+            'games_by_mode'        => $gamesByMode,
+            'games_by_time_control' => $gamesByTimeControl,
+            'recent_games'         => $recentGames,
+            'tutorial'             => [
+                'started'   => $tutorialProgress,
+                'completed' => $tutorialCompleted,
+                'mastered'  => $tutorialMastered,
+            ],
+            'meta' => ['period' => $period],
         ]);
     }
 

@@ -42,6 +42,11 @@ class Kernel extends ConsoleKernel
                  ->hourly()
                  ->description('Mark stale pending championship registrations as failed');
 
+        // Generate tomorrow's daily challenge at 11pm every night
+        $schedule->command('daily-challenge:generate --days=1')
+                 ->dailyAt('23:00')
+                 ->description('Generate tomorrow\'s daily challenge puzzle');
+
         // Calculate referral payouts on the 1st of each month at 01:00
         $schedule->command('referrals:calculate-payouts')
                  ->monthlyOn(1, '01:00')

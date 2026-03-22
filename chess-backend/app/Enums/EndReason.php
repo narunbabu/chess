@@ -16,6 +16,7 @@ enum EndReason: string
     case FORFEIT = 'forfeit';
     case ABANDONED_MUTUAL = 'abandoned_mutual';
     case TIMEOUT_INACTIVITY = 'timeout_inactivity';
+    case CANCELLED_INACTIVITY = 'cancelled_inactivity';
 
     /**
      * Map legacy end reason values to canonical values
@@ -51,6 +52,7 @@ enum EndReason: string
             self::FORFEIT => 10,
             self::ABANDONED_MUTUAL => 11,
             self::TIMEOUT_INACTIVITY => 12,
+            self::CANCELLED_INACTIVITY => 13,
         };
     }
 
@@ -72,6 +74,7 @@ enum EndReason: string
             self::FORFEIT => 'Forfeit',
             self::ABANDONED_MUTUAL => 'Abandoned by agreement',
             self::TIMEOUT_INACTIVITY => 'Timeout (inactivity)',
+            self::CANCELLED_INACTIVITY => 'Cancelled (opponent inactive)',
         };
     }
 

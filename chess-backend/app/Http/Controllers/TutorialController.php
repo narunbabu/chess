@@ -16,6 +16,7 @@ use App\Models\UserStageProgress;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
@@ -503,7 +504,7 @@ class TutorialController extends Controller
         if (!$user->hasSubscriptionTier(\App\Enums\SubscriptionTier::SILVER)) {
             $todayCompletions = UserDailyChallengeCompletion::where('user_id', $user->id)
                 ->where('completed', true)
-                ->whereDate('created_at', today())
+                ->whereDate('completed_at', today())
                 ->count();
             $dailyPuzzleCap = [
                 'limit' => 3,
@@ -542,7 +543,7 @@ class TutorialController extends Controller
         if (!$user->hasSubscriptionTier(\App\Enums\SubscriptionTier::SILVER)) {
             $todayCompletions = UserDailyChallengeCompletion::where('user_id', $user->id)
                 ->where('completed', true)
-                ->whereDate('created_at', today())
+                ->whereDate('completed_at', today())
                 ->count();
             if ($todayCompletions >= 3) {
                 return response()->json([
@@ -565,14 +566,27 @@ class TutorialController extends Controller
         $userCompletion = $challenge->getUserCompletion($user->id);
         $solution = $request->solution;
 
-        // Validate solution (simplified for this example)
+        // Validate solution — compare move-by-move (case-insensitive, trim whitespace)
         $correctSolution = $challenge->puzzle_solution;
-        $isCorrect = $solution === $correctSolution;
-
-        $userCompletion->incrementAttempts();
+        $isCorrect = count($solution) === count($correctSolution);
+        if ($isCorrect) {
+            for ($i = 0; $i < count($correctSolution); $i++) {
+                $expected = trim(str_replace(['#', '+'], '', $correctSolution[$i]));
+                $actual = trim(str_replace(['#', '+'], '', $solution[$i] ?? ''));
+                if (strcasecmp($expected, $actual) !== 0) {
+                    $isCorrect = false;
+                    break;
+                }
+            }
+        }
 
         if ($isCorrect) {
+            // markCompleted() increments attempts internally — don't double-count
             $userCompletion->markCompleted($request->time_spent_seconds);
+            // Invalidate the cached leaderboard so the new completion appears immediately
+            Cache::forget("daily_challenge_leaderboard:{$challenge->id}");
+        } else {
+            $userCompletion->incrementAttempts();
         }
 
         return response()->json([
@@ -584,6 +598,72 @@ class TutorialController extends Controller
                 'user_completion' => $userCompletion->fresh(),
                 'user_stats' => $user->fresh()->tutorial_stats,
             ],
+        ]);
+    }
+
+    /**
+     * Get daily challenge leaderboard for a given date (defaults to today).
+     * Rankings: fastest time first, then fewest attempts, then earliest completion.
+     */
+    public function getDailyChallengeLeaderboard(Request $request): JsonResponse
+    {
+        $date = $request->query('date', now()->format('Y-m-d'));
+
+        $challenge = DailyChallenge::whereDate('date', $date)->first();
+
+        if (!$challenge) {
+            return response()->json([
+                'success' => true,
+                'data' => [],
+                'challenge_date' => $date,
+                'total_completions' => 0,
+            ]);
+        }
+
+        $cacheKey = "daily_challenge_leaderboard:{$challenge->id}";
+
+        $leaderboard = Cache::remember($cacheKey, 60, function () use ($challenge) {
+            $completions = $challenge->userCompletions()
+                ->with('user:id,name,avatar_url,rating')
+                ->where('completed', true)
+                ->orderBy('time_spent_seconds', 'asc')
+                ->orderBy('attempts', 'asc')
+                ->orderBy('completed_at', 'asc')
+                ->limit(50)
+                ->get();
+
+            return $completions->values()->map(function ($completion, $index) {
+                return [
+                    'rank'                => $index + 1,
+                    'user_id'             => $completion->user_id,
+                    'name'                => $completion->user?->name,
+                    'avatar_url'          => $completion->user?->avatar_url,
+                    'rating'              => $completion->user?->rating,
+                    'time_spent_seconds'  => $completion->time_spent_seconds,
+                    'attempts'            => $completion->attempts,
+                    'completed_at'        => $completion->completed_at?->toISOString(),
+                ];
+            })->all();
+        });
+
+        // Determine current user's position
+        $currentUser = Auth::user();
+        $userRank = null;
+        if ($currentUser) {
+            foreach ($leaderboard as $entry) {
+                if ($entry['user_id'] === $currentUser->id) {
+                    $userRank = $entry['rank'];
+                    break;
+                }
+            }
+        }
+
+        return response()->json([
+            'success'           => true,
+            'data'              => $leaderboard,
+            'challenge_date'    => $date,
+            'total_completions' => $challenge->completion_count,
+            'user_rank'         => $userRank,
         ]);
     }
 

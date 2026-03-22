@@ -764,7 +764,7 @@ class GameRoomService
                         'white_player_score' => $game->white_player_score ?? 0.0,
                         'black_player_score' => $game->black_player_score ?? 0.0
                     ];
-                    broadcast(new GameEndedEvent($game->id, $gameData))->toOthers();
+                    broadcast(new GameEndedEvent($game->id, $gameData)); // Both players must receive game end
                 } catch (\Exception $e) {
                     Log::error('Failed to broadcast GameEndedEvent', [
                         'game_id' => $gameId,
@@ -832,9 +832,29 @@ class GameRoomService
             }
         }
 
-        // Fallback: Analyze current position for game end conditions (backup system)
+        // Fallback 1: Check if the SAN of the move itself contains '#' (checkmate indicator)
+        // chess.js always appends '#' to SAN for checkmate moves — this is the most reliable signal
+        $san = $move['san'] ?? '';
+        if (is_string($san) && str_contains($san, '#')) {
+            Log::info('Checkmate detected via SAN "#" in maybeFinalizeGame fallback', [
+                'game_id' => $game->id, 'san' => $san
+            ]);
+            $winnerColor = ($game->turn === 'white') ? 'black' : 'white';
+            $result = $winnerColor === 'white' ? '1-0' : '0-1';
+            $winnerUserId = $winnerColor === 'white' ? $game->white_player_id : $game->black_player_id;
+
+            $this->finalizeGame($game, [
+                'result' => $result,
+                'winner_player' => $winnerColor,
+                'winner_user_id' => $winnerUserId,
+                'end_reason' => 'checkmate'
+            ]);
+            return;
+        }
+
+        // Fallback 2: Full position analysis via ChessRulesService
         $analysis = $this->chessRules->analyzeGameState($game);
-        Log::info('Fallback analysis (no client hint)', ['game_id' => $game->id, 'analysis' => $analysis]);
+        Log::info('Fallback analysis (no client hint, no SAN #)', ['game_id' => $game->id, 'analysis' => $analysis]);
 
         if (!empty($analysis['game_over'])) {
             $reason = $analysis['is_checkmate'] ? 'checkmate'
@@ -859,7 +879,18 @@ class GameRoomService
                 'winner_user_id' => $winnerUserId,
                 'end_reason' => $reason
             ]);
-            return; // stop here; finalized + broadcast happens inside finalizeGame()
+            return;
+        }
+
+        // Log if no game-end condition detected — useful for debugging missed checkmates
+        if (!empty($san)) {
+            Log::debug('maybeFinalizeGame: No end condition detected', [
+                'game_id' => $game->id,
+                'san' => $san,
+                'is_mate_hint' => $move['is_mate_hint'] ?? false,
+                'turn' => $game->turn,
+                'fen' => substr($game->fen, 0, 40)
+            ]);
         }
     }
 
@@ -933,6 +964,12 @@ class GameRoomService
         ]);
 
         $this->broadcastGameEnded($game);
+
+        // Invalidate leaderboard caches so freshly completed games appear immediately
+        \Cache::forget('leaderboard:today');
+        \Cache::forget('leaderboard:7d');
+        \Cache::forget('leaderboard:30d');
+        \Cache::forget('leaderboard:all');
     }
 
     /**
@@ -997,7 +1034,7 @@ class GameRoomService
                 GameHistory::create([
                     'user_id' => $game->white_player_id,
                     'game_id' => $game->id,
-                    'played_at' => $game->created_at ?? now(),
+                    'played_at' => $game->ended_at ?? now(),
                     'player_color' => 'w',
                     'computer_level' => 0,
                     'moves' => $movesCompact ?: null,
@@ -1016,7 +1053,7 @@ class GameRoomService
                 GameHistory::create([
                     'user_id' => $game->black_player_id,
                     'game_id' => $game->id,
-                    'played_at' => $game->created_at ?? now(),
+                    'played_at' => $game->ended_at ?? now(),
                     'player_color' => 'b',
                     'computer_level' => 0,
                     'moves' => $movesCompact ?: null,
@@ -1344,6 +1381,63 @@ class GameRoomService
                     'message' => 'Abort request declined'
                 ];
             }
+        });
+    }
+
+    /**
+     * Cancel game due to opponent inactivity — NO rating impact for either player.
+     * The game result is '*' (no result) and no ELO changes are applied.
+     */
+    public function cancelGameInactivity(int $gameId, int $requestingUserId): array
+    {
+        return \DB::transaction(function () use ($gameId, $requestingUserId) {
+            $game = Game::lockForUpdate()->with(['whitePlayer', 'blackPlayer'])->findOrFail($gameId);
+            $user = User::findOrFail($requestingUserId);
+
+            if (!$this->canUserJoinGame($user, $game)) {
+                throw new \Exception('User not authorized for this game');
+            }
+
+            if ($game->isFinished()) {
+                throw new \Exception('Game is already finished');
+            }
+
+            if (!in_array($game->status, ['active', 'waiting'])) {
+                throw new \Exception('Game must be active to cancel');
+            }
+
+            // Verify it is NOT the requesting user's turn (they can only cancel when opponent is idle)
+            $userColor = $this->getUserRole($user, $game);
+            $userTurnChar = ($userColor === 'white') ? 'w' : 'b';
+            if ($game->turn === $userTurnChar) {
+                throw new \Exception('Cannot cancel when it is your turn to move');
+            }
+
+            // Mark game as finished with no result — NO rating impact
+            $game->update([
+                'status' => 'finished',
+                'result' => '*',
+                'end_reason' => 'cancelled_inactivity',
+                'winner_user_id' => null,
+                'winner_player' => null,
+                'ended_at' => now()
+            ]);
+
+            // Broadcast game ended to both players
+            $this->broadcastGameEnded($game->fresh());
+
+            \Log::info('Game cancelled due to opponent inactivity (no rating impact)', [
+                'game_id' => $gameId,
+                'cancelled_by' => $requestingUserId,
+                'idle_player_color' => $userColor === 'white' ? 'black' : 'white',
+            ]);
+
+            return [
+                'success' => true,
+                'message' => 'Game cancelled due to opponent inactivity. No rating impact.',
+                'result' => '*',
+                'end_reason' => 'cancelled_inactivity'
+            ];
         });
     }
 

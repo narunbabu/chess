@@ -357,17 +357,26 @@ class MatchmakingService
             ->pluck('uid')
             ->toArray();
 
-        // Get IDs of users with an active presence record in the last 2 minutes.
-        // user_presence.last_activity is updated on connect and on each heartbeat (60s interval).
-        // A 2-minute window balances responsiveness with avoiding ghost invitations to users
-        // who have closed their browser but whose presence hasn't yet expired.
-        // IMPORTANT: Require socket_id to be non-null, which indicates an active WebSocket
-        // connection. This prevents inviting ghost users who have stale presence records.
-        $activeUserIds = UserPresence::whereIn('status', ['online', 'away'])
+        // Get IDs of users with an active presence record.
+        // Two tiers:
+        //  1. Users with a valid socket_id AND activity within 2 minutes (strongly online)
+        //  2. Users with activity within 5 minutes but no socket_id (recently active —
+        //     the socket_id may not have been set yet due to Echo init race, or the user
+        //     navigated away briefly). These are still valid invitation targets because
+        //     they have an active browser session that will receive the broadcast.
+        $stronglyOnline = UserPresence::whereIn('status', ['online', 'away'])
             ->where('last_activity', '>=', now()->subMinutes(2))
             ->whereNotNull('socket_id')
             ->pluck('user_id')
             ->toArray();
+
+        $recentlyActive = UserPresence::whereIn('status', ['online', 'away'])
+            ->where('last_activity', '>=', now()->subMinutes(5))
+            ->whereNotIn('user_id', $stronglyOnline)
+            ->pluck('user_id')
+            ->toArray();
+
+        $activeUserIds = array_merge($stronglyOnline, $recentlyActive);
 
         // Also include users currently searching in the traditional queue — they
         // are guaranteed to be online and actively looking for a game, so they
@@ -381,6 +390,15 @@ class MatchmakingService
         if (!empty($queueUserIds)) {
             $activeUserIds = array_unique(array_merge($activeUserIds, $queueUserIds));
         }
+
+        Log::info('[MM:PRESENCE] Candidate pool breakdown', [
+            'requester_id' => $user->id,
+            'strongly_online' => count($stronglyOnline),
+            'recently_active' => count($recentlyActive),
+            'in_queue' => count($queueUserIds),
+            'busy_in_game' => count($busyUserIds),
+            'total_pool' => count(array_unique($activeUserIds)),
+        ]);
 
         // Find suitable online players: within rating range, not in active game
         $candidates = User::where('id', '!=', $user->id)

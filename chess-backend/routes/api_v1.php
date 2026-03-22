@@ -178,6 +178,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/achievements/user', [TutorialController::class, 'getUserAchievements']);
         Route::get('/daily-challenge', [TutorialController::class, 'getDailyChallenge']);
         Route::post('/daily-challenge/submit', [TutorialController::class, 'submitDailyChallenge']);
+        Route::get('/daily-challenge/leaderboard', [TutorialController::class, 'getDailyChallengeLeaderboard']);
         Route::post('/practice-game/create', [TutorialController::class, 'createPracticeGame']);
         Route::post('/practice-game/{id}/complete', [TutorialController::class, 'completePracticeGame']);
         Route::post('/skill-assessment', [TutorialController::class, 'createSkillAssessment']);
