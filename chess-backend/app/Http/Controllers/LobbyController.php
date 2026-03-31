@@ -31,6 +31,7 @@ class LobbyController extends Controller
             $thirtyMinAgo = now()->subMinutes(30);
             $whiteIds = Game::where('status_id', $activeStatusId)
                 ->whereNull('computer_player_id')
+                ->whereNull('synthetic_player_id')
                 ->where(function ($q) use ($thirtyMinAgo) {
                     $q->where('last_move_at', '>=', $thirtyMinAgo)
                       ->orWhere('created_at', '>=', $thirtyMinAgo);
@@ -39,6 +40,7 @@ class LobbyController extends Controller
                 ->pluck('white_player_id');
             $blackIds = Game::where('status_id', $activeStatusId)
                 ->whereNull('computer_player_id')
+                ->whereNull('synthetic_player_id')
                 ->where(function ($q) use ($thirtyMinAgo) {
                     $q->where('last_move_at', '>=', $thirtyMinAgo)
                       ->orWhere('created_at', '>=', $thirtyMinAgo);

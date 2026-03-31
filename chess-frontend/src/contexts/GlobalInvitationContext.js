@@ -446,6 +446,45 @@ export const GlobalInvitationProvider = ({ children }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, location.pathname]);
 
+  // Polling fallback: check for pending invitations every 10 seconds
+  // This ensures invitations are received even if WebSocket is disconnected
+  useEffect(() => {
+    if (!user?.id) return;
+
+    let pollTimer = null;
+    const pollPendingInvitations = async () => {
+      // Don't poll if user is in an active game or already has a pending invitation
+      if (isInActiveGameRef.current() || pendingInvitationRef.current) return;
+
+      try {
+        const response = await api.get('/invitations/pending', { params: { limit: 1, page: 1 } });
+        const invitations = response.data?.data || [];
+        if (invitations.length > 0 && !pendingInvitationRef.current) {
+          const inv = invitations[0];
+          // Only show game_invitation type (not resume requests which have their own flow)
+          if (inv.type === 'game_invitation') {
+            console.log('[GlobalInvitation] Poll found pending invitation:', inv.id);
+            setPendingInvitation(inv);
+          }
+        }
+      } catch {
+        // Silent — polling is best-effort
+      }
+    };
+
+    // Start polling after a short delay (give WebSocket time to connect)
+    const startDelay = setTimeout(() => {
+      pollPendingInvitations(); // Initial check
+      pollTimer = setInterval(pollPendingInvitations, 10000);
+    }, 5000);
+
+    return () => {
+      clearTimeout(startDelay);
+      if (pollTimer) clearInterval(pollTimer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
   // Listen to global WebSocket manager for game status changes
   useEffect(() => {
     if (!user?.id) return;

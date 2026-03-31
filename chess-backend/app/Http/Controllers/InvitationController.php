@@ -26,7 +26,7 @@ class InvitationController extends Controller
                 'preferred_color' => 'nullable|in:white,black,random',
                 'game_mode' => 'nullable|in:casual,rated',
                 'time_control_minutes' => 'nullable|integer|in:3,5,10,15,30',
-                'increment_seconds' => 'nullable|integer|in:0,2,3,5,10',
+                'increment_seconds' => 'nullable|integer|in:0,1,2,3,5,10',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::error('❌ Invitation validation failed', [
@@ -54,11 +54,15 @@ class InvitationController extends Controller
             return response()->json(['error' => 'Cannot invite yourself'], 400);
         }
 
-        // Check if invited player is currently in an active game
+        // Check if invited player is currently in an active MULTIPLAYER game
+        // Exclude computer and synthetic games — those are single-player and
+        // shouldn't prevent a user from receiving multiplayer challenges
         $activeStatusId = GameStatus::where('code', 'active')->value('id');
         if ($activeStatusId) {
             $thirtyMinAgo = now()->subMinutes(30);
             $isInGame = Game::where('status_id', $activeStatusId)
+                ->whereNull('computer_player_id')
+                ->whereNull('synthetic_player_id')
                 ->where(function ($q) use ($thirtyMinAgo) {
                     $q->where('last_move_at', '>=', $thirtyMinAgo)
                       ->orWhere('created_at', '>=', $thirtyMinAgo);

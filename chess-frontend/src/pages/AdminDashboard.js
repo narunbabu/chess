@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { BACKEND_URL } from '../config';
 import { isPlatformAdmin, isOrganizationAdmin } from '../utils/permissionHelpers';
+import UserProgressCharts from '../components/UserProgressCharts';
 
 const PERIODS = [
   { value: 'today', label: 'Today' },
@@ -361,6 +362,7 @@ const UserDetailPanel = ({ userId, period, onClose }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [userPeriod, setUserPeriod] = useState(period);
+  const [showCharts, setShowCharts] = useState(false);
 
   useEffect(() => { setUserPeriod(period); }, [period]);
 
@@ -456,6 +458,18 @@ const UserDetailPanel = ({ userId, period, onClose }) => {
         <StatsSection title="By Outcome" items={(data.games_by_outcome || []).map(i => ({ label: i.label, count: i.count }))} />
         <StatsSection title="By Mode" items={(data.games_by_mode || []).map(i => ({ label: i.label, count: i.count }))} />
         <StatsSection title="By Time Control" items={(data.games_by_time_control || []).map(i => ({ label: i.label, count: i.count }))} />
+      </div>
+
+      {/* Progress Graphs */}
+      <div className="mb-4">
+        <button
+          onClick={() => setShowCharts(!showCharts)}
+          className="flex items-center gap-2 text-sm font-semibold text-white hover:text-[#81b64c] transition-colors"
+        >
+          <span className="text-xs">{showCharts ? '▼' : '▶'}</span>
+          <span>Progress Graphs</span>
+        </button>
+        {showCharts && <UserProgressCharts userId={userId} period={userPeriod} />}
       </div>
 
       {/* Recent Games */}
