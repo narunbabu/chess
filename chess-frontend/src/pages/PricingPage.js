@@ -30,7 +30,7 @@ const PricingPage = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const { plans, plansLoading, plansError, currentTier, loading, fetchPlans, fetchCurrentSubscription } = useSubscription();
-  const [billingInterval, setBillingInterval] = useState('monthly');
+  const [billingInterval, setBillingInterval] = useState('yearly');
   const [checkoutPlanId, setCheckoutPlanId] = useState(null);
   const [fallbackRetrying, setFallbackRetrying] = useState(false);
   const [checkoutError, setCheckoutError] = useState(null);

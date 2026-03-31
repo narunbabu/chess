@@ -161,6 +161,11 @@ const LobbyPage = () => {
         // Only leave lobby channels, preserve Echo connection for PlayMultiplayer
         webSocketService.leaveAllLobbyChannels();
       }
+      // Leave the public lobby channel used for game-ended status updates
+      const echo = getEcho();
+      if (echo) {
+        try { echo.leave('lobby'); } catch (e) { /* ok */ }
+      }
     };
   }, [user, webSocketService]);
 
@@ -190,6 +195,26 @@ const LobbyPage = () => {
         setPlayers(prevPlayers =>
           prevPlayers.filter(p => p.id !== user.id)
         );
+      });
+
+      // Listen for game.ended on public lobby channel to update player statuses
+      const lobbyChannel = echo.channel('lobby');
+      lobbyChannel.listen('.game.ended', (event) => {
+        console.log('[Lobby] Game ended event received, updating player statuses', event);
+        const finishedPlayerIds = [
+          event.white_player?.id,
+          event.black_player?.id,
+        ].filter(Boolean);
+
+        if (finishedPlayerIds.length > 0) {
+          setPlayers(prevPlayers =>
+            prevPlayers.map(p =>
+              finishedPlayerIds.includes(p.id)
+                ? { ...p, status: 'online', in_game: false }
+                : p
+            )
+          );
+        }
       });
 
       console.log('[Lobby] Real-time presence listeners set up');

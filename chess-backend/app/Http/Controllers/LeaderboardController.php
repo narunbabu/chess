@@ -59,12 +59,16 @@ class LeaderboardController extends Controller
                 ->limit($limit)
                 ->get();
 
-            // 2. Most Wins — multiplayer only (exclude computer games via computer_player_id IS NULL)
+            // 2. Most Wins — multiplayer + synthetic games (exclude pure computer games)
             $mostWinsQuery = DB::table('games')
                 ->select('winner_user_id as user_id', DB::raw('COUNT(*) as value'))
                 ->whereNotNull('winner_user_id')
                 ->where('status_id', 3)
-                ->whereNull('computer_player_id');
+                ->where(function ($q) {
+                    // Include real multiplayer games (no computer) OR synthetic bot games
+                    $q->whereNull('computer_player_id')
+                      ->orWhereNotNull('synthetic_player_id');
+                });
             if ($periodStart) {
                 $mostWinsQuery->where('ended_at', '>=', $periodStart);
             }

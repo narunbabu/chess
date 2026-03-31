@@ -5,10 +5,13 @@ namespace App\Http\Controllers;
 use App\Enums\SubscriptionTier;
 use App\Events\GameEndedEvent;
 use App\Models\Game;
+use App\Models\GameHistory;
 use App\Models\User;
 use App\Models\ComputerPlayer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class GameController extends Controller
 {
@@ -504,10 +507,73 @@ class GameController extends Controller
             'ended_at'       => now(),
         ]);
 
+        // For synthetic bot games, create game_history record for the human player
+        // so the game appears on the leaderboard
+        if ($game->synthetic_player_id) {
+            $this->createSyntheticGameHistory($game, $result, $winnerId, $endReason);
+
+            // Invalidate leaderboard caches
+            Cache::forget('leaderboard:today');
+            Cache::forget('leaderboard:7d');
+            Cache::forget('leaderboard:30d');
+            Cache::forget('leaderboard:all');
+        }
+
         return response()->json([
             'message' => 'Game completed',
             'game'    => $game,
         ]);
+    }
+
+    /**
+     * Create game_history record for the human player in a synthetic bot game.
+     */
+    private function createSyntheticGameHistory(Game $game, string $result, ?int $winnerId, string $endReason): void
+    {
+        try {
+            $humanPlayerId = $game->white_player_id ?: $game->black_player_id;
+            if (!$humanPlayerId) return;
+
+            // Skip if already exists
+            if (GameHistory::where('user_id', $humanPlayerId)->where('game_id', $game->id)->exists()) {
+                return;
+            }
+
+            $synth = $game->syntheticPlayer;
+            $playerColor = $game->white_player_id === $humanPlayerId ? 'w' : 'b';
+            $isWinner = $winnerId && (int) $humanPlayerId === (int) $winnerId;
+            $status = !$winnerId ? 'draw' : ($isWinner ? 'won' : 'lost');
+
+            GameHistory::create([
+                'user_id' => $humanPlayerId,
+                'game_id' => $game->id,
+                'played_at' => $game->ended_at ?? now(),
+                'player_color' => $playerColor,
+                'computer_level' => 0,
+                'moves' => null,
+                'final_score' => $playerColor === 'w' ? ($game->white_player_score ?? 0) : ($game->black_player_score ?? 0),
+                'opponent_score' => $playerColor === 'w' ? ($game->black_player_score ?? 0) : ($game->white_player_score ?? 0),
+                'result' => json_encode([
+                    'status' => $status,
+                    'end_reason' => $endReason,
+                    'details' => $isWinner ? "You won by {$endReason}!" : ($status === 'draw' ? "Game ended in a draw by {$endReason}" : "You lost by {$endReason}"),
+                ]),
+                'opponent_name' => $synth->name ?? 'Bot',
+                'opponent_avatar_url' => $synth->avatar_url ?? null,
+                'opponent_rating' => $synth->rating ?? null,
+                'game_mode' => 'multiplayer',
+            ]);
+
+            Log::info('Created game_history for synthetic game', [
+                'game_id' => $game->id,
+                'user_id' => $humanPlayerId,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to create synthetic game history', [
+                'game_id' => $game->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     public function resign($id)

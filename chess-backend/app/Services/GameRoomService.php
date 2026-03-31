@@ -980,8 +980,16 @@ class GameRoomService
     private function createGameHistoryRecords(Game $game, array $attrs): void
     {
         try {
-            // Only create for multiplayer games with real players
-            if (!$game->white_player_id || !$game->black_player_id) {
+            // Determine if this is a synthetic game (human vs bot from lobby)
+            $isSyntheticGame = !empty($game->synthetic_player_id);
+
+            // For pure multiplayer: need both players
+            // For synthetic games: only the human player gets a history record
+            if (!$isSyntheticGame && (!$game->white_player_id || !$game->black_player_id)) {
+                return;
+            }
+            // For synthetic games, at least one real player must exist
+            if ($isSyntheticGame && !$game->white_player_id && !$game->black_player_id) {
                 return;
             }
 
@@ -1029,8 +1037,17 @@ class GameRoomService
             $whitePlayer = $game->whitePlayer;
             $blackPlayer = $game->blackPlayer;
 
-            // Create record for white player (skip if already exists for this game)
-            if (!GameHistory::where('user_id', $game->white_player_id)->where('game_id', $game->id)->exists()) {
+            // For synthetic games, get bot info for opponent fields
+            $syntheticPlayer = $isSyntheticGame ? $game->syntheticPlayer : null;
+            $gameMode = $isSyntheticGame ? 'multiplayer' : 'multiplayer';
+
+            // Create record for white player (skip if no user or already exists)
+            if ($game->white_player_id && !GameHistory::where('user_id', $game->white_player_id)->where('game_id', $game->id)->exists()) {
+                // Opponent is either a real player or a synthetic bot
+                $opponentName = $blackPlayer->name ?? ($syntheticPlayer->name ?? 'Unknown');
+                $opponentAvatar = $blackPlayer->avatar_url ?? ($syntheticPlayer->avatar_url ?? null);
+                $opponentRating = $blackPlayer->rating ?? ($syntheticPlayer->rating ?? null);
+
                 GameHistory::create([
                     'user_id' => $game->white_player_id,
                     'game_id' => $game->id,
@@ -1041,15 +1058,19 @@ class GameRoomService
                     'final_score' => $game->white_player_score ?? 0,
                     'opponent_score' => $game->black_player_score ?? 0,
                     'result' => $buildResultJson($game->white_player_id),
-                    'opponent_name' => $blackPlayer->name ?? 'Unknown',
-                    'opponent_avatar_url' => $blackPlayer->avatar_url ?? null,
-                    'opponent_rating' => $blackPlayer->rating ?? null,
-                    'game_mode' => 'multiplayer',
+                    'opponent_name' => $opponentName,
+                    'opponent_avatar_url' => $opponentAvatar,
+                    'opponent_rating' => $opponentRating,
+                    'game_mode' => $gameMode,
                 ]);
             }
 
-            // Create record for black player (skip if already exists for this game)
-            if (!GameHistory::where('user_id', $game->black_player_id)->where('game_id', $game->id)->exists()) {
+            // Create record for black player (skip if no user or already exists)
+            if ($game->black_player_id && !GameHistory::where('user_id', $game->black_player_id)->where('game_id', $game->id)->exists()) {
+                $opponentName = $whitePlayer->name ?? ($syntheticPlayer->name ?? 'Unknown');
+                $opponentAvatar = $whitePlayer->avatar_url ?? ($syntheticPlayer->avatar_url ?? null);
+                $opponentRating = $whitePlayer->rating ?? ($syntheticPlayer->rating ?? null);
+
                 GameHistory::create([
                     'user_id' => $game->black_player_id,
                     'game_id' => $game->id,
@@ -1060,10 +1081,10 @@ class GameRoomService
                     'final_score' => $game->black_player_score ?? 0,
                     'opponent_score' => $game->white_player_score ?? 0,
                     'result' => $buildResultJson($game->black_player_id),
-                    'opponent_name' => $whitePlayer->name ?? 'Unknown',
-                    'opponent_avatar_url' => $whitePlayer->avatar_url ?? null,
-                    'opponent_rating' => $whitePlayer->rating ?? null,
-                    'game_mode' => 'multiplayer',
+                    'opponent_name' => $opponentName,
+                    'opponent_avatar_url' => $opponentAvatar,
+                    'opponent_rating' => $opponentRating,
+                    'game_mode' => $gameMode,
                 ]);
             }
 
@@ -1071,6 +1092,7 @@ class GameRoomService
                 'game_id' => $game->id,
                 'white_player_id' => $game->white_player_id,
                 'black_player_id' => $game->black_player_id,
+                'is_synthetic' => $isSyntheticGame,
             ]);
         } catch (\Exception $e) {
             // Non-fatal: log error but don't fail the game finalization

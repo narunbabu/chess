@@ -23,12 +23,14 @@ class LobbyController extends Controller
         // Get real online users (users active within last 5 minutes)
         $onlineThreshold = now()->subMinutes(5);
 
-        // Find users currently in active games (busy — should show "Playing" status)
+        // Find users currently in active MULTIPLAYER games (busy — should show "Playing" status)
+        // Exclude synthetic/computer games — those are single-player and shouldn't mark the user as busy
         $activeStatusId = GameStatus::where('code', 'active')->value('id');
         $busyUserIds = [];
         if ($activeStatusId) {
             $thirtyMinAgo = now()->subMinutes(30);
             $whiteIds = Game::where('status_id', $activeStatusId)
+                ->whereNull('computer_player_id')
                 ->where(function ($q) use ($thirtyMinAgo) {
                     $q->where('last_move_at', '>=', $thirtyMinAgo)
                       ->orWhere('created_at', '>=', $thirtyMinAgo);
@@ -36,6 +38,7 @@ class LobbyController extends Controller
                 ->whereNotNull('white_player_id')
                 ->pluck('white_player_id');
             $blackIds = Game::where('status_id', $activeStatusId)
+                ->whereNull('computer_player_id')
                 ->where(function ($q) use ($thirtyMinAgo) {
                     $q->where('last_move_at', '>=', $thirtyMinAgo)
                       ->orWhere('created_at', '>=', $thirtyMinAgo);

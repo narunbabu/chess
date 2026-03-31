@@ -33,6 +33,7 @@ class GameEndedEvent implements ShouldBroadcastNow
     {
         return [
             new PrivateChannel("game.{$this->gameId}"),
+            new Channel('lobby'),
         ];
     }
 

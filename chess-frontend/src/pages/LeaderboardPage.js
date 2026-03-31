@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useAuth } from '../contexts/AuthContext';
 import { BACKEND_URL } from '../config';
 import { waitForImagesToLoad } from '../utils/imageUtils';
+import { getEcho } from '../services/echoSingleton';
 
 // Share URLs
 const SHARE_URLS = {
@@ -314,6 +315,26 @@ const LeaderboardPage = () => {
   }, []);
 
   useEffect(() => { fetchLeaderboard(period); }, [period, fetchLeaderboard]);
+
+  // Auto-refresh when any game ends (listen on public lobby channel)
+  useEffect(() => {
+    const echo = getEcho();
+    if (!echo) return;
+
+    const channel = echo.channel('lobby');
+    const handler = () => {
+      console.log('[Leaderboard] Game ended — auto-refreshing');
+      fetchLeaderboard(period);
+    };
+    channel.listen('.game.ended', handler);
+
+    return () => {
+      try {
+        channel.stopListening('.game.ended', handler);
+        echo.leave('lobby');
+      } catch { /* ok */ }
+    };
+  }, [period, fetchLeaderboard]);
 
   const entries = useMemo(() => data?.[category] || [], [data, category]);
 

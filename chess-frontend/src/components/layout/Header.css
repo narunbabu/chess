@@ -453,6 +453,13 @@
   }
 }
 
+/* Hide secondary nav items on mobile — avatar panel already has these links */
+@media (max-width: 600px) {
+  .desktop-nav-item {
+    display: none !important;
+  }
+}
+
 @media (max-width: 480px) {
   .app-header.glass-header {
     padding: 0.25rem 0.4rem;
@@ -606,17 +613,20 @@
 /* Navigation Panel Header */
 .nav-panel-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   padding: 1.5rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.05);
+  gap: 0.5rem;
 }
 
 .nav-user-info {
   display: flex;
   align-items: center;
   gap: 1rem;
+  min-width: 0;
+  flex: 1;
 }
 
 .nav-user-avatar {
@@ -639,10 +649,17 @@
   font-size: 0.9rem;
 }
 
+.nav-user-details {
+  min-width: 0;
+}
+
 .nav-user-details .nav-user-email {
   font-size: 0.85rem;
   color: #6b7280;
   margin-bottom: 0.25rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .nav-close-btn {
@@ -656,9 +673,11 @@
   transition: all 0.2s;
   width: 40px;
   height: 40px;
+  min-width: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .nav-close-btn:hover {
