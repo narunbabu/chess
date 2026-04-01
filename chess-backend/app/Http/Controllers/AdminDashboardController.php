@@ -713,7 +713,7 @@ class AdminDashboardController extends Controller
             ->select(
                 DB::raw('DATE(created_at) as date'),
                 DB::raw('MAX(new_rating) as rating'),
-                DB::raw('SUM(rating_change) as change'),
+                DB::raw('SUM(rating_change) as `change`'),
                 DB::raw('COUNT(*) as games')
             )
             ->where('user_id', $id)
