@@ -456,13 +456,36 @@ const LobbyPage = () => {
       });
 
       setInviteStatus('sent');
+      const invitationId = response.data.invitation?.id;
 
-      // Auto-close after 3 seconds
-      setTimeout(() => {
+      // Auto-cancel after 10 seconds if not accepted
+      const cancelTimer = setTimeout(async () => {
+        if (invitationId) {
+          try {
+            await api.delete(`/invitations/${invitationId}`);
+          } catch { /* already expired or accepted */ }
+        }
         setInviteStatus(null);
         setInvitedPlayer(null);
         setSelectedPlayer(null);
-      }, 3000);
+      }, 10000);
+
+      // Store cancel timer and invitation ID so ChallengeModal cancel button works
+      window.__pendingInvitationCancel = {
+        invitationId,
+        cancelTimer,
+        cancel: async () => {
+          clearTimeout(cancelTimer);
+          if (invitationId) {
+            try {
+              await api.delete(`/invitations/${invitationId}`);
+            } catch { /* ok */ }
+          }
+          setInviteStatus(null);
+          setInvitedPlayer(null);
+          setSelectedPlayer(null);
+        },
+      };
     } catch (error) {
       console.error('Failed to send invitation:', error);
 

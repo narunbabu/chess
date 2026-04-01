@@ -1,5 +1,68 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { getPreferredGameMode } from '../../utils/gamePreferences';
+
+const SentCountdown = ({ invitedPlayer }) => {
+  const [secondsLeft, setSecondsLeft] = useState(10);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setSecondsLeft(prev => Math.max(0, prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const handleCancel = () => {
+    if (window.__pendingInvitationCancel?.cancel) {
+      window.__pendingInvitationCancel.cancel();
+    }
+  };
+
+  return (
+    <>
+      <h2>⏳ Waiting for {invitedPlayer?.name}...</h2>
+      <p>Challenge sent. Waiting for response...</p>
+      <p style={{
+        fontSize: '28px',
+        fontWeight: 'bold',
+        color: secondsLeft <= 3 ? '#e74c3c' : '#e8a93e',
+        margin: '12px 0',
+      }}>
+        {secondsLeft}s
+      </p>
+      <div style={{
+        width: '100%',
+        height: '4px',
+        background: '#3d3a37',
+        borderRadius: '2px',
+        overflow: 'hidden',
+        margin: '8px 0 16px',
+      }}>
+        <div style={{
+          width: `${(secondsLeft / 10) * 100}%`,
+          height: '100%',
+          background: secondsLeft <= 3 ? '#e74c3c' : '#81b64c',
+          transition: 'width 1s linear',
+          borderRadius: '2px',
+        }} />
+      </div>
+      <button
+        onClick={handleCancel}
+        style={{
+          padding: '8px 24px',
+          background: 'transparent',
+          border: '2px solid #e74c3c',
+          color: '#e74c3c',
+          borderRadius: '8px',
+          cursor: 'pointer',
+          fontSize: '14px',
+          fontWeight: 'bold',
+        }}
+      >
+        Cancel Challenge
+      </button>
+    </>
+  );
+};
 
 const TIME_PRESETS = [
   { minutes: 3, increment: 1, label: '3|1', category: 'Blitz' },
@@ -254,16 +317,7 @@ const ChallengeModal = ({
             </>
           )}
           {inviteStatus === 'sent' && (
-            <>
-              <h2>✅ Invitation Sent!</h2>
-              <p>
-                Your challenge has been sent to {invitedPlayer.name}. They will
-                be notified and can accept or decline.
-              </p>
-              <p>
-                You can see the status in your "Sent Invitations" section below.
-              </p>
-            </>
+            <SentCountdown invitedPlayer={invitedPlayer} />
           )}
           {inviteStatus === 'error' && (
             <>

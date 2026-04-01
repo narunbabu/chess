@@ -832,10 +832,39 @@ class GameController extends Controller
     {
         $user = Auth::user();
 
-        // Only return games paused within the last hour.
-        // Games paused longer are expired (cleanup cron handles them).
+        // Auto-abort this user's paused games older than 1 hour (instant cleanup on access)
         $pausedCutoff = now()->subHour();
+        $abortedStatusId = GameStatus::getIdByCode('aborted');
+        $pausedStatusId = GameStatus::where('code', 'paused')->value('id');
 
+        if ($pausedStatusId && $abortedStatusId) {
+            $staleGames = Game::where(function($q) use ($user) {
+                $q->where('white_player_id', $user->id)->orWhere('black_player_id', $user->id);
+            })
+            ->where('status_id', $pausedStatusId)
+            ->where(function($q) use ($pausedCutoff) {
+                $q->where('paused_at', '<', $pausedCutoff)
+                  ->orWhere(function($sub) use ($pausedCutoff) {
+                      $sub->whereNull('paused_at')->where('updated_at', '<', $pausedCutoff);
+                  });
+            })
+            ->get();
+
+            foreach ($staleGames as $stale) {
+                $stale->update([
+                    'status_id' => $abortedStatusId,
+                    'ended_at' => now(),
+                    'result' => '*',
+                ]);
+                Log::info('Auto-aborted stale paused game on access', [
+                    'game_id' => $stale->id,
+                    'user_id' => $user->id,
+                    'paused_at' => $stale->paused_at,
+                ]);
+            }
+        }
+
+        // Only return games paused within the last hour
         $games = Game::where(function($query) use ($user) {
             $query->where('white_player_id', $user->id)
                   ->orWhere('black_player_id', $user->id);

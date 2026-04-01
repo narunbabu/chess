@@ -59,6 +59,32 @@ const GlobalInvitationDialog = () => {
     }
   }, [pendingMatchRequest, declineMatchRequest]);
 
+  // Countdown timer for game invitations (10 seconds auto-decline)
+  const [invitationSecondsLeft, setInvitationSecondsLeft] = useState(0);
+  const invitationTimerRef = useRef(null);
+
+  useEffect(() => {
+    if (pendingInvitation && pendingInvitation.type !== 'new_game_request') {
+      const INVITATION_TIMEOUT = 10; // seconds
+      setInvitationSecondsLeft(INVITATION_TIMEOUT);
+      invitationTimerRef.current = setInterval(() => {
+        setInvitationSecondsLeft(prev => {
+          const next = prev - 1;
+          if (next <= 0) {
+            clearInterval(invitationTimerRef.current);
+            // Auto-decline expired invitation
+            declineInvitation(pendingInvitation.id);
+          }
+          return Math.max(0, next);
+        });
+      }, 1000);
+      return () => clearInterval(invitationTimerRef.current);
+    } else {
+      setInvitationSecondsLeft(0);
+      if (invitationTimerRef.current) clearInterval(invitationTimerRef.current);
+    }
+  }, [pendingInvitation, declineInvitation]);
+
   // Debug logging
   React.useEffect(() => {
     console.log('[GlobalInvitationDialog] 🎨 State update:', {
@@ -179,9 +205,15 @@ const GlobalInvitationDialog = () => {
                       )}
                     </p>
                   )}
-                  <p className="invitation-meta">
-                    {new Date(pendingInvitation.created_at).toLocaleTimeString()}
-                  </p>
+                  {invitationSecondsLeft > 0 && (
+                    <p className="invitation-meta" style={{
+                      color: invitationSecondsLeft <= 3 ? '#e74c3c' : '#e8a93e',
+                      fontWeight: 'bold',
+                      fontSize: '16px',
+                    }}>
+                      ⏳ Expires in {invitationSecondsLeft}s
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
