@@ -90,7 +90,7 @@ const UserProgressCharts = ({ userId, period }) => {
     [data, period]
   );
   const pointsData = useMemo(
-    () => data ? fillDateGaps(data.points_per_day, period, { points: 0, games: 0 }) : [],
+    () => data ? fillDateGaps(data.points_per_day, period, { points: 0, lost: 0, games: 0 }) : [],
     [data, period]
   );
   const gamesData = useMemo(
@@ -154,17 +154,19 @@ const UserProgressCharts = ({ userId, period }) => {
         </div>
       )}
 
-      {/* Points Earned Per Day */}
+      {/* Rating Points Per Day */}
       {pointsData.length > 0 && (
         <div className="bg-[#262421] rounded p-3">
-          <h4 className="text-xs font-semibold text-white mb-2">Points Earned Per Day</h4>
+          <h4 className="text-xs font-semibold text-white mb-2">Rating Points Per Day</h4>
           <ResponsiveContainer width="100%" height={180}>
             <BarChart data={pointsData}>
               <CartesianGrid {...gridProps} />
               <XAxis {...xAxisProps} />
               <YAxis {...yAxisProps} />
               <Tooltip contentStyle={tooltipStyle} labelFormatter={tickFormatter} />
-              <Bar dataKey="points" fill={CHART_COLORS.amber} radius={[2, 2, 0, 0]} />
+              <Legend wrapperStyle={{ fontSize: 11, color: CHART_COLORS.axis }} />
+              <Bar dataKey="points" stackId="a" fill={CHART_COLORS.green} name="Gained" />
+              <Bar dataKey="lost" stackId="a" fill={CHART_COLORS.red} name="Lost" radius={[2, 2, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

@@ -728,21 +728,25 @@ class AdminDashboardController extends Controller
                 'games'  => (int) $row->games,
             ]);
 
-        // Points earned per day
-        $pointsPerDay = DB::table('game_histories')
+        // Points earned per day — uses rating changes from ratings_history
+        // (game_histories.final_score is 0 for synthetic bot games since
+        //  quality scoring only works in real multiplayer games)
+        $pointsPerDay = DB::table('ratings_history')
             ->select(
-                DB::raw('DATE(played_at) as date'),
-                DB::raw('ROUND(SUM(final_score), 1) as points'),
+                DB::raw('DATE(created_at) as date'),
+                DB::raw('SUM(CASE WHEN rating_change > 0 THEN rating_change ELSE 0 END) as points'),
+                DB::raw('SUM(CASE WHEN rating_change < 0 THEN rating_change ELSE 0 END) as lost'),
                 DB::raw('COUNT(*) as games')
             )
             ->where('user_id', $id)
-            ->when($periodStart, fn($q) => $q->where('played_at', '>=', $periodStart))
-            ->groupBy(DB::raw('DATE(played_at)'))
+            ->when($periodStart, fn($q) => $q->where('created_at', '>=', $periodStart))
+            ->groupBy(DB::raw('DATE(created_at)'))
             ->orderBy('date')
             ->get()
             ->map(fn($row) => [
                 'date'   => $row->date,
                 'points' => (float) $row->points,
+                'lost'   => (float) $row->lost,
                 'games'  => (int) $row->games,
             ]);
 

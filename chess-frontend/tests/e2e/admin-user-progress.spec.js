@@ -123,17 +123,17 @@ const MOCK_PROGRESS = {
     { date: '2026-03-30', rating: 1350, change: 0, games: 1 },
   ],
   points_per_day: [
-    { date: '2026-03-01', points: 3.5, games: 2 },
-    { date: '2026-03-03', points: 5.2, games: 3 },
-    { date: '2026-03-05', points: 1.0, games: 1 },
-    { date: '2026-03-08', points: 4.0, games: 2 },
-    { date: '2026-03-10', points: 1.5, games: 1 },
-    { date: '2026-03-12', points: 3.8, games: 2 },
-    { date: '2026-03-15', points: 6.1, games: 3 },
-    { date: '2026-03-18', points: 1.2, games: 1 },
-    { date: '2026-03-20', points: 3.0, games: 2 },
-    { date: '2026-03-25', points: 2.8, games: 2 },
-    { date: '2026-03-30', points: 1.0, games: 1 },
+    { date: '2026-03-01', points: 12, lost: 0, games: 2 },
+    { date: '2026-03-03', points: 15, lost: 0, games: 3 },
+    { date: '2026-03-05', points: 0, lost: -5, games: 1 },
+    { date: '2026-03-08', points: 20, lost: 0, games: 2 },
+    { date: '2026-03-10', points: 0, lost: -5, games: 1 },
+    { date: '2026-03-12', points: 15, lost: 0, games: 2 },
+    { date: '2026-03-15', points: 15, lost: 0, games: 3 },
+    { date: '2026-03-18', points: 0, lost: -5, games: 1 },
+    { date: '2026-03-20', points: 10, lost: 0, games: 2 },
+    { date: '2026-03-25', points: 10, lost: 0, games: 2 },
+    { date: '2026-03-30', points: 0, lost: 0, games: 1 },
   ],
   games_per_day: [
     { date: '2026-03-01', total: 2, wins: 1, draws: 0, losses: 1 },
@@ -267,7 +267,7 @@ test.describe('Admin Dashboard - User Progress Charts', () => {
 
     // Charts should NOT be visible yet (collapsed)
     await expect(page.locator('text=Rating Progression')).not.toBeVisible();
-    await expect(page.locator('text=Points Earned Per Day')).not.toBeVisible();
+    await expect(page.locator('text=Rating Points Per Day')).not.toBeVisible();
     await expect(page.locator('text=Games Played Per Day')).not.toBeVisible();
   });
 
@@ -286,7 +286,7 @@ test.describe('Admin Dashboard - User Progress Charts', () => {
 
     // All three chart sections should appear
     await expect(page.locator('text=Rating Progression')).toBeVisible({ timeout: 8000 });
-    await expect(page.locator('text=Points Earned Per Day')).toBeVisible();
+    await expect(page.locator('text=Rating Points Per Day')).toBeVisible();
     await expect(page.locator('text=Games Played Per Day')).toBeVisible();
 
     // recharts renders SVG elements — verify SVG containers exist
@@ -356,12 +356,16 @@ test.describe('Admin Dashboard - User Progress Charts', () => {
     await page.locator('button', { hasText: 'Progress Graphs' }).click();
     await expect(page.locator('text=Rating Progression')).toBeVisible({ timeout: 8000 });
 
+    // Rating Points chart should have a Legend with Gained, Lost
+    const legends = page.locator('.recharts-legend-wrapper');
+    await expect(legends.first()).toBeVisible();
+    await expect(legends.first().locator('text=Gained')).toBeVisible();
+    await expect(legends.first().locator('text=Lost')).toBeVisible();
+
     // Games chart should have a Legend with Wins, Draws, Losses
-    const legend = page.locator('.recharts-legend-wrapper');
-    await expect(legend).toBeVisible();
-    await expect(legend.locator('text=Wins')).toBeVisible();
-    await expect(legend.locator('text=Draws')).toBeVisible();
-    await expect(legend.locator('text=Losses')).toBeVisible();
+    await expect(legends.last().locator('text=Wins')).toBeVisible();
+    await expect(legends.last().locator('text=Draws')).toBeVisible();
+    await expect(legends.last().locator('text=Losses')).toBeVisible();
 
     // X-axis should render tick labels (recharts uses <tspan> inside <text> for axis labels)
     const xAxisTicks = page.locator('.recharts-cartesian-axis-tick');
