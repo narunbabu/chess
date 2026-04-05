@@ -761,6 +761,26 @@ const Dashboard = () => {
                       >
                         ▶️ Resume Game
                       </button>
+                      {(game.status === 'paused' || game.status === 'waiting') && (
+                        <button
+                          onClick={async () => {
+                            if (!window.confirm(
+                              `Abandon game vs ${opponent?.name}?\n\nThis will end the game with no rating impact for either player.`
+                            )) return;
+                            try {
+                              await api.post(`/games/${game.id}/abandon`);
+                              setActiveGames(prev => prev.filter(g => g.id !== game.id));
+                            } catch (err) {
+                              console.error('Failed to abandon game:', err);
+                              alert('Failed to abandon game: ' + (err.response?.data?.error || err.message));
+                            }
+                          }}
+                          className="unified-card-btn danger"
+                          title="End this stale game (no rating impact)"
+                        >
+                          🏳️ Abandon
+                        </button>
+                      )}
                     </div>
                   </div>
                 );

@@ -670,6 +670,62 @@ class GameController extends Controller
         ]);
     }
 
+    /**
+     * Abandon a stale/paused game (no rating impact).
+     * Allows a player to get rid of a game where the opponent disappeared.
+     * Only works on paused or waiting games.
+     */
+    public function abandonGame($id)
+    {
+        $game = Game::find($id);
+
+        if (!$game) {
+            return response()->json(['error' => 'Game not found'], 404);
+        }
+
+        $user = Auth::user();
+
+        // Must be a player in this game
+        if ($game->white_player_id !== $user->id && $game->black_player_id !== $user->id) {
+            return response()->json(['error' => 'Not your game'], 403);
+        }
+
+        // Only allow abandoning paused or waiting games (not active games mid-play)
+        if (!in_array($game->status, ['paused', 'waiting'])) {
+            return response()->json([
+                'error' => 'Only paused or waiting games can be abandoned',
+                'current_status' => $game->status
+            ], 422);
+        }
+
+        // Abort the game with no winner (fair to both sides)
+        $game->update([
+            'status' => 'aborted',
+            'result' => '*',
+            'end_reason' => 'abandoned_mutual',
+            'ended_at' => now(),
+            'resume_requested_by' => null,
+            'resume_requested_at' => null,
+            'resume_status' => 'none',
+        ]);
+
+        // Clean up related invitations
+        \App\Models\Invitation::where('game_id', $game->id)
+            ->whereIn('status', ['pending'])
+            ->update(['status' => 'declined']);
+
+        \Log::info('Game abandoned by player', [
+            'game_id' => $game->id,
+            'user_id' => $user->id,
+            'move_count' => $game->move_count ?? 0,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Game abandoned successfully. No rating impact.',
+        ]);
+    }
+
     public function userGames(Request $request)
     {
         // Allow admin to query any user's games, otherwise use current user
