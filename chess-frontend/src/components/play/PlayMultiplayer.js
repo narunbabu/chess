@@ -445,6 +445,10 @@ const PlayMultiplayer = () => {
           sessionStorage.removeItem('lastGameId');
           return true; // Set gameComplete = true
         });
+        // Invalidate the game history cache so the Dashboard picks up the
+        // server-saved record on next render. Safe to call even if the
+        // WebSocket event already arrived and handleGameEnd already cleared it.
+        invalidateGameHistory();
       }, 3000);
     };
 
@@ -498,7 +502,7 @@ const PlayMultiplayer = () => {
     }
 
     return false;
-  }, [findKingSquare, playSound, user?.id, gameData, gameId]);
+  }, [findKingSquare, playSound, user?.id, gameData, gameId, invalidateGameHistory]);
 
   // Fetch championship context (non-intrusive - only activates for championship games)
   const fetchChampionshipContext = useCallback(async () => {
@@ -2811,31 +2815,22 @@ const PlayMultiplayer = () => {
             await wsService.current.resignGame();
             console.log('[PlayMultiplayer] ✅ Forfeit confirmed by server');
 
-            // Navigate AFTER 5 seconds to allow player to see the game end card
-            // The game.end event will arrive shortly after server confirms, showing the end card
-            console.log('[PlayMultiplayer] ⏳ Will navigate to', targetPath, 'in 5 seconds after showing end card...');
-            setTimeout(() => {
-              if (targetPath) {
-                console.log('[PlayMultiplayer] 🚀 Navigating to:', targetPath);
-                window.location.href = targetPath; // Force navigation to break render cycle
-              }
-            }, 5000); // 5 seconds delay to show end card
+            // Store the target path — the gameEnded WebSocket event will arrive shortly,
+            // show the end card, and the modal's onClose will navigate to this destination.
+            console.log('[PlayMultiplayer] 📌 Storing pending navigation:', targetPath);
+            setPendingRatedNavigation(targetPath);
           } catch (error) {
             console.error('[PlayMultiplayer] ❌ Forfeit request failed:', error);
-            // Navigate immediately on error
-            setTimeout(() => {
-              if (targetPath) {
-                window.location.href = targetPath;
-              }
-            }, 0);
-          }
-        } else {
-          // No WebSocket service, navigate immediately
-          setTimeout(() => {
+            // No gameEnded event expected if resign failed — navigate immediately
             if (targetPath) {
               window.location.href = targetPath;
             }
-          }, 0);
+          }
+        } else {
+          // No WebSocket service — no gameEnded event will arrive, navigate immediately
+          if (targetPath) {
+            window.location.href = targetPath;
+          }
         }
       } catch (error) {
         console.error('[PlayMultiplayer] ❌ Failed to process forfeit request:', error);
@@ -4839,6 +4834,29 @@ const PlayMultiplayer = () => {
               {nudgeMessage}
             </div>
           )}
+
+          {/* 50-move rule warning: show when approaching draw by inactivity */}
+          {gameInfo.status === 'active' && (() => {
+            const fenParts = game.fen().split(' ');
+            const halfmoveClock = parseInt(fenParts[4]) || 0;
+            const movesWithoutProgress = Math.floor(halfmoveClock / 2);
+            const movesUntilDraw = 50 - movesWithoutProgress;
+            if (halfmoveClock < 60) return null; // Only show when ≥30 moves without progress
+            const isUrgent = halfmoveClock >= 90;
+            return (
+              <div style={{
+                textAlign: 'center', padding: '5px 10px', fontSize: '12px',
+                color: isUrgent ? '#ff4444' : '#e8a93e', fontWeight: 600,
+                background: isUrgent ? 'rgba(255,68,68,0.08)' : 'rgba(232,169,62,0.08)',
+                borderRadius: '6px', margin: '2px 8px',
+                border: `1px solid ${isUrgent ? 'rgba(255,68,68,0.3)' : 'rgba(232,169,62,0.3)'}`
+              }}>
+                ⏱ {movesUntilDraw} move{movesUntilDraw !== 1 ? 's' : ''} until 50-move rule draw
+                {halfmoveClock >= 100 && ' — claim draw or it auto-applies'}
+              </div>
+            );
+          })()}
+
           {gameInfo.status === 'finished' && (
             <div className="gc-action-bar">
               <button onClick={() => handleNewGame(true)} className="gc-action-btn gc-action-primary">
@@ -5081,18 +5099,22 @@ const PlayMultiplayer = () => {
             championshipId: championshipContext.championship_id
           } : null}
           onClose={() => {
-            // X button should navigate to dashboard
+            // X button: navigate to pending destination if set, otherwise dashboard
             sessionStorage.removeItem('lastInvitationAction');
             sessionStorage.removeItem('lastInvitationTime');
             sessionStorage.removeItem('lastGameId');
-            navigate('/');
+            const dest = pendingRatedNavigation || '/';
+            setPendingRatedNavigation(null);
+            navigate(dest);
           }}
           onNewGame={handleNewGame}
           onBackToLobby={() => {
             sessionStorage.removeItem('lastInvitationAction');
             sessionStorage.removeItem('lastInvitationTime');
             sessionStorage.removeItem('lastGameId');
-            navigate('/');
+            const dest = pendingRatedNavigation || '/';
+            setPendingRatedNavigation(null);
+            navigate(dest);
           }}
           onPreview={() => {
             // Navigate to game review using game ID with multiplayer mode for correct score display
@@ -5516,18 +5538,22 @@ const PlayMultiplayer = () => {
             championshipId: championshipContext.championship_id
           } : null}
           onClose={() => {
-            // X button should navigate to dashboard
+            // X button: navigate to pending destination if set, otherwise dashboard
             sessionStorage.removeItem('lastInvitationAction');
             sessionStorage.removeItem('lastInvitationTime');
             sessionStorage.removeItem('lastGameId');
-            navigate('/');
+            const dest = pendingRatedNavigation || '/';
+            setPendingRatedNavigation(null);
+            navigate(dest);
           }}
           onNewGame={handleNewGame}
           onBackToLobby={() => {
             sessionStorage.removeItem('lastInvitationAction');
             sessionStorage.removeItem('lastInvitationTime');
             sessionStorage.removeItem('lastGameId');
-            navigate('/');
+            const dest = pendingRatedNavigation || '/';
+            setPendingRatedNavigation(null);
+            navigate(dest);
           }}
           onPreview={() => {
             // Navigate to game review/preview page using saved game_history ID
@@ -5799,14 +5825,9 @@ const PlayMultiplayer = () => {
                     gameRegisteredRef.current = false;
                   }
 
-                  // Close dialog
+                  // Close dialog — the gameEnded WebSocket event will arrive shortly,
+                  // show the end card, and onClose will navigate to pendingRatedNavigation.
                   setShowRatedNavigationWarning(false);
-
-                  // Navigate to pending path
-                  if (pendingRatedNavigation) {
-                    navigate(pendingRatedNavigation);
-                  }
-                  setPendingRatedNavigation(null);
                 }}
                 style={{
                   padding: '12px 24px',

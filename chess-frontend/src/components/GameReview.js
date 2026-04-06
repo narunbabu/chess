@@ -370,6 +370,21 @@ const GameReview = () => {
           }
 
           const playerColor = gameData.player_color;
+          // Normalize result status to 'won'/'lost'/'draw' for ResultBadge and GameEndCard
+          let normalizedStatus;
+          if (gameData.result === '1/2-1/2') {
+            normalizedStatus = 'draw';
+          } else if (gameData.winner_user_id && gameData.winner_user_id === user?.id) {
+            normalizedStatus = 'won';
+          } else if (gameData.winner_user_id) {
+            normalizedStatus = 'lost';
+          } else if (gameData.result === '1-0') {
+            normalizedStatus = playerColor === 'w' ? 'won' : 'lost';
+          } else if (gameData.result === '0-1') {
+            normalizedStatus = playerColor === 'b' ? 'won' : 'lost';
+          } else {
+            normalizedStatus = 'draw';
+          }
           const formattedGameHistory = {
             id: gameData.id,
             played_at: gameData.ended_at || new Date().toISOString(),
@@ -379,10 +394,11 @@ const GameReview = () => {
             moves: gameData.moves,
             final_score: playerColor === 'w' ? parseFloat(gameData.white_player_score || 0) : parseFloat(gameData.black_player_score || 0),
             opponent_score: playerColor === 'w' ? parseFloat(gameData.black_player_score || 0) : parseFloat(gameData.white_player_score || 0),
+            end_reason: gameData.end_reason,
             result: {
               details: gameData.end_reason,
               end_reason: gameData.end_reason,
-              status: gameData.result
+              status: normalizedStatus
             },
             white_time_remaining_ms: gameData.white_time_remaining_ms,
             black_time_remaining_ms: gameData.black_time_remaining_ms,
@@ -460,6 +476,21 @@ const GameReview = () => {
                 gameData = fallbackResponse.data;
 
                 const playerColor = gameData.player_color;
+                // Normalize result status to 'won'/'lost'/'draw'
+                let normalizedStatus;
+                if (gameData.result === '1/2-1/2') {
+                  normalizedStatus = 'draw';
+                } else if (gameData.winner_user_id && gameData.winner_user_id === user?.id) {
+                  normalizedStatus = 'won';
+                } else if (gameData.winner_user_id) {
+                  normalizedStatus = 'lost';
+                } else if (gameData.result === '1-0') {
+                  normalizedStatus = playerColor === 'w' ? 'won' : 'lost';
+                } else if (gameData.result === '0-1') {
+                  normalizedStatus = playerColor === 'b' ? 'won' : 'lost';
+                } else {
+                  normalizedStatus = 'draw';
+                }
                 const formattedGameHistory = {
                   id: gameData.id,
                   played_at: gameData.ended_at || new Date().toISOString(),
@@ -469,10 +500,11 @@ const GameReview = () => {
                   moves: gameData.moves,
                   final_score: playerColor === 'w' ? parseFloat(gameData.white_player_score || 0) : parseFloat(gameData.black_player_score || 0),
                   opponent_score: playerColor === 'w' ? parseFloat(gameData.black_player_score || 0) : parseFloat(gameData.white_player_score || 0),
+                  end_reason: gameData.end_reason,
                   result: {
                     details: gameData.end_reason,
                     end_reason: gameData.end_reason,
-                    status: gameData.result
+                    status: normalizedStatus
                   },
                   white_time_remaining_ms: gameData.white_time_remaining_ms,
                   black_time_remaining_ms: gameData.black_time_remaining_ms,

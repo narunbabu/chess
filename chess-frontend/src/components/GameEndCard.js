@@ -92,7 +92,21 @@ const GameEndCard = React.forwardRef(({
       isPlayerWin = false;
     }
 
-    const isDraw = result.result === '1/2-1/2' || result.result === 'Draw' || result.end_reason === 'draw' || result.result?.status === 'draw';
+    // Normalize end_reason from multiple possible locations (flat or nested result object)
+    const endReason = result.end_reason
+      || result.result?.end_reason
+      || result.result?.details
+      || '';
+
+    // Draw conditions: handle both flat (multiplayer live) and nested (review page) result shapes
+    const drawEndReasons = ['stalemate', 'insufficient_material', 'threefold_repetition',
+      'fifty_move_rule', 'threefold', 'fifty_move', 'draw_agreed', 'agreement', 'draw'];
+    const isDraw = result.result === '1/2-1/2'
+      || result.result === 'Draw'
+      || result.result?.status === '1/2-1/2'
+      || result.result?.status === 'draw'
+      || endReason === 'draw'
+      || drawEndReasons.includes(endReason);
 
     // Handle cases where white_player and black_player might not exist
     // For computer games: use !isMultiplayer as primary check, with result.game_mode as fallback
@@ -172,7 +186,7 @@ const GameEndCard = React.forwardRef(({
     const playersInfo = { white_player, black_player, userPlayer, opponentPlayer, isUserWhite, isUserBlack, hasUser };
 
     // Check for cancelled/aborted games (no result, no winner)
-    const isCancelled = result.result === '*' || result.end_reason === 'cancelled_inactivity' || result.end_reason === 'abandoned_mutual';
+    const isCancelled = result.result === '*' || endReason === 'cancelled_inactivity' || endReason === 'abandoned_mutual';
 
     let resultText;
     if (isCancelled) {
@@ -180,7 +194,7 @@ const GameEndCard = React.forwardRef(({
         'cancelled_inactivity': 'opponent inactivity',
         'abandoned_mutual': 'mutual agreement',
       };
-      const cancelReason = cancelReasonMap[result.end_reason] || 'cancellation';
+      const cancelReason = cancelReasonMap[endReason] || 'cancellation';
       resultText = `Game cancelled — ${cancelReason}. No rating impact.`;
     } else if (isDraw) {
       const drawReasonMap = {
@@ -188,9 +202,12 @@ const GameEndCard = React.forwardRef(({
         'insufficient_material': 'insufficient material',
         'threefold_repetition': 'threefold repetition',
         'fifty_move_rule': 'fifty move rule',
+        'threefold': 'threefold repetition',
+        'fifty_move': 'fifty move rule',
+        'draw_agreed': 'mutual agreement',
         'agreement': 'mutual agreement',
       };
-      const drawReason = drawReasonMap[result.end_reason] || result.end_reason || 'agreement';
+      const drawReason = drawReasonMap[endReason] || endReason || 'agreement';
       resultText = `${userPlayer.name} and ${opponentPlayer.name} drew by ${drawReason}`;
     } else {
       // Determine winner and loser names
@@ -216,7 +233,7 @@ const GameEndCard = React.forwardRef(({
         winnerName = isPlayerWin ? userPlayer.name : opponentPlayer.name;
         loserName = isPlayerWin ? opponentPlayer.name : userPlayer.name;
       }
-      const rawReason = result.end_reason || result.result?.details || result.result?.end_reason || 'game completion';
+      const rawReason = endReason || 'game completion';
       // Map technical end_reason to user-friendly text
       const reasonMap = {
         'checkmate': 'checkmate',

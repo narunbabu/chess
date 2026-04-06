@@ -178,15 +178,25 @@ const GameHistoryPage = () => {
     return `${hours}h ${remainingMinutes}m`;
   };
 
+  const DRAW_END_REASONS = ['draw', 'stalemate', 'insufficient_material', 'threefold_repetition',
+    'fifty_move_rule', 'threefold', 'fifty_move', 'draw_agreed', 'agreement'];
+
   const getResultDisplay = (result, playerColor) => {
     if (!result) return 'Unknown';
 
     const safePlayerColor = (playerColor || 'white').toLowerCase();
     let effectiveResult;
-    if (typeof result === 'object' && result.end_reason) {
-      if (result.end_reason === 'draw') {
+    if (typeof result === 'object') {
+      // Check status first (standardized format)
+      if (result.status === 'draw') {
         effectiveResult = 'draw';
-      } else {
+      } else if (result.status === 'won') {
+        effectiveResult = safePlayerColor;
+      } else if (result.status === 'lost') {
+        effectiveResult = safePlayerColor === 'white' ? 'black' : 'white';
+      } else if (result.end_reason && DRAW_END_REASONS.includes(result.end_reason)) {
+        effectiveResult = 'draw';
+      } else if (result.end_reason) {
         if (result.winner === 'player') {
           effectiveResult = safePlayerColor;
         } else if (result.winner === 'opponent') {
@@ -194,6 +204,8 @@ const GameHistoryPage = () => {
         } else {
           effectiveResult = 'unknown';
         }
+      } else {
+        effectiveResult = 'unknown';
       }
     } else {
       effectiveResult = typeof result === 'string' ? result.toLowerCase() : 'unknown';
@@ -218,10 +230,16 @@ const GameHistoryPage = () => {
 
     const safePlayerColor = (playerColor || 'white').toLowerCase();
     let effectiveResult;
-    if (typeof result === 'object' && result.end_reason) {
-      if (result.end_reason === 'draw') {
+    if (typeof result === 'object') {
+      if (result.status === 'draw') {
         effectiveResult = 'draw';
-      } else {
+      } else if (result.status === 'won') {
+        effectiveResult = safePlayerColor;
+      } else if (result.status === 'lost') {
+        effectiveResult = safePlayerColor === 'white' ? 'black' : 'white';
+      } else if (result.end_reason && DRAW_END_REASONS.includes(result.end_reason)) {
+        effectiveResult = 'draw';
+      } else if (result.end_reason) {
         if (result.winner === 'player') {
           effectiveResult = safePlayerColor;
         } else if (result.winner === 'opponent') {
@@ -229,6 +247,8 @@ const GameHistoryPage = () => {
         } else {
           effectiveResult = 'unknown';
         }
+      } else {
+        effectiveResult = 'unknown';
       }
     } else {
       effectiveResult = typeof result === 'string' ? result.toLowerCase() : 'unknown';

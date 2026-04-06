@@ -79,6 +79,7 @@ class ChessRulesService
         $last = end($moves) ?: [];
         $san  = $last['san'] ?? null;
         $mateHint = (bool)($last['is_mate_hint'] ?? false);
+        $stalemateHint = (bool)($last['is_stalemate'] ?? false);
 
         $isCheckmate = false;
 
@@ -98,10 +99,16 @@ class ChessRulesService
             Log::info('Mate by simple pattern', ['fen' => $fen]);
         }
 
+        // Stalemate: detected from client hint stored in the move record
+        $isStalemate = $stalemateHint;
+        if ($isStalemate) {
+            Log::info('Stalemate detected via move hint in fallback analysis', ['fen' => $fen]);
+        }
+
         $analysis = [
             'is_check' => false,
             'is_checkmate' => $isCheckmate,
-            'is_stalemate' => false,
+            'is_stalemate' => $isStalemate,
             'is_insufficient_material' => $this->isInsufficientMaterial($fen),
             'is_threefold_repetition' => $this->isThreefoldRepetition($moves),
             'is_fifty_move_rule' => $this->isFiftyMoveRule($fen, $moves),
