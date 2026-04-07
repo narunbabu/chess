@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useRef, useCallback } from 'react';
 import api from '../services/api';
-import { getGameHistories } from '../services/gameHistoryService';
+import { getGameHistories, clearGameHistoryCache } from '../services/gameHistoryService';
 
 // Debug utility
 const DEBUG_MODE = process.env.REACT_APP_DEBUG === 'true' ||
@@ -80,6 +80,7 @@ export function AppDataProvider({ children }) {
   const invalidateGameHistory = useCallback(() => {
     debugLog('AppData', 'Invalidating game history cache');
     setGameHistory(null);
+    clearGameHistoryCache(); // Also clear the service-level module cache
   }, []); // No dependencies needed
 
   const value = {

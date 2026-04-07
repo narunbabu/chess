@@ -15,6 +15,16 @@ let gameHistoriesCacheTime = 0;
 const CACHE_TTL = 5000; // 5 seconds cache
 
 /**
+ * Clear the in-memory game histories cache so the next fetch hits the server.
+ * Call this after saving a new game so dashboards see it immediately.
+ */
+export const clearGameHistoryCache = () => {
+  gameHistoriesCache = null;
+  gameHistoriesCacheTime = 0;
+  gameHistoriesRequest = null;
+};
+
+/**
  * Save a completed game to history
  * @param {Object} gameData - The game data to save
  * @param {string} gameData.date - ISO string of date when game was played

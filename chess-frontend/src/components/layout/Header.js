@@ -398,7 +398,7 @@ const Header = () => {
           </button>
           <Link
             to="/dashboard"
-            className="nav-link nav-icon-link"
+            className="nav-link nav-icon-link desktop-nav-item"
             onClick={(e) => {
               e.preventDefault();
               handleNavItemClick(() => navigate('/dashboard'), '/dashboard');
@@ -411,7 +411,7 @@ const Header = () => {
           </Link>
           <Link
             to="/lobby"
-            className="nav-link nav-icon-link"
+            className="nav-link nav-icon-link desktop-nav-item"
             onClick={(e) => {
               e.preventDefault();
               handleNavItemClick(() => navigate('/lobby'), '/lobby');
@@ -424,7 +424,7 @@ const Header = () => {
           </Link>
           <Link
             to="/tutorial"
-            className="nav-link nav-icon-link"
+            className="nav-link nav-icon-link desktop-nav-item"
             onClick={(e) => {
               e.preventDefault();
               handleNavItemClick(() => navigate('/tutorial'), '/tutorial');
@@ -437,7 +437,7 @@ const Header = () => {
           </Link>
           <Link
             to="/championships"
-            className="nav-link nav-icon-link"
+            className="nav-link nav-icon-link desktop-nav-item"
             onClick={(e) => {
               e.preventDefault();
               handleNavItemClick(() => navigate('/championships'), '/championships');
@@ -450,7 +450,7 @@ const Header = () => {
           </Link>
           <Link
             to="/leaderboard"
-            className="nav-link nav-icon-link"
+            className="nav-link nav-icon-link desktop-nav-item"
             onClick={(e) => {
               e.preventDefault();
               handleNavItemClick(() => navigate('/leaderboard'), '/leaderboard');

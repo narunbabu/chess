@@ -444,6 +444,21 @@ const GameReview = () => {
               } catch (moveError) { console.error('Error processing move:', moveData.notation, moveError); }
             });
             formattedGameHistory.moves = convertedMoves;
+          } else if (Array.isArray(gameData.moves) && gameData.moves.length > 0 && gameData.moves[0].san) {
+            // WebSocket game format: moves stored as {from, to, san, uci, ...}
+            const tempGame = new Chess();
+            gameData.moves.forEach(moveData => {
+              const notation = moveData.san;
+              if (notation && notation.trim()) {
+                try {
+                  const move = tempGame.move(notation.trim());
+                  if (move) {
+                    convertedMoves.push({ move: { san: move.san }, fen: tempGame.fen(), time: moveData.move_time_ms });
+                  }
+                } catch (moveError) { console.error('Error processing move:', notation, moveError); }
+              }
+            });
+            formattedGameHistory.moves = convertedMoves;
           } else if (!Array.isArray(gameData.moves)) {
             formattedGameHistory.moves = convertedMoves;
           } else {
@@ -529,6 +544,21 @@ const GameReview = () => {
                     }
                   });
                   formattedGameHistory.moves = convertedMoves;
+                } else if (Array.isArray(gameData.moves) && gameData.moves.length > 0 && gameData.moves[0].san) {
+                  // WebSocket game format: moves stored as {from, to, san, uci, ...}
+                  const tempGame = new Chess();
+                  gameData.moves.forEach(moveData => {
+                    const notation = moveData.san;
+                    if (notation && notation.trim()) {
+                      try {
+                        const move = tempGame.move(notation.trim());
+                        if (move) {
+                          convertedMoves.push({ move: { san: move.san }, fen: tempGame.fen(), time: moveData.move_time_ms });
+                        }
+                      } catch { /* skip invalid move */ }
+                    }
+                  });
+                  formattedGameHistory.moves = convertedMoves;
                 } else if (Array.isArray(gameData.moves)) {
                   if (gameData.moves.length > 0 && gameData.moves[0]?.move?.san) {
                     formattedGameHistory.moves = gameData.moves;
@@ -585,6 +615,21 @@ const GameReview = () => {
                   convertedMoves.push({ move: { san: move.san }, fen: tempGame.fen(), time: moveData.time });
                 }
               } catch (moveError) { console.error('Error processing move:', moveData.notation, moveError); }
+            });
+            formattedGameHistory.moves = convertedMoves;
+          } else if (Array.isArray(gameData.moves) && gameData.moves.length > 0 && gameData.moves[0].san) {
+            // WebSocket game format: moves stored as {from, to, san, uci, ...}
+            const tempGame = new Chess();
+            gameData.moves.forEach(moveData => {
+              const notation = moveData.san;
+              if (notation && notation.trim()) {
+                try {
+                  const move = tempGame.move(notation.trim());
+                  if (move) {
+                    convertedMoves.push({ move: { san: move.san }, fen: tempGame.fen(), time: moveData.move_time_ms });
+                  }
+                } catch (moveError) { console.error('Error processing move:', notation, moveError); }
+              }
             });
             formattedGameHistory.moves = convertedMoves;
           } else if (!Array.isArray(gameData.moves)) {

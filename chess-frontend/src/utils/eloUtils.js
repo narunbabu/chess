@@ -18,23 +18,25 @@ export const calculateExpectedScore = (playerRating, opponentRating) => {
  * @returns {number} K-factor
  */
 export const calculateKFactor = (gamesPlayed, rating) => {
-  // High K-factor for new players (fast adjustment)
+  // New players: fast adjustment
   if (gamesPlayed < 10) {
     return 40;
   }
 
-  // Medium K-factor for intermediate players
+  // Developing players: still adjusting
   if (gamesPlayed < 30) {
-    return 30;
+    return 32;
   }
 
-  // Lower K-factor for experienced players (stable rating)
-  // But slightly higher for very high rated players to maintain accuracy
+  // Elite players: stable rating
   if (rating >= 2400) {
-    return 24;
+    return 16;
   }
 
-  return 20;
+  // Standard experienced players: K=24 gives clear spread
+  //   Win vs +300: +20 | Win vs equal: +12 | Win vs -300: +4
+  //   Loss vs -300: -20 | Loss vs equal: -12 | Loss vs +300: -4
+  return 24;
 };
 
 /**
@@ -50,7 +52,12 @@ export const calculateNewRating = (currentRating, opponentRating, result, gamesP
   const expectedScore = calculateExpectedScore(currentRating, opponentRating);
   const kFactor = calculateKFactor(gamesPlayed, currentRating);
 
-  const ratingChange = Math.round(kFactor * (actualScore - expectedScore));
+  let ratingChange = Math.round(kFactor * (actualScore - expectedScore));
+  // Enforce minimum ±1 for decisive results — a win always gains at least 1 pt,
+  // a loss always loses at least 1 pt (mirrors backend behaviour).
+  if (result === 'win')  ratingChange = Math.max(1,  ratingChange);
+  if (result === 'loss') ratingChange = Math.min(-1, ratingChange);
+
   const newRating = Math.max(400, Math.min(3200, currentRating + ratingChange)); // Match backend bounds
 
   return {

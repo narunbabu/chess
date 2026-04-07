@@ -104,7 +104,15 @@ class RatingController extends Controller
 
         // Calculate new rating
         // R_new = R_old + K × (S - E)
-        $ratingChange = round($kFactor * ($actualScore - $expectedScore));
+        $rawChange = $kFactor * ($actualScore - $expectedScore);
+        $ratingChange = round($rawChange);
+
+        // Enforce minimum ±1 for decisive results so wins always gain and losses always lose.
+        // Pure Elo can round to 0 for large rating mismatches (e.g. 1400 player beats 400-rated
+        // opponent: K×(1−0.984)=0.26 → rounds to 0). That's confusing and unfair.
+        if ($result === 'win')  $ratingChange = max(1,  $ratingChange);
+        if ($result === 'loss') $ratingChange = min(-1, $ratingChange);
+
         $newRating = $oldRating + $ratingChange;
 
         // Debug logging
@@ -117,6 +125,7 @@ class RatingController extends Controller
             'expected_score' => round($expectedScore, 4),
             'games_played_before' => $gamesPlayed,
             'k_factor' => $kFactor,
+            'raw_change' => round($rawChange, 2),
             'rating_change' => $ratingChange,
             'new_rating' => $newRating
         ]);
@@ -208,23 +217,25 @@ class RatingController extends Controller
      */
     private function calculateKFactor($gamesPlayed, $rating)
     {
-        // High K-factor for new players (fast adjustment)
+        // High K-factor for new players (fast rating adjustment, FIDE: 40)
         if ($gamesPlayed < 10) {
             return 40;
         }
 
-        // Medium K-factor for intermediate players
+        // Developing players: still adjusting (FIDE: 20, we use 32 for more responsiveness)
         if ($gamesPlayed < 30) {
-            return 30;
+            return 32;
         }
 
-        // Lower K-factor for experienced players (stable rating)
-        // But slightly higher for very high rated players to maintain accuracy
+        // Elite players: stable rating (FIDE: 10 for >2400, we use 16)
         if ($rating >= 2400) {
-            return 24;
+            return 16;
         }
 
-        return 20;
+        // Standard experienced players: K=24 gives a fair spread:
+        //   Win vs +300-rated: +20 pts | Win vs equal: +12 pts | Win vs -300-rated: +4 pts
+        //   Loss vs -300-rated: -20 pts | Loss vs equal: -12 pts | Loss vs +300-rated: -4 pts
+        return 24;
     }
 
     /**
