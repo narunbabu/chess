@@ -125,7 +125,7 @@ class GameController extends Controller
             'computer_level' => $computerLevel,
             'synthetic_player_id' => $request->synthetic_player_id,
             'player_color' => $playerColor,
-            'game_mode' => $request->synthetic_player_id ? 'casual' : ($request->game_mode ?? 'casual'),
+            'game_mode' => $request->game_mode ?? 'casual',
             'status' => 'active',
             'result' => 'ongoing',
             'turn' => 'white', // White always starts
@@ -714,6 +714,14 @@ class GameController extends Controller
             'winner_player' => $winnerColor,
             'ended_at' => now()
         ]);
+
+        // For synthetic games: create game history and apply Elo if rated (same as completeGame)
+        if ($game->synthetic_player_id) {
+            $this->createSyntheticGameHistory($game, $game->result, $winnerId, 'resignation');
+            if ($game->game_mode === 'rated') {
+                $this->applyRatedSyntheticElo($game, $game->result, $user);
+            }
+        }
 
         // Reload relationships
         $game->load(['whitePlayer', 'blackPlayer', 'computerPlayer', 'syntheticPlayer']);

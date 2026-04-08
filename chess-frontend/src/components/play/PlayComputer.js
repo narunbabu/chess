@@ -2015,35 +2015,23 @@ const PlayComputer = () => {
         setIsTimerRunning(false);
         setActiveTimer(null);
         setGameOver(true);
-        setShowGameCompletion(true);
         setCanUndo(false); // Disable undo after resignation
         setSearchParams({}, { replace: true }); // Clear gameId from URL
 
-        // Resign from backend game if we have one (use ref to avoid stale closure)
-        const activeBackendGame = backendGameRef.current || backendGame;
-        if (activeBackendGame && user) {
-          try {
-            await gameService.resign(activeBackendGame.id);
-            console.log('[PlayComputer] 🏳️ Resigned from backend game:', activeBackendGame.id);
-          } catch (error) {
-            console.error('[PlayComputer] ❌ Failed to resign from backend game:', error);
-            // Continue with local resignation even if backend fails
-          }
-        }
-
         const now = new Date();
 
-        // Encode game history
+        // Encode game history (synchronous — do before any await)
         const conciseGameString = typeof encodeGameHistory === 'function'
             ? encodeGameHistory(gameHistory)
             : JSON.stringify(gameHistory.map(h => h.move));
 
-        // Create standardized result for resignation (player loses)
-        // The winner text must match "White wins" or "Black wins" pattern for
-        // createResultFromComputerGame to correctly identify win/loss status.
-        const winnerColor = playerColor === 'w' ? 'Black' : 'White';
+        // Build result BEFORE showing the modal so GameCompletionAnimation has
+        // opponent_rating from the start — prevents a race condition where the
+        // rating effect fires with null result and marks hasProcessedRating=true
+        // before the correct result (with opponent_rating) arrives.
+        const winnerColorResign = playerColor === 'w' ? 'Black' : 'White';
         const standardizedResult = createResultFromComputerGame(
-            `${winnerColor} wins by resignation`,
+            `${winnerColorResign} wins by resignation`,
             playerColor,
             { in_checkmate: false, in_stalemate: false, in_draw: false }
         );
@@ -2058,8 +2046,22 @@ const PlayComputer = () => {
 
         console.log('🏳️ [PlayComputer] Player resigned, result:', standardizedResult);
 
-        // Store the standardized result for GameCompletionAnimation
+        // Set result and show modal together (same synchronous batch → no race condition)
         setGameResult(standardizedResult);
+        setShowGameCompletion(true);
+        setGameStatus('You resigned. Game over.');
+
+        // Resign from backend game (after UI is shown — non-blocking)
+        const activeBackendGame = backendGameRef.current || backendGame;
+        if (activeBackendGame && user) {
+          try {
+            await gameService.resign(activeBackendGame.id);
+            console.log('[PlayComputer] 🏳️ Resigned from backend game:', activeBackendGame.id);
+          } catch (error) {
+            console.error('[PlayComputer] ❌ Failed to resign from backend game:', error);
+            // Continue with local resignation even if backend fails
+          }
+        }
 
         // Save game history (must match handleGameComplete format for backend)
         const gameHistoryData = {
@@ -2080,7 +2082,6 @@ const PlayComputer = () => {
 
         saveGameHistory(gameHistoryData);
         invalidateGameHistory(); // Invalidate cache so dashboard shows updated games
-        setGameStatus('You resigned. Game over.');
     }, [
         gameOver, gameStarted, isReplayMode, timerRef, gameHistory, playerColor,
         playerScore, computerScore, computerDepth, user?.rating, invalidateGameHistory,
