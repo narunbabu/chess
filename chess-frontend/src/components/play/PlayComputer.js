@@ -498,10 +498,19 @@ const PlayComputer = () => {
             }
 
             const endReason = status.reason || 'checkmate';
+            // Capture final FEN from the current chess.js game instance
+            let finalFen = null;
+            try { finalFen = game.fen(); } catch (_) {}
+            // Encode moves as compact JSON array of SAN strings
+            const moveSans = Array.isArray(finalHistory)
+              ? finalHistory.map(h => h?.move?.san || h?.san || h).filter(Boolean)
+              : [];
             await gameService.completeGame(activeBackendGame.id, {
               result: chessResult,
               endReason,
               moveCount: finalHistory?.length || 0,
+              fen: finalFen,
+              moves: JSON.stringify(moveSans),
             });
             console.log('[PlayComputer] ✅ Backend game marked as finished:', activeBackendGame.id);
           } catch (err) {
@@ -1865,7 +1874,7 @@ const PlayComputer = () => {
                 computer_level: computerDepth,
                 time_control: timeControlMin,
                 increment: incrementSec,
-                game_mode: effectiveSynth ? 'casual' : effectiveRatedMode,
+                game_mode: effectiveRatedMode,
                 synthetic_player_id: effectiveSynth?.id || null,
               };
               const response = await gameService.createComputerGame(gameData);
@@ -3046,6 +3055,8 @@ const PlayComputer = () => {
             moves={encodedMoves} // Pass encoded moves string for Login to Save functionality
             gameHistory={gameHistory} // Pass full history array for pending construction
             isMultiplayer={false} // This is computer mode
+            gameId={backendGame?.id || null} // Link rating update to this game (idempotency)
+            ratedMode={ratedMode} // Only update rating for rated games
             onClose={() => {
               setShowGameCompletion(false);
 

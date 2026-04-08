@@ -31,6 +31,7 @@ const GameCompletionAnimation = ({
   opponentRating = null, // For multiplayer games
   opponentId = null, // For multiplayer games
   gameId = null, // Game ID for history tracking
+  ratedMode = 'rated', // 'rated' or 'casual' — only update rating for rated games
   championshipData = null, // Championship info: { tournamentName, round, matchId, standing, points }
   isPreview = false // Flag to indicate if this is preview mode
 }) => {
@@ -41,6 +42,9 @@ const GameCompletionAnimation = ({
     oldRating: null,
     newRating: null,
     ratingChange: null,
+    kFactor: null,
+    expectedScore: null,
+    actualScore: null,
     error: null
   });
   const [hasProcessedRating, setHasProcessedRating] = useState(false);
@@ -116,6 +120,13 @@ const GameCompletionAnimation = ({
         return;
       }
 
+      // Skip rating update for casual computer games — only rated mode affects rating
+      if (!isMultiplayer && ratedMode !== 'rated') {
+        setRatingUpdate({ isLoading: false, oldRating: null, newRating: null, ratingChange: null, error: null });
+        setHasProcessedRating(true);
+        return;
+      }
+
       try {
         // Determine game result
         const gameResult = isPlayerWin ? 'win' : (isDraw ? 'draw' : 'loss');
@@ -169,6 +180,9 @@ const GameCompletionAnimation = ({
             oldRating: response.data.old_rating,
             newRating: response.data.new_rating,
             ratingChange: response.data.rating_change,
+            kFactor: response.data.k_factor,
+            expectedScore: response.data.expected_score,
+            actualScore: response.data.actual_score,
             error: null
           });
 

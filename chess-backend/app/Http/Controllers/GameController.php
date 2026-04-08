@@ -485,11 +485,15 @@ class GameController extends Controller
             'result'     => 'required|in:1-0,0-1,1/2-1/2',
             'end_reason' => 'required|string',
             'move_count' => 'nullable|integer|min:0',
+            'fen'        => 'nullable|string|max:200',
+            'moves'      => 'nullable|string',
         ]);
 
-        $result = $request->input('result');
+        $result    = $request->input('result');
         $endReason = $request->input('end_reason');
         $moveCount = $request->input('move_count', 0);
+        $fen       = $request->input('fen');
+        $moves     = $request->input('moves');
 
         // Determine winner
         $winnerColor = null;
@@ -502,7 +506,7 @@ class GameController extends Controller
             $winnerId = $game->black_player_id;
         }
 
-        $game->update([
+        $updateData = [
             'status'         => 'finished',
             'result'         => $result,
             'end_reason'     => $endReason,
@@ -510,12 +514,21 @@ class GameController extends Controller
             'winner_player'  => $winnerColor,
             'move_count'     => $moveCount,
             'ended_at'       => now(),
-        ]);
+        ];
+        // Save final FEN and moves if provided by the client
+        if ($fen)   $updateData['fen']   = $fen;
+        if ($moves) $updateData['moves'] = $moves;
 
-        // For synthetic bot games, create game_history record for the human player
-        // so the game appears on the leaderboard
+        $game->update($updateData);
+
+        // For synthetic bot games, create game_history + optionally apply Elo (rated mode)
         if ($game->synthetic_player_id) {
             $this->createSyntheticGameHistory($game, $result, $winnerId, $endReason);
+
+            // Apply Elo for rated synthetic games (server-side authority)
+            if ($game->game_mode === 'rated') {
+                $this->applyRatedSyntheticElo($game, $result, $user);
+            }
 
             // Invalidate leaderboard caches
             Cache::forget('leaderboard:today');
@@ -524,8 +537,26 @@ class GameController extends Controller
             Cache::forget('leaderboard:all');
         }
 
+        // Build response (include rating change if Elo was just applied)
+        $ratingData = null;
+        if ($game->synthetic_player_id && $game->game_mode === 'rated') {
+            $rh = \DB::table('ratings_history')
+                ->where('user_id', $user->id)
+                ->where('game_id', $game->id)
+                ->first();
+            if ($rh) {
+                $ratingData = [
+                    'old_rating'    => $rh->old_rating,
+                    'new_rating'    => $rh->new_rating,
+                    'rating_change' => $rh->rating_change,
+                    'result'        => $rh->result,
+                ];
+            }
+        }
+
         return response()->json([
-            'message' => 'Game completed',
+            'message'     => 'Game completed',
+            'rating_data' => $ratingData,
             'game'    => $game,
         ]);
     }
@@ -579,6 +610,85 @@ class GameController extends Controller
                 'error' => $e->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * Apply server-side Elo for a rated human-vs-synthetic-bot game.
+     * Idempotent: skips if ratings_history already has a record for this game.
+     */
+    private function applyRatedSyntheticElo(Game $game, string $result, $user): void
+    {
+        try {
+            // Idempotency: skip if already recorded
+            if (\DB::table('ratings_history')->where('user_id', $user->id)->where('game_id', $game->id)->exists()) {
+                return;
+            }
+
+            $synth = \App\Models\SyntheticPlayer::find($game->synthetic_player_id);
+            if (!$synth) return;
+
+            $humanColor = $game->white_player_id === $user->id ? 'white' : 'black';
+            $humanResult = match (true) {
+                $result === '1/2-1/2'           => 'draw',
+                $result === '1-0' && $humanColor === 'white' => 'win',
+                $result === '0-1' && $humanColor === 'black' => 'win',
+                default                          => 'loss',
+            };
+
+            $oldRating     = (int) $user->rating;
+            $opponentRating = (int) $synth->rating;
+            $actualScore   = match ($humanResult) { 'win' => 1.0, 'draw' => 0.5, default => 0.0 };
+            $expectedScore = 1 / (1 + pow(10, ($opponentRating - $oldRating) / 400));
+            $gamesPlayed   = (int) ($user->games_played ?? 0);
+            $kFactor       = $this->syntheticEloKFactor($gamesPlayed, $oldRating);
+            $ratingChange  = (int) round($kFactor * ($actualScore - $expectedScore));
+            if ($humanResult === 'win')  $ratingChange = max(1,  $ratingChange);
+            if ($humanResult === 'loss') $ratingChange = min(-1, $ratingChange);
+
+            $newRating = max(400, min(3200, $oldRating + $ratingChange));
+
+            $user->rating              = $newRating;
+            $user->games_played        = $gamesPlayed + 1;
+            $user->rating_last_updated = now();
+            if ($newRating > ($user->peak_rating ?? 0)) $user->peak_rating = $newRating;
+            if ($user->games_played >= 10) $user->is_provisional = false;
+            $user->save();
+
+            \DB::table('ratings_history')->insert([
+                'user_id'         => $user->id,
+                'old_rating'      => $oldRating,
+                'new_rating'      => $newRating,
+                'rating_change'   => $ratingChange,
+                'opponent_id'     => null,
+                'opponent_rating' => $opponentRating,
+                'computer_level'  => $game->computer_level,
+                'result'          => $humanResult,
+                'game_type'       => 'computer',
+                'k_factor'        => $kFactor,
+                'expected_score'  => round($expectedScore, 4),
+                'actual_score'    => $actualScore,
+                'game_id'         => $game->id,
+                'created_at'      => now(),
+                'updated_at'      => now(),
+            ]);
+
+            \Log::info('[ELO] Rated synthetic game Elo applied', [
+                'game_id' => $game->id, 'user_id' => $user->id,
+                'result' => $humanResult, 'change' => $ratingChange,
+                'old' => $oldRating, 'new' => $newRating,
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('[ELO] Rated synthetic Elo failed', ['game_id' => $game->id, 'error' => $e->getMessage()]);
+        }
+    }
+
+    private function syntheticEloKFactor(int $gamesPlayed, int $rating): int
+    {
+        if ($gamesPlayed < 10) return 40;
+        if ($gamesPlayed < 30) return 32;
+        if ($rating < 1400)    return 32;
+        if ($rating < 2000)    return 24;
+        return 20;
     }
 
     public function resign($id)

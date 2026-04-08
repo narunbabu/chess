@@ -54,11 +54,13 @@ export const gameService = {
   /**
    * Mark a game as completed (finished)
    */
-  completeGame: async (gameId, { result, endReason, moveCount }) => {
+  completeGame: async (gameId, { result, endReason, moveCount, fen = null, moves = null }) => {
     const response = await api.post(`/games/${gameId}/complete`, {
       result,
       end_reason: endReason,
       move_count: moveCount,
+      fen,
+      moves,
     });
     return response.data;
   },
