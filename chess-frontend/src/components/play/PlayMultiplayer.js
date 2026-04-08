@@ -34,6 +34,7 @@ import { pieces3dLanding } from '../../assets/pieces/pieces3d';
 import PerformanceDisplay from '../game/PerformanceDisplay';
 import RatingChangeDisplay from '../game/RatingChangeDisplay';
 import { performanceService } from '../../services/performanceService';
+import gameService from '../../services/gameService';
 
 // Import refactored hooks (Phase 1)
 import {
@@ -2722,7 +2723,12 @@ const PlayMultiplayer = () => {
       // across navigations (e.g., when viewing game preview and coming back)
       // It will only be cleared when explicitly removed or when starting a new game
     };
-  }, [gameId, user?.id, initializeGame, unregisterActiveGame]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [gameId, user?.id, unregisterActiveGame]); // eslint-disable-line react-hooks/exhaustive-deps
+  // NOTE: initializeGame is intentionally excluded from deps above.
+  // Including it caused initializeGame to re-run after fetchUser() updated the user profile
+  // (e.g., after a rated game ended and rating was recalculated), which triggered navigate('/')
+  // → LandingPage auto-redirected to /lobby, discarding the game end card.
+  // user?.id already covers the only legitimate re-init trigger (different user / logout).
 
   // Listen for pause requests from navigation guard
   useEffect(() => {
@@ -3928,50 +3934,46 @@ const PlayMultiplayer = () => {
     }
   }, [isMyTurn, game.fen(), myColor, game]);
 
-  // Fetch performance data after each move (for rated games only)
-  useEffect(() => {
-    if (!user || !gameId || ratedMode !== 'rated' || !gameHistory.length) return;
-
-    // Debounce performance fetching to avoid excessive API calls
-    const fetchPerformance = setTimeout(async () => {
-      try {
-        const result = await performanceService.getGamePerformance(gameId);
-        if (result.success) {
-          setPerformanceData(result.data);
-          console.log('📊 Performance data updated:', result.data);
-        }
-      } catch (error) {
-        console.warn('Failed to fetch performance data:', error);
-      }
-    }, 500);
-
-    return () => clearTimeout(fetchPerformance);
-  }, [gameHistory.length, gameId, ratedMode, user]);
+  // Performance polling disabled for multiplayer: game_performance table is not populated
+  // for multiplayer games so every poll returns 404. Rating change is fetched once at
+  // game end via getRatingChange (ratings_history) instead.
+  // (Kept as a no-op so the performanceData state exists but stays null for multiplayer)
+  useEffect(() => {}, [gameHistory.length, gameId, ratedMode, user]);
 
   // Fetch rating change data when game ends (for rated games only)
+  // Uses getRatingChange (reads ratings_history) instead of getGamePerformance
+  // (game_performance table is not populated for multiplayer games → always 404)
   useEffect(() => {
     if (!gameComplete || !user || !gameId || ratedMode !== 'rated') return;
 
     const fetchRatingChange = async () => {
-      try {
-        const result = await performanceService.getGamePerformance(gameId);
-        if (result.success && result.data.rating_change !== undefined) {
-          setRatingChangeData({
-            ratingChange: result.data.rating_change,
-            performanceScore: result.data.performance_score || 0,
-            oldRating: result.data.old_rating || user.rating,
-            newRating: result.data.new_rating || user.rating,
-            ratingDetails: result.data.rating_details || {}
-          });
-          console.log('🎯 Rating change data fetched:', result.data);
+      // Retry up to 3 times with 1s delay — server-side Elo may not be written yet
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (attempt > 0) await new Promise(r => setTimeout(r, 1000));
+        try {
+          const result = await gameService.getRatingChange(gameId);
+          if (result && result.rating_change) {
+            const rc = result.rating_change;
+            setRatingChangeData({
+              ratingChange: rc.rating_change,
+              performanceScore: rc.performance_score || 0,
+              oldRating: rc.old_rating || user.rating,
+              newRating: rc.new_rating || user.rating,
+              ratingDetails: rc
+            });
+            console.log('🎯 Rating change data fetched:', rc);
+            return; // success
+          }
+        } catch (error) {
+          if (attempt === 2) {
+            console.warn('Failed to fetch rating change data after 3 attempts:', error);
+          }
         }
-      } catch (error) {
-        console.warn('Failed to fetch rating change data:', error);
       }
     };
 
     fetchRatingChange();
-  }, [gameComplete, gameId, ratedMode, user]);
+  }, [gameComplete, gameId, ratedMode, user?.id]); // user?.id not user — avoids re-firing when rating updates
 
   // Auto-save unfinished game on navigation/page close
   useEffect(() => {
