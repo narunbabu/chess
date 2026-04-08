@@ -355,7 +355,6 @@
 
   .right-section {
     gap: 0.5rem;
-    margin-left: auto;
     flex-shrink: 0;
   }
 
@@ -363,6 +362,11 @@
   .left-section {
     flex: 0 0 auto;
     min-width: fit-content;
+  }
+
+  /* Allow center to shrink so right-section isn't pushed off-screen */
+  .center-section {
+    min-width: 0;
   }
 
   /* Logo adjustments for tablets */
@@ -429,7 +433,6 @@
 
   .right-section {
     gap: 0.4rem;
-    margin-left: auto;
   }
 
   /* Compact Upgrade button on small screens */
@@ -453,12 +456,6 @@
   }
 }
 
-/* Hide secondary nav items on mobile — avatar panel already has these links */
-@media (max-width: 600px) {
-  .desktop-nav-item {
-    display: none !important;
-  }
-}
 
 @media (max-width: 480px) {
   .app-header.glass-header {
