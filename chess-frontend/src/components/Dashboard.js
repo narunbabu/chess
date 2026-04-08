@@ -494,25 +494,26 @@ const Dashboard = () => {
           <header className="dashboard-header text-center mb-10">
             <h1 className="text-4xl font-bold text-white">Welcome, {user?.name || user?.email?.split('@')[0] || "Player"}!</h1>
 
-            {/* Compact upgrade strip for free-tier users — tier badge + usage bar + CTA */}
-            {currentTier === 'free' && dailyQuota !== null && (() => {
+            {/* Compact upgrade strip for free/silver-tier users — tier badge + usage bar + CTA */}
+            {dailyQuota !== null && !dailyQuota.unlimited && (() => {
               const todayGames = dailyQuota.games_today ?? 0;
               const limit = dailyQuota.daily_limit ?? 5;
               const remaining = dailyQuota.remaining ?? Math.max(0, limit - todayGames);
               const pct = Math.min(100, (todayGames / limit) * 100);
               const barColor = pct >= 100 ? '#e74c3c' : pct >= 60 ? '#e8a93e' : '#81b64c';
+              const isSilver = currentTier === 'silver';
               return (
                 <div className="upgrade-strip" onClick={() => navigate('/pricing')}>
-                  <span className="upgrade-strip-tier">FREE</span>
+                  <span className="upgrade-strip-tier">{isSilver ? 'SILVER' : 'FREE'}</span>
                   <div className="upgrade-strip-usage">
                     <span className="upgrade-strip-count" style={{ color: barColor }}>{remaining} left</span>
                     <div className="upgrade-strip-bar">
                       <div className="upgrade-strip-fill" style={{ width: `${pct}%`, background: barColor }} />
                     </div>
-                    <span className="upgrade-strip-label">of {limit} online today</span>
+                    <span className="upgrade-strip-label">of {limit} games today</span>
                   </div>
                   <button className="upgrade-strip-cta" onClick={(e) => { e.stopPropagation(); navigate('/pricing'); }}>
-                    ⬆ Go Silver — ₹199/mo
+                    {isSilver ? '⬆ Go Gold — ₹399/mo' : '⬆ Go Silver — ₹199/mo'}
                   </button>
                 </div>
               );

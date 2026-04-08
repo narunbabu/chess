@@ -401,9 +401,8 @@ class Game extends Model
     }
 
     /**
-     * Count online (multiplayer) games played today by a user.
+     * Count games played today by a user (online + vs computer).
      * Used to enforce the daily game limit for free-tier users.
-     * Excludes computer/synthetic games (those are unlimited for all tiers).
      * Excludes WAITING games (never joined by opponent — don't count as played).
      */
     public static function dailyOnlineGameCountForUser(int $userId): int
@@ -412,7 +411,6 @@ class Game extends Model
                 $q->where('white_player_id', $userId)
                   ->orWhere('black_player_id', $userId);
             })
-            ->whereNull('computer_player_id')
             ->where('status_id', '!=', GameStatusEnum::WAITING->getId())
             ->whereDate('created_at', today())
             ->count();

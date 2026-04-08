@@ -708,20 +708,6 @@ const LobbyPage = () => {
               style={showMatchmaking ? { opacity: 0.6, cursor: 'not-allowed' } : {}}
             >
               {showMatchmaking ? 'Finding Match…' : 'Play Online'}
-              {!showMatchmaking && onlineCount !== null && onlineCount > 0 && (
-                <span style={{
-                  marginLeft: 8,
-                  fontSize: '0.7rem',
-                  backgroundColor: '#4caf50',
-                  color: '#fff',
-                  padding: '2px 7px',
-                  borderRadius: 10,
-                  fontWeight: 600,
-                  verticalAlign: 'middle',
-                }}>
-                  {onlineCount} online
-                </span>
-              )}
             </button>
             <button
               className="lobby-hero-btn"

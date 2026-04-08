@@ -32,13 +32,18 @@ class GameController extends Controller
             ], 429);
         }
 
-        // Enforce daily game limit for free-tier users (5 online games/day)
-        if (!$user->hasSubscriptionTier(SubscriptionTier::SILVER)) {
-            $dailyLimit = 5;
+        // Enforce daily game limit by tier: free=5, silver=15, gold=unlimited
+        $tier = $user->getSubscriptionTierEnum();
+        if (!$tier->isAtLeast(SubscriptionTier::GOLD)) {
+            $dailyLimit = $tier->isAtLeast(SubscriptionTier::SILVER) ? 15 : 5;
             $todayCount = Game::dailyOnlineGameCountForUser($user->id);
             if ($todayCount >= $dailyLimit) {
+                $tierName = $tier->isAtLeast(SubscriptionTier::SILVER) ? 'Silver' : 'Free';
+                $upgradeMsg = $tier->isAtLeast(SubscriptionTier::SILVER)
+                    ? "Silver plan allows {$dailyLimit} games per day. Upgrade to Gold for unlimited games."
+                    : "Free plan allows {$dailyLimit} online games per day. Upgrade to Silver for more games.";
                 return response()->json([
-                    'error' => "Free plan allows {$dailyLimit} online games per day. Upgrade to Silver for unlimited games.",
+                    'error' => $upgradeMsg,
                     'daily_limit' => $dailyLimit,
                     'games_today' => $todayCount,
                     'upgrade_url' => '/pricing',
@@ -1257,7 +1262,7 @@ class GameController extends Controller
         $tier = $user->getSubscriptionTierEnum();
         $todayCount = Game::dailyOnlineGameCountForUser($user->id);
 
-        if ($tier->isAtLeast(SubscriptionTier::SILVER)) {
+        if ($tier->isAtLeast(SubscriptionTier::GOLD)) {
             return response()->json([
                 'tier' => $tier->value,
                 'unlimited' => true,
@@ -1265,7 +1270,7 @@ class GameController extends Controller
             ]);
         }
 
-        $dailyLimit = 5;
+        $dailyLimit = $tier->isAtLeast(SubscriptionTier::SILVER) ? 15 : 5;
 
         return response()->json([
             'tier' => $tier->value,
