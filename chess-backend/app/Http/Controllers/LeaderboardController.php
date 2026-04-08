@@ -78,13 +78,14 @@ class LeaderboardController extends Controller
                 ->limit($limit)
                 ->get();
 
-            // 3. Highest Points — multiplayer only (exclude computer games)
-            $highestPointsQuery = DB::table('game_histories')
-                ->select('user_id', DB::raw('ROUND(SUM(final_score), 1) as value'))
-                ->whereNotNull('user_id')
-                ->where('game_mode', 'multiplayer');
+            // 3. Highest Points — net rating gained in period (from ratings_history)
+            // This covers all game types (computer + multiplayer) and is the
+            // authoritative source since server-side Elo is now applied on game end.
+            $highestPointsQuery = DB::table('ratings_history')
+                ->select('user_id', DB::raw('SUM(CASE WHEN rating_change > 0 THEN rating_change ELSE 0 END) as value'))
+                ->whereNotNull('user_id');
             if ($periodStart) {
-                $highestPointsQuery->where('played_at', '>=', $periodStart);
+                $highestPointsQuery->where('created_at', '>=', $periodStart);
             }
             $highestPoints = $highestPointsQuery
                 ->groupBy('user_id')

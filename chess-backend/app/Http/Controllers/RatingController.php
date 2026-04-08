@@ -82,10 +82,36 @@ class RatingController extends Controller
         }
 
         $user = Auth::user();
+        $gameType = $request->input('game_type', 'multiplayer');
+
+        // Idempotency: if this game_id was already processed by the server-side Elo
+        // handler (GameRoomService::applyRatedGameElo), return the existing record.
+        if ($request->input('game_id') && $gameType === 'multiplayer') {
+            $existing = \DB::table('ratings_history')
+                ->where('user_id', $user->id)
+                ->where('game_id', $request->input('game_id'))
+                ->first();
+            if ($existing) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'old_rating'     => $existing->old_rating,
+                        'new_rating'     => $existing->new_rating,
+                        'rating_change'  => $existing->rating_change,
+                        'games_played'   => $user->games_played,
+                        'is_provisional' => (bool) $user->is_provisional,
+                        'peak_rating'    => $user->peak_rating,
+                        'k_factor'       => $existing->k_factor,
+                        'expected_score' => $existing->expected_score,
+                        'actual_score'   => $existing->actual_score,
+                    ],
+                ]);
+            }
+        }
+
         $oldRating = $user->rating;
         $opponentRating = $request->opponent_rating;
         $result = $request->result;
-        $gameType = $request->input('game_type', 'multiplayer');
 
         // Convert result to actual score
         $actualScore = match($result) {

@@ -369,8 +369,16 @@ class AdminDashboardController extends Controller
         $recentGames = $recentQuery
             ->orderByDesc('ended_at')
             ->limit(20)
-            ->get()
-            ->map(function ($game) {
+            ->get();
+
+        // Fetch rating changes for all recent games in one query
+        $recentGameIds = $recentGames->pluck('id');
+        $ratingChanges = DB::table('ratings_history')
+            ->whereIn('game_id', $recentGameIds)
+            ->get(['game_id', 'user_id', 'rating_change', 'old_rating', 'new_rating'])
+            ->groupBy('game_id');
+
+        $recentGames = $recentGames->map(function ($game) use ($ratingChanges) {
                 $duration = null;
                 if ($game->ended_at && $game->created_at) {
                     $duration = Carbon::parse($game->created_at)->diffInMinutes(Carbon::parse($game->ended_at));
@@ -379,25 +387,37 @@ class AdminDashboardController extends Controller
                 // For computer/synthetic games, fill in the missing side
                 $synth = $game->syntheticPlayer;
                 $comp  = $game->computerPlayer;
+                $isBot = !is_null($synth) || !is_null($comp) || !is_null($game->computer_level);
                 $botData = $synth
-                    ? ['id' => 'synthetic_' . $synth->id, 'name' => $synth->name, 'rating' => $synth->rating]
+                    ? ['id' => 'synthetic_' . $synth->id, 'name' => $synth->name, 'rating' => $synth->rating, 'is_bot' => true]
                     : ($comp
-                        ? ['id' => 'computer_' . $comp->id, 'name' => $comp->name, 'rating' => $comp->rating]
+                        ? ['id' => 'computer_' . $comp->id, 'name' => $comp->name, 'rating' => $comp->rating, 'is_bot' => true]
                         : ($game->computer_level
-                            ? ['id' => 'computer_level_' . $game->computer_level, 'name' => 'Computer Lv.' . $game->computer_level, 'rating' => 800 + ($game->computer_level * 100)]
+                            ? ['id' => 'computer_level_' . $game->computer_level, 'name' => 'Computer Lv.' . $game->computer_level, 'rating' => 800 + ($game->computer_level * 100), 'is_bot' => true]
                             : null));
+
+                // Get rating changes from ratings_history
+                $gameRatingChanges = $ratingChanges->get($game->id, collect());
+                $whiteRc = $game->white_player_id
+                    ? $gameRatingChanges->firstWhere('user_id', $game->white_player_id)
+                    : null;
+                $blackRc = $game->black_player_id
+                    ? $gameRatingChanges->firstWhere('user_id', $game->black_player_id)
+                    : null;
 
                 return [
                     'id'           => $game->id,
                     'white'        => $game->whitePlayer
-                        ? ['id' => $game->whitePlayer->id, 'name' => $game->whitePlayer->name, 'rating' => $game->whitePlayer->rating]
-                        : $botData,
+                        ? ['id' => $game->whitePlayer->id, 'name' => $game->whitePlayer->name, 'rating' => $game->whitePlayer->rating, 'is_bot' => false, 'rating_change' => $whiteRc ? $whiteRc->rating_change : null]
+                        : ($botData ? array_merge($botData, ['rating_change' => null]) : null),
                     'black'        => $game->blackPlayer
-                        ? ['id' => $game->blackPlayer->id, 'name' => $game->blackPlayer->name, 'rating' => $game->blackPlayer->rating]
-                        : $botData,
+                        ? ['id' => $game->blackPlayer->id, 'name' => $game->blackPlayer->name, 'rating' => $game->blackPlayer->rating, 'is_bot' => false, 'rating_change' => $blackRc ? $blackRc->rating_change : null]
+                        : ($botData ? array_merge($botData, ['rating_change' => null]) : null),
                     'result'       => $game->result,
                     'end_reason'   => $game->endReasonRelation ? $game->endReasonRelation->label : null,
-                    'game_mode'    => $game->game_mode,
+                    'game_mode'    => $isBot ? 'vs bot' : $game->game_mode,
+                    'game_mode_raw'=> $game->game_mode,
+                    'is_bot_game'  => $isBot,
                     'time_control' => $game->time_control_minutes . '+' . ($game->increment_seconds ?? 0),
                     'move_count'   => $game->move_count,
                     'duration_min' => $duration,
@@ -616,7 +636,7 @@ class AdminDashboardController extends Controller
         })->values();
 
         // --- Recent games (last 15) ---
-        $recentGames = $userGameQuery()
+        $userRecentGames = $userGameQuery()
             ->with([
                 'whitePlayer:id,name,rating',
                 'blackPlayer:id,name,rating',
@@ -626,31 +646,43 @@ class AdminDashboardController extends Controller
             ])
             ->orderByDesc('ended_at')
             ->limit(15)
-            ->get()
-            ->map(function ($game) use ($id) {
+            ->get();
+
+        $userRecentGameIds = $userRecentGames->pluck('id');
+        $userRatingChanges = DB::table('ratings_history')
+            ->where('user_id', $id)
+            ->whereIn('game_id', $userRecentGameIds)
+            ->get(['game_id', 'rating_change', 'old_rating', 'new_rating'])
+            ->keyBy('game_id');
+
+        $recentGames = $userRecentGames->map(function ($game) use ($id, $userRatingChanges) {
                 $synth = $game->syntheticPlayer;
                 $comp  = $game->computerPlayer;
+                $isBot = !is_null($synth) || !is_null($comp);
                 $botData = $synth
-                    ? ['id' => 'synthetic_' . $synth->id, 'name' => $synth->name, 'rating' => $synth->rating]
+                    ? ['id' => 'synthetic_' . $synth->id, 'name' => $synth->name, 'rating' => $synth->rating, 'is_bot' => true]
                     : ($comp
-                        ? ['id' => 'computer_' . $comp->id, 'name' => $comp->name, 'rating' => $comp->rating]
+                        ? ['id' => 'computer_' . $comp->id, 'name' => $comp->name, 'rating' => $comp->rating, 'is_bot' => true]
                         : null);
 
                 $userIsWhite = $game->white_player_id == $id;
+                $rc = $userRatingChanges->get($game->id);
 
                 return [
                     'id'           => $game->id,
                     'white'        => $game->whitePlayer
-                        ? ['name' => $game->whitePlayer->name, 'rating' => $game->whitePlayer->rating]
+                        ? ['name' => $game->whitePlayer->name, 'rating' => $game->whitePlayer->rating, 'is_bot' => false]
                         : $botData,
                     'black'        => $game->blackPlayer
-                        ? ['name' => $game->blackPlayer->name, 'rating' => $game->blackPlayer->rating]
+                        ? ['name' => $game->blackPlayer->name, 'rating' => $game->blackPlayer->rating, 'is_bot' => false]
                         : $botData,
                     'result'       => $game->result,
                     'user_won'     => $game->winner_user_id == $id,
                     'user_color'   => $userIsWhite ? 'white' : 'black',
                     'end_reason'   => $game->endReasonRelation?->label,
-                    'game_mode'    => $game->game_mode,
+                    'game_mode'    => $isBot ? 'vs bot' : $game->game_mode,
+                    'is_bot_game'  => $isBot,
+                    'rating_change'=> $rc ? $rc->rating_change : null,
                     'move_count'   => $game->move_count,
                     'ended_at'     => $game->ended_at,
                 ];

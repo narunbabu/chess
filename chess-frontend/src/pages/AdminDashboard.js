@@ -215,6 +215,7 @@ const AdminDashboard = () => {
                         <th className="py-2 pr-3">Result</th>
                         <th className="py-2 pr-3 hidden sm:table-cell">End Reason</th>
                         <th className="py-2 pr-3 hidden md:table-cell">Mode</th>
+                        <th className="py-2 pr-3 hidden md:table-cell text-center">Rating Δ</th>
                         <th className="py-2 pr-3 hidden md:table-cell text-right">Moves</th>
                         <th className="py-2 hidden sm:table-cell">When</th>
                       </tr>
@@ -224,15 +225,25 @@ const AdminDashboard = () => {
                         <tr key={g.id} className="border-b border-[#3d3a36] hover:bg-[#3d3a36]">
                           <td className="py-2 pr-3">
                             <span className={g.result === '1-0' ? 'text-[#81b64c] font-semibold' : 'text-[#bababa]'}>
-                              {g.white?.name || 'Unknown'}
+                              {g.white?.is_bot ? '🤖 ' : ''}{g.white?.name || 'Unknown'}
                             </span>
                             <span className="text-[#9b9895] text-xs ml-1">({g.white?.rating || '?'})</span>
+                            {!g.white?.is_bot && g.white?.rating_change != null && (
+                              <span className={`text-xs ml-1 font-mono ${g.white.rating_change >= 0 ? 'text-[#81b64c]' : 'text-red-400'}`}>
+                                {g.white.rating_change >= 0 ? '+' : ''}{g.white.rating_change}
+                              </span>
+                            )}
                           </td>
                           <td className="py-2 pr-3">
                             <span className={g.result === '0-1' ? 'text-[#81b64c] font-semibold' : 'text-[#bababa]'}>
-                              {g.black?.name || 'Unknown'}
+                              {g.black?.is_bot ? '🤖 ' : ''}{g.black?.name || 'Unknown'}
                             </span>
                             <span className="text-[#9b9895] text-xs ml-1">({g.black?.rating || '?'})</span>
+                            {!g.black?.is_bot && g.black?.rating_change != null && (
+                              <span className={`text-xs ml-1 font-mono ${g.black.rating_change >= 0 ? 'text-[#81b64c]' : 'text-red-400'}`}>
+                                {g.black.rating_change >= 0 ? '+' : ''}{g.black.rating_change}
+                              </span>
+                            )}
                           </td>
                           <td className="py-2 pr-3 font-mono">
                             {g.result === '1-0' ? '1-0' : g.result === '0-1' ? '0-1' : g.result === '1/2-1/2' ? '\u00BD-\u00BD' : g.result}
@@ -240,8 +251,33 @@ const AdminDashboard = () => {
                           <td className="py-2 pr-3 hidden sm:table-cell text-[#9b9895]">{g.end_reason || '-'}</td>
                           <td className="py-2 pr-3 hidden md:table-cell">
                             <span className={`text-xs px-2 py-0.5 rounded ${
-                              g.game_mode === 'rated' ? 'bg-[#81b64c]/20 text-[#81b64c]' : 'bg-[#464340] text-[#9b9895]'
-                            }`}>{g.game_mode || 'casual'}</span>
+                              g.is_bot_game ? 'bg-[#464340] text-[#9b9895]'
+                              : g.game_mode_raw === 'rated' ? 'bg-[#81b64c]/20 text-[#81b64c]'
+                              : 'bg-[#464340] text-[#9b9895]'
+                            }`}>
+                              {g.is_bot_game ? 'vs bot' : g.game_mode_raw || 'casual'}
+                            </span>
+                          </td>
+                          <td className="py-2 pr-3 hidden md:table-cell text-center">
+                            {g.is_bot_game ? (
+                              <span className="text-[#9b9895] text-xs">—</span>
+                            ) : (
+                              <span className="text-[#9b9895] text-xs">
+                                {g.white?.rating_change != null || g.black?.rating_change != null ? (
+                                  <>
+                                    <span className={g.white?.rating_change >= 0 ? 'text-[#81b64c]' : 'text-red-400'}>
+                                      W:{g.white?.rating_change != null ? (g.white.rating_change >= 0 ? '+' : '') + g.white.rating_change : '?'}
+                                    </span>
+                                    {' / '}
+                                    <span className={g.black?.rating_change >= 0 ? 'text-[#81b64c]' : 'text-red-400'}>
+                                      B:{g.black?.rating_change != null ? (g.black.rating_change >= 0 ? '+' : '') + g.black.rating_change : '?'}
+                                    </span>
+                                  </>
+                                ) : g.game_mode_raw === 'rated' ? (
+                                  <span className="text-yellow-500 text-xs" title="Rating not recorded">⚠ missing</span>
+                                ) : '—'}
+                              </span>
+                            )}
                           </td>
                           <td className="py-2 pr-3 hidden md:table-cell text-right font-mono">{g.move_count}</td>
                           <td className="py-2 hidden sm:table-cell text-[#9b9895] text-xs">
@@ -250,7 +286,7 @@ const AdminDashboard = () => {
                         </tr>
                       ))}
                       {data.recent_games.length === 0 && (
-                        <tr><td colSpan={7} className="py-4 text-center text-[#9b9895]">No games found</td></tr>
+                        <tr><td colSpan={8} className="py-4 text-center text-[#9b9895]">No games found</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -484,6 +520,7 @@ const UserDetailPanel = ({ userId, period, onClose }) => {
                   <th className="py-1.5 pr-2 text-left">Opponent</th>
                   <th className="py-1.5 pr-2 text-left hidden sm:table-cell">End Reason</th>
                   <th className="py-1.5 pr-2 hidden sm:table-cell">Mode</th>
+                  <th className="py-1.5 pr-2 text-right hidden sm:table-cell">Rating Δ</th>
                   <th className="py-1.5 pr-2 text-right">Moves</th>
                   <th className="py-1.5 text-right hidden sm:table-cell">When</th>
                 </tr>
@@ -501,14 +538,27 @@ const UserDetailPanel = ({ userId, period, onClose }) => {
                         </span>
                       </td>
                       <td className="py-1.5 pr-2 text-white">
-                        {opponent?.name || 'Unknown'}
+                        {opponent?.is_bot ? '🤖 ' : ''}{opponent?.name || 'Unknown'}
                         <span className="text-[#9b9895] ml-1">({opponent?.rating || '?'})</span>
                       </td>
                       <td className="py-1.5 pr-2 text-[#9b9895] hidden sm:table-cell">{g.end_reason || '-'}</td>
                       <td className="py-1.5 pr-2 hidden sm:table-cell">
                         <span className={`px-1.5 py-0.5 rounded ${
-                          g.game_mode === 'rated' ? 'bg-[#81b64c]/20 text-[#81b64c]' : 'bg-[#3d3a36] text-[#9b9895]'
-                        }`}>{g.game_mode || 'casual'}</span>
+                          g.is_bot_game ? 'bg-[#3d3a36] text-[#9b9895]'
+                          : g.game_mode === 'rated' ? 'bg-[#81b64c]/20 text-[#81b64c]'
+                          : 'bg-[#3d3a36] text-[#9b9895]'
+                        }`}>{g.is_bot_game ? 'vs bot' : g.game_mode || 'casual'}</span>
+                      </td>
+                      <td className="py-1.5 pr-2 text-right hidden sm:table-cell font-mono">
+                        {g.is_bot_game ? (
+                          <span className="text-[#9b9895]">—</span>
+                        ) : g.rating_change != null ? (
+                          <span style={{ color: g.rating_change >= 0 ? '#81b64c' : '#e74c3c' }}>
+                            {g.rating_change >= 0 ? '+' : ''}{g.rating_change}
+                          </span>
+                        ) : g.game_mode === 'rated' ? (
+                          <span className="text-yellow-500" title="Rating not yet recorded">⚠</span>
+                        ) : '—'}
                       </td>
                       <td className="py-1.5 pr-2 text-right font-mono">{g.move_count}</td>
                       <td className="py-1.5 text-right text-[#9b9895] hidden sm:table-cell">
