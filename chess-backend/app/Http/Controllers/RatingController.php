@@ -85,8 +85,9 @@ class RatingController extends Controller
         $gameType = $request->input('game_type', 'multiplayer');
 
         // Idempotency: if this game_id was already processed by the server-side Elo
-        // handler (GameRoomService::applyRatedGameElo), return the existing record.
-        if ($request->input('game_id') && $gameType === 'multiplayer') {
+        // handler (applyRatedGameElo for multiplayer, applyRatedSyntheticElo for computer),
+        // return the existing record instead of applying Elo a second time.
+        if ($request->input('game_id')) {
             $existing = \DB::table('ratings_history')
                 ->where('user_id', $user->id)
                 ->where('game_id', $request->input('game_id'))
