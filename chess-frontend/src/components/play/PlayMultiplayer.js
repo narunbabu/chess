@@ -1479,7 +1479,11 @@ const PlayMultiplayer = () => {
       hasReinitializedAfterRatedConfirm.current = true; // Prevent infinite loop
       initializeGame();
     }
-  }, [ratedGameConfirmed, showRatedGameConfirmation, initializeGame, gameComplete]);
+  }, [ratedGameConfirmed, showRatedGameConfirmation, gameComplete]); // eslint-disable-line react-hooks/exhaustive-deps
+  // NOTE: initializeGame intentionally excluded — same reason as the mount effect.
+  // hasReinitializedAfterRatedConfirm.current prevents double-init; gameComplete prevents
+  // post-game re-init. Including initializeGame here caused this effect to re-run on every
+  // updateUser() call (e.g. rating update after game ends).
 
   // Handle offering a draw
   const handleOfferDraw = useCallback(async () => {
