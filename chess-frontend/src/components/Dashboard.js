@@ -315,7 +315,10 @@ const Dashboard = () => {
   }, [user]);
 
   const handleReviewGame = (game) => {
-    navigate(`/play/review/${game.id}`);
+    // For multiplayer games, use game_id (actual games table ID)
+    // For computer games, use id (game_histories table ID)
+    const reviewId = (game.game_mode === 'multiplayer' && game.game_id) ? game.game_id : game.id;
+    navigate(`/play/review/${reviewId}`);
   };
 
   const handleResumeUnfinishedGame = async (game) => {

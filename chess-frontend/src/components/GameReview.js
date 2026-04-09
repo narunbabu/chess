@@ -371,6 +371,9 @@ const GameReview = () => {
 
           const playerColor = gameData.player_color;
           // Normalize result status to 'won'/'lost'/'draw' for ResultBadge and GameEndCard
+          // Note: backend returns player_color as 'white'/'black', not 'w'/'b'
+          const isPlayerWhite = playerColor === 'w' || playerColor === 'white';
+          const isPlayerBlack = playerColor === 'b' || playerColor === 'black';
           let normalizedStatus;
           if (gameData.result === '1/2-1/2') {
             normalizedStatus = 'draw';
@@ -379,9 +382,9 @@ const GameReview = () => {
           } else if (gameData.winner_user_id) {
             normalizedStatus = 'lost';
           } else if (gameData.result === '1-0') {
-            normalizedStatus = playerColor === 'w' ? 'won' : 'lost';
+            normalizedStatus = isPlayerWhite ? 'won' : 'lost';
           } else if (gameData.result === '0-1') {
-            normalizedStatus = playerColor === 'b' ? 'won' : 'lost';
+            normalizedStatus = isPlayerBlack ? 'won' : 'lost';
           } else {
             normalizedStatus = 'draw';
           }
@@ -390,15 +393,16 @@ const GameReview = () => {
             played_at: gameData.ended_at || new Date().toISOString(),
             player_color: playerColor,
             game_mode: 'multiplayer',
-            opponent_name: playerColor === 'w' ? gameData.black_player?.name : gameData.white_player?.name,
+            opponent_name: isPlayerWhite ? gameData.black_player?.name : gameData.white_player?.name,
             moves: gameData.moves,
-            final_score: playerColor === 'w' ? parseFloat(gameData.white_player_score || 0) : parseFloat(gameData.black_player_score || 0),
-            opponent_score: playerColor === 'w' ? parseFloat(gameData.black_player_score || 0) : parseFloat(gameData.white_player_score || 0),
+            final_score: isPlayerWhite ? parseFloat(gameData.white_player_score || 0) : parseFloat(gameData.black_player_score || 0),
+            opponent_score: isPlayerWhite ? parseFloat(gameData.black_player_score || 0) : parseFloat(gameData.white_player_score || 0),
             end_reason: gameData.end_reason,
             result: {
               details: gameData.end_reason,
               end_reason: gameData.end_reason,
-              status: normalizedStatus
+              status: normalizedStatus,
+              winner: normalizedStatus === 'won' ? 'player' : (normalizedStatus === 'lost' ? 'opponent' : null)
             },
             white_time_remaining_ms: gameData.white_time_remaining_ms,
             black_time_remaining_ms: gameData.black_time_remaining_ms,
@@ -492,6 +496,9 @@ const GameReview = () => {
 
                 const playerColor = gameData.player_color;
                 // Normalize result status to 'won'/'lost'/'draw'
+                // Note: backend returns player_color as 'white'/'black', not 'w'/'b'
+                const isPlayerWhiteFb = playerColor === 'w' || playerColor === 'white';
+                const isPlayerBlackFb = playerColor === 'b' || playerColor === 'black';
                 let normalizedStatus;
                 if (gameData.result === '1/2-1/2') {
                   normalizedStatus = 'draw';
@@ -500,9 +507,9 @@ const GameReview = () => {
                 } else if (gameData.winner_user_id) {
                   normalizedStatus = 'lost';
                 } else if (gameData.result === '1-0') {
-                  normalizedStatus = playerColor === 'w' ? 'won' : 'lost';
+                  normalizedStatus = isPlayerWhiteFb ? 'won' : 'lost';
                 } else if (gameData.result === '0-1') {
-                  normalizedStatus = playerColor === 'b' ? 'won' : 'lost';
+                  normalizedStatus = isPlayerBlackFb ? 'won' : 'lost';
                 } else {
                   normalizedStatus = 'draw';
                 }
@@ -511,15 +518,16 @@ const GameReview = () => {
                   played_at: gameData.ended_at || new Date().toISOString(),
                   player_color: playerColor,
                   game_mode: 'multiplayer',
-                  opponent_name: playerColor === 'w' ? gameData.black_player?.name : gameData.white_player?.name,
+                  opponent_name: isPlayerWhiteFb ? gameData.black_player?.name : gameData.white_player?.name,
                   moves: gameData.moves,
-                  final_score: playerColor === 'w' ? parseFloat(gameData.white_player_score || 0) : parseFloat(gameData.black_player_score || 0),
-                  opponent_score: playerColor === 'w' ? parseFloat(gameData.black_player_score || 0) : parseFloat(gameData.white_player_score || 0),
+                  final_score: isPlayerWhiteFb ? parseFloat(gameData.white_player_score || 0) : parseFloat(gameData.black_player_score || 0),
+                  opponent_score: isPlayerWhiteFb ? parseFloat(gameData.black_player_score || 0) : parseFloat(gameData.white_player_score || 0),
                   end_reason: gameData.end_reason,
                   result: {
                     details: gameData.end_reason,
                     end_reason: gameData.end_reason,
-                    status: normalizedStatus
+                    status: normalizedStatus,
+                    winner: normalizedStatus === 'won' ? 'player' : (normalizedStatus === 'lost' ? 'opponent' : null)
                   },
                   white_time_remaining_ms: gameData.white_time_remaining_ms,
                   black_time_remaining_ms: gameData.black_time_remaining_ms,
@@ -873,7 +881,7 @@ const GameReview = () => {
     const gameResult = gameHistory.result;
     const playerWon = isWin(gameResult);
     const gameDraw = isDraw(gameResult);
-    const reviewUrl = gameHistory.id ? `https://chess99.com/play/review/${gameHistory.id}` : 'https://chess99.com';
+    const reviewUrl = gameId ? `https://chess99.com/play/review/${gameId}` : 'https://chess99.com';
 
     if (playerWon) {
       return `🏆 I defeated ${opponentName} in chess!\n\n🎯 It is fun to play chess at www.chess99.com, Join me! ♟️\n\n${reviewUrl}`;
@@ -882,7 +890,7 @@ const GameReview = () => {
     } else {
       return `♟️ I played against ${opponentName} in chess!\n\n🎯 It is fun to play chess at www.chess99.com, Join me! ♟️\n\n${reviewUrl}`;
     }
-  }, [playerInfo.topName, gameHistory.result, gameHistory.id]);
+  }, [playerInfo.topName, gameHistory.result, gameId]);
 
   const handleTestShare = async () => {
     try {
@@ -955,7 +963,7 @@ const GameReview = () => {
     }
   };
 
-  const reviewLink = gameHistory.id ? `https://chess99.com/play/review/${gameHistory.id}` : null;
+  const reviewLink = gameId ? `https://chess99.com/play/review/${gameId}` : null;
 
   const handleCopyReviewLink = async () => {
     if (!reviewLink) return;
@@ -1126,7 +1134,7 @@ const GameReview = () => {
               <Chessboard
                 position={game.fen()}
                 boardWidth={boardSize}
-                boardOrientation={gameHistory.player_color === 'b' ? 'black' : 'white'}
+                boardOrientation={gameHistory.player_color === 'b' || gameHistory.player_color === 'black' ? 'black' : 'white'}
                 arePiecesDraggable={false}
                 customDarkSquareStyle={{ backgroundColor: getTheme(boardTheme).dark }}
                 customLightSquareStyle={{ backgroundColor: getTheme(boardTheme).light }}
@@ -1393,7 +1401,7 @@ const GameReview = () => {
             user={user || {}}
             sharePlayerName={sharePlayerName}
             isAuthenticated={isAuthenticated}
-            playerColor={gameHistory.player_color === 'w' ? 'white' : 'black'}
+            playerColor={gameHistory.player_color === 'w' || gameHistory.player_color === 'white' ? 'white' : 'black'}
             score={gameHistory.final_score || 0}
             opponentScore={gameHistory.opponent_score || 0}
             isMultiplayer={gameHistory.game_mode === 'multiplayer'}
