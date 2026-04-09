@@ -27,10 +27,10 @@ class DrawOfferDeclinedEvent implements ShouldBroadcastNow
         $this->offerer = $offerer;
     }
 
-    public function broadcastOn()
+    public function broadcastOn(): array
     {
-        // Send to the offerer who will be notified of the decline
-        return new PrivateChannel('App.Models.User.' . $this->offerer->id);
+        // Broadcast on the game channel so the offerer receives the decline reliably.
+        return [new PrivateChannel('game.' . $this->game->id)];
     }
 
     public function broadcastWith()

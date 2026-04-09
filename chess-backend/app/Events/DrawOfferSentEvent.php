@@ -27,36 +27,24 @@ class DrawOfferSentEvent implements ShouldBroadcastNow
         $this->opponent = $opponent;
     }
 
-    public function broadcastOn()
+    public function broadcastOn(): array
     {
-        // Send to the opponent who will receive the draw offer
-        return new PrivateChannel('App.Models.User.' . $this->opponent->id);
+        // Broadcast on the game channel so both players receive it reliably.
+        // The frontend filters by offerer_id to avoid showing the dialog to the sender.
+        return [new PrivateChannel('game.' . $this->game->id)];
     }
 
-    public function broadcastWith()
+    public function broadcastWith(): array
     {
         return [
             'type' => 'draw_offer',
             'game_id' => $this->game->id,
-            'game' => [
-                'id' => $this->game->id,
-                'white_player_id' => $this->game->white_player_id,
-                'black_player_id' => $this->game->black_player_id,
-                'status' => $this->game->status,
-                'whitePlayer' => [
-                    'id' => $this->game->whitePlayer->id,
-                    'name' => $this->game->whitePlayer->name
-                ],
-                'blackPlayer' => [
-                    'id' => $this->game->blackPlayer->id,
-                    'name' => $this->game->blackPlayer->name
-                ]
-            ],
+            'offerer_id' => $this->offerer->id,
             'offerer' => [
                 'id' => $this->offerer->id,
-                'name' => $this->offerer->name
+                'name' => $this->offerer->name,
             ],
-            'opponent_id' => $this->opponent->id
+            'opponent_id' => $this->opponent->id,
         ];
     }
 

@@ -244,6 +244,18 @@ class WebSocketGameService {
         .listen('.game.chat', (event) => {
             console.log('Chat message received:', event);
             this.emit('chatMessage', event);
+        })
+        .listen('.draw.offer.sent', (event) => {
+            // Ignore if current user is the offerer (they sent it, not receiving it)
+            if (event.offerer_id === this.user?.id) return;
+            console.log('Draw offer received:', event);
+            this.emit('drawOfferReceived', event);
+        })
+        .listen('.draw.offer.declined', (event) => {
+            // Only notify the offerer that their offer was declined
+            if (event.offerer_id !== this.user?.id) return;
+            console.log('Draw offer declined:', event);
+            this.emit('drawOfferDeclined', event);
         });
 
       // Wait for connection

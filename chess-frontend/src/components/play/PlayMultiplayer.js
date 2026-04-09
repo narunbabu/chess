@@ -1151,19 +1151,19 @@ const PlayMultiplayer = () => {
         setError(errorMessage);
       });
 
-      // Draw offer event listeners
-      const userChannel = wsService.current.subscribeToUserChannel(user);
-      userChannel.listen('.draw.offer.sent', (event) => {
+      // Draw offer events now come through the game channel (reliable, same as moves/undo/chat)
+      wsService.current.on('drawOfferReceived', (event) => {
         console.log('🤝 Draw offer received:', event);
         handleDrawOfferReceived(event);
       });
 
-      userChannel.listen('.draw.offer.declined', (event) => {
+      wsService.current.on('drawOfferDeclined', (event) => {
         console.log('❌ Draw offer declined:', event);
         handleDrawOfferDeclined(event);
       });
 
-      // New game challenge request listener
+      // New game challenge request listener (still on user channel)
+      const userChannel = wsService.current.subscribeToUserChannel(user);
       userChannel.listen('.new_game.request', (event) => {
         console.log('🎮 New game challenge received:', event);
         setNewGameRequest(event);
@@ -5052,27 +5052,6 @@ const PlayMultiplayer = () => {
       {/* Game Completion Modal */}
       {gameComplete && gameResult && (
         <>
-          {/* RatingChangeDisplay - Overlay for rated games */}
-          {ratedMode === 'rated' && ratingChangeData && (
-            <div style={{
-              position: 'fixed',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              zIndex: 10001,
-              maxWidth: '500px',
-              width: '90%'
-            }}>
-              <RatingChangeDisplay
-                ratingChange={ratingChangeData.ratingChange}
-                performanceScore={ratingChangeData.performanceScore}
-                oldRating={ratingChangeData.oldRating}
-                newRating={ratingChangeData.newRating}
-                ratingDetails={ratingChangeData.ratingDetails}
-              />
-            </div>
-          )}
-
           <GameCompletionAnimation
             result={gameResult}
           score={Math.abs(parseFloat(
@@ -5491,27 +5470,6 @@ const PlayMultiplayer = () => {
       {/* Game Completion Modal */}
       {gameComplete && gameResult && (
         <>
-          {/* RatingChangeDisplay - Overlay for rated games */}
-          {ratedMode === 'rated' && ratingChangeData && (
-            <div style={{
-              position: 'fixed',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              zIndex: 10001,
-              maxWidth: '500px',
-              width: '90%'
-            }}>
-              <RatingChangeDisplay
-                ratingChange={ratingChangeData.ratingChange}
-                performanceScore={ratingChangeData.performanceScore}
-                oldRating={ratingChangeData.oldRating}
-                newRating={ratingChangeData.newRating}
-                ratingDetails={ratingChangeData.ratingDetails}
-              />
-            </div>
-          )}
-
           <GameCompletionAnimation
             result={gameResult}
           score={Math.abs(parseFloat(
