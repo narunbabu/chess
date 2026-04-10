@@ -81,6 +81,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/invitations/accepted', [InvitationController::class, 'accepted']);
     Route::delete('/invitations/{id}', [InvitationController::class, 'cancel']);
 
+    // User progress charts
+    Route::get('/user/progress', [\App\Http\Controllers\UserProgressController::class, 'progress']);
+
     // Game routes
     Route::get('/games/daily-quota', [GameController::class, 'dailyQuota']);
     Route::post('/games', [GameController::class, 'create']);

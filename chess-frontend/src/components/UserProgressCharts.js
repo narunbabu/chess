@@ -60,7 +60,7 @@ function fillRatingGaps(sparseData, period) {
   }).filter(d => d.rating !== null);
 }
 
-const UserProgressCharts = ({ userId, period }) => {
+const UserProgressCharts = ({ userId, period, apiUrl }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -69,7 +69,10 @@ const UserProgressCharts = ({ userId, period }) => {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    fetch(`${BACKEND_URL}/admin/dashboard/user/${userId}/progress?period=${period}`, {
+    const url = apiUrl
+      ? `${BACKEND_URL}${apiUrl}?period=${period}`
+      : `${BACKEND_URL}/admin/dashboard/user/${userId}/progress?period=${period}`;
+    fetch(url, {
       headers: {
         Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
         Accept: 'application/json',

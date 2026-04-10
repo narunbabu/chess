@@ -8,6 +8,7 @@ import api from "../services/api";
 import userStatusService from "../services/userStatusService";
 import SkillAssessmentModal from "./auth/SkillAssessmentModal";
 import DetailedStatsModal from "./DetailedStatsModal";
+import ProgressChartsModal from "./ProgressChartsModal"; // user progress charts modal
 import { getPlayerAvatar } from "../utils/playerDisplayUtils";
 import { isWin, getResultDisplayText } from "../utils/resultStandardization";
 import { getUnfinishedGame, getUnfinishedGames, deleteUnfinishedGame } from "../services/unfinishedGameService";
@@ -44,6 +45,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [showSkillAssessment, setShowSkillAssessment] = useState(false);
   const [showDetailedStats, setShowDetailedStats] = useState(false);
+  const [showProgressCharts, setShowProgressCharts] = useState(false);
   const [showMatchmaking, setShowMatchmaking] = useState(false);
   const [onlineCount, setOnlineCount] = useState(null);
   const [dailyChallenge, setDailyChallenge] = useState(null);
@@ -485,6 +487,12 @@ const Dashboard = () => {
         onClose={() => setShowDetailedStats(false)}
         gameHistories={gameHistories}
         user={user}
+      />
+
+      <ProgressChartsModal
+        isOpen={showProgressCharts}
+        onClose={() => setShowProgressCharts(false)}
+        userId={user?.id}
       />
 
       <MatchmakingQueue
@@ -940,13 +948,22 @@ const Dashboard = () => {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
             <h2 className="unified-section-header" style={{ margin: 0 }}>📊 Your Statistics</h2>
             {gameHistories.length > 0 && (
-              <button
-                onClick={() => setShowDetailedStats(true)}
-                className="unified-card-btn primary"
-                style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}
-              >
-                📋 View Details
-              </button>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button
+                  onClick={() => setShowProgressCharts(true)}
+                  className="unified-card-btn primary"
+                  style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}
+                >
+                  📈 View Progress
+                </button>
+                <button
+                  onClick={() => setShowDetailedStats(true)}
+                  className="unified-card-btn secondary"
+                  style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}
+                >
+                  📋 View Details
+                </button>
+              </div>
             )}
           </div>
           {stats.totalGames === 0 ? (
