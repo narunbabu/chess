@@ -487,6 +487,7 @@ class GameHistoryController extends Controller
                 'game_histories.*',
                 'games.white_player_id',
                 'games.black_player_id',
+                'games.winner_user_id',
                 'games.white_player_score',
                 'games.black_player_score',
                 'white_player.name as white_player_name',
