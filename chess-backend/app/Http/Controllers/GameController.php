@@ -279,6 +279,23 @@ class GameController extends Controller
             $movesForCount = [];
         }
 
+        // Standardize result format for frontend compatibility
+        $standardizedResult = $this->standardizeResult($game, $playerColor, $user->id);
+
+        // Parse moves JSON string for frontend consumption
+        $parsedMoves = $game->moves;
+        if (is_string($parsedMoves)) {
+            $decoded = json_decode($parsedMoves, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $parsedMoves = $decoded;
+            } else {
+                $parsedMoves = [];
+            }
+        }
+        if (!is_array($parsedMoves)) {
+            $parsedMoves = [];
+        }
+
         $response = [
             ...$game->toArray(),
             'player_color' => $playerColor,
@@ -290,6 +307,8 @@ class GameController extends Controller
             ],
             'opening_name' => $openingName,
             'move_count' => count($movesForCount),
+            'result' => $standardizedResult,
+            'moves' => $parsedMoves,
         ];
 
         return response()->json($response);
@@ -370,6 +389,67 @@ class GameController extends Controller
         }
 
         return null;
+    }
+
+    /**
+     * Convert game result to standardized format for frontend
+     * Handles legacy formats (1-0, 0-1, 1/2-1/2, winner_player) and converts to
+     * {status, details, end_reason, winner} format
+     */
+    private function standardizeResult(Game $game, string $playerColor, int $userId): array
+    {
+        // Default: draw
+        $status = 'draw';
+        $details = 'Game ended';
+        $endReason = 'agreement';
+        $winner = null;
+
+        // Get end reason from relationship
+        if ($game->endReasonRelation) {
+            $endReason = $game->endReasonRelation->code; // 'checkmate', 'timeout', 'resignation', etc.
+        }
+
+        // Determine outcome based on result field and winner_player
+        $resultValue = $game->result;
+        $winnerPlayer = $game->winner_player; // 'white', 'black', or null
+
+        // Handle chess notation results (1-0, 0-1, 1/2-1/2)
+        if ($resultValue === '1-0' || $winnerPlayer === 'white') {
+            // White won
+            $isPlayerWinner = ($playerColor === 'white');
+            $status = $isPlayerWinner ? 'won' : 'lost';
+            $winner = $isPlayerWinner ? 'player' : 'opponent';
+            $details = $isPlayerWinner ? 'You won!' : 'You lost!';
+        } elseif ($resultValue === '0-1' || $winnerPlayer === 'black') {
+            // Black won
+            $isPlayerWinner = ($playerColor === 'black');
+            $status = $isPlayerWinner ? 'won' : 'lost';
+            $winner = $isPlayerWinner ? 'player' : 'opponent';
+            $details = $isPlayerWinner ? 'You won!' : 'You lost!';
+        } elseif ($resultValue === '1/2-1/2' || $resultValue === 'draw' || $winnerPlayer === null) {
+            // Draw
+            $status = 'draw';
+            $winner = null;
+            $details = 'Draw';
+        }
+
+        // Add end reason to details
+        if ($endReason === 'checkmate') {
+            $details = $status === 'won' ? 'You won by checkmate!' : 'You lost by checkmate!';
+        } elseif ($endReason === 'timeout') {
+            $details = $status === 'won' ? 'You won on time!' : 'You lost on time!';
+        } elseif ($endReason === 'resignation') {
+            $details = $status === 'won' ? 'Opponent resigned!' : 'You resigned!';
+        } elseif ($endReason === 'stalemate') {
+            $details = 'Draw by stalemate';
+        }
+
+        return [
+            'status' => $status,
+            'details' => $details,
+            'end_reason' => $endReason,
+            'winner' => $winner
+        ];
     }
 
     public function move(Request $request, $id)
