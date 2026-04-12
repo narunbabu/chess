@@ -265,6 +265,20 @@ class GameController extends Controller
         // Detect opening name from first few moves
         $openingName = $this->detectOpening($game->moves ?? []);
 
+        // Parse moves for count (moves are stored as JSON string in database)
+        $movesForCount = $game->moves;
+        if (is_string($movesForCount)) {
+            $decoded = json_decode($movesForCount, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $movesForCount = $decoded;
+            } else {
+                $movesForCount = [];
+            }
+        }
+        if (!is_array($movesForCount)) {
+            $movesForCount = [];
+        }
+
         $response = [
             ...$game->toArray(),
             'player_color' => $playerColor,
@@ -275,7 +289,7 @@ class GameController extends Controller
                 'increment' => $game->increment_seconds,
             ],
             'opening_name' => $openingName,
-            'move_count' => count($game->moves ?? []),
+            'move_count' => count($movesForCount),
         ];
 
         return response()->json($response);
