@@ -285,9 +285,26 @@ class GameController extends Controller
      * Detect chess opening name from moves list
      * Returns null if no known opening is matched
      */
-    private function detectOpening(array $moves): ?string
+    private function detectOpening($moves): ?string
     {
-        if (empty($moves)) {
+        // Handle null or empty input
+        if ($moves === null || $moves === '') {
+            return null;
+        }
+
+        // If moves is a JSON string, decode it first
+        if (is_string($moves)) {
+            $decoded = json_decode($moves, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $moves = $decoded;
+            } else {
+                // Not valid JSON or empty, return null
+                return null;
+            }
+        }
+
+        // Ensure we have an array
+        if (!is_array($moves) || empty($moves)) {
             return null;
         }
 

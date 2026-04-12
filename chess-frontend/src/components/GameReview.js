@@ -1076,6 +1076,17 @@ const GameReview = () => {
     );
   }
 
+  // Check if game has no moves (nothing to review)
+  if (!gameHistory.moves || gameHistory.moves.length === 0) {
+    return (
+      <div className="min-h-screen bg-[#1a1a18] flex flex-col items-center justify-center">
+        <div className="text-[#bababa] text-lg font-semibold mb-2">No moves to review</div>
+        <p className="text-[#8b8987] text-sm mb-4">This game has no recorded moves to review.</p>
+        <button onClick={() => navigate(-1)} className="px-4 py-2 bg-[#312e2b] border border-[#3d3a37] hover:border-[#4a4744] text-white rounded-lg text-sm transition-colors">Back</button>
+      </div>
+    );
+  }
+
   // ═══ Speed buttons config ═══
   const speeds = [
     { label: 'Slow', value: 2000 },
