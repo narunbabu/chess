@@ -67,12 +67,39 @@ export const extractGameSummary = (gameHistory) => {
   // Get move count (checking for either property, e.g. move or san)
   const moveCount = moves.filter((move) => move.move || move.san).length;
 
+  // Determine result with player color context for legacy format parsing
+  let resultText = "Draw";
+  if (typeof resultRaw === 'object' && resultRaw.status) {
+    // Standardized format
+    resultText = resultRaw.status === 'won' ? "Won" : resultRaw.status === 'lost' ? "Lost" : "Draw";
+  } else if (typeof resultRaw === 'string') {
+    // Legacy format - parse with player color context
+    const lowerResult = resultRaw.toLowerCase();
+    const isPlayerWhite = playerColorRaw === 'w';
+    if (lowerResult.includes('white wins')) {
+      resultText = isPlayerWhite ? "Won" : "Lost";
+    } else if (lowerResult.includes('black wins')) {
+      resultText = isPlayerWhite ? "Lost" : "Won";
+    } else if (lowerResult.includes('draw') || lowerResult.includes('stalemate')) {
+      resultText = "Draw";
+    } else if (lowerResult === 'won') {
+      resultText = "Won";
+    } else if (lowerResult === 'lost') {
+      resultText = "Lost";
+    } else if (lowerResult === 'draw') {
+      resultText = "Draw";
+    }
+  } else {
+    // Fallback to isWin/isLoss for object formats
+    resultText = isWin(resultRaw) ? "Won" : isLoss(resultRaw) ? "Lost" : "Draw";
+  }
+
   return {
     date: formatGameDate(date),
     rawDate: date,
     playerColor: playerColorRaw === "w" ? "White" : "Black",
     computerLevel: computerLevelRaw,
-    result: isWin(resultRaw) ? "Won" : isLoss(resultRaw) ? "Lost" : "Draw",
+    result: resultText,
     finalScore: Math.abs(finalScoreRaw).toFixed(1),
     duration,
     moveCount,

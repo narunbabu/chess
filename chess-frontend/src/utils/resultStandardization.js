@@ -65,14 +65,16 @@ export const createStandardizedResult = (status, details, endReason, winner) => 
  * Parse result status from any format (string or object)
  *
  * @param {string|StandardizedResult} result - Result in any format
+ * @param {string} playerColor - Player's color ('w' or 'b') - needed for legacy format parsing
  * @returns {'won'|'lost'|'draw'} Status value
  *
  * @example
  * parseResultStatus("won") // Returns: "won"
  * parseResultStatus({ status: "lost", details: "..." }) // Returns: "lost"
- * parseResultStatus("Checkmate! Black wins!") // Returns: "draw" (fallback for unparseable)
+ * parseResultStatus("Checkmate! White wins!", 'w') // Returns: "won"
+ * parseResultStatus("Checkmate! White wins!", 'b') // Returns: "lost"
  */
-export const parseResultStatus = (result) => {
+export const parseResultStatus = (result, playerColor = null) => {
   // Handle null/undefined
   if (!result) {
     return GAME_STATUS.DRAW;
@@ -92,17 +94,26 @@ export const parseResultStatus = (result) => {
     if (lowerResult === 'lost') return GAME_STATUS.LOST;
     if (lowerResult === 'draw') return GAME_STATUS.DRAW;
 
-    // Legacy format detection (not reliable without player color - returns draw as safe fallback)
-    // These should be replaced with proper structured data
+    // Legacy format detection - with player color context
     if (lowerResult.includes('draw') || lowerResult.includes('stalemate')) {
       return GAME_STATUS.DRAW;
     }
 
-    // Can't determine reliably from descriptive text alone
-    // This is why we need the standardized format!
+    // Parse legacy "X wins!" format when player color is known
+    if (playerColor !== null) {
+      const isPlayerWhite = playerColor === 'w' || playerColor === 'white';
+      if (lowerResult.includes('white wins')) {
+        return isPlayerWhite ? GAME_STATUS.WON : GAME_STATUS.LOST;
+      }
+      if (lowerResult.includes('black wins')) {
+        return isPlayerWhite ? GAME_STATUS.LOST : GAME_STATUS.WON;
+      }
+    }
+
+    // Can't determine reliably from descriptive text alone without player color
     // Using debug log to avoid console noise for legacy data
     if (process.env.NODE_ENV === 'development') {
-      console.debug('[resultStandardization] Legacy format detected:', result);
+      console.debug('[resultStandardization] Legacy format detected without player color:', result);
     }
     return GAME_STATUS.DRAW; // Safe fallback
   }

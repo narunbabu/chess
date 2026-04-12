@@ -331,9 +331,60 @@ class GameHistoryController extends Controller
                             $decoded['status'] = $isWinner ? 'won' : 'lost';
                             $decoded['winner'] = $isWinner ? 'player' : 'opponent';
                         }
+                        // Handle missing status in standardized format (should have won/lost/draw)
+                        if (!isset($decoded['status']) || !in_array($decoded['status'], ['won', 'lost', 'draw'])) {
+                            if ($game->winner_user_id) {
+                                $isWinner = (int) $user->id === (int) $game->winner_user_id;
+                                $decoded['status'] = $isWinner ? 'won' : 'lost';
+                                $decoded['winner'] = $isWinner ? 'player' : 'opponent';
+                            } else {
+                                $decoded['status'] = 'draw';
+                                $decoded['winner'] = null;
+                            }
+                        }
                         $game->result = $decoded;
+                    } else {
+                        // Legacy string format (e.g., "Checkmate! White wins!") - convert to standardized format
+                        $resultText = strtolower($game->result);
+                        $playerColor = $game->player_color ?? 'w';
+                        $isPlayerWhite = $playerColor === 'w';
+
+                        // Determine end reason
+                        $endReason = 'agreement';
+                        if (strpos($resultText, 'checkmate') !== false) $endReason = 'checkmate';
+                        elseif (strpos($resultText, 'stalemate') !== false) $endReason = 'stalemate';
+                        elseif (strpos($resultText, 'resign') !== false || strpos($resultText, 'resignation') !== false) $endReason = 'resignation';
+                        elseif (strpos($resultText, 'time') !== false || strpos($resultText, 'timeout') !== false) $endReason = 'timeout';
+
+                        // Determine status based on result text
+                        $status = 'draw';
+                        $winner = null;
+                        if (strpos($resultText, 'white wins') !== false) {
+                            $status = $isPlayerWhite ? 'won' : 'lost';
+                            $winner = $isPlayerWhite ? 'player' : 'opponent';
+                        } elseif (strpos($resultText, 'black wins') !== false) {
+                            $status = $isPlayerWhite ? 'lost' : 'won';
+                            $winner = $isPlayerWhite ? 'opponent' : 'player';
+                        } elseif (strpos($resultText, 'draw') !== false || strpos($resultText, 'stalemate') !== false) {
+                            $status = 'draw';
+                            $winner = null;
+                        }
+
+                        $game->result = [
+                            'status' => $status,
+                            'details' => $game->result,
+                            'end_reason' => $endReason,
+                            'winner' => $winner
+                        ];
                     }
-                    // If not JSON or decode fails, keep as string (legacy format)
+                } elseif (!isset($game->result)) {
+                    // Missing result field - default to draw
+                    $game->result = [
+                        'status' => 'draw',
+                        'details' => 'Game ended',
+                        'end_reason' => 'agreement',
+                        'winner' => null
+                    ];
                 }
 
                 // Auto-detect multiplayer: if game_id exists and both players are real users
@@ -486,10 +537,61 @@ class GameHistoryController extends Controller
         if ($game->result && is_string($game->result)) {
             $decoded = json_decode($game->result, true);
             if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
-                // Successfully decoded JSON - return as object
+                // Handle missing status in standardized format (should have won/lost/draw)
+                if (!isset($decoded['status']) || !in_array($decoded['status'], ['won', 'lost', 'draw'])) {
+                    // Use winner_user_id to determine status
+                    if (isset($game->winner_user_id) && $game->winner_user_id) {
+                        $isWinner = (int) $user->id === (int) $game->winner_user_id;
+                        $decoded['status'] = $isWinner ? 'won' : 'lost';
+                        $decoded['winner'] = $isWinner ? 'player' : 'opponent';
+                    } else {
+                        $decoded['status'] = 'draw';
+                        $decoded['winner'] = null;
+                    }
+                }
                 $game->result = $decoded;
+            } else {
+                // Legacy string format (e.g., "Checkmate! White wins!") - convert to standardized format
+                $resultText = strtolower($game->result);
+                $playerColor = $game->player_color ?? 'w';
+                $isPlayerWhite = $playerColor === 'w';
+
+                // Determine end reason
+                $endReason = 'agreement';
+                if (strpos($resultText, 'checkmate') !== false) $endReason = 'checkmate';
+                elseif (strpos($resultText, 'stalemate') !== false) $endReason = 'stalemate';
+                elseif (strpos($resultText, 'resign') !== false || strpos($resultText, 'resignation') !== false) $endReason = 'resignation';
+                elseif (strpos($resultText, 'time') !== false || strpos($resultText, 'timeout') !== false) $endReason = 'timeout';
+
+                // Determine status based on result text
+                $status = 'draw';
+                $winner = null;
+                if (strpos($resultText, 'white wins') !== false) {
+                    $status = $isPlayerWhite ? 'won' : 'lost';
+                    $winner = $isPlayerWhite ? 'player' : 'opponent';
+                } elseif (strpos($resultText, 'black wins') !== false) {
+                    $status = $isPlayerWhite ? 'lost' : 'won';
+                    $winner = $isPlayerWhite ? 'opponent' : 'player';
+                } elseif (strpos($resultText, 'draw') !== false || strpos($resultText, 'stalemate') !== false) {
+                    $status = 'draw';
+                    $winner = null;
+                }
+
+                $game->result = [
+                    'status' => $status,
+                    'details' => $game->result,
+                    'end_reason' => $endReason,
+                    'winner' => $winner
+                ];
             }
-            // If not JSON or decode fails, keep as string (legacy format)
+        } elseif (!isset($game->result)) {
+            // Missing result field - default to draw
+            $game->result = [
+                'status' => 'draw',
+                'details' => 'Game ended',
+                'end_reason' => 'agreement',
+                'winner' => null
+            ];
         }
 
         // Auto-detect multiplayer: if game_id exists and both players are real users
