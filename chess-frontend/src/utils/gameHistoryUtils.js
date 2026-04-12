@@ -5,6 +5,57 @@ import { decodeGameHistory } from "./gameHistoryStringUtils";
 import { isWin, isLoss, getResultDetails } from "./resultStandardization";
 
 /**
+ * Normalize moves to standard array of move objects
+ * Handles various formats:
+ * - Plain strings: ["d4", "e6", ...]
+ * - Move objects with .move.san: [{move: {san: "d4"}}, ...]
+ * - Move objects with .san: [{san: "d4"}, ...]
+ * @param {Array|string} moves - Moves in any format
+ * @returns {Array} Normalized array of {san, move?} objects
+ */
+export const normalizeMoves = (moves) => {
+  if (!moves) return [];
+
+  // Handle string format (JSON or plain string array from API)
+  if (typeof moves === "string") {
+    try {
+      const parsed = JSON.parse(moves);
+      return normalizeMoves(parsed); // Recurse with parsed data
+    } catch {
+      return []; // Not valid JSON
+    }
+  }
+
+  if (!Array.isArray(moves)) return [];
+
+  // Empty array
+  if (moves.length === 0) return [];
+
+  // Check if plain string array: ["d4", "e6", ...]
+  if (typeof moves[0] === "string") {
+    return moves.map(san => ({ san, move: san }));
+  }
+
+  // Check if already in {move: {san: "..."}} format
+  if (moves[0]?.move?.san) {
+    return moves.map(m => ({ san: m.move.san, move: m.move.san }));
+  }
+
+  // Check if in {san: "..."} format
+  if (moves[0]?.san) {
+    return moves.map(m => ({ san: m.san, move: m.san }));
+  }
+
+  // Check if in {move: "..."} format (some legacy formats)
+  if (moves[0]?.move && typeof moves[0].move === "string") {
+    return moves.map(m => ({ san: m.move, move: m.move }));
+  }
+
+  // Unknown format, return as-is
+  return moves;
+};
+
+/**
  * Formats a date string to a relative time (e.g., "2 hours ago")
  * @param {string} dateString - ISO date string
  * @returns {string} Formatted relative time
@@ -35,37 +86,28 @@ export const extractGameSummary = (gameHistory) => {
     gameHistory.score ??
     0;
 
-  // Handle moves: if missing, default to empty array.
-  let moves = [];
-  if (gameHistory.moves) {
-    if (typeof gameHistory.moves === "string") {
-      try {
-        moves = decodeGameHistory(gameHistory.moves);
-      } catch (err) {
-        console.error("Error decoding moves for summary:", err);
-        moves = [];
-      }
-    } else {
-      moves = gameHistory.moves;
-    }
-  }
+  // Handle moves: use normalizeMoves to handle all formats (strings, objects, etc.)
+  const normalizedMoves = normalizeMoves(gameHistory.moves);
 
-  // Calculate game duration
+  // Calculate game duration (only if moves have time data)
   let totalTime = 0;
-  moves.forEach((move) => {
-    // Accept either snake_case or camelCase time properties.
-    if (move.time_spent || move.timeSpent) {
-      totalTime += move.time_spent || move.timeSpent;
-    }
-  });
+  const originalMoves = gameHistory.moves || [];
+  if (Array.isArray(originalMoves) && originalMoves.length > 0 && typeof originalMoves[0] === 'object') {
+    originalMoves.forEach((move) => {
+      // Accept either snake_case or camelCase time properties.
+      if (move.time_spent || move.timeSpent) {
+        totalTime += move.time_spent || move.timeSpent;
+      }
+    });
+  }
 
   // Format duration (mm:ss)
   const minutes = Math.floor(totalTime / 60);
   const seconds = Math.floor(totalTime % 60);
   const duration = `${minutes}:${seconds < 10 ? "0" + seconds : seconds}`;
 
-  // Get move count (checking for either property, e.g. move or san)
-  const moveCount = moves.filter((move) => move.move || move.san).length;
+  // Get move count from normalized moves
+  const moveCount = normalizedMoves.filter((move) => move.san || move.move).length;
 
   // Determine result with player color context for legacy format parsing
   let resultText = "Draw";
@@ -127,23 +169,17 @@ export const sortGameHistories = (gameHistories) => {
 export const getGamePGN = (gameHistory) => {
   try {
     const chess = new Chess();
-    // If moves is stored as JSON, parse it.
-    let moves = [];
-    if (gameHistory.moves) {
-      moves =
-        typeof gameHistory.moves === "string"
-          ? JSON.parse(gameHistory.moves)
-          : gameHistory.moves;
-    }
+    const moves = normalizeMoves(gameHistory.moves);
     const { playerColor, result } = gameHistory;
 
     // Apply all moves
     moves.forEach((moveObj) => {
-      if (moveObj.move) {
+      const notation = moveObj.san || moveObj.move;
+      if (notation) {
         try {
-          chess.move(moveObj.move);
+          chess.move(notation);
         } catch (e) {
-          console.error("Invalid move in history:", moveObj.move);
+          console.error("Invalid move in history:", notation);
         }
       }
     });
