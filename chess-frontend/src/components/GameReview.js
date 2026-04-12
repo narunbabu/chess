@@ -437,6 +437,23 @@ const GameReview = () => {
               }
             });
             formattedGameHistory.moves = convertedMoves;
+          } else if (Array.isArray(gameData.moves) && gameData.moves.length > 0 && typeof gameData.moves[0] === 'string') {
+            // Plain string moves format: ["d4", "e6", ...]
+            const tempGame = new Chess();
+            gameData.moves.forEach(moveNotation => {
+              if (moveNotation && moveNotation.trim()) {
+                try {
+                  const move = tempGame.move(moveNotation.trim());
+                  if (move) {
+                    convertedMoves.push({
+                      move: { san: move.san },
+                      fen: tempGame.fen()
+                    });
+                  }
+                } catch (moveError) { console.error('Error processing string move:', moveNotation, moveError); }
+              }
+            });
+            formattedGameHistory.moves = convertedMoves;
           } else if (Array.isArray(gameData.moves) && gameData.moves.length > 0 && gameData.moves[0].notation) {
             const tempGame = new Chess();
             gameData.moves.forEach(moveData => {
@@ -611,6 +628,23 @@ const GameReview = () => {
                     });
                   }
                 } catch (moveError) { console.error('Error processing move:', notation, moveError); }
+              }
+            });
+            formattedGameHistory.moves = convertedMoves;
+          } else if (Array.isArray(gameData.moves) && gameData.moves.length > 0 && typeof gameData.moves[0] === 'string') {
+            // Plain string moves format: ["d4", "e6", ...]
+            const tempGame = new Chess();
+            gameData.moves.forEach(moveNotation => {
+              if (moveNotation && moveNotation.trim()) {
+                try {
+                  const move = tempGame.move(moveNotation.trim());
+                  if (move) {
+                    convertedMoves.push({
+                      move: { san: move.san },
+                      fen: tempGame.fen()
+                    });
+                  }
+                } catch (moveError) { console.error('Error processing string move:', moveNotation, moveError); }
               }
             });
             formattedGameHistory.moves = convertedMoves;
