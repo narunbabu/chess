@@ -181,6 +181,11 @@ class GameController extends Controller
 
         $user = Auth::user();
 
+        // Check authentication first
+        if (!$user) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
         \Log::info('Game access attempt:', [
             'game_id' => $id,
             'user_id' => $user->id,
