@@ -6,6 +6,7 @@ use App\Enums\SubscriptionTier;
 use App\Events\GameEndedEvent;
 use App\Models\Game;
 use App\Models\GameHistory;
+use App\Models\GameStatus;
 use App\Models\User;
 use App\Models\ComputerPlayer;
 use Illuminate\Http\Request;
