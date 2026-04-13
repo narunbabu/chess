@@ -12,8 +12,6 @@ import GameCompletionAnimation from "../GameCompletionAnimation"; // Adjust path
 import PlayShell from "./PlayShell"; // Layout wrapper (Phase 4)
 import GameContainer from "./GameContainer"; // Unified game container
 import GameModeSelector from "../game/GameModeSelector"; // Game mode selector
-import CompanionSelector from "../game/CompanionSelector"; // Companion selector for learning mode
-import CompanionControls from "../game/CompanionControls"; // In-game companion controls
 import { getBoardTheme, getPieceStyle } from "./BoardCustomizer"; // Board customization helpers
 import { pieces3dLanding } from "../../assets/pieces/pieces3d"; // 3D piece renderers
 
@@ -32,6 +30,7 @@ import { getMovePath, createPathHighlights, mergeHighlights } from "../../utils/
 import { saveGameHistory, getGameHistories } from "../../services/gameHistoryService"; // Adjust paths if needed
 import { saveUnfinishedGame, clearUnfinishedGame, saveCompletedGame, getUnfinishedGames } from "../../services/unfinishedGameService"; // For saving, clearing paused games, and saving completed games
 import { gameService } from "../../services/gameService"; // Backend game service
+import api from "../../services/api"; // For fetching companions
 import { useAuth } from "../../contexts/AuthContext";
 import { useAppData } from "../../contexts/AppDataContext";
 
@@ -217,8 +216,9 @@ const PlayComputer = () => {
   const [isOnlineGame, setIsOnlineGame] = useState(false);
   const [players, setPlayers] = useState(null);
   const [gameMode, setGameMode] = useState('computer'); // Default to computer mode for /play route
-  const [ratedMode, setRatedMode] = useState('casual'); // 'casual', 'rated', or 'companion'
-  const [selectedCompanion, setSelectedCompanion] = useState(null); // Selected AI companion for learning mode
+  const [ratedMode, setRatedMode] = useState('casual'); // 'casual' or 'rated'
+  const [selectedCompanion, setSelectedCompanion] = useState(null); // Companion playing on behalf of player
+  const [companions, setCompanions] = useState([]); // Available companions list (fetched once)
 
   // Time control from lobby (minutes + increment seconds)
   const [timeControlMin, setTimeControlMin] = useState(() => {
@@ -240,6 +240,9 @@ const PlayComputer = () => {
   ); // Synthetic bot identity from lobby matchmaking
   const syntheticOpponentRef = useRef(syntheticOpponent);
   useEffect(() => { syntheticOpponentRef.current = syntheticOpponent; }, [syntheticOpponent]);
+  // Holds a generated synthetic opponent during countdown so setSyntheticOpponent
+  // is deferred until onCountdownFinish (avoids unmounting Countdown prematurely)
+  const pendingSyntheticOpponentRef = useRef(null);
   useEffect(() => { backendGameRef.current = backendGame; }, [backendGame]);
   const [restoredFromRefresh, setRestoredFromRefresh] = useState(false); // Show "Game restored" toast
 
@@ -288,6 +291,13 @@ const PlayComputer = () => {
     setActiveTimer, setIsTimerRunning, setPlayerTime, setComputerTime,
     handleTimer: startTimerInterval, pauseTimer, switchTimer, resetTimer
   } = useGameTimer(playerColor, game, handleTimerFlag, timeControlMin * 60, incrementSec);
+
+  // --- Fetch companions once on mount ---
+  useEffect(() => {
+    api.get('/v1/synthetic-players')
+      .then(res => setCompanions(res.data.data || res.data || []))
+      .catch(err => console.warn('[PlayComputer] Could not load companions:', err));
+  }, []);
 
   // --- Restore active game from localStorage on mount (refresh persistence) ---
   useEffect(() => {
@@ -1030,9 +1040,10 @@ const PlayComputer = () => {
       setTimeControlMin(lobbyTimeControl);
       setIncrementSec(lobbyIncrement);
 
-      // Apply rated/casual selection from lobby ChallengeModal
-      setRatedMode(lobbyRatedMode);
-      localStorage.setItem('gameRatedMode', lobbyRatedMode);
+      // Apply rated/casual selection from lobby
+      const normalizedMode = lobbyRatedMode === 'companion' ? 'casual' : lobbyRatedMode;
+      setRatedMode(normalizedMode);
+      localStorage.setItem('gameRatedMode', normalizedMode);
 
       // Set difficulty to the bot's level
       if (bot.computer_level) {
@@ -1791,10 +1802,13 @@ const PlayComputer = () => {
    const startGame = useCallback(() => {
         // Starts the countdown if game not already started
         if (!gameStarted && !countdownActive) {
-          // Auto-assign synthetic opponent for regular computer games
+          // Auto-assign synthetic opponent for regular computer games.
+          // Store in a ref instead of state so the Countdown component
+          // (inside preGameSetupSection which hides when syntheticOpponent is set)
+          // stays mounted long enough to fire onCountdownFinish.
           if (!syntheticOpponent) {
             const generated = generateLocalSyntheticOpponent(computerDepth);
-            setSyntheticOpponent(generated);
+            pendingSyntheticOpponentRef.current = generated;
           }
           setCountdownActive(true);
         }
@@ -1803,6 +1817,15 @@ const PlayComputer = () => {
    const onCountdownFinish = useCallback(async (overrideRatedMode, overridePlayerColor) => {
         // Initializes game state when countdown finishes
         // overrideRatedMode/overridePlayerColor bypass stale closures when called from synthetic setup
+
+        // Apply any pending synthetic opponent that was deferred from startGame()
+        // to avoid prematurely unmounting the Countdown component.
+        if (pendingSyntheticOpponentRef.current) {
+          setSyntheticOpponent(pendingSyntheticOpponentRef.current);
+          syntheticOpponentRef.current = pendingSyntheticOpponentRef.current;
+          pendingSyntheticOpponentRef.current = null;
+        }
+
         const effectiveRatedMode = overrideRatedMode || ratedMode;
         const effectivePlayerColor = overridePlayerColor || playerColor;
         console.log("Starting game...", { effectiveRatedMode });
@@ -1897,7 +1920,8 @@ const PlayComputer = () => {
         setActiveTimer, startTimerInterval, resetTimer, // Stable from hook
         setGameStarted, setCountdownActive, setGameHistory, setMoveCount, setGameOver, // Stable setters
         setPlayerScore, setLastMoveEvaluation, setGame, setMoveCompleted, setGameStatus, // Stable setters
-        setCurrentGameId, setBackendGame, setUndoChancesRemaining // Stable setters
+        setCurrentGameId, setBackendGame, setUndoChancesRemaining, // Stable setters
+        setSyntheticOpponent // Stable setter (used for pending opponent)
     ]);
 
     const resetGame = useCallback(() => {
@@ -2416,8 +2440,8 @@ const PlayComputer = () => {
         console.log(`[PlayComputer] 🎮 Game mode changed to: ${mode}`);
         setRatedMode(mode);
         localStorage.setItem('gameRatedMode', mode);
-        // Reset companion when switching away from companion mode
-        if (mode !== 'companion') {
+        // Companions are not allowed in rated games — clear any active companion
+        if (mode === 'rated') {
             setSelectedCompanion(null);
         }
     }, []);
@@ -2428,68 +2452,58 @@ const PlayComputer = () => {
     }, []);
 
    const handleCompanionMove = useCallback(async (move) => {
-        // Handle companion's suggested move - apply it to the game
+        // Companions cannot play in rated games
+        if (ratedMode === 'rated') return;
+        // It must be the player's turn
         if (!game || !gameStarted || gameOver) return;
+        const playerColorChess = playerColor === 'white' || playerColor === 'w' ? 'w' : 'b';
+        if (game.turn() !== playerColorChess) return;
 
         try {
-            const gameCopy = new Chess(game.fen()); // Work on a copy
-            const result = gameCopy.move({
-                from: move.from,
-                to: move.to,
-                promotion: move.promotion,
-            });
+            // Validate on a copy first
+            const gameCopy = new Chess(game.fen());
+            const testResult = gameCopy.move({ from: move.from, to: move.to, promotion: move.promotion });
+            if (!testResult) return; // Invalid move — do nothing
 
-            if (result) {
-                // Move is valid - update the actual game state
-                const moveResult = game.move({
-                    from: move.from,
-                    to: move.to,
-                    promotion: move.promotion,
-                });
+            // Apply to real game
+            const moveResult = game.move({ from: move.from, to: move.to, promotion: move.promotion });
+            if (!moveResult) return;
 
-                if (moveResult) {
-                    console.log('[PlayComputer] 🤝 Companion move applied:', moveResult.san);
+            console.log('[PlayComputer] 🤝 Companion move applied:', moveResult.san);
 
-                    // Update game state
-                    const newHistory = [...gameHistory, {
-                        fen: game.fen(),
-                        move: { san: moveResult.san, ...move },
-                        playerColor: playerColor,
-                        timeSpent: 0, // Companion moves are instant
-                        evaluation: null,
-                    }];
-                    setGameHistory(newHistory);
-                    setMoveCount(prev => prev + 1);
-                    setMoveCompleted(true);
-                    setMoveSquares({});
-                    setMoveFrom('');
-                    setLastMoveHighlights({
-                        [move.from]: true,
-                        [move.to]: true,
-                    });
+            setGame(new Chess(game.fen())); // Trigger re-render
+            setGameHistory(prev => [...prev, {
+                fen: game.fen(),
+                move: { san: moveResult.san, from: move.from, to: move.to },
+                playerColor: playerColorChess,
+                timeSpent: 0,
+                evaluation: null,
+            }]);
+            setMoveCount(prev => prev + 1);
+            setMoveSquares({});
+            setMoveFrom('');
+            setLastMoveHighlights({ [move.from]: true, [move.to]: true });
+            playSound(moveSoundEffect);
 
-                    // Check for game end
-                    if (game.isCheckmate() || game.isDraw() || game.isStalemate()) {
-                        setGameOver(true);
-                        setShowGameCompletion(true);
-                    } else {
-                        // Trigger computer's response after a short delay
-                        setTimeout(() => {
-                            makeComputerMove(game, playerColor, computerDepth, (move) => {
-                                // Handle computer move completion
-                                console.log('[PlayComputer] Computer moved after companion move');
-                            });
-                        }, 500);
-                    }
-
-                    playSound('move');
-                }
+            // Check for game end
+            if (game.isGameOver()) {
+                const status = updateGameStatus(game, setGameStatus);
+                handleGameComplete([], status, playerScore, computerScore);
+                return;
             }
+
+            // Hand off to the computer turn — same as after a normal player move
+            const computerColor = playerColorChess === 'w' ? 'b' : 'w';
+            setMoveCompleted(false);
+            switchTimer(computerColor);
+            startTimerInterval();
+
         } catch (error) {
             console.error('[PlayComputer] Failed to apply companion move:', error);
-            setGameStatus('Invalid move from companion');
         }
-    }, [game, gameStarted, gameOver, gameHistory, playerColor, playSound]);
+    }, [game, gameStarted, gameOver, playerColor, ratedMode, playSound, switchTimer, startTimerInterval,
+        setGame, setGameHistory, setMoveCount, setMoveSquares, setMoveFrom, setLastMoveHighlights,
+        setMoveCompleted, handleGameComplete, playerScore, computerScore]);
 
    // --- Draw Handlers (Placeholder for future implementation) ---
    const handleDrawOffer = useCallback(() => {
@@ -2564,18 +2578,7 @@ const PlayComputer = () => {
                 selectedMode={ratedMode}
                 onModeChange={handleModeChange}
                 disabled={countdownActive}
-                showCompanion={true}
-              />
-            </div>
-          )}
-
-          {/* Companion Selector — shown when companion mode is selected */}
-          {user && ratedMode === 'companion' && (
-            <div className="companion-selection mb-4 bg-white rounded-lg p-4">
-              <CompanionSelector
-                onSelect={handleCompanionSelect}
-                selectedCompanion={selectedCompanion}
-                disabled={countdownActive}
+                showCompanion={false}
               />
             </div>
           )}
@@ -2727,11 +2730,14 @@ const PlayComputer = () => {
         onTabOpen: () => { chatTabOpenRef.current = true; setChatUnread(0); },
         onTabClose: () => { chatTabOpenRef.current = false; },
       }}
-      companionData={ratedMode === 'companion' && selectedCompanion ? {
+      companionData={{
         companion: selectedCompanion,
+        companions,
+        onCompanionSelect: handleCompanionSelect,
+        onCompanionDismiss: () => setSelectedCompanion(null),
         onMove: handleCompanionMove,
         isMyTurn: game?.turn() === playerColor,
-      } : null}
+      }}
       controlsData={{
         gameStarted,
         countdownActive,

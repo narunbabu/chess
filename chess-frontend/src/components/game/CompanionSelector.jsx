@@ -1,6 +1,6 @@
 // src/components/game/CompanionSelector.jsx
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../../services/api';
 
 /**
  * CompanionSelector Component
@@ -23,7 +23,7 @@ const CompanionSelector = ({ onSelect, selectedCompanion, disabled = false }) =>
   const fetchCompanions = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/v1/synthetic-players');
+      const response = await api.get('/v1/synthetic-players');
       setCompanions(response.data.data || response.data);
     } catch (err) {
       console.error('[CompanionSelector] Failed to fetch companions:', err);

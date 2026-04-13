@@ -79,7 +79,11 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
   const [preferredColor, setPreferredColor] = useState(() => getSavedColor());
   const [timeControl, setTimeControl] = useState(() => getPreferredTimeControl().minutes);
   const [increment, setIncrement] = useState(() => getPreferredTimeControl().increment);
-  const [gameMode, setGameMode] = useState(() => getPreferredGameMode());
+  const [gameMode, setGameMode] = useState(() => {
+    const saved = getPreferredGameMode();
+    // Never restore 'companion' from localStorage (legacy guard)
+    return saved === 'companion' ? 'casual' : saved;
+  });
 
   const cleanup = useCallback(() => {
     if (pollRef.current) clearInterval(pollRef.current);
@@ -516,8 +520,8 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
               <p style={{ marginBottom: '8px', fontWeight: 'bold', color: '#bababa', fontSize: '14px' }}>Game Mode:</p>
               <div style={{ display: 'flex', gap: '8px' }}>
                 {[
-                  { value: 'rated', label: 'Rated', desc: 'Rating changes' },
-                  { value: 'casual', label: 'Casual', desc: 'No rating change' },
+                  { value: 'rated',  label: 'Rated',  desc: 'Rating changes',   emoji: '⭐', color: '#e8a735' },
+                  { value: 'casual', label: 'Casual', desc: 'No rating change', emoji: '📋', color: '#81b64c' },
                 ].map(opt => {
                   const isSelected = gameMode === opt.value;
                   return (
@@ -531,20 +535,18 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
                         flex: 1,
                         padding: '10px 8px',
                         borderRadius: '8px',
-                        border: `2px solid ${isSelected ? (opt.value === 'rated' ? '#e8a735' : '#81b64c') : '#4a4744'}`,
-                        backgroundColor: isSelected
-                          ? (opt.value === 'rated' ? 'rgba(232, 167, 53, 0.2)' : 'rgba(129, 182, 76, 0.2)')
-                          : 'transparent',
-                        color: isSelected ? (opt.value === 'rated' ? '#e8a735' : '#81b64c') : '#bababa',
+                        border: `2px solid ${isSelected ? opt.color : '#4a4744'}`,
+                        backgroundColor: isSelected ? `${opt.color}33` : 'transparent',
+                        color: isSelected ? opt.color : '#bababa',
                         cursor: 'pointer',
-                        fontSize: '14px',
+                        fontSize: '13px',
                         fontWeight: isSelected ? 'bold' : 'normal',
                         transition: 'all 0.15s ease',
                         textAlign: 'center',
                       }}
                     >
-                      <div>{opt.value === 'rated' ? '⭐' : '📋'} {opt.label}</div>
-                      <div style={{ fontSize: '11px', opacity: 0.7, marginTop: '2px' }}>{opt.desc}</div>
+                      <div>{opt.emoji} {opt.label}</div>
+                      <div style={{ fontSize: '10px', opacity: 0.7, marginTop: '2px' }}>{opt.desc}</div>
                     </button>
                   );
                 })}

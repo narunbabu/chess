@@ -1,221 +1,211 @@
 // src/components/game/CompanionControls.jsx
-import React, { useState, useCallback } from 'react';
-import { Chess } from 'chess.js';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { getStockfishTopMoves, mapDepthToMoveTime } from '../../utils/computerMoveUtils';
 
 /**
  * CompanionControls Component
- * In-game controls for requesting companion assistance during play
+ * Lets the player ask an AI companion to play moves on their behalf.
  *
- * @param {Object} props
- * @param {Object} props.companion - Selected companion object
- * @param {Object} props.game - Chess.js game instance
- * @param {Function} props.onMove - Callback when companion makes a move (receives move object)
- * @param {boolean} props.isMyTurn - Whether it's the player's turn
- * @param {boolean} props.disabled - Whether controls are disabled
+ * @param {Object}   props.companion   - Selected companion { name, computer_level, rating, ... }
+ * @param {Object}   props.game        - chess.js game instance
+ * @param {Function} props.onMove      - Called with { from, to, promotion } when companion plays
+ * @param {Function} props.onDismiss   - Called when user releases the companion
+ * @param {boolean}  props.isMyTurn    - Whether it's the player's turn right now
+ * @param {boolean}  props.disabled    - Disable all controls (game not started / game over)
  */
-const CompanionControls = ({ companion, game, onMove, isMyTurn, disabled = false }) => {
-  const [continuousPlay, setContinuousPlay] = useState(false);
+const CompanionControls = ({ companion, game, onMove, onDismiss, isMyTurn, disabled = false }) => {
   const [isLoading, setIsLoading] = useState(false);
-  const [lastSuggestion, setLastSuggestion] = useState(null);
-  const [suggestionCount, setSuggestionCount] = useState(0);
+  const [moveCount, setMoveCount] = useState(0);
+  const [error, setError] = useState(null);
 
-  /**
-   * Get the best move from Stockfish API
-   */
-  const getCompanionMove = useCallback(async () => {
+  // Use a ref for continuous-play so the value is always current inside async callbacks
+  const continuousRef = useRef(false);
+  const [continuousPlay, setContinuousPlay] = useState(false);
+  const setContinuous = (val) => {
+    continuousRef.current = val;
+    setContinuousPlay(val);
+  };
+
+  /** Ask the local Stockfish worker for the best move at the companion's level */
+  const getMove = useCallback(async () => {
     if (!game || isLoading) return null;
+    const fen = game.fen();
+    const level = companion?.computer_level || 6;
+    const timeMs = mapDepthToMoveTime(level);
 
     setIsLoading(true);
+    setError(null);
     try {
-      const fen = game.fen();
-      const level = companion?.computer_level || 6;
+      const moves = await getStockfishTopMoves(fen, 1, timeMs);
+      if (!moves || moves.length === 0) throw new Error('No moves returned');
 
-      // Call the Stockfish API endpoint
-      const response = await fetch('/api/v1/stockfish', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fen,
-          level,
-          time: Math.max(500, level * 100), // Minimum 500ms, scales with level
-        }),
-      });
-
-      if (!response.ok) throw new Error('Failed to get companion move');
-
-      const data = await response.json();
-      const bestMove = data.bestMove || data.move;
-
-      if (bestMove) {
-        // Convert UCI move to chess.js format
-        const from = bestMove.substring(0, 2);
-        const to = bestMove.substring(2, 4);
-        const promotion = bestMove.length > 4 ? bestMove[4] : undefined;
-
-        const move = {
-          from,
-          to,
-          promotion,
-        };
-
-        setLastSuggestion(move);
-        setSuggestionCount(prev => prev + 1);
-        return move;
-      }
+      // moves[0] is a UCI string like "e2e4" or "e7e8q"
+      const uci = moves[0];
+      return {
+        from: uci.substring(0, 2),
+        to: uci.substring(2, 4),
+        promotion: uci.length > 4 ? uci[4] : undefined,
+      };
     } catch (err) {
       console.error('[CompanionControls] Failed to get move:', err);
+      setError('Could not calculate move — try again');
+      return null;
     } finally {
       setIsLoading(false);
     }
-    return null;
   }, [game, companion, isLoading]);
 
-  /**
-   * Handle one-time move suggestion
-   */
-  const handleSuggestMove = useCallback(async () => {
-    const move = await getCompanionMove();
-    if (move && onMove) {
-      onMove(move);
+  /** Play exactly one move on behalf of the player */
+  const handlePlayOne = useCallback(async () => {
+    const move = await getMove();
+    if (move) {
+      setMoveCount(c => c + 1);
+      onMove?.(move);
     }
-  }, [getCompanionMove, onMove]);
+  }, [getMove, onMove]);
 
-  /**
-   * Handle continuous play - companion keeps playing until stopped
-   */
-  const handleContinuousPlay = useCallback(async () => {
-    if (continuousPlay) {
-      // Stop continuous play
-      setContinuousPlay(false);
+  /** Toggle continuous play */
+  const handleToggleContinuous = useCallback(async () => {
+    if (continuousRef.current) {
+      setContinuous(false);
       return;
     }
-
-    setContinuousPlay(true);
-
-    // Play moves while it's our turn and continuous play is active
-    const playNext = async () => {
-      if (!continuousPlay || !isMyTurn || !game) return;
-
-      const move = await getCompanionMove();
-      if (move && onMove) {
-        onMove(move);
-        // Wait a bit before next move (for visual pacing)
-        if (continuousPlay) {
-          setTimeout(playNext, 800);
-        }
-      }
-    };
-
-    playNext();
-  }, [continuousPlay, isMyTurn, game, getCompanionMove, onMove]);
-
-  // Auto-stop continuous play if it's no longer our turn
-  React.useEffect(() => {
-    if (continuousPlay && !isMyTurn) {
-      setContinuousPlay(false);
+    setContinuous(true);
+    // Play the first move immediately (subsequent moves fire via the useEffect below)
+    const move = await getMove();
+    if (move && continuousRef.current) {
+      setMoveCount(c => c + 1);
+      onMove?.(move);
+    } else {
+      setContinuous(false);
     }
-  }, [isMyTurn, continuousPlay]);
+  }, [getMove, onMove]);
+
+  // When it becomes the player's turn AND continuous play is active, play the next move
+  useEffect(() => {
+    if (!continuousRef.current || !isMyTurn || isLoading || disabled) return;
+    // Small delay so the board visually settles after the opponent's move
+    const timer = setTimeout(async () => {
+      if (!continuousRef.current || !isMyTurn) return;
+      const move = await getMove();
+      if (move && continuousRef.current) {
+        setMoveCount(c => c + 1);
+        onMove?.(move);
+      } else {
+        setContinuous(false);
+      }
+    }, 600);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMyTurn]);
+
+  // Stop continuous play when game ends or companion is disabled
+  useEffect(() => {
+    if (disabled && continuousRef.current) setContinuous(false);
+  }, [disabled]);
 
   if (!companion) return null;
 
+  const canAct = !disabled && isMyTurn && !isLoading;
+
   return (
-    <div className="companion-controls bg-purple-50 rounded-lg p-4 border border-purple-200">
-      {/* Companion Info Header */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white font-bold text-sm">
+    <div style={{
+      background: '#f5f0ff',
+      border: '1px solid #d8b4fe',
+      borderRadius: '8px',
+      padding: '12px',
+    }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{
+            width: 32, height: 32, borderRadius: '50%',
+            background: 'linear-gradient(135deg, #a855f7, #ec4899)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#fff', fontWeight: 'bold', fontSize: '14px', flexShrink: 0,
+          }}>
             {companion.name?.charAt(0) || 'A'}
           </div>
           <div>
-            <div className="text-sm font-semibold text-gray-800">{companion.name}</div>
-            <div className="text-xs text-gray-500">Level {companion.computer_level}</div>
+            <div style={{ fontSize: '13px', fontWeight: '600', color: '#1f2937' }}>{companion.name}</div>
+            <div style={{ fontSize: '11px', color: '#6b7280' }}>
+              Playing on your behalf · Rated {companion.rating}
+            </div>
           </div>
         </div>
-        {suggestionCount > 0 && (
-          <div className="text-xs text-purple-600 bg-purple-100 px-2 py-1 rounded-full">
-            {suggestionCount} suggestion{suggestionCount !== 1 ? 's' : ''}
+        {moveCount > 0 && (
+          <div style={{
+            fontSize: '11px', color: '#7c3aed',
+            background: '#ede9fe', borderRadius: '12px',
+            padding: '2px 8px', whiteSpace: 'nowrap',
+          }}>
+            {moveCount} move{moveCount !== 1 ? 's' : ''}
           </div>
         )}
       </div>
 
-      {/* Control Buttons */}
-      <div className="flex gap-2">
+      {/* Buttons */}
+      <div style={{ display: 'flex', gap: '6px', marginBottom: '6px' }}>
+        {/* Play One Move */}
         <button
-          onClick={handleSuggestMove}
-          disabled={disabled || !isMyTurn || isLoading || continuousPlay}
-          className={`
-            flex-1 py-2 px-3 rounded-lg font-medium text-sm transition-all
-            ${disabled || !isMyTurn || isLoading || continuousPlay
-              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-              : 'bg-white text-purple-700 border border-purple-300 hover:bg-purple-100 active:scale-95'
-            }
-          `}
+          onClick={handlePlayOne}
+          disabled={!canAct || continuousPlay}
+          style={{
+            flex: 1, padding: '7px 6px', borderRadius: '6px',
+            fontSize: '12px', fontWeight: '500', cursor: canAct && !continuousPlay ? 'pointer' : 'not-allowed',
+            border: '1px solid #c4b5fd',
+            background: canAct && !continuousPlay ? '#fff' : '#f3f4f6',
+            color: canAct && !continuousPlay ? '#7c3aed' : '#9ca3af',
+            transition: 'all 0.15s',
+          }}
         >
-          {isLoading ? (
-            <span className="flex items-center justify-center gap-2">
-              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-              Thinking...
-            </span>
-          ) : (
-            <span className="flex items-center justify-center gap-2">
-              <span>💡</span> Suggest One Move
-            </span>
-          )}
+          {isLoading && !continuousPlay ? '⏳ Thinking…' : '▶ Play One Move'}
         </button>
 
+        {/* Play Until Stopped / Stop */}
         <button
-          onClick={handleContinuousPlay}
-          disabled={disabled || !isMyTurn || isLoading}
-          className={`
-            flex-1 py-2 px-3 rounded-lg font-medium text-sm transition-all
-            ${continuousPlay
-              ? 'bg-red-500 text-white hover:bg-red-600 active:scale-95'
-              : disabled || !isMyTurn || isLoading
-              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-              : 'bg-purple-500 text-white hover:bg-purple-600 active:scale-95'
-            }
-          `}
+          onClick={handleToggleContinuous}
+          disabled={!canAct && !continuousPlay}
+          style={{
+            flex: 1, padding: '7px 6px', borderRadius: '6px',
+            fontSize: '12px', fontWeight: '500',
+            cursor: (canAct || continuousPlay) ? 'pointer' : 'not-allowed',
+            border: 'none',
+            background: continuousPlay ? '#ef4444' : canAct ? '#a855f7' : '#e5e7eb',
+            color: continuousPlay ? '#fff' : canAct ? '#fff' : '#9ca3af',
+            transition: 'all 0.15s',
+          }}
         >
-          {continuousPlay ? (
-            <span className="flex items-center justify-center gap-2">
-              <span>⏹️</span> Stop Playing
-            </span>
-          ) : (
-            <span className="flex items-center justify-center gap-2">
-              <span>▶️</span> Play Continuously
-            </span>
-          )}
+          {continuousPlay
+            ? (isLoading ? '⏳ Thinking…' : '⏹ Stop')
+            : '⏩ Play Until Stopped'}
         </button>
       </div>
 
-      {/* Last Suggestion Display */}
-      {lastSuggestion && !continuousPlay && (
-        <div className="mt-3 pt-3 border-t border-purple-200">
-          <div className="text-xs text-gray-500 mb-1">Last suggestion:</div>
-          <div className="flex items-center gap-2">
-            <code className="bg-white px-2 py-1 rounded text-sm font-mono text-purple-700">
-              {lastSuggestion.from} → {lastSuggestion.to}
-              {lastSuggestion.promotion && `=${lastSuggestion.promotion.toUpperCase()}`}
-            </code>
-            <button
-              onClick={() => onMove && onMove(lastSuggestion)}
-              disabled={disabled || !isMyTurn || isLoading}
-              className="text-xs bg-purple-500 text-white px-2 py-1 rounded hover:bg-purple-600 disabled:opacity-50"
-            >
-              Apply
-            </button>
-          </div>
+      {/* Status */}
+      {error && (
+        <div style={{ fontSize: '11px', color: '#dc2626', textAlign: 'center', marginBottom: '4px' }}>
+          {error}
+        </div>
+      )}
+      {!isMyTurn && !disabled && (
+        <div style={{ fontSize: '11px', color: '#6b7280', textAlign: 'center' }}>
+          {continuousPlay ? '⏳ Waiting for opponent…' : 'Waiting for your turn'}
         </div>
       )}
 
-      {/* Helper Text */}
-      {!isMyTurn && (
-        <div className="mt-2 text-xs text-gray-500 text-center">
-          Wait for your turn to ask for help
-        </div>
+      {/* Release */}
+      {onDismiss && (
+        <button
+          onClick={() => { setContinuous(false); onDismiss(); }}
+          style={{
+            marginTop: '8px', width: '100%', background: 'none', border: 'none',
+            fontSize: '11px', color: '#9ca3af', cursor: 'pointer', padding: '2px 0',
+            textDecoration: 'underline',
+          }}
+        >
+          Release companion
+        </button>
       )}
     </div>
   );

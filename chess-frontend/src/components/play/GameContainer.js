@@ -323,11 +323,112 @@ const GameContainer = ({
     );
   };
 
+  // ----- COMPANION TAB -----
+  const renderCompanionPanel = () => {
+    const { companion, companions = [], onCompanionSelect, onCompanionDismiss, onMove, isMyTurn } = companionData || {};
+
+    // Companions are not allowed in rated games
+    if (isRated) {
+      return (
+        <div style={{ padding: '24px 12px', textAlign: 'center' }}>
+          <div style={{ fontSize: '2rem', marginBottom: '10px' }}>🏆</div>
+          <p style={{ fontSize: '13px', color: '#bababa', marginBottom: '6px', fontWeight: 'bold' }}>
+            Not available in Rated games
+          </p>
+          <p style={{ fontSize: '12px', color: '#8b8987', lineHeight: '1.5' }}>
+            Companions can only assist in Casual games. Switch to Casual mode to use a companion.
+          </p>
+        </div>
+      );
+    }
+
+    // Pick 5 companions whose ratings span around the opponent's rating:
+    // ~2 below, ~1 near, ~2 above — so the learner can compare styles across skill levels.
+    const opponentRating = opponentData?.rating || 1500;
+    const nearbyCompanions = (() => {
+      if (companions.length === 0) return [];
+      const sorted = [...companions].sort((a, b) => a.rating - b.rating);
+      // Find index of the companion closest to opponent rating
+      let closest = 0;
+      let minDiff = Math.abs(sorted[0].rating - opponentRating);
+      for (let i = 1; i < sorted.length; i++) {
+        const diff = Math.abs(sorted[i].rating - opponentRating);
+        if (diff < minDiff) { minDiff = diff; closest = i; }
+      }
+      // Take a window of 5 centred on the closest match, clamped to array bounds
+      const start = Math.max(0, Math.min(closest - 2, sorted.length - 5));
+      return sorted.slice(start, start + 5);
+    })();
+
+    return (
+      <div style={{ padding: '12px 8px' }}>
+        {/* Companion picker */}
+        <div style={{ marginBottom: '12px' }}>
+          <p style={{ fontSize: '12px', color: '#8b8987', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            Choose a companion to play on your behalf
+          </p>
+          <select
+            value={companion ? companion.id : ''}
+            onChange={(e) => {
+              if (e.target.value === '') {
+                onCompanionDismiss?.();
+              } else {
+                const picked = nearbyCompanions.find(c => String(c.id) === e.target.value);
+                if (picked) onCompanionSelect?.(picked);
+              }
+            }}
+            style={{
+              width: '100%',
+              padding: '8px 10px',
+              borderRadius: '6px',
+              border: '1px solid #4a4744',
+              backgroundColor: '#2d2b28',
+              color: companion ? '#a855f7' : '#bababa',
+              fontSize: '13px',
+              cursor: 'pointer',
+              outline: 'none',
+            }}
+          >
+            <option value="">No companion</option>
+            {nearbyCompanions.map(c => (
+              <option key={c.id} value={String(c.id)}>
+                {c.name} ({c.rating}{Math.abs(c.rating - opponentRating) <= 50 ? ' ≈ opp' : c.rating < opponentRating ? ' ↓' : ' ↑'})
+              </option>
+            ))}
+          </select>
+          {nearbyCompanions.length > 0 && (
+            <p style={{ fontSize: '11px', color: '#8b8987', marginTop: '4px' }}>
+              Showing 5 companions around opponent's rating ({opponentRating})
+            </p>
+          )}
+        </div>
+
+        {/* CompanionControls — shown when a companion is active */}
+        {companion && !gameOver && (
+          <CompanionControls
+            companion={companion}
+            game={game}
+            onMove={onMove}
+            onDismiss={onCompanionDismiss}
+            isMyTurn={isMyTurn}
+            disabled={!gameStarted || gameOver}
+          />
+        )}
+
+        {!companion && (
+          <p style={{ fontSize: '12px', color: '#8b8987', textAlign: 'center', marginTop: '16px' }}>
+            Select a companion above. They will play moves <strong>on your behalf</strong> when you ask.
+          </p>
+        )}
+      </div>
+    );
+  };
+
   // ----- RIGHT PANEL -----
   const renderRightPanel = () => {
     const tabs = chatData
-      ? ['moves', 'info', 'chat']
-      : ['moves', 'info'];
+      ? ['moves', 'info', 'chat', 'companion']
+      : ['moves', 'info', 'companion'];
 
     return (
       <div className="gc-right-panel">
@@ -348,7 +449,22 @@ const GameContainer = ({
               }}
             >
               {tab === 'moves' ? 'Moves'
-                : tab === 'info' ? 'Game Info'
+                : tab === 'info' ? 'Info'
+                : tab === 'companion' ? (
+                  <>
+                    🤝{companionData?.companion ? (
+                      <span style={{
+                        marginLeft: 4,
+                        background: '#a855f7',
+                        color: '#fff',
+                        borderRadius: '50%',
+                        fontSize: '0.65rem',
+                        padding: '1px 5px',
+                        verticalAlign: 'middle',
+                      }}>✓</span>
+                    ) : null}
+                  </>
+                )
                 : (
                   <>
                     Chat
@@ -376,6 +492,7 @@ const GameContainer = ({
           {rightTab === 'moves' && renderMoveList()}
           {rightTab === 'info' && renderGameInfo()}
           {rightTab === 'chat' && chatData && renderChatPanel()}
+          {rightTab === 'companion' && renderCompanionPanel()}
         </div>
       </div>
     );
@@ -410,18 +527,6 @@ const GameContainer = ({
       {/* Game status */}
       {gameStatus && !gameStatus.match(/^(White|Black)'s turn$/i) && (
         <div className="gc-status-bar">{gameStatus}</div>
-      )}
-      {/* Companion Controls - shown when companion mode is active */}
-      {companionData?.companion && !gameOver && (
-        <div className="gc-companion-section mt-3">
-          <CompanionControls
-            companion={companionData.companion}
-            game={game}
-            onMove={companionData.onMove}
-            isMyTurn={companionData.isMyTurn}
-            disabled={!gameStarted || gameOver}
-          />
-        </div>
       )}
     </div>
   );

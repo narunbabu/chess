@@ -6,7 +6,7 @@ const MAX_DEPTH_FOR_DIFFICULTY = 16; // Max difficulty level
 const NUM_TOP_MOVES_TO_REQUEST = 10; // How many moves to ask Stockfish for
 
 // Keep time mapping - more time allows Stockfish to rank the top N moves better
-const mapDepthToMoveTime = (depth) => {
+export const mapDepthToMoveTime = (depth) => {
     const clampedDepth = Math.max(1, Math.min(depth, MAX_DEPTH_FOR_DIFFICULTY));
     switch (clampedDepth) {
         case 1: return 100;  // ~0.1s
@@ -37,7 +37,7 @@ const mapDepthToMoveTime = (depth) => {
  * @param {number} moveTimeMs - The time budget for Stockfish to search.
  * @returns {Promise<string[]>} A promise that resolves with an array of moves in UCI format, ordered best to worst. Rejects on error or timeout.
  */
-const getStockfishTopMoves = async (fen, numMoves, moveTimeMs) => {
+export const getStockfishTopMoves = async (fen, numMoves, moveTimeMs) => {
   // Generate unique ID for this worker instance to avoid conflicts
   const workerId = `stockfish_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
