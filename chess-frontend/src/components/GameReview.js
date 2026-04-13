@@ -375,18 +375,34 @@ const GameReview = () => {
           const isPlayerWhite = playerColor === 'w' || playerColor === 'white';
           const isPlayerBlack = playerColor === 'b' || playerColor === 'black';
           let normalizedStatus;
-          if (gameData.result === '1/2-1/2') {
+
+          // Backend now returns result as an object with {status, details, end_reason, winner}
+          // OR as a string like "1-0", "0-1", "1/2-1/2"
+          const resultStatus = typeof gameData.result === 'object' ? gameData.result?.status : null;
+          const resultString = typeof gameData.result === 'string' ? gameData.result : null;
+
+          if (resultStatus) {
+            // Result is already standardized as an object - use it directly
+            normalizedStatus = resultStatus;
+          } else if (resultString === '1/2-1/2') {
             normalizedStatus = 'draw';
           } else if (gameData.winner_user_id && gameData.winner_user_id === user?.id) {
             normalizedStatus = 'won';
           } else if (gameData.winner_user_id) {
             normalizedStatus = 'lost';
-          } else if (gameData.result === '1-0') {
+          } else if (resultString === '1-0') {
             normalizedStatus = isPlayerWhite ? 'won' : 'lost';
-          } else if (gameData.result === '0-1') {
+          } else if (resultString === '0-1') {
             normalizedStatus = isPlayerBlack ? 'won' : 'lost';
           } else {
-            normalizedStatus = 'draw';
+            // Check winner_player field as fallback
+            if (gameData.winner_player === 'white') {
+              normalizedStatus = isPlayerWhite ? 'won' : 'lost';
+            } else if (gameData.winner_player === 'black') {
+              normalizedStatus = isPlayerBlack ? 'won' : 'lost';
+            } else {
+              normalizedStatus = 'draw';
+            }
           }
           const formattedGameHistory = {
             id: gameData.id,
@@ -517,18 +533,34 @@ const GameReview = () => {
                 const isPlayerWhiteFb = playerColor === 'w' || playerColor === 'white';
                 const isPlayerBlackFb = playerColor === 'b' || playerColor === 'black';
                 let normalizedStatus;
-                if (gameData.result === '1/2-1/2') {
+
+                // Backend now returns result as an object with {status, details, end_reason, winner}
+                // OR as a string like "1-0", "0-1", "1/2-1/2"
+                const resultStatus = typeof gameData.result === 'object' ? gameData.result?.status : null;
+                const resultString = typeof gameData.result === 'string' ? gameData.result : null;
+
+                if (resultStatus) {
+                  // Result is already standardized as an object - use it directly
+                  normalizedStatus = resultStatus;
+                } else if (resultString === '1/2-1/2') {
                   normalizedStatus = 'draw';
                 } else if (gameData.winner_user_id && gameData.winner_user_id === user?.id) {
                   normalizedStatus = 'won';
                 } else if (gameData.winner_user_id) {
                   normalizedStatus = 'lost';
-                } else if (gameData.result === '1-0') {
+                } else if (resultString === '1-0') {
                   normalizedStatus = isPlayerWhiteFb ? 'won' : 'lost';
-                } else if (gameData.result === '0-1') {
+                } else if (resultString === '0-1') {
                   normalizedStatus = isPlayerBlackFb ? 'won' : 'lost';
                 } else {
-                  normalizedStatus = 'draw';
+                  // Check winner_player field as fallback
+                  if (gameData.winner_player === 'white') {
+                    normalizedStatus = isPlayerWhiteFb ? 'won' : 'lost';
+                  } else if (gameData.winner_player === 'black') {
+                    normalizedStatus = isPlayerBlackFb ? 'won' : 'lost';
+                  } else {
+                    normalizedStatus = 'draw';
+                  }
                 }
                 const formattedGameHistory = {
                   id: gameData.id,
