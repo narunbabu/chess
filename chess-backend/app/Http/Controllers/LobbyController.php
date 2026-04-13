@@ -91,4 +91,31 @@ class LobbyController extends Controller
             'synthetic_players' => $syntheticPlayers,
         ]);
     }
+
+    /**
+     * GET /api/v1/synthetic-players
+     *
+     * Returns all active synthetic players for companion mode selection.
+     */
+    public function syntheticPlayers(Request $request)
+    {
+        $companions = SyntheticPlayer::getForLobby(40)->map(function ($bot) {
+            return [
+                'id' => $bot->id,
+                'name' => $bot->name,
+                'rating' => $bot->rating,
+                'computer_level' => $bot->computer_level,
+                'personality' => $bot->personality,
+                'bio' => $bot->bio,
+                'avatar_url' => $bot->avatar_url,
+                'games_played' => $bot->games_played_count,
+                'win_rate' => $bot->win_rate,
+                'type' => 'synthetic',
+            ];
+        });
+
+        return response()->json([
+            'data' => $companions,
+        ]);
+    }
 }

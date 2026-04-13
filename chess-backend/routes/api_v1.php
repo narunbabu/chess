@@ -232,6 +232,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // ── Lobby ─────────────────────────────────────────────────────────────
     Route::get('/lobby/players', [LobbyController::class, 'players']);
 
+    // ── Synthetic Players (Companion Mode) ────────────────────────────────
+    Route::get('/synthetic-players', [LobbyController::class, 'syntheticPlayers']);
+
     // ── Matchmaking ──────────────────────────────────────────────────────
     Route::prefix('matchmaking')->group(function () {
         Route::post('/join', [MatchmakingController::class, 'join']);
