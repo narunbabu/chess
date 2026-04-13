@@ -480,26 +480,30 @@ const GameCompletionAnimation = ({
         alignItems: 'center',
         minHeight: '100vh',
         height: '100vh',
-        padding: window.innerWidth <= 480 ? '10px' : '20px',
+        paddingTop: window.innerWidth <= 480 ? '10px' : '20px',
+        paddingLeft: window.innerWidth <= 480 ? '10px' : '20px',
+        paddingRight: window.innerWidth <= 480 ? '10px' : '20px',
         paddingBottom: window.innerWidth <= 480 ? '80px' : '80px',
         overflowY: 'auto',
         overflowX: 'hidden',
         WebkitOverflowScrolling: 'touch'
       }}>
-        <GameEndCard
-          ref={gameEndCardContentRef}
-          result={result}
-          user={user}
-          ratingUpdate={ratingUpdate}
-          score={score}
-          opponentScore={opponentScore}
-          playerColor={playerColor}
-          isMultiplayer={isMultiplayer}
-          computerLevel={computerLevel}
-          isAuthenticated={isAuthenticated}
-          championshipData={championshipData}
-          className={`${isVisible ? "visible" : ""}`}
-        />
+        {GameEndCard && (
+          <GameEndCard
+            ref={gameEndCardContentRef}
+            result={result}
+            user={user}
+            ratingUpdate={ratingUpdate}
+            score={score}
+            opponentScore={opponentScore}
+            playerColor={playerColor}
+            isMultiplayer={isMultiplayer}
+            computerLevel={computerLevel}
+            isAuthenticated={isAuthenticated}
+            championshipData={championshipData}
+            className={`${isVisible ? "visible" : ""}`}
+          />
+        )}
       </div>
 
       {/* Optional: Close button if onClose prop is provided */}

@@ -659,6 +659,71 @@
   white-space: nowrap;
 }
 
+/* Quick action buttons in nav panel */
+.nav-quick-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.nav-quick-action-btn {
+  padding: 0.35rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid #4a4744;
+  background: rgba(255, 255, 255, 0.05);
+  color: #bababa;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.nav-quick-action-btn:hover {
+  background: rgba(129, 182, 76, 0.15);
+  border-color: #81b64c;
+  color: #81b64c;
+}
+
+/* Modal overlay for quick edit */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 1000000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.modal-content {
+  background: #312d2b;
+  border-radius: 12px;
+  border: 1px solid #4a4744;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  max-width: 360px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: slideUp 0.2s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .nav-close-btn {
   background: none;
   border: none;

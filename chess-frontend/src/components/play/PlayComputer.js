@@ -12,6 +12,8 @@ import GameCompletionAnimation from "../GameCompletionAnimation"; // Adjust path
 import PlayShell from "./PlayShell"; // Layout wrapper (Phase 4)
 import GameContainer from "./GameContainer"; // Unified game container
 import GameModeSelector from "../game/GameModeSelector"; // Game mode selector
+import CompanionSelector from "../game/CompanionSelector"; // Companion selector for learning mode
+import CompanionControls from "../game/CompanionControls"; // In-game companion controls
 import { getBoardTheme, getPieceStyle } from "./BoardCustomizer"; // Board customization helpers
 import { pieces3dLanding } from "../../assets/pieces/pieces3d"; // 3D piece renderers
 
@@ -215,7 +217,8 @@ const PlayComputer = () => {
   const [isOnlineGame, setIsOnlineGame] = useState(false);
   const [players, setPlayers] = useState(null);
   const [gameMode, setGameMode] = useState('computer'); // Default to computer mode for /play route
-  const [ratedMode, setRatedMode] = useState('casual'); // 'casual' or 'rated'
+  const [ratedMode, setRatedMode] = useState('casual'); // 'casual', 'rated', or 'companion'
+  const [selectedCompanion, setSelectedCompanion] = useState(null); // Selected AI companion for learning mode
 
   // Time control from lobby (minutes + increment seconds)
   const [timeControlMin, setTimeControlMin] = useState(() => {
@@ -2413,7 +2416,80 @@ const PlayComputer = () => {
         console.log(`[PlayComputer] 🎮 Game mode changed to: ${mode}`);
         setRatedMode(mode);
         localStorage.setItem('gameRatedMode', mode);
+        // Reset companion when switching away from companion mode
+        if (mode !== 'companion') {
+            setSelectedCompanion(null);
+        }
     }, []);
+
+   const handleCompanionSelect = useCallback((companion) => {
+        console.log(`[PlayComputer] 🤝 Companion selected: ${companion.name}`);
+        setSelectedCompanion(companion);
+    }, []);
+
+   const handleCompanionMove = useCallback(async (move) => {
+        // Handle companion's suggested move - apply it to the game
+        if (!game || !gameStarted || gameOver) return;
+
+        try {
+            const gameCopy = new Chess(game.fen()); // Work on a copy
+            const result = gameCopy.move({
+                from: move.from,
+                to: move.to,
+                promotion: move.promotion,
+            });
+
+            if (result) {
+                // Move is valid - update the actual game state
+                const moveResult = game.move({
+                    from: move.from,
+                    to: move.to,
+                    promotion: move.promotion,
+                });
+
+                if (moveResult) {
+                    console.log('[PlayComputer] 🤝 Companion move applied:', moveResult.san);
+
+                    // Update game state
+                    const newHistory = [...gameHistory, {
+                        fen: game.fen(),
+                        move: { san: moveResult.san, ...move },
+                        playerColor: playerColor,
+                        timeSpent: 0, // Companion moves are instant
+                        evaluation: null,
+                    }];
+                    setGameHistory(newHistory);
+                    setMoveCount(prev => prev + 1);
+                    setMoveCompleted(true);
+                    setMoveSquares({});
+                    setMoveFrom('');
+                    setLastMoveHighlights({
+                        [move.from]: true,
+                        [move.to]: true,
+                    });
+
+                    // Check for game end
+                    if (game.isCheckmate() || game.isDraw() || game.isStalemate()) {
+                        setGameOver(true);
+                        setShowGameCompletion(true);
+                    } else {
+                        // Trigger computer's response after a short delay
+                        setTimeout(() => {
+                            makeComputerMove(game, playerColor, computerDepth, (move) => {
+                                // Handle computer move completion
+                                console.log('[PlayComputer] Computer moved after companion move');
+                            });
+                        }, 500);
+                    }
+
+                    playSound('move');
+                }
+            }
+        } catch (error) {
+            console.error('[PlayComputer] Failed to apply companion move:', error);
+            setGameStatus('Invalid move from companion');
+        }
+    }, [game, gameStarted, gameOver, gameHistory, playerColor, playSound]);
 
    // --- Draw Handlers (Placeholder for future implementation) ---
    const handleDrawOffer = useCallback(() => {
@@ -2487,6 +2563,18 @@ const PlayComputer = () => {
               <GameModeSelector
                 selectedMode={ratedMode}
                 onModeChange={handleModeChange}
+                disabled={countdownActive}
+                showCompanion={true}
+              />
+            </div>
+          )}
+
+          {/* Companion Selector — shown when companion mode is selected */}
+          {user && ratedMode === 'companion' && (
+            <div className="companion-selection mb-4 bg-white rounded-lg p-4">
+              <CompanionSelector
+                onSelect={handleCompanionSelect}
+                selectedCompanion={selectedCompanion}
                 disabled={countdownActive}
               />
             </div>
@@ -2639,6 +2727,11 @@ const PlayComputer = () => {
         onTabOpen: () => { chatTabOpenRef.current = true; setChatUnread(0); },
         onTabClose: () => { chatTabOpenRef.current = false; },
       }}
+      companionData={ratedMode === 'companion' && selectedCompanion ? {
+        companion: selectedCompanion,
+        onMove: handleCompanionMove,
+        isMyTurn: game?.turn() === playerColor,
+      } : null}
       controlsData={{
         gameStarted,
         countdownActive,

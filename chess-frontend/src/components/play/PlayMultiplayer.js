@@ -217,6 +217,7 @@ const PlayMultiplayer = () => {
   // Nudge opponent state (30s cooldown)
   const [nudgeCooldown, setNudgeCooldown] = useState(false);
   const [nudgeMessage, setNudgeMessage] = useState('');
+  const [showRulesInfo, setShowRulesInfo] = useState(false);
 
   // Opponent inactivity tracking for cancel game feature
   const [opponentInactiveSec, setOpponentInactiveSec] = useState(0);
@@ -1751,10 +1752,11 @@ const PlayMultiplayer = () => {
     console.log('🏁 Processing game end event:', event);
 
     // Prepare result data FIRST (before setting gameComplete)
+    const isCancelledGame = event.result === '*' || !event.result;
     const resultData = {
       game_over: true,
-      result: event.result,
-      end_reason: event.end_reason,
+      result: event.result || '*',  // Default to '*' for cancelled games
+      end_reason: event.end_reason || (isCancelledGame ? 'cancelled_inactivity' : null),
       winner_user_id: event.winner_user_id,
       // Derive winner_player from winner_user_id for GameCompletionAnimation
       winner_player: event.winner_user_id === event.white_player?.id ? 'white' : (event.winner_user_id === event.black_player?.id ? 'black' : null),
@@ -1765,9 +1767,11 @@ const PlayMultiplayer = () => {
       black_player: event.black_player,
       white_player_score: event.white_player_score,
       black_player_score: event.black_player_score,
+      // IMPORTANT: Flag for cancelled games so GameEndCard can detect it
+      isCancelled: isCancelledGame,
       // Determine user's result
       isPlayerWin: event.winner_user_id === user?.id,
-      isPlayerDraw: !event.winner_user_id && event.result === '1/2-1/2'
+      isPlayerDraw: !event.winner_user_id && !isCancelledGame && event.result === '1/2-1/2'
     };
 
     // CRITICAL: Set result BEFORE gameComplete so render never sees gameComplete=true with null result
@@ -1813,26 +1817,56 @@ const PlayMultiplayer = () => {
     try {
       const now = new Date();
 
+      // IMPORTANT: Check for cancelled games FIRST (result === '*')
+      // This prevents cancelled games from being classified as "draw"
+      const isCancelledGame = event.result === '*' || !event.result;
+
       // Create human-readable result details
-      let resultDetails = 'Draw';
-      if (event.winner_user_id === user?.id) {
+      let resultDetails;
+      let standardizedResult;
+
+      if (isCancelledGame) {
+        // Cancelled/abandoned game
+        resultDetails = event.end_reason || 'Game Cancelled';
+        // Use cancelled_inactivity as end_reason for proper GameEndCard handling
+        const cancelledReason = event.end_reason || 'cancelled_inactivity';
+        standardizedResult = createResultFromMultiplayerGame(
+          null,  // No winner for cancelled games
+          user?.id,
+          cancelledReason,
+          resultDetails
+        );
+        // Override status to indicate cancellation (not a draw)
+        standardizedResult.isCancelled = true;
+      } else if (event.winner_user_id === user?.id) {
         resultDetails = `You won by ${event.end_reason}!`;
+        standardizedResult = createResultFromMultiplayerGame(
+          event.winner_user_id,
+          user?.id,
+          event.end_reason,
+          resultDetails
+        );
       } else if (event.winner_user_id && event.winner_user_id !== user?.id) {
         const opponentName = event.winner_player === 'white'
           ? event.white_player?.name
           : event.black_player?.name;
         resultDetails = `${opponentName} won by ${event.end_reason}`;
+        standardizedResult = createResultFromMultiplayerGame(
+          event.winner_user_id,
+          user?.id,
+          event.end_reason,
+          resultDetails
+        );
       } else {
-        resultDetails = `Draw by ${event.end_reason}`;
+        // Draw (neither player won, and game wasn't cancelled)
+        resultDetails = `Draw by ${event.end_reason || 'agreement'}`;
+        standardizedResult = createResultFromMultiplayerGame(
+          null,  // No winner for draws
+          user?.id,
+          event.end_reason || 'agreement',
+          resultDetails
+        );
       }
-
-      // Create standardized result object
-      const standardizedResult = createResultFromMultiplayerGame(
-        event.winner_user_id,
-        user?.id,
-        event.end_reason,
-        resultDetails
-      );
 
       console.log('🎯 [PlayMultiplayer] Created standardized result:', standardizedResult);
 
@@ -3216,10 +3250,12 @@ const PlayMultiplayer = () => {
         const data = await response.json();
         if (data.status === 'finished' && !gameComplete) {
           console.warn('⚠️ [Polling Fallback] Server says game is finished but no WebSocket event received — showing end card');
+          // IMPORTANT: Check for cancelled games (result: '*') to prevent showing as "draw"
+          const isCancelledGame = data.result === '*' || !data.result;
           const resultData = {
             game_over: true,
-            result: data.result || 'unknown',
-            end_reason: data.end_reason || 'game_ended',
+            result: data.result || '*',  // Default to '*' for cancelled games
+            end_reason: data.end_reason || (isCancelledGame ? 'cancelled_inactivity' : 'game_ended'),
             winner_user_id: data.winner_user_id,
             winner_player: data.winner_user_id === data.white_player?.id ? 'white' : (data.winner_user_id === data.black_player?.id ? 'black' : null),
             fen_final: data.fen,
@@ -3229,8 +3265,10 @@ const PlayMultiplayer = () => {
             black_player: data.black_player,
             white_player_score: data.white_player_score || 0,
             black_player_score: data.black_player_score || 0,
+            // IMPORTANT: Flag for cancelled games
+            isCancelled: isCancelledGame,
             isPlayerWin: data.winner_user_id === user?.id,
-            isPlayerDraw: !data.winner_user_id && data.result === '1/2-1/2'
+            isPlayerDraw: !data.winner_user_id && !isCancelledGame && data.result === '1/2-1/2'
           };
           setGameResult(resultData);
           setGameComplete(true);
@@ -4706,7 +4744,7 @@ const PlayMultiplayer = () => {
               "Your turn" :
               `${gameInfo.opponentName}'s turn`
           ) : gameInfo.status === 'finished' ? (
-            `Game ${gameData?.result?.replace('_', ' ') || 'ended'}`
+            `Game ${typeof gameData?.result === 'string' ? gameData.result.replace('_', ' ') : 'ended'}`
           ) : (
             `Game ${gameInfo.status}`
           )}
@@ -4818,8 +4856,8 @@ const PlayMultiplayer = () => {
                 </button>
               )}
 
-              {/* Cancel game — show after 30s of opponent inactivity */}
-              {!isMyTurn && opponentInactiveSec >= 30 && (
+              {/* Cancel game — show after 60s of opponent inactivity (1 minute) */}
+              {!isMyTurn && opponentInactiveSec >= 60 && (
                 <button
                   onClick={handleCancelInactiveGame}
                   className="gc-action-btn gc-action-warning"
@@ -4828,6 +4866,48 @@ const PlayMultiplayer = () => {
                   ✕ Cancel ({opponentInactiveSec}s idle)
                 </button>
               )}
+
+              {/* Rules info button */}
+              <div className="gc-action-rules-wrap" style={{ position: 'relative' }}>
+                <button
+                  className="gc-action-btn gc-action-neutral gc-action-rules"
+                  onClick={() => setShowRulesInfo(prev => !prev)}
+                  title="Game rules"
+                >
+                  ℹ Rules
+                </button>
+                {showRulesInfo && (
+                  <div style={{
+                    position: 'absolute', bottom: '110%', left: '50%', transform: 'translateX(-50%)',
+                    backgroundColor: '#1a1a2e', border: `1px solid ${ratedMode === 'rated' ? '#fca5a5' : '#4a9eff'}`,
+                    borderRadius: '10px', padding: '14px 16px', width: '240px', zIndex: 100,
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.5)', fontSize: '13px', color: '#e5e5e5', lineHeight: 1.5
+                  }}>
+                    {ratedMode === 'rated' ? (
+                      <>
+                        <div style={{ fontWeight: 700, color: '#fca5a5', marginBottom: '8px', fontSize: '14px' }}>⚠️ Rated Game Rules</div>
+                        <div>🚫 No pausing</div>
+                        <div>↶ No undo</div>
+                        <div>🏳️ Leaving = forfeit</div>
+                        <div>📊 Affects your rating</div>
+                      </>
+                    ) : (
+                      <>
+                        <div style={{ fontWeight: 700, color: '#93c5fd', marginBottom: '8px', fontSize: '14px' }}>ℹ Casual Game Rules</div>
+                        <div>⏸ Pausing allowed</div>
+                        <div>↶ Undo available</div>
+                        <div>🏳️ No rating impact</div>
+                        <div>🤝 Draw by agreement</div>
+                      </>
+                    )}
+                    <div style={{ marginTop: '8px', textAlign: 'right' }}>
+                      <button onClick={() => setShowRulesInfo(false)} style={{
+                        background: 'none', border: 'none', color: '#93c5fd', cursor: 'pointer', fontSize: '12px'
+                      }}>Got it</button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

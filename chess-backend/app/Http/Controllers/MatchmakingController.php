@@ -28,7 +28,7 @@ class MatchmakingController extends Controller
             'preferred_color' => 'nullable|in:white,black,random',
             'time_control_minutes' => 'nullable|integer|in:3,5,10,15,30',
             'increment_seconds' => 'nullable|integer|in:0,1,2,3,5,10',
-            'game_mode' => 'nullable|in:casual,rated',
+            'game_mode' => 'nullable|in:casual,rated,companion',
         ]);
 
         $user = Auth::user();
@@ -100,7 +100,7 @@ class MatchmakingController extends Controller
             'preferred_color' => 'nullable|in:white,black,random',
             'time_control_minutes' => 'nullable|integer|in:3,5,10,15,30',
             'increment_seconds' => 'nullable|integer|in:0,1,2,3,5,10',
-            'game_mode' => 'nullable|in:casual,rated',
+            'game_mode' => 'nullable|in:casual,rated,companion',
         ]);
 
         $user = Auth::user();

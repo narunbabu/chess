@@ -14,6 +14,9 @@ import { IoGameController, IoSchool, IoTrophy, IoPlay, IoStatsChart } from 'reac
 import presenceService from '../../services/presenceService';
 import { getEcho } from '../../services/echoSingleton';
 import MatchmakingQueue from '../lobby/MatchmakingQueue';
+import AvatarQuickEdit from '../common/AvatarQuickEdit';
+import NameQuickEdit from '../common/NameQuickEdit';
+import api from '../../services/api';
 import './Header.css';
 
 /**
@@ -25,7 +28,7 @@ import './Header.css';
 const Header = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isAuthenticated, logout, user } = useAuth();
+  const { isAuthenticated, logout, user, fetchUser } = useAuth();
   const { currentTier, isPremium, isStandard } = useSubscription();
   const { activeGame, loading } = useActiveGame();
   const { navigateWithGuard, activeGame: navActiveGame, isRatedGame, handleNavigationAttempt } = useGameNavigation();
@@ -34,6 +37,9 @@ const Header = () => {
   const [onlineStats, setOnlineStats] = useState({ onlineCount: 0, availablePlayers: 0 });
   const [recentChampionship, setRecentChampionship] = useState(null);
   const [wsConnected, setWsConnected] = useState(false);
+  const [showAvatarEdit, setShowAvatarEdit] = useState(false);
+  const [showNameEdit, setShowNameEdit] = useState(false);
+  const [profileUpdateLoading, setProfileUpdateLoading] = useState(false);
   const userMenuRef = useRef(null);
   const hideTimeoutRef = useRef(null);
   const lastStatsRef = useRef(null); // Cache last stats to prevent redundant updates
@@ -353,6 +359,40 @@ const Header = () => {
     }
   };
 
+  const handleAvatarSave = async (avatarFile, avatarUrl) => {
+    setProfileUpdateLoading(true);
+    try {
+      const formData = new FormData();
+      if (avatarFile) {
+        formData.append('avatar', avatarFile);
+      } else if (avatarUrl) {
+        formData.append('avatar_url', avatarUrl);
+      }
+      await api.post('/profile', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      await fetchUser();
+      setShowAvatarEdit(false);
+    } catch (err) {
+      console.error('Avatar update error:', err);
+    } finally {
+      setProfileUpdateLoading(false);
+    }
+  };
+
+  const handleNameSave = async (newName) => {
+    setProfileUpdateLoading(true);
+    try {
+      await api.post('/profile', { name: newName });
+      await fetchUser();
+      setShowNameEdit(false);
+    } catch (err) {
+      console.error('Name update error:', err);
+    } finally {
+      setProfileUpdateLoading(false);
+    }
+  };
+
   const headerElement = (
     <header className="app-header glass-header">
       <div className="left-section">
@@ -398,7 +438,7 @@ const Header = () => {
           </button>
           <Link
             to="/dashboard"
-            className="nav-link nav-icon-link desktop-nav-item"
+            className="nav-link nav-icon-link"
             onClick={(e) => {
               e.preventDefault();
               handleNavItemClick(() => navigate('/dashboard'), '/dashboard');
@@ -411,7 +451,7 @@ const Header = () => {
           </Link>
           <Link
             to="/lobby"
-            className="nav-link nav-icon-link desktop-nav-item"
+            className="nav-link nav-icon-link"
             onClick={(e) => {
               e.preventDefault();
               handleNavItemClick(() => navigate('/lobby'), '/lobby');
@@ -424,7 +464,7 @@ const Header = () => {
           </Link>
           <Link
             to="/tutorial"
-            className="nav-link nav-icon-link desktop-nav-item"
+            className="nav-link nav-icon-link"
             onClick={(e) => {
               e.preventDefault();
               handleNavItemClick(() => navigate('/tutorial'), '/tutorial');
@@ -437,7 +477,7 @@ const Header = () => {
           </Link>
           <Link
             to="/championships"
-            className="nav-link nav-icon-link desktop-nav-item"
+            className="nav-link nav-icon-link"
             onClick={(e) => {
               e.preventDefault();
               handleNavItemClick(() => navigate('/championships'), '/championships');
@@ -450,7 +490,7 @@ const Header = () => {
           </Link>
           <Link
             to="/leaderboard"
-            className="nav-link nav-icon-link desktop-nav-item"
+            className="nav-link nav-icon-link"
             onClick={(e) => {
               e.preventDefault();
               handleNavItemClick(() => navigate('/leaderboard'), '/leaderboard');
@@ -595,6 +635,22 @@ const Header = () => {
                   <h3>{user?.name}</h3>
                   <p className="nav-user-email">{user?.email}</p>
                   <p>Rating: {user?.rating || 1200}</p>
+                  <div className="nav-quick-actions">
+                    <button
+                      className="nav-quick-action-btn"
+                      onClick={() => setShowAvatarEdit(true)}
+                      title="Change your avatar"
+                    >
+                      📷 Change Photo
+                    </button>
+                    <button
+                      className="nav-quick-action-btn"
+                      onClick={() => setShowNameEdit(true)}
+                      title="Edit your display name"
+                    >
+                      ✏️ Edit Name
+                    </button>
+                  </div>
                 </div>
               </div>
               <button className="nav-close-btn" onClick={() => setShowNavPanel(false)}>
@@ -722,6 +778,33 @@ const Header = () => {
           isOpen={showMatchmaking}
           onClose={() => setShowMatchmaking(false)}
         />
+      )}
+
+      {/* Quick Edit Modals */}
+      {showAvatarEdit && createPortal(
+        <div className="modal-overlay" onClick={() => !profileUpdateLoading && setShowAvatarEdit(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <AvatarQuickEdit
+              currentAvatar={user?.avatar_url || `https://i.pravatar.cc/150?u=${user?.email}`}
+              onSave={handleAvatarSave}
+              onCancel={() => setShowAvatarEdit(false)}
+            />
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {showNameEdit && createPortal(
+        <div className="modal-overlay" onClick={() => !profileUpdateLoading && setShowNameEdit(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <NameQuickEdit
+              currentName={user?.name}
+              onSave={handleNameSave}
+              onCancel={() => setShowNameEdit(false)}
+            />
+          </div>
+        </div>,
+        document.body
       )}
     </>
   );

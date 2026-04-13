@@ -12,8 +12,8 @@ import '../../styles/UnifiedCards.css';
 import '../../pages/LobbyPage.css'; // Matchmaking overlay/modal styles
 
 const QUEUE_TIMEOUT_SECONDS = 15;
-const FIND_PLAYERS_TIMEOUT_SECONDS = 15;
-const TOTAL_SEARCH_SECONDS = 30;
+const FIND_PLAYERS_TIMEOUT_SECONDS = 15; // Sync with backend match request expiry (15s)
+const TOTAL_SEARCH_SECONDS = 15;
 const POLL_INTERVAL_MS = 2000;
 
 const TIME_PRESETS = [
@@ -50,9 +50,11 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
 
   // Live online count during search (polls /api/v1/status every 5s while searching)
   const [liveOnline, setLiveOnline] = useState(null);
+  const [stronglyOnline, setStronglyOnline] = useState(null);
   useEffect(() => {
     if (status !== 'findingPlayers' && status !== 'searching') {
       setLiveOnline(null);
+      setStronglyOnline(null);
       return;
     }
     const fetchCount = async () => {
@@ -61,8 +63,10 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
         if (res.ok) {
           const data = await res.json();
           const count = data.players?.recently_active ?? 0;
-          console.log('[Matchmaking] Online players:', count, '(strongly:', data.players?.strongly_online, ')');
+          const strongly = data.players?.strongly_online ?? 0;
+          console.log('[Matchmaking] Online players:', count, '(strongly:', strongly, ')');
           setLiveOnline(count);
+          setStronglyOnline(strongly);
         }
       } catch {}
     };
@@ -85,6 +89,45 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
     countdownRef.current = null;
     findPlayersTimeoutRef.current = null;
   }, []);
+
+  // Safety timeout: ensure a game is always created after countdown reaches 0
+  useEffect(() => {
+    if (secondsLeft === 0 && (status === 'findingPlayers' || status === 'searching')) {
+      console.log('[Matchmaking] Countdown reached 0, creating synthetic game');
+      cleanup();
+      setStatus('matched');
+      const syntheticPlayers = [
+        { id: 1, name: 'Priya Mehta', avatar_seed: 'priya-mehta', computer_level: 6, rating: 1370 },
+        { id: 2, name: 'Kiran Joshi', avatar_seed: 'kiran-joshi', computer_level: 6, rating: 1390 },
+        { id: 3, name: 'Ravi Patel', avatar_seed: 'ravi-patel', computer_level: 6, rating: 1420 },
+        { id: 4, name: 'Ananya Das', avatar_seed: 'ananya-das', computer_level: 6, rating: 1440 },
+        { id: 5, name: 'Vikram Rao', avatar_seed: 'vikram-rao', computer_level: 7, rating: 1470 },
+        { id: 6, name: 'Sneha Kulkarni', avatar_seed: 'sneha-kulkarni', computer_level: 7, rating: 1500 },
+      ];
+      const randomSynthetic = syntheticPlayers[Math.floor(Math.random() * syntheticPlayers.length)];
+      setMatchResult({
+        match_type: 'synthetic',
+        opponent: randomSynthetic,
+        game_id: null,
+      });
+      setTimeout(() => {
+        onClose();
+        navigate('/play', {
+          state: {
+            gameMode: 'synthetic',
+            syntheticPlayer: randomSynthetic,
+            backendGameId: null,
+            preferredColor: preferredColor === 'random'
+              ? (Math.random() < 0.5 ? 'white' : 'black')
+              : preferredColor,
+            ratedMode: gameMode,
+            timeControl,
+            increment,
+          },
+        });
+      }, 1500);
+    }
+  }, [secondsLeft, status, cleanup, navigate, onClose, preferredColor, gameMode, timeControl, increment]);
 
   // Reset when modal closes
   useEffect(() => {
@@ -162,13 +205,37 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
               }
             }, 1500);
           } else if (entry.status === 'expired' || entry.status === 'cancelled') {
-            // Rare: no human found AND no bots available — go to computer setup
+            // No match found — create synthetic game as fallback
             cleanup();
-            setStatus('fallback');
+            setStatus('matched');
+            const syntheticPlayers = [
+              { id: 1, name: 'Priya Mehta', avatar_seed: 'priya-mehta', computer_level: 6, rating: 1370 },
+              { id: 2, name: 'Kiran Joshi', avatar_seed: 'kiran-joshi', computer_level: 6, rating: 1390 },
+              { id: 3, name: 'Ravi Patel', avatar_seed: 'ravi-patel', computer_level: 6, rating: 1420 },
+              { id: 4, name: 'Ananya Das', avatar_seed: 'ananya-das', computer_level: 6, rating: 1440 },
+            ];
+            const randomSynthetic = syntheticPlayers[Math.floor(Math.random() * syntheticPlayers.length)];
+            setMatchResult({
+              match_type: 'synthetic',
+              opponent: randomSynthetic,
+              game_id: null,
+            });
             setTimeout(() => {
               onClose();
-              navigate('/play/computer');
-            }, 2000);
+              navigate('/play', {
+                state: {
+                  gameMode: 'synthetic',
+                  syntheticPlayer: randomSynthetic,
+                  backendGameId: null,
+                  preferredColor: preferredColor === 'random'
+                    ? (Math.random() < 0.5 ? 'white' : 'black')
+                    : preferredColor,
+                  ratedMode: gameMode,
+                  timeControl,
+                  increment,
+                },
+              });
+            }, 1500);
           }
         } catch (err) {
           console.error('[Matchmaking] Poll error:', err);
@@ -176,7 +243,42 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
       }, POLL_INTERVAL_MS);
     } catch (err) {
       console.error('[Matchmaking] Failed to join queue:', err);
-      setStatus('error');
+      // Handle 429 rate limit by creating a synthetic game directly
+      if (err.response?.status === 429) {
+        console.log('[Matchmaking] Rate limited, creating synthetic game directly');
+        cleanup();
+        setStatus('matched');
+        const syntheticPlayers = [
+          { id: 1, name: 'Priya Mehta', avatar_seed: 'priya-mehta', computer_level: 6, rating: 1370 },
+          { id: 2, name: 'Kiran Joshi', avatar_seed: 'kiran-joshi', computer_level: 6, rating: 1390 },
+          { id: 3, name: 'Ravi Patel', avatar_seed: 'ravi-patel', computer_level: 6, rating: 1420 },
+          { id: 4, name: 'Ananya Das', avatar_seed: 'ananya-das', computer_level: 6, rating: 1440 },
+        ];
+        const randomSynthetic = syntheticPlayers[Math.floor(Math.random() * syntheticPlayers.length)];
+        setMatchResult({
+          match_type: 'synthetic',
+          opponent: randomSynthetic,
+          game_id: null,
+        });
+        setTimeout(() => {
+          onClose();
+          navigate('/play', {
+            state: {
+              gameMode: 'synthetic',
+              syntheticPlayer: randomSynthetic,
+              backendGameId: null,
+              preferredColor: preferredColor === 'random'
+                ? (Math.random() < 0.5 ? 'white' : 'black')
+                : preferredColor,
+              ratedMode: gameMode,
+              timeControl,
+              increment,
+            },
+          });
+        }, 1500);
+      } else {
+        setStatus('error');
+      }
     }
   }, [preferredColor, timeControl, increment, gameMode, cleanup, navigate, onClose]);
 
@@ -208,7 +310,7 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
       // Emit debug event for dev panel
       window.dispatchEvent(new CustomEvent('mm:debug', { detail: { phase: 'findPlayers', targets: targetsCount, token: data.match_request?.token, status: data.match_request?.status } }));
 
-      // If no targets found, immediately fall back to queue
+      // If no targets found, immediately fall back to queue (backend will match with bot)
       if (targetsCount === 0) {
         console.log('[Matchmaking] No online players found, falling back to queue');
         matchRequestTokenRef.current = null;
@@ -216,34 +318,73 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
         return;
       }
 
-      // Set timeout: after 15s, cancel find and fall back to queue
+      // Set timeout: after 15s, cancel find and create synthetic game
       findPlayersTimeoutRef.current = setTimeout(async () => {
-        // Only fall back if still in findingPlayers state
+        // Only create synthetic if still in findingPlayers state
         if (statusRef.current !== 'findingPlayers') return;
 
-        console.log('[Matchmaking] Find players timeout, falling back to queue');
+        console.log('[Matchmaking] Find players timeout, creating synthetic game');
 
-        // Cancel the match request (countdown keeps running for queue phase)
+        // Cancel the match request
         if (matchRequestTokenRef.current) {
           try {
             await matchmakingService.cancelFindPlayers(matchRequestTokenRef.current);
           } catch (err) {
-            console.error('[Matchmaking] Cancel find error:', err);
+            // 404 is ok - request may have already expired
+            if (err.response?.status !== 404) {
+              console.error('[Matchmaking] Cancel find error:', err);
+            }
           }
           matchRequestTokenRef.current = null;
         }
 
-        fallbackToQueue();
+        // Create synthetic game directly
+        cleanup();
+        setStatus('matched');
+        const syntheticPlayers = [
+          { id: 1, name: 'Priya Mehta', avatar_seed: 'priya-mehta', computer_level: 6, rating: 1370 },
+          { id: 2, name: 'Kiran Joshi', avatar_seed: 'kiran-joshi', computer_level: 6, rating: 1390 },
+          { id: 3, name: 'Ravi Patel', avatar_seed: 'ravi-patel', computer_level: 6, rating: 1420 },
+          { id: 4, name: 'Ananya Das', avatar_seed: 'ananya-das', computer_level: 6, rating: 1440 },
+          { id: 5, name: 'Vikram Rao', avatar_seed: 'vikram-rao', computer_level: 7, rating: 1470 },
+          { id: 6, name: 'Sneha Kulkarni', avatar_seed: 'sneha-kulkarni', computer_level: 7, rating: 1500 },
+        ];
+        const randomSynthetic = syntheticPlayers[Math.floor(Math.random() * syntheticPlayers.length)];
+        setMatchResult({
+          match_type: 'synthetic',
+          opponent: randomSynthetic,
+          game_id: null,
+        });
+        setTimeout(() => {
+          onClose();
+          navigate('/play', {
+            state: {
+              gameMode: 'synthetic',
+              syntheticPlayer: randomSynthetic,
+              backendGameId: null,
+              preferredColor: preferredColor === 'random'
+                ? (Math.random() < 0.5 ? 'white' : 'black')
+                : preferredColor,
+              ratedMode: gameMode,
+              timeControl,
+              increment,
+            },
+          });
+        }, 1500);
       }, FIND_PLAYERS_TIMEOUT_SECONDS * 1000);
     } catch (err) {
       console.error('[Matchmaking] Failed to find players:', err);
-      // Fall back to queue on error — if that also fails, cleanup + error state
+      // Fall back to queue on error — if that also fails, go to computer
       try {
         await fallbackToQueue();
       } catch (fallbackErr) {
         console.error('[Matchmaking] Queue fallback also failed:', fallbackErr);
         cleanup();
-        setStatus('error');
+        setStatus('fallback');
+        setTimeout(() => {
+          onClose();
+          navigate('/play');
+        }, 1500);
       }
     }
   }, [preferredColor, timeControl, increment, gameMode, cleanup, fallbackToQueue]);
@@ -304,7 +445,10 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
       try {
         await matchmakingService.cancelFindPlayers(matchRequestTokenRef.current);
       } catch (err) {
-        console.error('[Matchmaking] Cancel find error:', err);
+        // 404 is ok - request may have already expired
+        if (err.response?.status !== 404) {
+          console.error('[Matchmaking] Cancel find error:', err);
+        }
       }
       matchRequestTokenRef.current = null;
     }

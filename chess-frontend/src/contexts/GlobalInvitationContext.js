@@ -485,6 +485,17 @@ export const GlobalInvitationProvider = ({ children }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
+  // Auto-dismiss already-expired invitations as soon as they appear in state
+  useEffect(() => {
+    if (!pendingInvitation || pendingInvitation.type === 'new_game_request') return;
+    if (!pendingInvitation.expires_at) return;
+    const expiresAt = new Date(pendingInvitation.expires_at);
+    if (expiresAt <= new Date()) {
+      // Invitation is already past its expiry — dismiss without calling the API
+      setPendingInvitation(null);
+    }
+  }, [pendingInvitation]);
+
   // Listen to global WebSocket manager for game status changes
   useEffect(() => {
     if (!user?.id) return;
@@ -562,8 +573,14 @@ export const GlobalInvitationProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('[GlobalInvitation] Failed to accept invitation:', error);
-      const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message;
-      alert(`Failed to accept invitation: ${errorMessage}`);
+      const status = error.response?.status;
+      // 409 = already accepted/declined, 404 = invitation gone — dismiss silently
+      if (status === 409 || status === 404) {
+        setPendingInvitation(null);
+      } else {
+        const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message;
+        alert(`Failed to accept invitation: ${errorMessage}`);
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -594,7 +611,13 @@ export const GlobalInvitationProvider = ({ children }) => {
       setPendingInvitation(null);
     } catch (error) {
       console.error('[GlobalInvitation] Failed to decline invitation:', error);
-      alert('Failed to decline invitation. Please try again.');
+      const status = error.response?.status;
+      // 409/404 = invitation already handled or gone — dismiss silently
+      if (status !== 409 && status !== 404) {
+        alert('Failed to decline invitation. Please try again.');
+      }
+      // Always dismiss — a stale invitation we can't decline should not stay on screen
+      setPendingInvitation(null);
     } finally {
       setIsProcessing(false);
     }

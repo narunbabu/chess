@@ -311,6 +311,18 @@
   border-color: rgba(129, 182, 76, 0.6);
 }
 
+/* Rules button wrapper — flex item on mobile, inline-block on desktop */
+.gc-action-rules-wrap {
+  display: inline-flex;
+  flex: 1;
+  min-width: 0;
+  max-width: 140px;
+}
+
+.gc-action-btn.gc-action-rules {
+  flex: 1;
+}
+
 /* --- Right panel: moves & game info --- */
 .gc-right-panel {
   background: #1e1e1e;
@@ -740,6 +752,29 @@
     gap: 6px;
   }
 
+  /* Mobile: Resign on far left, Rules on far right — both wide; other buttons fill top row */
+  .gc-action-btn.gc-action-danger {
+    order: 10;
+    flex: 0 0 calc(50% - 3px);
+    max-width: none;
+    padding: 9px 12px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .gc-action-rules-wrap {
+    order: 11;
+    flex: 0 0 calc(50% - 3px);
+    display: flex !important;
+  }
+
+  .gc-action-btn.gc-action-rules {
+    flex: 1;
+    max-width: none;
+    padding: 9px 12px;
+    font-size: 12px;
+  }
+
   .gc-right-panel {
     align-self: auto;
     max-height: 200px;
@@ -799,6 +834,17 @@
     padding: 5px 8px;
     font-size: 10px;
     max-width: none;
+  }
+
+  /* Keep resign/rules layout on very small screens */
+  .gc-action-btn.gc-action-danger {
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+
+  .gc-action-btn.gc-action-rules {
+    padding: 8px 10px;
+    font-size: 11px;
   }
 
   .apb {

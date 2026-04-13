@@ -38,6 +38,7 @@ const GameEndCard = React.forwardRef(({
   const [isSharing, setIsSharing] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareImageUrl, setShareImageUrl] = useState(null);
+  const [showRatingInfo, setShowRatingInfo] = useState(false);
 
   const {
     isPlayerWin,
@@ -98,15 +99,21 @@ const GameEndCard = React.forwardRef(({
       || result.result?.details
       || '';
 
+    // IMPORTANT: Check for cancelled/aborted games FIRST, before draw/winner checks
+    // This prevents cancelled games from incorrectly showing as "Draw"
+    const isCancelled = result.isCancelled || result.result === '*' || endReason === 'cancelled_inactivity' || endReason === 'abandoned_mutual';
+
     // Draw conditions: handle both flat (multiplayer live) and nested (review page) result shapes
     const drawEndReasons = ['stalemate', 'insufficient_material', 'threefold_repetition',
       'fifty_move_rule', 'threefold', 'fifty_move', 'draw_agreed', 'agreement', 'draw'];
-    const isDraw = result.result === '1/2-1/2'
+    const isDraw = !isCancelled && (
+      result.result === '1/2-1/2'
       || result.result === 'Draw'
       || result.result?.status === '1/2-1/2'
       || result.result?.status === 'draw'
       || endReason === 'draw'
-      || drawEndReasons.includes(endReason);
+      || drawEndReasons.includes(endReason)
+    );
 
     // Handle cases where white_player and black_player might not exist
     // For computer games: use !isMultiplayer as primary check, with result.game_mode as fallback
@@ -184,9 +191,6 @@ const GameEndCard = React.forwardRef(({
     });
 
     const playersInfo = { white_player, black_player, userPlayer, opponentPlayer, isUserWhite, isUserBlack, hasUser };
-
-    // Check for cancelled/aborted games (no result, no winner)
-    const isCancelled = result.result === '*' || endReason === 'cancelled_inactivity' || endReason === 'abandoned_mutual';
 
     let resultText;
     if (isCancelled) {
@@ -949,14 +953,152 @@ const handleShare = async () => {
         {/* Rating update */}
         {ratingUpdate && !ratingUpdate.isLoading && !ratingUpdate.error && ratingUpdate.newRating !== null && (
           <div className="p-2.5 rounded-xl text-center mb-3" style={{ backgroundColor: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', backdropFilter: 'blur(4px)' }}>
-            <div className="text-xs font-bold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.6)' }}>Rating Update</div>
-            <div className="flex items-center justify-center gap-2 mt-1">
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <div className="text-xs font-bold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.6)' }}>Rating Update</div>
+              <button
+                onClick={() => setShowRatingInfo(true)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'rgba(255,255,255,0.5)',
+                  cursor: 'pointer',
+                  padding: '0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  fontSize: '14px'
+                }}
+                title="How are ratings calculated?"
+              >
+                ⓘ
+              </button>
+            </div>
+            <div className="flex items-center justify-center gap-2">
               <span className="line-through text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>{ratingUpdate.oldRating}</span>
-              <span className={`text-lg font-extrabold ${ratingUpdate.ratingChange >= 0 ? '' : ''}`}
+              <span className="text-lg font-extrabold"
                     style={{ color: ratingUpdate.ratingChange >= 0 ? '#7CFC00' : '#FF6B6B' }}>
                 {ratingUpdate.ratingChange >= 0 ? '▲' : '▼'} {Math.abs(ratingUpdate.ratingChange)}
               </span>
               <span className="text-2xl font-extrabold text-white" style={{ textShadow: '0 1px 6px rgba(0,0,0,0.3)' }}>{ratingUpdate.newRating}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Rating Info Modal */}
+        {showRatingInfo && ratingUpdate && (
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0,0,0,0.8)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 10000,
+              padding: '20px'
+            }}
+            onClick={() => setShowRatingInfo(false)}
+          >
+            <div
+              style={{
+                backgroundColor: '#1e1e1e',
+                borderRadius: '16px',
+                padding: '24px',
+                maxWidth: '420px',
+                width: '100%',
+                border: '1px solid rgba(255,255,255,0.15)',
+                maxHeight: '80vh',
+                overflowY: 'auto'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h3 style={{ color: '#fff', fontSize: '20px', fontWeight: 'bold', margin: 0 }}>How Ratings Work</h3>
+                <button
+                  onClick={() => setShowRatingInfo(false)}
+                  style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: '24px', cursor: 'pointer', padding: 0 }}
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* Formula */}
+              <div style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
+                <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '13px', marginBottom: '8px' }}>THE ELO FORMULA</div>
+                <div style={{ color: '#7CFC00', fontFamily: 'monospace', fontSize: '15px', fontWeight: 'bold', marginBottom: '4px' }}>
+                  New Rating = Old Rating + K × (Actual − Expected)
+                </div>
+                <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px', marginTop: '8px' }}>
+                  <div>• <strong>Actual Score:</strong> Win = 1.0, Draw = 0.5, Loss = 0.0</div>
+                  <div>• <strong>Expected Score:</strong> Your win probability based on rating difference</div>
+                  <div>• <strong>K-Factor:</strong> How fast your rating moves</div>
+                </div>
+              </div>
+
+              {/* K-Factor Table */}
+              <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
+                <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '13px', marginBottom: '10px' }}>K-FACTOR (How fast you gain/lose points)</div>
+                <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                    <span>New player (&lt;10 games)</span>
+                    <span style={{ color: '#FFD700', fontWeight: 'bold' }}>K = 40</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                    <span>Developing (10-29 games)</span>
+                    <span style={{ color: '#C0C0C0', fontWeight: 'bold' }}>K = 32</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                    <span>Experienced (30+ games)</span>
+                    <span style={{ color: '#CD7F32', fontWeight: 'bold' }}>K = 24</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
+                    <span>Elite (rating ≥ 2400)</span>
+                    <span style={{ color: '#87CEEB', fontWeight: 'bold' }}>K = 16</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Your Game Breakdown */}
+              <div style={{ backgroundColor: 'rgba(124, 252, 0, 0.1)', borderRadius: '12px', padding: '16px', marginBottom: '16px', border: '1px solid ' + (ratingUpdate.ratingChange >= 0 ? 'rgba(124, 252, 0, 0.3)' : 'rgba(255, 107, 107, 0.3)') }}>
+                <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '13px', marginBottom: '10px' }}>YOUR GAME BREAKDOWN</div>
+                <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                    <span>Your K-Factor</span>
+                    <span style={{ color: '#fff', fontWeight: 'bold' }}>K = {ratingUpdate.kFactor || 24}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                    <span>Expected Score</span>
+                    <span style={{ color: '#fff', fontWeight: 'bold' }}>{ratingUpdate.expectedScore ? (ratingUpdate.expectedScore * 100).toFixed(1) + '%' : 'N/A'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                    <span>Actual Score</span>
+                    <span style={{ color: '#fff', fontWeight: 'bold' }}>{ratingUpdate.actualScore === 1 ? 'Win (1.0)' : ratingUpdate.actualScore === 0.5 ? 'Draw (0.5)' : ratingUpdate.actualScore === 0 ? 'Loss (0.0)' : 'N/A'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '8px', marginTop: '8px', paddingLeft: '10px' }}>
+                    <span style={{ color: ratingUpdate.ratingChange >= 0 ? '#7CFC00' : '#FF6B6B', fontWeight: 'bold' }}>Final Change</span>
+                    <span style={{ color: ratingUpdate.ratingChange >= 0 ? '#7CFC00' : '#FF6B6B', fontWeight: 'bold', fontSize: '16px' }}>
+                      {ratingUpdate.ratingChange >= 0 ? '+' : ''}{ratingUpdate.ratingChange}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Examples */}
+              <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '16px' }}>
+                <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '13px', marginBottom: '10px' }}>EXAMPLES (K=24, You at 1764)</div>
+                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>
+                  <div style={{ padding: '4px 0' }}>• Beat 2064-rated (+300): <strong style={{ color: '#7CFC00' }}>+20 pts</strong></div>
+                  <div style={{ padding: '4px 0' }}>• Beat 1764-rated (equal): <strong style={{ color: '#7CFC00' }}>+12 pts</strong></div>
+                  <div style={{ padding: '4px 0' }}>• Beat 1464-rated (−300): <strong style={{ color: '#7CFC00' }}>+4 pts</strong></div>
+                  <div style={{ padding: '4px 0' }}>• Lose to 1464-rated (−300): <strong style={{ color: '#FF6B6B' }}>−20 pts</strong></div>
+                </div>
+                <div style={{ marginTop: '10px', fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>
+                  💡 <strong>Rule:</strong> Wins always gain at least +1, losses always lose at least −1
+                </div>
+              </div>
             </div>
           </div>
         )}

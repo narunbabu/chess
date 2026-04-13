@@ -1,0 +1,97 @@
+/* NameQuickEdit.css - Quick name editing for nav panel */
+
+.name-quick-edit {
+  padding: 1rem;
+}
+
+.name-quick-edit h3 {
+  margin: 0 0 1rem 0;
+  color: #fff;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+/* Form field */
+.name-edit-field {
+  position: relative;
+  margin-bottom: 1rem;
+}
+
+.name-edit-field label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #bababa;
+  font-size: 0.9rem;
+}
+
+.name-edit-field input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #4a4744;
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  font-size: 1rem;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.name-edit-field input:focus {
+  border-color: #81b64c;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.name-edit-field input::placeholder {
+  color: #6b6763;
+}
+
+.name-char-count {
+  position: absolute;
+  bottom: -20px;
+  right: 0;
+  font-size: 0.75rem;
+  color: #6b6763;
+}
+
+/* Footer buttons */
+.name-edit-footer {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.name-edit-btn {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  border: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.name-edit-btn-cancel {
+  background: #4a4744;
+  color: #bababa;
+}
+
+.name-edit-btn-cancel:hover:not(:disabled) {
+  background: #5a5754;
+}
+
+.name-edit-btn-save {
+  background: linear-gradient(135deg, #81b64c, #a3d160);
+  color: #fff;
+}
+
+.name-edit-btn-save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.name-edit-btn-save:hover:not(:disabled) {
+  opacity: 0.9;
+}

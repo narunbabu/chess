@@ -8,6 +8,7 @@ import BoardCustomizer from './BoardCustomizer';
 import PerformanceDisplay from '../game/PerformanceDisplay';
 import ChatPanel from './ChatPanel';
 import GameChat from './GameChat';
+import CompanionControls from '../game/CompanionControls';
 
 // Extract SAN from any gameHistory entry format:
 //   PlayComputer objects: { move: { san: "e4" }, ... }
@@ -41,6 +42,7 @@ const GameContainer = ({
   onBoardThemeChange,
   onPieceStyleChange,
   chatData = null,
+  companionData = null, // { companion: object, onMove: function, isMyTurn: boolean }
 }) => {
   const [rightTab, setRightTab] = useState('moves');
   const [showRatedRules, setShowRatedRules] = useState(false);
@@ -153,12 +155,11 @@ const GameContainer = ({
         )}
         {/* Rated Rules Info */}
         {isRated && !gameOver && (
-          <div style={{ position: 'relative', display: 'inline-block' }}>
+          <div className="gc-action-rules-wrap" style={{ position: 'relative' }}>
             <button
-              className="gc-action-btn gc-action-neutral"
+              className="gc-action-btn gc-action-neutral gc-action-rules"
               onClick={() => setShowRatedRules(prev => !prev)}
               title="Rated game rules"
-              style={{ minWidth: 'auto', padding: '6px 10px' }}
             >
               ℹ Rules
             </button>
@@ -409,6 +410,18 @@ const GameContainer = ({
       {/* Game status */}
       {gameStatus && !gameStatus.match(/^(White|Black)'s turn$/i) && (
         <div className="gc-status-bar">{gameStatus}</div>
+      )}
+      {/* Companion Controls - shown when companion mode is active */}
+      {companionData?.companion && !gameOver && (
+        <div className="gc-companion-section mt-3">
+          <CompanionControls
+            companion={companionData.companion}
+            game={game}
+            onMove={companionData.onMove}
+            isMyTurn={companionData.isMyTurn}
+            disabled={!gameStarted || gameOver}
+          />
+        </div>
       )}
     </div>
   );

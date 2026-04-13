@@ -24,7 +24,7 @@ class InvitationController extends Controller
             $validated = $request->validate([
                 'invited_user_id' => 'required|exists:users,id',
                 'preferred_color' => 'nullable|in:white,black,random',
-                'game_mode' => 'nullable|in:casual,rated',
+                'game_mode' => 'nullable|in:casual,rated,companion',
                 'time_control_minutes' => 'nullable|integer|in:3,5,10,15,30',
                 'increment_seconds' => 'nullable|integer|in:0,1,2,3,5,10',
             ]);
