@@ -434,11 +434,32 @@ const Dashboard = () => {
       };
     }
 
-    const wins = gameHistories.filter((g) => isWin(g.result)).length;
-    const draws = gameHistories.filter((g) => {
-      const status = g.result?.status || g.result;
-      return status === 'draw' || status === 'stalemate';
-    }).length;
+    // Helper function to determine game outcome (handles both object and string result formats)
+    const getGameOutcome = (game) => {
+      const { result, player_color, playerColor } = game;
+      const pColor = player_color || playerColor;
+
+      if (typeof result === 'object' && result?.status) {
+        // Result is an object with status field
+        return result.status; // 'won', 'lost', 'draw'
+      }
+
+      // Result is a string like "1-0", "0-1", "1/2-1/2", "*"
+      const resultString = result || '';
+      if (resultString === '1/2-1/2' || resultString === 'draw' || resultString === '*') {
+        return 'draw';
+      } else if (resultString === '1-0') {
+        // White won
+        return (pColor === 'w' || pColor === 'white') ? 'won' : 'lost';
+      } else if (resultString === '0-1') {
+        // Black won
+        return (pColor === 'b' || pColor === 'black') ? 'won' : 'lost';
+      }
+      return 'draw'; // Default fallback
+    };
+
+    const wins = gameHistories.filter((g) => getGameOutcome(g) === 'won').length;
+    const draws = gameHistories.filter((g) => getGameOutcome(g) === 'draw').length;
     const losses = totalGames - wins - draws;
     const winRate = `${Math.round((wins / totalGames) * 100)}%`;
 
@@ -453,12 +474,17 @@ const Dashboard = () => {
     // Calculate current win/loss streak from most recent games
     let currentStreak = 0;
     if (gameHistories.length > 0) {
-      const firstResult = isWin(gameHistories[0].result);
+      const firstOutcome = getGameOutcome(gameHistories[0]);
+      const firstIsWin = firstOutcome === 'won';
       for (const g of gameHistories) {
-        if (isWin(g.result) === firstResult) currentStreak++;
-        else break;
+        const outcome = getGameOutcome(g);
+        if ((firstIsWin && outcome === 'won') || (!firstIsWin && outcome === 'lost')) {
+          currentStreak++;
+        } else {
+          break;
+        }
       }
-      if (!firstResult) currentStreak = -currentStreak; // negative = losing streak
+      if (!firstIsWin) currentStreak = -currentStreak; // negative = losing streak
     }
 
     debugLog('Stats', `Calculated once - Total games: ${totalGames}, Wins: ${wins}, Average: ${averageScore}`);
@@ -871,9 +897,38 @@ const Dashboard = () => {
             <>
             <div className="unified-card-grid cols-1">
               {gameHistories.slice(0, visibleRecentGames).map((game) => {
-                const resultStatus = game.result?.status || game.result;
-                const isDraw = resultStatus === 'draw' || resultStatus === 'stalemate';
-                const won = isWin(game.result);
+                // Handle result as either object {status, details, end_reason, winner} or string ("1-0", "0-1", "1/2-1/2")
+                let resultStatus, isDraw, won;
+
+                if (typeof game.result === 'object' && game.result?.status) {
+                  // Result is already an object with status field
+                  resultStatus = game.result.status;
+                  won = resultStatus === 'won';
+                  isDraw = resultStatus === 'draw';
+                } else {
+                  // Result is a string like "1-0", "0-1", "1/2-1/2", or "*"
+                  const resultString = game.result || '';
+                  const playerColor = game.player_color || game.playerColor;
+
+                  if (resultString === '1/2-1/2' || resultString === 'draw' || resultString === '*') {
+                    isDraw = true;
+                    won = false;
+                  } else if (resultString === '1-0') {
+                    // White won
+                    won = (playerColor === 'w' || playerColor === 'white');
+                    isDraw = false;
+                  } else if (resultString === '0-1') {
+                    // Black won
+                    won = (playerColor === 'b' || playerColor === 'black');
+                    isDraw = false;
+                  } else {
+                    // Fallback: try to use isWin utility
+                    won = isWin(game.result);
+                    isDraw = !won;
+                  }
+                  resultStatus = won ? 'won' : (isDraw ? 'draw' : 'lost');
+                }
+
                 const resultColor = won ? '#81b64c' : isDraw ? '#e8a93e' : '#e74c3c';
                 const resultLabel = won ? 'Win' : isDraw ? 'Draw' : 'Loss';
                 const opponentName = game.opponent_name || game.opponentName || (game.game_mode === 'computer' ? 'Computer' : null);
