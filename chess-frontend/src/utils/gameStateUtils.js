@@ -1,6 +1,69 @@
 // src/utils/gameStateUtils.js
 import { evaluatePlayerMove, PIECE_VALUES } from "./evaluate";
 
+/**
+ * Returns the FEN key used for repetition tracking.
+ * Excludes the halfmove clock (index 4) and fullmove number (index 5)
+ * because those don't affect position identity.
+ */
+export const getFenKey = (fen) => fen.split(' ').slice(0, 4).join(' ');
+
+/**
+ * Checks for draws that a player must CLAIM voluntarily.
+ * Returns { canClaim: bool, reason: string|null }
+ *
+ * Rules:
+ *  - Threefold repetition: same position occurred ≥3 times — player to move may claim.
+ *  - 50-move rule: halfmove clock ≥100 — either player may claim.
+ */
+export const getClaimableDrawStatus = (game) => {
+  // Automatic game-overs take precedence — no claim available
+  if (game.isCheckmate() || game.isStalemate() || game.isInsufficientMaterial()) {
+    return { canClaim: false, reason: null };
+  }
+
+  if (game.isThreefoldRepetition()) {
+    return { canClaim: true, reason: 'threefold_repetition' };
+  }
+
+  const halfmoveClock = parseInt(game.fen().split(' ')[4], 10);
+  if (halfmoveClock >= 100) {
+    return { canClaim: true, reason: 'fifty_move_rule' };
+  }
+
+  return { canClaim: false, reason: null };
+};
+
+/**
+ * Checks for draws that are AUTOMATIC (no claim needed — FIDE mandatory).
+ * positionCounts: Map<fenKey, number>  — maintained by the caller across all moves.
+ * consecutiveQueenMoves: number        — half-move counter reset on any non-queen move.
+ *
+ * Returns { isDraw: bool, reason: string|null }
+ */
+export const getAutoDrawStatus = (game, positionCounts, consecutiveQueenMoves) => {
+  // 75-move rule
+  const halfmoveClock = parseInt(game.fen().split(' ')[4], 10);
+  if (halfmoveClock >= 150) {
+    return { isDraw: true, reason: 'seventy_five_move_rule' };
+  }
+
+  // Fivefold repetition
+  if (positionCounts) {
+    const key = getFenKey(game.fen());
+    if ((positionCounts.get(key) || 0) >= 5) {
+      return { isDraw: true, reason: 'fivefold_repetition' };
+    }
+  }
+
+  // 16 consecutive queen moves by each side = 32 consecutive half-moves
+  if (consecutiveQueenMoves >= 32) {
+    return { isDraw: true, reason: 'sixteen_queen_moves' };
+  }
+
+  return { isDraw: false, reason: null };
+};
+
 export const updateGameStatus = (game, setGameStatus, playerColor) => { // <-- Add playerColor
   let status = {
     gameOver: false,
@@ -19,16 +82,16 @@ export const updateGameStatus = (game, setGameStatus, playerColor) => { // <-- A
       status.winner = game.turn() === "w" ? "b" : "w"; // The player whose turn it *was* wins
       status.outcome = status.winner === playerColor ? "win" : "loss";
       status.text = `Checkmate! ${status.winner === "w" ? "White" : "Black"} wins!`;
-    } else if (game.isDraw()) {
+    } else if (game.isStalemate()) {
       status.gameOver = true;
       status.outcome = "draw";
-      // Determine specific draw reason
-      if (game.isStalemate()) status.reason = "stalemate";
-      else if (game.isThreefoldRepetition()) status.reason = "repetition";
-      else if (game.isInsufficientMaterial()) status.reason = "material";
-      // else if (game.isFiftyMoves()) status.reason = "fifty_move"; // isDraw covers this
-      else status.reason = "draw"; // Generic draw
-      status.text = `Draw by ${status.reason}!`;
+      status.reason = "stalemate";
+      status.text = "Draw by stalemate!";
+    } else if (game.isInsufficientMaterial()) {
+      status.gameOver = true;
+      status.outcome = "draw";
+      status.reason = "material";
+      status.text = "Draw — insufficient material!";
     }
     // Add explicit checks if needed, though isDraw() should cover them
     // else if (game.isStalemate()) { ... }

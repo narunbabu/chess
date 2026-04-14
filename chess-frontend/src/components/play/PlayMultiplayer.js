@@ -16,7 +16,7 @@ import { BACKEND_URL } from '../../config';
 import WebSocketGameService from '../../services/WebSocketGameService';
 import globalWebSocketManager from '../../services/GlobalWebSocketManager';
 import { getEcho } from '../../services/echoSingleton';
-import { evaluateMove } from '../../utils/gameStateUtils';
+import { evaluateMove, getClaimableDrawStatus, getAutoDrawStatus, getFenKey } from '../../utils/gameStateUtils';
 import { makeComputerMove } from '../../utils/computerMoveUtils';
 import { encodeGameHistory } from '../../utils/gameHistoryStringUtils';
 import { saveGameHistory } from '../../services/gameHistoryService';
@@ -213,11 +213,25 @@ const PlayMultiplayer = () => {
   const [chatMessages, setChatMessages] = useState([]);
   const [chatUnread, setChatUnread] = useState(0);
   const chatTabOpenRef = useRef(false);
+  const [cctArrows, setCctArrows] = useState([]); // CCT board arrows from learning panel
 
   // Nudge opponent state (30s cooldown)
   const [nudgeCooldown, setNudgeCooldown] = useState(false);
   const [nudgeMessage, setNudgeMessage] = useState('');
   const [showRulesInfo, setShowRulesInfo] = useState(false);
+
+  // Draw-claim state (P1: threefold / 50-move voluntary claim)
+  const [drawClaimAvailable, setDrawClaimAvailable] = useState(false);
+  const [drawClaimReason, setDrawClaimReason] = useState(null);
+  const [drawClaimLoading, setDrawClaimLoading] = useState(false);
+
+  // Auto-draw tracking (P2: fivefold / 75-move; P3: 16 queen moves)
+  // positionCountsRef: Map<fenKey, occurrenceCount> — built from all moves
+  const positionCountsRef = useRef(new Map());
+  // consecutiveQueenMovesRef: number of consecutive half-moves that were queen moves
+  const consecutiveQueenMovesRef = useRef(0);
+  // Guard against firing auto-draw claim more than once per game
+  const autoDrawClaimedRef = useRef(false);
 
   // Opponent inactivity tracking for cancel game feature
   const [opponentInactiveSec, setOpponentInactiveSec] = useState(0);
@@ -480,13 +494,14 @@ const PlayMultiplayer = () => {
       playSound(gameEndSoundEffect);
       scheduleLocalGameEnd('1/2-1/2', 'stalemate', null);
       return true;
-    } else if (gameInstance.isDraw()) {
+    } else if (gameInstance.isInsufficientMaterial()) {
       playSound(gameEndSoundEffect);
-      const reason = gameInstance.isThreefoldRepetition() ? 'threefold_repetition'
-        : gameInstance.isInsufficientMaterial() ? 'insufficient_material'
-        : 'draw';
-      scheduleLocalGameEnd('1/2-1/2', reason, null);
+      scheduleLocalGameEnd('1/2-1/2', 'insufficient_material', null);
       return true;
+      // NOTE: threefold repetition and 50-move rule are NOT auto-ended here.
+      // They require a voluntary claim from the player (handled by draw claim banner).
+      // Fivefold repetition, 75-move rule, and 16 queen moves are handled by
+      // the draw tracking useEffect which calls wsService.claimDraw() automatically.
     } else {
       // Determine sound from last move
       const history = gameInstance.history({ verbose: true });
@@ -754,6 +769,8 @@ const PlayMultiplayer = () => {
       const fen = data.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
       const newGame = new Chess(fen);
       setGame(newGame);
+      // Rebuild draw-tracking state from game history (handles page refresh mid-game)
+      rebuildDrawTrackingFromHistory(newGame);
 
       // Get user's color from server (authoritative source)
       // Priority: handshake response > game_state data > fallback calculation
@@ -1533,6 +1550,70 @@ const PlayMultiplayer = () => {
     }
   }, []);
 
+  // ─── Draw-tracking helpers ────────────────────────────────────────────────
+
+  /**
+   * Update position-count map and consecutive-queen-moves counter after a move.
+   * lastMoveVerbose: the move object from chess.js history({verbose:true}), or null.
+   */
+  const updateDrawTracking = useCallback((gameInstance, lastMoveVerbose) => {
+    // Position counting (fivefold repetition)
+    const key = getFenKey(gameInstance.fen());
+    positionCountsRef.current.set(key, (positionCountsRef.current.get(key) || 0) + 1);
+
+    // Consecutive queen half-moves (16-queen-moves rule)
+    if (lastMoveVerbose) {
+      const isQueenMove = lastMoveVerbose.piece === 'q';
+      consecutiveQueenMovesRef.current = isQueenMove
+        ? consecutiveQueenMovesRef.current + 1
+        : 0;
+    }
+  }, []);
+
+  /**
+   * Rebuild position-count map from scratch using game.history().
+   * Called once when a game loads mid-session (page refresh / navigation).
+   */
+  const rebuildDrawTrackingFromHistory = useCallback((gameInstance) => {
+    const counts = new Map();
+    // Replay all moves on a fresh Chess instance to get each intermediate FEN
+    const replay = new Chess();
+    counts.set(getFenKey(replay.fen()), 1); // initial position
+
+    let queenStreak = 0;
+    const history = gameInstance.history({ verbose: true });
+    for (const mv of history) {
+      replay.move({ from: mv.from, to: mv.to, promotion: mv.promotion });
+      const k = getFenKey(replay.fen());
+      counts.set(k, (counts.get(k) || 0) + 1);
+      queenStreak = mv.piece === 'q' ? queenStreak + 1 : 0;
+    }
+
+    positionCountsRef.current = counts;
+    consecutiveQueenMovesRef.current = queenStreak;
+  }, []);
+
+  // Player voluntarily claims draw (threefold repetition or 50-move rule)
+  const handleClaimDraw = useCallback(async () => {
+    if (!wsService.current || !drawClaimReason) return;
+    setDrawClaimLoading(true);
+    try {
+      await wsService.current.claimDraw(drawClaimReason);
+      setDrawClaimAvailable(false);
+      console.log(`✅ Draw claimed: ${drawClaimReason}`);
+      // The server will broadcast gameEnded — both players will see the end card
+    } catch (error) {
+      console.error('❌ Failed to claim draw:', error);
+      setDrawClaimLoading(false);
+    }
+  }, [drawClaimReason]);
+
+  // Dismiss claim draw banner (player chose to keep playing instead)
+  const handleDismissDrawClaim = useCallback(() => {
+    setDrawClaimAvailable(false);
+    setDrawClaimReason(null);
+  }, []);
+
   // Handle incoming moves (always apply server's authoritative state)
   const handleRemoteMove = useCallback((event) => {
     try {
@@ -1548,6 +1629,10 @@ const PlayMultiplayer = () => {
       const newGame = new Chess();
       newGame.load(event.fen);
       setGame(newGame);
+
+      // Update draw-tracking state (fivefold / 75-move / queen-moves detection)
+      const remoteMovePiece = event.move?.piece ?? null;
+      updateDrawTracking(newGame, remoteMovePiece ? { piece: remoteMovePiece } : null);
 
       // Clear any piece selection / legal move highlights on board update
       setSelectedSquare(null);
@@ -3976,6 +4061,46 @@ const PlayMultiplayer = () => {
     }
   }, [isMyTurn, game.fen(), myColor, game]);
 
+  // ─── Draw-condition effects ─────────────────────────────────────────────────
+
+  // P1: Threefold repetition + 50-move rule — show "Claim Draw" banner to the player to move
+  useEffect(() => {
+    if (gameComplete || gameInfo.status !== 'active') {
+      setDrawClaimAvailable(false);
+      return;
+    }
+    // Only show the claim option to the player whose turn it currently is
+    const isMyTurnNow = game.turn() === myColor;
+    if (!isMyTurnNow) {
+      setDrawClaimAvailable(false);
+      return;
+    }
+    const { canClaim, reason } = getClaimableDrawStatus(game);
+    setDrawClaimAvailable(canClaim);
+    setDrawClaimReason(canClaim ? reason : null);
+  }, [game, myColor, gameComplete, gameInfo.status]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // P2 + P3: Fivefold repetition, 75-move rule, 16 queen moves — automatic draws
+  useEffect(() => {
+    if (gameComplete || gameInfo.status !== 'active' || autoDrawClaimedRef.current) return;
+
+    const { isDraw, reason } = getAutoDrawStatus(
+      game,
+      positionCountsRef.current,
+      consecutiveQueenMovesRef.current
+    );
+
+    if (isDraw && wsService.current) {
+      autoDrawClaimedRef.current = true; // Prevent duplicate calls
+      console.log(`🤝 Auto-draw condition met: ${reason} — claiming draw`);
+      playSound(gameEndSoundEffect);
+      wsService.current.claimDraw(reason).catch(err => {
+        console.error('Auto-draw claim failed:', err);
+        autoDrawClaimedRef.current = false; // Allow retry on failure
+      });
+    }
+  }, [game, gameComplete, gameInfo.status, playSound]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Performance polling disabled for multiplayer: game_performance table is not populated
   // for multiplayer games so every poll returns 404. Rating change is fetched once at
   // game end via getRatingChange (ratings_history) instead.
@@ -4355,6 +4480,11 @@ const PlayMultiplayer = () => {
 
     // Update the local game state immediately
     setGame(gameCopy);
+
+    // Update draw-tracking state for fivefold / 75-move / queen-moves detection
+    updateDrawTracking(gameCopy, move);
+    // Clear any pending voluntary draw claim — it's now the opponent's turn
+    setDrawClaimAvailable(false);
 
     // Update turn to opponent's turn
     setGameInfo(prev => ({
@@ -4804,6 +4934,12 @@ const PlayMultiplayer = () => {
         performanceData: ratedMode === 'rated' ? performanceData : null,
         showPerformance: ratedMode === 'rated' && gameInfo.status === 'active'
       }}
+      cctData={{
+        game,
+        isActive: gameInfo.status === 'active',
+        isRated: ratedMode === 'rated',
+        onArrowsChange: setCctArrows,
+      }}
       actionBar={
         <>
           {gameInfo.status === 'active' && (
@@ -4965,6 +5101,7 @@ const PlayMultiplayer = () => {
           animationDuration={200}
           arePiecesDraggable={!gameComplete && gameInfo.status === 'active' && gameInfo.turn === gameInfo.playerColor}
           areArrowsAllowed={false}
+          customArrows={cctArrows.map(a => [a.from, a.to, a.color])}
           customDarkSquareStyle={{ backgroundColor: getTheme(boardTheme).dark }}
           customLightSquareStyle={{ backgroundColor: getTheme(boardTheme).light }}
           {...(pieceStyle === '3d' ? { customPieces: pieces3dLanding } : {})}
@@ -5088,6 +5225,77 @@ const PlayMultiplayer = () => {
                 ✗ Decline
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Claimable Draw Banner (threefold repetition / 50-move rule) ─── */}
+      {drawClaimAvailable && !gameComplete && (
+        <div style={{
+          position: 'fixed',
+          bottom: '80px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          backgroundColor: '#302e2b',
+          color: 'white',
+          padding: '14px 20px',
+          borderRadius: '12px',
+          boxShadow: '0 6px 24px rgba(0,0,0,0.5)',
+          border: '2px solid #e8a93e',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '14px',
+          zIndex: 9500,
+          minWidth: '300px',
+          maxWidth: '460px',
+          animation: 'fadeIn 0.25s ease-out',
+        }}>
+          <span style={{ fontSize: '22px', flexShrink: 0 }}>½</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: '700', fontSize: '14px', color: '#e8a93e', marginBottom: '2px' }}>
+              {drawClaimReason === 'threefold_repetition'
+                ? 'Threefold Repetition — You Can Claim a Draw'
+                : '50-Move Rule — You Can Claim a Draw'}
+            </div>
+            <div style={{ fontSize: '12px', color: '#bababa', lineHeight: '1.4' }}>
+              {drawClaimReason === 'threefold_repetition'
+                ? 'The same position has occurred 3 times. Claim the draw or keep playing.'
+                : '50 moves without a pawn move or capture. Claim the draw or keep playing.'}
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0 }}>
+            <button
+              onClick={handleClaimDraw}
+              disabled={drawClaimLoading}
+              style={{
+                backgroundColor: drawClaimLoading ? '#555' : '#81b64c',
+                color: 'white',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: '6px',
+                fontSize: '13px',
+                fontWeight: '600',
+                cursor: drawClaimLoading ? 'not-allowed' : 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {drawClaimLoading ? 'Claiming…' : '½ Claim Draw'}
+            </button>
+            <button
+              onClick={handleDismissDrawClaim}
+              style={{
+                backgroundColor: 'transparent',
+                color: '#aaa',
+                border: '1px solid #555',
+                padding: '6px 16px',
+                borderRadius: '6px',
+                fontSize: '12px',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Keep Playing
+            </button>
           </div>
         </div>
       )}

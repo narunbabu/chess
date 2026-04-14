@@ -1674,6 +1674,92 @@ class WebSocketController extends Controller
     }
 
     /**
+     * Claim a draw by rule (threefold repetition, 50-move, fivefold, 75-move, or 16 queen moves).
+     *
+     * Called by the frontend when:
+     *   - Player actively claims threefold repetition or the 50-move rule (voluntary).
+     *   - Frontend auto-detects fivefold repetition, 75-move rule, or 16 consecutive queen moves
+     *     (mandatory draws — both clients call this simultaneously; idempotent).
+     */
+    public function claimDraw(Request $request, int $gameId): JsonResponse
+    {
+        try {
+            $game = Game::with(['whitePlayer', 'blackPlayer'])->findOrFail($gameId);
+            $user = Auth::user();
+
+            // Must be a participant
+            if ($game->white_player_id !== $user->id && $game->black_player_id !== $user->id) {
+                return response()->json(['error' => 'Unauthorized', 'message' => 'You are not part of this game'], 403);
+            }
+
+            // Idempotent: already finished
+            if ($game->status === 'finished') {
+                return response()->json(['success' => true, 'message' => 'Game already finished']);
+            }
+
+            $request->validate([
+                'reason' => 'required|string|in:threefold_repetition,fifty_move_rule,fivefold_repetition,seventy_five_move_rule,sixteen_queen_moves',
+            ]);
+
+            $reason = $request->input('reason');
+
+            // Light backend verification for rules derivable from current game state
+            if ($reason === 'fifty_move_rule' || $reason === 'seventy_five_move_rule') {
+                $fenParts     = explode(' ', $game->fen ?? '');
+                $halfmoveClock = isset($fenParts[4]) ? (int)$fenParts[4] : 0;
+                $threshold     = $reason === 'fifty_move_rule' ? 100 : 150;
+                if ($halfmoveClock < $threshold) {
+                    return response()->json([
+                        'error'   => 'Condition not met',
+                        'message' => "Halfmove clock is {$halfmoveClock}, need {$threshold}"
+                    ], 422);
+                }
+            }
+
+            if ($reason === 'sixteen_queen_moves') {
+                $moves = $game->moves ?? [];
+                if (count($moves) < 32) {
+                    return response()->json(['error' => 'Condition not met', 'message' => 'Fewer than 32 moves played'], 422);
+                }
+                $last32 = array_slice($moves, -32);
+                foreach ($last32 as $m) {
+                    $piece = strtolower($m['piece'] ?? '');
+                    $san   = strtolower($m['san']   ?? '');
+                    $isQueenMove = ($piece === 'q') || (strlen($san) > 0 && $san[0] === 'q');
+                    if (!$isQueenMove) {
+                        return response()->json(['error' => 'Condition not met', 'message' => 'Not all of the last 32 moves were queen moves'], 422);
+                    }
+                }
+            }
+
+            // End game as rule-based draw (handles Elo, game history, broadcasts, etc.)
+            $this->gameRoomService->endGameAsRuleDraw($game, $reason);
+
+            Log::info('Draw claimed by rule', [
+                'game_id'   => $gameId,
+                'claimer_id'=> $user->id,
+                'reason'    => $reason,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'reason'  => $reason,
+                'message' => "Draw claimed: {$reason}",
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['error' => 'Validation failed', 'message' => $e->getMessage()], 422);
+        } catch (\Exception $e) {
+            Log::error('Failed to claim draw', [
+                'user_id' => Auth::id(),
+                'game_id' => $gameId,
+                'error'   => $e->getMessage(),
+            ]);
+            return response()->json(['error' => 'Failed to claim draw', 'message' => $e->getMessage()], 400);
+        }
+    }
+
+    /**
      * Get championship context for a game
      */
     public function getChampionshipContext(Request $request, int $gameId): JsonResponse

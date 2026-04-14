@@ -895,6 +895,20 @@ class GameRoomService
     }
 
     /**
+     * End a game as a draw due to a chess rule (threefold, fifty-move, fivefold, etc.)
+     * Called by claimDraw endpoint. Idempotent — safe to call from both players' clients.
+     */
+    public function endGameAsRuleDraw(Game $game, string $reason): void
+    {
+        $this->finalizeGame($game, [
+            'result'        => '1/2-1/2',
+            'winner_player' => null,
+            'winner_user_id'=> null,
+            'end_reason'    => $reason,
+        ]);
+    }
+
+    /**
      * Finalize the game (idempotent)
      */
     private function finalizeGame(Game $game, array $attrs): void

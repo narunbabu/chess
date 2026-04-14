@@ -9,6 +9,7 @@ import PerformanceDisplay from '../game/PerformanceDisplay';
 import ChatPanel from './ChatPanel';
 import GameChat from './GameChat';
 import CompanionControls from '../game/CompanionControls';
+import CCTPanel from '../game/CCTPanel';
 
 // Extract SAN from any gameHistory entry format:
 //   PlayComputer objects: { move: { san: "e4" }, ... }
@@ -43,6 +44,7 @@ const GameContainer = ({
   onPieceStyleChange,
   chatData = null,
   companionData = null, // { companion: object, onMove: function, isMyTurn: boolean }
+  cctData = null,       // { game, isActive, isRated, onArrowsChange }
 }) => {
   const [rightTab, setRightTab] = useState('moves');
   const [showRatedRules, setShowRatedRules] = useState(false);
@@ -424,11 +426,29 @@ const GameContainer = ({
     );
   };
 
+  // ----- CCT PANEL -----
+  const renderCctPanel = () => {
+    if (!cctData) return null;
+    return (
+      <CCTPanel
+        game={cctData.game}
+        isActive={cctData.isActive}
+        isRated={cctData.isRated}
+        onArrowsChange={cctData.onArrowsChange}
+        onLabelsChange={cctData.onLabelsChange}
+      />
+    );
+  };
+
   // ----- RIGHT PANEL -----
   const renderRightPanel = () => {
-    const tabs = chatData
-      ? ['moves', 'info', 'chat', 'companion']
-      : ['moves', 'info', 'companion'];
+    const tabs = [
+      'moves',
+      'info',
+      ...(chatData ? ['chat'] : []),
+      'companion',
+      ...(cctData  ? ['learn'] : []),
+    ];
 
     return (
       <div className="gc-right-panel">
@@ -450,6 +470,7 @@ const GameContainer = ({
             >
               {tab === 'moves' ? 'Moves'
                 : tab === 'info' ? 'Info'
+                : tab === 'learn' ? '💡 CCT'
                 : tab === 'companion' ? (
                   <>
                     🤝{companionData?.companion ? (
@@ -493,6 +514,7 @@ const GameContainer = ({
           {rightTab === 'info' && renderGameInfo()}
           {rightTab === 'chat' && chatData && renderChatPanel()}
           {rightTab === 'companion' && renderCompanionPanel()}
+          {rightTab === 'learn' && renderCctPanel()}
         </div>
       </div>
     );

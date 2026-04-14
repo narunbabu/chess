@@ -219,6 +219,8 @@ const PlayComputer = () => {
   const [ratedMode, setRatedMode] = useState('casual'); // 'casual' or 'rated'
   const [selectedCompanion, setSelectedCompanion] = useState(null); // Companion playing on behalf of player
   const [companions, setCompanions] = useState([]); // Available companions list (fetched once)
+  const [cctArrows,  setCctArrows]  = useState([]); // CCT board arrows from learning panel
+  const [boardLabels, setBoardLabels] = useState([]); // Numbered square labels from Best mode
 
   // Time control from lobby (minutes + increment seconds)
   const [timeControlMin, setTimeControlMin] = useState(() => {
@@ -2738,6 +2740,13 @@ const PlayComputer = () => {
         onMove: handleCompanionMove,
         isMyTurn: game?.turn() === playerColor,
       }}
+      cctData={{
+        game,
+        isActive: gameStarted && !gameOver,
+        isRated: ratedMode === 'rated',
+        onArrowsChange: setCctArrows,
+        onLabelsChange: setBoardLabels,
+      }}
       controlsData={{
         gameStarted,
         countdownActive,
@@ -2787,6 +2796,8 @@ const PlayComputer = () => {
         isReplayMode={isReplayMode}
         boardTheme={boardTheme}
         customPieces={pieceStyle === '3d' ? pieces3dLanding : undefined}
+        lessonArrows={cctArrows}
+        lessonLabels={boardLabels}
       />
     </GameContainer>
   );

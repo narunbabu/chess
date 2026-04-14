@@ -25,6 +25,7 @@ const ChessBoard = ({
   // Interactive lesson props
   lessonArrows = [], // Array of arrows: [{from: 'e2', to: 'e4', color: 'red'}]
   lessonHighlights = [], // Array of highlighted squares: [{square: 'e2', type: 'move'|'target'}]
+  lessonLabels = [], // Array of numbered square labels: [{square: 'e2', label: '1', color: '#FFD700'}]
   // Keep other props even if unused locally for potential future use
   // activeTimer, setMoveCompleted, setTimerButtonColor, previousGameStateRef,
   // evaluateMove, updateGameStatus, currentTurn,
@@ -241,77 +242,143 @@ const ChessBoard = ({
     });
   }
 
-  // Function to render arrows for interactive lessons
-  const renderArrows = () => {
-    if (!lessonArrows || lessonArrows.length === 0 || boardSize <= 0) return null;
+  // SVG overlay — renders arrows and numbered square labels pixel-perfectly.
+  // Arrows use <marker orient="auto"> (same technique as react-chessboard).
+  // Labels use <circle> + <text> centred on the origin square.
+  const renderBoardOverlay = () => {
+    const hasArrows = lessonArrows && lessonArrows.length > 0;
+    const hasLabels = lessonLabels && lessonLabels.length > 0;
+    if ((!hasArrows && !hasLabels) || boardSize <= 0) return null;
 
-    try {
-      return lessonArrows.map((arrow, index) => {
-        // Validate arrow data
-        if (!arrow || !arrow.from || !arrow.to) {
-          console.warn('Invalid arrow data:', arrow);
-          return null;
-        }
+    const squareSize = boardSize / 8;
 
-        const squareSize = boardSize / 8;
+    // Convert square notation → pixel centre, respecting board orientation.
+    const getSquareCenter = (square) => {
+      if (!square || square.length < 2) return null;
+      const fileIdx = square.charCodeAt(0) - 'a'.charCodeAt(0); // 0=a…7=h
+      const rankNum = parseInt(square[1], 10);                   // 1-8
+      if (isNaN(rankNum) || fileIdx < 0 || fileIdx > 7) return null;
 
-        // Convert square notation to coordinates
-        const getSquareCenter = (square) => {
-          if (!square || square.length < 2) return { x: 0, y: 0 };
+      const isFlipped    = boardOrientation === 'black';
+      const adjustedFile = isFlipped ? 7 - fileIdx : fileIdx;
+      const adjustedRank = isFlipped ? rankNum - 1 : 8 - rankNum; // 0 = top row
 
-          const file = square.charCodeAt(0) - 'a'.charCodeAt(0);
-          const rankNum = parseInt(square[1], 10);
-          const rank = 8 - (isNaN(rankNum) ? 0 : rankNum);
-          const x = file * squareSize + squareSize / 2;
-          const y = rank * squareSize + squareSize / 2;
-          return { x, y };
-        };
+      return {
+        x: adjustedFile * squareSize + squareSize / 2,
+        y: adjustedRank * squareSize + squareSize / 2,
+      };
+    };
 
-        const from = getSquareCenter(arrow.from);
-        const to = getSquareCenter(arrow.to);
+    const strokeWidth = boardSize / 40; // scales with board size
+    const REDUCER     = boardSize / 32; // shorten line so marker tip lands on target centre
 
-        // Calculate arrow properties
+    // ── Arrows ───────────────────────────────────────────────────────────────
+    const validArrows = (lessonArrows || []).filter(a => a && a.from && a.to);
+
+    const arrowDefs = validArrows.map((a, i) => {
+      const color = a.color || 'rgba(255,0,0,0.7)';
+      return (
+        <marker
+          key={`m-${i}`}
+          id={`cct-arrowhead-${i}`}
+          markerWidth="2"
+          markerHeight="2.5"
+          refX="1.25"
+          refY="1.25"
+          orient="auto"
+        >
+          <polygon points="0.3 0, 2 1.25, 0.3 2.5" fill={color} />
+        </marker>
+      );
+    });
+
+    const arrowLines = validArrows
+      .map((a, i) => {
+        const from = getSquareCenter(a.from);
+        const to   = getSquareCenter(a.to);
+        if (!from || !to) return null;
+
         const dx = to.x - from.x;
         const dy = to.y - from.y;
-        const length = Math.sqrt(dx * dx + dy * dy);
-        const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+        const r  = Math.hypot(dx, dy);
+        if (r < 1) return null;
 
-        // Adjust arrow end position to not overlap with target square
-        const adjustedLength = Math.max(0, length - squareSize * 0.15);
-
-        const arrowColor = arrow.color || 'rgba(255, 0, 0, 0.7)';
+        const end = {
+          x: from.x + (dx * (r - REDUCER)) / r,
+          y: from.y + (dy * (r - REDUCER)) / r,
+        };
 
         return (
-          <div key={`arrow-${index}`} className="arrow-overlay">
-            {/* Arrow line */}
-            <div
-              className="arrow-line"
-              style={{
-                backgroundColor: arrowColor,
-                left: `${from.x}px`,
-                top: `${from.y}px`,
-                width: `${adjustedLength}px`,
-                transform: `rotate(${angle}deg)`,
-                transformOrigin: 'left center'
-              }}
-            />
-            {/* Arrow head */}
-            <div
-              className="arrow-head"
-              style={{
-                borderColor: `transparent ${arrowColor} transparent transparent`,
-                left: `${from.x + adjustedLength - 8}px`,
-                top: `${from.y - 8}px`,
-                transform: `rotate(${angle}deg)`
-              }}
-            />
-          </div>
+          <line
+            key={`cct-arrow-${i}`}
+            x1={from.x} y1={from.y}
+            x2={end.x}  y2={end.y}
+            stroke={a.color || 'rgba(255,0,0,0.7)'}
+            strokeWidth={strokeWidth}
+            opacity="0.75"
+            markerEnd={`url(#cct-arrowhead-${i})`}
+          />
         );
-      }).filter(Boolean); // Remove null entries
-    } catch (error) {
-      console.error('Error rendering arrows:', error);
-      return null;
-    }
+      })
+      .filter(Boolean);
+
+    // ── Numbered labels ───────────────────────────────────────────────────────
+    const labelRadius   = squareSize * 0.27;  // circle radius
+    const labelFontSize = squareSize * 0.30;  // text size
+
+    const labelElements = (lessonLabels || [])
+      .map((lbl, i) => {
+        const center = getSquareCenter(lbl.square);
+        if (!center) return null;
+        const color = lbl.color || '#FFD700';
+        return (
+          <g key={`lbl-${i}`}>
+            {/* Solid background circle */}
+            <circle
+              cx={center.x}
+              cy={center.y}
+              r={labelRadius}
+              fill={color}
+              opacity="0.92"
+            />
+            {/* Rank number */}
+            <text
+              x={center.x}
+              y={center.y}
+              textAnchor="middle"
+              dominantBaseline="central"
+              fontSize={labelFontSize}
+              fontWeight="bold"
+              fontFamily="Arial, sans-serif"
+              fill="#1a1a1a"
+            >
+              {lbl.label}
+            </text>
+          </g>
+        );
+      })
+      .filter(Boolean);
+
+    if (arrowLines.length === 0 && labelElements.length === 0) return null;
+
+    return (
+      <svg
+        width={boardSize}
+        height={boardSize}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          pointerEvents: 'none',
+          zIndex: 10,
+        }}
+      >
+        <defs>{arrowDefs}</defs>
+        {arrowLines}
+        {/* Labels rendered on top of arrows */}
+        {labelElements}
+      </svg>
+    );
   };
 
   // Process lesson highlights
@@ -369,9 +436,9 @@ const ChessBoard = ({
               }}
               {...(customPieces ? { customPieces } : {})}
             />
-            {/* Render arrows on top of the board */}
+            {/* Render arrows and numbered labels on top of the board */}
             <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
-              {renderArrows()}
+              {renderBoardOverlay()}
             </div>
           </div>
         ) : (

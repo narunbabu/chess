@@ -1514,6 +1514,46 @@ class WebSocketGameService {
   }
 
   /**
+   * Claim a draw by chess rule.
+   * reason: 'threefold_repetition' | 'fifty_move_rule' | 'fivefold_repetition' |
+   *         'seventy_five_move_rule' | 'sixteen_queen_moves'
+   *
+   * Voluntary claims (threefold, 50-move): called when the player clicks "Claim Draw".
+   * Automatic claims (fivefold, 75-move, queen moves): called by both clients simultaneously;
+   * the backend is idempotent so the second call is a no-op.
+   */
+  async claimDraw(reason) {
+    if (!this.gameId || !this.user) {
+      throw new Error('Game ID or user not set');
+    }
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${BACKEND_URL}/websocket/games/${this.gameId}/draw/claim`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ reason }),
+      });
+
+      const data = await response.json();
+
+      // 409 = game already finished (idempotent second call) — treat as success
+      if (response.status === 409 || response.ok) {
+        console.log(`✅ Draw claimed (${reason}):`, data);
+        return data;
+      }
+
+      throw new Error(data.message || 'Failed to claim draw');
+    } catch (error) {
+      console.error(`❌ Failed to claim draw (${reason}):`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Request to undo the last move (casual mode only)
    */
   async requestUndo() {
