@@ -1,8 +1,46 @@
 import React, { useState, useCallback } from 'react';
+import { Chess } from 'chess.js';
 import TacticalTrainerDashboard from './TacticalTrainerDashboard';
 import TacticalPuzzleBoard from './TacticalPuzzleBoard';
 import { loadProgress, saveProgress, stages, computeRatingDelta, computePuzzleScore } from './tacticalStages';
 import { STAGE_VIDEOS } from './stageVideos';
+
+/**
+ * Lichess puzzle CSV format: FEN is the position BEFORE the opponent's setup move.
+ * moves[0] = opponent's setup move; moves[1+] = player's solution.
+ * playerColor in the extracted JSON is set to FEN's side-to-move (the opponent) — wrong.
+ *
+ * This function corrects that by applying moves[0] to the FEN so the puzzle starts
+ * with the PLAYER to move, with the correct playerColor and moves array.
+ */
+function normalizePuzzle(puzzle) {
+  if (!puzzle.moves || puzzle.moves.length < 2) return puzzle;
+
+  const setupUCI = puzzle.moves[0];
+  const playerMoves = puzzle.moves.slice(1);
+
+  try {
+    const tempChess = new Chess(puzzle.fen);
+    const from  = setupUCI.slice(0, 2);
+    const to    = setupUCI.slice(2, 4);
+    const promo = setupUCI.length === 5 ? setupUCI[4] : 'q';
+    const moved = tempChess.move({ from, to, promotion: promo });
+    if (!moved) return puzzle;
+
+    const newFen         = tempChess.fen();
+    const newPlayerColor = newFen.split(' ')[1]; // 'w' or 'b' — now the real player
+    const colorName      = newPlayerColor === 'w' ? 'White' : 'Black';
+    const wrongName      = newPlayerColor === 'w' ? 'Black' : 'White';
+
+    const explanation = (puzzle.explanation || '').startsWith(wrongName)
+      ? colorName + (puzzle.explanation || '').slice(wrongName.length)
+      : puzzle.explanation;
+
+    return { ...puzzle, fen: newFen, moves: playerMoves, playerColor: newPlayerColor, explanation };
+  } catch {
+    return puzzle;
+  }
+}
 
 // Lazy-load puzzle data per stage
 const PUZZLE_LOADERS = {
@@ -39,7 +77,7 @@ export default function TacticalTrainer() {
       const loader = PUZZLE_LOADERS[stageId];
       if (!loader) throw new Error(`No loader for stage ${stageId}`);
       const puzzles = await loader();
-      setStagePuzzles(shuffle(puzzles));
+      setStagePuzzles(shuffle(puzzles).map(normalizePuzzle));
       setCurrentStageId(stageId);
       setCurrentPuzzleIndex(0);
       setLastDelta(null);

@@ -16,10 +16,56 @@ function chessForColor(fen, color) {
   }
 }
 
+/** Find the king square of `kingColor` on a chess instance's board. */
+function findKingSquare(chess, kingColor) {
+  const board = chess.board();
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      const sq = board[r][c];
+      if (sq && sq.type === 'k' && sq.color === kingColor) {
+        return String.fromCharCode(97 + c) + (8 - r);
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Determine whether a move at mv.to genuinely delivers a new check, or whether
+ * the check was pre-existing (opponent's king already attacked before our move).
+ * Removes the moved piece from the post-move position: if the king is still attacked
+ * by `attackerColor` without that piece, the check is not from this move.
+ * Note: discovered checks through a pre-existing check are a known edge-case
+ * that may be conservatively excluded; this is acceptable for CCT training purposes.
+ */
+function isGenuineNewCheck(postChess, movedTo, attackerColor, oppColor) {
+  try {
+    const kingSq = findKingSquare(postChess, oppColor);
+    if (!kingSq) return true; // can't determine — treat as genuine
+    const testBoard = new Chess(postChess.fen());
+    testBoard.remove(movedTo);
+    return !testBoard.isAttacked(kingSq, attackerColor);
+  } catch {
+    return false; // conservative: don't count on error
+  }
+}
+
 /** Compute all checks and captures for `color` from `fen`. */
 function computeChecksAndCaptures(fen, color) {
   const chess = chessForColor(fen, color);
   if (!chess) return { checks: [], captures: [] };
+
+  const oppColor = color === 'w' ? 'b' : 'w';
+
+  // Detect pre-existing check on opponent's king.
+  // This happens when chessForColor flipped the turn, creating an illegal position
+  // where the opponent's king is already in check. In that case temp.inCheck() returns
+  // true for nearly every move — we must filter out these false-positive checks.
+  let opponentAlreadyInCheck = false;
+  try {
+    const oppPerspective = chessForColor(fen, oppColor);
+    if (oppPerspective) opponentAlreadyInCheck = oppPerspective.inCheck();
+  } catch { /* ignore */ }
 
   let moves;
   try { moves = chess.moves({ verbose: true }); }
@@ -33,7 +79,12 @@ function computeChecksAndCaptures(fen, color) {
     try { temp.move({ from: mv.from, to: mv.to, promotion: 'q' }); }
     catch { continue; }
 
-    if (temp.inCheck()) {
+    let givesCheck = temp.inCheck();
+    if (givesCheck && opponentAlreadyInCheck) {
+      givesCheck = isGenuineNewCheck(temp, mv.to, color, oppColor);
+    }
+
+    if (givesCheck) {
       checks.push({ from: mv.from, to: mv.to, piece: mv.piece, san: mv.san });
     }
     if (mv.captured) {
@@ -68,6 +119,15 @@ export function classifyThreatAttempt(fen, from, to, color) {
   const piece = chess.get(from);
   if (!piece || piece.color !== color) return failed('illegal', 'That is not your piece.');
 
+  const oppColor = color === 'w' ? 'b' : 'w';
+
+  // Detect pre-existing check on opponent's king before our move.
+  let opponentAlreadyInCheck = false;
+  try {
+    const oppPerspective = chessForColor(fen, oppColor);
+    if (oppPerspective) opponentAlreadyInCheck = oppPerspective.inCheck();
+  } catch { /* ignore */ }
+
   const postGame = new Chess(chess.fen());
   let mv;
   try {
@@ -77,11 +137,15 @@ export function classifyThreatAttempt(fen, from, to, color) {
     return failed('illegal', `${from}→${to} is not a legal move.`);
   }
 
-  if (postGame.inCheck() || mv.captured) {
+  let givesNewCheck = postGame.inCheck();
+  if (givesNewCheck && opponentAlreadyInCheck) {
+    givesNewCheck = isGenuineNewCheck(postGame, to, color, oppColor);
+  }
+
+  if (givesNewCheck || mv.captured) {
     return failed('not-quiet', 'This is a check or capture — mark it in the correct mode.');
   }
 
-  const oppColor      = color === 'w' ? 'b' : 'w';
   const attackerValue = PIECE_VALUES[mv.piece] ?? 0;
   const attackerName  = PIECE_NAMES[mv.piece]  ?? mv.piece;
 

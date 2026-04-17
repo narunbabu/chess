@@ -375,47 +375,39 @@ export default function TacticalPuzzleBoard({
     }
 
     // A move can qualify for multiple types (e.g. Qxg7+ is both check AND capture).
-    // Use the user's claimed mode if the move qualifies for it; else use highest-priority type.
+    // Auto-add entries for ALL qualifying types in one click — no mode-switching needed.
     const qualifies = vResult.qualifies || [actualType];
-    const resolvedType = qualifies.includes(cctMode) ? cctMode : actualType;
 
-    // Duplicate check: same from+to+resolvedType = already marked under this exact label
-    const isDuplicate = cctEntries.some(
-      e => e.from === selectedSq && e.to === square && e.type === resolvedType
-    );
-    if (isDuplicate) {
-      const qualifiesFor = qualifies.length > 1 ? ` (qualifies as: ${qualifies.join(' + ')})` : '';
+    const newEntries = qualifies
+      .filter(type => !cctEntries.some(e => e.from === selectedSq && e.to === square && e.type === type))
+      .map((type, i) => ({
+        from: selectedSq,
+        to: square,
+        type,
+        id: Date.now() + i,
+        ...(vResult.threatens ? { threatens: vResult.threatens } : {}),
+      }));
+
+    if (newEntries.length === 0) {
       setCctFeedback({
         type: 'info',
-        message: `${selectedSq}→${square} already marked as ${resolvedType}.${qualifiesFor}`,
+        message: `${selectedSq}→${square} already fully marked (${qualifies.join(' + ')}).`,
       });
       setSelectedSq(null);
       setLegalTargets([]);
       return;
     }
 
-    // Add entry with the resolved type
-    const newEntry = {
-      from: selectedSq,
-      to: square,
-      type: resolvedType,
-      id: Date.now(),
-      ...(vResult.threatens ? { threatens: vResult.threatens } : {}),
-    };
-    setCctEntries(prev => [...prev, newEntry]);
+    setCctEntries(prev => [...prev, ...newEntries]);
 
-    // Show educational success message for threats; info for multi-type moves
-    if (resolvedType === 'threat' && vResult.successMessage) {
+    // Feedback
+    const addedLabel = newEntries.map(e => e.type).join(' + ');
+    if (qualifies.includes('threat') && vResult.successMessage) {
       setCctFeedback({ type: 'success', message: vResult.successMessage });
-    } else if (qualifies.length > 1 && !qualifies.includes(cctMode)) {
+    } else if (newEntries.length > 1) {
       setCctFeedback({
-        type: 'info',
-        message: `${selectedSq}→${square} qualifies as ${qualifies.join(' + ')} — added as ${resolvedType}.`,
-      });
-    } else if (qualifies.length > 1) {
-      setCctFeedback({
-        type: 'info',
-        message: `${selectedSq}→${square} is also a ${qualifies.filter(t => t !== resolvedType).join(' + ')} — you can mark it under that mode too.`,
+        type: 'success',
+        message: `${selectedSq}→${square} qualifies as ${addedLabel} — both recorded in one click!`,
       });
     } else {
       setCctFeedback(null);
