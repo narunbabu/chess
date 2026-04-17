@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import TacticalTrainerDashboard from './TacticalTrainerDashboard';
 import TacticalPuzzleBoard from './TacticalPuzzleBoard';
-import { loadProgress, saveProgress, stages, computeRatingDelta } from './tacticalStages';
+import { loadProgress, saveProgress, stages, computeRatingDelta, computePuzzleScore } from './tacticalStages';
 import { STAGE_VIDEOS } from './stageVideos';
 
 // Lazy-load puzzle data per stage
@@ -29,8 +29,8 @@ export default function TacticalTrainer() {
   const [stagePuzzles,       setStagePuzzles]        = useState([]);
   const [currentPuzzleIndex, setCurrentPuzzleIndex] = useState(0);
   const [loading,            setLoading]            = useState(false);
-  const [lastDelta,          setLastDelta]          = useState(null);  // for animated rating badge
-  const [wrongCountForDelta, setWrongCountForDelta] = useState(0);
+  const [lastDelta,          setLastDelta]          = useState(null);
+  const [lastPuzzleScore,    setLastPuzzleScore]    = useState(null);
 
   // ── Select a stage, lazy-load its puzzles ─────────────────────────────────
   const handleSelectStage = useCallback(async stageId => {
@@ -53,20 +53,37 @@ export default function TacticalTrainer() {
     setCurrentStageId(null);
     setStagePuzzles([]);
     setLastDelta(null);
-    setWrongCountForDelta(0);
+    setLastPuzzleScore(null);
   }, []);
 
   // ── Puzzle completed ───────────────────────────────────────────────────────
-  const handlePuzzleComplete = useCallback((success, wrongCount = 0) => {
-    setWrongCountForDelta(wrongCount);
+  const handlePuzzleComplete = useCallback((success, wrongCount = 0, cctMeta = {}) => {
+    const {
+      myFound = 0, myTotal = 0,
+      oppFound = 0, oppTotal = 0,
+      solutionShown = false,
+    } = cctMeta;
+
+    const puzzleScore = computePuzzleScore({
+      wrongCount, cctMyFound: myFound, cctMyTotal: myTotal,
+      cctOppFound: oppFound, cctOppTotal: oppTotal, solutionShown,
+    });
+    setLastPuzzleScore(puzzleScore);
 
     setStats(prev => {
-      const puzzle    = stagePuzzles[currentPuzzleIndex];
-      const delta     = computeRatingDelta(puzzle, success, wrongCount);
+      const puzzle = stagePuzzles[currentPuzzleIndex];
+      const delta  = computeRatingDelta(puzzle, success, wrongCount, puzzleScore.cctQuality);
       setLastDelta(delta);
 
       const stageProg = { ...prev.stageProgress[currentStageId] };
       stageProg.attempted = (stageProg.attempted || 0) + 1;
+
+      // Store per-puzzle score
+      stageProg.puzzleScores = { ...(stageProg.puzzleScores || {}) };
+      const puzzleIdx = currentPuzzleIndex;
+      if (!stageProg.puzzleScores[puzzleIdx] || puzzleScore.combined > stageProg.puzzleScores[puzzleIdx].combined) {
+        stageProg.puzzleScores[puzzleIdx] = puzzleScore;
+      }
 
       const next = {
         ...prev,
@@ -84,7 +101,6 @@ export default function TacticalTrainer() {
         next.streak        = (prev.streak || 0) + 1;
         next.rating        = Math.min(2400, (prev.rating || 1000) + delta.value);
 
-        // Unlock next stage
         const stageDef = stages.find(s => s.id === currentStageId);
         if (stageDef && stageProg.solved >= stageDef.unlockAfter) {
           const nextStageId = currentStageId + 1;
@@ -109,13 +125,13 @@ export default function TacticalTrainer() {
   const handleNext = useCallback(() => {
     setCurrentPuzzleIndex(i => i + 1);
     setLastDelta(null);
-    setWrongCountForDelta(0);
+    setLastPuzzleScore(null);
   }, []);
 
   const handleJumpToPuzzle = useCallback((index) => {
     setCurrentPuzzleIndex(index);
     setLastDelta(null);
-    setWrongCountForDelta(0);
+    setLastPuzzleScore(null);
   }, []);
 
   // ── Derived ─────────────────────────────────────────────────────────────────
@@ -126,6 +142,7 @@ export default function TacticalTrainer() {
     ? STAGE_VIDEOS[currentStageId]
     : null;
   const completedPuzzleIds = stats?.stageProgress?.[currentStageId]?.completedPuzzleIds || [];
+  const puzzleScores       = stats?.stageProgress?.[currentStageId]?.puzzleScores || {};
 
   // ── Loading screen ─────────────────────────────────────────────────────────
   if (loading) {
@@ -186,8 +203,10 @@ export default function TacticalTrainer() {
       onJumpToPuzzle={handleJumpToPuzzle}
       hasNext={hasNext}
       ratingDelta={lastDelta}
+      puzzleScore={lastPuzzleScore}
       completedPuzzleIds={completedPuzzleIds}
       allStagePuzzles={stagePuzzles}
+      puzzleScores={puzzleScores}
     />
   );
 }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
-import { computeCCTFromPuzzle, getLegalTargets, validateCCTEntry } from '../../utils/computeCCT';
+import { computeCCTFromPuzzle, getLegalTargets, validateCCTEntry, classifyThreatAttempt } from '../../utils/computeCCT';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -81,8 +81,10 @@ export default function TacticalPuzzleBoard({
   onJumpToPuzzle,
   hasNext,
   ratingDelta,
+  puzzleScore,
   completedPuzzleIds = [],
   allStagePuzzles = [],
+  puzzleScores = {},
 }) {
   // ── Core puzzle state ───────────────────────────────────────────────────────
   const [game,            setGame]            = useState(() => new Chess(puzzle.fen));
@@ -99,6 +101,20 @@ export default function TacticalPuzzleBoard({
   const [wrongSquares,    setWrongSquares]    = useState({});
   const [correctSquares,  setCorrectSquares]  = useState({});
   const solTimerRef = useRef(null);
+
+  // ── CCT score tracking (persists across both CCT phases) ─────────────────────
+  const CCT_THRESHOLD = 0.5; // must find ≥50% of CCTs to unlock Solve
+  const cctResultRef  = useRef({ myFound: 0, myTotal: 0, oppFound: 0, oppTotal: 0 });
+
+  // Helper: call onComplete with CCT metadata attached
+  const completeWithCCT = useCallback((success, wrongs, solutionShown = false) => {
+    const r = cctResultRef.current;
+    onComplete(success, wrongs, {
+      myFound: r.myFound, myTotal: r.myTotal,
+      oppFound: r.oppFound, oppTotal: r.oppTotal,
+      solutionShown,
+    });
+  }, [onComplete]);
 
   // ── CCT state ───────────────────────────────────────────────────────────────
   const [computedCCTs, setComputedCCTs] = useState(null); // { my, opponent }
@@ -143,6 +159,8 @@ export default function TacticalPuzzleBoard({
     // Reset PLAYING mode
     setPlayingSelectedSq(null);
     setPlayingLegalMoves([]);
+    // Reset CCT score tracking
+    cctResultRef.current = { myFound: 0, myTotal: 0, oppFound: 0, oppTotal: 0 };
     // Compute CCTs: exact checks/captures via chess.js, threats from puzzle solution
     setComputedCCTs(computeCCTFromPuzzle(puzzle));
   }, [puzzle]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -254,7 +272,7 @@ export default function TacticalPuzzleBoard({
       if (nextIdx >= puzzle.moves.length) {
         setStep(STEPS.SUCCESS);
         setFeedback({ type: 'success', message: puzzle.explanation || 'Excellent find!' });
-        onComplete(true, wrongCount);
+        completeWithCCT(true, wrongCount);
         return;
       }
 
@@ -267,7 +285,7 @@ export default function TacticalPuzzleBoard({
         if (!applyUCI(g2, opUCI)) {
           setStep(STEPS.SUCCESS);
           setFeedback({ type: 'success', message: puzzle.explanation || 'Puzzle complete!' });
-          onComplete(true, wrongCount);
+          completeWithCCT(true, wrongCount);
           return;
         }
         setGame(g2);
@@ -278,7 +296,7 @@ export default function TacticalPuzzleBoard({
         if (nextPlayerIdx >= puzzle.moves.length) {
           setStep(STEPS.SUCCESS);
           setFeedback({ type: 'success', message: puzzle.explanation || 'Excellent find!' });
-          onComplete(true, wrongCount);
+          completeWithCCT(true, wrongCount);
         } else {
           setFeedback({ type: 'info', message: 'Keep going — find the next best move!' });
         }
@@ -319,24 +337,27 @@ export default function TacticalPuzzleBoard({
     let vResult = validateCCTEntry(game.fen(), selectedSq, square, cctColor);
 
     // validateCCTEntry handles checks and captures (exact).
-    // For threats: cross-check against the puzzle-derived ground truth.
-    if (computedCCTs) {
-      const side = step === STEPS.CCT_MY_TURN ? 'my' : 'opponent';
-      const knownThreat = computedCCTs[side].threats.find(
-        t => t.from === selectedSq && t.to === square
-      );
-      if (knownThreat && !vResult.valid) {
-        // Puzzle says this quiet move IS a real threat — accept it
+    // For quiet moves: use classifyThreatAttempt for exchange-based validation + rich feedback.
+    if (!vResult.valid && vResult.actualType === 'none') {
+      const cls = classifyThreatAttempt(game.fen(), selectedSq, square, cctColor);
+      if (cls.isForcing) {
         vResult = {
           valid: true,
           actualType: 'threat',
           qualifies: ['threat'],
-          threatens: knownThreat.threatens,
-          isFork: knownThreat.isFork,
+          threatens: cls.threatens,
+          isFork: cls.isFork,
           feedback: null,
+          successMessage: cls.message,
+        };
+      } else {
+        vResult = {
+          valid: false,
+          actualType: 'none',
+          qualifies: [],
+          feedback: cls.message,
         };
       }
-      // (If vResult.valid && actualType==='check'/'capture', leave untouched — those are exact)
     }
 
     const { valid, actualType, feedback: vFeedback } = vResult;
@@ -383,8 +404,10 @@ export default function TacticalPuzzleBoard({
     };
     setCctEntries(prev => [...prev, newEntry]);
 
-    // Inform user if the move also qualifies for other types
-    if (qualifies.length > 1 && !qualifies.includes(cctMode)) {
+    // Show educational success message for threats; info for multi-type moves
+    if (resolvedType === 'threat' && vResult.successMessage) {
+      setCctFeedback({ type: 'success', message: vResult.successMessage });
+    } else if (qualifies.length > 1 && !qualifies.includes(cctMode)) {
       setCctFeedback({
         type: 'info',
         message: `${selectedSq}→${square} qualifies as ${qualifies.join(' + ')} — added as ${resolvedType}.`,
@@ -402,13 +425,32 @@ export default function TacticalPuzzleBoard({
     setLegalTargets([]);
   }, [step, selectedSq, cctMode, cctEntries, cctRevealed, game, puzzle, playingSelectedSq, playingLegalMoves, moveIndex, wrongCount, onComplete]);
 
-  // ── CCT "I'm Done" ─────────────────────────────────────────────────────────
+  // ── CCT "I'm Done" — record found counts for scoring ─────────────────────────
   const handleCCTDone = useCallback(() => {
+    // Compute score inline (derived cctScore is null until cctRevealed is set)
+    const data = computedCCTs
+      ? (step === STEPS.CCT_MY_TURN ? computedCCTs.my : computedCCTs.opponent)
+      : { checks: [], captures: [], threats: [] };
+    const allFlat = [
+      ...data.checks.map(c => ({ ...c, type: 'check' })),
+      ...data.captures.map(c => ({ ...c, type: 'capture' })),
+      ...data.threats.map(c => ({ ...c, type: 'threat' })),
+    ];
+    const found = cctEntries.filter(e => allFlat.some(c => e.from === c.from && e.to === c.to && e.type === c.type)).length;
+    const total = allFlat.length;
+
+    if (step === STEPS.CCT_MY_TURN) {
+      cctResultRef.current.myFound = found;
+      cctResultRef.current.myTotal = total;
+    } else {
+      cctResultRef.current.oppFound = found;
+      cctResultRef.current.oppTotal = total;
+    }
     setCctRevealed(true);
     setSelectedSq(null);
     setLegalTargets([]);
     setCctFeedback(null);
-  }, []);
+  }, [step, computedCCTs, cctEntries]);
 
   // ── CCT advance to next step ────────────────────────────────────────────────
   const handleCCTNext = useCallback(() => {
@@ -470,7 +512,7 @@ export default function TacticalPuzzleBoard({
       if (nextIdx >= puzzle.moves.length) {
         setStep(STEPS.SUCCESS);
         setFeedback({ type: 'success', message: puzzle.explanation || 'Excellent find!' });
-        onComplete(true, wrongCount);
+        completeWithCCT(true, wrongCount);
         return true;
       }
 
@@ -483,7 +525,7 @@ export default function TacticalPuzzleBoard({
         if (!applyUCI(g2, opUCI)) {
           setStep(STEPS.SUCCESS);
           setFeedback({ type: 'success', message: puzzle.explanation || 'Puzzle complete!' });
-          onComplete(true, wrongCount);
+          completeWithCCT(true, wrongCount);
           return;
         }
         setGame(g2);
@@ -494,7 +536,7 @@ export default function TacticalPuzzleBoard({
         if (nextPlayerIdx >= puzzle.moves.length) {
           setStep(STEPS.SUCCESS);
           setFeedback({ type: 'success', message: puzzle.explanation || 'Excellent find!' });
-          onComplete(true, wrongCount);
+          completeWithCCT(true, wrongCount);
         } else {
           setFeedback({ type: 'info', message: 'Keep going — find the next best move!' });
         }
@@ -507,7 +549,7 @@ export default function TacticalPuzzleBoard({
 
   // ── Animated solution playback ──────────────────────────────────────────────
   const playSolution = useCallback(() => {
-    onComplete(false, wrongCount);
+    completeWithCCT(false, wrongCount, true);
     setStep(STEPS.SOLUTION);
     setFeedback({ type: 'info', message: 'Replaying solution from the start…' });
 
@@ -554,6 +596,17 @@ export default function TacticalPuzzleBoard({
   // ── Derived ─────────────────────────────────────────────────────────────────
   const isCCTStep       = step === STEPS.CCT_MY_TURN || step === STEPS.CCT_OPPONENT;
   const arePiecesDraggable = step === STEPS.PLAYING;
+
+  // Threshold gate: user must find ≥CCT_THRESHOLD of total CCTs (my + opp) to unlock Solve
+  const cctTotals = computedCCTs
+    ? {
+        myTotal:  computedCCTs.my.checks.length  + computedCCTs.my.captures.length  + computedCCTs.my.threats.length,
+        oppTotal: computedCCTs.opponent.checks.length + computedCCTs.opponent.captures.length + computedCCTs.opponent.threats.length,
+      }
+    : { myTotal: 0, oppTotal: 0 };
+  const cctGrandTotal = cctTotals.myTotal + cctTotals.oppTotal;
+  const cctGrandFound = cctResultRef.current.myFound + cctResultRef.current.oppFound;
+  const cctMeetsThreshold = cctGrandTotal === 0 || (cctGrandFound / cctGrandTotal) >= CCT_THRESHOLD;
 
   // Hint arrows for solving phase
   const hintArrows = showHint && step === STEPS.PLAYING && moveIndex < puzzle.moves.length
@@ -959,6 +1012,10 @@ export default function TacticalPuzzleBoard({
                   onNext={handleCCTNext}
                   nextLabel="Check Opponent CCTs →"
                   nextColor="#81b64c"
+                  thresholdMet={true}
+                  foundCount={cctGrandFound}
+                  totalCount={cctGrandTotal}
+                  thresholdPct={CCT_THRESHOLD}
                 />
               )}
 
@@ -979,8 +1036,13 @@ export default function TacticalPuzzleBoard({
                   cctScore={cctScore}
                   onDone={handleCCTDone}
                   onNext={handleCCTNext}
+                  onGoBack={() => setCctRevealed(false)}
                   nextLabel="Solve the Puzzle →"
                   nextColor="#5b8dd9"
+                  thresholdMet={cctMeetsThreshold}
+                  foundCount={cctGrandFound}
+                  totalCount={cctGrandTotal}
+                  thresholdPct={CCT_THRESHOLD}
                 />
               )}
 
@@ -1013,6 +1075,46 @@ export default function TacticalPuzzleBoard({
                         {feedback.type === 'success' ? '✓' : feedback.type === 'error' ? '✗' : 'ℹ'}
                       </span>
                       <p className="font-medium text-sm leading-relaxed">{feedback.message}</p>
+                    </div>
+                  )}
+
+                  {/* Two-phase score breakdown */}
+                  {step === STEPS.SUCCESS && puzzleScore && (
+                    <div className="rounded-xl p-4" style={{ backgroundColor: '#1a1916', border: '1px solid #3a3734' }}>
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-xs font-bold uppercase tracking-wider" style={{ color: '#8b8987' }}>
+                          Puzzle Score
+                        </span>
+                        <span className="text-xl font-bold" style={{
+                          color: puzzleScore.combined >= 80 ? '#81b64c' : puzzleScore.combined >= 50 ? '#c9882a' : '#c93a3a'
+                        }}>
+                          {puzzleScore.combined}<span className="text-xs font-normal" style={{ color: '#8b8987' }}>/100</span>
+                        </span>
+                      </div>
+                      {/* CCT phase */}
+                      <div className="mb-2">
+                        <div className="flex items-center justify-between text-xs mb-1">
+                          <span style={{ color: '#c9882a' }}>🔍 CCT Analysis</span>
+                          <span className="font-bold" style={{ color: '#c9882a' }}>{puzzleScore.cctScore}</span>
+                        </div>
+                        <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: '#3a3734' }}>
+                          <div className="h-full rounded-full" style={{ width: `${puzzleScore.cctScore}%`, backgroundColor: '#c9882a' }} />
+                        </div>
+                        <div className="flex justify-between text-xs mt-1" style={{ color: '#6b7280' }}>
+                          <span>You: {puzzleScore.myFound}/{puzzleScore.myTotal}</span>
+                          <span>Opp: {puzzleScore.oppFound}/{puzzleScore.oppTotal}</span>
+                        </div>
+                      </div>
+                      {/* Execution phase */}
+                      <div>
+                        <div className="flex items-center justify-between text-xs mb-1">
+                          <span style={{ color: '#5b8dd9' }}>♟ Execution</span>
+                          <span className="font-bold" style={{ color: '#5b8dd9' }}>{puzzleScore.execScore}</span>
+                        </div>
+                        <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: '#3a3734' }}>
+                          <div className="h-full rounded-full" style={{ width: `${puzzleScore.execScore}%`, backgroundColor: '#5b8dd9' }} />
+                        </div>
+                      </div>
                     </div>
                   )}
 
@@ -1127,6 +1229,7 @@ export default function TacticalPuzzleBoard({
         currentPuzzleIndex={puzzleNumber - 1}
         completedPuzzleIds={completedPuzzleIds}
         onJumpToPuzzle={onJumpToPuzzle}
+        puzzleScores={puzzleScores}
       />
     </div>
   );
@@ -1142,8 +1245,12 @@ function CCTPanel({
   cctRevealed,
   missedCCTs,
   cctScore,
-  onDone, onNext,
+  onDone, onNext, onGoBack,
   nextLabel, nextColor,
+  thresholdMet = true,
+  foundCount = 0,
+  totalCount = 0,
+  thresholdPct = 0.5,
 }) {
   return (
     <div className="space-y-4">
@@ -1185,9 +1292,9 @@ function CCTPanel({
         <div
           className="px-3 py-2 rounded-lg text-xs"
           style={{
-            backgroundColor: cctFeedback.type === 'error' ? '#c93a3a18' : '#5b8dd918',
-            color:           cctFeedback.type === 'error' ? '#f87171' : '#93c5fd',
-            border: `1px solid ${cctFeedback.type === 'error' ? '#c93a3a33' : '#5b8dd933'}`,
+            backgroundColor: cctFeedback.type === 'error' ? '#c93a3a18' : cctFeedback.type === 'success' ? '#81b64c18' : '#5b8dd918',
+            color:           cctFeedback.type === 'error' ? '#f87171'   : cctFeedback.type === 'success' ? '#81b64c'   : '#93c5fd',
+            border: `1px solid ${cctFeedback.type === 'error' ? '#c93a3a33' : cctFeedback.type === 'success' ? '#81b64c33' : '#5b8dd933'}`,
           }}
         >
           {cctFeedback.message}
@@ -1279,6 +1386,23 @@ function CCTPanel({
         >
           {cctEntries.length === 0 ? 'Skip →' : "I'm Done →"}
         </button>
+      ) : !thresholdMet && totalCount > 0 ? (
+        <div>
+          <div className="px-3 py-2 rounded-lg text-xs text-center mb-2"
+            style={{ backgroundColor: '#c93a3a15', color: '#f87171', border: '1px solid #c93a3a33' }}>
+            Find at least {Math.ceil(totalCount * thresholdPct)} of {totalCount} total CCTs to proceed.
+            You found {foundCount}.
+          </div>
+          <button
+            onClick={onGoBack || onDone}
+            className="w-full py-3 rounded-xl font-bold transition-colors"
+            style={{ backgroundColor: '#3a3734', color: '#bababa' }}
+            onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#4a4744')}
+            onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#3a3734')}
+          >
+            ← Go Back & Find More
+          </button>
+        </div>
       ) : (
         <button
           onClick={onNext}
@@ -1303,6 +1427,7 @@ function PuzzleListModal({
   currentPuzzleIndex,
   completedPuzzleIds,
   onJumpToPuzzle,
+  puzzleScores = {},
 }) {
   if (!isOpen) return null;
 
@@ -1482,6 +1607,17 @@ function PuzzleListModal({
                         {theme.replace(/([A-Z])/g, ' $1').trim().slice(0, 12)}
                       </span>
                     ))}
+                    {isCompleted && puzzleScores[actualIndex] && (
+                      <span
+                        className="text-xs px-2 py-0.5 rounded font-bold"
+                        style={{
+                          backgroundColor: puzzleScores[actualIndex].combined >= 80 ? '#81b64c22' : puzzleScores[actualIndex].combined >= 50 ? '#c9882a22' : '#c93a3a22',
+                          color: puzzleScores[actualIndex].combined >= 80 ? '#81b64c' : puzzleScores[actualIndex].combined >= 50 ? '#c9882a' : '#c93a3a',
+                        }}
+                      >
+                        {puzzleScores[actualIndex].combined}pts
+                      </span>
+                    )}
                   </div>
 
                   {/* Locked badge */}

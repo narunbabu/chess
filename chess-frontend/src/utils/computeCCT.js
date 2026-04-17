@@ -1,24 +1,22 @@
 import { Chess } from 'chess.js';
 
-// Piece values — used for threat threshold (we only flag threats against pieces worth >= 3)
 const PIECE_VALUES = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
+const PIECE_NAMES  = { p: 'Pawn', n: 'Knight', b: 'Bishop', r: 'Rook', q: 'Queen', k: 'King' };
 
 /** Return a Chess instance set up for `color` to move, even if it isn't their turn. */
 function chessForColor(fen, color) {
   try {
     const chess = new Chess(fen);
     if (chess.turn() === color) return chess;
-    // Flip the active-color byte in the FEN
     const parts = fen.split(' ');
     parts[1] = color;
-    // If flipping leaves the *other* side in check (illegal), chess.js will throw — catch below
     return new Chess(parts.join(' '));
   } catch {
     return null;
   }
 }
 
-/** Compute all checks and captures for `color` from `fen`. Exact — no false positives. */
+/** Compute all checks and captures for `color` from `fen`. */
 function computeChecksAndCaptures(fen, color) {
   const chess = chessForColor(fen, color);
   if (!chess) return { checks: [], captures: [] };
@@ -27,7 +25,7 @@ function computeChecksAndCaptures(fen, color) {
   try { moves = chess.moves({ verbose: true }); }
   catch { return { checks: [], captures: [] }; }
 
-  const checks = [];
+  const checks   = [];
   const captures = [];
 
   for (const mv of moves) {
@@ -47,104 +45,252 @@ function computeChecksAndCaptures(fen, color) {
 }
 
 /**
- * If puzzle.moves[0] is a quiet move (not check, not capture) it IS the threat to identify.
- * Returns an array of 0 or 1 threat objects.
+ * Classify a quiet move (from→to) by `color` for threat quality.
  *
- * This approach eliminates false positives: instead of scanning ALL quiet moves with a
- * heuristic filter, we trust the puzzle's own solution to tell us what the real threat is.
+ * Forcing rules (exchange evaluation):
+ *   Undefended target ≥ minor         → forcing-free-piece  ✓
+ *   Defended target, victim > attacker → forcing-profitable  ✓
+ *   Fork: 2+ newly-attacked valuables → fork               ✓
+ *   Even trade (defended, same value)  → not forcing
+ *   Bad trade (victim < attacker)      → not forcing
+ *
+ * Returns:
+ *   { kind, isForcing, message, threatens, isFork, victims, isSelfHang }
  */
-function extractThreatFromSolution(fen, solutionMoves, playerColor) {
-  if (!solutionMoves || solutionMoves.length === 0) return [];
+export function classifyThreatAttempt(fen, from, to, color) {
+  const failed = (kind, message) => ({
+    kind, isForcing: false, message, threatens: null, isFork: false, victims: [], isSelfHang: false,
+  });
 
-  const chess = chessForColor(fen, playerColor);
-  if (!chess) return [];
+  const chess = chessForColor(fen, color);
+  if (!chess) return failed('illegal', 'Invalid position.');
 
-  const firstUCI = solutionMoves[0];
-  const from     = firstUCI.slice(0, 2);
-  const to       = firstUCI.slice(2, 4);
-  const promo    = firstUCI.length === 5 ? firstUCI[4] : 'q';
+  const piece = chess.get(from);
+  if (!piece || piece.color !== color) return failed('illegal', 'That is not your piece.');
 
-  const temp = new Chess(chess.fen());
+  const postGame = new Chess(chess.fen());
   let mv;
   try {
-    mv = temp.move({ from, to, promotion: promo });
-    if (!mv) return [];
-  } catch { return []; }
-
-  // Only a quiet move is a "threat" in the CCT sense
-  if (temp.inCheck() || mv.captured) return [];
-
-  // Determine what the moved piece threatens (for the UI "threatens" annotation)
-  const oppColor = playerColor === 'w' ? 'b' : 'w';
-  const flipped  = chessForColor(temp.fen(), playerColor);
-  let threatens  = null;
-  let isFork     = false;
-
-  if (flipped) {
-    try {
-      const followUps = flipped.moves({ square: to, verbose: true })
-        .filter(m => m.captured && PIECE_VALUES[m.captured] >= 3);
-
-      // Only count newly-attacked targets (ones the piece couldn't already reach)
-      const newlyAttacked = followUps.filter(m => {
-        try { return !chess.isAttacked(m.to, playerColor); }
-        catch { return true; }
-      });
-
-      isFork = newlyAttacked.length >= 2;
-      if (newlyAttacked.length > 0) {
-        const best = newlyAttacked.reduce((a, b) =>
-          PIECE_VALUES[b.captured] > PIECE_VALUES[a.captured] ? b : a
-        );
-        threatens = best.to;
-      }
-    } catch { /* ignore */ }
+    mv = postGame.move({ from, to, promotion: 'q' });
+    if (!mv) return failed('illegal', `${from}→${to} is not a legal move.`);
+  } catch {
+    return failed('illegal', `${from}→${to} is not a legal move.`);
   }
 
-  return [{ from, to, piece: mv.piece, san: mv.san, threatens, isFork }];
+  if (postGame.inCheck() || mv.captured) {
+    return failed('not-quiet', 'This is a check or capture — mark it in the correct mode.');
+  }
+
+  const oppColor      = color === 'w' ? 'b' : 'w';
+  const attackerValue = PIECE_VALUES[mv.piece] ?? 0;
+  const attackerName  = PIECE_NAMES[mv.piece]  ?? mv.piece;
+
+  // Self-hang: destination attacked by opponent AND not defended by another of our pieces
+  let isSelfHang = false;
+  try {
+    isSelfHang = postGame.isAttacked(to, oppColor) && !postGame.isAttacked(to, color);
+  } catch { /* ignore */ }
+
+  // What can our piece at `to` capture in the post-move position?
+  const attackFlipped = chessForColor(postGame.fen(), color);
+  let attackMoves = [];
+  if (attackFlipped) {
+    try {
+      attackMoves = attackFlipped.moves({ square: to, verbose: true }).filter(m => m.captured);
+    } catch {}
+  }
+
+  if (attackMoves.length === 0) {
+    const hangNote = isSelfHang ? ` Your ${attackerName} on ${to} is also undefended.` : '';
+    return failed(
+      'no-new-attack',
+      `Your ${attackerName} on ${to} doesn't attack any opponent piece.${hangNote}`,
+    );
+  }
+
+  // Filter: only valuable targets (minor piece or better)
+  const valuableAttacks = attackMoves.filter(m => (PIECE_VALUES[m.captured] ?? 0) >= 3);
+  const pawnAttacks     = attackMoves.filter(m => (PIECE_VALUES[m.captured] ?? 0) < 3);
+
+  if (valuableAttacks.length === 0) {
+    const pawnList = pawnAttacks.map(m => `pawn on ${m.to}`).join(', ');
+    return failed(
+      'pawn-only',
+      `Attacks only ${pawnList} — the trainer scores threats against minor pieces or higher.`,
+    );
+  }
+
+  // Filter: newly attacked (not already attacked by `color` before our move)
+  const preGame = chessForColor(fen, color);
+  const newlyAttacked = valuableAttacks.filter(m => {
+    try { return preGame ? !preGame.isAttacked(m.to, color) : true; }
+    catch { return true; }
+  });
+
+  if (newlyAttacked.length === 0) {
+    const alreadyList = valuableAttacks
+      .map(m => `${PIECE_NAMES[m.captured] ?? m.captured} on ${m.to}`)
+      .join(', ');
+    return failed(
+      'no-new-attack',
+      `Your piece already attacked ${alreadyList} — this move doesn't create a new threat.`,
+    );
+  }
+
+  // Exchange evaluation for each newly-attacked valuable piece
+  const forcingTargets    = [];
+  const notForcingTargets = [];
+
+  for (const atk of newlyAttacked) {
+    const victimValue = PIECE_VALUES[atk.captured] ?? 0;
+    const victimName  = PIECE_NAMES[atk.captured]  ?? atk.captured;
+
+    let isDefended = false;
+    try { isDefended = postGame.isAttacked(atk.to, oppColor); } catch {}
+
+    if (!isDefended) {
+      forcingTargets.push({ sq: atk.to, piece: atk.captured, victimValue, victimName, reason: 'undefended' });
+    } else if (victimValue > attackerValue) {
+      const gain = victimValue - attackerValue;
+      forcingTargets.push({ sq: atk.to, piece: atk.captured, victimValue, victimName, reason: 'profitable', gain });
+    } else if (victimValue === attackerValue) {
+      notForcingTargets.push({ sq: atk.to, piece: atk.captured, victimValue, victimName, reason: 'even-trade' });
+    } else {
+      notForcingTargets.push({ sq: atk.to, piece: atk.captured, victimValue, victimName, reason: 'bad-trade' });
+    }
+  }
+
+  const hangSuffix = isSelfHang
+    ? ` ⚠️ Your piece on ${to} is undefended though — opponent may take it first.`
+    : '';
+
+  // No forcing targets — educational rejection
+  if (forcingTargets.length === 0) {
+    const best = notForcingTargets.sort((a, b) => b.victimValue - a.victimValue)[0];
+    if (best.reason === 'even-trade') {
+      return failed(
+        'even-trade',
+        `Even trade: your ${attackerName} attacks defended ${best.victimName} on ${best.sq} — opponent just recaptures, no material gained.${hangSuffix}`,
+      );
+    }
+    return failed(
+      'bad-trade',
+      `Bad trade: your ${attackerName} (worth ${attackerValue}) attacks ${best.victimName} on ${best.sq} (worth ${best.victimValue}) — you'd lose material capturing.${hangSuffix}`,
+    );
+  }
+
+  // Forcing — check for fork
+  const isFork = forcingTargets.length >= 2;
+  const best   = forcingTargets.sort((a, b) => b.victimValue - a.victimValue)[0];
+
+  if (isFork) {
+    const targetList = forcingTargets.map(t => `${t.victimName} on ${t.sq}`).join(' and ');
+    return {
+      kind: 'fork',
+      isForcing: true,
+      message: `Fork! Attacks ${targetList} — they can't save both.${hangSuffix}`,
+      threatens: best.sq,
+      isFork: true,
+      victims: forcingTargets,
+      isSelfHang,
+    };
+  }
+
+  if (best.reason === 'undefended') {
+    return {
+      kind: 'forcing-free-piece',
+      isForcing: true,
+      message: `Forcing: ${best.victimName} on ${best.sq} is undefended — if they don't move it, you win it free.${hangSuffix}`,
+      threatens: best.sq,
+      isFork: false,
+      victims: forcingTargets,
+      isSelfHang,
+    };
+  }
+
+  return {
+    kind: 'forcing-profitable',
+    isForcing: true,
+    message: `Forcing: your ${attackerName} attacks defended ${best.victimName} on ${best.sq} — profitable trade (+${best.gain ?? 0} points).${hangSuffix}`,
+    threatens: best.sq,
+    isFork: false,
+    victims: forcingTargets,
+    isSelfHang,
+  };
 }
 
 /**
- * Compute CCTs for both player and opponent sides using the puzzle's solution to
- * derive threats (instead of the heuristic algorithm).
- *
- * Checks & captures: exact (chess.js enumerates all legal moves).
- * Player threats:    derived from puzzle.moves[0] — the intended threat is the
- *                    solution move when it is a quiet move.
- * Opponent threats:  [] — checks and captures already cover the critical opponent
- *                    forcing moves; quiet opponent threats add noise in tactical positions.
+ * Enumerate all forcing threats for `color` from `fen`.
+ * Marks the solution move (if provided as UCI string) with `isSolutionMove: true`.
+ */
+function enumerateForcingThreats(fen, color, solutionUCI = null) {
+  const chess = chessForColor(fen, color);
+  if (!chess) return [];
+
+  let moves;
+  try { moves = chess.moves({ verbose: true }); }
+  catch { return []; }
+
+  const threats = [];
+
+  for (const mv of moves) {
+    if (mv.captured) continue;  // captures handled separately
+    if (mv.piece === 'k') continue; // king moves rarely create direct forcing threats
+
+    const cls = classifyThreatAttempt(fen, mv.from, mv.to, color);
+    if (!cls.isForcing) continue;
+
+    const isSolutionMove = solutionUCI
+      ? mv.from === solutionUCI.slice(0, 2) && mv.to === solutionUCI.slice(2, 4)
+      : false;
+
+    threats.push({
+      from: mv.from,
+      to: mv.to,
+      piece: mv.piece,
+      san: mv.san,
+      threatens: cls.threatens,
+      isFork: cls.isFork,
+      isSolutionMove,
+    });
+  }
+
+  return threats;
+}
+
+/**
+ * Compute CCTs for both player and opponent.
+ * Threats use full exchange-evaluation scan (forcing only) for both sides.
  *
  * Returns { my: { checks, captures, threats }, opponent: { checks, captures, threats } }
  */
 export function computeCCTFromPuzzle(puzzle) {
   const { fen, moves, playerColor } = puzzle;
-  const oppColor = playerColor === 'w' ? 'b' : 'w';
+  const oppColor    = playerColor === 'w' ? 'b' : 'w';
+  const solutionUCI = moves && moves.length > 0 ? moves[0] : null;
 
-  const myCC  = computeChecksAndCaptures(fen, playerColor);
-  const oppCC = computeChecksAndCaptures(fen, oppColor);
-  const myThreats = extractThreatFromSolution(fen, moves, playerColor);
+  const myCC   = computeChecksAndCaptures(fen, playerColor);
+  const oppCC  = computeChecksAndCaptures(fen, oppColor);
+  const myT    = enumerateForcingThreats(fen, playerColor, solutionUCI);
+  const oppT   = enumerateForcingThreats(fen, oppColor, null);
 
   return {
-    my:       { ...myCC, threats: myThreats },
-    opponent: { ...oppCC, threats: [] },
+    my:       { ...myCC, threats: myT },
+    opponent: { ...oppCC, threats: oppT },
   };
 }
 
 /**
- * Compute all checks and captures available to `color` from `fen`.
- * Threats are left empty — use computeCCTFromPuzzle() which derives threats
- * from the puzzle solution instead of a heuristic scan.
- *
- * Returns { checks, captures, threats: [] }
+ * Compute CCTs without puzzle context.
+ * Returns { checks, captures, threats }
  */
 export function computeCCT(fen, color) {
   const cc = computeChecksAndCaptures(fen, color);
-  return { ...cc, threats: [] };
+  return { ...cc, threats: enumerateForcingThreats(fen, color) };
 }
 
 /**
  * Return the legal target squares for a piece on `square` when `color` moves.
- * Works even when it is not `color`'s turn (used for opponent CCT step).
  */
 export function getLegalTargets(fen, square, color) {
   const chess = chessForColor(fen, color);
@@ -157,13 +303,9 @@ export function getLegalTargets(fen, square, color) {
 }
 
 /**
- * Validate a user-drawn CCT arrow (from → to) for checks and captures only.
- *
- * Threats are handled separately via the puzzle-derived ground truth in
- * computeCCTFromPuzzle — the caller (TacticalPuzzleBoard) cross-checks threats
- * against the pre-computed set after this function runs.
- *
- * Returns { valid, actualType: 'check'|'capture'|'none'|null, qualifies, feedback }
+ * Validate a user-drawn CCT arrow for checks and captures only.
+ * Quiet moves return { valid: false, actualType: 'none' } — caller should
+ * then call classifyThreatAttempt() for the rich threat feedback.
  */
 export function validateCCTEntry(fen, from, to, color) {
   const chess = chessForColor(fen, color);
@@ -189,17 +331,11 @@ export function validateCCTEntry(fen, from, to, color) {
     if (isCapture) qualifies.add('capture');
 
     if (qualifies.size === 0) {
-      // Might still be a threat — caller will cross-check against computedCCTs.threats
-      return {
-        valid: false,
-        actualType: 'none',
-        qualifies: [],
-        feedback: `${from}→${to} is a regular move — no check, capture, or significant threat.`,
-      };
+      // Quiet move — let classifyThreatAttempt handle it
+      return { valid: false, actualType: 'none', qualifies: [], feedback: null };
     }
 
-    const TYPE_PRIORITY = ['check', 'capture'];
-    const actualType = TYPE_PRIORITY.find(t => qualifies.has(t));
+    const actualType = ['check', 'capture'].find(t => qualifies.has(t));
     return { valid: true, actualType, qualifies: [...qualifies], feedback: null };
   } catch {
     return { valid: false, actualType: null, feedback: `${from}→${to} is not a legal move.` };

@@ -102,16 +102,47 @@ export function saveProgress(progress) {
   } catch {}
 }
 
+// Returns { cctScore, execScore, combined, cctQuality, myFound, myTotal, oppFound, oppTotal }
+export function computePuzzleScore({
+  wrongCount = 0,
+  cctMyFound  = 0, cctMyTotal  = 0,
+  cctOppFound = 0, cctOppTotal = 0,
+  solutionShown = false,
+}) {
+  const myQuality  = cctMyTotal  > 0 ? cctMyFound  / cctMyTotal  : 1.0;
+  const oppQuality = cctOppTotal > 0 ? cctOppFound / cctOppTotal : 1.0;
+  const cctQuality = (myQuality + oppQuality) / 2;
+  const cctScore   = Math.round(cctQuality * 100);
+
+  const execScore = solutionShown ? 0
+    : wrongCount === 0 ? 100
+    : wrongCount === 1 ? 75
+    : wrongCount === 2 ? 50
+    : wrongCount === 3 ? 25
+    : 10;
+
+  const combined = Math.round(cctScore * 0.4 + execScore * 0.6);
+  return {
+    cctScore, execScore, combined, cctQuality,
+    myFound: cctMyFound, myTotal: cctMyTotal,
+    oppFound: cctOppFound, oppTotal: cctOppTotal,
+  };
+}
+
 // Returns { value: number, sign: '+'/'-' } after a puzzle attempt
-export function computeRatingDelta(puzzle, success, wrongCount) {
+export function computeRatingDelta(puzzle, success, wrongCount, cctQuality = 1.0) {
   const base = puzzle.difficulty === 'very hard' ? 12
     : puzzle.difficulty === 'hard' ? 8
     : puzzle.difficulty === 'medium' ? 5
     : 3; // easy
   if (success) {
-    // Bonus for clean solve (no wrong attempts)
     const bonus = wrongCount === 0 ? Math.round(base * 0.4) : 0;
-    return { value: base + bonus, sign: '+' };
+    const raw  = base + bonus;
+    const mult = cctQuality >= 0.9 ? 1.0
+      : cctQuality >= 0.7 ? 0.85
+      : cctQuality >= 0.5 ? 0.70
+      : 0.50;
+    return { value: Math.max(1, Math.round(raw * mult)), sign: '+' };
   }
   return { value: Math.ceil(base * 0.3), sign: '-' };
 }
