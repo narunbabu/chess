@@ -99,6 +99,22 @@ const TrainingHub = () => {
       <h2 className="text-4xl font-bold text-center mb-4 text-white">Training Exercises & Puzzles</h2>
       <p className="text-lg text-center text-[#bababa] mb-4">Select an exercise below to improve your chess skills:</p>
 
+      {/* Tactical Trainer Banner */}
+      <div className="flex justify-center mb-6">
+        <Link
+          to="/tactical-trainer"
+          className="inline-flex items-center gap-3 px-6 py-4 rounded-2xl font-bold text-white transition-all hover:scale-[1.02]"
+          style={{ backgroundColor: '#312e2b', border: '2px solid #81b64c', boxShadow: '0 0 20px #81b64c22', textDecoration: 'none' }}
+        >
+          <span className="text-2xl">🎯</span>
+          <div className="text-left">
+            <div className="text-xs font-bold uppercase tracking-wider text-[#81b64c]">New · 200 Lichess Puzzles</div>
+            <div className="text-sm">Tactical Progression Trainer (1600 → 2200)</div>
+          </div>
+          <span className="ml-2 text-[#81b64c]">→</span>
+        </Link>
+      </div>
+
       {/* Progress tracking bar (TR-R2) */}
       <div style={{ maxWidth: '480px', margin: '0 auto 2rem', background: '#312e2b', borderRadius: '12px', padding: '16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.9rem' }}>

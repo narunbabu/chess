@@ -54,6 +54,7 @@ const Profile = createLazyComponent(() => import("./components/Profile"), { comp
 const Dashboard = createLazyComponent(() => import("./components/Dashboard"), { componentName: "Dashboard" });
 const TrainingHub = createLazyComponent(() => import("./components/TrainingHub"), { componentName: "TrainingHub" });
 const TrainingExercise = createLazyComponent(() => import("./components/TrainingExercise"), { componentName: "TrainingExercise" });
+const TacticalTrainer = createLazyComponent(() => import("./components/tactical/TacticalTrainer"), { componentName: "TacticalTrainer" });
 const TutorialHub = createLazyComponent(() => import("./components/tutorial/TutorialHub"), { componentName: "TutorialHub" });
 const ModuleDetail = createLazyComponent(() => import("./components/tutorial/ModuleDetail"), { componentName: "ModuleDetail" });
 const LessonPlayer = createLazyComponent(() => import("./components/tutorial/LessonPlayer"), { componentName: "LessonPlayer" });
@@ -224,6 +225,8 @@ const AppContent = () => {
                 </RouteGuard>
               }
             />
+            {/* Tactical Progression Trainer - accessible without auth */}
+            <Route path="/tactical-trainer" element={<TacticalTrainer />} />
             <Route
               path="/history"
               element={

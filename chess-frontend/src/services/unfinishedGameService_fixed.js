@@ -7,7 +7,7 @@ import api from './api';
 
 const UNFINISHED_GAMES_KEY = 'chess_unfinished_games';
 const COMPLETED_GAMES_KEY = 'chess_completed_games';
-const TTL_DAYS = 7; // Keep unfinished games for 7 days
+const TTL_HOURS = 1; // Keep unfinished games for 1 hour
 
 /**
  * Save unfinished game state
@@ -26,7 +26,7 @@ export async function saveUnfinishedGame(gameState, isAuthenticated, gameId = nu
   });
 
   const timestamp = Date.now();
-  const ttl = timestamp + (TTL_DAYS * 24 * 60 * 60 * 1000);
+  const ttl = timestamp + (TTL_HOURS * 60 * 60 * 1000);
 
   let finalGameId = gameId;
 

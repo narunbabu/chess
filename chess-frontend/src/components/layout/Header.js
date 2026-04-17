@@ -34,6 +34,9 @@ const Header = () => {
   const { navigateWithGuard, activeGame: navActiveGame, isRatedGame, handleNavigationAttempt } = useGameNavigation();
   const [showNavPanel, setShowNavPanel] = useState(false);
   const [showMatchmaking, setShowMatchmaking] = useState(false);
+  const [showLearnDropdown, setShowLearnDropdown] = useState(false);
+  const [learnDropdownPos, setLearnDropdownPos] = useState({ top: 0, left: 0 });
+  const learnWrapperRef = useRef(null);
   const [onlineStats, setOnlineStats] = useState({ onlineCount: 0, availablePlayers: 0 });
   const [recentChampionship, setRecentChampionship] = useState(null);
   const [wsConnected, setWsConnected] = useState(false);
@@ -462,19 +465,32 @@ const Header = () => {
             <IoGameController size={24} />
             <span className="nav-text">Lobby</span>
           </Link>
-          <Link
-            to="/tutorial"
-            className="nav-link nav-icon-link"
-            onClick={(e) => {
-              e.preventDefault();
-              handleNavItemClick(() => navigate('/tutorial'), '/tutorial');
+          {/* Learn dropdown trigger */}
+          <div
+            ref={learnWrapperRef}
+            className="nav-learn-wrapper"
+            onMouseEnter={() => {
+              const rect = learnWrapperRef.current?.getBoundingClientRect();
+              if (rect) setLearnDropdownPos({ top: rect.bottom + 4, left: rect.left + rect.width / 2 });
+              setShowLearnDropdown(true);
             }}
-            title="Learn"
-            aria-label="Learn"
+            onMouseLeave={() => setShowLearnDropdown(false)}
           >
-            <IoSchool size={24} />
-            <span className="nav-text">Learn</span>
-          </Link>
+            <button
+              className={`nav-link nav-icon-link${['/tutorial','/tactical-trainer','/training','/puzzles'].some(p => location.pathname.startsWith(p)) ? ' active' : ''}`}
+              onClick={() => {
+                const rect = learnWrapperRef.current?.getBoundingClientRect();
+                if (rect) setLearnDropdownPos({ top: rect.bottom + 4, left: rect.left + rect.width / 2 });
+                setShowLearnDropdown(d => !d);
+              }}
+              title="Learn"
+              aria-label="Learn"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+            >
+              <IoSchool size={24} />
+              <span className="nav-text">Learn ▾</span>
+            </button>
+          </div>
           <Link
             to="/championships"
             className="nav-link nav-icon-link"
@@ -677,7 +693,20 @@ const Header = () => {
                   className="nav-item"
                   onClick={() => handleNavItemClick(() => navigate('/tutorial'), '/tutorial')}
                 >
-                  🎓 Learn
+                  🎓 Lessons
+                </button>
+                <button
+                  className="nav-item"
+                  onClick={() => handleNavItemClick(() => navigate('/tactical-trainer'), '/tactical-trainer')}
+                  style={{ color: '#81b64c' }}
+                >
+                  🧩 Tactical Trainer
+                </button>
+                <button
+                  className="nav-item"
+                  onClick={() => handleNavItemClick(() => navigate('/training'), '/training')}
+                >
+                  🏋️ Training Drills
                 </button>
                 <button
                   className="nav-item"
@@ -770,6 +799,39 @@ const Header = () => {
           />
         </>,
         document.body || document.createElement('div')
+      )}
+
+      {/* Learn dropdown — portalled to body so it escapes header stacking context */}
+      {showLearnDropdown && createPortal(
+        <div
+          className="learn-dropdown"
+          style={{ top: learnDropdownPos.top, left: learnDropdownPos.left }}
+          onMouseEnter={() => setShowLearnDropdown(true)}
+          onMouseLeave={() => setShowLearnDropdown(false)}
+        >
+          <button
+            className="learn-dropdown-item"
+            onClick={() => { setShowLearnDropdown(false); handleNavItemClick(() => navigate('/tutorial'), '/tutorial'); }}
+          >
+            <span className="learn-dropdown-icon">📖</span>
+            <span>Lessons</span>
+          </button>
+          <button
+            className="learn-dropdown-item learn-dropdown-item--highlight"
+            onClick={() => { setShowLearnDropdown(false); handleNavItemClick(() => navigate('/tactical-trainer'), '/tactical-trainer'); }}
+          >
+            <span className="learn-dropdown-icon">🧩</span>
+            <span>Tactical Trainer</span>
+          </button>
+          <button
+            className="learn-dropdown-item"
+            onClick={() => { setShowLearnDropdown(false); handleNavItemClick(() => navigate('/training'), '/training'); }}
+          >
+            <span className="learn-dropdown-icon">🏋️</span>
+            <span>Training Drills</span>
+          </button>
+        </div>,
+        document.body
       )}
 
       {/* Matchmaking modal — opened by the Play nav button */}

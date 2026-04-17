@@ -330,7 +330,70 @@
   color: #a3d160;
 }
 
-/* Mobile responsiveness */
+/* ── Learn dropdown ─────────────────────────────────────────────────────── */
+.nav-learn-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.learn-dropdown {
+  position: fixed;
+  transform: translateX(-50%);
+  background: rgba(38, 36, 33, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 6px;
+  min-width: 190px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
+  z-index: 999999;
+  animation: dropdownIn 0.12s ease-out;
+}
+
+@keyframes dropdownIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(-5px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.learn-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  background: none;
+  border: none;
+  border-radius: 7px;
+  color: #e5e7eb;
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.learn-dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.learn-dropdown-item--highlight {
+  color: #81b64c;
+}
+
+.learn-dropdown-item--highlight:hover {
+  background: rgba(129, 182, 76, 0.12);
+  color: #a3d160;
+}
+
+.learn-dropdown-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+/* ── Mobile responsiveness */
 @media (max-width: 768px) {
   .app-header.glass-header {
     padding: 0.35rem 0.5rem;
