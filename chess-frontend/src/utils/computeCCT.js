@@ -149,11 +149,19 @@ export function classifyThreatAttempt(fen, from, to, color) {
   const attackerValue = PIECE_VALUES[mv.piece] ?? 0;
   const attackerName  = PIECE_NAMES[mv.piece]  ?? mv.piece;
 
-  // Self-hang: destination attacked by opponent AND not defended by another of our pieces
+  // Self-hang: destination attacked by opponent AND not defended by another of our pieces.
+  // If the piece hangs immediately, the opponent just captures it — the threat never materializes.
   let isSelfHang = false;
   try {
     isSelfHang = postGame.isAttacked(to, oppColor) && !postGame.isAttacked(to, color);
   } catch { /* ignore */ }
+
+  if (isSelfHang) {
+    return failed(
+      'self-hang',
+      `Your ${attackerName} on ${to} is immediately capturable — opponent can simply take it, so the threat doesn't materialize.`,
+    );
+  }
 
   // What can our piece at `to` capture in the post-move position?
   const attackFlipped = chessForColor(postGame.fen(), color);
@@ -224,22 +232,18 @@ export function classifyThreatAttempt(fen, from, to, color) {
     }
   }
 
-  const hangSuffix = isSelfHang
-    ? ` ⚠️ Your piece on ${to} is undefended though — opponent may take it first.`
-    : '';
-
   // No forcing targets — educational rejection
   if (forcingTargets.length === 0) {
     const best = notForcingTargets.sort((a, b) => b.victimValue - a.victimValue)[0];
     if (best.reason === 'even-trade') {
       return failed(
         'even-trade',
-        `Even trade: your ${attackerName} attacks defended ${best.victimName} on ${best.sq} — opponent just recaptures, no material gained.${hangSuffix}`,
+        `Even trade: your ${attackerName} attacks defended ${best.victimName} on ${best.sq} — opponent just recaptures, no material gained.`,
       );
     }
     return failed(
       'bad-trade',
-      `Bad trade: your ${attackerName} (worth ${attackerValue}) attacks ${best.victimName} on ${best.sq} (worth ${best.victimValue}) — you'd lose material capturing.${hangSuffix}`,
+      `Bad trade: your ${attackerName} (worth ${attackerValue}) attacks ${best.victimName} on ${best.sq} (worth ${best.victimValue}) — you'd lose material capturing.`,
     );
   }
 
@@ -252,11 +256,11 @@ export function classifyThreatAttempt(fen, from, to, color) {
     return {
       kind: 'fork',
       isForcing: true,
-      message: `Fork! Attacks ${targetList} — they can't save both.${hangSuffix}`,
+      message: `Fork! Attacks ${targetList} — they can't save both.`,
       threatens: best.sq,
       isFork: true,
       victims: forcingTargets,
-      isSelfHang,
+      isSelfHang: false,
     };
   }
 
@@ -264,18 +268,18 @@ export function classifyThreatAttempt(fen, from, to, color) {
     return {
       kind: 'forcing-free-piece',
       isForcing: true,
-      message: `Forcing: ${best.victimName} on ${best.sq} is undefended — if they don't move it, you win it free.${hangSuffix}`,
+      message: `Forcing: ${best.victimName} on ${best.sq} is undefended — if they don't move it, you win it free.`,
       threatens: best.sq,
       isFork: false,
       victims: forcingTargets,
-      isSelfHang,
+      isSelfHang: false,
     };
   }
 
   return {
     kind: 'forcing-profitable',
     isForcing: true,
-    message: `Forcing: your ${attackerName} attacks defended ${best.victimName} on ${best.sq} — profitable trade (+${best.gain ?? 0} points).${hangSuffix}`,
+    message: `Forcing: your ${attackerName} attacks defended ${best.victimName} on ${best.sq} — profitable trade (+${best.gain ?? 0} points).`,
     threatens: best.sq,
     isFork: false,
     victims: forcingTargets,

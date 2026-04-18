@@ -51,16 +51,6 @@ const PUZZLE_LOADERS = {
   4: () => import('../../data/stage4_puzzles.json').then(m => m.default),
 };
 
-// Deterministic shuffle so each session feels different
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
 export default function TacticalTrainer() {
   const [stats,              setStats]              = useState(loadProgress);
   const [currentStageId,     setCurrentStageId]     = useState(null);
@@ -77,15 +67,20 @@ export default function TacticalTrainer() {
       const loader = PUZZLE_LOADERS[stageId];
       if (!loader) throw new Error(`No loader for stage ${stageId}`);
       const puzzles = await loader();
-      setStagePuzzles(shuffle(puzzles).map(normalizePuzzle));
+      // Sort by rating ascending so puzzle order is stable across sessions
+      const sorted = [...puzzles].sort((a, b) => a.rating - b.rating).map(normalizePuzzle);
+      setStagePuzzles(sorted);
       setCurrentStageId(stageId);
-      setCurrentPuzzleIndex(0);
+      // Resume from first unsolved puzzle
+      const completedIds = stats?.stageProgress?.[stageId]?.completedPuzzleIds || [];
+      const firstUnsolved = sorted.findIndex(p => !completedIds.includes(p.id));
+      setCurrentPuzzleIndex(firstUnsolved === -1 ? 0 : firstUnsolved);
       setLastDelta(null);
     } catch (err) {
       console.error('Failed to load puzzles:', err);
     }
     setLoading(false);
-  }, []);
+  }, [stats]);
 
   const handleBack = useCallback(() => {
     setCurrentStageId(null);
@@ -107,6 +102,12 @@ export default function TacticalTrainer() {
       cctOppFound: oppFound, cctOppTotal: oppTotal, solutionShown,
     });
     setLastPuzzleScore(puzzleScore);
+
+    // CCT not attempted → puzzle stays pending, no rating change
+    if (!puzzleScore.cctAttempted) {
+      setLastDelta({ value: 0, sign: '+' });
+      return;
+    }
 
     setStats(prev => {
       const puzzle = stagePuzzles[currentPuzzleIndex];
@@ -211,7 +212,7 @@ export default function TacticalTrainer() {
             <strong style={{ color: '#ffffff' }}>{stageDef?.title}</strong>.
           </p>
           <p className="text-sm mb-8" style={{ color: '#8b8987' }}>
-            Come back tomorrow for a fresh shuffle, or try the next stage.
+            All puzzles completed! Try the next stage to keep improving.
           </p>
           <button
             onClick={handleBack}

@@ -60,12 +60,10 @@ const STEPS = {
   CCT_MY_TURN:  'cct_my',      // find YOUR checks/captures/threats
   CCT_OPPONENT: 'cct_opp',     // find OPPONENT's checks/captures/threats
   PLAYING:      'playing',
-  SOLUTION:     'solution',
   SUCCESS:      'success',
 };
 
-const MAX_WRONG        = 2;
-const SOLUTION_DELAY_MS = 1200;
+const MAX_WRONG = 2;
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -92,15 +90,19 @@ export default function TacticalPuzzleBoard({
   const [moveIndex,       setMoveIndex]       = useState(0);
   const [feedback,        setFeedback]        = useState(null);
   const [wrongCount,      setWrongCount]      = useState(0);
+  const [wrongAttempts,   setWrongAttempts]   = useState([]); // [{from,to,at}]
   const [showHint,        setShowHint]        = useState(false);
   const [showSolutionBtn, setShowSolutionBtn] = useState(false);
-  const [solutionStep,    setSolutionStep]    = useState(0);
   const [fastMode,        setFastMode]        = useState(false);
   const [showVideo,       setShowVideo]       = useState(false);
   const [showPuzzleList,  setShowPuzzleList]  = useState(false);
   const [wrongSquares,    setWrongSquares]    = useState({});
   const [correctSquares,  setCorrectSquares]  = useState({});
-  const solTimerRef = useRef(null);
+  // ── Solution view (step-by-step navigator, available in PLAYING and SUCCESS) ──
+  const [solutionViewMode, setSolutionViewMode] = useState(false);
+  const [solutionViewPos,  setSolutionViewPos]  = useState(0);
+  const solutionRevealedRef = useRef(false); // tracks if we already penalised for reveal
+  const executionPassedRef  = useRef(false); // tracks if puzzle moves were already solved correctly
 
   // ── CCT score tracking (persists across both CCT phases) ─────────────────────
   const CCT_THRESHOLD = 0.5; // must find ≥50% of CCTs to unlock Solve
@@ -128,6 +130,7 @@ export default function TacticalPuzzleBoard({
   // ── PLAYING mode state (for click-click moves) ───────────────────────────────
   const [playingSelectedSq, setPlayingSelectedSq] = useState(null);
   const [playingLegalMoves,  setPlayingLegalMoves]  = useState([]);
+  const [showWrongPrompt,   setShowWrongPrompt]   = useState(false); // after wrong move: ask user
 
   // ── First-visit intro modal ─────────────────────────────────────────────────
   useEffect(() => {
@@ -138,17 +141,20 @@ export default function TacticalPuzzleBoard({
 
   // ── Reset on puzzle change ──────────────────────────────────────────────────
   useEffect(() => {
-    clearTimeout(solTimerRef.current);
     setGame(new Chess(puzzle.fen));
     setStep(fastMode ? STEPS.PLAYING : STEPS.CCT_MY_TURN);
     setMoveIndex(0);
     setFeedback(null);
     setWrongCount(0);
+    setWrongAttempts([]);
     setShowHint(false);
     setShowSolutionBtn(false);
-    setSolutionStep(0);
     setWrongSquares({});
     setCorrectSquares({});
+    setSolutionViewMode(false);
+    setSolutionViewPos(0);
+    solutionRevealedRef.current = false;
+    executionPassedRef.current = false;
     // Reset CCT
     setCctEntries([]);
     setCctRevealed(false);
@@ -159,6 +165,7 @@ export default function TacticalPuzzleBoard({
     // Reset PLAYING mode
     setPlayingSelectedSq(null);
     setPlayingLegalMoves([]);
+    setShowWrongPrompt(false);
     // Reset CCT score tracking
     cctResultRef.current = { myFound: 0, myTotal: 0, oppFound: 0, oppTotal: 0 };
     // Compute CCTs: exact checks/captures via chess.js, threats from puzzle solution
@@ -175,16 +182,19 @@ export default function TacticalPuzzleBoard({
   const toggleFastMode = useCallback(() => {
     setFastMode(prev => {
       const next = !prev;
-      clearTimeout(solTimerRef.current);
       setGame(new Chess(puzzle.fen));
       setStep(next ? STEPS.PLAYING : STEPS.CCT_MY_TURN);
       setMoveIndex(0);
       setFeedback(null);
       setWrongCount(0);
+      setWrongAttempts([]);
       setShowHint(false);
       setShowSolutionBtn(false);
       setWrongSquares({});
       setCorrectSquares({});
+      setSolutionViewMode(false);
+      setSolutionViewPos(0);
+      solutionRevealedRef.current = false;
       setCctEntries([]);
       setCctRevealed(false);
       setSelectedSq(null);
@@ -192,12 +202,15 @@ export default function TacticalPuzzleBoard({
       setCctFeedback(null);
       setPlayingSelectedSq(null);
       setPlayingLegalMoves([]);
+      setShowWrongPrompt(false);
       return next;
     });
   }, [puzzle]);
 
   // ── Square click — for CCT identification AND PLAYING click-click moves ──
   const handleSquareClick = useCallback((square) => {
+    if (solutionViewMode) return; // board is read-only while viewing solution
+
     // ── PLAYING MODE (click-click move support) ───────────────────────────
     if (step === STEPS.PLAYING) {
       // First click: select a piece
@@ -225,14 +238,38 @@ export default function TacticalPuzzleBoard({
         return;
       }
 
-      // Second click: attempt the move
+      // Re-select if clicking another own piece (not a wrong move)
+      const clickedPiece = game.get(square);
+      if (clickedPiece && clickedPiece.color === puzzle.playerColor) {
+        const moves = game.moves({ square, verbose: true });
+        setPlayingSelectedSq(square);
+        setPlayingLegalMoves(moves.map(m => m.to));
+        setFeedback(null);
+        return;
+      }
+
+      // Second click: check legality first, then correctness
       const piece = game.get(playingSelectedSq);
       if (!piece) return;
+
+      // ── Illegal move: target not reachable — no penalty ──
+      if (!playingLegalMoves.includes(square)) {
+        setWrongSquares({
+          [playingSelectedSq]: { backgroundColor: 'rgba(220,60,60,0.35)' },
+          [square]: { backgroundColor: 'rgba(220,60,60,0.35)' },
+        });
+        setTimeout(() => setWrongSquares({}), 700);
+        setFeedback({ type: 'error', message: 'Illegal move — that square is not reachable from here.' });
+        setTimeout(() => setFeedback(null), 2000);
+        // Keep selection so user can try another target
+        return;
+      }
 
       const expectedUCI = puzzle.moves[moveIndex];
       const promoPiece = 'q'; // default queen promotion for click-click
       const isCorrect = movesMatch(playingSelectedSq, square, promoPiece, expectedUCI);
 
+      // ── Wrong (but legal) move — penalize and prompt ──
       if (!isCorrect) {
         setWrongSquares({
           [playingSelectedSq]: { backgroundColor: 'rgba(220,60,60,0.55)' },
@@ -241,20 +278,19 @@ export default function TacticalPuzzleBoard({
         setTimeout(() => setWrongSquares({}), 700);
         const newWrong = wrongCount + 1;
         setWrongCount(newWrong);
-        setShowHint(true);
-        if (newWrong >= MAX_WRONG) {
-          setShowSolutionBtn(true);
-          setFeedback({ type: 'error', message: 'Not quite — the hint arrow shows the right piece. Or reveal the solution.' });
-        } else {
-          setFeedback({ type: 'error', message: 'Incorrect. The hint arrow just appeared — check it and try again.' });
-        }
+        setWrongAttempts(prev => [...prev, { from: playingSelectedSq, to: square, at: moveIndex }]);
+        setShowHint(newWrong >= 1);
+        setShowWrongPrompt(true);
+        setFeedback({ type: 'error', message: 'Wrong move — that\'s not the best one.' });
         setPlayingSelectedSq(null);
         setPlayingLegalMoves([]);
         return;
       }
 
       // ── Correct move ──────────────────────────────────────────────────────
+      executionPassedRef.current = true;
       setShowHint(false);
+      setShowWrongPrompt(false);
       setPlayingSelectedSq(null);
       setPlayingLegalMoves([]);
       const gameCopy = new Chess(game.fen());
@@ -455,20 +491,36 @@ export default function TacticalPuzzleBoard({
 
     if (step === STEPS.CCT_MY_TURN) {
       setStep(STEPS.CCT_OPPONENT);
+    } else if (executionPassedRef.current) {
+      // Puzzle was already solved — skip execution, go straight to final evaluation
+      setStep(STEPS.SUCCESS);
+      setFeedback({ type: 'success', message: puzzle.explanation || 'Excellent find!' });
+      completeWithCCT(true, 0);
     } else {
       setStep(STEPS.PLAYING);
     }
-  }, [step]);
+  }, [step, puzzle, completeWithCCT]);
 
   // ── Piece drop handler ──────────────────────────────────────────────────────
   const handlePieceDrop = useCallback(
     (sourceSquare, targetSquare, piece) => {
       if (step !== STEPS.PLAYING) return false;
 
-      const expectedUCI = puzzle.moves[moveIndex];
       const promoPiece  = piece ? piece[1]?.toLowerCase() : 'q';
+
+      // ── Illegal drop: chess.js rejects it — no penalty, piece snaps back ──
+      const testGame = new Chess(game.fen());
+      const testMove = testGame.move({ from: sourceSquare, to: targetSquare, promotion: promoPiece || 'q' });
+      if (!testMove) {
+        setFeedback({ type: 'error', message: 'Illegal move.' });
+        setTimeout(() => setFeedback(null), 2000);
+        return false;
+      }
+
+      const expectedUCI = puzzle.moves[moveIndex];
       const isCorrect   = movesMatch(sourceSquare, targetSquare, promoPiece, expectedUCI);
 
+      // ── Wrong (but legal) drop — penalize and prompt ──
       if (!isCorrect) {
         setWrongSquares({
           [sourceSquare]: { backgroundColor: 'rgba(220,60,60,0.55)' },
@@ -477,18 +529,17 @@ export default function TacticalPuzzleBoard({
         setTimeout(() => setWrongSquares({}), 700);
         const newWrong = wrongCount + 1;
         setWrongCount(newWrong);
-        setShowHint(true);
-        if (newWrong >= MAX_WRONG) {
-          setShowSolutionBtn(true);
-          setFeedback({ type: 'error', message: 'Not quite — the hint arrow shows the right piece. Or reveal the solution.' });
-        } else {
-          setFeedback({ type: 'error', message: 'Incorrect. The hint arrow just appeared — check it and try again.' });
-        }
+        setWrongAttempts(prev => [...prev, { from: sourceSquare, to: targetSquare, at: moveIndex }]);
+        setShowHint(newWrong >= 1);
+        setShowWrongPrompt(true);
+        setFeedback({ type: 'error', message: 'Wrong move — that\'s not the best one.' });
         return false;
       }
 
       // ── Correct move ──────────────────────────────────────────────────────
+      executionPassedRef.current = true;
       setShowHint(false);
+      setShowWrongPrompt(false);
       const gameCopy = new Chess(game.fen());
       applyUCI(gameCopy, expectedUCI);
       setGame(gameCopy);
@@ -539,55 +590,121 @@ export default function TacticalPuzzleBoard({
     [step, game, moveIndex, puzzle, wrongCount, onComplete]
   );
 
-  // ── Animated solution playback ──────────────────────────────────────────────
-  const playSolution = useCallback(() => {
-    completeWithCCT(false, wrongCount, true);
-    setStep(STEPS.SOLUTION);
-    setFeedback({ type: 'info', message: 'Replaying solution from the start…' });
+  // ── Solution view: enter, exit, navigate ────────────────────────────────────
 
-    const startGame = new Chess(puzzle.fen);
-    setGame(startGame);
-    setSolutionStep(0);
+  // Compute FEN for any position in the solution sequence
+  const solutionBoardFen = React.useMemo(() => {
+    if (!solutionViewMode) return null;
+    const g = new Chess(puzzle.fen);
+    for (let i = 0; i < solutionViewPos; i++) {
+      applyUCI(g, puzzle.moves[i]);
+    }
+    return g.fen();
+  }, [solutionViewMode, solutionViewPos, puzzle]);
 
-    const playNext = (currentGame, idx) => {
-      if (idx >= puzzle.moves.length) {
-        setFeedback({ type: 'success', message: `Solution complete! ${puzzle.explanation}` });
-        return;
+  // Precompute SAN labels for each solution move (for the move list)
+  const solutionSAN = React.useMemo(() => {
+    const labels = [];
+    const g = new Chess(puzzle.fen);
+    for (const uci of puzzle.moves) {
+      const { from, to, promotion } = parseUCI(uci);
+      try {
+        const result = g.move({ from, to, promotion: promotion || 'q' });
+        labels.push(result ? result.san : `${from}→${to}`);
+      } catch {
+        labels.push(`${from}→${to}`);
       }
-      const g = new Chess(currentGame.fen());
-      const { from, to } = parseUCI(puzzle.moves[idx]);
-      applyUCI(g, puzzle.moves[idx]);
-      setGame(g);
-      setSolutionStep(idx + 1);
-      setCorrectSquares({
-        [from]: { backgroundColor: idx % 2 === 0 ? 'rgba(129,182,76,0.5)' : 'rgba(91,141,217,0.5)' },
-        [to]:   { backgroundColor: idx % 2 === 0 ? 'rgba(129,182,76,0.5)' : 'rgba(91,141,217,0.5)' },
-      });
-      const isPlayer = idx % 2 === 0;
-      setFeedback({ type: 'info', message: isPlayer ? `▶ Your move: ${from}→${to}` : `◀ Opponent: ${from}→${to}` });
-      solTimerRef.current = setTimeout(() => playNext(g, idx + 1), SOLUTION_DELAY_MS);
-    };
+    }
+    return labels;
+  }, [puzzle]);
 
-    solTimerRef.current = setTimeout(() => playNext(startGame, 0), 300);
-  }, [puzzle, wrongCount, onComplete]);
+  const enterSolutionView = useCallback(() => {
+    // From CCT: skip analysis and go straight to PLAYING (interactive board)
+    if (step === STEPS.CCT_MY_TURN || step === STEPS.CCT_OPPONENT) {
+      setStep(STEPS.PLAYING);
+      setMoveIndex(0);
+      return;
+    }
+    // From PLAYING: penalise once and enter read-only solution navigator
+    if (!solutionRevealedRef.current) {
+      solutionRevealedRef.current = true;
+      completeWithCCT(false, wrongCount, true);
+    }
+    setSolutionViewMode(true);
+    setSolutionViewPos(0);
+  }, [step, wrongCount, completeWithCCT]);
+
+  const exitSolutionView = useCallback(() => {
+    setSolutionViewMode(false);
+  }, []);
+
+  const stepSolutionTo = useCallback((pos) => {
+    setSolutionViewPos(Math.max(0, Math.min(puzzle.moves.length, pos)));
+  }, [puzzle.moves.length]);
+
+  // Keyboard ←/→/Home/End navigation while solution view is open
+  useEffect(() => {
+    if (!solutionViewMode) return;
+    const handler = (e) => {
+      if (e.key === 'ArrowLeft')  setSolutionViewPos(p => Math.max(0, p - 1));
+      else if (e.key === 'ArrowRight') setSolutionViewPos(p => Math.min(puzzle.moves.length, p + 1));
+      else if (e.key === 'Home') setSolutionViewPos(0);
+      else if (e.key === 'End')  setSolutionViewPos(puzzle.moves.length);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [solutionViewMode, puzzle.moves.length]);
 
   // ── Retry ───────────────────────────────────────────────────────────────────
   const handleRetry = useCallback(() => {
-    clearTimeout(solTimerRef.current);
     setGame(new Chess(puzzle.fen));
     setStep(STEPS.PLAYING);
     setMoveIndex(0);
     setFeedback(null);
+    setWrongCount(0);
+    setWrongAttempts([]);
     setWrongSquares({});
     setCorrectSquares({});
     setShowHint(false);
+    setSolutionViewMode(false);
+    setSolutionViewPos(0);
     setPlayingSelectedSq(null);
     setPlayingLegalMoves([]);
+    setShowWrongPrompt(false);
+    // Keep solutionRevealedRef.current — penalty was already recorded
   }, [puzzle]);
+
+  // ── Retry with CCT — reset back to CCT analysis phase ──
+  const handleRetryWithCCT = useCallback(() => {
+    setGame(new Chess(puzzle.fen));
+    setStep(fastMode ? STEPS.PLAYING : STEPS.CCT_MY_TURN);
+    setMoveIndex(0);
+    setFeedback(null);
+    setWrongCount(0);
+    setWrongAttempts([]);
+    setWrongSquares({});
+    setCorrectSquares({});
+    setShowHint(false);
+    setSolutionViewMode(false);
+    setSolutionViewPos(0);
+    setPlayingSelectedSq(null);
+    setPlayingLegalMoves([]);
+    setShowWrongPrompt(false);
+    // Reset CCT state
+    setCctEntries([]);
+    setCctRevealed(false);
+    setSelectedSq(null);
+    setLegalTargets([]);
+    setCctFeedback(null);
+    setCctMode('check');
+    cctResultRef.current = { myFound: 0, myTotal: 0, oppFound: 0, oppTotal: 0 };
+    // Keep executionPassedRef — puzzle was already solved
+    solutionRevealedRef.current = false;
+  }, [puzzle, fastMode]);
 
   // ── Derived ─────────────────────────────────────────────────────────────────
   const isCCTStep       = step === STEPS.CCT_MY_TURN || step === STEPS.CCT_OPPONENT;
-  const arePiecesDraggable = step === STEPS.PLAYING;
+  const arePiecesDraggable = step === STEPS.PLAYING && !solutionViewMode;
 
   // Threshold gate: user must find ≥CCT_THRESHOLD of total CCTs (my + opp) to unlock Solve
   const cctTotals = computedCCTs
@@ -642,7 +759,7 @@ export default function TacticalPuzzleBoard({
 
   // CCT arrows (user-found = bright, missed = dim)
   // Deduplicate: if same from-to has multiple types, keep highest priority (check > capture > threat)
-  const cctArrows = isCCTStep ? (() => {
+  const cctArrows = (isCCTStep && !solutionViewMode) ? (() => {
     const arrowMap = new Map();
 
     // Helper to add arrow with priority deduplication
@@ -664,7 +781,7 @@ export default function TacticalPuzzleBoard({
 
   // CCT square styles (selected piece + legal target dots)
   const cctSquareStyles = {};
-  if (isCCTStep && !cctRevealed) {
+  if (isCCTStep && !cctRevealed && !solutionViewMode) {
     if (selectedSq) {
       cctSquareStyles[selectedSq] = { backgroundColor: 'rgba(255,221,0,0.45)', borderRadius: '4px' };
     }
@@ -879,9 +996,9 @@ export default function TacticalPuzzleBoard({
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  {step === STEPS.SOLUTION && (
+                  {solutionViewMode && (
                     <span className="text-xs font-bold px-2 py-1 rounded-md" style={{ backgroundColor: '#5b8dd922', color: '#5b8dd9' }}>
-                      Replaying {solutionStep}/{puzzle.moves.length}
+                      Solution {solutionViewPos}/{puzzle.moves.length}
                     </span>
                   )}
                   <span
@@ -897,7 +1014,7 @@ export default function TacticalPuzzleBoard({
               </div>
 
               <Chessboard
-                position={game.fen()}
+                position={solutionViewMode ? solutionBoardFen : game.fen()}
                 onPieceDrop={handlePieceDrop}
                 onSquareClick={handleSquareClick}
                 boardOrientation={puzzle.playerColor === 'w' ? 'white' : 'black'}
@@ -923,45 +1040,90 @@ export default function TacticalPuzzleBoard({
                 ))}
               </div>
 
-              {/* Move History — shows moves made so far in the puzzle */}
-              {(step === STEPS.PLAYING || step === STEPS.SUCCESS || step === STEPS.SOLUTION) && (
+              {/* Move list: solution view shows solution moves; playing/success shows attempted moves */}
+              {(step === STEPS.PLAYING || step === STEPS.SUCCESS) && (
                 <div className="mt-4 px-1">
                   <div className="rounded-xl p-3" style={{ backgroundColor: '#262421', border: '1px solid #4a4744' }}>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-bold uppercase tracking-wider" style={{ color: '#8b8987' }}>
-                        Move History
-                      </span>
-                      <span className="text-xs font-mono" style={{ color: '#5b8dd9' }}>
-                        {moveIndex}/{puzzle.moves.length}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto">
-                      {puzzle.moves.slice(0, moveIndex).length === 0 ? (
-                        <span className="text-xs italic" style={{ color: '#5b5754' }}>No moves yet — make the first move!</span>
-                      ) : (
-                        puzzle.moves.slice(0, moveIndex).map((move, i) => {
-                          const { from, to, promotion } = parseUCI(move);
-                          const isPlayerMove = i % 2 === 0;
-                          const piece = isPlayerMove
-                            ? { type: 'p', color: puzzle.playerColor }
-                            : { type: 'p', color: puzzle.playerColor === 'w' ? 'b' : 'w' };
-                          // Get the actual piece that moved (from game history would be ideal, but this is a simplified version)
-                          return (
-                            <span
-                              key={i}
-                              className="text-xs font-mono px-2 py-1 rounded-md"
-                              style={{
-                                backgroundColor: isPlayerMove ? '#81b64c22' : '#5b8dd922',
-                                color: isPlayerMove ? '#81b64c' : '#5b8dd9',
-                                border: `1px solid ${isPlayerMove ? '#81b64c44' : '#5b8dd944'}`,
-                              }}
-                            >
-                              {Math.floor(i / 2) + 1}. {from}→{to}{promotion ? promotion.toUpperCase() : ''}
-                            </span>
-                          );
-                        })
-                      )}
-                    </div>
+                    {solutionViewMode ? (
+                      <>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-bold uppercase tracking-wider" style={{ color: '#5b8dd9' }}>
+                            Solution Moves
+                          </span>
+                          <span className="text-xs font-mono" style={{ color: '#5b8dd9' }}>
+                            {solutionViewPos}/{puzzle.moves.length}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto">
+                          {solutionSAN.map((san, i) => {
+                            const isPlayerMove = i % 2 === 0;
+                            const isPast = i < solutionViewPos;
+                            const isCurrent = i === solutionViewPos - 1;
+                            return (
+                              <button
+                                key={i}
+                                onClick={() => stepSolutionTo(i + 1)}
+                                className="text-xs font-mono px-2 py-1 rounded-md transition-all"
+                                style={{
+                                  backgroundColor: isCurrent
+                                    ? (isPlayerMove ? '#81b64c55' : '#5b8dd955')
+                                    : isPast ? (isPlayerMove ? '#81b64c22' : '#5b8dd922') : '#3a3734',
+                                  color: isPast || isCurrent
+                                    ? (isPlayerMove ? '#81b64c' : '#5b8dd9')
+                                    : '#5b5754',
+                                  border: `1px solid ${isCurrent ? (isPlayerMove ? '#81b64c' : '#5b8dd9') : 'transparent'}`,
+                                  fontWeight: isCurrent ? 'bold' : 'normal',
+                                }}
+                              >
+                                {Math.floor(i / 2) + 1}{isPlayerMove ? '.' : '…'} {san}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-bold uppercase tracking-wider" style={{ color: '#8b8987' }}>
+                            Move History
+                          </span>
+                          <span className="text-xs font-mono" style={{ color: '#5b8dd9' }}>
+                            {moveIndex}/{puzzle.moves.length}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto">
+                          {moveIndex === 0 ? (
+                            <span className="text-xs italic" style={{ color: '#5b5754' }}>No moves yet — make the first move!</span>
+                          ) : (
+                            puzzle.moves.slice(0, moveIndex).map((move, i) => {
+                              const { from, to, promotion } = parseUCI(move);
+                              const isPlayerMove = i % 2 === 0;
+                              return (
+                                <span
+                                  key={i}
+                                  className="text-xs font-mono px-2 py-1 rounded-md"
+                                  style={{
+                                    backgroundColor: isPlayerMove ? (wrongAttempts.some(a => a.at === i) ? '#c93a3a18' : '#81b64c22') : '#5b8dd922',
+                                    color: isPlayerMove ? (wrongAttempts.some(a => a.at === i) ? '#f87171' : '#81b64c') : '#5b8dd9',
+                                    border: `1px solid ${isPlayerMove ? (wrongAttempts.some(a => a.at === i) ? '#c93a3a44' : '#81b64c44') : '#5b8dd944'}`,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '3px',
+                                  }}
+                                >
+                                  {Math.floor(i / 2) + 1}{isPlayerMove ? '.' : '…'} {from}→{to}{promotion ? promotion.toUpperCase() : ''}
+                                  {isPlayerMove && (
+                                    <span style={{ fontSize: '10px', fontWeight: 'bold' }}>
+                                      {wrongAttempts.some(a => a.at === i) ? '✗' : '✓'}
+                                    </span>
+                                  )}
+                                </span>
+                              );
+                            })
+                          )}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               )}
@@ -985,65 +1147,220 @@ export default function TacticalPuzzleBoard({
                 )}
               </div>
 
+              {/* ─── Solution Navigator — available at ANY step ────────────── */}
+              {solutionViewMode && (
+                <div className="rounded-xl p-4 space-y-3" style={{ backgroundColor: '#1a1916', border: '1px solid #5b8dd944' }}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider" style={{ color: '#5b8dd9' }}>
+                      📖 Solution Navigator
+                    </span>
+                    <span className="text-xs font-mono" style={{ color: '#5b8dd9' }}>
+                      {solutionViewPos}/{puzzle.moves.length}
+                    </span>
+                  </div>
+
+                  {/* Move label */}
+                  {solutionViewPos > 0 ? (
+                    <div className="text-sm font-semibold text-center py-1 rounded-lg"
+                      style={{
+                        backgroundColor: (solutionViewPos - 1) % 2 === 0 ? '#81b64c22' : '#5b8dd922',
+                        color: (solutionViewPos - 1) % 2 === 0 ? '#81b64c' : '#5b8dd9',
+                      }}>
+                      {(solutionViewPos - 1) % 2 === 0 ? '▶ Your move:' : '◀ Opponent:'} {solutionSAN[solutionViewPos - 1]}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-center py-1" style={{ color: '#5b5754' }}>
+                      Starting position — press ▶ to step through
+                    </div>
+                  )}
+
+                  {/* Progress bar */}
+                  <div className="h-1 rounded-full overflow-hidden" style={{ backgroundColor: '#3a3734' }}>
+                    <div className="h-full rounded-full transition-all"
+                      style={{ width: `${Math.round((solutionViewPos / puzzle.moves.length) * 100)}%`, backgroundColor: '#5b8dd9' }} />
+                  </div>
+
+                  {/* Navigation buttons */}
+                  <div className="flex gap-1">
+                    {[
+                      { label: '|◀', action: () => stepSolutionTo(0),                   disabled: solutionViewPos <= 0 },
+                      { label: '◀',  action: () => stepSolutionTo(solutionViewPos - 1), disabled: solutionViewPos <= 0 },
+                      { label: '▶',  action: () => stepSolutionTo(solutionViewPos + 1), disabled: solutionViewPos >= puzzle.moves.length },
+                      { label: '▶|', action: () => stepSolutionTo(puzzle.moves.length), disabled: solutionViewPos >= puzzle.moves.length },
+                    ].map(({ label, action, disabled }) => (
+                      <button key={label} onClick={action} disabled={disabled}
+                        className="flex-1 py-2 rounded-lg font-mono font-bold text-sm transition-colors"
+                        style={{
+                          backgroundColor: disabled ? '#2a2724' : '#3a3734',
+                          color: disabled ? '#4a4744' : '#bababa',
+                          cursor: disabled ? 'not-allowed' : 'pointer',
+                        }}
+                        onMouseEnter={e => !disabled && (e.currentTarget.style.backgroundColor = '#4a4744')}
+                        onMouseLeave={e => !disabled && (e.currentTarget.style.backgroundColor = '#3a3734')}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-center" style={{ color: '#5b5754' }}>← → keys also navigate</p>
+
+                  {/* Exit solution view */}
+                  <button onClick={exitSolutionView}
+                    className="w-full py-2 rounded-xl text-xs font-bold transition-colors"
+                    style={{ backgroundColor: '#3a3734', color: '#8b8987' }}
+                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#4a4744')}
+                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#3a3734')}
+                  >
+                    {isCCTStep ? '← Back to Analysis' : step === STEPS.PLAYING ? '← Back to Puzzle' : '← Back'}
+                  </button>
+
+                  {/* Retry / next — only while actively solving */}
+                  {step === STEPS.PLAYING && (
+                    <div className="flex gap-2 pt-1">
+                      <button onClick={handleRetry}
+                        className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-colors"
+                        style={{ backgroundColor: '#4a4744', color: '#bababa' }}
+                        onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#5a5754')}
+                        onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#4a4744')}
+                      >
+                        ↺ Try Again
+                      </button>
+                      {hasNext && (
+                        <button onClick={onNext}
+                          className="flex-1 py-2.5 rounded-xl font-bold text-sm text-white transition-colors"
+                          style={{ backgroundColor: '#81b64c' }}
+                          onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#a3d160')}
+                          onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#81b64c')}
+                        >
+                          Next →
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* ─── CCT: MY TURN step ─────────────────────────────────────── */}
-              {step === STEPS.CCT_MY_TURN && !fastMode && (
-                <CCTPanel
-                  title="What can YOU do?"
-                  subtitle="Find your checks, captures &amp; threats"
-                  stepLabel="Step 1 of 2"
-                  stepColor="#81b64c"
-                  cctMode={cctMode}
-                  setCctMode={m => { setCctMode(m); setSelectedSq(null); setLegalTargets([]); }}
-                  cctEntries={cctEntries}
-                  setCctEntries={setCctEntries}
-                  cctFeedback={cctFeedback}
-                  cctRevealed={cctRevealed}
-                  missedCCTs={missedCCTs}
-                  cctScore={cctScore}
-                  onDone={handleCCTDone}
-                  onNext={handleCCTNext}
-                  nextLabel="Check Opponent CCTs →"
-                  nextColor="#81b64c"
-                  thresholdMet={true}
-                  foundCount={cctGrandFound}
-                  totalCount={cctGrandTotal}
-                  thresholdPct={CCT_THRESHOLD}
-                />
+              {!solutionViewMode && step === STEPS.CCT_MY_TURN && !fastMode && (
+                <>
+                  <CCTPanel
+                    title="What can YOU do?"
+                    subtitle="Find your checks, captures &amp; threats"
+                    stepLabel="Step 1 of 2"
+                    stepColor="#81b64c"
+                    cctMode={cctMode}
+                    setCctMode={m => { setCctMode(m); setSelectedSq(null); setLegalTargets([]); }}
+                    cctEntries={cctEntries}
+                    setCctEntries={setCctEntries}
+                    cctFeedback={cctFeedback}
+                    cctRevealed={cctRevealed}
+                    missedCCTs={missedCCTs}
+                    cctScore={cctScore}
+                    onDone={handleCCTDone}
+                    onNext={handleCCTNext}
+                    nextLabel="Check Opponent CCTs →"
+                    nextColor="#81b64c"
+                    thresholdMet={true}
+                    foundCount={cctGrandFound}
+                    totalCount={cctGrandTotal}
+                    thresholdPct={CCT_THRESHOLD}
+                  />
+                  <button
+                    onClick={enterSolutionView}
+                    className="w-full mt-3 py-2 rounded-xl text-xs font-bold transition-colors"
+                    style={{ backgroundColor: '#1a1916', color: '#5b5754', border: '1px solid #3a3734' }}
+                    onMouseEnter={e => { e.currentTarget.style.color = '#5b8dd9'; e.currentTarget.style.borderColor = '#5b8dd944'; }}
+                    onMouseLeave={e => { e.currentTarget.style.color = '#5b5754'; e.currentTarget.style.borderColor = '#3a3734'; }}
+                  >
+                    📖 Peek at Solution (won't affect score)
+                  </button>
+                </>
               )}
 
               {/* ─── CCT: OPPONENT step ────────────────────────────────────── */}
-              {step === STEPS.CCT_OPPONENT && !fastMode && (
-                <CCTPanel
-                  title="What can the OPPONENT do?"
-                  subtitle="Find their checks, captures &amp; threats"
-                  stepLabel="Step 2 of 2"
-                  stepColor="#5b8dd9"
-                  cctMode={cctMode}
-                  setCctMode={m => { setCctMode(m); setSelectedSq(null); setLegalTargets([]); }}
-                  cctEntries={cctEntries}
-                  setCctEntries={setCctEntries}
-                  cctFeedback={cctFeedback}
-                  cctRevealed={cctRevealed}
-                  missedCCTs={missedCCTs}
-                  cctScore={cctScore}
-                  onDone={handleCCTDone}
-                  onNext={handleCCTNext}
-                  onGoBack={() => setCctRevealed(false)}
-                  nextLabel="Solve the Puzzle →"
-                  nextColor="#5b8dd9"
-                  thresholdMet={cctMeetsThreshold}
-                  foundCount={cctGrandFound}
-                  totalCount={cctGrandTotal}
-                  thresholdPct={CCT_THRESHOLD}
-                />
+              {!solutionViewMode && step === STEPS.CCT_OPPONENT && !fastMode && (
+                <>
+                  <CCTPanel
+                    title="What can the OPPONENT do?"
+                    subtitle="Find their checks, captures &amp; threats"
+                    stepLabel="Step 2 of 2"
+                    stepColor="#5b8dd9"
+                    cctMode={cctMode}
+                    setCctMode={m => { setCctMode(m); setSelectedSq(null); setLegalTargets([]); }}
+                    cctEntries={cctEntries}
+                    setCctEntries={setCctEntries}
+                    cctFeedback={cctFeedback}
+                    cctRevealed={cctRevealed}
+                    missedCCTs={missedCCTs}
+                    cctScore={cctScore}
+                    onDone={handleCCTDone}
+                    onNext={handleCCTNext}
+                    onGoBack={() => setCctRevealed(false)}
+                    nextLabel="Solve the Puzzle →"
+                    nextColor="#5b8dd9"
+                    thresholdMet={cctMeetsThreshold}
+                    foundCount={cctGrandFound}
+                    totalCount={cctGrandTotal}
+                    thresholdPct={CCT_THRESHOLD}
+                  />
+                  <button
+                    onClick={enterSolutionView}
+                    className="w-full mt-3 py-2 rounded-xl text-xs font-bold transition-colors"
+                    style={{ backgroundColor: '#1a1916', color: '#5b5754', border: '1px solid #3a3734' }}
+                    onMouseEnter={e => { e.currentTarget.style.color = '#5b8dd9'; e.currentTarget.style.borderColor = '#5b8dd944'; }}
+                    onMouseLeave={e => { e.currentTarget.style.color = '#5b5754'; e.currentTarget.style.borderColor = '#3a3734'; }}
+                  >
+                    📖 Peek at Solution (won't affect score)
+                  </button>
+                </>
               )}
 
-              {/* ─── PLAYING / SUCCESS / SOLUTION ─────────────────────────── */}
-              {[STEPS.PLAYING, STEPS.SUCCESS, STEPS.SOLUTION].includes(step) && (
+              {/* ─── PLAYING / SUCCESS ─────────────────────────────────────── */}
+              {!solutionViewMode && [STEPS.PLAYING, STEPS.SUCCESS].includes(step) && (
                 <div className="space-y-4">
 
+                  {/* Wrong move prompt — ask user before penalising further */}
+                  {step === STEPS.PLAYING && showWrongPrompt && (
+                    <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #c93a3a55' }}>
+                      <div className="p-4" style={{ backgroundColor: '#c93a3a15' }}>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-lg">✗</span>
+                          <span className="font-bold text-sm" style={{ color: '#f87171' }}>That's not the right move.</span>
+                        </div>
+                        {showHint && (
+                          <p className="text-xs mb-3" style={{ color: '#8b8987' }}>
+                            The hint arrow on the board shows which piece to move.
+                          </p>
+                        )}
+                        <p className="text-xs mb-3" style={{ color: '#8b8987' }}>
+                          Would you like to see the full solution?
+                        </p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setShowWrongPrompt(false)}
+                            className="flex-1 py-2 rounded-lg font-bold text-sm transition-colors"
+                            style={{ backgroundColor: '#3a3734', color: '#bababa' }}
+                            onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#4a4744')}
+                            onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#3a3734')}
+                          >
+                            ↩ Try Again
+                          </button>
+                          <button
+                            onClick={() => { setShowWrongPrompt(false); enterSolutionView(); }}
+                            className="flex-1 py-2 rounded-lg font-bold text-sm transition-colors"
+                            style={{ backgroundColor: '#5b8dd922', color: '#5b8dd9', border: '1px solid #5b8dd944' }}
+                            onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#5b8dd933')}
+                            onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#5b8dd922')}
+                          >
+                            📖 See Solution
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* "Your turn" prompt */}
-                  {step === STEPS.PLAYING && !feedback && (
+                  {step === STEPS.PLAYING && !feedback && !showWrongPrompt && (
                     <div className="p-4 rounded-xl flex items-start gap-3"
                       style={{ backgroundColor: '#81b64c15', border: '1px solid #81b64c33', color: '#81b64c' }}>
                       <span className="text-lg">♟️</span>
@@ -1054,7 +1371,7 @@ export default function TacticalPuzzleBoard({
                   )}
 
                   {/* Feedback message */}
-                  {feedback && (
+                  {feedback && !showWrongPrompt && (
                     <div
                       className="p-4 rounded-xl flex items-start gap-3 transition-all"
                       style={{
@@ -1070,48 +1387,123 @@ export default function TacticalPuzzleBoard({
                     </div>
                   )}
 
-                  {/* Two-phase score breakdown */}
+                  {/* Two-phase score breakdown or pending notice */}
                   {step === STEPS.SUCCESS && puzzleScore && (
                     <div className="rounded-xl p-4" style={{ backgroundColor: '#1a1916', border: '1px solid #3a3734' }}>
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-xs font-bold uppercase tracking-wider" style={{ color: '#8b8987' }}>
-                          Puzzle Score
-                        </span>
-                        <span className="text-xl font-bold" style={{
-                          color: puzzleScore.combined >= 80 ? '#81b64c' : puzzleScore.combined >= 50 ? '#c9882a' : '#c93a3a'
-                        }}>
-                          {puzzleScore.combined}<span className="text-xs font-normal" style={{ color: '#8b8987' }}>/100</span>
-                        </span>
-                      </div>
-                      {/* CCT phase */}
-                      <div className="mb-2">
-                        <div className="flex items-center justify-between text-xs mb-1">
-                          <span style={{ color: '#c9882a' }}>🔍 CCT Analysis</span>
-                          <span className="font-bold" style={{ color: '#c9882a' }}>{puzzleScore.cctScore}</span>
-                        </div>
-                        <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: '#3a3734' }}>
-                          <div className="h-full rounded-full" style={{ width: `${puzzleScore.cctScore}%`, backgroundColor: '#c9882a' }} />
-                        </div>
-                        <div className="flex justify-between text-xs mt-1" style={{ color: '#6b7280' }}>
-                          <span>You: {puzzleScore.myFound}/{puzzleScore.myTotal}</span>
-                          <span>Opp: {puzzleScore.oppFound}/{puzzleScore.oppTotal}</span>
-                        </div>
-                      </div>
-                      {/* Execution phase */}
-                      <div>
-                        <div className="flex items-center justify-between text-xs mb-1">
-                          <span style={{ color: '#5b8dd9' }}>♟ Execution</span>
-                          <span className="font-bold" style={{ color: '#5b8dd9' }}>{puzzleScore.execScore}</span>
-                        </div>
-                        <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: '#3a3734' }}>
-                          <div className="h-full rounded-full" style={{ width: `${puzzleScore.execScore}%`, backgroundColor: '#5b8dd9' }} />
-                        </div>
-                      </div>
+                      {/* CCT not attempted — show pending notice */}
+                      {!puzzleScore.cctAttempted ? (
+                        <>
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-xs font-bold uppercase tracking-wider" style={{ color: '#8b8987' }}>
+                              Puzzle Score
+                            </span>
+                            <span className="text-xl font-bold" style={{ color: '#c9882a' }}>
+                              Pending
+                            </span>
+                          </div>
+
+                          <div className="px-3 py-3 rounded-lg mb-3 text-sm text-center" style={{ backgroundColor: '#c9882a12', border: '1px solid #c9882a33', color: '#c9882a' }}>
+                            CCT analysis was skipped. Complete the CCT phase to earn a score.
+                          </div>
+
+                          {/* CCT phase */}
+                          <div className="mb-3">
+                            <div className="flex items-center justify-between text-xs mb-1">
+                              <span style={{ color: '#c9882a' }}>🔍 CCT Analysis</span>
+                              <span className="font-bold" style={{ color: '#6b7280' }}>Not Attempted</span>
+                            </div>
+                            <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: '#3a3734' }}>
+                              <div className="h-full rounded-full" style={{ width: '0%', backgroundColor: '#3a3734' }} />
+                            </div>
+                          </div>
+
+                          {/* Execution phase — still show */}
+                          <div className="mb-2">
+                            <div className="flex items-center justify-between text-xs mb-1">
+                              <span style={{ color: '#5b8dd9' }}>♟ Execution</span>
+                              <span className="font-bold" style={{ color: '#5b8dd9' }}>{puzzleScore.execScore}</span>
+                            </div>
+                            <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: '#3a3734' }}>
+                              <div className="h-full rounded-full" style={{ width: `${puzzleScore.execScore}%`, backgroundColor: '#5b8dd9' }} />
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-xs font-bold uppercase tracking-wider" style={{ color: '#8b8987' }}>
+                              Puzzle Score
+                            </span>
+                            <span className="text-xl font-bold" style={{
+                              color: puzzleScore.combined >= 80 ? '#81b64c' : puzzleScore.combined >= 50 ? '#c9882a' : '#c93a3a'
+                            }}>
+                              {puzzleScore.combined}<span className="text-xs font-normal" style={{ color: '#8b8987' }}>/100</span>
+                            </span>
+                          </div>
+
+                          {/* CCT phase */}
+                          <div className="mb-3">
+                            <div className="flex items-center justify-between text-xs mb-1">
+                              <span style={{ color: '#c9882a' }}>🔍 CCT Analysis</span>
+                              <span className="font-bold" style={{ color: '#c9882a' }}>{puzzleScore.cctScore}</span>
+                            </div>
+                            <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: '#3a3734' }}>
+                              <div className="h-full rounded-full" style={{ width: `${puzzleScore.cctScore}%`, backgroundColor: '#c9882a' }} />
+                            </div>
+                            <div className="flex justify-between text-xs mt-1" style={{ color: '#6b7280' }}>
+                              <span>You: {puzzleScore.myFound}/{puzzleScore.myTotal}</span>
+                              <span>Opp: {puzzleScore.oppFound}/{puzzleScore.oppTotal}</span>
+                            </div>
+                          </div>
+
+                          {/* Execution phase */}
+                          <div className="mb-2">
+                            <div className="flex items-center justify-between text-xs mb-1">
+                              <span style={{ color: '#5b8dd9' }}>♟ Execution</span>
+                              <span className="font-bold" style={{ color: '#5b8dd9' }}>{puzzleScore.execScore}</span>
+                            </div>
+                            <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: '#3a3734' }}>
+                              <div className="h-full rounded-full" style={{ width: `${puzzleScore.execScore}%`, backgroundColor: '#5b8dd9' }} />
+                            </div>
+                          </div>
+
+                          {/* Execution analysis: why this score */}
+                          <div className="mt-2 space-y-1 border-t pt-2" style={{ borderColor: '#3a3734' }}>
+                            <p className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: '#5b8987' }}>
+                              Why this score?
+                            </p>
+                            <div className="flex justify-between text-xs" style={{ color: '#8b8987' }}>
+                              <span>Starting score</span>
+                              <span className="font-mono" style={{ color: '#81b64c' }}>100</span>
+                            </div>
+                            {puzzleScore.solutionShown ? (
+                              <div className="flex justify-between text-xs" style={{ color: '#8b8987' }}>
+                                <span>Solution revealed</span>
+                                <span className="font-mono" style={{ color: '#c93a3a' }}>→ 0</span>
+                              </div>
+                            ) : wrongAttempts.length > 0 ? (
+                              wrongAttempts.map((a, i) => (
+                                <div key={i} className="flex justify-between text-xs" style={{ color: '#8b8987' }}>
+                                  <span>Wrong #{i + 1}: <span className="font-mono">{a.from}→{a.to}</span></span>
+                                  <span className="font-mono" style={{ color: '#c93a3a' }}>
+                                    {i === 0 ? '−25' : i === 1 ? '−25' : i === 2 ? '−25' : '−15'}
+                                  </span>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="flex justify-between text-xs" style={{ color: '#8b8987' }}>
+                                <span>No wrong attempts</span>
+                                <span className="font-mono" style={{ color: '#81b64c' }}>perfect!</span>
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      )}
                     </div>
                   )}
 
                   {/* Rating change */}
-                  {step === STEPS.SUCCESS && ratingDelta && (
+                  {step === STEPS.SUCCESS && ratingDelta && ratingDelta.value !== 0 && (
                     <div className="flex items-center justify-center gap-2 p-3 rounded-xl font-bold text-xl"
                       style={{ backgroundColor: '#81b64c15', color: '#81b64c' }}>
                       <span>📈</span>
@@ -1119,7 +1511,7 @@ export default function TacticalPuzzleBoard({
                     </div>
                   )}
 
-                  {/* Hint / Show Solution — always visible during PLAYING */}
+                  {/* Hint / Show Solution — visible during PLAYING */}
                   {step === STEPS.PLAYING && (
                     <div className="flex flex-col gap-2">
                       {showHint ? (
@@ -1139,59 +1531,85 @@ export default function TacticalPuzzleBoard({
                         </button>
                       )}
                       <button
-                        onClick={playSolution}
+                        onClick={enterSolutionView}
                         className="w-full py-3 rounded-xl font-bold transition-colors"
                         style={{ backgroundColor: '#5b8dd922', color: '#5b8dd9', border: '1px solid #5b8dd944' }}
                         onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#5b8dd933')}
                         onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#5b8dd922')}
                       >
-                        📽 Show Solution
+                        📖 View Solution (execution score → 0)
                       </button>
-                    </div>
-                  )}
-
-                  {/* Solution playback controls */}
-                  {step === STEPS.SOLUTION && (
-                    <div className="flex flex-col gap-2">
-                      <div className="h-1 rounded-full overflow-hidden" style={{ backgroundColor: '#4a4744' }}>
-                        <div
-                          className="h-full rounded-full transition-all"
-                          style={{ width: `${Math.round((solutionStep / puzzle.moves.length) * 100)}%`, backgroundColor: '#5b8dd9' }}
-                        />
-                      </div>
-                      {solutionStep >= puzzle.moves.length && (
-                        <div className="flex gap-2 mt-2">
-                          <button onClick={handleRetry} className="flex-1 py-3 rounded-xl font-bold transition-colors"
-                            style={{ backgroundColor: '#4a4744', color: '#bababa' }}>
-                            ↺ Try Again
-                          </button>
-                          {hasNext && (
-                            <button onClick={onNext} className="flex-1 py-3 rounded-xl font-bold text-white transition-colors"
-                              style={{ backgroundColor: '#81b64c' }}>
-                              Next →
-                            </button>
-                          )}
-                        </div>
-                      )}
                     </div>
                   )}
 
                   {/* Success actions */}
                   {step === STEPS.SUCCESS && (
-                    <div className="flex gap-2">
-                      <button onClick={onBack} className="px-4 py-3 rounded-xl font-bold transition-colors"
-                        style={{ backgroundColor: '#4a4744', color: '#bababa' }}
-                        onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#5a5754')}
-                        onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#4a4744')}>
-                        Stages
-                      </button>
-                      {hasNext && (
-                        <button onClick={onNext} className="flex-1 py-3 rounded-xl font-bold text-white transition-colors"
-                          style={{ backgroundColor: '#81b64c' }}
-                          onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#a3d160')}
-                          onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#81b64c')}>
-                          Next Puzzle →
-                        </button>
+                    <div className="flex flex-col gap-2">
+                      {/* CCT not attempted — must retry with CCT to complete */}
+                      {puzzleScore && !puzzleScore.cctAttempted ? (
+                        <>
+                          <button
+                            onClick={handleRetryWithCCT}
+                            className="w-full py-3 rounded-xl font-bold text-sm text-white transition-colors"
+                            style={{ backgroundColor: '#c9882a' }}
+                            onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#d9992e')}
+                            onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#c9882a')}
+                          >
+                            🧠 Complete CCT Analysis
+                          </button>
+                          <button
+                            onClick={enterSolutionView}
+                            className="w-full py-2.5 rounded-xl font-bold text-sm transition-colors"
+                            style={{ backgroundColor: '#5b8dd922', color: '#5b8dd9', border: '1px solid #5b8dd944' }}
+                            onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#5b8dd933')}
+                            onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#5b8dd922')}
+                          >
+                            📖 Review Solution
+                          </button>
+                          <button onClick={onBack} className="w-full py-2.5 rounded-xl font-bold text-sm transition-colors"
+                            style={{ backgroundColor: '#3a3734', color: '#8b8987', border: '1px solid #4a4744' }}
+                            onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#4a4744')}
+                            onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#3a3734')}>
+                            ← Back to Stages
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={enterSolutionView}
+                            className="w-full py-2.5 rounded-xl font-bold text-sm transition-colors"
+                            style={{ backgroundColor: '#5b8dd922', color: '#5b8dd9', border: '1px solid #5b8dd944' }}
+                            onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#5b8dd933')}
+                            onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#5b8dd922')}
+                          >
+                            📖 Review Solution
+                          </button>
+                          <button
+                            onClick={handleRetry}
+                            className="w-full py-2.5 rounded-xl font-bold text-sm transition-colors"
+                            style={{ backgroundColor: '#3a3734', color: '#8b8987', border: '1px solid #4a4744' }}
+                            onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#4a4744')}
+                            onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#3a3734')}
+                          >
+                            ↺ Try Again (score already saved)
+                          </button>
+                          <div className="flex gap-2">
+                            <button onClick={onBack} className="px-4 py-3 rounded-xl font-bold transition-colors"
+                              style={{ backgroundColor: '#4a4744', color: '#bababa' }}
+                              onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#5a5754')}
+                              onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#4a4744')}>
+                              Stages
+                            </button>
+                            {hasNext && (
+                              <button onClick={onNext} className="flex-1 py-3 rounded-xl font-bold text-white transition-colors"
+                                style={{ backgroundColor: '#81b64c' }}
+                                onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#a3d160')}
+                                onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#81b64c')}>
+                                Next Puzzle →
+                              </button>
+                            )}
+                          </div>
+                        </>
                       )}
                     </div>
                   )}

@@ -113,6 +113,10 @@ powershell.exe -Command "cd 'C:\\ArunApps\\Chess-Web\\chess-frontend'; pnpm buil
 - Rate limit all public API endpoints
 - Enforce authZ/authN on all new entry points
 
+### Test Credentials (for debugging/verification)
+- Email: `ab@ameyem.com` | Password: `Vedansh@123` (stored in `.env.local` as `CHESS99_TEST_EMAIL` / `CHESS99_TEST_PASSWORD`)
+- Use these credentials to log in and test game states, review pages, etc. when investigating issues
+
 ---
 
 ## Quality Gates (MANDATORY before deployment)

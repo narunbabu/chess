@@ -1415,7 +1415,8 @@ const PlayComputer = () => {
               computerDepth,    // Difficulty level (used for time mapping)
               computerColor,    // Computer's color
               setTimerButtonColor, // Pass setter for internal feedback (optional usage)
-              syntheticOpponent?.personality || null // Personality for think-time shaping
+              syntheticOpponent?.personality || null, // Personality for think-time shaping
+              syntheticOpponent?.rating || null       // Explicit ELO for cp-budget selection
             );
           });
 

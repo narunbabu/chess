@@ -9,7 +9,17 @@
       "Bash(grep:*)",
       "Bash(Select-String -Pattern \"game_statuses|GameStatus\")",
       "Bash(sqlite3:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(git add:*)",
+      "Bash(ssh:*)",
+      "Skill(sc:git)",
+      "Bash(php -l /mnt/c/ArunApps/Chess-Web/chess-backend/app/Http/Controllers/GameController.php)",
+      "Bash(npx playwright:*)",
+      "Bash(curl -s http://localhost:3000)",
+      "Bash(curl -s http://localhost:8000/api/health)",
+      "Bash(curl -s http://localhost:8000)",
+      "Bash(node extract_all_stages.cjs)",
+      "Bash(echo \"Extraction started in background \\(PID: $!\\)\")"
     ],
     "deny": [],
     "ask": []

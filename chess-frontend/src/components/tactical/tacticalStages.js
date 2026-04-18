@@ -102,17 +102,25 @@ export function saveProgress(progress) {
   } catch {}
 }
 
-// Returns { cctScore, execScore, combined, cctQuality, myFound, myTotal, oppFound, oppTotal }
+// Returns { cctScore, execScore, combined, cctQuality, myFound, myTotal, oppFound, oppTotal, cctAttempted }
 export function computePuzzleScore({
   wrongCount = 0,
   cctMyFound  = 0, cctMyTotal  = 0,
   cctOppFound = 0, cctOppTotal = 0,
   solutionShown = false,
 }) {
-  const myQuality  = cctMyTotal  > 0 ? cctMyFound  / cctMyTotal  : 1.0;
-  const oppQuality = cctOppTotal > 0 ? cctOppFound / cctOppTotal : 1.0;
-  const cctQuality = (myQuality + oppQuality) / 2;
-  const cctScore   = Math.round(cctQuality * 100);
+  const cctAttempted = cctMyTotal > 0 || cctOppTotal > 0;
+
+  let cctScore, cctQuality;
+  if (!cctAttempted) {
+    cctScore = null;
+    cctQuality = 0;
+  } else {
+    const myQuality  = cctMyTotal  > 0 ? cctMyFound  / cctMyTotal  : 1.0;
+    const oppQuality = cctOppTotal > 0 ? cctOppFound / cctOppTotal : 1.0;
+    cctQuality = (myQuality + oppQuality) / 2;
+    cctScore   = Math.round(cctQuality * 100);
+  }
 
   const execScore = solutionShown ? 0
     : wrongCount === 0 ? 100
@@ -121,11 +129,13 @@ export function computePuzzleScore({
     : wrongCount === 3 ? 25
     : 10;
 
-  const combined = Math.round(cctScore * 0.4 + execScore * 0.6);
+  const combined = cctAttempted ? Math.round(cctScore * 0.4 + execScore * 0.6) : null;
   return {
     cctScore, execScore, combined, cctQuality,
+    cctAttempted,
     myFound: cctMyFound, myTotal: cctMyTotal,
     oppFound: cctOppFound, oppTotal: cctOppTotal,
+    solutionShown,
   };
 }
 

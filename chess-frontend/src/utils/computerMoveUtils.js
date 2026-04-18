@@ -1,178 +1,154 @@
 // src/utils/computerMoveUtils.js
 
 import { Chess } from 'chess.js';
+import { COMPUTER_LEVEL_RATINGS } from './eloUtils';
 
-const MAX_DEPTH_FOR_DIFFICULTY = 16; // Max difficulty level
-const NUM_TOP_MOVES_TO_REQUEST = 10; // How many moves to ask Stockfish for
+const MAX_DEPTH_FOR_DIFFICULTY = 16;
+const NUM_TOP_MOVES_TO_REQUEST = 10;
 
 // Keep time mapping - more time allows Stockfish to rank the top N moves better
 export const mapDepthToMoveTime = (depth) => {
     const clampedDepth = Math.max(1, Math.min(depth, MAX_DEPTH_FOR_DIFFICULTY));
     switch (clampedDepth) {
-        case 1: return 100;  // ~0.1s
+        case 1: return 100;
         case 2: return 150;
         case 3: return 200;
         case 4: return 250;
         case 5: return 300;
         case 6: return 400;
-        case 7: return 500; // 0.5s
+        case 7: return 500;
         case 8: return 600;
         case 9: return 700;
-        case 10: return 800; // 0.8s
-        case 11: return 1000; // 1s
-        case 12: return 1200; // 1.2s
-        case 13: return 1500; // 1.5s
-        case 14: return 1800; // 1.8s
-        case 15: return 2200; // 2.2s
-        case 16: return 2500; // 2.5s - Max time for finding top N
+        case 10: return 800;
+        case 11: return 1000;
+        case 12: return 1200;
+        case 13: return 1500;
+        case 14: return 1800;
+        case 15: return 2200;
+        case 16: return 2500;
         default: return 600;
     }
 };
 
 
 /**
- * Gets the top N moves from Stockfish using MultiPV.
- * @param {string} fen - The current board position in FEN format.
- * @param {number} numMoves - The number of top moves to request (MultiPV value).
- * @param {number} moveTimeMs - The time budget for Stockfish to search.
- * @returns {Promise<string[]>} A promise that resolves with an array of moves in UCI format, ordered best to worst. Rejects on error or timeout.
+ * Gets the top N moves from Stockfish using MultiPV, including centipawn evaluations.
+ *
+ * @param {string} fen - Current board position in FEN format.
+ * @param {number} numMoves - Number of top moves to request (MultiPV value).
+ * @param {number} moveTimeMs - Engine search time budget in milliseconds.
+ * @returns {Promise<Array<{move: string, cp: number}>>} Resolves with ranked moves and their
+ *   centipawn scores (from the side-to-move's perspective, best first). Rejects on error/timeout.
  */
 export const getStockfishTopMoves = async (fen, numMoves, moveTimeMs) => {
-  // Generate unique ID for this worker instance to avoid conflicts
   const workerId = `stockfish_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
   try {
-    // Create a fresh worker instance for each move to avoid state issues
     const stockfish = new Worker('/workers/stockfish.js', { name: workerId });
 
     return new Promise((resolve, reject) => {
-    let bestMoveFromEngine = null;
-    const topMoves = new Array(numMoves).fill(null);
+      let bestMoveFromEngine = null;
+      // Each slot: {move: string, cp: number} or null
+      const topMoves = new Array(numMoves).fill(null);
 
-    let safetyTimer = null;
-    const safetyMargin = 2000;
-    const timeoutDuration = moveTimeMs + safetyMargin;
+      let safetyTimer = null;
+      const safetyMargin = 2000;
+      const timeoutDuration = moveTimeMs + safetyMargin;
 
-    const cleanup = () => {
+      const cleanup = () => {
         clearTimeout(safetyTimer);
-        try {
-          stockfish.terminate();
-        } catch (e) {
-          /* ignore worker already terminated */
-        }
-    }
+        try { stockfish.terminate(); } catch (_) {}
+      };
 
-    stockfish.onerror = (err) => {
-        console.error("Stockfish Worker Error:", err);
+      stockfish.onerror = (err) => {
+        console.error('Stockfish Worker Error:', err);
         cleanup();
         reject(new Error('Stockfish worker error.'));
-    };
+      };
 
-    // --- Define Handlers ---
+      const resolveWithResults = () => {
+        const validMoves = topMoves.filter(m => m !== null);
+        if (validMoves.length > 0) {
+          resolve(validMoves);
+        } else if (bestMoveFromEngine && bestMoveFromEngine !== '(none)') {
+          console.warn(`Stockfish returned no MultiPV info, falling back to bestmove: ${bestMoveFromEngine}`);
+          resolve([{ move: bestMoveFromEngine, cp: 0 }]);
+        } else {
+          reject(new Error('Stockfish finished but found no valid moves or info.'));
+        }
+      };
 
-    // Handler for messages AFTER 'readyok' is received
-    const mainMessageHandler = (e) => {
-        // Define message within this handler's scope
+      const mainMessageHandler = (e) => {
         const message = typeof e.data === 'string' ? e.data : '';
 
         if (message.startsWith('info') && message.includes(' pv ')) {
-            const multipvMatch = message.match(/ multipv (\d+)/);
-            const pvMatch = message.match(/ pv (.+)/);
+          const multipvMatch = message.match(/ multipv (\d+)/);
+          const pvMatch = message.match(/ pv (.+)/);
+          const cpMatch = message.match(/ score cp (-?\d+)/);
+          const mateMatch = message.match(/ score mate (-?\d+)/);
 
-            if (multipvMatch && pvMatch) {
-                const rank = parseInt(multipvMatch[1], 10);
-                const pv = pvMatch[1].split(' ');
-                const move = pv[0];
+          if (multipvMatch && pvMatch) {
+            const rank = parseInt(multipvMatch[1], 10);
+            const move = pvMatch[1].split(' ')[0];
 
-                if (move && rank > 0 && rank <= numMoves) {
-                    const index = rank - 1;
-                    if (topMoves[index] === null) {
-                         topMoves[index] = move;
-                    }
-                }
+            // Convert mate scores to large centipawn equivalents so cp arithmetic
+            // still works (mate-in-1 beats mate-in-3 etc.).
+            let cp = 0;
+            if (cpMatch) {
+              cp = parseInt(cpMatch[1], 10);
+            } else if (mateMatch) {
+              const n = parseInt(mateMatch[1], 10);
+              cp = n > 0 ? 9999 - n : -9999 - n;
             }
+
+            if (move && rank > 0 && rank <= numMoves) {
+              // Always overwrite — the last info line for each multipv rank is the
+              // deepest/most accurate evaluation from the search.
+              topMoves[rank - 1] = { move, cp };
+            }
+          }
         } else if (message.startsWith('bestmove')) {
-            bestMoveFromEngine = message.split(' ')[1];
-            clearTimeout(safetyTimer);
-
-            const validMoves = topMoves.filter(move => move !== null);
-            if (validMoves.length > 0) {
-                 resolve(validMoves);
-            } else if (bestMoveFromEngine && bestMoveFromEngine !== '(none)') {
-                 console.warn(`Stockfish returned no MultiPV info, falling back to bestmove: ${bestMoveFromEngine}`);
-                 resolve([bestMoveFromEngine]);
-            } else {
-                 if (bestMoveFromEngine && bestMoveFromEngine !== '(none)') {
-                     console.warn("Stockfish provided no info lines but gave a bestmove. Using bestmove.");
-                     resolve([bestMoveFromEngine]);
-                 } else {
-                     reject(new Error('Stockfish finished but found no valid moves or info.'));
-                 }
-            }
-             cleanup();
+          bestMoveFromEngine = message.split(' ')[1];
+          clearTimeout(safetyTimer);
+          resolveWithResults();
+          cleanup();
         }
-    };
+      };
 
-    // Temporary handler specifically waiting for 'readyok'
-    const readyHandler = (e) => {
-        // Define message within this handler's scope
+      const readyHandler = (e) => {
         const message = typeof e.data === 'string' ? e.data : '';
-
-        if (message === 'readyok') { // Check specifically for 'readyok' string
-            // *** FIX: Assign the MAIN handler now ***
-            stockfish.onmessage = mainMessageHandler;
-            stockfish.postMessage(`position fen ${fen}`);
-            
-            stockfish.postMessage(`go movetime ${moveTimeMs}`);
-            startTimeoutTimer();
-        } else if (message.startsWith('bestmove')) { // Handle edge case: bestmove before readyok
-             // *** FIX: 'message' is now defined in this scope ***
-             console.warn("Received 'bestmove' before 'readyok'. Processing using main handler...");
-             mainMessageHandler(e); // Process the bestmove message using the main handler
+        if (message === 'readyok') {
+          stockfish.onmessage = mainMessageHandler;
+          stockfish.postMessage(`position fen ${fen}`);
+          stockfish.postMessage(`go movetime ${moveTimeMs}`);
+          startTimeoutTimer();
+        } else if (message.startsWith('bestmove')) {
+          console.warn("Received 'bestmove' before 'readyok'. Processing...");
+          mainMessageHandler(e);
         }
-        // Ignore other messages (like info lines) received before 'readyok'
-    };
+      };
 
-    // --- Safety Timeout Logic --- (remains the same)
-    const startTimeoutTimer = () => {
+      const startTimeoutTimer = () => {
         clearTimeout(safetyTimer);
         safetyTimer = setTimeout(() => {
-            console.warn(`Stockfish safety timeout triggered after ${timeoutDuration}ms (allocated ${moveTimeMs}ms) for MultiPV. Sending 'stop'.`);
-            stockfish.postMessage('stop');
-
-            setTimeout(() => {
-                const validMoves = topMoves.filter(move => move !== null);
-                 if (validMoves.length > 0) {
-                     console.warn(`Resolving with ${validMoves.length} moves found before timeout.`);
-                     resolve(validMoves);
-                 } else if (bestMoveFromEngine && bestMoveFromEngine !== '(none)') {
-                     console.warn(`Stockfish timed out, falling back to bestmove: ${bestMoveFromEngine}`);
-                     resolve([bestMoveFromEngine]);
-                 } else {
-                    reject(new Error('Stockfish timed out without finding sufficient move info.'));
-                 }
-                 cleanup();
-            }, 500);
-
+          console.warn(`Stockfish safety timeout after ${timeoutDuration}ms. Sending 'stop'.`);
+          stockfish.postMessage('stop');
+          setTimeout(() => {
+            resolveWithResults();
+            cleanup();
+          }, 500);
         }, timeoutDuration);
-    };
+      };
 
-    // --- Initialize Stockfish Communication ---
-    stockfish.onmessage = readyHandler; // Start with the temporary ready handler
-
-    // Initialize engine and set options with proper sequencing
-    stockfish.postMessage('uci');
-
-    // Wait a bit for UCI response before sending newgame
-    setTimeout(() => {
-      stockfish.postMessage('ucinewgame');
-
-      // Wait a bit before setting MultiPV
+      stockfish.onmessage = readyHandler;
+      stockfish.postMessage('uci');
       setTimeout(() => {
-        stockfish.postMessage(`setoption name MultiPV value ${numMoves}`);
-        stockfish.postMessage('isready'); // This command triggers the 'readyok' response
+        stockfish.postMessage('ucinewgame');
+        setTimeout(() => {
+          stockfish.postMessage(`setoption name MultiPV value ${numMoves}`);
+          stockfish.postMessage('isready');
+        }, 50);
       }, 50);
-    }, 50);
     });
   } catch (error) {
     console.error('Failed to load Stockfish:', error);
@@ -183,7 +159,6 @@ export const getStockfishTopMoves = async (fen, numMoves, moveTimeMs) => {
 
 /**
  * Personality-based think-time profiles.
- * Each personality defines a base min/max range (ms) that shapes the bot's tempo.
  */
 const PERSONALITY_PROFILES = {
   aggressive:  { min: 500,  max: 3000 },
@@ -193,18 +168,6 @@ const PERSONALITY_PROFILES = {
   positional:  { min: 2000, max: 7000 },
 };
 
-/**
- * ELO-based think-time scaling.
- * Lower-rated bots play impulsively (shorter delays);
- * higher-rated bots calculate more deliberately (longer delays).
- *
- * Mapping (linear, centred at 1800 ELO = 1.0×):
- *   1370 → 0.64×   1600 → 0.83×   1800 → 1.00×
- *   2000 → 1.17×   2200 → 1.33×   2440 → 1.53×
- *
- * @param {number|null} rating - Bot ELO rating, or null/0 for no scaling.
- * @returns {number} Multiplier in the range [0.4, 1.8].
- */
 const getEloThinkMultiplier = (rating) => {
   if (!rating || rating <= 0) return 1.0;
   const elo = Math.max(800, Math.min(2800, rating));
@@ -212,108 +175,65 @@ const getEloThinkMultiplier = (rating) => {
 };
 
 /**
- * Calculate a human-like perceived thinking time based on ELO rating, personality,
- * game phase, move complexity, and difficulty.
- * @param {string} fen - Current board position in FEN format (before computer's move).
- * @param {number} moveNumber - Total half-moves played so far (gameHistory.length).
- * @param {object|null} move - The chess.js verbose move object (with captured, san, etc.), or null.
- * @param {number} depth - Difficulty level (1-16).
- * @param {string|null} personality - Bot personality (aggressive/defensive/balanced/tactical/positional).
- * @param {number|null} rating - Bot ELO rating for think-time scaling (1370-2440 typical).
- * @returns {number} Perceived minimum thinking time in milliseconds.
+ * Calculate a human-like perceived thinking time.
  */
 export const calculatePerceivedThinkTime = (fen, moveNumber, move, depth, personality = null, rating = null) => {
-  // --- 1. Personality-based time range ---
   const key = personality?.toLowerCase();
   const profile = PERSONALITY_PROFILES[key] || PERSONALITY_PROFILES.balanced;
   let baseMin = profile.min;
   let baseMax = profile.max;
 
-  // --- 2. ELO-based scaling ---
-  // Lower-rated bots (1370) → ~0.64× (quick, impulsive)
-  // Higher-rated bots (2440) → ~1.53× (deliberate, deep calculation)
   const eloMultiplier = getEloThinkMultiplier(rating);
   baseMin *= eloMultiplier;
   baseMax *= eloMultiplier;
 
-  // --- 3. Game phase multiplier ---
   const piecePart = fen ? fen.split(' ')[0] : '';
   const pieceCount = (piecePart.match(/[rnbqkpRNBQKP]/g) || []).length;
   const fullMoveNum = Math.floor(moveNumber / 2) + 1;
 
   let phaseMultiplier;
   if (fullMoveNum <= 10) {
-    // Opening — bot "knows" theory, plays fast
     phaseMultiplier = 0.5;
   } else if (fullMoveNum <= 30) {
-    // Middlegame — normal tempo
     phaseMultiplier = 1.0;
   } else {
-    // Endgame — complex or simple
     phaseMultiplier = pieceCount > 12 ? 1.2 : 0.8;
   }
 
   baseMin *= phaseMultiplier;
   baseMax *= phaseMultiplier;
 
-  // --- 4. Base time (bell-curve random) ---
   const rand = (Math.random() + Math.random()) / 2;
   let time = baseMin + rand * (baseMax - baseMin);
 
-  // --- 5. Move complexity bonuses (additive, stackable) ---
-  if (move?.captured) {
-    time += 500 + Math.random() * 1000; // +500-1500ms for captures
-  }
-  if (move?.san?.includes('+')) {
-    time += 300 + Math.random() * 500; // +300-800ms for delivering check
-  }
-  if (move?.san?.includes('=')) {
-    time += 1000 + Math.random() * 1000; // +1000-2000ms for promotion
-  }
-  // Escaping check — the FEN is the position *before* the bot moved.
-  // If the side to move was in check, the bot had to escape → panic delay.
+  if (move?.captured) time += 500 + Math.random() * 1000;
+  if (move?.san?.includes('+')) time += 300 + Math.random() * 500;
+  if (move?.san?.includes('=')) time += 1000 + Math.random() * 1000;
+
   if (fen) {
     try {
       const preMove = new Chess(fen);
-      if (preMove.isCheck()) {
-        time += 1000 + Math.random() * 2000; // +1000-3000ms panic delay
-      }
-    } catch (_) {
-      // invalid FEN — skip check detection
-    }
+      if (preMove.isCheck()) time += 1000 + Math.random() * 2000;
+    } catch (_) {}
   }
 
-  // --- 6. Difficulty scaling (0.7x to 1.3x) ---
   const clampedDepth = Math.max(1, Math.min(depth, 16));
   time *= 0.7 + (clampedDepth / 16) * 0.6;
 
-  // --- 7. ELO-aware jitter ---
-  // Low ELO → erratic timing (±30%), high ELO → precise timing (±10%)
   let jitterHalf;
   if (rating && rating > 0) {
     const elo = Math.max(800, Math.min(2800, rating));
-    // 800 → 0.30, 1800 → 0.20, 2800 → 0.10
     jitterHalf = 0.30 - ((elo - 800) / 2000) * 0.20;
   } else {
-    jitterHalf = 0.20; // default ±20%
+    jitterHalf = 0.20;
   }
   time *= (1.0 - jitterHalf) + Math.random() * (2 * jitterHalf);
 
-  // --- 8. Clamp: 300ms minimum, 10000ms maximum ---
   return Math.round(Math.max(300, Math.min(10000, time)));
 };
 
 /**
  * Returns a Promise that resolves after a human-like think delay.
- * Subtracts actual engine computation time so the total wait feels natural.
- * @param {string} fen - Board position FEN (before the move).
- * @param {number} moveNumber - Half-moves played so far.
- * @param {object|null} move - The chess.js verbose move object.
- * @param {number} depth - Difficulty level (1-16).
- * @param {string|null} personality - Bot personality key.
- * @param {number|null} rating - Bot ELO rating for think-time scaling.
- * @param {number} actualEngineMs - Milliseconds the engine already spent calculating.
- * @returns {Promise<number>} Resolves with the perceived think time (ms) after the delay.
  */
 export const waitForPerceivedThinkTime = (fen, moveNumber, move, depth, personality, rating = null, actualEngineMs = 0) => {
   const perceived = calculatePerceivedThinkTime(fen, moveNumber, move, depth, personality, rating);
@@ -321,109 +241,116 @@ export const waitForPerceivedThinkTime = (fen, moveNumber, move, depth, personal
   return new Promise(resolve => setTimeout(() => resolve(perceived), delay));
 };
 
-// selectMoveFromRankedList remains the same as the corrected version from previous response
+
+// ─── Move Selection ────────────────────────────────────────────────────────────
+
 /**
- * Selects a move from a ranked list based on difficulty depth,
- * handling cases where fewer moves are available than requested.
- * @param {string[]} rankedMoves - Array of moves (UCI format), index 0 is best.
- * @param {number} depth - Difficulty level (1-16).
- * @returns {string|null} The chosen move in UCI format, or null if selection fails.
+ * Weighted random pick from a list of {move, cpLoss} objects.
+ * Strongly favors moves with smaller centipawn loss via 1/(cpLoss+1) weighting,
+ * so the best move is usually played but not exclusively.
+ *
+ * @param {Array<{move: string, cpLoss: number}>} candidates
+ * @returns {string} UCI move string
  */
-const selectMoveFromRankedList = (rankedMoves, depth) => {
-    // --- Input Validation ---
-    if (!rankedMoves || !Array.isArray(rankedMoves) || rankedMoves.length === 0) {
-        console.warn("selectMoveFromRankedList called with empty or invalid moves array.");
-        return null;
+const weightedRandomMove = (candidates) => {
+  const weights = candidates.map(c => 1 / (c.cpLoss + 1));
+  const total = weights.reduce((a, b) => a + b, 0);
+  let r = Math.random() * total;
+  for (let i = 0; i < candidates.length; i++) {
+    r -= weights[i];
+    if (r <= 0) return candidates[i].move;
+  }
+  return candidates[candidates.length - 1].move;
+};
+
+/**
+ * Selects a move using centipawn-loss budget + blunder injection.
+ *
+ * Normal play:
+ *   Each ELO has a maximum acceptable centipawn loss per move.
+ *   2400→33cp, 2200→44cp, 2100→50cp, 1800→67cp, 1500→83cp, 1200→100cp, 800→133cp.
+ *   Within that budget, moves are weighted toward smaller losses, so the best move
+ *   is still usually chosen, but not exclusively.
+ *
+ * Blunder injection:
+ *   A random blunder is occasionally inserted, scaled by ELO and game phase.
+ *   Protected during the opening (moves 1-10); ramps up through the middlegame.
+ *   Higher ELO = lower probability and smaller blunder severity.
+ *   This differentiates 2100 from 2400 in the late-game where both previously
+ *   played rank-1 moves exclusively.
+ *
+ * @param {Array<{move: string, cp: number}>} movesWithEval - Stockfish MultiPV results,
+ *   best first, with centipawn scores from the side-to-move's perspective.
+ * @param {number} targetElo - Bot's target ELO rating.
+ * @param {number} halfMoveCount - game.history().length (half-moves played so far).
+ * @returns {string|null} Chosen UCI move, or null if no candidates.
+ */
+const selectMoveWithCpBudget = (movesWithEval, targetElo, halfMoveCount) => {
+  if (!movesWithEval || movesWithEval.length === 0) return null;
+  if (movesWithEval.length === 1) return movesWithEval[0].move;
+
+  const bestCp = movesWithEval[0].cp;
+
+  // Normalize: cpLoss is how much worse than the best move (always >= 0).
+  const moves = movesWithEval.map(({ move, cp }) => ({
+    move,
+    cpLoss: Math.max(0, bestCp - cp),
+  }));
+
+  // ── Normal play cp budget ──────────────────────────────────────────────────
+  // Linear: 400→133cp, 1200→100cp, 1800→67cp, 2200→44cp, 2400→33cp, 3200→5cp.
+  // Clamped to [5, 200] to prevent degenerate extremes.
+  const maxCpLoss = Math.max(5, Math.min(200, (3000 - targetElo) / 18));
+
+  // ── Blunder injection ──────────────────────────────────────────────────────
+  // Base probability per move (before phase scaling):
+  //   2800→0%, 2400→1.8%, 2200→2.7%, 2100→3.2%, 1800→4.5%, 1500→5.9%, 1200→7.3%
+  const baseBlunderP = Math.max(0, (2800 - targetElo) / 22000);
+
+  // Phase: opening is protected (bots play theory); mistakes emerge in middlegame.
+  // fullMove 1-10 → phase ~0, fullMove 25+ → phase 1.0
+  const fullMoveNum = Math.floor(halfMoveCount / 2) + 1;
+  const phase = Math.max(0, Math.min(1.0, (fullMoveNum - 10) / 15));
+  const blunderP = baseBlunderP * (0.1 + 0.9 * phase);
+
+  // Blunder severity cap (max cp loss when a blunder fires):
+  //   2400→120cp, 2000→208cp, 1600→296cp, 1200→350cp (clamped).
+  // Higher ELO players make smaller mistakes when they err.
+  const maxBlunderCp = Math.max(100, Math.min(350, 120 + (2400 - targetElo) * 0.22));
+
+  if (Math.random() < blunderP) {
+    const blunderCandidates = moves.filter(m => m.cpLoss >= 60 && m.cpLoss <= maxBlunderCp);
+    if (blunderCandidates.length > 0) {
+      return weightedRandomMove(blunderCandidates);
     }
+    // No suitable blunder in the top-N list → fall through to normal play.
+  }
 
-    const numAvailableMoves = rankedMoves.length;
+  // ── Normal play ────────────────────────────────────────────────────────────
+  const normalCandidates = moves.filter(m => m.cpLoss <= maxCpLoss);
 
-    // --- Handle Trivial Case ---
-    if (numAvailableMoves === 1) {
-            
-        return rankedMoves[0];
-    }
+  if (normalCandidates.length === 0) {
+    // All alternatives lose heavily (forced/critical position) → play the best move.
+    return moves[0].move;
+  }
 
-    const clampedDepth = Math.max(1, Math.min(depth, MAX_DEPTH_FOR_DIFFICULTY));
-    let minRank, maxRank; // 1-based rank
-
-    // --- Define Desired Rank Ranges (TUNE THESE!) ---
-    switch (clampedDepth) {
-        case 1: [minRank, maxRank] = [5, 8]; break; // Ranks 8-10
-        case 2: [minRank, maxRank] = [4, 8]; break; // Ranks 7-10
-        case 3: [minRank, maxRank] = [3, 7]; break;  // Ranks 6-9
-        case 4: [minRank, maxRank] = [3, 6]; break;  // Ranks 5-8
-        case 5: [minRank, maxRank] = [3, 5]; break;  // Ranks 4-7
-        case 6: [minRank, maxRank] = [2, 5]; break;  // Ranks 4-6
-        case 7: [minRank, maxRank] = [2, 4]; break;  // Ranks 3-6
-        case 8: [minRank, maxRank] = [2, 3]; break;  // Ranks 3-5
-        case 9: [minRank, maxRank] = [1, 3]; break;  // Ranks 2-5
-        case 10: [minRank, maxRank] = [1, 2]; break; // Ranks 2-4
-        case 11: [minRank, maxRank] = [1, 1]; break; // Ranks 2-3
-        case 12: [minRank, maxRank] = [1, 1]; break; // Ranks 1-3
-        case 13: [minRank, maxRank] = [1, 1]; break; // Ranks 1-2
-        case 14: [minRank, maxRank] = [1, 1]; break; // Ranks 1-2
-        case 15: [minRank, maxRank] = [1, 1]; break; // Rank 1
-        case 16: [minRank, maxRank] = [1, 1]; break; // Rank 1
-        default: [minRank, maxRank] = [1, numAvailableMoves]; // Should not happen due to clamping
-    }
-
-    // --- Calculate Indices ---
-    const desiredStartIndex = minRank - 1; // 0-based index
-    const desiredEndIndex = maxRank - 1;   // 0-based index
-    const maxAvailableIndex = numAvailableMoves - 1;
-
-    let finalStartIndex, finalEndIndex;
-
-    // --- Determine Actual Selection Range ---
-    if (desiredStartIndex > maxAvailableIndex) {
-        // Case: The entire desired range is impossible
-        console.warn(`Depth ${clampedDepth}: Desired rank range [${minRank}-${maxRank}] starts beyond available moves (${numAvailableMoves}). Applying fallback.`);
-        if (clampedDepth <= 11) { // Low/Mid difficulty fallback: random among ALL available
-            finalStartIndex = 0;
-            finalEndIndex = maxAvailableIndex;
-            console.log(`Fallback: Selecting randomly from ranks 1-${numAvailableMoves}.`);
-        } else { // High difficulty fallback: pick the BEST available move
-            finalStartIndex = 0;
-            finalEndIndex = 0;
-            console.log(`Fallback: Selecting best available (rank 1).`);
-        }
-    } else {
-        // Case: The desired range at least starts within the available moves. Clamp the range.
-        finalStartIndex = Math.max(0, desiredStartIndex);
-        finalEndIndex = Math.min(desiredEndIndex, maxAvailableIndex);
-        if (finalStartIndex > finalEndIndex) { finalStartIndex = finalEndIndex; } // Ensure start <= end
-        
-    }
-
-    // --- Perform Random Selection ---
-    const rangeSize = finalEndIndex - finalStartIndex + 1;
-    const randomOffset = Math.floor(Math.random() * rangeSize);
-    const randomIndex = finalStartIndex + randomOffset;
-
-    // --- Final Safety Check and Return ---
-    if (randomIndex < 0 || randomIndex >= numAvailableMoves) {
-        console.error(`CRITICAL ERROR: Calculated randomIndex ${randomIndex} is out of bounds for ${numAvailableMoves} moves. Defaulting to best move.`);
-        return rankedMoves[0];
-    }
-
-    
-    return rankedMoves[randomIndex];
+  return weightedRandomMove(normalCandidates);
 };
 
 
-// makeComputerMove remains the same as the previous version
 /**
  * Uses Stockfish (MultiPV) to find top moves and selects one based on depth/difficulty.
- * Includes fallback logic to random moves.
+ *
  * @param {Chess} game - The Chess.js game instance.
- * @param {number} depth - The selected difficulty level (1-16).
- * @param {string} computerColor - The color the computer is playing ('w' or 'b').
- * @param {Function} setTimerButtonColor - Callback to update UI feedback.
- * @returns {Promise<object|null>} An object with new game state, move (SAN), and actual thinking time, or null on failure.
+ * @param {number} depth - Difficulty level (1-16).
+ * @param {string} computerColor - Computer's color ('w' or 'b').
+ * @param {Function} setTimerButtonColor - Callback for UI feedback.
+ * @param {string|null} personality - Bot personality key for think-time shaping.
+ * @param {number|null} rating - Explicit ELO rating; falls back to COMPUTER_LEVEL_RATINGS[depth].
+ * @returns {Promise<{newGame: Chess, move: string, thinkingTime: number}|null>}
  */
 export const makeComputerMove = async (
-  game, depth, computerColor, setTimerButtonColor, personality = null
+  game, depth, computerColor, setTimerButtonColor, personality = null, rating = null
 ) => {
   console.log('🎯 makeComputerMove called', {
     turn: game.turn(),
@@ -435,89 +362,79 @@ export const makeComputerMove = async (
 
   if (game.isGameOver() || game.isDraw() || game.turn() !== computerColor) return null;
 
+  // Derive target ELO: explicit rating wins; otherwise map from difficulty level.
+  const targetElo = (rating && rating > 0)
+    ? rating
+    : (COMPUTER_LEVEL_RATINGS[depth] ?? 1500);
+
+  const halfMoveCount = game.history().length;
   const allocatedTimeMs = mapDepthToMoveTime(depth);
 
-  setTimerButtonColor("yellow");
+  setTimerButtonColor('yellow');
   const fen = game.fen();
-  let rankedMoves = [];
+  let movesWithEval = [];
   const thinkingStartTime = Date.now();
   let actualThinkingTime = 0;
   let chosenMoveUci = null;
 
   try {
     console.log('🔍 Calling getStockfishTopMoves...');
-    rankedMoves = await getStockfishTopMoves(fen, NUM_TOP_MOVES_TO_REQUEST, allocatedTimeMs);
+    movesWithEval = await getStockfishTopMoves(fen, NUM_TOP_MOVES_TO_REQUEST, allocatedTimeMs);
     actualThinkingTime = Date.now() - thinkingStartTime;
-    console.log('✅ Stockfish response received:', { movesCount: rankedMoves?.length, thinkingTime: actualThinkingTime });
-    
+    console.log('✅ Stockfish response:', { movesCount: movesWithEval?.length, thinkingTime: actualThinkingTime, targetElo });
 
-    chosenMoveUci = selectMoveFromRankedList(rankedMoves, depth);
+    chosenMoveUci = selectMoveWithCpBudget(movesWithEval, targetElo, halfMoveCount);
 
     if (!chosenMoveUci) {
-        throw new Error("Failed to get or select a move from Stockfish MultiPV results (selectMoveFromRankedList returned null).");
+      throw new Error('selectMoveWithCpBudget returned null.');
     }
 
   } catch (error) {
     actualThinkingTime = Date.now() - thinkingStartTime;
     console.error(`Error getting/selecting Stockfish move (level ${depth}, budget ${allocatedTimeMs}ms):`, error);
-    console.warn(`Falling back to random move.`);
+    console.warn('Falling back to random move.');
 
     const possibleMoves = game.moves({ verbose: true });
     if (possibleMoves.length === 0) {
-      console.error("No legal moves available for fallback.");
       setTimerButtonColor(null);
       return null;
     }
-    const randomIdx = Math.floor(Math.random() * possibleMoves.length);
-    const fallbackMove = possibleMoves[randomIdx];
-    console.log(`Applying random fallback move: ${fallbackMove.san} (${fallbackMove.from}${fallbackMove.to})`);
-
+    const fallbackMove = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
     const gameCopyFallback = new Chess(game.fen());
     const moveResultFallback = gameCopyFallback.move(fallbackMove.san);
     setTimerButtonColor(null);
     return {
-        newGame: gameCopyFallback,
-        move: moveResultFallback ? moveResultFallback.san : fallbackMove.san,
-        thinkingTime: actualThinkingTime
+      newGame: gameCopyFallback,
+      move: moveResultFallback ? moveResultFallback.san : fallbackMove.san,
+      thinkingTime: actualThinkingTime,
     };
   }
 
-  // --- Apply the Stockfish-selected move ---
+  // ── Apply the chosen move ──────────────────────────────────────────────────
   const gameCopy = new Chess(game.fen());
   let moveResult = null;
   try {
     moveResult = gameCopy.move(chosenMoveUci);
-    if (!moveResult) {
-      throw new Error(`Invalid move returned/rejected by chess.js: ${chosenMoveUci}`);
-    }
-    
+    if (!moveResult) throw new Error(`chess.js rejected move: ${chosenMoveUci}`);
   } catch (e) {
-    // --- Critical Fallback: Applying selected move failed ---
     actualThinkingTime = Date.now() - thinkingStartTime;
-    console.error(`CRITICAL ERROR applying Stockfish move '${chosenMoveUci}'. Error:`, e);
-    console.warn('Falling back to random move after failed application.');
-
+    console.error(`CRITICAL ERROR applying move '${chosenMoveUci}':`, e);
     const fallbackMoves = game.moves({ verbose: true });
     if (fallbackMoves.length === 0) {
-       console.error("No legal moves available for critical fallback.");
-       setTimerButtonColor(null);
-       return null;
+      setTimerButtonColor(null);
+      return null;
     }
-    const randomMoveData = fallbackMoves[Math.floor(Math.random() * fallbackMoves.length)];
-    const fallbackMoveSan = randomMoveData.san;
-    console.warn(`Applying critical random fallback move (SAN): ${fallbackMoveSan}`);
-
-    const gameCopyCriticalFallback = new Chess(game.fen());
-    moveResult = gameCopyCriticalFallback.move(fallbackMoveSan);
+    const randomMove = fallbackMoves[Math.floor(Math.random() * fallbackMoves.length)];
+    const gameCopyCritical = new Chess(game.fen());
+    moveResult = gameCopyCritical.move(randomMove.san);
     setTimerButtonColor(null);
     return {
-        newGame: gameCopyCriticalFallback,
-        move: moveResult ? moveResult.san : fallbackMoveSan,
-        thinkingTime: actualThinkingTime
+      newGame: gameCopyCritical,
+      move: moveResult ? moveResult.san : randomMove.san,
+      thinkingTime: actualThinkingTime,
     };
   }
 
-  // --- Success Case ---
   setTimerButtonColor(null);
   return {
     newGame: gameCopy,
