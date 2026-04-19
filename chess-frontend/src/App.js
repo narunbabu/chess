@@ -80,6 +80,7 @@ const AdminDashboard = createLazyComponent(() => import("./pages/AdminDashboard"
 const AmbassadorDashboard = createLazyComponent(() => import("./pages/AmbassadorDashboard"), { componentName: "AmbassadorDashboard" });
 const LeaderboardPage = createLazyComponent(() => import("./pages/LeaderboardPage"), { componentName: "LeaderboardPage" });
 const SystemStatusPage = createLazyComponent(() => import("./pages/SystemStatusPage"), { componentName: "SystemStatusPage" });
+const HealthPage = createLazyComponent(() => import("./pages/HealthPage"), { componentName: "HealthPage" });
 const App = () => {
   useEffect(()=> {
     const mq = window.matchMedia("(orientation:landscape)");
@@ -148,6 +149,7 @@ const AppContent = () => {
             <Route path="/share/result/:uniqueId" element={<SharedResultPage />} />
             <Route path="/leaderboard" element={<LeaderboardPage />} />
             <Route path="/system-status" element={<SystemStatusPage />} />
+            <Route path="/health" element={<HealthPage />} />
 
             {/* Play computer - No auth required */}
             <Route path="/play" element={<GameErrorBoundary><PlayComputer /></GameErrorBoundary>} />
