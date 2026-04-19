@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { BACKEND_URL } from '../config';
 import { waitForImagesToLoad } from '../utils/imageUtils';
 import { getEcho } from '../services/echoSingleton';
+import { getLeaderboard as getTacticalLeaderboard } from '../services/tacticalApi';
 
 // Share URLs
 const SHARE_URLS = {
@@ -39,6 +40,13 @@ const CATEGORIES = [
   { key: 'most_wins', label: 'Most Wins', icon: '🏆', valueLabel: 'Wins' },
   { key: 'highest_points', label: 'Highest Points', icon: '⭐', valueLabel: 'Points' },
   { key: 'by_rating', label: 'By Rating', icon: '📊', valueLabel: 'Rating' },
+  { key: 'tactical', label: 'Tactical', icon: '🧩', valueLabel: 'Rating' },
+];
+
+const TACTICAL_SCOPES = [
+  { key: 'rating', label: 'Rating', valueLabel: 'Rating', icon: '📊' },
+  { key: 'solved', label: 'Solved', valueLabel: 'Solved', icon: '✅' },
+  { key: 'streak', label: 'Streak', valueLabel: 'Streak', icon: '🔥' },
 ];
 
 const PERIODS = [
@@ -289,6 +297,15 @@ const LeaderboardPage = () => {
   const [category, setCategory] = useState('most_games');
   const [lastFetched, setLastFetched] = useState(null);
 
+  // Tactical leaderboard state
+  const [tacticalData, setTacticalData] = useState(null);
+  const [tacticalLoading, setTacticalLoading] = useState(false);
+  const [tacticalError, setTacticalError] = useState(null);
+  const [tacticalScope, setTacticalScope] = useState('rating');
+  const [tacticalPeriod, setTacticalPeriod] = useState('all');
+  const [tacticalPage, setTacticalPage] = useState(1);
+  const [tacticalLastFetched, setTacticalLastFetched] = useState(null);
+
   // Share state
   const [shareEntry, setShareEntry] = useState(null);       // single-player card
   const [shareOverview, setShareOverview] = useState(false); // overview card
@@ -314,7 +331,27 @@ const LeaderboardPage = () => {
     }
   }, []);
 
+  const fetchTacticalLeaderboard = useCallback(async (scope, tPeriod, page) => {
+    setTacticalLoading(true);
+    setTacticalError(null);
+    try {
+      const result = await getTacticalLeaderboard(scope, tPeriod, page);
+      setTacticalData(result);
+      setTacticalLastFetched(new Date());
+    } catch (err) {
+      setTacticalError(err.message || 'Failed to load tactical leaderboard');
+    } finally {
+      setTacticalLoading(false);
+    }
+  }, []);
+
   useEffect(() => { fetchLeaderboard(period); }, [period, fetchLeaderboard]);
+
+  useEffect(() => {
+    if (category === 'tactical') {
+      fetchTacticalLeaderboard(tacticalScope, tacticalPeriod, tacticalPage);
+    }
+  }, [category, tacticalScope, tacticalPeriod, tacticalPage, fetchTacticalLeaderboard]);
 
   // Auto-refresh when any game ends (listen on public lobby channel)
   useEffect(() => {
@@ -338,7 +375,20 @@ const LeaderboardPage = () => {
 
   const entries = useMemo(() => data?.[category] || [], [data, category]);
 
-  const handlePeriodChange = (p) => { if (category !== 'by_rating') setPeriod(p); };
+  const handlePeriodChange = (p) => {
+    if (category === 'by_rating') return;
+    if (category === 'tactical') {
+      setTacticalPeriod(p);
+      setTacticalPage(1);
+      return;
+    }
+    setPeriod(p);
+  };
+
+  const handleCategoryChange = (c) => {
+    setCategory(c);
+    if (c === 'tactical') setTacticalPage(1);
+  };
 
   const getShareText = (entry) => {
     const templates = SHARE_TEMPLATES[category];
@@ -466,49 +516,66 @@ const LeaderboardPage = () => {
         <div style={S.titleRow}>
           <h1 style={S.title}>Leaderboard</h1>
           <button
-            onClick={() => fetchLeaderboard(period)}
-            disabled={loading}
-            style={{ ...S.refreshBtn, ...(loading ? { opacity: 0.5 } : {}) }}
+            onClick={() => category === 'tactical' ? fetchTacticalLeaderboard(tacticalScope, tacticalPeriod, tacticalPage) : fetchLeaderboard(period)}
+            disabled={category === 'tactical' ? tacticalLoading : loading}
+            style={{ ...S.refreshBtn, ...((category === 'tactical' ? tacticalLoading : loading) ? { opacity: 0.5 } : {}) }}
             title="Refresh leaderboard"
           >
-            {loading ? '⏳' : '🔄'}
+            {(category === 'tactical' ? tacticalLoading : loading) ? '⏳' : '🔄'}
           </button>
         </div>
-        {lastFetched && !loading && (
+        {lastFetched && !loading && category !== 'tactical' && (
           <p style={S.lastFetched}>Updated {lastFetched.toLocaleTimeString()}</p>
         )}
 
         {/* ─── Invite Banner ─── */}
-        <div style={S.inviteBanner}>
-          <div style={S.inviteContent}>
-            <span style={S.inviteEmoji}>♚</span>
-            <div>
-              <div style={S.inviteHeadline}>Challenge your friends!</div>
-              <div style={S.inviteSubtext}>Share the leaderboard card and invite them to compete</div>
+        {category !== 'tactical' && (
+          <div style={S.inviteBanner}>
+            <div style={S.inviteContent}>
+              <span style={S.inviteEmoji}>♚</span>
+              <div>
+                <div style={S.inviteHeadline}>Challenge your friends!</div>
+                <div style={S.inviteSubtext}>Share the leaderboard card and invite them to compete</div>
+              </div>
             </div>
+            <button onClick={handleShareInvite} disabled={isCapturing || entries.length === 0 || loading} style={{ ...S.inviteBtn, ...((isCapturing || loading) ? { opacity: 0.6 } : {}) }}>
+              {isCapturing && shareOverview ? '⏳ Creating...' : '📤 Share Card'}
+            </button>
           </div>
-          <button onClick={handleShareInvite} disabled={isCapturing || entries.length === 0 || loading} style={{ ...S.inviteBtn, ...((isCapturing || loading) ? { opacity: 0.6 } : {}) }}>
-            {isCapturing && shareOverview ? '⏳ Creating...' : '📤 Share Card'}
-          </button>
-        </div>
+        )}
 
         {/* ─── Period tabs ─── */}
         <div style={S.periodRow}>
-          {PERIODS.map((p) => {
-            const disabled = category === 'by_rating';
-            const active = period === p.key && !disabled;
-            return (
-              <button key={p.key} onClick={() => handlePeriodChange(p.key)} disabled={disabled} style={{ ...S.periodBtn, ...(active ? S.periodBtnActive : {}), ...(disabled ? S.periodBtnDisabled : {}) }}>
-                {p.label}
-              </button>
-            );
-          })}
+          {category === 'tactical' ? (
+            <>
+              {[
+                { key: 'all', label: 'All Time' },
+                { key: 'weekly', label: 'This Week' },
+              ].map((p) => (
+                <button key={p.key} onClick={() => handlePeriodChange(p.key)} style={{ ...S.periodBtn, ...(tacticalPeriod === p.key ? S.periodBtnActive : {}) }}>
+                  {p.label}
+                </button>
+              ))}
+            </>
+          ) : (
+            <>
+              {PERIODS.map((p) => {
+                const disabled = category === 'by_rating';
+                const active = period === p.key && !disabled;
+                return (
+                  <button key={p.key} onClick={() => handlePeriodChange(p.key)} disabled={disabled} style={{ ...S.periodBtn, ...(active ? S.periodBtnActive : {}), ...(disabled ? S.periodBtnDisabled : {}) }}>
+                    {p.label}
+                  </button>
+                );
+              })}
+            </>
+          )}
         </div>
 
         {/* ─── Category tabs ─── */}
         <div style={S.categoryRow}>
           {CATEGORIES.map((c) => (
-            <button key={c.key} onClick={() => setCategory(c.key)} style={{ ...S.categoryBtn, ...(category === c.key ? S.categoryBtnActive : {}) }}>
+            <button key={c.key} onClick={() => handleCategoryChange(c.key)} style={{ ...S.categoryBtn, ...(category === c.key ? S.categoryBtnActive : {}) }}>
               <span style={{ fontSize: 16 }}>{c.icon}</span>
               <span>{c.label}</span>
             </button>
@@ -517,8 +584,89 @@ const LeaderboardPage = () => {
 
         {category === 'by_rating' && <p style={S.ratingNote}>Rating leaderboard shows current standings (min. 5 games played)</p>}
 
+        {/* ─── Tactical scope sub-tabs ─── */}
+        {category === 'tactical' && (
+          <div style={{ ...S.categoryRow, marginBottom: 12 }}>
+            {TACTICAL_SCOPES.map((sc) => (
+              <button key={sc.key} onClick={() => { setTacticalScope(sc.key); setTacticalPage(1); }} style={{ ...S.categoryBtn, ...(tacticalScope === sc.key ? S.categoryBtnActive : {}) }}>
+                <span style={{ fontSize: 14 }}>{sc.icon}</span>
+                <span>{sc.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* ─── Content ─── */}
-        {loading ? (
+        {category === 'tactical' ? (
+          (() => {
+            const scopeInfo = TACTICAL_SCOPES.find(s => s.key === tacticalScope);
+            const tEntries = tacticalData?.leaderboard || [];
+            const currentRank = tacticalData?.currentUserRank;
+            return (
+              <>
+                {tacticalLoading ? (
+                  <div style={S.loader}><div style={S.spinner} /><p style={{ color: '#bababa', marginTop: 12 }}>Loading tactical leaderboard...</p></div>
+                ) : tacticalError ? (
+                  <div style={S.errorBox}><p>Failed to load: {tacticalError}</p><button onClick={() => fetchTacticalLeaderboard(tacticalScope, tacticalPeriod, tacticalPage)} style={S.retryBtn}>Retry</button></div>
+                ) : tEntries.length === 0 ? (
+                  <div style={S.emptyState}><span style={{ fontSize: 48 }}>🧩</span><p style={{ color: '#bababa', marginTop: 12 }}>No tactical players yet. Start solving puzzles!</p></div>
+                ) : (
+                  <div style={S.list}>
+                    {tEntries.map((entry, index) => {
+                      const isMe = user && user.id === entry.userId;
+                      const isMedal = index < 3;
+                      const displayValue = tacticalScope === 'rating' ? entry.rating
+                        : tacticalScope === 'solved' ? (tacticalPeriod === 'weekly' ? entry.weeklySolved : entry.totalSolved)
+                        : entry.streak;
+                      return (
+                        <div key={entry.userId} style={{ ...S.row, ...(isMe ? S.rowHighlight : {}), ...(isMedal ? { borderLeft: `3px solid ${MEDAL_COLORS[index]}` } : {}) }}>
+                          <div style={S.rankCol}>
+                            {isMedal
+                              ? <span style={{ fontSize: 22, color: MEDAL_COLORS[index] }}>{index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}</span>
+                              : <span style={S.rankNum}>{entry.rank}</span>
+                            }
+                          </div>
+                          <div style={S.playerCol}>
+                            <img src={entry.avatarUrl || `https://i.pravatar.cc/40?u=${entry.userId}`} alt={entry.name} style={S.avatar} onError={(e) => { if (!e.target.src.includes('pravatar.cc')) e.target.src = `https://i.pravatar.cc/40?u=${entry.userId}`; }} />
+                            <div>
+                              <span style={S.playerName}>{entry.name}{isMe && <span style={S.youBadge}>You</span>}</span>
+                              <span style={S.playerRating}>Rating: {entry.rating}{entry.bestStreak ? ` · Best streak: ${entry.bestStreak}` : ''}</span>
+                            </div>
+                          </div>
+                          <div style={S.valueCol}>
+                            <span style={S.valueNum}>{displayValue}</span>
+                            <span style={S.valueLbl}>{scopeInfo?.valueLabel}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {/* Pagination */}
+                    {tacticalData?.meta && tacticalData.meta.lastPage > 1 && (
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 16 }}>
+                        <button disabled={tacticalPage <= 1} onClick={() => setTacticalPage(p => p - 1)} style={{ ...S.periodBtn, ...(tacticalPage <= 1 ? S.periodBtnDisabled : {}) }}>← Prev</button>
+                        <span style={{ color: '#bababa', fontSize: 13, lineHeight: '36px' }}>Page {tacticalPage} of {tacticalData.meta.lastPage}</span>
+                        <button disabled={tacticalPage >= tacticalData.meta.lastPage} onClick={() => setTacticalPage(p => p + 1)} style={{ ...S.periodBtn, ...(tacticalPage >= tacticalData.meta.lastPage ? S.periodBtnDisabled : {}) }}>Next →</button>
+                      </div>
+                    )}
+                    {/* Current user rank if not in top results */}
+                    {currentRank && !tEntries.some(e => user && e.userId === user.id) && (
+                      <div style={{ ...S.row, marginTop: 8, background: '#3d3a37', boxShadow: 'inset 0 0 0 1px #81b64c40', borderLeft: '3px solid #81b64c' }}>
+                        <div style={S.rankCol}><span style={S.rankNum}>#{currentRank}</span></div>
+                        <div style={S.playerCol}>
+                          <span style={{ ...S.playerName, marginLeft: 0 }}>Your position</span>
+                          <span style={S.playerRating}>Solve more puzzles to climb!</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {tacticalLastFetched && !tacticalLoading && (
+                  <p style={{ ...S.lastFetched, marginTop: 12 }}>Updated {tacticalLastFetched.toLocaleTimeString()}</p>
+                )}
+              </>
+            );
+          })()
+        ) : loading ? (
           <div style={S.loader}><div style={S.spinner} /><p style={{ color: '#bababa', marginTop: 12 }}>Loading...</p></div>
         ) : error ? (
           <div style={S.errorBox}><p>Failed to load: {error}</p><button onClick={() => fetchLeaderboard(period)} style={S.retryBtn}>Retry</button></div>

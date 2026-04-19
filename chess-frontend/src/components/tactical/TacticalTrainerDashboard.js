@@ -1,8 +1,28 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { stages } from './tacticalStages';
+import { useAuth } from '../../contexts/AuthContext';
+import { getLeaderboard } from '../../services/tacticalApi';
 
 export default function TacticalTrainerDashboard({ stats, onSelectStage }) {
+  const { isAuthenticated } = useAuth();
+  const [rankInfo, setRankInfo] = useState(null);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let cancelled = false;
+    getLeaderboard('rating', 'all', 1)
+      .then(data => {
+        if (cancelled) return;
+        setRankInfo({
+          rank: data.currentUserRank ?? null,
+          total: data.meta?.total ?? data.leaderboard?.length ?? null,
+        });
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [isAuthenticated]);
+
   const overallAccuracy =
     stats.totalAttempted > 0
       ? Math.round((stats.totalSolved / stats.totalAttempted) * 100)
@@ -29,7 +49,7 @@ export default function TacticalTrainerDashboard({ stats, onSelectStage }) {
         </div>
 
         {/* Stats row */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+        <div className={`grid gap-4 mb-10 ${rankInfo?.rank ? 'grid-cols-2 md:grid-cols-5' : 'grid-cols-2 md:grid-cols-4'}`}>
           {[
             { label: 'Trainer Rating', value: stats.rating, color: '#81b64c' },
             { label: 'Total Solved',   value: stats.totalSolved || 0, color: '#ffffff' },
@@ -37,6 +57,11 @@ export default function TacticalTrainerDashboard({ stats, onSelectStage }) {
             { label: 'Streak',
               value: (stats.streak || 0) > 0 ? `🔥 ${stats.streak}` : stats.streak || 0,
               color: (stats.streak || 0) > 4 ? '#f59e0b' : '#ffffff' },
+            ...(rankInfo?.rank ? [{
+              label: 'Global Rank',
+              value: `#${rankInfo.rank}${rankInfo.total ? ` of ${rankInfo.total}` : ''}`,
+              color: rankInfo.rank <= 3 ? '#FFD700' : rankInfo.rank <= 10 ? '#81b64c' : '#5b8dd9',
+            }] : []),
           ].map(({ label, value, color }) => (
             <div
               key={label}
@@ -51,6 +76,31 @@ export default function TacticalTrainerDashboard({ stats, onSelectStage }) {
               </div>
             </div>
           ))}
+        </div>
+
+        {/* Leaderboard link */}
+        <div className="flex justify-center mb-8">
+          <Link
+            to="/leaderboard"
+            state={{ category: 'tactical' }}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all"
+            style={{
+              backgroundColor: '#312e2b',
+              border: '1px solid #4a4744',
+              color: '#bababa',
+              textDecoration: 'none',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.borderColor = '#81b64c';
+              e.currentTarget.style.color = '#81b64c';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.borderColor = '#4a4744';
+              e.currentTarget.style.color = '#bababa';
+            }}
+          >
+            🧩 View Tactical Leaderboard
+          </Link>
         </div>
 
         {/* Overall progress bar */}

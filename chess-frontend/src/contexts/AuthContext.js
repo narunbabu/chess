@@ -7,6 +7,8 @@ import userStatusService from '../services/userStatusService';
 import { logger } from '../utils/logger';
 import { savePendingGame, getPendingGame } from '../services/gameHistoryService';
 import { migrateGuestGame } from '../services/unfinishedGameService';
+import tacticalApi from '../services/tacticalApi';
+import { STORAGE_KEY } from '../components/tactical/tacticalStages';
 
 // Create the AuthContext
 const AuthContext = createContext(null);
@@ -174,6 +176,26 @@ export const AuthProvider = ({ children }) => {
 
       // Migrate guest unfinished games to backend
       await migrateGuestUnfinishedGames();
+
+      // One-time localStorage → server tactical progress sync
+      try {
+        const localBlob = localStorage.getItem(STORAGE_KEY);
+        if (localBlob) {
+          const snapshot = JSON.parse(localBlob);
+          // Only sync if user has meaningful local progress
+          if (snapshot.totalAttempted > 0 || snapshot.totalSolved > 0) {
+            const server = await tacticalApi.getProgress().catch(() => null);
+            if (!server?.stats || server.stats.total_attempted === 0) {
+              await tacticalApi.syncLocalData(snapshot);
+              localStorage.removeItem(STORAGE_KEY);
+              console.log('[Auth] ✅ Tactical progress synced from localStorage to server');
+            }
+          }
+        }
+      } catch (syncErr) {
+        console.warn('[Auth] ⚠️ Tactical localStorage sync failed:', syncErr);
+      }
+
       // Presence: always initialize regardless of Echo status.
       // DB write + heartbeat run immediately; if Echo is not ready the
       // WebSocket channel connect is retried internally by presenceService.

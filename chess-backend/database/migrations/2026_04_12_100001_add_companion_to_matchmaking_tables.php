@@ -10,22 +10,19 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Update matchmaking_queue table
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
         DB::statement("ALTER TABLE matchmaking_queue MODIFY COLUMN game_mode ENUM('casual', 'rated', 'companion') DEFAULT 'rated'");
-
-        // Update match_requests table
         DB::statement("ALTER TABLE match_requests MODIFY COLUMN game_mode ENUM('casual', 'rated', 'companion') DEFAULT 'rated'");
     }
 
-    /**
-     * Reverse the migration.
-     */
     public function down(): void
     {
-        // Remove companion from matchmaking_queue
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
         DB::statement("ALTER TABLE matchmaking_queue MODIFY COLUMN game_mode ENUM('casual', 'rated') DEFAULT 'rated'");
-
-        // Remove companion from match_requests
         DB::statement("ALTER TABLE match_requests MODIFY COLUMN game_mode ENUM('casual', 'rated') DEFAULT 'rated'");
     }
 };

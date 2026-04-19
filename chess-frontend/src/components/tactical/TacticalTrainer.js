@@ -1,9 +1,11 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Chess } from 'chess.js';
 import TacticalTrainerDashboard from './TacticalTrainerDashboard';
 import TacticalPuzzleBoard from './TacticalPuzzleBoard';
 import { loadProgress, saveProgress, stages, computeRatingDelta, computePuzzleScore } from './tacticalStages';
 import { STAGE_VIDEOS } from './stageVideos';
+import { useAuth } from '../../contexts/AuthContext';
+import tacticalApi from '../../services/tacticalApi';
 
 /**
  * Lichess puzzle CSV format: FEN is the position BEFORE the opponent's setup move.
@@ -51,7 +53,41 @@ const PUZZLE_LOADERS = {
   4: () => import('../../data/stage4_puzzles.json').then(m => m.default),
 };
 
+// ── Offline outbox queue ──────────────────────────────────────────────────────
+const OUTBOX_KEY = 'tactical_outbox';
+
+function getOutbox() {
+  try { return JSON.parse(localStorage.getItem(OUTBOX_KEY)) || []; }
+  catch { return []; }
+}
+
+function saveOutbox(items) {
+  localStorage.setItem(OUTBOX_KEY, JSON.stringify(items));
+}
+
+function enqueueAttempt(attempt) {
+  const items = getOutbox();
+  items.push({ ...attempt, _queuedAt: Date.now() });
+  saveOutbox(items);
+}
+
+async function flushOutbox() {
+  const items = getOutbox();
+  if (items.length === 0) return;
+  const remaining = [];
+  for (const item of items) {
+    const { _queuedAt, ...attempt } = item;
+    try {
+      await tacticalApi.submitAttempt(attempt);
+    } catch {
+      remaining.push(item);
+    }
+  }
+  saveOutbox(remaining);
+}
+
 export default function TacticalTrainer() {
+  const { user, isAuthenticated } = useAuth();
   const [stats,              setStats]              = useState(loadProgress);
   const [currentStageId,     setCurrentStageId]     = useState(null);
   const [stagePuzzles,       setStagePuzzles]        = useState([]);
@@ -59,6 +95,51 @@ export default function TacticalTrainer() {
   const [loading,            setLoading]            = useState(false);
   const [lastDelta,          setLastDelta]          = useState(null);
   const [lastPuzzleScore,    setLastPuzzleScore]    = useState(null);
+  const syncedRef = useRef(false);
+
+  // ── Load progress from API when authenticated ──────────────────────────────
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await tacticalApi.getProgress();
+        if (cancelled) return;
+        // Merge API progress into state; API response has { stats, stageProgress }
+        const merged = {
+          ...(data.stats || {}),
+          stageProgress: data.stageProgress || {},
+          badges: data.badges || [],
+        };
+        // Persist to localStorage so guests see last-known state if they log out
+        saveProgress(merged);
+        setStats(merged);
+      } catch (err) {
+        console.warn('TacticalTrainer: API load failed, using localStorage fallback', err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isAuthenticated]);
+
+  // ── One-time sync of existing localStorage data to server on login ─────────
+  useEffect(() => {
+    if (!isAuthenticated || syncedRef.current) return;
+    syncedRef.current = true;
+    const local = loadProgress();
+    if (!local || local.totalAttempted === 0) return;
+    tacticalApi.syncLocalData(local).catch(err => {
+      console.warn('TacticalTrainer: localStorage sync failed', err);
+    });
+  }, [isAuthenticated]);
+
+  // ── Flush outbox on login or reconnect ──────────────────────────────────────
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    flushOutbox();
+    const onOnline = () => flushOutbox();
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }, [isAuthenticated]);
 
   // ── Select a stage, lazy-load its puzzles ─────────────────────────────────
   const handleSelectStage = useCallback(async stageId => {
@@ -157,9 +238,36 @@ export default function TacticalTrainer() {
 
       next.stageProgress[currentStageId] = stageProg;
       saveProgress(next);
+
+      // Submit to API when authenticated and online; otherwise queue locally
+      if (puzzle) {
+        const payload = {
+          stage_id: currentStageId,
+          puzzle_id: puzzle.id,
+          success,
+          puzzle_rating: puzzle.rating,
+          wrong_count: wrongCount,
+          solution_shown: solutionShown,
+          cct_my_found: myFound,
+          cct_my_total: myTotal,
+          cct_opp_found: oppFound,
+          cct_opp_total: oppTotal,
+          time_spent_ms: cctMeta.timeSpentMs,
+          stage_total_puzzles: stagePuzzles.length,
+        };
+        if (isAuthenticated && navigator.onLine) {
+          tacticalApi.submitAttempt(payload).catch(err => {
+            console.warn('TacticalTrainer: attempt submit failed, queueing', err);
+            enqueueAttempt(payload);
+          });
+        } else {
+          enqueueAttempt(payload);
+        }
+      }
+
       return next;
     });
-  }, [currentStageId, currentPuzzleIndex, stagePuzzles]);
+  }, [currentStageId, currentPuzzleIndex, stagePuzzles, isAuthenticated]);
 
   const handleNext = useCallback(() => {
     setCurrentPuzzleIndex(i => i + 1);

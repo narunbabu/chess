@@ -31,6 +31,7 @@ use App\Http\Controllers\HealthController;
 use App\Http\Controllers\LobbyController;
 use App\Http\Controllers\MatchmakingController;
 use App\Http\Controllers\LeaderboardController;
+use App\Http\Controllers\TacticalProgressController;
 use Illuminate\Support\Facades\Route;
 
 // ─── Health Check (public) ────────────────────────────────────────────────────
@@ -229,6 +230,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/games/{gameId}/chat', [WebSocketController::class, 'getChatHistory']);
         Route::post('/games/{gameId}/chat', [WebSocketController::class, 'sendChatMessage']);
     });
+
+    // ── Tactical Trainer ─────────────────────────────────────────────────
+    Route::get('/tactical/progress', [TacticalProgressController::class, 'progress']);
+    Route::get('/tactical/leaderboard', [TacticalProgressController::class, 'leaderboard']);
+    Route::post('/tactical/attempts', [TacticalProgressController::class, 'attempt']);
+    Route::post('/tactical/sync', [TacticalProgressController::class, 'sync']);
 
     // ── Lobby ─────────────────────────────────────────────────────────────
     Route::get('/lobby/players', [LobbyController::class, 'players']);
