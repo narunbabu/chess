@@ -4075,7 +4075,7 @@ const PlayMultiplayer = () => {
       setDrawClaimAvailable(false);
       return;
     }
-    const { canClaim, reason } = getClaimableDrawStatus(game);
+    const { canClaim, reason } = getClaimableDrawStatus(game, positionCountsRef.current);
     setDrawClaimAvailable(canClaim);
     setDrawClaimReason(canClaim ? reason : null);
   }, [game, myColor, gameComplete, gameInfo.status]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -5888,6 +5888,153 @@ const PlayMultiplayer = () => {
                 ❌ Decline
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Draw Offer Notification */}
+      {drawOfferPending && (
+        <div style={{
+          position: 'fixed',
+          top: '0',
+          left: '0',
+          right: '0',
+          bottom: '0',
+          backgroundColor: 'rgba(0, 0, 0, 0.6)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000,
+          animation: 'fadeIn 0.2s ease-out'
+        }}>
+          <div style={{
+            backgroundColor: '#302e2b',
+            color: 'white',
+            padding: '28px 32px',
+            borderRadius: '16px',
+            boxShadow: '0 12px 40px rgba(0, 0, 0, 0.5)',
+            textAlign: 'center',
+            minWidth: '320px',
+            maxWidth: '420px',
+            border: '2px solid #e8a93e'
+          }}>
+            <div style={{ fontSize: '48px', marginBottom: '12px', lineHeight: '1' }}>🤝</div>
+            <h3 style={{ marginBottom: '8px', fontSize: '22px', fontWeight: '700', color: '#e8a93e' }}>
+              Draw Offered
+            </h3>
+            <p style={{ marginBottom: '24px', fontSize: '16px', color: '#bababa', lineHeight: '1.5' }}>
+              <strong style={{ color: '#fff' }}>{drawOfferFromName || 'Your opponent'}</strong> is offering a draw.
+              <br />
+              <span style={{ fontSize: '14px' }}>The game will end as ½–½ if you accept.</span>
+            </p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <button
+                onClick={handleAcceptDraw}
+                style={{
+                  backgroundColor: '#81b64c', color: 'white', border: 'none',
+                  padding: '14px 28px', borderRadius: '8px', fontSize: '16px',
+                  cursor: 'pointer', fontWeight: '600', minWidth: '140px'
+                }}
+              >
+                ✓ Accept Draw
+              </button>
+              <button
+                onClick={handleDeclineDraw}
+                style={{
+                  backgroundColor: '#c33', color: 'white', border: 'none',
+                  padding: '14px 28px', borderRadius: '8px', fontSize: '16px',
+                  cursor: 'pointer', fontWeight: '600', minWidth: '140px'
+                }}
+              >
+                ✗ Decline
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Draw Offer Declined Toast */}
+      {drawDeclinedNotice && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          backgroundColor: '#302e2b',
+          color: '#f0f0f0',
+          padding: '14px 28px',
+          borderRadius: '10px',
+          boxShadow: '0 6px 24px rgba(0,0,0,0.5)',
+          border: '1px solid #e8a93e',
+          zIndex: 9500,
+          fontSize: '14px',
+          fontWeight: '500',
+          animation: 'fadeIn 0.25s ease-out'
+        }}>
+          🤝 Draw offer was declined
+        </div>
+      )}
+
+      {/* Claimable Draw Banner (threefold repetition / 50-move rule) */}
+      {drawClaimAvailable && !gameComplete && (
+        <div style={{
+          position: 'fixed',
+          bottom: '80px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          backgroundColor: '#302e2b',
+          color: 'white',
+          padding: '14px 20px',
+          borderRadius: '12px',
+          boxShadow: '0 6px 24px rgba(0,0,0,0.5)',
+          border: '2px solid #e8a93e',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '14px',
+          zIndex: 9500,
+          minWidth: '300px',
+          maxWidth: '460px',
+          animation: 'fadeIn 0.25s ease-out',
+        }}>
+          <span style={{ fontSize: '22px', flexShrink: 0 }}>½</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: '700', fontSize: '14px', color: '#e8a93e', marginBottom: '2px' }}>
+              {drawClaimReason === 'threefold_repetition'
+                ? 'Threefold Repetition — You Can Claim a Draw'
+                : '50-Move Rule — You Can Claim a Draw'}
+            </div>
+            <div style={{ fontSize: '12px', color: '#bababa', lineHeight: '1.4' }}>
+              {drawClaimReason === 'threefold_repetition'
+                ? 'The same position has occurred 3 times. Claim the draw or keep playing.'
+                : '50 moves without a pawn move or capture. Claim the draw or keep playing.'}
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0 }}>
+            <button
+              onClick={handleClaimDraw}
+              disabled={drawClaimLoading}
+              style={{
+                backgroundColor: drawClaimLoading ? '#555' : '#81b64c',
+                color: 'white', border: 'none',
+                padding: '8px 16px', borderRadius: '6px',
+                fontSize: '13px', fontWeight: '600',
+                cursor: drawClaimLoading ? 'not-allowed' : 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {drawClaimLoading ? 'Claiming…' : '½ Claim Draw'}
+            </button>
+            <button
+              onClick={handleDismissDrawClaim}
+              style={{
+                backgroundColor: 'transparent', color: '#aaa',
+                border: '1px solid #555',
+                padding: '6px 16px', borderRadius: '6px',
+                fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap',
+              }}
+            >
+              Keep Playing
+            </button>
           </div>
         </div>
       )}

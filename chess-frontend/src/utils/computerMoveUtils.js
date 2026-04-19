@@ -245,42 +245,29 @@ export const waitForPerceivedThinkTime = (fen, moveNumber, move, depth, personal
 // ─── Move Selection ────────────────────────────────────────────────────────────
 
 /**
- * Weighted random pick from a list of {move, cpLoss} objects.
- * Strongly favors moves with smaller centipawn loss via 1/(cpLoss+1) weighting,
- * so the best move is usually played but not exclusively.
- *
- * @param {Array<{move: string, cpLoss: number}>} candidates
- * @returns {string} UCI move string
- */
-const weightedRandomMove = (candidates) => {
-  const weights = candidates.map(c => 1 / (c.cpLoss + 1));
-  const total = weights.reduce((a, b) => a + b, 0);
-  let r = Math.random() * total;
-  for (let i = 0; i < candidates.length; i++) {
-    r -= weights[i];
-    if (r <= 0) return candidates[i].move;
-  }
-  return candidates[candidates.length - 1].move;
-};
-
-/**
  * Selects a move using centipawn-loss budget + blunder injection.
  *
- * Normal play:
- *   Each ELO has a maximum acceptable centipawn loss per move.
- *   2400→33cp, 2200→44cp, 2100→50cp, 1800→67cp, 1500→83cp, 1200→100cp, 800→133cp.
- *   Within that budget, moves are weighted toward smaller losses, so the best move
- *   is still usually chosen, but not exclusively.
+ * Normal play (softmax weighting):
+ *   Each ELO has a cp budget (maxCpLoss) AND a temperature that controls how spread
+ *   the selection is. 1/(cpLoss+1) was replaced with exp(-cpLoss/temperature) because
+ *   the old formula assigned rank-1 a 92%+ probability in practice — effectively
+ *   always playing the best move regardless of ELO.
+ *
+ *   temperature = (3000 - elo) / 80, clamped to [5, ∞]:
+ *     1200→22.5, 1800→15, 1900→13.75, 2200→10, 2400→7.5
+ *   Lower temp = more concentrated on best move (high ELO). Higher temp = more spread.
+ *
+ *   maxCpLoss = (3500 - elo) / 16, clamped [5, 250]:
+ *     1200→144cp, 1800→106cp, 1900→100cp, 2200→81cp, 2400→69cp
  *
  * Blunder injection:
- *   A random blunder is occasionally inserted, scaled by ELO and game phase.
- *   Protected during the opening (moves 1-10); ramps up through the middlegame.
- *   Higher ELO = lower probability and smaller blunder severity.
- *   This differentiates 2100 from 2400 in the late-game where both previously
- *   played rank-1 moves exclusively.
+ *   baseBlunderP = (2800 - elo) / 12000:
+ *     2400→3.3%, 2200→5%, 1900→7.5%, 1800→8.3%, 1500→10.8%
+ *   Protected during the first 6 moves; ramps to full probability by move 18.
+ *   minBlunderCp lowered from 60 → 30 so inaccuracies (not just big blunders) qualify.
+ *   Higher ELO = smaller maxBlunderCp (makes smaller mistakes when they err).
  *
- * @param {Array<{move: string, cp: number}>} movesWithEval - Stockfish MultiPV results,
- *   best first, with centipawn scores from the side-to-move's perspective.
+ * @param {Array<{move: string, cp: number}>} movesWithEval - Stockfish MultiPV results.
  * @param {number} targetElo - Bot's target ELO rating.
  * @param {number} halfMoveCount - game.history().length (half-moves played so far).
  * @returns {string|null} Chosen UCI move, or null if no candidates.
@@ -291,50 +278,59 @@ const selectMoveWithCpBudget = (movesWithEval, targetElo, halfMoveCount) => {
 
   const bestCp = movesWithEval[0].cp;
 
-  // Normalize: cpLoss is how much worse than the best move (always >= 0).
+  // Normalize: cpLoss = how much worse than the best move (always >= 0).
   const moves = movesWithEval.map(({ move, cp }) => ({
     move,
     cpLoss: Math.max(0, bestCp - cp),
   }));
 
-  // ── Normal play cp budget ──────────────────────────────────────────────────
-  // Linear: 400→133cp, 1200→100cp, 1800→67cp, 2200→44cp, 2400→33cp, 3200→5cp.
-  // Clamped to [5, 200] to prevent degenerate extremes.
-  const maxCpLoss = Math.max(5, Math.min(200, (3000 - targetElo) / 18));
+  // ── Normal play budget & temperature ──────────────────────────────────────
+  const maxCpLoss = Math.max(5, Math.min(250, (3500 - targetElo) / 16));
+  // Softmax temperature: lower = more concentrated on best move (high ELO).
+  const temperature = Math.max(5, (3000 - targetElo) / 80);
 
   // ── Blunder injection ──────────────────────────────────────────────────────
-  // Base probability per move (before phase scaling):
-  //   2800→0%, 2400→1.8%, 2200→2.7%, 2100→3.2%, 1800→4.5%, 1500→5.9%, 1200→7.3%
-  const baseBlunderP = Math.max(0, (2800 - targetElo) / 22000);
+  const baseBlunderP = Math.max(0, (2800 - targetElo) / 12000);
 
-  // Phase: opening is protected (bots play theory); mistakes emerge in middlegame.
-  // fullMove 1-10 → phase ~0, fullMove 25+ → phase 1.0
   const fullMoveNum = Math.floor(halfMoveCount / 2) + 1;
-  const phase = Math.max(0, Math.min(1.0, (fullMoveNum - 10) / 15));
-  const blunderP = baseBlunderP * (0.1 + 0.9 * phase);
+  // Opening protected until move 6; ramps to full probability by move 18.
+  const phase = Math.max(0, Math.min(1.0, (fullMoveNum - 6) / 12));
+  const blunderP = baseBlunderP * (0.05 + 0.95 * phase);
 
-  // Blunder severity cap (max cp loss when a blunder fires):
-  //   2400→120cp, 2000→208cp, 1600→296cp, 1200→350cp (clamped).
-  // Higher ELO players make smaller mistakes when they err.
+  // Severity: higher ELO makes smaller mistakes when they err.
+  // 2400→120cp, 2000→208cp, 1600→296cp, 1200→350cp (clamped).
   const maxBlunderCp = Math.max(100, Math.min(350, 120 + (2400 - targetElo) * 0.22));
+  // Lowered from 60 → 30 so inaccuracies also qualify as blunder candidates.
+  const minBlunderCp = 30;
 
   if (Math.random() < blunderP) {
-    const blunderCandidates = moves.filter(m => m.cpLoss >= 60 && m.cpLoss <= maxBlunderCp);
+    const blunderCandidates = moves.filter(m => m.cpLoss >= minBlunderCp && m.cpLoss <= maxBlunderCp);
     if (blunderCandidates.length > 0) {
-      return weightedRandomMove(blunderCandidates);
+      const chosen = blunderCandidates[Math.floor(Math.random() * blunderCandidates.length)];
+      console.log(`🎲 [ELO ${targetElo}] move ${fullMoveNum}: suboptimal play (p=${(blunderP*100).toFixed(1)}%) → cpLoss ${chosen.cpLoss}`);
+      return chosen.move;
     }
-    // No suitable blunder in the top-N list → fall through to normal play.
+    // No suitable candidate in range → fall through to normal play.
   }
 
-  // ── Normal play ────────────────────────────────────────────────────────────
+  // ── Normal play: softmax weighted selection ────────────────────────────────
   const normalCandidates = moves.filter(m => m.cpLoss <= maxCpLoss);
-
   if (normalCandidates.length === 0) {
-    // All alternatives lose heavily (forced/critical position) → play the best move.
+    // Forced/critical position — all alternatives lose heavily. Play best.
     return moves[0].move;
   }
 
-  return weightedRandomMove(normalCandidates);
+  // exp(-cpLoss/temperature): best move strongly favored but not forced.
+  // Example at 1900 ELO (temp=13.75): cpLoss 0→1.0, 20→0.24, 40→0.056
+  // → P(rank-1) ≈ 77% vs 92%+ with old 1/(cpLoss+1) formula.
+  const weights = normalCandidates.map(c => Math.exp(-c.cpLoss / temperature));
+  const total = weights.reduce((a, b) => a + b, 0);
+  let r = Math.random() * total;
+  for (let i = 0; i < normalCandidates.length; i++) {
+    r -= weights[i];
+    if (r <= 0) return normalCandidates[i].move;
+  }
+  return normalCandidates[normalCandidates.length - 1].move;
 };
 
 

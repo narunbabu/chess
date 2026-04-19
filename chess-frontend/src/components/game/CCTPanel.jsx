@@ -199,11 +199,12 @@ const CCTPanel = ({ game, isActive, isRated = false, onArrowsChange, onLabelsCha
     setBestMoves(null);
 
     getStockfishTopMoves(fen, 3, mapDepthToMoveTime(12))
-      .then(uciMoves => {
+      .then(moves => {
         if (sfAbort.current !== callId) return;
-        const classified = uciMoves.map(uci => ({
-          ...uciToMoveObj(uci, fen),
-          tag: classifyMoveAgainstCCT(uci, cct),
+        const classified = moves.map(({ move, cp }) => ({
+          ...uciToMoveObj(move, fen),
+          cp,
+          tag: classifyMoveAgainstCCT(move, cct),
         }));
         setBestMoves(classified);
       })

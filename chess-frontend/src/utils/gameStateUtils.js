@@ -15,14 +15,27 @@ export const getFenKey = (fen) => fen.split(' ').slice(0, 4).join(' ');
  * Rules:
  *  - Threefold repetition: same position occurred ≥3 times — player to move may claim.
  *  - 50-move rule: halfmove clock ≥100 — either player may claim.
+ *
+ * @param {Object} game - chess.js instance
+ * @param {Map<string,number>} [positionCounts] - Map<fenKey, count> maintained by caller.
+ *        When provided, threefold is checked against this map instead of chess.js's internal
+ *        history, which is unreliable because the game object is frequently rebuilt from FEN
+ *        after remote moves (losing all internal history).
  */
-export const getClaimableDrawStatus = (game) => {
+export const getClaimableDrawStatus = (game, positionCounts) => {
   // Automatic game-overs take precedence — no claim available
   if (game.isCheckmate() || game.isStalemate() || game.isInsufficientMaterial()) {
     return { canClaim: false, reason: null };
   }
 
-  if (game.isThreefoldRepetition()) {
+  // Use positionCounts map when available (reliable across FEN rebuilds),
+  // fall back to chess.js internal history otherwise.
+  if (positionCounts) {
+    const key = getFenKey(game.fen());
+    if ((positionCounts.get(key) || 0) >= 3) {
+      return { canClaim: true, reason: 'threefold_repetition' };
+    }
+  } else if (game.isThreefoldRepetition()) {
     return { canClaim: true, reason: 'threefold_repetition' };
   }
 

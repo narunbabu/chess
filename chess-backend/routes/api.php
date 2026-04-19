@@ -240,6 +240,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/games/{gameId}/draw/offer', [WebSocketController::class, 'offerDraw']);
         Route::post('/games/{gameId}/draw/accept', [WebSocketController::class, 'acceptDraw']);
         Route::post('/games/{gameId}/draw/decline', [WebSocketController::class, 'declineDraw']);
+        Route::post('/games/{gameId}/draw/claim', [WebSocketController::class, 'claimDraw']);
 
         // Undo functionality
         Route::post('/games/{gameId}/undo/request', [WebSocketController::class, 'requestUndo']);

@@ -39,12 +39,17 @@ const CompanionControls = ({ companion, game, onMove, onDismiss, isMyTurn, disab
       const moves = await getStockfishTopMoves(fen, 1, timeMs);
       if (!moves || moves.length === 0) throw new Error('No moves returned');
 
-      // moves[0] is a UCI string like "e2e4" or "e7e8q"
-      const uci = moves[0];
+      // getStockfishTopMoves returns [{move, cp}]; extract the UCI string.
+      // String() guard: move could theoretically be non-string in edge cases.
+      const uci = String(moves[0]?.move ?? '');
+      if (uci.length < 4) throw new Error(`Invalid UCI move from Stockfish: "${uci}"`);
       return {
         from: uci.substring(0, 2),
         to: uci.substring(2, 4),
-        promotion: uci.length > 4 ? uci[4] : undefined,
+        // Only include promotion key when it's an actual promotion move (5-char UCI like "e7e8q").
+        // Omitting the key entirely (vs passing undefined) prevents chess.js from receiving
+        // promotion:undefined for normal moves, which can cause confusion in some edge cases.
+        ...(uci.length > 4 && { promotion: uci[4] }),
       };
     } catch (err) {
       console.error('[CompanionControls] Failed to get move:', err);
