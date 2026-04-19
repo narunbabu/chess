@@ -1,0 +1,62 @@
+{
+  "title": "Beginner Tactics: Forks, Pins & Back Rank Mates",
+  "channel": "chess99",
+  "description": "The essential tactical patterns every improving chess player must know. Covers forks, pins, back-rank mates, and skewers with clear examples.",
+  "intro": {
+    "text": "Welcome to the Chess99 Beginner Tactical Trainer. If you're playing at the 800-1400 level, you are losing most of your games to simple one or two-move tactics. This video will show you the four patterns you must master first.",
+    "duration": 8
+  },
+  "segments": [
+    {
+      "type": "concept",
+      "title": "Pattern 1: The Fork",
+      "text": "A fork attacks two pieces at once. Your opponent can only save one. Knights are the best forkers because they jump over pieces and attack in a unique L-shape.",
+      "duration": 12
+    },
+    {
+      "type": "puzzle",
+      "title": "Beginner Fork Example",
+      "fen": "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3",
+      "solution_moves": ["f3e5", "c6e5", "d1h5"],
+      "commentary": [
+        "White plays Nxe5, winning a pawn and threatening a fork.",
+        "If Black recaptures with the knight, Qh5 gives check and also attacks the knight.",
+        "Black cannot meet both threats. White wins material."
+      ]
+    },
+    {
+      "type": "concept",
+      "title": "Pattern 2: The Pin",
+      "text": "A pin attacks a piece that is shielding a more valuable piece. If the shield moves, the valuable piece is captured. An absolute pin on the king means the piece literally cannot move.",
+      "duration": 10
+    },
+    {
+      "type": "concept",
+      "title": "Pattern 3: Back Rank Mate",
+      "text": "When the king is trapped behind its own pawns, a rook or queen can deliver checkmate on the back rank. Always check: can your opponent's rook or queen slide to my back rank?",
+      "duration": 10
+    },
+    {
+      "type": "puzzle",
+      "title": "Back Rank Mate Example",
+      "fen": "6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1",
+      "solution_moves": ["d1d8"],
+      "commentary": [
+        "White's rook slides to the eighth rank.",
+        "The black king is trapped behind its own pawns — checkmate!",
+        "Always look for this pattern when your opponent has not created a flight square for their king."
+      ]
+    },
+    {
+      "type": "concept",
+      "title": "Pattern 4: The Skewer",
+      "text": "A skewer is like a reversed pin. You attack a valuable piece and when it moves, you capture the less valuable piece behind it. Rooks, bishops and queens deliver skewers.",
+      "duration": 8
+    },
+    {
+      "type": "outro",
+      "text": "Master these four patterns and your rating will climb quickly. Practice them with 500 beginner puzzles on the Chess99 Tactical Trainer at chess99.com — each puzzle is from the real Lichess database at your level.",
+      "duration": 8
+    }
+  ]
+}

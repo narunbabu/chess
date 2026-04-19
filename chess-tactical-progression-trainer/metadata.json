@@ -1,0 +1,6 @@
+{
+  "name": "Chess Tactical Progression Trainer",
+  "description": "A web-based interactive training system that helps users improve from 1600 to 2200 ELO through structured tactical puzzles.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

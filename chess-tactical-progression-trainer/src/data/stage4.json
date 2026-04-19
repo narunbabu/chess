@@ -1,0 +1,202 @@
+[
+  {
+    "id": "s4_1",
+    "stage": 4,
+    "fen": "r4rk1/1pp1qppp/p1np1n2/4p1B1/2B1P1b1/P1NP1N2/1PP2PPP/R2Q1RK1 w - - 0 10",
+    "moves": ["Nd5", "Qd8", "Nxf6+", "gxf6", "Bh6"],
+    "themes": ["Long forcing lines", "Pin"],
+    "difficulty": "very hard",
+    "explanation": "White calculates a deep forcing sequence to shatter Black's kingside.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s4_2",
+    "stage": 4,
+    "fen": "r2q1rk1/1pp2ppp/p1nb1n2/3p4/3P2b1/PQN1PN2/1P2BPPP/R1B2RK1 b - - 0 10",
+    "moves": ["Na5", "Qc2", "Bxf3", "Bxf3", "c6"],
+    "themes": ["Quiet moves", "Prophylaxis"],
+    "difficulty": "very hard",
+    "explanation": "Black finds a quiet move to solidify the center after the exchange.",
+    "playerColor": "b"
+  },
+  {
+    "id": "s4_3",
+    "stage": 4,
+    "fen": "r1bq1rk1/1p2bppp/p1n1pn2/3p4/3P1B2/2NBPN2/PP3PPP/R2Q1RK1 w - - 0 10",
+    "moves": ["Ne5", "Nxe5", "Bxe5", "Bd6", "f4"],
+    "themes": ["Multi-branch calculation", "Outpost"],
+    "difficulty": "very hard",
+    "explanation": "White reinforces the outpost and prepares for a kingside attack.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s4_4",
+    "stage": 4,
+    "fen": "r2q1rk1/pp1b1ppp/2n1pn2/2bp4/8/2NBPN2/PPPB1PPP/R2Q1RK1 w - - 0 10",
+    "moves": ["e4", "dxe4", "Nxe4", "Nxe4", "Bxe4", "f5"],
+    "themes": ["Defensive resources", "Counterattack"],
+    "difficulty": "very hard",
+    "explanation": "Black finds a critical defensive resource to challenge White's central control.",
+    "playerColor": "b"
+  },
+  {
+    "id": "s4_5",
+    "stage": 4,
+    "fen": "r1bq1rk1/pp1nbppp/2p1pn2/3p4/2PP4/2N1PN2/PP2BPPP/R1BQ1RK1 w - - 0 8",
+    "moves": ["b3", "b6", "Bb2", "Bb7", "Rc1"],
+    "themes": ["Quiet moves", "Positional Play"],
+    "difficulty": "very hard",
+    "explanation": "White plays a quiet improving move, anticipating the opening of the c-file.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s4_6",
+    "stage": 4,
+    "fen": "r4rk1/1pp1qppp/p1np1n2/4p1B1/2B1P1b1/P1NP1N2/1PP2PPP/R2Q1RK1 w - - 0 10",
+    "moves": ["Nd5", "Qd8", "Nxf6+", "gxf6", "Bh6"],
+    "themes": ["Long forcing lines", "Pin"],
+    "difficulty": "very hard",
+    "explanation": "White calculates a deep forcing sequence to shatter Black's kingside.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s4_7",
+    "stage": 4,
+    "fen": "r2q1rk1/1pp2ppp/p1nb1n2/3p4/3P2b1/PQN1PN2/1P2BPPP/R1B2RK1 b - - 0 10",
+    "moves": ["Na5", "Qc2", "Bxf3", "Bxf3", "c6"],
+    "themes": ["Quiet moves", "Prophylaxis"],
+    "difficulty": "very hard",
+    "explanation": "Black finds a quiet move to solidify the center after the exchange.",
+    "playerColor": "b"
+  },
+  {
+    "id": "s4_8",
+    "stage": 4,
+    "fen": "r1bq1rk1/1p2bppp/p1n1pn2/3p4/3P1B2/2NBPN2/PP3PPP/R2Q1RK1 w - - 0 10",
+    "moves": ["Ne5", "Nxe5", "Bxe5", "Bd6", "f4"],
+    "themes": ["Multi-branch calculation", "Outpost"],
+    "difficulty": "very hard",
+    "explanation": "White reinforces the outpost and prepares for a kingside attack.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s4_9",
+    "stage": 4,
+    "fen": "r2q1rk1/pp1b1ppp/2n1pn2/2bp4/8/2NBPN2/PPPB1PPP/R2Q1RK1 w - - 0 10",
+    "moves": ["e4", "dxe4", "Nxe4", "Nxe4", "Bxe4", "f5"],
+    "themes": ["Defensive resources", "Counterattack"],
+    "difficulty": "very hard",
+    "explanation": "Black finds a critical defensive resource to challenge White's central control.",
+    "playerColor": "b"
+  },
+  {
+    "id": "s4_10",
+    "stage": 4,
+    "fen": "r1bq1rk1/pp1nbppp/2p1pn2/3p4/2PP4/2N1PN2/PP2BPPP/R1BQ1RK1 w - - 0 8",
+    "moves": ["b3", "b6", "Bb2", "Bb7", "Rc1"],
+    "themes": ["Quiet moves", "Positional Play"],
+    "difficulty": "very hard",
+    "explanation": "White plays a quiet improving move, anticipating the opening of the c-file.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s4_11",
+    "stage": 4,
+    "fen": "r4rk1/1pp1qppp/p1np1n2/4p1B1/2B1P1b1/P1NP1N2/1PP2PPP/R2Q1RK1 w - - 0 10",
+    "moves": ["Nd5", "Qd8", "Nxf6+", "gxf6", "Bh6"],
+    "themes": ["Long forcing lines", "Pin"],
+    "difficulty": "very hard",
+    "explanation": "White calculates a deep forcing sequence to shatter Black's kingside.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s4_12",
+    "stage": 4,
+    "fen": "r2q1rk1/1pp2ppp/p1nb1n2/3p4/3P2b1/PQN1PN2/1P2BPPP/R1B2RK1 b - - 0 10",
+    "moves": ["Na5", "Qc2", "Bxf3", "Bxf3", "c6"],
+    "themes": ["Quiet moves", "Prophylaxis"],
+    "difficulty": "very hard",
+    "explanation": "Black finds a quiet move to solidify the center after the exchange.",
+    "playerColor": "b"
+  },
+  {
+    "id": "s4_13",
+    "stage": 4,
+    "fen": "r1bq1rk1/1p2bppp/p1n1pn2/3p4/3P1B2/2NBPN2/PP3PPP/R2Q1RK1 w - - 0 10",
+    "moves": ["Ne5", "Nxe5", "Bxe5", "Bd6", "f4"],
+    "themes": ["Multi-branch calculation", "Outpost"],
+    "difficulty": "very hard",
+    "explanation": "White reinforces the outpost and prepares for a kingside attack.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s4_14",
+    "stage": 4,
+    "fen": "r2q1rk1/pp1b1ppp/2n1pn2/2bp4/8/2NBPN2/PPPB1PPP/R2Q1RK1 w - - 0 10",
+    "moves": ["e4", "dxe4", "Nxe4", "Nxe4", "Bxe4", "f5"],
+    "themes": ["Defensive resources", "Counterattack"],
+    "difficulty": "very hard",
+    "explanation": "Black finds a critical defensive resource to challenge White's central control.",
+    "playerColor": "b"
+  },
+  {
+    "id": "s4_15",
+    "stage": 4,
+    "fen": "r1bq1rk1/pp1nbppp/2p1pn2/3p4/2PP4/2N1PN2/PP2BPPP/R1BQ1RK1 w - - 0 8",
+    "moves": ["b3", "b6", "Bb2", "Bb7", "Rc1"],
+    "themes": ["Quiet moves", "Positional Play"],
+    "difficulty": "very hard",
+    "explanation": "White plays a quiet improving move, anticipating the opening of the c-file.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s4_16",
+    "stage": 4,
+    "fen": "r4rk1/1pp1qppp/p1np1n2/4p1B1/2B1P1b1/P1NP1N2/1PP2PPP/R2Q1RK1 w - - 0 10",
+    "moves": ["Nd5", "Qd8", "Nxf6+", "gxf6", "Bh6"],
+    "themes": ["Long forcing lines", "Pin"],
+    "difficulty": "very hard",
+    "explanation": "White calculates a deep forcing sequence to shatter Black's kingside.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s4_17",
+    "stage": 4,
+    "fen": "r2q1rk1/1pp2ppp/p1nb1n2/3p4/3P2b1/PQN1PN2/1P2BPPP/R1B2RK1 b - - 0 10",
+    "moves": ["Na5", "Qc2", "Bxf3", "Bxf3", "c6"],
+    "themes": ["Quiet moves", "Prophylaxis"],
+    "difficulty": "very hard",
+    "explanation": "Black finds a quiet move to solidify the center after the exchange.",
+    "playerColor": "b"
+  },
+  {
+    "id": "s4_18",
+    "stage": 4,
+    "fen": "r1bq1rk1/1p2bppp/p1n1pn2/3p4/3P1B2/2NBPN2/PP3PPP/R2Q1RK1 w - - 0 10",
+    "moves": ["Ne5", "Nxe5", "Bxe5", "Bd6", "f4"],
+    "themes": ["Multi-branch calculation", "Outpost"],
+    "difficulty": "very hard",
+    "explanation": "White reinforces the outpost and prepares for a kingside attack.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s4_19",
+    "stage": 4,
+    "fen": "r2q1rk1/pp1b1ppp/2n1pn2/2bp4/8/2NBPN2/PPPB1PPP/R2Q1RK1 w - - 0 10",
+    "moves": ["e4", "dxe4", "Nxe4", "Nxe4", "Bxe4", "f5"],
+    "themes": ["Defensive resources", "Counterattack"],
+    "difficulty": "very hard",
+    "explanation": "Black finds a critical defensive resource to challenge White's central control.",
+    "playerColor": "b"
+  },
+  {
+    "id": "s4_20",
+    "stage": 4,
+    "fen": "r1bq1rk1/pp1nbppp/2p1pn2/3p4/2PP4/2N1PN2/PP2BPPP/R1BQ1RK1 w - - 0 8",
+    "moves": ["b3", "b6", "Bb2", "Bb7", "Rc1"],
+    "themes": ["Quiet moves", "Positional Play"],
+    "difficulty": "very hard",
+    "explanation": "White plays a quiet improving move, anticipating the opening of the c-file.",
+    "playerColor": "w"
+  }
+]

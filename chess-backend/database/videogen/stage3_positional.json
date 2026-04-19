@@ -1,0 +1,45 @@
+{
+  "title": "Stage 3: Positional Tactics — Quiet Moves & Overloaded Defenders",
+  "channel": "chess99",
+  "description": "Stage 3 of the Chess99 Tactical Progression Trainer. At 1900-2100 the tactics are positional — quiet moves that win, overloaded pieces, and zugzwang.",
+  "intro": {
+    "text": "Stage 3 is where chess gets deep. At 1900-2100, your opponents don't miss forks or pins. The winning moves are subtle — a quiet non-checking move that creates an irresistible threat, an overloaded piece that can't protect two targets at once, or a zugzwang where any move your opponent makes worsens their position.",
+    "duration": 10
+  },
+  "segments": [
+    {
+      "type": "concept",
+      "title": "The Quiet Move — No Check, No Capture",
+      "text": "The hardest move to find. A quiet move doesn't give check, doesn't capture anything, yet it creates a threat so powerful that there is no defence. Elite players call these 'silent killers'. You must look for them specifically.",
+      "duration": 12
+    },
+    {
+      "type": "concept",
+      "title": "The Overloaded Piece",
+      "text": "An overloaded piece is defending two things at once and can't do both. Your job: find the piece that is doing double-duty, then attack both targets simultaneously. One will fall.",
+      "duration": 10
+    },
+    {
+      "type": "puzzle",
+      "title": "Exploit the Overloaded Rook",
+      "fen": "5rk1/4bppp/p7/1p1pR3/3P4/1B3P2/PP4PP/6K1 w - - 0 1",
+      "solution_moves": ["e5e7", "f8e8", "e7b7"],
+      "commentary": [
+        "White's rook invades e7, attacking the bishop. The black rook must guard e8 AND the b5 pawn.",
+        "It can only do one. When the rook moves to e8 to stop the exchange, the b5 pawn is unguarded.",
+        "Rxb7 wins a pawn and dominates the position. The overloaded rook could not serve two masters."
+      ]
+    },
+    {
+      "type": "concept",
+      "title": "Zugzwang — Any Move Loses",
+      "text": "Zugzwang is a German word meaning 'compulsion to move'. In this position, whoever is forced to move is worse off. The player with the move would prefer to pass. Creating zugzwang is an art — it usually requires precise calculation of a king march or pawn structure.",
+      "duration": 12
+    },
+    {
+      "type": "outro",
+      "text": "Stage 3 thinking is what true improvement looks like. You're not hunting for flashy sacrifices — you're outthinking your opponent positionally. Practice 500 Stage 3 puzzles from the Lichess database at chess99.com and train your eye for these subtle, decisive ideas.",
+      "duration": 8
+    }
+  ]
+}

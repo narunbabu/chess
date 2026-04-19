@@ -1,0 +1,56 @@
+{
+  "title": "Stage 2: Calculation Depth — Zwischenzug, Deflection & Sacrifices",
+  "channel": "chess99",
+  "description": "Stage 2 of the Chess99 Tactical Progression Trainer. At 1650-1900 you need to calculate two and three move combinations precisely. Master the zwischenzug, deflection, and the art of the sacrifice.",
+  "intro": {
+    "text": "You've reached Stage 2 of the Tactical Progression Trainer. At the 1650-1900 level, simple one-move tactics are no longer enough. Your opponents defend well. You need to calculate two and three move sequences — and the key weapons here are the zwischenzug, deflection, and well-timed material sacrifices.",
+    "duration": 10
+  },
+  "segments": [
+    {
+      "type": "concept",
+      "title": "The Zwischenzug — The In-Between Move",
+      "text": "Zwischenzug means 'in-between move' in German. Instead of making the expected recapture, you insert a stronger move first — often a check or a threat — that changes the calculation entirely. This is the move that separates 1600 players from 1800 players.",
+      "duration": 12
+    },
+    {
+      "type": "puzzle",
+      "title": "Spot the Zwischenzug",
+      "fen": "r1bq1rk1/pp3ppp/2n2n2/2bpp3/2B1P3/2NP1N2/PPP2PPP/R1BQR1K1 w - - 0 1",
+      "solution_moves": ["f3e5", "c6e5", "c4f7"],
+      "commentary": [
+        "White captures the pawn with the knight — but the key is what happens next.",
+        "Instead of defending the knight, White inserts Bxf7+ — an in-between check.",
+        "After the king moves, White has won a pawn plus disrupted Black's king position. The zwischenzug changed everything."
+      ]
+    },
+    {
+      "type": "concept",
+      "title": "Deflection — Pull the Defender Away",
+      "text": "Deflection forces a key defending piece to leave its post. You sacrifice material to pull that defender away, then exploit the undefended target. Always ask: what is this piece guarding? Can I lure it away?",
+      "duration": 10
+    },
+    {
+      "type": "puzzle",
+      "title": "Deflect the Queen",
+      "fen": "3r2k1/pp3ppp/8/3q4/3Q4/8/PP3PPP/4R1K1 w - - 0 1",
+      "solution_moves": ["d4h4", "d5h5", "e1e8"],
+      "commentary": [
+        "White's queen attacks h7 and h8 — the black queen must deal with the threats.",
+        "By forcing the black queen to h5, White deflects it away from protecting the back rank.",
+        "Re8 is now checkmate. The deflection created the winning condition."
+      ]
+    },
+    {
+      "type": "concept",
+      "title": "The Sacrifice — Give to Gain",
+      "text": "The most powerful tactical weapon. A sacrifice gives up material to gain something greater — a mating attack, a winning pawn structure, or a decisive positional advantage. Correct sacrifices require precise calculation.",
+      "duration": 10
+    },
+    {
+      "type": "outro",
+      "text": "Calculation depth is what separates club players from serious competitors. Train Stage 2 puzzles on chess99.com — 500 real Lichess puzzles at the 1650-1900 level, each requiring you to think at least two moves ahead before playing.",
+      "duration": 8
+    }
+  ]
+}

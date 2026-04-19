@@ -1,0 +1,40 @@
+{
+  "title": "Stage 4: Master-Level Calculation (2100→2200+)",
+  "channel": "chess99",
+  "description": "Stage 4 of the Chess99 Tactical Progression Trainer. The final stage — master-level forcing lines, defensive resources, and endgame precision.",
+  "intro": {
+    "text": "You've reached the final stage of the Chess99 Tactical Progression Trainer. At 2100+, the tactics are long — five, six, seven moves deep. Your opponent has defensive resources you must calculate and refute. One inaccuracy throws away the win. This is where discipline, depth, and pattern mastery converge.",
+    "duration": 10
+  },
+  "segments": [
+    {
+      "type": "concept",
+      "title": "Long Forcing Lines — Calculate Everything",
+      "text": "At master level, a 'long' puzzle is 5-7 moves of precise play. Each move must be verified: does my opponent have a saving resource here? The method is: forcing moves first — checks, captures, direct threats — then quiet moves. Never stop one move short.",
+      "duration": 12
+    },
+    {
+      "type": "concept",
+      "title": "Defensive Resources — Don't Stop Early",
+      "text": "The biggest mistake when calculating is stopping when you think you've found the win. Ask: 'what is my opponent's BEST reply?' At 2100+, they have counter-threats, perpetual checks, and unexpected defensive shots. Find these and calculate through them.",
+      "duration": 10
+    },
+    {
+      "type": "concept",
+      "title": "Endgame Tactics — Precision is Everything",
+      "text": "Master-level endgame puzzles are won by tempo, triangulation, and promotion races. King activity, outside passed pawns, and the opposition — these are the weapons of the endgame tactician. A half-move miscalculation here is a loss, not a draw.",
+      "duration": 12
+    },
+    {
+      "type": "concept",
+      "title": "The Method: Forcing Moves → Quiet Killer",
+      "text": "The structured approach: first list all checks, then all captures, then all threats. Eliminate the bad ones quickly. For the remaining candidates, calculate the longest forcing line. Often the winner is a quiet move at the END of the forcing sequence that creates a zugzwang or unstoppable threat.",
+      "duration": 12
+    },
+    {
+      "type": "outro",
+      "text": "Reaching 2200 is not about talent — it's about the quality of your calculation. Systematic, deep, disciplined thinking. The 500 Stage 4 puzzles on chess99.com are from the Lichess master database. Each one demands that you calculate longer and trust your analysis more. Good luck.",
+      "duration": 10
+    }
+  ]
+}

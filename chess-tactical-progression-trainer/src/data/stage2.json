@@ -1,0 +1,202 @@
+[
+  {
+    "id": "s2_1",
+    "stage": 2,
+    "fen": "3r2k1/p4ppp/1p2p3/4q3/2P5/1P3Q2/P4PPP/R5K1 w - - 0 22",
+    "moves": ["Rd1", "Rxd1+", "Qxd1"],
+    "themes": ["Back Rank", "Zwischenzug"],
+    "difficulty": "hard",
+    "explanation": "White defends the back rank while attacking the opponent's rook.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s2_2",
+    "stage": 2,
+    "fen": "r4rk1/1pp1qppp/p1np1n2/4p1B1/2B1P1b1/P1NP1N2/1PP2PPP/R2Q1RK1 w - - 0 10",
+    "moves": ["Nd5", "Qd8", "Nxf6+"],
+    "themes": ["Pin", "Forcing Move"],
+    "difficulty": "hard",
+    "explanation": "White exploits the pin on the f6 knight to launch a devastating attack.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s2_3",
+    "stage": 2,
+    "fen": "r1b2rk1/ppp2ppp/2n1pq2/8/3P4/3B1N2/PPP2PPP/R2Q1RK1 w - - 0 11",
+    "moves": ["c3", "e5", "dxe5", "Nxe5", "Nxe5", "Qxe5"],
+    "themes": ["Central Break", "Simplification"],
+    "difficulty": "hard",
+    "explanation": "A sequence of forcing moves to simplify the position favorably.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s2_4",
+    "stage": 2,
+    "fen": "2rq1rk1/pp3ppp/2n1bn2/8/3p4/2NBPN2/PP1Q1PPP/R4RK1 w - - 0 13",
+    "moves": ["exd4", "Nxd4", "Nxd4", "Qxd4", "Bxh7+"],
+    "themes": ["Discovered Attack", "Zwischenzug"],
+    "difficulty": "hard",
+    "explanation": "White uses a discovered attack with check to win the queen.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s2_5",
+    "stage": 2,
+    "fen": "r2q1rk1/1pp2ppp/p1nb1n2/3p4/3P2b1/PQN1PN2/1P2BPPP/R1B2RK1 b - - 0 10",
+    "moves": ["Na5", "Qc2", "Bxf3", "Bxf3"],
+    "themes": ["Tempo", "Bishop Pair"],
+    "difficulty": "hard",
+    "explanation": "Black gains a tempo and forces a favorable exchange.",
+    "playerColor": "b"
+  },
+  {
+    "id": "s2_6",
+    "stage": 2,
+    "fen": "3r2k1/p4ppp/1p2p3/4q3/2P5/1P3Q2/P4PPP/R5K1 w - - 0 22",
+    "moves": ["Rd1", "Rxd1+", "Qxd1"],
+    "themes": ["Back Rank", "Zwischenzug"],
+    "difficulty": "hard",
+    "explanation": "White defends the back rank while attacking the opponent's rook.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s2_7",
+    "stage": 2,
+    "fen": "r4rk1/1pp1qppp/p1np1n2/4p1B1/2B1P1b1/P1NP1N2/1PP2PPP/R2Q1RK1 w - - 0 10",
+    "moves": ["Nd5", "Qd8", "Nxf6+"],
+    "themes": ["Pin", "Forcing Move"],
+    "difficulty": "hard",
+    "explanation": "White exploits the pin on the f6 knight to launch a devastating attack.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s2_8",
+    "stage": 2,
+    "fen": "r1b2rk1/ppp2ppp/2n1pq2/8/3P4/3B1N2/PPP2PPP/R2Q1RK1 w - - 0 11",
+    "moves": ["c3", "e5", "dxe5", "Nxe5", "Nxe5", "Qxe5"],
+    "themes": ["Central Break", "Simplification"],
+    "difficulty": "hard",
+    "explanation": "A sequence of forcing moves to simplify the position favorably.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s2_9",
+    "stage": 2,
+    "fen": "2rq1rk1/pp3ppp/2n1bn2/8/3p4/2NBPN2/PP1Q1PPP/R4RK1 w - - 0 13",
+    "moves": ["exd4", "Nxd4", "Nxd4", "Qxd4", "Bxh7+"],
+    "themes": ["Discovered Attack", "Zwischenzug"],
+    "difficulty": "hard",
+    "explanation": "White uses a discovered attack with check to win the queen.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s2_10",
+    "stage": 2,
+    "fen": "r2q1rk1/1pp2ppp/p1nb1n2/3p4/3P2b1/PQN1PN2/1P2BPPP/R1B2RK1 b - - 0 10",
+    "moves": ["Na5", "Qc2", "Bxf3", "Bxf3"],
+    "themes": ["Tempo", "Bishop Pair"],
+    "difficulty": "hard",
+    "explanation": "Black gains a tempo and forces a favorable exchange.",
+    "playerColor": "b"
+  },
+  {
+    "id": "s2_11",
+    "stage": 2,
+    "fen": "3r2k1/p4ppp/1p2p3/4q3/2P5/1P3Q2/P4PPP/R5K1 w - - 0 22",
+    "moves": ["Rd1", "Rxd1+", "Qxd1"],
+    "themes": ["Back Rank", "Zwischenzug"],
+    "difficulty": "hard",
+    "explanation": "White defends the back rank while attacking the opponent's rook.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s2_12",
+    "stage": 2,
+    "fen": "r4rk1/1pp1qppp/p1np1n2/4p1B1/2B1P1b1/P1NP1N2/1PP2PPP/R2Q1RK1 w - - 0 10",
+    "moves": ["Nd5", "Qd8", "Nxf6+"],
+    "themes": ["Pin", "Forcing Move"],
+    "difficulty": "hard",
+    "explanation": "White exploits the pin on the f6 knight to launch a devastating attack.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s2_13",
+    "stage": 2,
+    "fen": "r1b2rk1/ppp2ppp/2n1pq2/8/3P4/3B1N2/PPP2PPP/R2Q1RK1 w - - 0 11",
+    "moves": ["c3", "e5", "dxe5", "Nxe5", "Nxe5", "Qxe5"],
+    "themes": ["Central Break", "Simplification"],
+    "difficulty": "hard",
+    "explanation": "A sequence of forcing moves to simplify the position favorably.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s2_14",
+    "stage": 2,
+    "fen": "2rq1rk1/pp3ppp/2n1bn2/8/3p4/2NBPN2/PP1Q1PPP/R4RK1 w - - 0 13",
+    "moves": ["exd4", "Nxd4", "Nxd4", "Qxd4", "Bxh7+"],
+    "themes": ["Discovered Attack", "Zwischenzug"],
+    "difficulty": "hard",
+    "explanation": "White uses a discovered attack with check to win the queen.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s2_15",
+    "stage": 2,
+    "fen": "r2q1rk1/1pp2ppp/p1nb1n2/3p4/3P2b1/PQN1PN2/1P2BPPP/R1B2RK1 b - - 0 10",
+    "moves": ["Na5", "Qc2", "Bxf3", "Bxf3"],
+    "themes": ["Tempo", "Bishop Pair"],
+    "difficulty": "hard",
+    "explanation": "Black gains a tempo and forces a favorable exchange.",
+    "playerColor": "b"
+  },
+  {
+    "id": "s2_16",
+    "stage": 2,
+    "fen": "3r2k1/p4ppp/1p2p3/4q3/2P5/1P3Q2/P4PPP/R5K1 w - - 0 22",
+    "moves": ["Rd1", "Rxd1+", "Qxd1"],
+    "themes": ["Back Rank", "Zwischenzug"],
+    "difficulty": "hard",
+    "explanation": "White defends the back rank while attacking the opponent's rook.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s2_17",
+    "stage": 2,
+    "fen": "r4rk1/1pp1qppp/p1np1n2/4p1B1/2B1P1b1/P1NP1N2/1PP2PPP/R2Q1RK1 w - - 0 10",
+    "moves": ["Nd5", "Qd8", "Nxf6+"],
+    "themes": ["Pin", "Forcing Move"],
+    "difficulty": "hard",
+    "explanation": "White exploits the pin on the f6 knight to launch a devastating attack.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s2_18",
+    "stage": 2,
+    "fen": "r1b2rk1/ppp2ppp/2n1pq2/8/3P4/3B1N2/PPP2PPP/R2Q1RK1 w - - 0 11",
+    "moves": ["c3", "e5", "dxe5", "Nxe5", "Nxe5", "Qxe5"],
+    "themes": ["Central Break", "Simplification"],
+    "difficulty": "hard",
+    "explanation": "A sequence of forcing moves to simplify the position favorably.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s2_19",
+    "stage": 2,
+    "fen": "2rq1rk1/pp3ppp/2n1bn2/8/3p4/2NBPN2/PP1Q1PPP/R4RK1 w - - 0 13",
+    "moves": ["exd4", "Nxd4", "Nxd4", "Qxd4", "Bxh7+"],
+    "themes": ["Discovered Attack", "Zwischenzug"],
+    "difficulty": "hard",
+    "explanation": "White uses a discovered attack with check to win the queen.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s2_20",
+    "stage": 2,
+    "fen": "r2q1rk1/1pp2ppp/p1nb1n2/3p4/3P2b1/PQN1PN2/1P2BPPP/R1B2RK1 b - - 0 10",
+    "moves": ["Na5", "Qc2", "Bxf3", "Bxf3"],
+    "themes": ["Tempo", "Bishop Pair"],
+    "difficulty": "hard",
+    "explanation": "Black gains a tempo and forces a favorable exchange.",
+    "playerColor": "b"
+  }
+]

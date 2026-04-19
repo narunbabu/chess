@@ -1,0 +1,202 @@
+[
+  {
+    "id": "s3_1",
+    "stage": 3,
+    "fen": "r2q1rk1/1pp2ppp/p1nb1n2/3p4/3P2b1/PQN1PN2/1P2BPPP/R1B2RK1 b - - 0 10",
+    "moves": ["Na5", "Qc2", "Bxf3", "Bxf3"],
+    "themes": ["Tempo", "Bishop Pair"],
+    "difficulty": "hard",
+    "explanation": "Black gains a tempo and forces a favorable exchange.",
+    "playerColor": "b"
+  },
+  {
+    "id": "s3_2",
+    "stage": 3,
+    "fen": "r1bq1rk1/1p2bppp/p1n1pn2/3p4/3P1B2/2NBPN2/PP3PPP/R2Q1RK1 w - - 0 10",
+    "moves": ["Ne5", "Nxe5", "Bxe5"],
+    "themes": ["Weak Squares", "Outpost"],
+    "difficulty": "hard",
+    "explanation": "White establishes a strong outpost on e5.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s3_3",
+    "stage": 3,
+    "fen": "r2q1rk1/pp1b1ppp/2n1pn2/2bp4/8/2NBPN2/PPPB1PPP/R2Q1RK1 w - - 0 10",
+    "moves": ["e4", "dxe4", "Nxe4", "Nxe4", "Bxe4"],
+    "themes": ["Pawn breaks", "Central Control"],
+    "difficulty": "hard",
+    "explanation": "White executes a central pawn break to open lines.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s3_4",
+    "stage": 3,
+    "fen": "r1bq1rk1/pp1nbppp/2p1pn2/3p4/2PP4/2N1PN2/PP2BPPP/R1BQ1RK1 w - - 0 8",
+    "moves": ["b3", "b6", "Bb2", "Bb7"],
+    "themes": ["Development", "Fianchetto"],
+    "difficulty": "hard",
+    "explanation": "White completes development harmoniously.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s3_5",
+    "stage": 3,
+    "fen": "r2q1rk1/1p1bbppp/p1n1pn2/3p4/3P4/2NBPN2/PP1B1PPP/R2Q1RK1 w - - 0 11",
+    "moves": ["a3", "b5", "b4"],
+    "themes": ["Pawn Structure", "Space"],
+    "difficulty": "hard",
+    "explanation": "White gains space on the queenside.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s3_6",
+    "stage": 3,
+    "fen": "r2q1rk1/1pp2ppp/p1nb1n2/3p4/3P2b1/PQN1PN2/1P2BPPP/R1B2RK1 b - - 0 10",
+    "moves": ["Na5", "Qc2", "Bxf3", "Bxf3"],
+    "themes": ["Tempo", "Bishop Pair"],
+    "difficulty": "hard",
+    "explanation": "Black gains a tempo and forces a favorable exchange.",
+    "playerColor": "b"
+  },
+  {
+    "id": "s3_7",
+    "stage": 3,
+    "fen": "r1bq1rk1/1p2bppp/p1n1pn2/3p4/3P1B2/2NBPN2/PP3PPP/R2Q1RK1 w - - 0 10",
+    "moves": ["Ne5", "Nxe5", "Bxe5"],
+    "themes": ["Weak Squares", "Outpost"],
+    "difficulty": "hard",
+    "explanation": "White establishes a strong outpost on e5.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s3_8",
+    "stage": 3,
+    "fen": "r2q1rk1/pp1b1ppp/2n1pn2/2bp4/8/2NBPN2/PPPB1PPP/R2Q1RK1 w - - 0 10",
+    "moves": ["e4", "dxe4", "Nxe4", "Nxe4", "Bxe4"],
+    "themes": ["Pawn breaks", "Central Control"],
+    "difficulty": "hard",
+    "explanation": "White executes a central pawn break to open lines.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s3_9",
+    "stage": 3,
+    "fen": "r1bq1rk1/pp1nbppp/2p1pn2/3p4/2PP4/2N1PN2/PP2BPPP/R1BQ1RK1 w - - 0 8",
+    "moves": ["b3", "b6", "Bb2", "Bb7"],
+    "themes": ["Development", "Fianchetto"],
+    "difficulty": "hard",
+    "explanation": "White completes development harmoniously.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s3_10",
+    "stage": 3,
+    "fen": "r2q1rk1/1p1bbppp/p1n1pn2/3p4/3P4/2NBPN2/PP1B1PPP/R2Q1RK1 w - - 0 11",
+    "moves": ["a3", "b5", "b4"],
+    "themes": ["Pawn Structure", "Space"],
+    "difficulty": "hard",
+    "explanation": "White gains space on the queenside.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s3_11",
+    "stage": 3,
+    "fen": "r2q1rk1/1pp2ppp/p1nb1n2/3p4/3P2b1/PQN1PN2/1P2BPPP/R1B2RK1 b - - 0 10",
+    "moves": ["Na5", "Qc2", "Bxf3", "Bxf3"],
+    "themes": ["Tempo", "Bishop Pair"],
+    "difficulty": "hard",
+    "explanation": "Black gains a tempo and forces a favorable exchange.",
+    "playerColor": "b"
+  },
+  {
+    "id": "s3_12",
+    "stage": 3,
+    "fen": "r1bq1rk1/1p2bppp/p1n1pn2/3p4/3P1B2/2NBPN2/PP3PPP/R2Q1RK1 w - - 0 10",
+    "moves": ["Ne5", "Nxe5", "Bxe5"],
+    "themes": ["Weak Squares", "Outpost"],
+    "difficulty": "hard",
+    "explanation": "White establishes a strong outpost on e5.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s3_13",
+    "stage": 3,
+    "fen": "r2q1rk1/pp1b1ppp/2n1pn2/2bp4/8/2NBPN2/PPPB1PPP/R2Q1RK1 w - - 0 10",
+    "moves": ["e4", "dxe4", "Nxe4", "Nxe4", "Bxe4"],
+    "themes": ["Pawn breaks", "Central Control"],
+    "difficulty": "hard",
+    "explanation": "White executes a central pawn break to open lines.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s3_14",
+    "stage": 3,
+    "fen": "r1bq1rk1/pp1nbppp/2p1pn2/3p4/2PP4/2N1PN2/PP2BPPP/R1BQ1RK1 w - - 0 8",
+    "moves": ["b3", "b6", "Bb2", "Bb7"],
+    "themes": ["Development", "Fianchetto"],
+    "difficulty": "hard",
+    "explanation": "White completes development harmoniously.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s3_15",
+    "stage": 3,
+    "fen": "r2q1rk1/1p1bbppp/p1n1pn2/3p4/3P4/2NBPN2/PP1B1PPP/R2Q1RK1 w - - 0 11",
+    "moves": ["a3", "b5", "b4"],
+    "themes": ["Pawn Structure", "Space"],
+    "difficulty": "hard",
+    "explanation": "White gains space on the queenside.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s3_16",
+    "stage": 3,
+    "fen": "r2q1rk1/1pp2ppp/p1nb1n2/3p4/3P2b1/PQN1PN2/1P2BPPP/R1B2RK1 b - - 0 10",
+    "moves": ["Na5", "Qc2", "Bxf3", "Bxf3"],
+    "themes": ["Tempo", "Bishop Pair"],
+    "difficulty": "hard",
+    "explanation": "Black gains a tempo and forces a favorable exchange.",
+    "playerColor": "b"
+  },
+  {
+    "id": "s3_17",
+    "stage": 3,
+    "fen": "r1bq1rk1/1p2bppp/p1n1pn2/3p4/3P1B2/2NBPN2/PP3PPP/R2Q1RK1 w - - 0 10",
+    "moves": ["Ne5", "Nxe5", "Bxe5"],
+    "themes": ["Weak Squares", "Outpost"],
+    "difficulty": "hard",
+    "explanation": "White establishes a strong outpost on e5.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s3_18",
+    "stage": 3,
+    "fen": "r2q1rk1/pp1b1ppp/2n1pn2/2bp4/8/2NBPN2/PPPB1PPP/R2Q1RK1 w - - 0 10",
+    "moves": ["e4", "dxe4", "Nxe4", "Nxe4", "Bxe4"],
+    "themes": ["Pawn breaks", "Central Control"],
+    "difficulty": "hard",
+    "explanation": "White executes a central pawn break to open lines.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s3_19",
+    "stage": 3,
+    "fen": "r1bq1rk1/pp1nbppp/2p1pn2/3p4/2PP4/2N1PN2/PP2BPPP/R1BQ1RK1 w - - 0 8",
+    "moves": ["b3", "b6", "Bb2", "Bb7"],
+    "themes": ["Development", "Fianchetto"],
+    "difficulty": "hard",
+    "explanation": "White completes development harmoniously.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s3_20",
+    "stage": 3,
+    "fen": "r2q1rk1/1p1bbppp/p1n1pn2/3p4/3P4/2NBPN2/PP1B1PPP/R2Q1RK1 w - - 0 11",
+    "moves": ["a3", "b5", "b4"],
+    "themes": ["Pawn Structure", "Space"],
+    "difficulty": "hard",
+    "explanation": "White gains space on the queenside.",
+    "playerColor": "w"
+  }
+]

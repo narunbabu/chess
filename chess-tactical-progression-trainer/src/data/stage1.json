@@ -1,0 +1,202 @@
+[
+  {
+    "id": "s1_1",
+    "stage": 1,
+    "fen": "r1bq1rk1/ppp2ppp/2n5/3np3/2B5/2PP1N2/PP3PPP/RN1Q1RK1 w - - 0 1",
+    "moves": ["Bxd5", "Qxd5"],
+    "themes": ["Removing Defender"],
+    "difficulty": "medium",
+    "explanation": "White removes the defender of the d5 square.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s1_2",
+    "stage": 1,
+    "fen": "r1bq1rk1/ppp2ppp/2n5/4p3/2B1n3/2PP1N2/PP3PPP/RN1Q1RK1 w - - 0 1",
+    "moves": ["dxe4", "Qxd1", "Rxd1"],
+    "themes": ["Discovered Attack"],
+    "difficulty": "medium",
+    "explanation": "White wins a piece through a discovered attack and sequence.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s1_3",
+    "stage": 1,
+    "fen": "6k1/p4ppp/1p6/8/8/1P6/P4PPP/3qR1K1 w - - 0 1",
+    "moves": ["Rxd1"],
+    "themes": ["Back Rank"],
+    "difficulty": "medium",
+    "explanation": "White capitalizes on the back rank weakness.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s1_4",
+    "stage": 1,
+    "fen": "6k1/p4ppp/1p6/8/8/1P6/P4PPP/4R1K1 w - - 0 1",
+    "moves": ["Re8#"],
+    "themes": ["Mating Net"],
+    "difficulty": "medium",
+    "explanation": "A classic back rank checkmate.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s1_5",
+    "stage": 1,
+    "fen": "r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/2N2N2/PPPP1PPP/R1BQK2R w KQkq - 4 5",
+    "moves": ["Nxe5", "Nxe5", "d4"],
+    "themes": ["Fork"],
+    "difficulty": "medium",
+    "explanation": "White uses a temporary sacrifice to fork two pieces.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s1_6",
+    "stage": 1,
+    "fen": "r1bq1rk1/ppp2ppp/2n5/3np3/2B5/2PP1N2/PP3PPP/RN1Q1RK1 w - - 0 1",
+    "moves": ["Bxd5", "Qxd5"],
+    "themes": ["Removing Defender"],
+    "difficulty": "medium",
+    "explanation": "White removes the defender of the d5 square.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s1_7",
+    "stage": 1,
+    "fen": "r1bq1rk1/ppp2ppp/2n5/4p3/2B1n3/2PP1N2/PP3PPP/RN1Q1RK1 w - - 0 1",
+    "moves": ["dxe4", "Qxd1", "Rxd1"],
+    "themes": ["Discovered Attack"],
+    "difficulty": "medium",
+    "explanation": "White wins a piece through a discovered attack and sequence.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s1_8",
+    "stage": 1,
+    "fen": "6k1/p4ppp/1p6/8/8/1P6/P4PPP/3qR1K1 w - - 0 1",
+    "moves": ["Rxd1"],
+    "themes": ["Back Rank"],
+    "difficulty": "medium",
+    "explanation": "White capitalizes on the back rank weakness.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s1_9",
+    "stage": 1,
+    "fen": "6k1/p4ppp/1p6/8/8/1P6/P4PPP/4R1K1 w - - 0 1",
+    "moves": ["Re8#"],
+    "themes": ["Mating Net"],
+    "difficulty": "medium",
+    "explanation": "A classic back rank checkmate.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s1_10",
+    "stage": 1,
+    "fen": "r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/2N2N2/PPPP1PPP/R1BQK2R w KQkq - 4 5",
+    "moves": ["Nxe5", "Nxe5", "d4"],
+    "themes": ["Fork"],
+    "difficulty": "medium",
+    "explanation": "White uses a temporary sacrifice to fork two pieces.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s1_11",
+    "stage": 1,
+    "fen": "r1bq1rk1/ppp2ppp/2n5/3np3/2B5/2PP1N2/PP3PPP/RN1Q1RK1 w - - 0 1",
+    "moves": ["Bxd5", "Qxd5"],
+    "themes": ["Removing Defender"],
+    "difficulty": "medium",
+    "explanation": "White removes the defender of the d5 square.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s1_12",
+    "stage": 1,
+    "fen": "r1bq1rk1/ppp2ppp/2n5/4p3/2B1n3/2PP1N2/PP3PPP/RN1Q1RK1 w - - 0 1",
+    "moves": ["dxe4", "Qxd1", "Rxd1"],
+    "themes": ["Discovered Attack"],
+    "difficulty": "medium",
+    "explanation": "White wins a piece through a discovered attack and sequence.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s1_13",
+    "stage": 1,
+    "fen": "6k1/p4ppp/1p6/8/8/1P6/P4PPP/3qR1K1 w - - 0 1",
+    "moves": ["Rxd1"],
+    "themes": ["Back Rank"],
+    "difficulty": "medium",
+    "explanation": "White capitalizes on the back rank weakness.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s1_14",
+    "stage": 1,
+    "fen": "6k1/p4ppp/1p6/8/8/1P6/P4PPP/4R1K1 w - - 0 1",
+    "moves": ["Re8#"],
+    "themes": ["Mating Net"],
+    "difficulty": "medium",
+    "explanation": "A classic back rank checkmate.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s1_15",
+    "stage": 1,
+    "fen": "r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/2N2N2/PPPP1PPP/R1BQK2R w KQkq - 4 5",
+    "moves": ["Nxe5", "Nxe5", "d4"],
+    "themes": ["Fork"],
+    "difficulty": "medium",
+    "explanation": "White uses a temporary sacrifice to fork two pieces.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s1_16",
+    "stage": 1,
+    "fen": "r1bq1rk1/ppp2ppp/2n5/3np3/2B5/2PP1N2/PP3PPP/RN1Q1RK1 w - - 0 1",
+    "moves": ["Bxd5", "Qxd5"],
+    "themes": ["Removing Defender"],
+    "difficulty": "medium",
+    "explanation": "White removes the defender of the d5 square.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s1_17",
+    "stage": 1,
+    "fen": "r1bq1rk1/ppp2ppp/2n5/4p3/2B1n3/2PP1N2/PP3PPP/RN1Q1RK1 w - - 0 1",
+    "moves": ["dxe4", "Qxd1", "Rxd1"],
+    "themes": ["Discovered Attack"],
+    "difficulty": "medium",
+    "explanation": "White wins a piece through a discovered attack and sequence.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s1_18",
+    "stage": 1,
+    "fen": "6k1/p4ppp/1p6/8/8/1P6/P4PPP/3qR1K1 w - - 0 1",
+    "moves": ["Rxd1"],
+    "themes": ["Back Rank"],
+    "difficulty": "medium",
+    "explanation": "White capitalizes on the back rank weakness.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s1_19",
+    "stage": 1,
+    "fen": "6k1/p4ppp/1p6/8/8/1P6/P4PPP/4R1K1 w - - 0 1",
+    "moves": ["Re8#"],
+    "themes": ["Mating Net"],
+    "difficulty": "medium",
+    "explanation": "A classic back rank checkmate.",
+    "playerColor": "w"
+  },
+  {
+    "id": "s1_20",
+    "stage": 1,
+    "fen": "r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/2N2N2/PPPP1PPP/R1BQK2R w KQkq - 4 5",
+    "moves": ["Nxe5", "Nxe5", "d4"],
+    "themes": ["Fork"],
+    "difficulty": "medium",
+    "explanation": "White uses a temporary sacrifice to fork two pieces.",
+    "playerColor": "w"
+  }
+]

@@ -16,6 +16,7 @@ Chess-Web/
 ├── chess-backend/      # Laravel 12 (PHP 8.2+) + Laravel Reverb WebSockets
 ├── chess99-android/    # Android app
 ├── chess99-ios/        # iOS app
+├── chess-tactical-progression-trainer/  # Standalone Gemini AI tactical trainer (Vite/TS)
 ├── docs/               # Documentation (context.md, updates/, success-stories/)
 └── testing/            # Shared test utilities
 ```
@@ -104,6 +105,43 @@ powershell.exe -Command "cd 'C:\\ArunApps\\Chess-Web\\chess-frontend'; pnpm buil
 - Use conventional commits: `type(scope): summary`
 - Change logs: `docs/updates/YYYY_MM_DD_HH_MM_update.md`
 - Debug fixes: `docs/success-stories/YYYY_MM_DD_HH_MM_<slug>.md`
+
+## Recent Features (as of 2026-04-18)
+
+### Tactical Progression Trainer (`chess-frontend/src/components/tactical/`)
+- Multi-stage puzzle system with sequential unlock (stages 1–4, Lichess puzzles)
+- `TacticalPuzzleBoard.js` — full puzzle board with illegal/wrong move split scoring
+- `TacticalTrainer.js` + `TacticalTrainerDashboard.js` — trainer UI and dashboard
+- `tacticalStages.js` + `stageVideos.js` — stage config and video map
+- Puzzle data: `chess-frontend/src/data/stage{1..4}_puzzles.json` + `beginner_puzzles.json`
+- Standalone Gemini AI version: `chess-tactical-progression-trainer/` (Vite/TS, uses Gemini API)
+
+### CCT (Chess Coaching Tool) Analysis (`chess-frontend/src/components/game/`)
+- `CCTPanel.jsx` / `CCTPanel.css` — in-game analysis panel with threat detection and best-move arrows
+- `chess-frontend/src/utils/cctAnalysis.js` + `computeCCT.js` — CCT computation utilities
+- Two-phase scoring: threshold gate + score badges; pending/completion states tracked
+
+### Companion Mode (redesigned)
+- `CompanionControls.jsx` + `CompanionSelector.jsx` — companion plays on player's behalf (not as opponent)
+- Backend: `GET /api/v1/synthetic-players` endpoint (`LobbyController::syntheticPlayers`)
+- Migrations: `add_companion_to_game_mode` + `add_companion_to_matchmaking_tables`
+- E2E: `chess-frontend/tests/e2e/companion-mode.spec.js`
+
+### User Progress & Dashboard
+- `ProgressChartsModal.js` — modal with rating/game stats charts
+- `UserProgressCharts.js` — rating history and game statistics visualization
+- `UserProgressController.php` — backend controller for progress data
+- `WebSocketController.php` — expanded with chat + game state endpoints
+- E2E: `chess-frontend/tests/e2e/user-progress.spec.js`
+
+### Profile Quick-Edit UI
+- `AvatarQuickEdit.js` / `.css` — inline avatar editing in header
+- `NameQuickEdit.js` / `.css` — inline display name editing in header
+
+### Game Result Standardization
+- `chess-frontend/src/utils/resultStandardization.js` — normalizes result format across components
+- `normalizeMoves` helper in `gameStateUtils.js` — handles plain string moves vs JSON
+- `GameController@show` now returns standardized result format
 
 ## Security
 

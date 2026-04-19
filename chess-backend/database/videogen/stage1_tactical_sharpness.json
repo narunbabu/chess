@@ -1,0 +1,67 @@
+{
+  "title": "Stage 1: Tactical Sharpness (1400→1650)",
+  "channel": "chess99",
+  "description": "Stage 1 of the Tactical Progression Trainer. Learn to spot forks, pins, discovered attacks, and double checks that players at 1400-1650 consistently miss.",
+  "intro": {
+    "text": "Welcome to Stage 1 of the Chess99 Tactical Progression Trainer. At the 1400-1650 level, games are decided by one-move blunders and missed two-move tactics. In this session, we study the core patterns you must see instantly.",
+    "duration": 8
+  },
+  "segments": [
+    {
+      "type": "concept",
+      "title": "The Fork — Win Two Pieces at Once",
+      "text": "A fork attacks two or more pieces simultaneously. The knight is the master forker — it attacks in a unique L-shape that pieces can't simply block.",
+      "duration": 10
+    },
+    {
+      "type": "puzzle",
+      "title": "Example 1: Knight Fork",
+      "fen": "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4",
+      "solution_moves": ["f3g5", "f6d5", "g5f7"],
+      "commentary": [
+        "White has a crushing knight fork available. Can you spot it?",
+        "Ng5 threatens the queen and attacks f7 — a royal fork is coming.",
+        "After Nxf7, white forks the queen on d8 and the rook on h8. A winning material gain."
+      ]
+    },
+    {
+      "type": "concept",
+      "title": "The Pin — Immobilize the Defender",
+      "text": "A pin ties a piece to a more valuable piece behind it. An absolute pin means the pinned piece cannot legally move — exploit this mercilessly.",
+      "duration": 10
+    },
+    {
+      "type": "puzzle",
+      "title": "Example 2: Absolute Pin Exploitation",
+      "fen": "r2qkb1r/ppp2ppp/2n5/3pp3/2B1P1b1/3P1N2/PPP2PPP/RNBQK2R w KQkq - 0 6",
+      "solution_moves": ["f3e5", "c6e5", "c4f7", "e8f7", "d1h5"],
+      "commentary": [
+        "White ignores the pin on the knight and strikes in the center.",
+        "After the exchanges, Bxf7+ forces the king off castling and Qh5+ delivers a devastating pin on the f7 pawn.",
+        "This shows how pins compound — one creates another."
+      ]
+    },
+    {
+      "type": "concept",
+      "title": "Discovered Attack — The Hidden Weapon",
+      "text": "Moving one piece uncovers an attack by the piece behind it. When the moving piece also gives check or attacks something valuable, it becomes a discovered attack that is almost impossible to defend.",
+      "duration": 10
+    },
+    {
+      "type": "puzzle",
+      "title": "Example 3: Discovered Attack Wins Material",
+      "fen": "2r1r1k1/pp3ppp/2n5/3p4/3P4/2N2N2/PP3PPP/R1B1R1K1 w - - 0 1",
+      "solution_moves": ["f3d2", "c6d4", "d2f3"],
+      "commentary": [
+        "The knight on f3 can step away to discover the rook's attack on the c6 knight.",
+        "The opponent's best response still loses material — the discovered attack leaves no good defence.",
+        "Always look for pieces that, when moved, unleash a hidden weapon."
+      ]
+    },
+    {
+      "type": "outro",
+      "text": "These three patterns — fork, pin, and discovered attack — appear in almost every game at the 1400-1650 level. Train them until you see them instantly. Visit chess99.com to practice 500 real Lichess puzzles featuring exactly these motifs.",
+      "duration": 10
+    }
+  ]
+}
