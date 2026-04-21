@@ -16,16 +16,20 @@ class SyntheticPlayerSeeder extends Seeder
     {
         $this->command->info('🤖 Seeding synthetic players...');
 
-        // Clear existing synthetic players
-        SyntheticPlayer::truncate();
-
         $players = $this->getPlayerData();
 
         foreach ($players as $player) {
-            SyntheticPlayer::create($player);
+            SyntheticPlayer::updateOrCreate(
+                ['name' => $player['name']],
+                $player
+            );
         }
 
-        $this->command->info("✅ Seeded " . count($players) . " synthetic players");
+        // Deactivate any players not in the seed data (e.g. removed players)
+        $seedNames = collect($players)->pluck('name');
+        SyntheticPlayer::whereNotIn('name', $seedNames)->update(['is_active' => false]);
+
+        $this->command->info("✅ Upserted " . count($players) . " synthetic players");
     }
 
     private function getPlayerData(): array
