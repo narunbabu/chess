@@ -263,7 +263,8 @@ const GameReview = () => {
 
   // Player info derived from gameHistory
   const playerInfo = useMemo(() => {
-    const playerColor = gameHistory.player_color || 'w';
+    const pc = gameHistory.player_color || 'w';
+    const playerColor = (pc === 'white' || pc === 'w') ? 'w' : 'b';
     const isMultiplayer = gameHistory.game_mode === 'multiplayer';
     const whitePlayer = gameHistory.white_player;
     const blackPlayer = gameHistory.black_player;
@@ -878,10 +879,11 @@ const GameReview = () => {
         if (!result) break;
       }
     }
-    const playerColor = gameHistory.player_color || 'w';
+    const pc = gameHistory.player_color || 'w';
+    const isWhite = pc === 'w' || pc === 'white';
     const isMP = gameHistory.game_mode === 'multiplayer';
-    const whiteName = playerColor === 'w' ? (user?.name || 'Player') : (gameHistory.opponent_name || (isMP ? 'Opponent' : `Computer Lv.${gameHistory.computer_level || '?'}`));
-    const blackName = playerColor === 'b' ? (user?.name || 'Player') : (gameHistory.opponent_name || (isMP ? 'Opponent' : `Computer Lv.${gameHistory.computer_level || '?'}`));
+    const whiteName = isWhite ? (user?.name || 'Player') : (gameHistory.opponent_name || (isMP ? 'Opponent' : `Computer Lv.${gameHistory.computer_level || '?'}`));
+    const blackName = !isWhite ? (user?.name || 'Player') : (gameHistory.opponent_name || (isMP ? 'Opponent' : `Computer Lv.${gameHistory.computer_level || '?'}`));
     const dateStr = gameHistory.played_at ? new Date(gameHistory.played_at).toISOString().split('T')[0].replace(/-/g, '.') : '????.??.??';
 
     let resultStr = '*';
@@ -889,10 +891,10 @@ const GameReview = () => {
       const won = isWin(gameHistory.result);
       const draw = isDraw(gameHistory.result);
       if (draw) resultStr = '1/2-1/2';
-      else if (won && playerColor === 'w') resultStr = '1-0';
-      else if (won && playerColor === 'b') resultStr = '0-1';
-      else if (!won && playerColor === 'w') resultStr = '0-1';
-      else if (!won && playerColor === 'b') resultStr = '1-0';
+      else if (won && isWhite) resultStr = '1-0';
+      else if (won && !isWhite) resultStr = '0-1';
+      else if (!won && isWhite) resultStr = '0-1';
+      else if (!won && !isWhite) resultStr = '1-0';
     }
 
     const headers = [

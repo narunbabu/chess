@@ -45,6 +45,7 @@ const GameContainer = ({
   chatData = null,
   companionData = null, // { companion: object, onMove: function, isMyTurn: boolean }
   cctData = null,       // { game, isActive, isRated, onArrowsChange }
+  drawClaimInfo = null, // { available: bool, reason: string|null } — threefold/50-move claim status
 }) => {
   const [rightTab, setRightTab] = useState('moves');
   const [showRatedRules, setShowRatedRules] = useState(false);
@@ -114,6 +115,8 @@ const GameContainer = ({
     if (game.isCheck?.()) return 'Check';
     if (game.isStalemate?.()) return 'Stalemate';
     if (game.isDraw?.()) return 'Draw';
+    if (drawClaimInfo?.available && drawClaimInfo.reason === 'threefold_repetition') return 'Threefold Repetition';
+    if (drawClaimInfo?.available && drawClaimInfo.reason === 'fifty_move_rule') return '50-Move Rule';
     if (gameOver) return 'Game Over';
     return game.turn?.() === 'w' ? "White's turn" : "Black's turn";
   };
@@ -547,9 +550,17 @@ const GameContainer = ({
         </div>
       </div>
       {/* Game status */}
-      {gameStatus && !gameStatus.match(/^(White|Black)'s turn$/i) && (
+      {drawClaimInfo?.available && drawClaimInfo.reason === 'threefold_repetition' ? (
+        <div className="gc-status-bar" style={{ borderColor: '#e8a93e', color: '#e8a93e' }}>
+          Threefold Repetition{drawClaimInfo.isCasual ? ' — Auto-Draw' : ' — Claim Available'}
+        </div>
+      ) : drawClaimInfo?.available && drawClaimInfo.reason === 'fifty_move_rule' ? (
+        <div className="gc-status-bar" style={{ borderColor: '#e8a93e', color: '#e8a93e' }}>
+          50-Move Rule — Claim Available
+        </div>
+      ) : gameStatus && !gameStatus.match(/^(White|Black)'s turn$/i) ? (
         <div className="gc-status-bar">{gameStatus}</div>
-      )}
+      ) : null}
     </div>
   );
 

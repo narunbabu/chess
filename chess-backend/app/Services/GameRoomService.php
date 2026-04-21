@@ -178,6 +178,25 @@ class GameRoomService
     }
 
     /**
+     * Record position key in game's position_history for threefold repetition detection.
+     * Initializes with the starting position if history is empty.
+     */
+    private function recordPositionHistory(Game $game, string $fen): void
+    {
+        $positionHistory = $game->position_history ?? [];
+
+        // Initialize with starting position if this is the first recorded position
+        if (empty($positionHistory)) {
+            $startFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+            $positionHistory[] = \App\Services\ChessRulesService::positionKeyFromFen($startFen);
+        }
+
+        $positionHistory[] = \App\Services\ChessRulesService::positionKeyFromFen($fen);
+        $game->position_history = $positionHistory;
+        $game->save();
+    }
+
+    /**
      * Check if user can join the game
      */
     private function canUserJoinGame(User $user, Game $game): bool
@@ -638,6 +657,9 @@ class GameRoomService
 
         $game->update($updateData);
 
+        // Record position for threefold repetition detection
+        $this->recordPositionHistory($game, $newFen);
+
         // Check for game end conditions after move
         $this->maybeFinalizeGame($game, $userId, $move);
 
@@ -793,16 +815,18 @@ class GameRoomService
             return;
         }
 
-        // Use client-provided mate detection if available, otherwise fallback to analysis
-        if (!empty($move['is_mate_hint']) || !empty($move['is_stalemate'])) {
+        // Use client-provided game end hints if available
+        if (!empty($move['is_mate_hint']) || !empty($move['is_stalemate']) || !empty($move['is_threefold_repetition'])) {
             // Client indicates the game might be over
             $isCheckmate = !empty($move['is_mate_hint']);
             $isStalemate = !empty($move['is_stalemate']);
+            $isThreefold = !empty($move['is_threefold_repetition']);
 
             Log::info('Using client-provided game end detection', [
                 'game_id' => $game->id,
                 'is_checkmate' => $isCheckmate,
                 'is_stalemate' => $isStalemate,
+                'is_threefold_repetition' => $isThreefold,
                 'san' => $move['san'] ?? ''
             ]);
 
@@ -827,6 +851,19 @@ class GameRoomService
                     'winner_player' => null,
                     'winner_user_id' => null,
                     'end_reason' => 'stalemate'
+                ]);
+                return;
+            }
+
+            if ($isThreefold) {
+                Log::info('Threefold repetition detected via client hint, auto-drawing', [
+                    'game_id' => $game->id
+                ]);
+                $this->finalizeGame($game, [
+                    'result' => '1/2-1/2',
+                    'winner_player' => null,
+                    'winner_user_id' => null,
+                    'end_reason' => 'threefold'
                 ]);
                 return;
             }

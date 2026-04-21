@@ -22,7 +22,7 @@ class ChessRulesService
         ]);
 
         // Use enhanced fallback analysis with basic checkmate detection
-        return $this->enhancedAnalysis($game, $fen, $moves);
+        return $this->enhancedAnalysis($game, $fen, $moves, $game->position_history ?? []);
 
         // try {
         //     // Create a chess game from the FEN position
@@ -74,7 +74,7 @@ class ChessRulesService
     /**
      * Enhanced analysis with basic checkmate detection
      */
-    private function enhancedAnalysis(Game $game, string $fen, array $moves): array
+    private function enhancedAnalysis(Game $game, string $fen, array $moves, ?array $positionHistory = null): array
     {
         $last = end($moves) ?: [];
         $san  = $last['san'] ?? null;
@@ -110,7 +110,7 @@ class ChessRulesService
             'is_checkmate' => $isCheckmate,
             'is_stalemate' => $isStalemate,
             'is_insufficient_material' => $this->isInsufficientMaterial($fen),
-            'is_threefold_repetition' => $this->isThreefoldRepetition($moves),
+            'is_threefold_repetition' => $this->isThreefoldRepetition($moves, $positionHistory),
             'is_fifty_move_rule' => $this->isFiftyMoveRule($fen, $moves),
             'current_turn' => $this->getCurrentTurn($fen), // 'w'|'b'
             'game_over' => false,
@@ -190,14 +190,32 @@ class ChessRulesService
     }
 
     /**
-     * Check for threefold repetition by analyzing move history
+     * Check for threefold repetition using position history.
+     * A position key = piece placement + side to move + castling rights + en passant square.
      */
-    private function isThreefoldRepetition(array $moves): bool
+    public function isThreefoldRepetition(array $moves, ?array $positionHistory = null): bool
     {
-        // TODO: Implement threefold repetition detection using frontend chess.js
-        // The frontend already handles this, so for now we return false
-        // and rely on client-side detection
+        if ($positionHistory !== null && count($positionHistory) > 0) {
+            $counts = array_count_values($positionHistory);
+            foreach ($counts as $count) {
+                if ($count >= 3) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         return false;
+    }
+
+    /**
+     * Extract a position key from a FEN string (first 4 fields).
+     * Used for threefold repetition comparison.
+     */
+    public static function positionKeyFromFen(string $fen): string
+    {
+        $parts = explode(' ', $fen);
+        return implode(' ', array_slice($parts, 0, 4));
     }
 
     /**

@@ -197,6 +197,7 @@ const PlayMultiplayer = () => {
   // Synthetic (computer) player state — used when PlayMultiplayer hosts a human-vs-bot game
   const [isSyntheticGame, setIsSyntheticGame] = useState(false);
   const [syntheticLevel, setSyntheticLevel] = useState(5);
+  const [syntheticRating, setSyntheticRating] = useState(null);
   const [syntheticMoveInProgress, setSyntheticMoveInProgress] = useState(false);
 
   // Board customization state
@@ -652,7 +653,13 @@ const PlayMultiplayer = () => {
       setIsSyntheticGame(synGame);
       if (synGame) {
         setSyntheticLevel(data.computer_level || 5);
-        console.log('🤖 Synthetic game detected, level:', data.computer_level || 5);
+        // Extract the bot's actual DB rating so selectMoveWithCpBudget targets the right ELO.
+        // The bot is always the non-human player; check which side it occupies.
+        const botIsBlack = data.player_color === 'white';
+        const botPlayer = botIsBlack ? data.black_player : data.white_player;
+        const botRating = botPlayer?.rating || null;
+        setSyntheticRating(botRating);
+        console.log('🤖 Synthetic game detected, level:', data.computer_level || 5, 'rating:', botRating);
       }
 
       // Detect game mode (rated or casual)
@@ -4063,22 +4070,45 @@ const PlayMultiplayer = () => {
 
   // ─── Draw-condition effects ─────────────────────────────────────────────────
 
-  // P1: Threefold repetition + 50-move rule — show "Claim Draw" banner to the player to move
+  // P1: Threefold repetition + 50-move rule
+  // Casual games: auto-claim threefold repetition (no manual claim needed)
+  // Rated games: show "Claim Draw" banner for manual claim
   useEffect(() => {
     if (gameComplete || gameInfo.status !== 'active') {
       setDrawClaimAvailable(false);
       return;
     }
-    // Only show the claim option to the player whose turn it currently is
+    // Only the player whose turn it is can claim
     const isMyTurnNow = game.turn() === myColor;
     if (!isMyTurnNow) {
       setDrawClaimAvailable(false);
       return;
     }
     const { canClaim, reason } = getClaimableDrawStatus(game, positionCountsRef.current);
+
+    if (!canClaim) {
+      setDrawClaimAvailable(false);
+      setDrawClaimReason(null);
+      return;
+    }
+
+    // Casual games: auto-claim threefold repetition
+    if (reason === 'threefold_repetition' && ratedMode === 'casual' && wsService.current && !autoDrawClaimedRef.current) {
+      autoDrawClaimedRef.current = true;
+      console.log('🤝 Auto-draw: Threefold repetition in casual game — claiming draw');
+      playSound(gameEndSoundEffect);
+      wsService.current.claimDraw(reason).catch(err => {
+        console.error('Auto-draw claim failed:', err);
+        autoDrawClaimedRef.current = false;
+      });
+      setDrawClaimAvailable(false);
+      return;
+    }
+
+    // Rated games or 50-move rule: show manual claim banner
     setDrawClaimAvailable(canClaim);
     setDrawClaimReason(canClaim ? reason : null);
-  }, [game, myColor, gameComplete, gameInfo.status]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [game, myColor, gameComplete, gameInfo.status, ratedMode, playSound]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // P2 + P3: Fivefold repetition, 75-move rule, 16 queen moves — automatic draws
   useEffect(() => {
@@ -4216,11 +4246,16 @@ const PlayMultiplayer = () => {
     console.log('🤖 Computing synthetic move…');
 
     try {
+      // For ratings >= 1700 use the bot's actual DB rating; below 1700 the
+      // COMPUTER_LEVEL_RATINGS fallback inside makeComputerMove is accurate enough.
+      const ratingForMove = syntheticRating && syntheticRating >= 1700 ? syntheticRating : null;
       const result = await makeComputerMove(
         game,
         syntheticLevel,
         syntheticChessColor,
-        () => {} // no-op — we don't need the timer colour indicator here
+        () => {}, // no-op — we don't need the timer colour indicator here
+        null,     // personality
+        ratingForMove
       );
 
       if (!result) return;
@@ -4273,6 +4308,7 @@ const PlayMultiplayer = () => {
             is_mate_hint: newGame.isCheckmate(),
             is_check:     newGame.inCheck(),
             is_stalemate: newGame.isStalemate(),
+            is_threefold_repetition: newGame.isThreefoldRepetition(),
             move_time_ms: 1000,
           },
         }),
@@ -4284,7 +4320,7 @@ const PlayMultiplayer = () => {
     } finally {
       setSyntheticMoveInProgress(false);
     }
-  }, [game, isSyntheticGame, syntheticLevel, syntheticMoveInProgress, gameComplete,
+  }, [game, isSyntheticGame, syntheticLevel, syntheticRating, syntheticMoveInProgress, gameComplete,
       gameInfo.playerColor, gameId, checkForCheckmate,
       setGame, setGameInfo, setGameHistory, setLastMoveHighlights]);
 
@@ -4461,6 +4497,7 @@ const PlayMultiplayer = () => {
       is_mate_hint: !!(move.san?.includes('#') || gameCopy.isCheckmate()),
       is_check: gameCopy.inCheck(),
       is_stalemate: gameCopy.isStalemate(),
+      is_threefold_repetition: gameCopy.isThreefoldRepetition(),
       // Add evaluation metrics
       move_time_ms: moveTime * 1000,
       player_rating: user?.rating || 1200,
@@ -4939,6 +4976,11 @@ const PlayMultiplayer = () => {
         isActive: gameInfo.status === 'active',
         isRated: ratedMode === 'rated',
         onArrowsChange: setCctArrows,
+      }}
+      drawClaimInfo={{
+        available: drawClaimAvailable,
+        reason: drawClaimReason,
+        isCasual: ratedMode === 'casual',
       }}
       actionBar={
         <>
