@@ -8,7 +8,7 @@ use Illuminate\Database\Seeder;
 class SyntheticPlayerSeeder extends Seeder
 {
     /**
-     * Seed ~40 synthetic players across levels 6-16.
+     * Seed ~50 synthetic players across levels 4-16 (1000-2440 ELO).
      *
      * Rating formula: 800 + (level * 100) + random(-50, +50)
      */
@@ -33,6 +33,23 @@ class SyntheticPlayerSeeder extends Seeder
         $personalities = ['Aggressive', 'Defensive', 'Balanced', 'Tactical', 'Positional'];
 
         return [
+            // Level 4 (1000 ± 50) — Casual / Beginner
+            ['name' => 'Tara Bhatt', 'avatar_seed' => 'tara-bhatt', 'computer_level' => 4, 'rating' => 1000, 'personality' => 'Balanced', 'bio' => 'Just started playing chess online', 'games_played_count' => 45, 'wins_count' => 18],
+            ['name' => 'Nikhil Shukla', 'avatar_seed' => 'nikhil-shukla', 'computer_level' => 4, 'rating' => 1025, 'personality' => 'Aggressive', 'bio' => 'Loves going for the king early', 'games_played_count' => 67, 'wins_count' => 28],
+            ['name' => 'Pallavi Sen', 'avatar_seed' => 'pallavi-sen', 'computer_level' => 4, 'rating' => 1050, 'personality' => 'Defensive', 'bio' => 'Learning to hold the position', 'games_played_count' => 82, 'wins_count' => 35],
+            ['name' => 'Sandeep Varma', 'avatar_seed' => 'sandeep-varma', 'computer_level' => 4, 'rating' => 1075, 'personality' => 'Tactical', 'bio' => 'Discovered chess on YouTube', 'games_played_count' => 93, 'wins_count' => 40],
+
+            // Level 5 (1200 ± 50) — Intermediate / Club Beginner
+            ['name' => 'Geeta Pandey', 'avatar_seed' => 'geeta-pandey', 'computer_level' => 5, 'rating' => 1100, 'personality' => 'Balanced', 'bio' => 'Plays chess during lunch breaks', 'games_played_count' => 112, 'wins_count' => 50],
+            ['name' => 'Hari Trivedi', 'avatar_seed' => 'hari-trivedi', 'computer_level' => 5, 'rating' => 1125, 'personality' => 'Positional', 'bio' => 'Working on pawn structures', 'games_played_count' => 128, 'wins_count' => 58],
+            ['name' => 'Indira Naidu', 'avatar_seed' => 'indira-naidu', 'computer_level' => 5, 'rating' => 1150, 'personality' => 'Aggressive', 'bio' => 'Queen\'s Gambit fan', 'games_played_count' => 145, 'wins_count' => 67],
+            ['name' => 'Ishaan Ghosh', 'avatar_seed' => 'ishaan-ghosh', 'computer_level' => 5, 'rating' => 1175, 'personality' => 'Tactical', 'bio' => 'Practices puzzles every day', 'games_played_count' => 156, 'wins_count' => 73],
+            ['name' => 'Jaya Choudhury', 'avatar_seed' => 'jaya-choudhury', 'computer_level' => 5, 'rating' => 1200, 'personality' => 'Defensive', 'bio' => 'Prefers solid openings', 'games_played_count' => 178, 'wins_count' => 84],
+            ['name' => 'Kabir Jain', 'avatar_seed' => 'kabir-jain', 'computer_level' => 5, 'rating' => 1225, 'personality' => 'Balanced', 'bio' => 'College chess club member', 'games_played_count' => 195, 'wins_count' => 92],
+            ['name' => 'Kavya Desai', 'avatar_seed' => 'kavya-desai', 'computer_level' => 5, 'rating' => 1250, 'personality' => 'Aggressive', 'bio' => 'Loves open games and tactics', 'games_played_count' => 210, 'wins_count' => 100],
+            ['name' => 'Chandra Agarwal', 'avatar_seed' => 'chandra-agarwal', 'computer_level' => 5, 'rating' => 1275, 'personality' => 'Tactical', 'bio' => 'Training for first tournament', 'games_played_count' => 225, 'wins_count' => 108],
+            ['name' => 'Bhavna Srinivasan', 'avatar_seed' => 'bhavna-srinivasan', 'computer_level' => 5, 'rating' => 1300, 'personality' => 'Positional', 'bio' => 'Studies endgames on weekends', 'games_played_count' => 238, 'wins_count' => 114],
+
             // Level 6 (1400 ± 50) — Medium
             ['name' => 'Priya Mehta', 'avatar_seed' => 'priya-mehta', 'computer_level' => 6, 'rating' => 1370, 'personality' => 'Balanced', 'bio' => 'Loves openings and tactical puzzles', 'games_played_count' => 245, 'wins_count' => 110],
             ['name' => 'Kiran Joshi', 'avatar_seed' => 'kiran-joshi', 'computer_level' => 6, 'rating' => 1390, 'personality' => 'Defensive', 'bio' => 'Patience is the best strategy', 'games_played_count' => 312, 'wins_count' => 140],
