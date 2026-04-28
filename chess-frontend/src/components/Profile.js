@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
@@ -58,6 +59,61 @@ const Profile = () => {
   const [fileSizeInfo, setFileSizeInfo] = useState(null);
   const fileInputRef = useRef(null);
 
+  // Mobile / tournament contact fields
+  const [mobileCountryCode, setMobileCountryCode] = useState('+91');
+  const [mobileNumber, setMobileNumber] = useState('');
+  const [mobileError, setMobileError] = useState('');
+  const [tournamentConsent, setTournamentConsent] = useState(false);
+  const [whatsappOptIn, setWhatsappOptIn] = useState(false);
+
+  const PHONE_DIGIT_LENGTHS = {
+    '+1': { min: 10, max: 10 },   // US/Canada
+    '+7': { min: 10, max: 10 },   // Russia/Kazakhstan
+    '+20': { min: 10, max: 10 },  // Egypt
+    '+27': { min: 9, max: 9 },    // South Africa
+    '+30': { min: 10, max: 10 },  // Greece
+    '+31': { min: 9, max: 9 },    // Netherlands
+    '+33': { min: 9, max: 9 },    // France
+    '+34': { min: 9, max: 9 },    // Spain
+    '+39': { min: 9, max: 10 },   // Italy
+    '+44': { min: 10, max: 10 },  // UK
+    '+49': { min: 10, max: 11 },  // Germany
+    '+61': { min: 9, max: 9 },    // Australia
+    '+62': { min: 10, max: 12 },  // Indonesia
+    '+63': { min: 10, max: 10 },  // Philippines
+    '+65': { min: 8, max: 8 },    // Singapore
+    '+66': { min: 9, max: 9 },    // Thailand
+    '+81': { min: 9, max: 10 },   // Japan
+    '+82': { min: 9, max: 10 },   // South Korea
+    '+86': { min: 11, max: 11 },  // China
+    '+90': { min: 10, max: 10 },  // Turkey
+    '+91': { min: 10, max: 10 },  // India
+    '+92': { min: 10, max: 10 },  // Pakistan
+    '+93': { min: 9, max: 9 },    // Afghanistan
+    '+94': { min: 9, max: 9 },    // Sri Lanka
+    '+95': { min: 9, max: 10 },   // Myanmar
+    '+960': { min: 7, max: 7 },   // Maldives
+    '+966': { min: 9, max: 9 },   // Saudi Arabia
+    '+968': { min: 8, max: 8 },   // Oman
+    '+971': { min: 9, max: 9 },   // UAE
+    '+974': { min: 8, max: 8 },   // Qatar
+    '+977': { min: 10, max: 10 }, // Nepal
+    '+880': { min: 10, max: 11 }, // Bangladesh
+  };
+
+  const validateMobileNumber = (digits, code) => {
+    if (!digits) return '';
+    const rule = PHONE_DIGIT_LENGTHS[code];
+    const len = digits.length;
+    if (rule) {
+      if (len < rule.min) return `Too short — ${rule.min} digits expected for ${code}`;
+      if (len > rule.max) return `Too long — ${rule.max} digits expected for ${code}`;
+    } else if (len < 7 || len > 15) {
+      return 'Phone number should be 7–15 digits';
+    }
+    return '';
+  };
+
   // Profile tab navigation (PR-R1)
   const [profileTab, setProfileTab] = useState('settings');
 
@@ -67,6 +123,11 @@ const Profile = () => {
   const [orgSearchLoading, setOrgSearchLoading] = useState(false);
   const [orgError, setOrgError] = useState('');
   const orgSearchTimeout = useRef(null);
+  const [showOrgRequestModal, setShowOrgRequestModal] = useState(false);
+  const [orgRequestForm, setOrgRequestForm] = useState({ name: '', type: 'School', city: '', state: '', website: '' });
+  const [orgRequestSubmitting, setOrgRequestSubmitting] = useState(false);
+  const [orgRequestSuccess, setOrgRequestSuccess] = useState(false);
+  const [orgRequestError, setOrgRequestError] = useState('');
 
   // Image cropping states
   const [selectedImage, setSelectedImage] = useState(null);
@@ -81,6 +142,10 @@ const Profile = () => {
       setName(user.name || '');
       setBirthday(user.birthday ? user.birthday.split('T')[0] : '');
       setClassOfStudy(user.class_of_study ? String(user.class_of_study) : '');
+      setMobileCountryCode(user.mobile_country_code || '+91');
+      setMobileNumber(user.mobile_number || '');
+      setTournamentConsent(!!user.tournament_contact_consent_at);
+      setWhatsappOptIn(!!user.whatsapp_updates_opt_in);
       loadFriends();
       loadPendingRequests();
       loadTutorialProgress();
@@ -302,6 +367,25 @@ const Profile = () => {
     }
   };
 
+  const handleOrgRequestSubmit = async (e) => {
+    e.preventDefault();
+    if (!orgRequestForm.name.trim()) {
+      setOrgRequestError('Organization name is required.');
+      return;
+    }
+    setOrgRequestSubmitting(true);
+    setOrgRequestError('');
+    try {
+      await api.post('/organizations/request', orgRequestForm);
+      setOrgRequestSuccess(true);
+      setOrgRequestForm({ name: '', type: 'School', city: '', state: '', website: '' });
+    } catch (err) {
+      setOrgRequestError(err.response?.data?.error || 'Failed to submit request. Please try again.');
+    } finally {
+      setOrgRequestSubmitting(false);
+    }
+  };
+
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -350,6 +434,40 @@ const Profile = () => {
       const currentClass = user.class_of_study ? String(user.class_of_study) : '';
       if (classOfStudy !== currentClass) {
         formData.append('class_of_study', classOfStudy || '');
+        hasChanges = true;
+      }
+
+      // Mobile fields
+      const currentCountryCode = user.mobile_country_code || '';
+      const currentMobileNumber = user.mobile_number || '';
+      const currentWhatsappOptIn = !!user.whatsapp_updates_opt_in;
+      const currentTournamentConsent = !!user.tournament_contact_consent_at;
+
+      const digitsOnly = mobileNumber.replace(/\D/g, '');
+      if (digitsOnly) {
+        const validationError = validateMobileNumber(digitsOnly, mobileCountryCode);
+        if (validationError) {
+          setMobileError(validationError);
+          setLoading(false);
+          return;
+        }
+        formData.append('mobile_country_code', mobileCountryCode);
+        if (mobileNumber !== currentMobileNumber) {
+          formData.append('mobile_number', mobileNumber);
+        }
+        hasChanges = true;
+      } else if (!digitsOnly && currentMobileNumber) {
+        // User cleared the number — send empty to clear on backend
+        formData.append('mobile_country_code', mobileCountryCode);
+        formData.append('mobile_number', '');
+        hasChanges = true;
+      }
+      if (tournamentConsent !== currentTournamentConsent) {
+        formData.append('tournament_contact_consent', tournamentConsent ? '1' : '0');
+        hasChanges = true;
+      }
+      if (whatsappOptIn !== currentWhatsappOptIn) {
+        formData.append('whatsapp_updates_opt_in', whatsappOptIn ? '1' : '0');
         hasChanges = true;
       }
 
@@ -406,6 +524,16 @@ const Profile = () => {
 
   return (
     <div className="profile-container">
+      <Helmet>
+        <title>Profile & Settings — Chess99</title>
+        <meta name="description" content="Manage your Chess99 profile, customize your board, track progress, and configure account settings." />
+        <meta property="og:title" content="Profile & Settings — Chess99" />
+        <meta property="og:description" content="Manage your chess profile, track rating progress, and customize your experience on Chess99." />
+        <meta property="og:image" content="https://chess99.com/og-image.png" />
+        <meta property="og:url" content="https://chess99.com/profile" />
+        <meta property="og:type" content="website" />
+        <link rel="canonical" href="https://chess99.com/profile" />
+      </Helmet>
       <div className="profile-header">
         <h1>{isSetupMode ? 'Welcome! Set up your profile' : 'Profile & Settings'}</h1>
         {isSetupMode && (
@@ -600,9 +728,9 @@ const Profile = () => {
               />
             </div>
             <div className="form-group profile-field-half">
-              <label title="Your school class (Grade 1–12). Used to find age-appropriate opponents and tournaments.">
+              <label title="Your education level. Used to find age-appropriate opponents and tournaments.">
                 Class of Study
-                <span style={{ marginLeft: '4px', color: '#8b8987', fontSize: '0.8em', cursor: 'help' }} title="Your school class (Grade 1–12). Used to match you with age-appropriate opponents and tournaments.">ⓘ</span>
+                <span style={{ marginLeft: '4px', color: '#8b8987', fontSize: '0.8em', cursor: 'help' }} title="Your education level. Used to match you with age-appropriate opponents and tournaments.">ⓘ</span>
               </label>
               <select
                 value={classOfStudy}
@@ -610,11 +738,79 @@ const Profile = () => {
                 className="profile-select"
               >
                 <option value="">Select Class</option>
-                {Array.from({ length: 12 }, (_, i) => i + 1).map((cls) => (
-                  <option key={cls} value={cls}>Class {cls}</option>
+                {['Class 1','Class 2','Class 3','Class 4','Class 5','Class 6','Class 7','Class 8','Class 9','Class 10','Class 11','Class 12','Undergraduate','Postgraduate/Masters','PhD/Research','Working Professional','Senior/Retired','Other'].map((cls) => (
+                  <option key={cls} value={cls}>{cls}</option>
                 ))}
               </select>
             </div>
+          </div>
+
+          {/* Mobile Number & Tournament Contact */}
+          <div style={{ marginTop: '20px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', color: '#e5e7eb', fontWeight: '600', fontSize: '14px' }}>
+              Mobile Number
+              {isSetupMode && <span style={{ color: '#8b8987', fontWeight: '400', fontSize: '12px', marginLeft: '6px' }}>(optional)</span>}
+            </label>
+            <div className="profile-field-row" style={{ marginBottom: '0' }}>
+              <div className="form-group profile-field-half">
+                <input
+                  type="text"
+                  value={mobileCountryCode}
+                  onChange={(e) => {
+                    setMobileCountryCode(e.target.value);
+                    setMobileError(validateMobileNumber(mobileNumber.replace(/\D/g, ''), e.target.value));
+                  }}
+                  placeholder="+91"
+                  style={{ maxWidth: '90px', textAlign: 'center' }}
+                />
+              </div>
+              <div className="form-group profile-field-half" style={{ flex: '1' }}>
+                <input
+                  type="tel"
+                  value={mobileNumber}
+                  onChange={(e) => {
+                    setMobileNumber(e.target.value);
+                    setMobileError(validateMobileNumber(e.target.value.replace(/\D/g, ''), mobileCountryCode));
+                  }}
+                  placeholder="Enter mobile number"
+                />
+              </div>
+            </div>
+            {mobileError && (
+              <p style={{ color: '#e74c3c', fontSize: '13px', margin: '6px 0 0', lineHeight: '1.4' }}>
+                {mobileError}
+              </p>
+            )}
+          </div>
+
+          {/* Tournament Contact Consent Checkbox */}
+          <div className="form-group" style={{ marginTop: '14px' }}>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', fontSize: '14px', color: '#bababa', lineHeight: '1.5' }}>
+              <input
+                type="checkbox"
+                checked={tournamentConsent}
+                onChange={(e) => setTournamentConsent(e.target.checked)}
+                style={{ marginTop: '3px', accentColor: '#81b64c', width: '16px', height: '16px', flexShrink: 0 }}
+              />
+              <span>
+                I agree to be contacted via phone/WhatsApp for tournament updates and announcements
+              </span>
+            </label>
+          </div>
+
+          {/* WhatsApp Updates Opt-in Checkbox */}
+          <div className="form-group" style={{ marginTop: '8px' }}>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', fontSize: '14px', color: '#bababa', lineHeight: '1.5' }}>
+              <input
+                type="checkbox"
+                checked={whatsappOptIn}
+                onChange={(e) => setWhatsappOptIn(e.target.checked)}
+                style={{ marginTop: '3px', accentColor: '#81b64c', width: '16px', height: '16px', flexShrink: 0 }}
+              />
+              <span>
+                Send me chess tips, puzzle challenges, and event reminders via WhatsApp
+              </span>
+            </label>
           </div>
 
           {error && <p className="error">{error}</p>}
@@ -727,10 +923,137 @@ const Profile = () => {
             {orgSearchQuery.length >= 2 && !orgSearchLoading && orgSearchResults.length === 0 && (
               <p style={{ color: '#8b8987', fontSize: '13px', marginTop: '6px' }}>No organizations found.</p>
             )}
+            <button
+              type="button"
+              onClick={() => { setShowOrgRequestModal(true); setOrgRequestSuccess(false); setOrgRequestError(''); }}
+              style={{
+                background: 'none', border: 'none', color: '#4fc3f7', cursor: 'pointer',
+                fontSize: '13px', marginTop: '10px', padding: 0, textDecoration: 'underline',
+              }}
+            >
+              Can't find your school? Request it
+            </button>
           </div>
         )}
         {orgError && <p className="error" style={{ marginTop: '8px' }}>{orgError}</p>}
       </section>
+      )}
+
+      {/* Organization Request Modal */}
+      {showOrgRequestModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center',
+          justifyContent: 'center', zIndex: 9999,
+        }}>
+          <div style={{
+            backgroundColor: '#1e1e1e', borderRadius: '12px', padding: '28px',
+            width: '90%', maxWidth: '460px', maxHeight: '90vh', overflowY: 'auto',
+            color: '#e0e0e0',
+          }}>
+            {orgRequestSuccess ? (
+              <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                <h3 style={{ color: '#4caf50', marginBottom: '12px' }}>Request Submitted!</h3>
+                <p style={{ color: '#bababa', fontSize: '14px', lineHeight: 1.6 }}>
+                  Your organization request has been sent for admin approval. You'll be notified once it's approved.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowOrgRequestModal(false)}
+                  style={{
+                    marginTop: '20px', padding: '10px 28px', borderRadius: '8px',
+                    border: 'none', backgroundColor: '#4caf50', color: '#fff',
+                    cursor: 'pointer', fontSize: '14px', fontWeight: 600,
+                  }}
+                >
+                  Got it
+                </button>
+              </div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+                  <h3 style={{ margin: 0, fontSize: '18px' }}>Request an Organization</h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowOrgRequestModal(false)}
+                    style={{ background: 'none', border: 'none', color: '#888', fontSize: '22px', cursor: 'pointer', lineHeight: 1 }}
+                  >
+                    &times;
+                  </button>
+                </div>
+                <form onSubmit={handleOrgRequestSubmit}>
+                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', color: '#aaa' }}>
+                    Name <span style={{ color: '#ef5350' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={orgRequestForm.name}
+                    onChange={(e) => setOrgRequestForm({ ...orgRequestForm, name: e.target.value })}
+                    placeholder="e.g. Delhi Public School"
+                    required
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #444', backgroundColor: '#2a2a2a', color: '#e0e0e0', fontSize: '14px', marginBottom: '14px', boxSizing: 'border-box' }}
+                  />
+                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', color: '#aaa' }}>Type</label>
+                  <select
+                    value={orgRequestForm.type}
+                    onChange={(e) => setOrgRequestForm({ ...orgRequestForm, type: e.target.value })}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #444', backgroundColor: '#2a2a2a', color: '#e0e0e0', fontSize: '14px', marginBottom: '14px', boxSizing: 'border-box' }}
+                  >
+                    <option value="School">School</option>
+                    <option value="Club">Club</option>
+                    <option value="Company">Company</option>
+                    <option value="Other">Other</option>
+                  </select>
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', color: '#aaa' }}>City</label>
+                      <input
+                        type="text"
+                        value={orgRequestForm.city}
+                        onChange={(e) => setOrgRequestForm({ ...orgRequestForm, city: e.target.value })}
+                        placeholder="City"
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #444', backgroundColor: '#2a2a2a', color: '#e0e0e0', fontSize: '14px', marginBottom: '14px', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', color: '#aaa' }}>State</label>
+                      <input
+                        type="text"
+                        value={orgRequestForm.state}
+                        onChange={(e) => setOrgRequestForm({ ...orgRequestForm, state: e.target.value })}
+                        placeholder="State"
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #444', backgroundColor: '#2a2a2a', color: '#e0e0e0', fontSize: '14px', marginBottom: '14px', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                  </div>
+                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', color: '#aaa' }}>Website (optional)</label>
+                  <input
+                    type="url"
+                    value={orgRequestForm.website}
+                    onChange={(e) => setOrgRequestForm({ ...orgRequestForm, website: e.target.value })}
+                    placeholder="https://example.com"
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #444', backgroundColor: '#2a2a2a', color: '#e0e0e0', fontSize: '14px', marginBottom: '14px', boxSizing: 'border-box' }}
+                  />
+                  {orgRequestError && (
+                    <p style={{ color: '#ef5350', fontSize: '13px', margin: '0 0 10px' }}>{orgRequestError}</p>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={orgRequestSubmitting}
+                    style={{
+                      width: '100%', padding: '12px', borderRadius: '8px', border: 'none',
+                      backgroundColor: orgRequestSubmitting ? '#555' : '#4fc3f7', color: '#111',
+                      cursor: orgRequestSubmitting ? 'not-allowed' : 'pointer',
+                      fontSize: '15px', fontWeight: 600,
+                    }}
+                  >
+                    {orgRequestSubmitting ? 'Submitting...' : 'Submit Request'}
+                  </button>
+                </form>
+              </>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Board Theme Selector — Appearance tab */}

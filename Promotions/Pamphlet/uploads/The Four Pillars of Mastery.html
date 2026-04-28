@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chess99 — The Mastery Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --navy:   #0A1628;
+  --navy2:  #0d1f3c;
+  --orange: #F5A623;
+  --gold:   #E8B84B;
+  --white:  #F8F5EF;
+  --cream:  #F5F2EC;
+  --muted:  #7a95b5;
+  --red:    #e74c3c;
+  --green:  #27ae60;
+  --blue:   #2e86c1;
+  --purple: #8e44ad;
+  --fd: 'Playfair Display', Georgia, serif;
+  --fb: 'Inter', Helvetica, sans-serif;
+}
+body {
+  background: #b0b0b0;
+  font-family: var(--fb);
+  display: flex; flex-direction: column;
+  align-items: center; gap: 28px;
+  padding: 32px 20px;
+}
+.print-note {
+  background: #222; color: #eee;
+  font-size: 13px; padding: 10px 20px;
+  border-radius: 6px; font-family: var(--fb);
+  text-align: center;
+}
+.print-note strong { color: var(--orange); }
+
+/* ── A4 PAGE ── */
+.page {
+  width: 794px; height: 1123px;
+  position: relative; overflow: hidden;
+  box-shadow: 0 8px 48px rgba(0,0,0,0.45);
+  flex-shrink: 0;
+  display: flex; flex-direction: column;
+}
+
+/* ══════════════════════════
+   PAGE 1 — FRONT
+══════════════════════════ */
+.p1 { background: var(--navy); }
+
+.p1-topstrip { height: 6px; background: var(--orange); flex-shrink: 0; }
+
+.p1-header {
+  padding: 16px 52px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  flex-shrink: 0;
+}
+.p1-header img.logo { height: 38px; width: auto; }
+.p1-header .header-right {
+  font-size: 13px; font-weight: 700;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: rgba(248,245,239,0.35);
+}
+
+/* HERO */
+.p1-hero {
+  padding: 32px 52px 24px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+.p1-hero::before {
+  content: '♚';
+  position: absolute; right: -30px; top: -40px;
+  font-size: 380px; line-height: 1;
+  color: rgba(245,166,35,0.05);
+  pointer-events: none; z-index: 0;
+}
+.hero-eyebrow {
+  font-size: 13px; font-weight: 700;
+  letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--orange); margin-bottom: 14px;
+  position: relative; z-index: 1;
+}
+.hero-headline {
+  font-family: var(--fd);
+  font-size: 72px; font-weight: 900;
+  line-height: 0.93; color: var(--white);
+  position: relative; z-index: 1;
+}
+.hero-headline em { color: var(--orange); font-style: normal; }
+.hero-sub {
+  font-size: 15px; font-weight: 400;
+  color: rgba(248,245,239,0.6);
+  margin-top: 16px; line-height: 1.55;
+  max-width: 560px; position: relative; z-index: 1;
+}
+.hero-cta {
+  display: inline-block;
+  margin-top: 18px;
+  background: var(--orange); color: var(--navy);
+  font-size: 14px; font-weight: 800;
+  padding: 12px 28px; border-radius: 7px;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  position: relative; z-index: 1;
+}
+
+/* STATS BAR */
+.stats-bar {
+  background: rgba(255,255,255,0.05);
+  border-top: 1px solid rgba(255,255,255,0.08);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  display: flex; align-items: stretch;
+  flex-shrink: 0;
+}
+.stat-item {
+  flex: 1; padding: 12px 0;
+  text-align: center; position: relative;
+}
+.stat-item + .stat-item::before {
+  content: ''; position: absolute; left: 0; top: 20%; bottom: 20%;
+  width: 1px; background: rgba(255,255,255,0.1);
+}
+.stat-item .sv {
+  font-family: var(--fd);
+  font-size: 30px; font-weight: 900;
+  color: var(--orange); line-height: 1;
+}
+.stat-item .sl {
+  font-size: 11px; font-weight: 600;
+  color: var(--muted); margin-top: 3px;
+  letter-spacing: 0.06em; text-transform: uppercase;
+}
+
+/* SECTION 1 — DIFFERENTIATOR */
+.p1-section1 {
+  flex: 1;
+  padding: 20px 52px 16px;
+  display: flex; flex-direction: column;
+  min-height: 0;
+}
+.s1-header { margin-bottom: 14px; }
+.s1-title {
+  font-family: var(--fd);
+  font-size: 22px; font-weight: 700;
+  color: var(--white); line-height: 1.2;
+}
+.s1-sub {
+  font-size: 13px; color: var(--muted);
+  margin-top: 4px; line-height: 1.4;
+}
+.s1-body {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 20px; flex: 1; min-height: 0;
+}
+.s1-cards {
+  display: flex; flex-direction: column; gap: 10px;
+}
+.feat-card {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 9px;
+  padding: 14px 16px;
+  display: flex; gap: 12px; align-items: flex-start;
+  flex: 1;
+}
+.feat-card .fc-icon {
+  font-size: 20px; flex-shrink: 0; margin-top: 1px;
+}
+.feat-card .fc-title { font-size: 14px; font-weight: 700; color: var(--white); margin-bottom: 3px; }
+.feat-card .fc-desc  { font-size: 12px; color: var(--muted); line-height: 1.45; }
+
+.s1-screenshot {
+  border-radius: 10px; overflow: hidden;
+  border: 2px solid rgba(245,166,35,0.25);
+  position: relative;
+}
+.s1-screenshot img {
+  width: 100%; height: 100%;
+  object-fit: cover; object-position: top;
+  display: block;
+}
+.s1-screenshot .screen-label {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: linear-gradient(transparent, rgba(10,22,40,0.9));
+  padding: 20px 12px 10px;
+  font-size: 11px; font-weight: 700;
+  color: var(--orange); letter-spacing: 0.12em; text-transform: uppercase;
+}
+
+/* GRANDMASTERS BAND */
+.gm-band {
+  height: 140px; flex-shrink: 0;
+  position: relative; overflow: hidden;
+}
+.gm-band img {
+  width: 100%; height: 100%;
+  object-fit: cover; object-position: top;
+  display: block;
+}
+.gm-band .gm-overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(90deg, rgba(10,22,40,0.88) 0%, rgba(10,22,40,0.55) 55%, rgba(10,22,40,0.1) 100%);
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 0 52px;
+}
+.gm-band .gm-tag {
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--orange); margin-bottom: 4px;
+}
+.gm-band .gm-title {
+  font-family: var(--fd);
+  font-size: 22px; font-weight: 700;
+  color: var(--white); line-height: 1.2;
+}
+.gm-band .gm-sub { font-size: 12px; color: rgba(248,245,239,0.55); margin-top: 4px; }
+
+/* ══════════════════════════
+   PAGE 2 — BACK
+══════════════════════════ */
+.p2 { background: var(--cream); }
+
+.p2-topbar {
+  background: var(--navy);
+  padding: 12px 52px;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.p2-topbar img { height: 32px; width: auto; }
+.p2-topbar .p2-url {
+  font-size: 15px; font-weight: 800;
+  color: var(--orange); letter-spacing: 0.04em;
+}
+
+.p2-body {
+  flex: 1; padding: 20px 52px 0;
+  display: flex; flex-direction: column; gap: 14px;
+  min-height: 0; overflow: hidden;
+}
+
+/* Section title style */
+.sec-h {
+  font-family: var(--fd);
+  font-size: 18px; font-weight: 700;
+  color: var(--navy); margin-bottom: 2px;
+}
+.sec-s {
+  font-size: 12px; color: #5a7090;
+  line-height: 1.4; margin-bottom: 8px;
+}
+.orule { width: 36px; height: 3px; background: var(--orange); border-radius: 2px; margin-bottom: 8px; }
+
+/* Row 1: 2-col opponents + puzzles */
+.row2col {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+/* Opponent tiers */
+.opp-tiers { display: flex; flex-direction: column; gap: 5px; }
+.opp-tier {
+  border-radius: 7px; padding: 8px 12px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.opp-tier .ot-label { font-size: 13px; font-weight: 700; }
+.opp-tier .ot-range { font-size: 11px; opacity: 0.7; margin-top: 1px; }
+.opp-tier .ot-count {
+  font-size: 20px; font-weight: 900;
+  font-family: var(--fd);
+  opacity: 0.9;
+}
+
+/* Puzzle stages */
+.puzzle-stages { display: flex; flex-direction: column; gap: 6px; }
+.ps-item {
+  background: white; border-radius: 7px;
+  padding: 8px 12px; border: 1px solid rgba(0,0,0,0.07);
+  display: flex; align-items: center; gap: 10px;
+}
+.ps-num {
+  width: 28px; height: 28px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 800; flex-shrink: 0;
+}
+.ps-title { font-size: 13px; font-weight: 700; color: var(--navy); }
+.ps-desc  { font-size: 11px; color: #5a7090; line-height: 1.3; }
+.ps-tag {
+  margin-left: auto; flex-shrink: 0;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 3px 8px; border-radius: 4px;
+}
+
+/* Pillars table */
+.pillars-table {
+  width: 100%; border-collapse: collapse;
+  font-size: 12px;
+}
+.pillars-table th {
+  text-align: left; padding: 7px 12px;
+  background: var(--navy); color: var(--orange);
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+}
+.pillars-table th:first-child { border-radius: 7px 0 0 0; }
+.pillars-table th:last-child  { border-radius: 0 7px 0 0; }
+.pillars-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+  vertical-align: middle; line-height: 1.4;
+}
+.pillars-table tr:last-child td { border-bottom: none; }
+.pillars-table tr:nth-child(even) td { background: rgba(0,0,0,0.02); }
+.pillars-table td:first-child { font-weight: 700; white-space: nowrap; }
+.p-dot {
+  display: inline-block; width: 8px; height: 8px;
+  border-radius: 50%; margin-right: 6px;
+  vertical-align: middle;
+}
+
+/* Daily routine */
+.routine-items { display: flex; flex-direction: column; gap: 6px; }
+.ri {
+  background: white; border-radius: 7px;
+  padding: 8px 14px; border: 1px solid rgba(0,0,0,0.07);
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px; color: var(--navy);
+}
+.ri .ri-icon { font-size: 16px; flex-shrink: 0; }
+.ri strong { font-weight: 700; }
+.ri .ri-time {
+  margin-left: auto; font-size: 11px;
+  font-weight: 700; color: var(--orange);
+  white-space: nowrap; flex-shrink: 0;
+}
+.routine-total {
+  background: var(--navy); color: var(--white);
+  border-radius: 7px; padding: 8px 14px;
+  font-size: 13px; font-weight: 600;
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 6px;
+}
+.routine-total strong { color: var(--orange); }
+
+/* Who it's for */
+.wif-items { display: flex; flex-direction: column; gap: 4px; }
+.wif-item {
+  display: flex; align-items: flex-start; gap: 8px;
+  font-size: 12px; color: #2c3e50; line-height: 1.4;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+}
+.wif-item:last-child { border-bottom: none; }
+.wif-item .wi-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  flex-shrink: 0; margin-top: 3px;
+}
+.wif-item .wi-level { font-weight: 700; color: var(--navy); min-width: 170px; }
+
+/* Quote */
+.back-quote {
+  background: var(--navy);
+  border-radius: 9px; padding: 14px 20px;
+  position: relative; overflow: hidden;
+}
+.back-quote::before {
+  content: '\201C'; position: absolute;
+  top: -6px; left: 12px;
+  font-family: var(--fd); font-size: 72px;
+  color: rgba(245,166,35,0.1); line-height: 1;
+}
+.back-quote .bq-t {
+  font-family: var(--fd); font-size: 15px;
+  font-style: italic; color: var(--white);
+  line-height: 1.5; position: relative; z-index: 1;
+}
+.back-quote .bq-a {
+  font-size: 11px; color: var(--muted);
+  margin-top: 6px; position: relative; z-index: 1;
+}
+
+/* CTA band */
+.cta-band {
+  background: linear-gradient(135deg, var(--orange) 0%, var(--gold) 100%);
+  border-radius: 10px; padding: 16px 24px;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+}
+.cta-band .cb-left .cb-head {
+  font-family: var(--fd); font-size: 22px; font-weight: 900;
+  color: var(--navy); line-height: 1.1;
+}
+.cta-band .cb-left .cb-sub {
+  font-size: 12px; color: rgba(10,22,40,0.6);
+  margin-top: 4px; line-height: 1.4;
+}
+.cta-band .cb-right { text-align: right; flex-shrink: 0; }
+.cta-band .cb-url {
+  font-size: 26px; font-weight: 900;
+  color: var(--navy); letter-spacing: 0.01em;
+}
+.cta-band .cb-platforms {
+  font-size: 11px; font-weight: 600;
+  color: rgba(10,22,40,0.55); margin-top: 3px;
+  letter-spacing: 0.04em;
+}
+
+/* Footer */
+.p2-footer {
+  background: var(--navy);
+  padding: 11px 52px;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0; margin-top: auto;
+}
+.p2-footer .pf-l { font-size: 11px; color: rgba(248,245,239,0.3); }
+.p2-footer .pf-r { font-size: 12px; font-weight: 700; color: var(--orange); letter-spacing: 0.06em; }
+
+/* ── PRINT ── */
+@media print {
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  body { background: white; padding: 0; gap: 0; }
+  .print-note { display: none; }
+  .page { box-shadow: none; width: 100%; height: 100vh; page-break-after: always; }
+}
+</style>
+</head>
+<body>
+
+<div class="print-note">
+  <strong>Chess99 Pamphlet</strong> — Print-ready A4, two pages. Press <strong>Cmd+P / Ctrl+P</strong> → Color · A4 · No margins · Background graphics ON · Double-sided (short-edge flip).
+</div>
+
+<!-- ══════════════════════════════
+     PAGE 1 — FRONT
+══════════════════════════════ -->
+<div class="page p1">
+
+  <div class="p1-topstrip"></div>
+
+  <!-- Header -->
+  <div class="p1-header">
+    <img src="uploads/logo.png" class="logo" alt="Chess99">
+    <div class="header-right">♟ chess99.com</div>
+  </div>
+
+  <!-- Hero -->
+  <div class="p1-hero">
+    <div class="hero-eyebrow">♟ Chess99 — The Mastery Platform</div>
+    <div class="hero-headline">
+      Train Smarter.<br>
+      Play <em>Stronger.</em><br>
+      Every Single Day.
+    </div>
+    <div class="hero-sub">
+      Live in-game coaching. 2,500-puzzle tactical curriculum. 35+ training opponents from ELO 1000 to 2400. Everything you need to break your rating plateau — free to start.
+    </div>
+    <div class="hero-cta">Start Training Free → chess99.com</div>
+  </div>
+
+  <!-- Stats Bar -->
+  <div class="stats-bar">
+    <div class="stat-item">
+      <div class="sv">2,500</div>
+      <div class="sl">Tactical Puzzles</div>
+    </div>
+    <div class="stat-item">
+      <div class="sv">35+</div>
+      <div class="sl">Training Opponents</div>
+    </div>
+    <div class="stat-item">
+      <div class="sv">1000–2400</div>
+      <div class="sl">ELO Range</div>
+    </div>
+    <div class="stat-item">
+      <div class="sv">16</div>
+      <div class="sl">Stockfish Levels</div>
+    </div>
+  </div>
+
+  <!-- Section 1: Differentiator -->
+  <div class="p1-section1">
+    <div class="s1-header">
+      <div class="s1-title">Train Like You Have a Coach Sitting Next to You</div>
+      <div class="s1-sub">Most chess apps analyze your game after you lose. Chess99 coaches you <strong style="color:var(--white);">while you play.</strong></div>
+    </div>
+    <div class="s1-body">
+      <div class="s1-cards">
+        <div class="feat-card">
+          <div class="fc-icon">🎯</div>
+          <div>
+            <div class="fc-title">CCT Live Analysis</div>
+            <div class="fc-desc">Real-time threat detection while you play. Tactical alerts, hanging-piece warnings, and pattern recognition — built into every game.</div>
+          </div>
+        </div>
+        <div class="feat-card">
+          <div class="fc-icon">➡</div>
+          <div>
+            <div class="fc-title">Best-Move Hints</div>
+            <div class="fc-desc">On-demand engine guidance with reasoning. See the top candidate moves and why they work. Train your eye to spot strong moves on your own.</div>
+          </div>
+        </div>
+        <div class="feat-card">
+          <div class="fc-icon">♟</div>
+          <div>
+            <div class="fc-title">Casual Mode — Unlimited Games</div>
+            <div class="fc-desc">Play 10, 20, 50 games a day. No rating risk. Pure training reps against opponents calibrated to your exact level.</div>
+          </div>
+        </div>
+      </div>
+      <div class="s1-screenshot">
+        <img src="uploads/cct-analysis.png" alt="CCT Analysis Panel — live threat detection during gameplay">
+        <div class="screen-label">CCT Live Analysis — Real-time coaching</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Grandmasters trust band -->
+  <div class="gm-band">
+    <img src="uploads/grandmasters2.png" alt="India's Best Chess Players">
+    <div class="gm-overlay">
+      <div class="gm-tag">Trusted by India's Chess Community</div>
+      <div class="gm-title">India's #1 Online Chess Academy</div>
+      <div class="gm-sub">Courses · Puzzles · Tournaments · Live Coaching</div>
+    </div>
+  </div>
+
+</div><!-- end page 1 -->
+
+<!-- ══════════════════════════════
+     PAGE 2 — BACK
+══════════════════════════════ -->
+<div class="page p2">
+
+  <!-- Top bar -->
+  <div class="p2-topbar">
+    <img src="uploads/logo.png" alt="Chess99">
+    <div class="p2-url">chess99.com</div>
+  </div>
+
+  <div class="p2-body">
+
+    <!-- Row 1: Opponents + Puzzles -->
+    <div class="row2col">
+
+      <!-- Section 2: Opponents -->
+      <div>
+        <div class="sec-h">35+ Sparring Partners. ELO 1000–2400.</div>
+        <div class="sec-s">Beat one, move up. Plateau, drop down. The system always finds your edge.</div>
+        <div class="opp-tiers">
+          <div class="opp-tier" style="background:rgba(39,174,96,0.1);">
+            <div>
+              <div class="ot-label" style="color:var(--green);">Club</div>
+              <div class="ot-range" style="color:var(--green);">ELO 1000–1300 · 8 opponents</div>
+            </div>
+            <div class="ot-count" style="color:var(--green);">8</div>
+          </div>
+          <div class="opp-tier" style="background:rgba(46,134,193,0.1);">
+            <div>
+              <div class="ot-label" style="color:var(--blue);">Intermediate</div>
+              <div class="ot-range" style="color:var(--blue);">ELO 1400–1700 · 10 opponents</div>
+            </div>
+            <div class="ot-count" style="color:var(--blue);">10</div>
+          </div>
+          <div class="opp-tier" style="background:rgba(231,76,60,0.1);">
+            <div>
+              <div class="ot-label" style="color:var(--red);">Advanced</div>
+              <div class="ot-range" style="color:var(--red);">ELO 1800–2100 · 10 opponents</div>
+            </div>
+            <div class="ot-count" style="color:var(--red);">10</div>
+          </div>
+          <div class="opp-tier" style="background:rgba(142,68,173,0.1);">
+            <div>
+              <div class="ot-label" style="color:var(--purple);">Expert</div>
+              <div class="ot-range" style="color:var(--purple);">ELO 2200–2400 · 7+ opponents</div>
+            </div>
+            <div class="ot-count" style="color:var(--purple);">7+</div>
+          </div>
+        </div>
+        <div style="margin-top:6px;font-size:11px;color:#5a7090;line-height:1.4;">
+          Plus <strong style="color:var(--navy);">16 Stockfish difficulty levels</strong> for pure engine training — beginner-friendly to full GM strength.
+        </div>
+      </div>
+
+      <!-- Section 3: Puzzles -->
+      <div>
+        <div class="sec-h">🧩 2,500-Puzzle Tactical Progression</div>
+        <div class="sec-s">Not a random stream — a structured 4-stage curriculum where each stage unlocks the next.</div>
+        <div class="puzzle-stages">
+          <div class="ps-item">
+            <div class="ps-num" style="background:rgba(39,174,96,0.15);color:var(--green);">1</div>
+            <div>
+              <div class="ps-title">Foundations</div>
+              <div class="ps-desc">Mate-in-1, basic captures, hanging pieces</div>
+            </div>
+            <div class="ps-tag" style="background:rgba(39,174,96,0.15);color:var(--green);">Unlocked</div>
+          </div>
+          <div class="ps-item">
+            <div class="ps-num" style="background:rgba(46,134,193,0.15);color:var(--blue);">2</div>
+            <div>
+              <div class="ps-title">Patterns</div>
+              <div class="ps-desc">Pins, forks, skewers, discovered attacks</div>
+            </div>
+            <div class="ps-tag" style="background:rgba(46,134,193,0.15);color:var(--blue);">Stage 1 →</div>
+          </div>
+          <div class="ps-item">
+            <div class="ps-num" style="background:rgba(231,76,60,0.15);color:var(--red);">3</div>
+            <div>
+              <div class="ps-title">Combinations</div>
+              <div class="ps-desc">Multi-move tactics, sacrifice patterns</div>
+            </div>
+            <div class="ps-tag" style="background:rgba(231,76,60,0.15);color:var(--red);">Stage 2 →</div>
+          </div>
+          <div class="ps-item">
+            <div class="ps-num" style="background:rgba(142,68,173,0.15);color:var(--purple);">4</div>
+            <div>
+              <div class="ps-title">Master Tactics</div>
+              <div class="ps-desc">Deep calculation, quiet moves, prophylaxis</div>
+            </div>
+            <div class="ps-tag" style="background:rgba(142,68,173,0.15);color:var(--purple);">Stage 3 →</div>
+          </div>
+        </div>
+        <div style="margin-top:8px;background:var(--navy);border-radius:7px;padding:8px 12px;font-size:12px;font-weight:700;color:var(--orange);text-align:center;letter-spacing:0.04em;">
+          Train the patterns. The rating follows.
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 4: Pillars table -->
+    <div>
+      <div class="sec-h">A Complete Mastery System</div>
+      <table class="pillars-table">
+        <thead>
+          <tr>
+            <th>Pillar</th>
+            <th>What You Train</th>
+            <th>Chess99 Tool</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="p-dot" style="background:var(--red);"></span>01 Tactics</td>
+            <td>Pattern recognition, calculation depth</td>
+            <td>2,500-puzzle curriculum</td>
+          </tr>
+          <tr>
+            <td><span class="p-dot" style="background:var(--green);"></span>02 Openings</td>
+            <td>Repertoire for both colors</td>
+            <td>Opening Learning Hub (Italian, Sicilian, QGD, KID + more)</td>
+          </tr>
+          <tr>
+            <td><span class="p-dot" style="background:var(--blue);"></span>03 Strategy</td>
+            <td>Pawn structures, piece activity</td>
+            <td>CCT Analysis Panel</td>
+          </tr>
+          <tr>
+            <td><span class="p-dot" style="background:var(--purple);"></span>04 Endgames</td>
+            <td>Rook, K&amp;P, Lucena, Philidor</td>
+            <td>Endgame training modules</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Row 2: Daily Routine + Who It's For -->
+    <div class="row2col">
+
+      <!-- Section 5: Daily Routine -->
+      <div>
+        <div class="sec-h">Your Daily Chess99 Routine</div>
+        <div class="routine-items">
+          <div class="ri">
+            <div class="ri-icon">☀</div>
+            <div><strong>10 puzzles</strong> from your current stage</div>
+            <div class="ri-time">10 min</div>
+          </div>
+          <div class="ri">
+            <div class="ri-icon">♟</div>
+            <div><strong>3 casual games</strong> at your level + 1 stretch game</div>
+            <div class="ri-time">30 min</div>
+          </div>
+          <div class="ri">
+            <div class="ri-icon">📊</div>
+            <div><strong>1 game review</strong> with CCT analysis</div>
+            <div class="ri-time">10 min</div>
+          </div>
+        </div>
+        <div class="routine-total">
+          <span>= <strong>50 minutes/day</strong></span>
+          <span style="color:var(--muted);font-size:12px;">→ measurable gain in 30 days</span>
+        </div>
+      </div>
+
+      <!-- Section 6: Who It's For -->
+      <div>
+        <div class="sec-h">Built for Every Level</div>
+        <div class="wif-items">
+          <div class="wif-item">
+            <div class="wi-dot" style="background:var(--green);"></div>
+            <div><span class="wi-level">Complete Beginner</span> — Stage 1 puzzles + Stockfish Level 1</div>
+          </div>
+          <div class="wif-item">
+            <div class="wi-dot" style="background:var(--green);"></div>
+            <div><span class="wi-level">Club Player (800–1200)</span> — Casual games + tactical Stages 1–2</div>
+          </div>
+          <div class="wif-item">
+            <div class="wi-dot" style="background:var(--blue);"></div>
+            <div><span class="wi-level">Intermediate (1200–1600)</span> — Full curriculum + opening repertoire</div>
+          </div>
+          <div class="wif-item">
+            <div class="wi-dot" style="background:var(--red);"></div>
+            <div><span class="wi-level">Advanced (1600–2000)</span> — CCT analysis + Stage 3–4 tactics</div>
+          </div>
+          <div class="wif-item">
+            <div class="wi-dot" style="background:var(--purple);"></div>
+            <div><span class="wi-level">Expert &amp; above (2000+)</span> — GM-strength sparring + endgame mastery</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 7: Quote -->
+    <div class="back-quote">
+      <div class="bq-t">"Chess is 99% tactics — and Chess99 is where you train all 100% of what it takes to master the game."</div>
+      <div class="bq-a">— The Chess99 Philosophy</div>
+    </div>
+
+    <!-- Final CTA -->
+    <div class="cta-band">
+      <div class="cb-left">
+        <div class="cb-head">Stop Training Random.<br>Start Training Right.</div>
+        <div class="cb-sub">Free to start. No credit card. Works on any device.</div>
+      </div>
+      <div class="cb-right">
+        <div class="cb-url">chess99.com</div>
+        <div class="cb-platforms">Web · Android · iOS</div>
+      </div>
+    </div>
+
+  </div><!-- end body -->
+
+  <!-- Footer -->
+  <div class="p2-footer">
+    <div class="pf-l">© 2026 Chess99. All rights reserved.</div>
+    <div class="pf-r">chess99.com</div>
+  </div>
+
+</div><!-- end page 2 -->
+
+</body>
+</html>

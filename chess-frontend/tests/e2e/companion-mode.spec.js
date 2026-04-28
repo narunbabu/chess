@@ -1,158 +1,124 @@
 import { test, expect } from '@playwright/test';
 
-/** Helper: click an element that may be outside the viewport */
+/**
+ * Companion mode is now an in-game player-side assistant (not a top-level game mode).
+ * It surfaces as a 🤝 tab in the right panel inside any active Casual game.
+ * In Rated games, the same tab shows a "Not available in Rated games" notice.
+ *
+ * See commit 1e3ef94 — feat(companion): redesign companion mode as in-game
+ * player-side assistant.
+ */
+
 async function jsClick(locator) {
   await locator.evaluate(el => el.scrollIntoView({ block: 'center' }));
   await locator.evaluate(el => el.click());
 }
 
+async function login(page) {
+  await page.goto('/login');
+  await page.waitForLoadState('domcontentloaded');
+  await page.waitForTimeout(1000);
+
+  const useEmailButton = page.locator(
+    'button:has-text("use email"), button:has-text("Use Email"), button:has-text("email instead")'
+  ).first();
+  if (await useEmailButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await useEmailButton.click();
+    await page.waitForTimeout(500);
+  }
+
+  await page.locator('input[type="email"], input[name="email"]').first().fill('ab@ameyem.com');
+  await page.locator('input[type="password"]').first().fill('Vedansh@123');
+  await page.locator('button[type="submit"]').first().click();
+  await page.waitForURL(url => !url.toString().includes('/login'), { timeout: 15000 });
+  await page.waitForLoadState('domcontentloaded');
+}
+
+/**
+ * From the /play landing page, drill into the computer-game setup screen and
+ * select the requested mode (Casual or Rated). Does NOT click Play.
+ */
+async function openComputerSetup(page, mode = 'Casual') {
+  await page.goto('/play');
+  await page.waitForLoadState('domcontentloaded');
+
+  // Step 1: click "Play Against Computer" on the landing.
+  await jsClick(page.locator('button:has-text("Play Against Computer")').first());
+
+  // Step 2: GameModeSelector now appears (Rated/Casual).
+  await page.waitForSelector('.game-mode-selector', { timeout: 10000 });
+  await jsClick(page.locator(`.game-mode-selector button:has-text("${mode}")`).first());
+  await page.waitForTimeout(300);
+}
+
+/**
+ * Click the Play button and wait for the board + right-panel tabs to render.
+ */
+async function startGame(page) {
+  const playButton = page.locator('button.start-button:has-text("Play")').first();
+  await jsClick(playButton);
+  // Countdown is 3s; allow extra time for board init.
+  await page.waitForSelector('.gc-board-wrapper', { timeout: 15000 });
+  await page.waitForSelector('.gc-tabs', { timeout: 10000 });
+}
+
 test.describe('Companion Mode', () => {
   test.beforeEach(async ({ page }) => {
-    // Navigate to login page
-    await page.goto('/login');
-    await page.waitForLoadState('domcontentloaded');
-    await page.waitForTimeout(1000);
-
-    // Click "use email instead" if visible (Google OAuth default)
-    const useEmailButton = page.locator('button:has-text("use email"), button:has-text("Use Email"), button:has-text("email instead")').first();
-    if (await useEmailButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await useEmailButton.click();
-      await page.waitForTimeout(500);
-    }
-
-    // Fill credentials and submit
-    await page.locator('input[type="email"], input[name="email"]').first().fill('ab@ameyem.com');
-    await page.locator('input[type="password"]').first().fill('Vedansh@123');
-    await page.locator('button[type="submit"]').first().click();
-
-    // Wait for redirect away from login (successful auth)
-    await page.waitForURL(url => !url.toString().includes('/login'), { timeout: 15000 });
-    await page.waitForLoadState('domcontentloaded');
-
-    // Go to /play (computer setup with GameModeSelector for logged-in users)
-    await page.goto('/play');
-    await page.waitForLoadState('domcontentloaded');
-    // Wait for GameModeSelector to be rendered (only for authenticated users)
-    await page.waitForSelector('.game-mode-selector', { timeout: 10000 });
+    await login(page);
   });
 
-  test('should show Companion button in game mode selector', async ({ page }) => {
-    const companionButton = page.locator('button:has-text("Companion")').first();
-    await companionButton.evaluate(el => el.scrollIntoView({ block: 'center' }));
-    await expect(companionButton).toBeVisible();
+  test('shows 🤝 companion tab in the right panel during a casual game', async ({ page }) => {
+    await openComputerSetup(page, 'Casual');
+    await startGame(page);
+
+    const companionTab = page.locator('.gc-tabs button', { hasText: '🤝' });
+    await expect(companionTab).toBeVisible();
   });
 
-  test('should show CompanionSelector when Companion mode is selected', async ({ page }) => {
-    // Click the Companion mode button
-    await jsClick(page.locator('button:has-text("Companion")').first());
+  test('renders companion picker with "No companion" default option', async ({ page }) => {
+    await openComputerSetup(page, 'Casual');
+    await startGame(page);
 
-    // The companion-selection wrapper div should appear
-    const companionSelection = page.locator('.companion-selection');
-    await expect(companionSelection).toBeVisible();
+    await jsClick(page.locator('.gc-tabs button', { hasText: '🤝' }));
 
-    // Wait for API to load companion cards
-    await page.waitForSelector('.companion-selector button', { timeout: 15000 });
-
-    const companionCards = page.locator('.companion-selector button');
-    const cardCount = await companionCards.count();
-    expect(cardCount).toBeGreaterThan(0);
+    // Picker is a <select> inside the companion tab content.
+    const picker = page.locator('.gc-tab-content select');
+    await expect(picker).toBeVisible();
+    await expect(picker.locator('option[value=""]')).toHaveText(/No companion/i);
   });
 
-  test('should display synthetic players with correct information', async ({ page }) => {
-    await jsClick(page.locator('button:has-text("Companion")').first());
+  test('selecting a companion reveals CompanionControls', async ({ page }) => {
+    await openComputerSetup(page, 'Casual');
+    await startGame(page);
 
-    // Wait for API to load
-    await page.waitForSelector('.companion-selector button', { timeout: 15000 });
+    await jsClick(page.locator('.gc-tabs button', { hasText: '🤝' }));
 
-    // Check player names (font-semibold text inside buttons)
-    const playerNames = page.locator('.companion-selector button .font-semibold');
-    const nameCount = await playerNames.count();
-    expect(nameCount).toBeGreaterThan(0);
+    const picker = page.locator('.gc-tab-content select');
+    await expect(picker).toBeVisible();
 
-    // Check ratings (purple text)
-    const ratings = page.locator('.companion-selector button .text-purple-600');
-    const ratingCount = await ratings.count();
-    expect(ratingCount).toBeGreaterThan(0);
-  });
+    // Wait for companion options to load (skip the empty "No companion" option).
+    await page.waitForFunction(() => {
+      const sel = document.querySelector('.gc-tab-content select');
+      return sel && sel.options.length > 1;
+    }, { timeout: 15000 });
 
-  test('should be able to select a companion', async ({ page }) => {
-    await jsClick(page.locator('button:has-text("Companion")').first());
-    await page.waitForSelector('.companion-selector button', { timeout: 15000 });
-
-    // Click the first companion card using JS (avoids viewport issues)
-    const firstCard = page.locator('.companion-selector button').first();
-    await jsClick(firstCard);
+    const firstOptionValue = await picker.locator('option').nth(1).getAttribute('value');
+    await picker.selectOption(firstOptionValue);
     await page.waitForTimeout(300);
 
-    // A "Selected" badge should appear
-    const selectedBadge = page.locator('.companion-selector button:has-text("Selected")');
-    await expect(selectedBadge).toBeVisible();
-  });
-
-  test('should start game with companion when Play is clicked', async ({ page }) => {
-    await jsClick(page.locator('button:has-text("Companion")').first());
-    await page.waitForSelector('.companion-selector button', { timeout: 15000 });
-    await jsClick(page.locator('.companion-selector button').first());
-    await page.waitForTimeout(300);
-
-    // Click the Play button (triggers 3-second countdown)
-    const playButton = page.locator('button.start-button:has-text("Play")').first();
-    await jsClick(playButton);
-
-    // Wait for countdown (3s) + game initialisation
-    await page.waitForTimeout(5000);
-
-    // Chess board should be visible
-    const chessBoard = page.locator('.gc-board-wrapper').first();
-    await expect(chessBoard).toBeVisible({ timeout: 10000 });
-  });
-
-  test('should show CompanionControls during game', async ({ page }) => {
-    await jsClick(page.locator('button:has-text("Companion")').first());
-    await page.waitForSelector('.companion-selector button', { timeout: 15000 });
-    await jsClick(page.locator('.companion-selector button').first());
-    await page.waitForTimeout(300);
-
-    const playButton = page.locator('button.start-button:has-text("Play")').first();
-    await jsClick(playButton);
-    await page.waitForTimeout(5000);
-
-    // CompanionControls panel should be visible in the sidebar
-    const companionControls = page.locator('.companion-controls');
-    await expect(companionControls).toBeVisible({ timeout: 10000 });
-
-    // Should have "Suggest One Move" and "Play Continuously" buttons
-    await expect(page.locator('button:has-text("Suggest One Move")')).toBeVisible();
+    // CompanionControls renders Suggest / Continuous buttons.
+    await expect(page.locator('button:has-text("Suggest One Move")')).toBeVisible({ timeout: 10000 });
     await expect(page.locator('button:has-text("Play Continuously")')).toBeVisible();
   });
 
-  test('should deselect companion when switching to other modes', async ({ page }) => {
-    await jsClick(page.locator('button:has-text("Companion")').first());
-    await page.waitForSelector('.companion-selector button', { timeout: 15000 });
-    await jsClick(page.locator('.companion-selector button').first());
-    await page.waitForTimeout(300);
+  test('rated games show "Not available in Rated games" notice in companion tab', async ({ page }) => {
+    await openComputerSetup(page, 'Rated');
+    await startGame(page);
 
-    // Verify selection
-    await expect(page.locator('.companion-selector button:has-text("Selected")')).toBeVisible();
+    await jsClick(page.locator('.gc-tabs button', { hasText: '🤝' }));
 
-    // Switch to Casual mode
-    await jsClick(page.locator('button:has-text("Casual")').first());
-    await page.waitForTimeout(500);
-
-    // CompanionSelector should no longer be shown
-    await expect(page.locator('.companion-selection')).not.toBeVisible();
-  });
-
-  test('should show correct theme styling for Companion button', async ({ page }) => {
-    const companionButton = page.locator('button:has-text("Companion")').first();
-    await companionButton.evaluate(el => el.scrollIntoView({ block: 'center' }));
-    await expect(companionButton).toBeVisible();
-
-    const bgColor = await companionButton.evaluate(el => {
-      return window.getComputedStyle(el).backgroundColor;
-    });
-    expect(bgColor).toBeTruthy();
-    expect(bgColor).not.toBe('transparent');
-    expect(bgColor).not.toBe('rgba(0, 0, 0, 0)');
+    await expect(
+      page.locator('.gc-tab-content', { hasText: 'Not available in Rated games' })
+    ).toBeVisible();
   });
 });

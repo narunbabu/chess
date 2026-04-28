@@ -12,9 +12,11 @@ import ProgressChartsModal from "./ProgressChartsModal"; // user progress charts
 import { getPlayerAvatar } from "../utils/playerDisplayUtils";
 import { isWin, getResultDisplayText } from "../utils/resultStandardization";
 import { getUnfinishedGame, getUnfinishedGames, deleteUnfinishedGame } from "../services/unfinishedGameService";
-import { isPlatformAdmin, canCreateChampionship } from "../utils/permissionHelpers";
+import { isPlatformAdmin, isOrganizationAdmin, canCreateChampionship } from "../utils/permissionHelpers";
 import MatchmakingQueue from "./lobby/MatchmakingQueue";
+import PlayOnlineButton from "./play/PlayOnlineButton";
 import AdBanner from "./common/AdBanner";
+import DailyChallengeCard from "./daily/DailyChallengeCard";
 import "./Dashboard.css";
 import "../styles/UnifiedCards.css"; // Import unified card styles
 
@@ -48,7 +50,6 @@ const Dashboard = () => {
   const [showProgressCharts, setShowProgressCharts] = useState(false);
   const [showMatchmaking, setShowMatchmaking] = useState(false);
   const [onlineCount, setOnlineCount] = useState(null);
-  const [dailyChallenge, setDailyChallenge] = useState(null);
   const [dailyQuota, setDailyQuota] = useState(null);
   const [visibleActiveGames, setVisibleActiveGames] = useState(3);
   const [visibleRecentGames, setVisibleRecentGames] = useState(3);
@@ -296,9 +297,6 @@ const Dashboard = () => {
     if (!user) return;
 
     const fetchQuotaAndChallenge = () => {
-      api.get('/tutorial/daily-challenge')
-        .then(res => setDailyChallenge(res.data.data || res.data))
-        .catch(() => {});
       api.get('/games/daily-quota')
         .then(res => setDailyQuota(res.data))
         .catch(() => {});
@@ -579,33 +577,8 @@ const Dashboard = () => {
         <section className="unified-section">
           <h2 className="unified-section-header">⚡ Quick Actions</h2>
 
-          {/* Primary CTA: Play Now */}
-          <button
-            onClick={() => user ? setShowMatchmaking(true) : navigate('/play')}
-            style={{
-              display: 'block',
-              width: '100%',
-              padding: '18px 24px',
-              marginBottom: '12px',
-              background: 'linear-gradient(135deg, #81b64c, #5d8a35)',
-              border: 'none',
-              borderRadius: '12px',
-              color: '#fff',
-              fontSize: '20px',
-              fontWeight: 'bold',
-              cursor: 'pointer',
-              letterSpacing: '0.3px',
-              boxShadow: '0 4px 16px rgba(129,182,76,0.35)',
-              transition: 'transform 0.12s ease, box-shadow 0.12s ease',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(129,182,76,0.45)'; }}
-            onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '0 4px 16px rgba(129,182,76,0.35)'; }}
-          >
-            ▶ Play Now
-            <span style={{ display: 'block', fontSize: '12px', fontWeight: 'normal', opacity: 0.85, marginTop: '2px' }}>
-              Find an opponent — falls back to AI if none available
-            </span>
-          </button>
+          {/* Primary CTA: Play Online — single-button quick match */}
+          <PlayOnlineButton variant="hero" />
 
           {/* Secondary CTAs */}
           <div className="unified-card-grid cols-2" style={{ marginBottom: '12px' }}>
@@ -673,7 +646,7 @@ const Dashboard = () => {
             </button>
             {isPlatformAdmin(user) && (
               <button
-                onClick={() => navigate('/championships')}
+                onClick={() => navigate('/admin/dashboard')}
                 className="unified-card centered"
                 style={{ background: 'rgba(232,169,62,0.08)', border: '1px solid #e8a93e' }}
               >
@@ -683,50 +656,24 @@ const Dashboard = () => {
                 </div>
               </button>
             )}
+            {(isPlatformAdmin(user) || isOrganizationAdmin(user)) && (
+              <button
+                onClick={() => navigate('/organizations')}
+                className="unified-card centered"
+                style={{ background: 'rgba(129,182,76,0.08)', border: '1px solid #81b64c' }}
+              >
+                <div className="unified-card-content">
+                  <h3 className="unified-card-title" style={{ fontSize: '15px' }}>🏢 Organizations</h3>
+                  <p className="unified-card-subtitle">Manage clubs, schools & communities</p>
+                </div>
+              </button>
+            )}
           </div>
         </section>
         )}
 
         {/* Daily Challenge Widget */}
-        {dailyChallenge && (
-        <section className="unified-section">
-          <h2 className="unified-section-header">🧩 Today's Challenge</h2>
-          <div
-            className="unified-card horizontal"
-            onClick={() => navigate('/daily-challenge')}
-            style={{ cursor: 'pointer', background: dailyChallenge.user_completion?.completed ? 'rgba(76,175,80,0.08)' : 'rgba(129,182,76,0.08)', border: dailyChallenge.user_completion?.completed ? '1px solid #4CAF50' : '1px solid #81b64c' }}
-          >
-            <div className="unified-card-content">
-              <h3 className="unified-card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                {dailyChallenge.challenge_data?.title || 'Daily Puzzle'}
-                <span style={{
-                  fontSize: 11, padding: '1px 8px', borderRadius: 10, fontWeight: 600,
-                  background: dailyChallenge.skill_tier === 'beginner' ? '#4CAF50' : dailyChallenge.skill_tier === 'intermediate' ? '#2196F3' : '#9C27B0',
-                  color: '#fff',
-                }}>
-                  {dailyChallenge.skill_tier}
-                </span>
-              </h3>
-              <p className="unified-card-subtitle">
-                {dailyChallenge.user_completion?.completed
-                  ? '✅ Completed! Come back tomorrow.'
-                  : (dailyChallenge.challenge_data?.description || 'Find the best move.')}
-              </p>
-              <p className="unified-card-meta">
-                +{dailyChallenge.xp_reward} XP • {dailyChallenge.completion_count || 0} players solved
-              </p>
-            </div>
-            <div className="unified-card-actions">
-              <button
-                onClick={(e) => { e.stopPropagation(); navigate('/daily-challenge'); }}
-                className={`unified-card-btn ${dailyChallenge.user_completion?.completed ? 'secondary' : 'primary'}`}
-              >
-                {dailyChallenge.user_completion?.completed ? '👁️ Review' : '🧩 Solve Now'}
-              </button>
-            </div>
-          </div>
-        </section>
-        )}
+        <DailyChallengeCard />
 
         {/* Active Games Section — only render when there are active games */}
         {activeGames.length > 0 && (
@@ -965,6 +912,7 @@ const Dashboard = () => {
                     <p className="unified-card-subtitle" style={{ color: '#8b8987', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                       <span style={{ background: (isComputer && !hasSyntheticOpponent) ? '#3d3a37' : '#1a3a2a', color: (isComputer && !hasSyntheticOpponent) ? '#8b8987' : '#81b64c', borderRadius: '4px', padding: '1px 6px', fontSize: '0.75rem', fontWeight: 600 }}>{modeLabel}</span>
                       <span>{timeAgo}</span>
+                      {game.opening_name && <span style={{ color: '#a89f91', fontSize: '0.75rem', fontStyle: 'italic' }}>{game.opening_name}</span>}
                     </p>
                   </div>
                   <div className="unified-card-actions">

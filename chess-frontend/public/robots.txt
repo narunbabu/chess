@@ -20,6 +20,7 @@ Disallow: /play/review/
 # Allow important public pages for SEO
 Allow: /
 Allow: /play
+Allow: /lobby
 Allow: /puzzles
 Allow: /learn
 Allow: /tutorial
@@ -28,7 +29,7 @@ Allow: /coming-soon
 # Crawl delay to be respectful (optional)
 Crawl-delay: 1
 
-# Sitemap location (you'll need to create this)
+# Sitemap location
 Sitemap: https://chess99.com/sitemap.xml
 
 # Specific rules for major search engines

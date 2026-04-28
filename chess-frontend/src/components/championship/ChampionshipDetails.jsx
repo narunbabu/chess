@@ -10,13 +10,14 @@ import ChampionshipMatches from './ChampionshipMatches';
 import ChampionshipParticipants from './ChampionshipParticipants';
 import TournamentAdminDashboard from './TournamentAdminDashboard';
 import ConfirmationModal from './ConfirmationModal';
+import TournamentContactModal from './TournamentContactModal';
 import './Championship.css';
 
 const ChampionshipDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user } = useAuth();
+  const { user, fetchUser } = useAuth();
   const {
     activeChampionship,
     participants,
@@ -47,6 +48,8 @@ const ChampionshipDetails = () => {
   const [completing, setCompleting] = useState(false);
   const [confirmationModal, setConfirmationModal] = useState({ isOpen: false, type: null });
   const [isActionPanelExpanded, setIsActionPanelExpanded] = useState(false);
+  const [contactModalOpen, setContactModalOpen] = useState(false);
+  const pendingRegisterAction = useRef(null);
 
   // Check if user is platform admin
   const isPlatformAdmin = user?.roles?.some(role => role === 'platform_admin') || false;
@@ -128,118 +131,150 @@ const ChampionshipDetails = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isActionPanelExpanded]);
 
+  const needsTournamentContact = () => !user?.mobile_number || !user?.tournament_contact_consent_at;
+
+  const openContactModalWithRetry = (retryAction) => {
+    pendingRegisterAction.current = retryAction;
+    setContactModalOpen(true);
+  };
+
+  const handleContactModalSuccess = async () => {
+    await fetchUser();
+    setContactModalOpen(false);
+    if (pendingRegisterAction.current) {
+      await pendingRegisterAction.current();
+      pendingRegisterAction.current = null;
+    }
+  };
+
   const handleRegister = async () => {
     if (!user) {
       navigate('/login');
       return;
     }
 
-    setRegistering(true);
+    const doRegister = async () => {
+      setRegistering(true);
 
-    const entryFee = parseFloat(activeChampionship.entry_fee) || 0;
+      const entryFee = parseFloat(activeChampionship.entry_fee) || 0;
 
-    if (entryFee <= 0) {
-      // Free championship — use the simple registration flow
-      try {
-        await registerForChampionship(id);
-        await fetchChampionship(id);
-        await fetchParticipants(id);
-      } catch (error) {
-        console.error('Registration failed:', error);
-        if (error.response?.status === 409 && error.response?.data?.error?.code === 'ALREADY_REGISTERED') {
+      if (entryFee <= 0) {
+        // Free championship — use the simple registration flow
+        try {
+          await registerForChampionship(id);
           await fetchChampionship(id);
           await fetchParticipants(id);
+        } catch (error) {
+          console.error('Registration failed:', error);
+          if (error.response?.status === 422 && error.response?.data?.code === 'MOBILE_REQUIRED') {
+            openContactModalWithRetry(doRegister);
+            return;
+          }
+          if (error.response?.status === 409 && error.response?.data?.code === 'ALREADY_REGISTERED') {
+            await fetchChampionship(id);
+            await fetchParticipants(id);
+          }
+        } finally {
+          setRegistering(false);
         }
-      } finally {
+        return;
+      }
+
+      // Paid championship — initiate Razorpay payment
+      try {
+        const paymentData = await initiateChampionshipPayment(id);
+
+        if (!paymentData.payment_required) {
+          // Backend treated it as free (edge case)
+          await fetchChampionship(id);
+          await fetchParticipants(id);
+          setRegistering(false);
+          return;
+        }
+
+        // Mock/test mode: auto-confirm payment without opening Razorpay modal
+        if (paymentData.order_details?.mock_mode) {
+          await handleChampionshipPaymentCallback({
+            razorpay_payment_id: 'pay_mock_' + Date.now(),
+            razorpay_order_id: paymentData.order_details.order_id,
+            razorpay_signature: 'mock_sig_' + Date.now(),
+          });
+          await fetchChampionship(id);
+          await fetchParticipants(id);
+          setRegistering(false);
+          return;
+        }
+
+        // Real Razorpay checkout — load SDK then open modal
+        const openRazorpayModal = () => {
+          const options = {
+            key: paymentData.order_details.key_id,
+            amount: paymentData.order_details.amount,
+            currency: paymentData.order_details.currency || 'INR',
+            name: 'Chess99',
+            description: `Entry Fee — ${paymentData.championship?.title || activeChampionship.name}`,
+            order_id: paymentData.order_details.order_id,
+            handler: async (response) => {
+              try {
+                setRegistering(true);
+                await handleChampionshipPaymentCallback({
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_signature: response.razorpay_signature,
+                });
+                await fetchChampionship(id);
+                await fetchParticipants(id);
+              } catch (err) {
+                console.error('Payment callback failed:', err);
+              } finally {
+                setRegistering(false);
+              }
+            },
+            modal: { ondismiss: () => setRegistering(false) },
+            prefill: { name: user?.name || '', email: user?.email || '' },
+            theme: { color: '#81b64c' },
+          };
+          const rzp = new window.Razorpay(options);
+          rzp.open();
+        };
+
+        if (window.Razorpay) {
+          openRazorpayModal();
+          return;
+        }
+
+        const existing = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
+        if (existing) {
+          existing.addEventListener('load', openRazorpayModal, { once: true });
+          return;
+        }
+
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.async = true;
+        script.onload = openRazorpayModal;
+        script.onerror = () => {
+          console.error('Failed to load Razorpay SDK');
+          setRegistering(false);
+        };
+        document.body.appendChild(script);
+      } catch (error) {
+        console.error('Payment initiation failed:', error);
+        if (error.response?.status === 422 && error.response?.data?.code === 'MOBILE_REQUIRED') {
+          openContactModalWithRetry(doRegister);
+          return;
+        }
         setRegistering(false);
       }
+    };
+
+    // Pre-check: if user lacks mobile/consent, show modal before even hitting the API
+    if (needsTournamentContact()) {
+      openContactModalWithRetry(doRegister);
       return;
     }
 
-    // Paid championship — initiate Razorpay payment
-    try {
-      const paymentData = await initiateChampionshipPayment(id);
-
-      if (!paymentData.payment_required) {
-        // Backend treated it as free (edge case)
-        await fetchChampionship(id);
-        await fetchParticipants(id);
-        setRegistering(false);
-        return;
-      }
-
-      // Mock/test mode: auto-confirm payment without opening Razorpay modal
-      if (paymentData.order_details?.mock_mode) {
-        await handleChampionshipPaymentCallback({
-          razorpay_payment_id: 'pay_mock_' + Date.now(),
-          razorpay_order_id: paymentData.order_details.order_id,
-          razorpay_signature: 'mock_sig_' + Date.now(),
-        });
-        await fetchChampionship(id);
-        await fetchParticipants(id);
-        setRegistering(false);
-        return;
-      }
-
-      // Real Razorpay checkout — load SDK then open modal
-      // setRegistering(false) is handled inside handler/ondismiss to keep the
-      // spinner active until the async Razorpay flow completes.
-      const openRazorpayModal = () => {
-        const options = {
-          key: paymentData.order_details.key_id,
-          amount: paymentData.order_details.amount,
-          currency: paymentData.order_details.currency || 'INR',
-          name: 'Chess99',
-          description: `Entry Fee — ${paymentData.championship?.title || activeChampionship.name}`,
-          order_id: paymentData.order_details.order_id,
-          handler: async (response) => {
-            try {
-              setRegistering(true);
-              await handleChampionshipPaymentCallback({
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_signature: response.razorpay_signature,
-              });
-              await fetchChampionship(id);
-              await fetchParticipants(id);
-            } catch (err) {
-              console.error('Payment callback failed:', err);
-            } finally {
-              setRegistering(false);
-            }
-          },
-          modal: { ondismiss: () => setRegistering(false) },
-          prefill: { name: user?.name || '', email: user?.email || '' },
-          theme: { color: '#81b64c' },
-        };
-        const rzp = new window.Razorpay(options);
-        rzp.open();
-      };
-
-      if (window.Razorpay) {
-        openRazorpayModal();
-        return;
-      }
-
-      const existing = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
-      if (existing) {
-        existing.addEventListener('load', openRazorpayModal, { once: true });
-        return;
-      }
-
-      const script = document.createElement('script');
-      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-      script.async = true;
-      script.onload = openRazorpayModal;
-      script.onerror = () => {
-        console.error('Failed to load Razorpay SDK');
-        setRegistering(false);
-      };
-      document.body.appendChild(script);
-    } catch (error) {
-      console.error('Payment initiation failed:', error);
-      setRegistering(false);
-    }
+    await doRegister();
   };
 
   const handleStartChampionship = async () => {
@@ -792,6 +827,13 @@ const ChampionshipDetails = () => {
         onConfirm={handleConfirmAction}
         type={confirmationModal.type}
         championship={activeChampionship}
+      />
+
+      {/* Tournament Contact Modal */}
+      <TournamentContactModal
+        isOpen={contactModalOpen}
+        onClose={() => { setContactModalOpen(false); pendingRegisterAction.current = null; setRegistering(false); }}
+        onSuccess={handleContactModalSuccess}
       />
     </div>
   );

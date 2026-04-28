@@ -87,6 +87,43 @@ class MatchmakingController extends Controller
         ]);
     }
 
+    /**
+     * POST /api/v1/matchmaking/quick-match
+     *
+     * Synchronous one-shot matchmaking: returns a matched opponent immediately.
+     * Priority: online human (±200 ELO) → synthetic player → computer fallback flag.
+     */
+    public function quickMatch(Request $request)
+    {
+        $validated = $request->validate([
+            'time_control_minutes' => 'nullable|integer|in:3,5,10,15,30',
+            'increment_seconds' => 'nullable|integer|in:0,1,2,3,5,10',
+            'game_mode' => 'nullable|in:casual,rated,companion',
+            'preferred_color' => 'nullable|in:white,black,random',
+        ]);
+
+        $user = Auth::user();
+
+        [$allowed, $count] = Game::canUserStartGame($user->id);
+        if (!$allowed) {
+            return response()->json([
+                'error' => "You already have {$count} pending games. Please finish or resign existing games before starting a new one.",
+                'pending_count' => $count,
+            ], 429);
+        }
+
+        $result = $this->matchmaking->quickMatch($user, $validated);
+
+        $status = $result['match_type'] === 'computer_fallback' ? 202 : 200;
+
+        return response()->json([
+            'message' => $result['match_type'] === 'computer_fallback'
+                ? $result['message']
+                : 'Match found',
+            'data' => $result,
+        ], $status);
+    }
+
     // ─── Smart Real-User Matchmaking ────────────────────────────────────────
 
     /**

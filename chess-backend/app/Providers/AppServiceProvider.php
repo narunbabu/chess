@@ -68,6 +68,22 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(10)->by($request->ip());
         });
 
+        // Auth routes: 60 requests/minute, keyed by user_id|ip
+        RateLimiter::for('api-auth', function (\Illuminate\Http\Request $request) {
+            $key = $request->user()
+                ? $request->user()->id . '|' . $request->ip()
+                : $request->ip();
+            return Limit::perMinute(60)->by($key);
+        });
+
+        // Game creation & invitations: 30 requests/minute, keyed by user_id|ip
+        RateLimiter::for('game-actions', function (\Illuminate\Http\Request $request) {
+            $key = $request->user()
+                ? $request->user()->id . '|' . $request->ip()
+                : $request->ip();
+            return Limit::perMinute(30)->by($key);
+        });
+
         // Register model observers
         Game::observe(GameObserver::class);
 

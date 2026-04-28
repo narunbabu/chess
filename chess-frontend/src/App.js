@@ -7,6 +7,7 @@ import {
   Route,
   useLocation,
 } from "react-router-dom";
+import * as Sentry from "@sentry/react";
 import { createLazyComponent } from "./utils/lazyLoad";
 
 // Critical imports - loaded immediately (providers, layout, utilities)
@@ -47,8 +48,10 @@ const LobbyPage = createLazyComponent(() => import("./pages/LobbyPage"), { compo
 const GameHistoryPage = createLazyComponent(() => import("./pages/GameHistoryPage"), { componentName: "GameHistoryPage" });
 const ComingSoon = createLazyComponent(() => import("./pages/ComingSoon"), { componentName: "ComingSoon" });
 const SharedResultPage = createLazyComponent(() => import("./pages/SharedResultPage"), { componentName: "SharedResultPage" });
+const GameReplayPage = createLazyComponent(() => import("./pages/GameReplayPage"), { componentName: "GameReplayPage" });
 const Puzzles = createLazyComponent(() => import("./components/Puzzles"), { componentName: "Puzzles" });
 const DailyChallengePage = createLazyComponent(() => import("./pages/DailyChallengePage"), { componentName: "DailyChallengePage" });
+const DailyChallengesPage = createLazyComponent(() => import("./pages/DailyChallengesPage"), { componentName: "DailyChallengesPage" });
 const Learn = createLazyComponent(() => import("./components/Learn"), { componentName: "Learn" });
 const Profile = createLazyComponent(() => import("./components/Profile"), { componentName: "Profile" });
 const Dashboard = createLazyComponent(() => import("./components/Dashboard"), { componentName: "Dashboard" });
@@ -78,6 +81,8 @@ const ReferralDashboard = createLazyComponent(() => import("./pages/ReferralDash
 const AdminReferralDashboard = createLazyComponent(() => import("./pages/AdminReferralDashboard"), { componentName: "AdminReferralDashboard" });
 const AdminDashboard = createLazyComponent(() => import("./pages/AdminDashboard"), { componentName: "AdminDashboard" });
 const AmbassadorDashboard = createLazyComponent(() => import("./pages/AmbassadorDashboard"), { componentName: "AmbassadorDashboard" });
+const OrganizationDashboard = createLazyComponent(() => import("./pages/OrganizationDashboard"), { componentName: "OrganizationDashboard" });
+const FriendsPage = createLazyComponent(() => import("./pages/FriendsPage"), { componentName: "FriendsPage" });
 const LeaderboardPage = createLazyComponent(() => import("./pages/LeaderboardPage"), { componentName: "LeaderboardPage" });
 const SystemStatusPage = createLazyComponent(() => import("./pages/SystemStatusPage"), { componentName: "SystemStatusPage" });
 const HealthPage = createLazyComponent(() => import("./pages/HealthPage"), { componentName: "HealthPage" });
@@ -129,6 +134,14 @@ const AppContent = () => {
   const location = useLocation();
   const isFullBleed = ['/', '/login', '/forgot-password', '/reset-password'].includes(location.pathname) || location.pathname.startsWith('/join/');
 
+  useEffect(() => {
+    Sentry.addBreadcrumb({
+      category: "navigation",
+      message: location.pathname + location.search,
+      level: "info",
+    });
+  }, [location]);
+
   return (
     <div className={`app-container ${isFullBleed ? 'full-bleed' : ''} flex flex-col min-h-screen`}>
       <ActiveGameBanner />
@@ -147,6 +160,7 @@ const AppContent = () => {
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="/join/:code" element={<JoinRedirect />} />
             <Route path="/share/result/:uniqueId" element={<SharedResultPage />} />
+            <Route path="/games/:id/replay" element={<GameReplayPage />} />
             <Route path="/leaderboard" element={<LeaderboardPage />} />
             <Route path="/system-status" element={<SystemStatusPage />} />
             <Route path="/health" element={<HealthPage />} />
@@ -188,6 +202,10 @@ const AppContent = () => {
               path="/daily-challenge"
               element={requireAuth(<DailyChallengePage />, 'daily-challenge')}
             />
+            <Route
+              path="/daily-challenges"
+              element={requireAuth(<DailyChallengesPage />, 'daily-challenge')}
+            />
 
             {/* Lobby - Auth required */}
             <Route
@@ -200,6 +218,15 @@ const AppContent = () => {
               element={
                 <RouteGuard>
                   <Profile />
+                </RouteGuard>
+              }
+            />
+            {/* Friends - Auth required */}
+            <Route
+              path="/friends"
+              element={
+                <RouteGuard>
+                  <FriendsPage />
                 </RouteGuard>
               }
             />
@@ -276,6 +303,15 @@ const AppContent = () => {
               element={
                 <RouteGuard>
                   <AmbassadorDashboard />
+                </RouteGuard>
+              }
+            />
+            {/* Organization Dashboard - Auth required */}
+            <Route
+              path="/organizations"
+              element={
+                <RouteGuard>
+                  <OrganizationDashboard />
                 </RouteGuard>
               }
             />

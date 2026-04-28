@@ -33,6 +33,7 @@ class ChampionshipRegistrationStateMachineTest extends TestCase
         parent::setUp();
 
         $this->user = User::factory()->create();
+        $this->addMobileConsent($this->user);
 
         // Free, registration-open championship — usable by most tests
         $this->freeChampionship = Championship::factory()->create([

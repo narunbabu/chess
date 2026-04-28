@@ -18,11 +18,15 @@ class Organization extends Model
         'description',
         'type',
         'website',
+        'city',
+        'state',
         'contact_email',
         'contact_phone',
         'logo_url',
         'is_active',
+        'status',
         'created_by',
+        'requested_by',
     ];
 
     protected $casts = [
@@ -35,6 +39,24 @@ class Organization extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * The user who requested this organization
+     */
+    public function requester(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'requested_by');
+    }
+
+    public function scopePending($query)
+    {
+        return $query->where('status', 'pending');
+    }
+
+    public function scopeApproved($query)
+    {
+        return $query->where('status', 'approved');
     }
 
     /**
@@ -51,6 +73,14 @@ class Organization extends Model
     public function championships(): HasMany
     {
         return $this->hasMany(Championship::class);
+    }
+
+    /**
+     * Pending invitations for this organization
+     */
+    public function invitations()
+    {
+        return $this->hasMany(OrganizationInvitation::class);
     }
 
     /**

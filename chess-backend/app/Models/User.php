@@ -55,6 +55,11 @@ class User extends Authenticatable implements MustVerifyEmail
         'referral_code',
         'referred_by_user_id',
         'referred_by_code_id',
+        'mobile_country_code',
+        'mobile_number',
+        'mobile_verified_at',
+        'tournament_contact_consent_at',
+        'whatsapp_updates_opt_in',
     ];
 
     protected $hidden = [
@@ -80,9 +85,19 @@ class User extends Authenticatable implements MustVerifyEmail
         'subscription_auto_renew' => 'boolean',
         'profile_completed' => 'boolean',
         'reset_token_expires_at' => 'datetime',
+        'mobile_verified_at' => 'datetime',
+        'tournament_contact_consent_at' => 'datetime',
+        'whatsapp_updates_opt_in' => 'boolean',
         'birthday' => 'date',
-        'class_of_study' => 'integer',
+        'class_of_study' => 'string',
     ];
+
+    public function hasTournamentContactInfo(): bool
+    {
+        return !empty($this->mobile_country_code)
+            && !empty($this->mobile_number)
+            && $this->tournament_contact_consent_at !== null;
+    }
 
     /**
      * Check if user wants a specific email type.

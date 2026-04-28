@@ -10,6 +10,7 @@ use App\Models\GameStatus;
 use App\Models\User;
 use App\Models\ComputerPlayer;
 use Illuminate\Http\Request;
+use App\Services\OpeningDetectionService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -263,7 +264,8 @@ class GameController extends Controller
         ] : ($computerData ?? ['id' => null, 'name' => 'Computer', 'email' => null, 'avatar' => null, 'rating' => null, 'is_provisional' => false]);
 
         // Detect opening name from first few moves
-        $openingName = $this->detectOpening($game->moves ?? []);
+        $openingService = new OpeningDetectionService();
+        $openingInfo = $openingService->detectOpening($game->moves ?? []);
 
         // Parse moves for count (moves are stored as JSON string in database)
         $movesForCount = $game->moves;
@@ -305,7 +307,8 @@ class GameController extends Controller
                 'minutes' => $game->time_control_minutes,
                 'increment' => $game->increment_seconds,
             ],
-            'opening_name' => $openingName,
+            'opening_name' => $openingInfo['name'] ?? null,
+            'opening_eco' => $openingInfo['eco'] ?? null,
             'move_count' => count($movesForCount),
             'result' => $standardizedResult,
             'moves' => $parsedMoves,
@@ -314,82 +317,6 @@ class GameController extends Controller
         return response()->json($response);
     }
 
-    /**
-     * Detect chess opening name from moves list
-     * Returns null if no known opening is matched
-     */
-    private function detectOpening($moves): ?string
-    {
-        // Handle null or empty input
-        if ($moves === null || $moves === '') {
-            return null;
-        }
-
-        // If moves is a JSON string, decode it first
-        if (is_string($moves)) {
-            $decoded = json_decode($moves, true);
-            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
-                $moves = $decoded;
-            } else {
-                // Not valid JSON or empty, return null
-                return null;
-            }
-        }
-
-        // Ensure we have an array
-        if (!is_array($moves) || empty($moves)) {
-            return null;
-        }
-
-        // Extract SAN notation from first few moves
-        $sans = [];
-        foreach (array_slice($moves, 0, 6) as $move) {
-            $san = $move['san'] ?? $move['move'] ?? null;
-            if ($san) {
-                $sans[] = $san;
-            }
-        }
-
-        if (empty($sans)) {
-            return null;
-        }
-
-        $moveStr = implode(' ', $sans);
-
-        // Common openings lookup (first moves → name), ordered longest prefix first
-        $openings = [
-            'e4 e5 Nf3 Nc6 Bb5' => 'Ruy López',
-            'e4 e5 Nf3 Nc6 Bc4' => 'Italian Game',
-            'e4 e5 Nf3 Nc6 d4' => 'Scotch Game',
-            'e4 e5 Nf3 Nc6' => 'Four Knights / Open Game',
-            'e4 e5 Nf3 Nf6' => 'Petrov\'s Defense',
-            'd4 d5 c4 dxc4' => 'Queen\'s Gambit Accepted',
-            'd4 d5 c4 e6' => 'Queen\'s Gambit Declined',
-            'd4 Nf6 c4 g6' => 'King\'s Indian Defense',
-            'd4 Nf6 c4 e6' => 'Nimzo-Indian Defense',
-            'e4 e5 f4' => 'King\'s Gambit',
-            'd4 d5 c4' => 'Queen\'s Gambit',
-            'd4 d5 Bf4' => 'London System',
-            'Nf3 d5 g3' => 'Réti Opening',
-            'e4 c5' => 'Sicilian Defense',
-            'e4 e6' => 'French Defense',
-            'e4 c6' => 'Caro-Kann Defense',
-            'e4 d5' => 'Scandinavian Defense',
-            'e4 e5' => 'Open Game',
-            'd4 d5' => 'Closed Game',
-            'd4 Nf6' => 'Indian Defense',
-            'c4' => 'English Opening',
-        ];
-
-        // Match against move string (longest prefixes checked first due to array order)
-        foreach ($openings as $prefix => $name) {
-            if (str_starts_with($moveStr, $prefix)) {
-                return $name;
-            }
-        }
-
-        return null;
-    }
 
     /**
      * Convert game result to standardized format for frontend
@@ -450,6 +377,93 @@ class GameController extends Controller
             'end_reason' => $endReason,
             'winner' => $winner
         ];
+    }
+
+    public function publicShow($id)
+    {
+        $game = Game::with(['whitePlayer', 'blackPlayer', 'computerPlayer', 'syntheticPlayer', 'statusRelation', 'endReasonRelation'])->find($id);
+
+        if (!$game) {
+            return response()->json(['error' => 'Game not found'], 404);
+        }
+
+        // Only show completed games publicly
+        if ($game->status !== 'completed' && $game->status !== 'ended') {
+            return response()->json(['error' => 'Game not available'], 404);
+        }
+
+        // Build player data (no email or sensitive fields)
+        $computerData = null;
+        if ($game->computer_player_id && $game->syntheticPlayer) {
+            $computerData = [
+                'name' => $game->syntheticPlayer->name,
+                'avatar_url' => $game->syntheticPlayer->avatar_url,
+                'rating' => $game->syntheticPlayer->rating,
+            ];
+        } elseif ($game->computer_player_id && $game->computerPlayer) {
+            $computerData = [
+                'name' => $game->computerPlayer->name,
+                'avatar_url' => null,
+                'rating' => $game->computerPlayer->rating,
+            ];
+        } elseif ($game->computer_level) {
+            $computerData = [
+                'name' => 'Computer Lv.' . $game->computer_level,
+                'avatar_url' => null,
+                'rating' => 800 + ($game->computer_level * 100),
+            ];
+        }
+
+        $whitePlayerData = $game->whitePlayer ? [
+            'name' => $game->whitePlayer->name,
+            'avatar_url' => $game->whitePlayer->avatar_url,
+            'rating' => $game->whitePlayer->rating,
+        ] : ($computerData ?? ['name' => 'White', 'avatar_url' => null, 'rating' => null]);
+
+        $blackPlayerData = $game->blackPlayer ? [
+            'name' => $game->blackPlayer->name,
+            'avatar_url' => $game->blackPlayer->avatar_url,
+            'rating' => $game->blackPlayer->rating,
+        ] : ($computerData ?? ['name' => 'Black', 'avatar_url' => null, 'rating' => null]);
+
+        $openingService = new OpeningDetectionService();
+        $openingInfo = $openingService->detectOpening($game->moves ?? []);
+
+        $parsedMoves = $game->moves;
+        if (is_string($parsedMoves)) {
+            $decoded = json_decode($parsedMoves, true);
+            $parsedMoves = (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) ? $decoded : [];
+        }
+        if (!is_array($parsedMoves)) {
+            $parsedMoves = [];
+        }
+
+        $endReason = $game->endReasonRelation ? $game->endReasonRelation->code : null;
+        $resultValue = $game->result;
+        $winnerPlayer = $game->winner_player;
+
+        $response = [
+            'id' => $game->id,
+            'white_player' => $whitePlayerData,
+            'black_player' => $blackPlayerData,
+            'moves' => $parsedMoves,
+            'result' => $resultValue,
+            'winner_player' => $winnerPlayer,
+            'end_reason' => $endReason,
+            'time_control' => [
+                'minutes' => $game->time_control_minutes,
+                'increment' => $game->increment_seconds,
+            ],
+            'white_time_remaining_ms' => $game->white_time_remaining_ms,
+            'black_time_remaining_ms' => $game->black_time_remaining_ms,
+            'opening_name' => $openingInfo['name'] ?? null,
+            'move_count' => count($parsedMoves),
+            'played_at' => $game->created_at?->toISOString(),
+            'ended_at' => $game->updated_at?->toISOString(),
+            'computer_level' => $game->computer_level,
+        ];
+
+        return response()->json($response);
     }
 
     public function move(Request $request, $id)
@@ -1514,5 +1528,97 @@ class GameController extends Controller
             'games_today' => $todayCount,
             'remaining' => max(0, $dailyLimit - $todayCount),
         ]);
+    }
+
+    /**
+     * Export game as PGN
+     *
+     * GET /api/v1/games/{id}/pgn
+     */
+    public function pgn($id)
+    {
+        $game = Game::with(['whitePlayer', 'blackPlayer', 'computerPlayer', 'syntheticPlayer'])->find($id);
+
+        if (!$game) {
+            return response()->json(['error' => 'Game not found'], 404);
+        }
+
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        if ($game->white_player_id !== $user->id && $game->black_player_id !== $user->id) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        // Determine player names
+        $whiteName = $game->whitePlayer ? $game->whitePlayer->name : 'White';
+        $blackName = $game->blackPlayer ? $game->blackPlayer->name : 'Black';
+
+        if (!$game->whitePlayer && $game->computer_player_id) {
+            $whiteName = $game->syntheticPlayer ? $game->syntheticPlayer->name
+                : ($game->computerPlayer ? $game->computerPlayer->name : 'Computer Lv.' . ($game->computer_level ?? '?'));
+        }
+        if (!$game->blackPlayer && $game->computer_player_id) {
+            $blackName = $game->syntheticPlayer ? $game->syntheticPlayer->name
+                : ($game->computerPlayer ? $game->computerPlayer->name : 'Computer Lv.' . ($game->computer_level ?? '?'));
+        }
+
+        // Result in PGN notation
+        $result = '*';
+        $resultValue = $game->result;
+        $winnerPlayer = $game->winner_player;
+        if ($resultValue === '1-0' || $winnerPlayer === 'white') {
+            $result = '1-0';
+        } elseif ($resultValue === '0-1' || $winnerPlayer === 'black') {
+            $result = '0-1';
+        } elseif ($resultValue === '1/2-1/2' || $resultValue === 'draw') {
+            $result = '1/2-1/2';
+        }
+
+        // Detect opening
+        $openingService = new OpeningDetectionService();
+        $openingInfo = $openingService->detectOpening($game->moves ?? []);
+
+        // Build PGN
+        $headers = [
+            '[Event "Chess99 Game"]',
+            '[Site "chess99.com"]',
+            '[Date "' . $game->created_at->format('Y.m.d') . '"]',
+            '[White "' . $whiteName . '"]',
+            '[Black "' . $blackName . '"]',
+            '[Result "' . $result . '"]',
+        ];
+        if (!empty($openingInfo['name'])) {
+            $headers[] = '[Opening "' . $openingInfo['name'] . '"]';
+        }
+
+        // Build movetext from SAN notation in moves array
+        $moves = $game->moves ?? [];
+        if (is_string($moves)) {
+            $decoded = json_decode($moves, true);
+            $moves = is_array($decoded) ? $decoded : [];
+        }
+
+        $moveText = '';
+        $moveNumber = 1;
+        for ($i = 0; $i < count($moves); $i += 2) {
+            $whiteMove = $moves[$i]['san'] ?? '';
+            $blackMove = ($i + 1 < count($moves)) ? ($moves[$i + 1]['san'] ?? '') : '';
+            $moveText .= $moveNumber . '. ' . $whiteMove;
+            if ($blackMove) {
+                $moveText .= ' ' . $blackMove;
+            }
+            $moveText .= ' ';
+            $moveNumber++;
+        }
+        $moveText .= $result;
+
+        $pgn = implode("\n", $headers) . "\n\n" . $moveText . "\n";
+
+        return response($pgn, 200)
+            ->header('Content-Type', 'application/x-chess-pgn')
+            ->header('Content-Disposition', 'attachment; filename="chess99-game-' . $id . '.pgn"');
     }
 }

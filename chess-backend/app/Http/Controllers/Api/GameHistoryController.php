@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\GameHistory;
+use App\Services\OpeningDetectionService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
@@ -304,8 +305,10 @@ class GameHistoryController extends Controller
         $perPage = min((int) $request->get('per_page', 15), 100);
         $paginated = $query->paginate($perPage, $columns);
 
+        $openingService = new OpeningDetectionService();
+
         $games = collect($paginated->items())
-            ->map(function ($game) use ($user) {
+            ->map(function ($game) use ($user, $openingService) {
                 // Calculate the correct final_score for multiplayer games
                 if ($game->game_mode === 'multiplayer' && $game->game_id) {
                     // Determine which score to use based on player color
@@ -437,6 +440,11 @@ class GameHistoryController extends Controller
                         'rating' => $game->black_player_rating ?? 1200
                     ];
                 }
+
+                // Detect opening from moves
+                $openingInfo = $openingService->detectOpening($game->moves);
+                $game->opening_name = $openingInfo['name'] ?? null;
+                $game->opening_eco = $openingInfo['eco'] ?? null;
 
                 // Remove the extra fields we don't want to return
                 unset($game->white_player_id);
@@ -633,6 +641,12 @@ class GameHistoryController extends Controller
             $game->opponent_name = $game->opponent_name ?: 'Computer';
             $game->opponent_avatar_url = $game->opponent_avatar_url ?: null;
         }
+
+        // Detect opening from moves
+        $openingService = new OpeningDetectionService();
+        $openingInfo = $openingService->detectOpening($game->moves);
+        $game->opening_name = $openingInfo['name'] ?? null;
+        $game->opening_eco = $openingInfo['eco'] ?? null;
 
         // Remove the extra fields we don't want to return
         unset($game->white_player_id);

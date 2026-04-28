@@ -74,6 +74,15 @@ const matchmakingService = {
     const response = await api.post(`/v1/matchmaking/cancel-find/${token}`);
     return response.data;
   },
+
+  /**
+   * Synchronous quick-match — single request returns opponent immediately.
+   * Priority: online human → synthetic player → computer fallback.
+   */
+  quickMatch: async (preferences = {}) => {
+    const response = await api.post('/v1/matchmaking/quick-match', preferences);
+    return response.data;
+  },
 };
 
 export default matchmakingService;

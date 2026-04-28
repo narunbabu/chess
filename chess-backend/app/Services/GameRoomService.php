@@ -822,6 +822,21 @@ class GameRoomService
             $isStalemate = !empty($move['is_stalemate']);
             $isThreefold = !empty($move['is_threefold_repetition']);
 
+            // Validate mate hint against actual FEN — if the side to move's king
+            // is not in check, it cannot be checkmate. This prevents false
+            // positives from race conditions (e.g. timeout + move arriving together).
+            if ($isCheckmate && $newFen) {
+                $inCheck = $this->chessRules->isKingInCheck($newFen);
+                if (!$inCheck) {
+                    Log::warning('Client sent is_mate_hint but king is NOT in check — not checkmate', [
+                        'game_id' => $game->id,
+                        'fen' => $newFen,
+                        'san' => $move['san'] ?? ''
+                    ]);
+                    $isCheckmate = false;
+                }
+            }
+
             Log::info('Using client-provided game end detection', [
                 'game_id' => $game->id,
                 'is_checkmate' => $isCheckmate,

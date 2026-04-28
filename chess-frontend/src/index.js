@@ -1,5 +1,9 @@
+import './sentry';
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import * as Sentry from '@sentry/react';
+import { HelmetProvider } from 'react-helmet-async';
 import './index.css';
 import App from './App';
 
@@ -18,6 +22,10 @@ root.render(
   // StrictMode disabled to prevent double score updates in development
   // TODO: Re-enable after implementing proper deduplication
   // <React.StrictMode>
-    <App />
+    <HelmetProvider>
+      <Sentry.ErrorBoundary fallback={<p style={{color:'#fff',textAlign:'center',marginTop:'40vh'}}>Something went wrong. Please refresh the page.</p>}>
+        <App />
+      </Sentry.ErrorBoundary>
+    </HelmetProvider>
   // </React.StrictMode>
 );

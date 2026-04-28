@@ -291,6 +291,177 @@ class MatchmakingService
         return $entry;
     }
 
+    // ─── Quick Match (single-request matchmaking) ─────────────────────────
+
+    /**
+     * Synchronous quick-match: find an opponent immediately.
+     *
+     * Priority: online human (±200 ELO) → synthetic player → computer fallback flag.
+     * Creates the game and returns it in a single request (no polling needed).
+     */
+    public function quickMatch(User $user, array $preferences = []): array
+    {
+        $userRating = $user->rating ?? 1200;
+        $timeControl = $preferences['time_control_minutes'] ?? 10;
+        $increment = $preferences['increment_seconds'] ?? 0;
+        $gameMode = $preferences['game_mode'] ?? 'rated';
+
+        // 1. Try to find an online human opponent within ±200 ELO
+        $opponent = $this->findOnlineOpponent($user->id, $userRating);
+
+        if ($opponent) {
+            $game = $this->createMultiplayerGame(
+                $user->id,
+                $opponent->id,
+                $preferences['preferred_color'] ?? 'random',
+                'random',
+                $timeControl,
+                $increment,
+                $gameMode
+            );
+
+            Log::info('[MM:QUICK] Matched with online human', [
+                'user_id' => $user->id,
+                'opponent_id' => $opponent->id,
+                'game_id' => $game->id,
+            ]);
+
+            return [
+                'match_type' => 'human',
+                'game_id' => $game->id,
+                'opponent' => [
+                    'id' => $opponent->id,
+                    'name' => $opponent->name,
+                    'rating' => $opponent->rating ?? 1200,
+                    'avatar' => $opponent->google_avatar ?? $opponent->avatar,
+                ],
+                'time_control_minutes' => $timeControl,
+                'increment_seconds' => $increment,
+                'game_mode' => $gameMode,
+            ];
+        }
+
+        // 2. Try synthetic player closest to user rating
+        $bot = SyntheticPlayer::findClosestToRating($userRating);
+
+        if ($bot) {
+            $computerPlayer = $bot->getComputerPlayer();
+            $colorPref = $preferences['preferred_color'] ?? 'random';
+            $isUserWhite = $colorPref === 'random' ? (rand(0, 1) === 1) : ($colorPref === 'white');
+
+            $game = Game::create([
+                'white_player_id' => $isUserWhite ? $user->id : null,
+                'black_player_id' => $isUserWhite ? null : $user->id,
+                'computer_player_id' => $computerPlayer->id,
+                'computer_level' => $bot->computer_level,
+                'synthetic_player_id' => $bot->id,
+                'player_color' => $isUserWhite ? 'white' : 'black',
+                'game_mode' => 'casual',
+                'status' => 'active',
+                'result' => 'ongoing',
+                'turn' => 'white',
+                'fen' => 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+                'moves' => [],
+                'time_control_minutes' => $timeControl,
+                'increment_seconds' => $increment,
+            ]);
+
+            $bot->increment('games_played_count');
+
+            Log::info('[MM:QUICK] Matched with synthetic player', [
+                'user_id' => $user->id,
+                'bot_id' => $bot->id,
+                'bot_name' => $bot->name,
+                'game_id' => $game->id,
+            ]);
+
+            return [
+                'match_type' => 'synthetic',
+                'game_id' => $game->id,
+                'opponent' => [
+                    'id' => $bot->id,
+                    'name' => $bot->name,
+                    'rating' => $bot->rating,
+                    'computer_level' => $bot->computer_level,
+                    'personality' => $bot->personality,
+                    'avatar_url' => $bot->avatar_url,
+                ],
+                'time_control_minutes' => $timeControl,
+                'increment_seconds' => $increment,
+                'game_mode' => 'casual',
+            ];
+        }
+
+        // 3. No human or synthetic — signal computer fallback
+        Log::info('[MM:QUICK] No opponent found — computer fallback', [
+            'user_id' => $user->id,
+            'user_rating' => $userRating,
+        ]);
+
+        return [
+            'match_type' => 'computer_fallback',
+            'game_id' => null,
+            'message' => 'No online players or AI opponents available. Start a computer game instead.',
+            'time_control_minutes' => $timeControl,
+            'increment_seconds' => $increment,
+        ];
+    }
+
+    /**
+     * Find an online human opponent within ±200 ELO of the given rating.
+     */
+    private function findOnlineOpponent(int $userId, int $rating): ?User
+    {
+        $activeStatusId = GameStatus::where('code', 'active')->value('id');
+        $fiveMinAgo = now()->subMinutes(5);
+
+        // Users in active human-vs-human games with recent activity
+        $busyUserIds = Game::where('status_id', $activeStatusId)
+            ->whereNull('computer_player_id')
+            ->where(function ($q) use ($fiveMinAgo) {
+                $q->where('last_move_at', '>=', $fiveMinAgo)
+                  ->orWhere('created_at', '>=', $fiveMinAgo);
+            })
+            ->selectRaw('white_player_id as uid')
+            ->whereNotNull('white_player_id')
+            ->union(
+                Game::where('status_id', $activeStatusId)
+                    ->whereNull('computer_player_id')
+                    ->where(function ($q) use ($fiveMinAgo) {
+                        $q->where('last_move_at', '>=', $fiveMinAgo)
+                          ->orWhere('created_at', '>=', $fiveMinAgo);
+                    })
+                    ->selectRaw('black_player_id as uid')
+                    ->whereNotNull('black_player_id')
+            );
+        $busyIds = DB::table(DB::raw("({$busyUserIds->toSql()}) as active_players"))
+            ->mergeBindings($busyUserIds->getQuery())
+            ->pluck('uid')
+            ->toArray();
+
+        // Online users via presence
+        $onlineUserIds = UserPresence::whereIn('status', ['online', 'away'])
+            ->where('last_activity', '>=', now()->subMinutes(5))
+            ->pluck('user_id')
+            ->toArray();
+
+        // Also include users in the matchmaking queue (actively searching)
+        $queueUserIds = MatchmakingEntry::where('status', 'searching')
+            ->where('user_id', '!=', $userId)
+            ->where('expires_at', '>=', now())
+            ->pluck('user_id')
+            ->toArray();
+
+        $candidatePool = array_unique(array_merge($onlineUserIds, $queueUserIds));
+
+        return User::where('id', '!=', $userId)
+            ->whereIn('id', $candidatePool)
+            ->whereNotIn('id', $busyIds)
+            ->whereBetween('rating', [$rating - 200, $rating + 200])
+            ->inRandomOrder()
+            ->first();
+    }
+
     // ─── Smart Real-User Matchmaking ────────────────────────────────────────
 
     /**

@@ -114,6 +114,13 @@ return Application::configure(basePath: dirname(__DIR__))
         });
     })
     ->withExceptions(function (Exceptions $exceptions) {
+        // Report all exceptions to Sentry (no-op if DSN is not set)
+        $exceptions->reportable(function (Throwable $e) {
+            if (app()->bound('sentry')) {
+                Sentry\Laravel\Integration::captureUnhandledException($e);
+            }
+        });
+
         // Handle authentication exceptions for API routes
         $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, Illuminate\Http\Request $request) {
             if ($request->is('api/*')) {

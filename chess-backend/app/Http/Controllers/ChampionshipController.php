@@ -1147,6 +1147,16 @@ class ChampionshipController extends Controller
 
             $championship = Championship::findOrFail($id);
 
+            // Require mobile number before tournament registration
+            if (!$user->hasTournamentContactInfo()) {
+                return response()->json([
+                    'error'           => 'Mobile number required',
+                    'code'            => 'MOBILE_REQUIRED',
+                    'requires_mobile' => true,
+                    'message'         => 'Please add your mobile number before registering for a tournament.',
+                ], 422);
+            }
+
             // Duplicate-registration check must return 409 Conflict,
             // separate from other 422 eligibility failures.
             if ($championship->isUserRegistered($user->id)) {
@@ -1329,6 +1339,16 @@ class ChampionshipController extends Controller
             }
 
             $championship = Championship::findOrFail($id);
+
+            // Require mobile number before tournament registration
+            if (!$user->hasTournamentContactInfo()) {
+                return response()->json([
+                    'error'           => 'Mobile number required',
+                    'code'            => 'MOBILE_REQUIRED',
+                    'requires_mobile' => true,
+                    'message'         => 'Please add your mobile number before registering for a tournament.',
+                ], 422);
+            }
 
             // Duplicate-registration check must return 409 Conflict.
             if ($championship->isUserRegistered($user->id)) {

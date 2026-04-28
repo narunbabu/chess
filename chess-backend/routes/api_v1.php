@@ -31,6 +31,8 @@ use App\Http\Controllers\HealthController;
 use App\Http\Controllers\LobbyController;
 use App\Http\Controllers\MatchmakingController;
 use App\Http\Controllers\LeaderboardController;
+use App\Http\Controllers\AmbassadorController;
+use App\Http\Controllers\FriendController;
 use App\Http\Controllers\TacticalProgressController;
 use Illuminate\Support\Facades\Route;
 
@@ -47,6 +49,7 @@ Route::prefix('auth')->middleware('throttle:mobile-auth')->group(function () {
     // Mobile OAuth
     Route::post('google/mobile', [AuthController::class, 'googleMobileLogin']);
     Route::post('apple/mobile', [AuthController::class, 'appleMobileLogin']);
+    Route::post('facebook/mobile', [AuthController::class, 'facebookMobileLogin']);
 
     // Token management (authenticated)
     Route::middleware('auth:sanctum')->group(function () {
@@ -62,6 +65,7 @@ Route::prefix('auth')->middleware('throttle:mobile-auth')->group(function () {
 // ─── Public routes ────────────────────────────────────────────────────────────
 Route::get('/users', [UserController::class, 'index']);
 Route::get('/leaderboard', [LeaderboardController::class, 'index']);
+Route::get('/public/games/{id}', [GameController::class, 'publicShow']);
 
 // ─── Protected routes ─────────────────────────────────────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
@@ -82,17 +86,22 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/preferences', [EmailPreferenceController::class, 'apiUpdatePreferences']);
     });
 
-    // ── Profile & Friends ─────────────────────────────────────────────────
+    // ── Profile ─────────────────────────────────────────────────────────
     Route::post('/profile', [UserController::class, 'updateProfile']);
-    Route::get('/friends', [UserController::class, 'getFriends']);
-    Route::post('/friends/{friendId}', [UserController::class, 'addFriend']);
-    Route::delete('/friends/{friendId}', [UserController::class, 'removeFriend']);
-    Route::get('/friends/pending', [UserController::class, 'getPendingRequests']);
-    Route::post('/friends/{requesterId}/accept', [UserController::class, 'acceptRequest']);
-    Route::delete('/friends/{requesterId}/reject', [UserController::class, 'rejectRequest']);
+    Route::post('/profile/tournament-contact', [UserController::class, 'updateTournamentContact']);
+
+    // ── Friends (FriendController) ──────────────────────────────────────
+    Route::prefix('friends')->group(function () {
+        Route::get('/', [FriendController::class, 'list']);
+        Route::post('/', [FriendController::class, 'send']);
+        Route::get('/pending', [FriendController::class, 'pending']);
+        Route::post('/{requesterId}/accept', [FriendController::class, 'accept']);
+        Route::delete('/{requesterId}/reject', [FriendController::class, 'reject']);
+        Route::delete('/{friendId}', [FriendController::class, 'remove']);
+    });
 
     // ── Invitations ───────────────────────────────────────────────────────
-    Route::post('/invitations/send', [InvitationController::class, 'send']);
+    Route::post('/invitations/send', [InvitationController::class, 'send'])->middleware('throttle:game-actions');
     Route::post('/invitations/{id}/respond', [InvitationController::class, 'respond']);
     Route::get('/invitations/pending', [InvitationController::class, 'pending']);
     Route::get('/invitations/sent', [InvitationController::class, 'sent']);
@@ -101,12 +110,13 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // ── Games ─────────────────────────────────────────────────────────────
     Route::get('/games/daily-quota', [GameController::class, 'dailyQuota']);
-    Route::post('/games', [GameController::class, 'create']);
-    Route::post('/games/computer', [GameController::class, 'createComputerGame']);
+    Route::post('/games', [GameController::class, 'create'])->middleware('throttle:game-actions');
+    Route::post('/games/computer', [GameController::class, 'createComputerGame'])->middleware('throttle:game-actions');
     Route::get('/games/active', [GameController::class, 'activeGames']);
     Route::get('/games/unfinished', [GameController::class, 'unfinishedGames']);
     Route::post('/games/create-from-unfinished', [GameController::class, 'createFromUnfinished']);
     Route::get('/games/{id}', [GameController::class, 'show']);
+    Route::get('/games/{id}/pgn', [GameController::class, 'pgn']);
     Route::get('/games/{id}/moves', [GameController::class, 'moves']);
     Route::post('/games/{id}/move', [GameController::class, 'move']);
     Route::post('/games/{id}/resign', [GameController::class, 'resign']);
@@ -245,7 +255,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // ── Matchmaking ──────────────────────────────────────────────────────
     Route::prefix('matchmaking')->group(function () {
-        Route::post('/join', [MatchmakingController::class, 'join']);
+        Route::post('/quick-match', [MatchmakingController::class, 'quickMatch'])->middleware('throttle:game-actions');
+        Route::post('/join', [MatchmakingController::class, 'join'])->middleware('throttle:game-actions');
         Route::get('/status/{id}', [MatchmakingController::class, 'status']);
         Route::delete('/cancel/{id}', [MatchmakingController::class, 'cancel']);
 
@@ -332,12 +343,23 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/health', [\App\Http\Controllers\TournamentAdminController::class, 'getSystemHealth']);
     });
 
+    // ── Ambassador Program ────────────────────────────────────────────────
+    Route::prefix('ambassador')->group(function () {
+        Route::get('/dashboard', [AmbassadorController::class, 'dashboard']);
+        Route::post('/self-assign', [AmbassadorController::class, 'selfAssign']);
+        Route::post('/payout-request', [AmbassadorController::class, 'payoutRequest']);
+        Route::get('/payout-requests', [AmbassadorController::class, 'payoutHistory']);
+    });
+
     // ── Organizations ─────────────────────────────────────────────────────
     Route::prefix('organizations')->group(function () {
         // User self-service: search, join, leave
         Route::get('/search', [\App\Http\Controllers\OrganizationController::class, 'searchSchools']);
         Route::post('/{id}/join', [\App\Http\Controllers\OrganizationController::class, 'joinSchool']);
         Route::post('/leave', [\App\Http\Controllers\OrganizationController::class, 'leaveSchool']);
+        Route::get('/my-invitations', [\App\Http\Controllers\OrganizationController::class, 'myInvitations']);
+        Route::post('/invitations/{invitationId}/accept', [\App\Http\Controllers\OrganizationController::class, 'acceptInvitation']);
+        Route::post('/invitations/{invitationId}/reject', [\App\Http\Controllers\OrganizationController::class, 'rejectInvitation']);
 
         // Admin CRUD
         Route::get('/', [\App\Http\Controllers\OrganizationController::class, 'index']);
@@ -348,6 +370,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/{id}/members', [\App\Http\Controllers\OrganizationController::class, 'members']);
         Route::post('/{id}/members', [\App\Http\Controllers\OrganizationController::class, 'addMember']);
         Route::delete('/{organizationId}/members/{userId}', [\App\Http\Controllers\OrganizationController::class, 'removeMember']);
+        Route::post('/{id}/invitations', [\App\Http\Controllers\OrganizationController::class, 'invite']);
+        Route::get('/{id}/invitations', [\App\Http\Controllers\OrganizationController::class, 'invitations']);
+        Route::delete('/{id}/invitations/{invitationId}', [\App\Http\Controllers\OrganizationController::class, 'cancelInvitation']);
     });
 });
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { useAuth } from '../contexts/AuthContext';
 import { trackSocial } from '../utils/analytics';
 import api from '../services/api';
@@ -16,6 +17,7 @@ import PlayersList from '../components/lobby/PlayersList';
 import ChallengeModal from '../components/lobby/ChallengeModal';
 import FriendsList from '../components/lobby/FriendsList';
 import MatchmakingQueue from '../components/lobby/MatchmakingQueue';
+import PlayOnlineButton from '../components/play/PlayOnlineButton';
 import FriendSearch from '../components/lobby/FriendSearch';
 
 const LobbyPage = () => {
@@ -549,6 +551,16 @@ const LobbyPage = () => {
 
   return (
     <>
+      <Helmet>
+        <title>Game Lobby — Chess99 | Find Opponents & Play Online</title>
+        <meta name="description" content="Join the Chess99 lobby to find opponents, challenge friends, and start multiplayer chess games online." />
+        <meta property="og:title" content="Game Lobby — Chess99" />
+        <meta property="og:description" content="Find opponents and start multiplayer chess games on Chess99." />
+        <meta property="og:image" content="https://chess99.com/og-image.png" />
+        <meta property="og:url" content="https://chess99.com/lobby" />
+        <meta property="og:type" content="website" />
+        <link rel="canonical" href="https://chess99.com/lobby" />
+      </Helmet>
       <div className="lobby-container" ref={lobbyContainerRef}>
         <div className="lobby p-6 text-white">
         {/* Resume requests and invitations are now handled by GlobalInvitationDialog */}
@@ -701,14 +713,7 @@ const LobbyPage = () => {
         {/* Hero Section — Play Online + Play Friends */}
         <div className="lobby-hero">
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button
-              className="lobby-hero-btn"
-              disabled={showMatchmaking}
-              onClick={() => setShowMatchmaking(true)}
-              style={showMatchmaking ? { opacity: 0.6, cursor: 'not-allowed' } : {}}
-            >
-              {showMatchmaking ? 'Finding Match…' : 'Play Online'}
-            </button>
+            <PlayOnlineButton variant="hero" />
             <button
               className="lobby-hero-btn"
               onClick={() => setShowFriendSearch(prev => !prev)}

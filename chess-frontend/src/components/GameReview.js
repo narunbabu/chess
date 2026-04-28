@@ -5,6 +5,7 @@ import { useLocation, useNavigate, useParams, useSearchParams } from "react-rout
 import { getGameHistoryById } from "../services/gameHistoryService";
 import api from "../services/api";
 import GameEndCard from "./GameEndCard";
+import PostGameAnalysis from "./PostGameAnalysis";
 import { isWin, isDraw } from "../utils/resultStandardization";
 import { useAuth } from "../contexts/AuthContext";
 import BoardCustomizer, { getBoardTheme, getPieceStyle } from './play/BoardCustomizer';
@@ -907,10 +908,33 @@ const GameReview = () => {
     ];
     if (openingName) headers.push(`[Opening "${openingName}"]`);
 
-    return headers.join('\n') + '\n\n' + pgnGame.pgn() + ' ' + resultStr + '\n';
+    // chess.js pgn() includes its own headers — strip them to avoid duplicates
+    const rawPgn = pgnGame.pgn();
+    const moveText = rawPgn.replace(/\[.*\]\n?/g, '').trim();
+
+    return headers.join('\n') + '\n\n' + moveText + ' ' + resultStr + '\n';
   }, [gameHistory, user, openingName]);
 
-  const handleDownloadPgn = useCallback(() => {
+  const handleDownloadPgn = useCallback(async () => {
+    // Try backend PGN endpoint first, fallback to client-side generation
+    const gameId = gameHistory.id || gameHistory.game_id;
+    if (gameId) {
+      try {
+        const res = await api.get(`/api/v1/games/${gameId}/pgn`, { responseType: 'text' });
+        const blob = new Blob([res.data], { type: 'application/x-chess-pgn' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `chess99-game-${gameId}.pgn`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        return;
+      } catch {
+        // Fall through to client-side generation
+      }
+    }
     const pgn = generatePgn();
     const blob = new Blob([pgn], { type: 'application/x-chess-pgn' });
     const url = URL.createObjectURL(blob);
@@ -921,7 +945,7 @@ const GameReview = () => {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  }, [generatePgn, gameHistory.id]);
+  }, [generatePgn, gameHistory.id, gameHistory.game_id]);
 
   const handleCopyFen = useCallback(() => {
     const fen = game.fen();
@@ -1408,7 +1432,7 @@ const GameReview = () => {
                 <button
                   onClick={handleTestShare}
                   disabled={isTestSharing}
-                  className="flex items-center justify-center gap-1.5 bg-[#81b64c] hover:bg-[#a3d160] rounded-lg px-3 py-2.5 text-white transition-all text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="col-span-2 flex items-center justify-center gap-1.5 bg-[#81b64c] hover:bg-[#a3d160] rounded-lg px-3 py-2.5 text-white transition-all text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isTestSharing ? (
                     <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
@@ -1417,27 +1441,40 @@ const GameReview = () => {
                   )}
                   {isTestSharing ? 'Sharing...' : 'Share'}
                 </button>
-
-                {/* Analyze placeholder */}
-                <button
-                  disabled
-                  className="flex items-center justify-center gap-1.5 bg-[#262421] border border-[#3d3a37] rounded-lg px-3 py-2.5 text-[#8b8987] text-sm cursor-not-allowed relative"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-                  Analyze
-                  <span className="absolute -top-1.5 -right-1.5 bg-[#e8a93e] text-[#1a1a18] text-[9px] font-bold px-1.5 py-0.5 rounded-full">Soon</span>
-                </button>
               </div>
             </div>
 
-            {/* ─── Analysis Placeholder ─── */}
-            <div className="unified-card opacity-60">
-              <div className="flex flex-col items-center py-4 text-center">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8b8987" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mb-2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-                <p className="text-[#8b8987] text-sm">Computer analysis coming soon</p>
-                <p className="text-[#8b8987]/60 text-xs mt-1">Evaluate positions and find best moves</p>
-              </div>
-            </div>
+            {/* ─── Post-Game Analysis ─── */}
+            {gameId && (
+              <PostGameAnalysis
+                gameId={gameId}
+                onAnalysisLoaded={(data) => {
+                  if (data?.move_analyses) {
+                    const moves = Array.isArray(data.move_analyses)
+                      ? data.move_analyses
+                      : (typeof data.move_analyses === 'string' ? JSON.parse(data.move_analyses) : []);
+                    setGameHistory(prev => {
+                      if (!prev?.moves) return prev;
+                      const updated = [...prev.moves];
+                      moves.forEach((m) => {
+                        const idx = m.move_number * 2 - (m.color === 'white' ? 1 : 0);
+                        if (idx >= 0 && idx < updated.length) {
+                          updated[idx] = {
+                            ...updated[idx],
+                            evaluation: {
+                              ...(updated[idx].evaluation || {}),
+                              moveClassification: m.classification,
+                              total: m.eval_after_cp,
+                            },
+                          };
+                        }
+                      });
+                      return { ...prev, moves: updated };
+                    });
+                  }
+                }}
+              />
+            )}
           </div>
         </div>
       </div>
@@ -1486,6 +1523,7 @@ const GameReview = () => {
             isMultiplayer={gameHistory.game_mode === 'multiplayer'}
             computerLevel={gameHistory.computer_level}
             hideShareButton={true}
+            gameId={gameId || gameHistory.id || gameHistory.game_id}
           />
         </div>
       )}

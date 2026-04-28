@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Chessboard } from 'react-chessboard';
 import { Chess } from 'chess.js';
+import { Helmet } from 'react-helmet-async';
 import { useAuth } from '../contexts/AuthContext';
 import { trackUI } from '../utils/analytics';
 import AuthGateModal from '../components/layout/AuthGateModal';
@@ -102,6 +103,21 @@ const LandingPage = () => {
 
   return (
     <div data-page="landing" className="bg-[#1a1a18] w-full min-h-screen overflow-x-hidden flex flex-col">
+      <Helmet>
+        <title>Chess99 — Play Chess Online | Free Multiplayer Chess Platform</title>
+        <meta name="description" content="Play chess online for free on Chess99. Challenge players worldwide, solve tactical puzzles, learn with interactive tutorials, and compete in tournaments. India's premier chess platform." />
+        <meta property="og:title" content="Chess99 — Play Chess Online" />
+        <meta property="og:description" content="Free online chess platform with multiplayer games, puzzles, tutorials, and tournaments. Play now!" />
+        <meta property="og:image" content="https://chess99.com/og-image.png" />
+        <meta property="og:url" content="https://chess99.com/" />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="Chess99" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Chess99 — Play Chess Online" />
+        <meta name="twitter:description" content="Free online chess platform with multiplayer games, puzzles, tutorials, and tournaments." />
+        <meta name="twitter:image" content="https://chess99.com/og-image.png" />
+        <link rel="canonical" href="https://chess99.com/" />
+      </Helmet>
       {/* Minimal Header */}
       <header className="fixed top-0 inset-x-0 z-30 h-14 bg-[#262421]/95 text-white backdrop-blur-sm border-b border-[#3d3a37]/50">
         <div className="w-full h-full px-4 lg:px-8 flex items-center justify-between max-w-7xl mx-auto">

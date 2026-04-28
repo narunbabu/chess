@@ -33,6 +33,7 @@ class TournamentRegistrationTransactionTest extends TestCase
     {
         parent::setUp();
         $this->player = User::factory()->create();
+        $this->addMobileConsent($this->player);
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -85,6 +86,7 @@ class TournamentRegistrationTransactionTest extends TestCase
         $championship = $this->openChampionship(maxParticipants: 1);
 
         $firstPlayer = User::factory()->create();
+        $this->addMobileConsent($firstPlayer);
 
         // First player registers — fills the slot via HTTP (so all state is consistent)
         $this->actingAs($firstPlayer, 'sanctum')
@@ -94,6 +96,7 @@ class TournamentRegistrationTransactionTest extends TestCase
         // Second player should be rejected — 409 (duplicate) OR 422 (full)
         // Either way the registration must fail.
         $secondPlayer = User::factory()->create();
+        $this->addMobileConsent($secondPlayer);
 
         $response = $this->actingAs($secondPlayer, 'sanctum')
             ->postJson("/api/v1/championships/{$championship->id}/register");
@@ -120,6 +123,7 @@ class TournamentRegistrationTransactionTest extends TestCase
 
         // First player fills the only slot via HTTP (realistic path)
         $firstPlayer = User::factory()->create();
+        $this->addMobileConsent($firstPlayer);
         $this->actingAs($firstPlayer, 'sanctum')
             ->postJson("/api/v1/championships/{$championship->id}/register")
             ->assertStatus(201);

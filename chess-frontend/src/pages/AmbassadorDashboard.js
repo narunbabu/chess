@@ -20,6 +20,22 @@ const AmbassadorDashboard = () => {
   const [copied, setCopied] = useState(false);
   const [showQR, setShowQR] = useState(false);
 
+  // Payout request state
+  const [payoutRequests, setPayoutRequests] = useState([]);
+  const [showPayoutForm, setShowPayoutForm] = useState(false);
+  const [payoutForm, setPayoutForm] = useState({
+    amount: '',
+    payment_method: 'upi',
+    bank_account_name: '',
+    bank_account_number: '',
+    bank_ifsc: '',
+    bank_name: '',
+    upi_id: '',
+  });
+  const [payoutSubmitting, setPayoutSubmitting] = useState(false);
+  const [payoutError, setPayoutError] = useState(null);
+  const [payoutSuccess, setPayoutSuccess] = useState(null);
+
   const userIsAmbassador = isAmbassador(user);
 
   const fetchData = useCallback(async () => {
@@ -41,6 +57,70 @@ const AmbassadorDashboard = () => {
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  const fetchPayoutRequests = useCallback(async () => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/ambassador/payout-requests`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+          Accept: 'application/json',
+        },
+      });
+      if (res.ok) {
+        const json = await res.json();
+        setPayoutRequests(json.payout_requests || []);
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => { fetchPayoutRequests(); }, [fetchPayoutRequests]);
+
+  const submitPayoutRequest = async (e) => {
+    e.preventDefault();
+    setPayoutError(null);
+    setPayoutSuccess(null);
+    setPayoutSubmitting(true);
+
+    try {
+      const body = {
+        amount: parseFloat(payoutForm.amount),
+        payment_method: payoutForm.payment_method,
+      };
+      if (payoutForm.payment_method === 'bank') {
+        body.bank_account_name = payoutForm.bank_account_name;
+        body.bank_account_number = payoutForm.bank_account_number;
+        body.bank_ifsc = payoutForm.bank_ifsc;
+        if (payoutForm.bank_name) body.bank_name = payoutForm.bank_name;
+      } else {
+        body.upi_id = payoutForm.upi_id;
+      }
+
+      const res = await fetch(`${BACKEND_URL}/ambassador/payout-request`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error || `HTTP ${res.status}`);
+      }
+
+      setPayoutSuccess('Payout request submitted successfully!');
+      setPayoutForm({ amount: '', payment_method: 'upi', bank_account_name: '', bank_account_number: '', bank_ifsc: '', bank_name: '', upi_id: '' });
+      setShowPayoutForm(false);
+      fetchPayoutRequests();
+      fetchData();
+    } catch (err) {
+      setPayoutError(err.message);
+    } finally {
+      setPayoutSubmitting(false);
+    }
+  };
 
   const handleSelfEnroll = async () => {
     setEnrolling(true);
@@ -231,6 +311,161 @@ const AmbassadorDashboard = () => {
             </div>
           </div>
 
+          {/* Payout Section */}
+          <div className="bg-[#312e2b] rounded-lg p-4 mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+              <h2 className="text-lg font-semibold text-white">Payouts</h2>
+              <button
+                onClick={() => { setShowPayoutForm(!showPayoutForm); setPayoutError(null); setPayoutSuccess(null); }}
+                className="px-4 py-2 rounded bg-[#81b64c] text-white text-sm font-medium hover:bg-[#6da03d] transition"
+              >
+                {showPayoutForm ? 'Cancel' : 'Request Payout'}
+              </button>
+            </div>
+
+            {payoutSuccess && (
+              <div className="bg-[#81b64c]/20 border border-[#81b64c]/40 text-[#81b64c] rounded px-4 py-2 text-sm mb-4">{payoutSuccess}</div>
+            )}
+
+            {showPayoutForm && (
+              <form onSubmit={submitPayoutRequest} className="bg-[#262421] rounded-lg p-4 mb-4 space-y-3">
+                <div>
+                  <label className="block text-xs text-[#9b9895] mb-1">Amount (₹) — minimum ₹100</label>
+                  <input
+                    type="number"
+                    min="100"
+                    step="0.01"
+                    required
+                    value={payoutForm.amount}
+                    onChange={e => setPayoutForm(f => ({ ...f, amount: e.target.value }))}
+                    placeholder={`Max: ₹${data?.stats?.pending_earnings ?? 0}`}
+                    className="w-full bg-[#312e2b] text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-[#81b64c]"
+                  />
+                  <p className="text-xs text-[#9b9895] mt-1">Available: ₹{data?.stats?.pending_earnings ?? 0}</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs text-[#9b9895] mb-2">Payment Method</label>
+                  <div className="flex gap-3">
+                    {['upi', 'bank'].map(m => (
+                      <label key={m} className={`flex items-center gap-2 cursor-pointer px-3 py-2 rounded text-sm ${payoutForm.payment_method === m ? 'bg-[#81b64c]/20 text-[#81b64c] ring-1 ring-[#81b64c]' : 'bg-[#312e2b] text-[#bababa]'}`}>
+                        <input
+                          type="radio"
+                          name="payment_method"
+                          value={m}
+                          checked={payoutForm.payment_method === m}
+                          onChange={e => setPayoutForm(f => ({ ...f, payment_method: e.target.value }))}
+                          className="accent-[#81b64c]"
+                        />
+                        {m === 'upi' ? 'UPI' : 'Bank Transfer'}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {payoutForm.payment_method === 'upi' ? (
+                  <div>
+                    <label className="block text-xs text-[#9b9895] mb-1">UPI ID</label>
+                    <input
+                      type="text"
+                      required
+                      value={payoutForm.upi_id}
+                      onChange={e => setPayoutForm(f => ({ ...f, upi_id: e.target.value }))}
+                      placeholder="yourname@upi"
+                      className="w-full bg-[#312e2b] text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-[#81b64c]"
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs text-[#9b9895] mb-1">Account Holder Name</label>
+                      <input
+                        type="text"
+                        required
+                        value={payoutForm.bank_account_name}
+                        onChange={e => setPayoutForm(f => ({ ...f, bank_account_name: e.target.value }))}
+                        className="w-full bg-[#312e2b] text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-[#81b64c]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-[#9b9895] mb-1">Account Number</label>
+                      <input
+                        type="text"
+                        required
+                        value={payoutForm.bank_account_number}
+                        onChange={e => setPayoutForm(f => ({ ...f, bank_account_number: e.target.value }))}
+                        className="w-full bg-[#312e2b] text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-[#81b64c]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-[#9b9895] mb-1">IFSC Code</label>
+                      <input
+                        type="text"
+                        required
+                        value={payoutForm.bank_ifsc}
+                        onChange={e => setPayoutForm(f => ({ ...f, bank_ifsc: e.target.value }))}
+                        className="w-full bg-[#312e2b] text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-[#81b64c]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-[#9b9895] mb-1">Bank Name (optional)</label>
+                      <input
+                        type="text"
+                        value={payoutForm.bank_name}
+                        onChange={e => setPayoutForm(f => ({ ...f, bank_name: e.target.value }))}
+                        className="w-full bg-[#312e2b] text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-[#81b64c]"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {payoutError && <p className="text-red-400 text-sm">{payoutError}</p>}
+
+                <button
+                  type="submit"
+                  disabled={payoutSubmitting}
+                  className="w-full py-2.5 rounded bg-[#81b64c] text-white font-semibold text-sm hover:bg-[#6da03d] disabled:opacity-50 transition"
+                >
+                  {payoutSubmitting ? 'Submitting...' : 'Submit Payout Request'}
+                </button>
+              </form>
+            )}
+
+            {/* Payout History */}
+            {payoutRequests.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-[#9b9895] border-b border-[#464340]">
+                      <th className="py-2 pr-4">Date</th>
+                      <th className="py-2 pr-4">Amount</th>
+                      <th className="py-2 pr-4">Method</th>
+                      <th className="py-2 pr-4">Details</th>
+                      <th className="py-2">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {payoutRequests.map(pr => (
+                      <tr key={pr.id} className="border-b border-[#3d3a36]">
+                        <td className="py-2 pr-4 text-[#bababa]">{new Date(pr.created_at).toLocaleDateString()}</td>
+                        <td className="py-2 pr-4 text-white font-mono">₹{Number(pr.amount).toFixed(2)}</td>
+                        <td className="py-2 pr-4 text-[#bababa]">{pr.payment_method === 'upi' ? 'UPI' : 'Bank'}</td>
+                        <td className="py-2 pr-4 text-[#9b9895] text-xs font-mono">
+                          {pr.payment_method === 'upi' ? pr.upi_id : `****${(pr.bank_account_number || '').slice(-4)}`}
+                        </td>
+                        <td className="py-2">
+                          <StatusBadge status={pr.status} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-[#9b9895] text-sm">No payout requests yet.</p>
+            )}
+          </div>
+
           {/* Share Section */}
           <div className="bg-[#312e2b] rounded-lg p-4 mb-6">
             <h2 className="text-lg font-semibold text-white mb-3">Your Referral Link</h2>
@@ -359,6 +594,19 @@ const StatCard = ({ label, value, color }) => (
     <p className="text-[#9b9895] text-xs mb-1">{label}</p>
     <p className="text-2xl font-bold text-white">{value}</p>
   </div>
+);
+
+const STATUS_STYLES = {
+  pending: 'bg-[#e8a93e]/20 text-[#e8a93e]',
+  approved: 'bg-[#5ba4cf]/20 text-[#5ba4cf]',
+  paid: 'bg-[#81b64c]/20 text-[#81b64c]',
+  rejected: 'bg-red-900/20 text-red-400',
+};
+
+const StatusBadge = ({ status }) => (
+  <span className={`text-xs px-2 py-0.5 rounded ${STATUS_STYLES[status] || 'bg-[#464340] text-[#9b9895]'}`}>
+    {status.charAt(0).toUpperCase() + status.slice(1)}
+  </span>
 );
 
 export default AmbassadorDashboard;

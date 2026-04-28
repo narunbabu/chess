@@ -31,7 +31,8 @@ const GameEndCard = React.forwardRef(({
   championshipData = null, // Championship info: { tournamentName, round, matchId, standing, points }
   onClose = null, // Close handler for the card
   sharePlayerName = null, // Custom player name for sharing (guest users)
-  hideShareButton = false // Hide share button when card is used for capturing only
+  hideShareButton = false, // Hide share button when card is used for capturing only
+  gameId = null, // Game ID for generating replay link
 }, forwardedRef) => {
   const internalRef = useRef(null);
   const cardRef = forwardedRef || internalRef;
@@ -39,6 +40,28 @@ const GameEndCard = React.forwardRef(({
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareImageUrl, setShareImageUrl] = useState(null);
   const [showRatingInfo, setShowRatingInfo] = useState(false);
+  const [copiedReplayLink, setCopiedReplayLink] = useState(false);
+
+  const effectiveGameId = gameId || result?.id || result?.game_id;
+  const replayLink = effectiveGameId ? `${window.location.origin}/games/${effectiveGameId}/replay` : null;
+
+  const handleCopyReplayLink = async () => {
+    if (!replayLink) return;
+    try {
+      await navigator.clipboard.writeText(replayLink);
+      setCopiedReplayLink(true);
+      setTimeout(() => setCopiedReplayLink(false), 2000);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = replayLink;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      setCopiedReplayLink(true);
+      setTimeout(() => setCopiedReplayLink(false), 2000);
+    }
+  };
 
   const {
     isPlayerWin,
@@ -1121,6 +1144,27 @@ const handleShare = async () => {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Share Replay Link */}
+        {replayLink && !hideShareButton && (
+          <div className="mt-2 mb-1">
+            <button
+              onClick={handleCopyReplayLink}
+              className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-sm font-semibold transition-all"
+              style={{
+                backgroundColor: copiedReplayLink ? 'rgba(129,182,76,0.2)' : 'rgba(255,255,255,0.1)',
+                border: copiedReplayLink ? '1px solid rgba(129,182,76,0.4)' : '1px solid rgba(255,255,255,0.15)',
+                color: copiedReplayLink ? '#a3d160' : 'rgba(255,255,255,0.8)',
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+              </svg>
+              {copiedReplayLink ? 'Replay Link Copied!' : 'Share Replay Link'}
+            </button>
           </div>
         )}
 

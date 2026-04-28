@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Organization;
+use App\Models\OrganizationInvitation;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -26,6 +27,11 @@ class OrganizationController extends Controller
             $this->authorize('viewAny', Organization::class);
 
             $query = Organization::query();
+
+            // Non-admins only see approved orgs
+            if (!$request->user()->hasRole('platform_admin')) {
+                $query->where('status', 'approved');
+            }
 
             // Filter by active status
             if ($request->has('active')) {
@@ -609,6 +615,407 @@ class OrganizationController extends Controller
 
             return response()->json([
                 'error' => 'Failed to remove user from organization',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Invite a user by email to the organization
+     */
+    public function invite(Request $request, int $id): JsonResponse
+    {
+        try {
+            $organization = Organization::findOrFail($id);
+            $this->authorize('manageUsers', $organization);
+
+            $validator = Validator::make($request->all(), [
+                'email' => ['required', 'email', 'max:255'],
+                'role' => ['nullable', 'string', 'in:member,organization_admin'],
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'error' => 'Validation failed',
+                    'messages' => $validator->errors(),
+                ], 422);
+            }
+
+            $email = strtolower($request->input('email'));
+
+            // Don't invite yourself
+            if ($email === strtolower(Auth::user()->email)) {
+                return response()->json(['error' => 'You cannot invite yourself'], 422);
+            }
+
+            // Check for existing pending invitation
+            $existing = OrganizationInvitation::where('organization_id', $organization->id)
+                ->where('email', $email)
+                ->where('status', 'pending')
+                ->where('expires_at', '>', now())
+                ->first();
+
+            if ($existing) {
+                return response()->json([
+                    'error' => 'An invitation is already pending for this email',
+                ], 422);
+            }
+
+            // Look up user by email
+            $targetUser = User::where('email', $email)->first();
+
+            // Check if user is already a member
+            if ($targetUser && $targetUser->organization_id === $organization->id) {
+                return response()->json(['error' => 'User is already a member of this organization'], 422);
+            }
+
+            // Check if user belongs to another org
+            if ($targetUser && $targetUser->organization_id) {
+                return response()->json([
+                    'error' => 'This user already belongs to another organization',
+                ], 422);
+            }
+
+            $invitation = OrganizationInvitation::create([
+                'organization_id' => $organization->id,
+                'invited_by' => Auth::id(),
+                'email' => $email,
+                'user_id' => $targetUser?->id,
+                'role' => $request->input('role', 'member'),
+            ]);
+
+            Log::info('Organization invitation sent', [
+                'organization_id' => $organization->id,
+                'email' => $email,
+                'invited_by' => Auth::id(),
+            ]);
+
+            return response()->json([
+                'message' => 'Invitation sent successfully',
+                'invitation' => $invitation->load('inviter:id,name,email'),
+            ], 201);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            return response()->json(['error' => 'You do not have permission to invite members'], 403);
+        } catch (\Exception $e) {
+            Log::error('Organization invitation failed', [
+                'organization_id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+            return response()->json(['error' => 'Failed to send invitation'], 500);
+        }
+    }
+
+    /**
+     * List pending invitations for an organization
+     */
+    public function invitations(int $id): JsonResponse
+    {
+        try {
+            $organization = Organization::findOrFail($id);
+            $this->authorize('view', $organization);
+
+            $invitations = OrganizationInvitation::where('organization_id', $id)
+                ->with('inviter:id,name,email')
+                ->orderBy('created_at', 'desc')
+                ->paginate(20);
+
+            return response()->json([
+                'invitations' => $invitations,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to fetch invitations'], 500);
+        }
+    }
+
+    /**
+     * Cancel a pending invitation
+     */
+    public function cancelInvitation(int $id, int $invitationId): JsonResponse
+    {
+        try {
+            $organization = Organization::findOrFail($id);
+            $this->authorize('manageUsers', $organization);
+
+            $invitation = OrganizationInvitation::where('organization_id', $id)
+                ->where('id', $invitationId)
+                ->where('status', 'pending')
+                ->firstOrFail();
+
+            $invitation->update(['status' => 'cancelled', 'responded_at' => now()]);
+
+            return response()->json(['message' => 'Invitation cancelled']);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to cancel invitation'], 500);
+        }
+    }
+
+    /**
+     * Get pending invitations for the authenticated user
+     */
+    public function myInvitations(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $invitations = OrganizationInvitation::where(function ($q) use ($user) {
+            $q->where('user_id', $user->id)
+              ->orWhere('email', $user->email);
+        })
+            ->where('status', 'pending')
+            ->where('expires_at', '>', now())
+            ->with(['organization:id,name,type,logo_url', 'inviter:id,name,email'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json(['invitations' => $invitations]);
+    }
+
+    /**
+     * Accept an organization invitation
+     */
+    public function acceptInvitation(Request $request, int $invitationId): JsonResponse
+    {
+        try {
+            $user = $request->user();
+
+            $invitation = OrganizationInvitation::where('id', $invitationId)
+                ->where('status', 'pending')
+                ->where('expires_at', '>', now())
+                ->where(function ($q) use ($user) {
+                    $q->where('user_id', $user->id)
+                      ->orWhere('email', $user->email);
+                })
+                ->firstOrFail();
+
+            if ($user->organization_id) {
+                return response()->json([
+                    'error' => 'You already belong to an organization. Leave it first.',
+                ], 422);
+            }
+
+            DB::beginTransaction();
+            $invitation->update(['status' => 'accepted', 'responded_at' => now(), 'user_id' => $user->id]);
+            $user->organization_id = $invitation->organization_id;
+            $user->save();
+            DB::commit();
+
+            Log::info('Organization invitation accepted', [
+                'invitation_id' => $invitation->id,
+                'user_id' => $user->id,
+                'organization_id' => $invitation->organization_id,
+            ]);
+
+            return response()->json([
+                'message' => 'You have joined ' . $invitation->organization->name,
+                'organization' => $invitation->organization->only(['id', 'name', 'type']),
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['error' => 'Invitation not found or expired'], 404);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Accept organization invitation failed', ['error' => $e->getMessage()]);
+            return response()->json(['error' => 'Failed to accept invitation'], 500);
+        }
+    }
+
+    /**
+     * Reject an organization invitation
+     */
+    public function rejectInvitation(Request $request, int $invitationId): JsonResponse
+    {
+        try {
+            $user = $request->user();
+
+            $invitation = OrganizationInvitation::where('id', $invitationId)
+                ->where('status', 'pending')
+                ->where(function ($q) use ($user) {
+                    $q->where('user_id', $user->id)
+                      ->orWhere('email', $user->email);
+                })
+                ->firstOrFail();
+
+            $invitation->update(['status' => 'rejected', 'responded_at' => now(), 'user_id' => $user->id]);
+
+            return response()->json(['message' => 'Invitation rejected']);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['error' => 'Invitation not found or expired'], 404);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to reject invitation'], 500);
+        }
+    }
+
+    /**
+     * Request a new organization (creates with status=pending)
+     */
+    public function requestOrganization(Request $request): JsonResponse
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'name' => ['required', 'string', 'max:255', 'unique:organizations,name'],
+                'type' => ['required', 'string', 'in:club,school,federation,company,community,other'],
+                'city' => ['nullable', 'string', 'max:100'],
+                'state' => ['nullable', 'string', 'max:100'],
+                'website' => ['nullable', 'url', 'max:255'],
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'error' => 'Validation failed',
+                    'messages' => $validator->errors(),
+                ], 422);
+            }
+
+            $user = $request->user();
+
+            if ($user->organization_id) {
+                return response()->json([
+                    'error' => 'You are already affiliated with an organization',
+                ], 422);
+            }
+
+            $organization = Organization::create([
+                'name' => $request->input('name'),
+                'type' => $request->input('type'),
+                'city' => $request->input('city'),
+                'state' => $request->input('state'),
+                'website' => $request->input('website'),
+                'status' => 'pending',
+                'is_active' => false,
+                'requested_by' => $user->id,
+                'created_by' => $user->id,
+            ]);
+
+            Log::info('Organization request submitted', [
+                'organization_id' => $organization->id,
+                'name' => $organization->name,
+                'requested_by' => $user->id,
+            ]);
+
+            return response()->json([
+                'message' => 'Organization request submitted successfully',
+                'organization' => $organization,
+            ], 201);
+        } catch (\Exception $e) {
+            Log::error('Organization request failed', [
+                'error' => $e->getMessage(),
+                'user_id' => $request->user()?->id,
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to submit organization request',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * List pending organization requests (admin only)
+     */
+    public function pendingRequests(Request $request): JsonResponse
+    {
+        try {
+            $organizations = Organization::pending()
+                ->with(['requester:id,name,email', 'creator:id,name,email'])
+                ->orderBy('created_at', 'desc')
+                ->paginate($request->input('per_page', 15));
+
+            return response()->json($organizations);
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch pending organizations', ['error' => $e->getMessage()]);
+
+            return response()->json([
+                'error' => 'Failed to fetch pending organization requests',
+            ], 500);
+        }
+    }
+
+    /**
+     * Approve a pending organization request (admin only)
+     */
+    public function approveRequest(int $id): JsonResponse
+    {
+        try {
+            $organization = Organization::where('status', 'pending')->findOrFail($id);
+
+            DB::beginTransaction();
+
+            $organization->update([
+                'status' => 'approved',
+                'is_active' => true,
+            ]);
+
+            // Auto-assign requester as org admin
+            $requester = User::find($organization->requested_by);
+            if ($requester) {
+                $requester->organization_id = $organization->id;
+                $requester->save();
+
+                if (!$requester->hasRole('organization_admin')) {
+                    $requester->assignRole('organization_admin');
+                }
+            }
+
+            DB::commit();
+
+            Log::info('Organization request approved', [
+                'organization_id' => $organization->id,
+                'name' => $organization->name,
+                'approved_by' => Auth::id(),
+            ]);
+
+            return response()->json([
+                'message' => 'Organization approved successfully',
+                'organization' => $organization->fresh()->load('requester:id,name,email'),
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['error' => 'Pending organization not found'], 404);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Organization approval failed', [
+                'organization_id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to approve organization',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Reject a pending organization request (admin only)
+     */
+    public function rejectRequest(Request $request, int $id): JsonResponse
+    {
+        try {
+            $organization = Organization::where('status', 'pending')->findOrFail($id);
+
+            $organization->update([
+                'status' => 'rejected',
+                'is_active' => false,
+            ]);
+
+            Log::info('Organization request rejected', [
+                'organization_id' => $organization->id,
+                'name' => $organization->name,
+                'rejected_by' => Auth::id(),
+                'reason' => $request->input('reason'),
+            ]);
+
+            return response()->json([
+                'message' => 'Organization request rejected',
+                'organization' => $organization->fresh(),
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['error' => 'Pending organization not found'], 404);
+        } catch (\Exception $e) {
+            Log::error('Organization rejection failed', [
+                'organization_id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to reject organization',
                 'message' => $e->getMessage(),
             ], 500);
         }

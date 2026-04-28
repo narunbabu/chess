@@ -52,34 +52,55 @@ class UserController extends Controller
         $user = $request->user();
         \Log::info('User authenticated:', ['id' => $user->id, 'name' => $user->name]);
 
-        // Debug request details
-        \Log::info('Request details:', [
-            'method' => $request->method(),
-            'content_type' => $request->header('Content-Type'),
-            'content_length' => $request->header('Content-Length'),
-            'all_input' => $request->input(),
-            'all_files' => $request->allFiles(),
-            'request_data' => $request->all()
-        ]);
-
-        // Log incoming request data
-        \Log::info('Profile update request:', [
-            'user_id' => $user->id,
-            'has_name' => $request->has('name'),
-            'name_value' => $request->input('name'),
-            'has_avatar_file' => $request->hasFile('avatar'),
-            'all_files' => $request->allFiles(),
-            'all_data' => $request->all()
-        ]);
 
         $validated = $request->validate([
             'name' => 'sometimes|string|max:255',
             'avatar' => 'sometimes|image|mimes:jpeg,png,jpg,gif|max:2048',
             'avatar_url' => 'sometimes|string|url|max:500',
             'birthday' => 'sometimes|nullable|date|before:today|after:1950-01-01',
-            'class_of_study' => 'sometimes|nullable|integer|min:1|max:12',
+            'class_of_study' => 'sometimes|nullable|string|in:Class 1,Class 2,Class 3,Class 4,Class 5,Class 6,Class 7,Class 8,Class 9,Class 10,Class 11,Class 12,Undergraduate,Postgraduate/Masters,PhD/Research,Working Professional,Senior/Retired,Other',
             'board_theme' => 'sometimes|string|max:30',
+            'mobile_country_code' => 'sometimes|nullable|string|max:8',
+            'mobile_number' => 'sometimes|nullable|string|max:30',
+            'tournament_contact_consent' => 'sometimes|boolean',
+            'whatsapp_updates_opt_in' => 'sometimes|boolean',
         ]);
+
+        // Normalize mobile_number: strip spaces, hyphens, parens — digits only
+        if (array_key_exists('mobile_number', $validated) && !empty($validated['mobile_number'])) {
+            $normalized = preg_replace('/[^0-9]/', '', $validated['mobile_number']);
+            $countryCode = $validated['mobile_country_code'] ?? $user->mobile_country_code;
+
+            if ($countryCode === '+91') {
+                if (strlen($normalized) !== 10) {
+                    return response()->json([
+                        'message' => 'Indian mobile numbers must be exactly 10 digits.',
+                    ], 422);
+                }
+            } elseif (strlen($normalized) < 6 || strlen($normalized) > 15) {
+                return response()->json([
+                    'message' => 'Mobile number must be between 6 and 15 digits.',
+                ], 422);
+            }
+
+            $validated['mobile_number'] = $normalized;
+        }
+
+        // Handle mobile fields
+        if (array_key_exists('mobile_country_code', $validated)) {
+            $user->mobile_country_code = $validated['mobile_country_code'];
+        }
+        if (array_key_exists('mobile_number', $validated)) {
+            $user->mobile_number = $validated['mobile_number'];
+        }
+        if (array_key_exists('whatsapp_updates_opt_in', $validated)) {
+            $user->whatsapp_updates_opt_in = $validated['whatsapp_updates_opt_in'];
+        }
+
+        // Set consent timestamp only when toggling ON and not already set
+        if ($request->boolean('tournament_contact_consent') && !$user->tournament_contact_consent_at) {
+            $user->tournament_contact_consent_at = now();
+        }
 
         // Update name if provided
         if (isset($validated['name'])) {
@@ -305,6 +326,56 @@ class UserController extends Controller
             ->update(['status' => 'accepted']);
 
         return response()->json(['message' => 'Friend request accepted']);
+    }
+
+    /**
+     * Update tournament contact info (mobile number, consent, WhatsApp opt-in)
+     */
+    public function updateTournamentContact(Request $request)
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'mobile_country_code' => 'required|string|max:8',
+            'mobile_number' => 'required|string|max:30',
+            'tournament_contact_consent' => 'required|accepted',
+            'whatsapp_updates_opt_in' => 'sometimes|boolean',
+        ]);
+
+        // Normalize mobile_number: strip spaces, hyphens, parens — digits only
+        $normalized = preg_replace('/[^0-9]/', '', $validated['mobile_number']);
+        $countryCode = $validated['mobile_country_code'];
+
+        if ($countryCode === '+91') {
+            if (strlen($normalized) !== 10) {
+                return response()->json([
+                    'message' => 'Indian mobile numbers must be exactly 10 digits.',
+                ], 422);
+            }
+        } elseif (strlen($normalized) < 6 || strlen($normalized) > 15) {
+            return response()->json([
+                'message' => 'Mobile number must be between 6 and 15 digits.',
+            ], 422);
+        }
+
+        $user->mobile_country_code = $validated['mobile_country_code'];
+        $user->mobile_number = $normalized;
+        $user->whatsapp_updates_opt_in = $validated['whatsapp_updates_opt_in'] ?? false;
+
+        // Set consent timestamp only when toggling ON and not already set
+        if ($validated['tournament_contact_consent'] && !$user->tournament_contact_consent_at) {
+            $user->tournament_contact_consent_at = now();
+        }
+
+        $user->save();
+
+        return response()->json([
+            'message' => 'Tournament contact info updated successfully',
+            'user' => $user->only([
+                'id', 'mobile_country_code', 'mobile_number',
+                'tournament_contact_consent_at', 'whatsapp_updates_opt_in',
+            ]),
+        ]);
     }
 
     /**

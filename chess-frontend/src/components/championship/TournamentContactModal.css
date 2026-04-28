@@ -1,0 +1,199 @@
+/* TournamentContactModal.css */
+
+.tournament-contact-modal {
+  background: #312e2b;
+  border-radius: 16px;
+  max-width: 480px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  animation: slideUp 0.3s ease;
+  overflow: hidden;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.tournament-contact-modal .modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 2px solid #3d3a37;
+  background: rgba(129, 182, 76, 0.1);
+}
+
+.tournament-contact-modal .modal-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.tournament-contact-modal .modal-close {
+  background: none;
+  border: none;
+  color: #8b8987;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: color 0.2s ease;
+}
+
+.tournament-contact-modal .modal-close:hover {
+  color: #ffffff;
+}
+
+.tournament-contact-modal .modal-body {
+  padding: 24px;
+}
+
+.tournament-contact-modal .modal-description {
+  font-size: 0.9rem;
+  color: #8b8987;
+  margin: 0 0 20px 0;
+  line-height: 1.5;
+}
+
+.mobile-input-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.country-code-input {
+  width: 80px;
+  padding: 10px 8px;
+  border: 2px solid #4a4744;
+  border-radius: 8px;
+  background: #262421;
+  color: #ffffff;
+  font-size: 1rem;
+  text-align: center;
+  transition: border-color 0.2s ease;
+}
+
+.country-code-input:focus {
+  outline: none;
+  border-color: #81b64c;
+}
+
+.mobile-number-input {
+  flex: 1;
+  padding: 10px 12px;
+  border: 2px solid #4a4744;
+  border-radius: 8px;
+  background: #262421;
+  color: #ffffff;
+  font-size: 1rem;
+  transition: border-color 0.2s ease;
+}
+
+.mobile-number-input:focus {
+  outline: none;
+  border-color: #81b64c;
+}
+
+.mobile-number-input::placeholder {
+  color: #5c5a57;
+}
+
+.consent-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #bababa;
+  line-height: 1.4;
+}
+
+.consent-checkbox input[type="checkbox"] {
+  margin-top: 2px;
+  accent-color: #81b64c;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.whatsapp-checkbox {
+  margin-bottom: 20px;
+}
+
+.contact-error {
+  background: rgba(231, 76, 60, 0.1);
+  border: 1px solid #e74c3c;
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: #fa6a5b;
+  font-size: 0.85rem;
+  margin-bottom: 16px;
+}
+
+.tournament-contact-modal .modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.tournament-contact-modal .btn {
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.tournament-contact-modal .btn-secondary {
+  background: #3d3a37;
+  color: #bababa;
+}
+
+.tournament-contact-modal .btn-secondary:hover:not(:disabled) {
+  background: #4a4744;
+}
+
+.tournament-contact-modal .btn-primary {
+  background: #81b64c;
+  color: #1a1a18;
+}
+
+.tournament-contact-modal .btn-primary:hover:not(:disabled) {
+  background: #6d9d3e;
+}
+
+.tournament-contact-modal .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 600px) {
+  .tournament-contact-modal {
+    width: 95%;
+  }
+
+  .tournament-contact-modal .modal-body {
+    padding: 20px;
+  }
+
+  .tournament-contact-modal .modal-actions {
+    flex-direction: column;
+  }
+
+  .tournament-contact-modal .btn {
+    width: 100%;
+  }
+}

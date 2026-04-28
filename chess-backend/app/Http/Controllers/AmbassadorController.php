@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AmbassadorTier;
+use App\Models\PayoutRequest;
 use App\Models\ReferralCode;
 use App\Models\ReferralEarning;
 use App\Models\User;
@@ -307,5 +308,81 @@ class AmbassadorController extends Controller
             ->get();
 
         return response()->json(['users' => $users]);
+    }
+
+    /**
+     * POST /ambassador/payout-request
+     */
+    public function payoutRequest(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $rules = [
+            'amount' => 'required|numeric|min:100',
+            'payment_method' => 'required|in:bank,upi',
+        ];
+
+        if ($request->input('payment_method') === 'bank') {
+            $rules['bank_account_name'] = 'required|string|max:100';
+            $rules['bank_account_number'] = 'required|string|max:20';
+            $rules['bank_ifsc'] = 'required|string|max:11';
+            $rules['bank_name'] = 'nullable|string|max:100';
+        } else {
+            $rules['upi_id'] = 'required|string|max:100';
+        }
+
+        $validated = $request->validate($rules);
+
+        // Check pending earnings suffice
+        $pendingEarnings = ReferralEarning::where('referrer_user_id', $user->id)
+            ->whereIn('status', ['pending', 'approved'])
+            ->sum('earning_amount');
+
+        if ($validated['amount'] > $pendingEarnings) {
+            return response()->json([
+                'error' => "Requested amount (₹{$validated['amount']}) exceeds pending earnings (₹{$pendingEarnings})",
+            ], 422);
+        }
+
+        // Only one pending request at a time
+        $existingPending = PayoutRequest::where('user_id', $user->id)
+            ->where('status', 'pending')
+            ->exists();
+
+        if ($existingPending) {
+            return response()->json([
+                'error' => 'You already have a pending payout request. Please wait for it to be processed.',
+            ], 422);
+        }
+
+        $payout = PayoutRequest::create([
+            'user_id' => $user->id,
+            'amount' => $validated['amount'],
+            'currency' => 'INR',
+            'payment_method' => $validated['payment_method'],
+            'bank_account_name' => $validated['bank_account_name'] ?? null,
+            'bank_account_number' => $validated['bank_account_number'] ?? null,
+            'bank_ifsc' => $validated['bank_ifsc'] ?? null,
+            'bank_name' => $validated['bank_name'] ?? null,
+            'upi_id' => $validated['upi_id'] ?? null,
+            'status' => 'pending',
+        ]);
+
+        return response()->json([
+            'message' => 'Payout request submitted successfully',
+            'payout' => $payout,
+        ], 201);
+    }
+
+    /**
+     * GET /ambassador/payout-requests
+     */
+    public function payoutHistory(Request $request): JsonResponse
+    {
+        $payouts = PayoutRequest::where('user_id', $request->user()->id)
+            ->orderByDesc('created_at')
+            ->get();
+
+        return response()->json(['payout_requests' => $payouts]);
     }
 }

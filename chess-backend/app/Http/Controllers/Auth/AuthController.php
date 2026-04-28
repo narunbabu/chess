@@ -301,6 +301,11 @@ class AuthController extends Controller
                     'name' => $user->name,
                     'email' => $user->email,
                     'avatar_url' => $user->avatar_url,
+                    'profile_completed' => $user->profile_completed,
+                    'mobile_country_code' => $user->mobile_country_code,
+                    'mobile_number' => $user->mobile_number,
+                    'tournament_contact_consent_at' => $user->tournament_contact_consent_at,
+                    'whatsapp_updates_opt_in' => $user->whatsapp_updates_opt_in,
                     'created_at' => $user->created_at,
                     'updated_at' => $user->updated_at,
                 ]
@@ -317,6 +322,174 @@ class AuthController extends Controller
             return response()->json([
                 'status' => 'error',
                 'message' => 'Authentication failed: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Handle Facebook OAuth for mobile apps (Android/iOS)
+     * Verifies Facebook access token using Facebook's Graph API
+     */
+    public function facebookMobileLogin(Request $request)
+    {
+        Log::info('=== MOBILE FACEBOOK LOGIN REQUEST ===');
+        Log::info('Request IP: ' . $request->ip());
+
+        $request->validate([
+            'access_token' => 'required|string',
+            'referral_code' => 'nullable|string|max:20',
+        ]);
+
+        $accessToken = $request->input('access_token');
+
+        try {
+            // Verify the access token with Facebook Graph API
+            $appId = config('services.facebook.client_id');
+            $appSecret = config('services.facebook.client_secret');
+
+            // Debug token to verify it's valid and for our app
+            $debugResponse = Http::get('https://graph.facebook.com/debug_token', [
+                'input_token' => $accessToken,
+                'access_token' => $appId . '|' . $appSecret,
+            ]);
+
+            if (!$debugResponse->successful()) {
+                Log::error('Facebook token debug failed', [
+                    'status' => $debugResponse->status(),
+                    'body' => $debugResponse->body(),
+                ]);
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Invalid Facebook access token',
+                ], 401);
+            }
+
+            $debugData = $debugResponse->json('data');
+
+            if (!$debugData || !($debugData['is_valid'] ?? false)) {
+                Log::error('Facebook token invalid', ['debug_data' => $debugData]);
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Facebook access token is not valid',
+                ], 401);
+            }
+
+            // Verify the token belongs to our app
+            if (($debugData['app_id'] ?? '') !== $appId) {
+                Log::error('Facebook token app mismatch', [
+                    'expected' => $appId,
+                    'received' => $debugData['app_id'] ?? '',
+                ]);
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Invalid token app',
+                ], 401);
+            }
+
+            // Get user profile from Graph API
+            $profileResponse = Http::get('https://graph.facebook.com/me', [
+                'access_token' => $accessToken,
+                'fields' => 'id,name,email,picture.width(200).height(200)',
+            ]);
+
+            if (!$profileResponse->successful()) {
+                Log::error('Facebook profile fetch failed', [
+                    'status' => $profileResponse->status(),
+                    'body' => $profileResponse->body(),
+                ]);
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Failed to fetch Facebook profile',
+                ], 401);
+            }
+
+            $profile = $profileResponse->json();
+            $facebookId = $profile['id'];
+            $name = $profile['name'] ?? 'Player';
+            $email = $profile['email'] ?? null;
+            $avatarUrl = $profile['picture']['data']['url'] ?? null;
+
+            Log::info('Facebook profile fetched', [
+                'fb_id' => $facebookId,
+                'name' => $name,
+                'has_email' => !empty($email),
+            ]);
+
+            if (!$email) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Email permission is required. Please allow email access when signing in with Facebook.',
+                ], 422);
+            }
+
+            // Find or create user
+            $user = User::where('email', $email)->first();
+
+            if ($user) {
+                $user->update([
+                    'provider' => 'facebook',
+                    'provider_id' => $facebookId,
+                    'email_verified_at' => $user->email_verified_at ?? now(),
+                ]);
+                if (!$user->name) {
+                    $user->update(['name' => $name]);
+                }
+            } else {
+                $user = User::create([
+                    'name' => $name,
+                    'email' => strtolower($email),
+                    'provider' => 'facebook',
+                    'provider_id' => $facebookId,
+                    'email_verified_at' => now(),
+                    'referral_code' => strtoupper(\Illuminate\Support\Str::random(8)),
+                ]);
+
+                if ($request->referral_code) {
+                    app(ReferralService::class)->linkReferral($user, $request->referral_code);
+                }
+            }
+
+            // Download avatar if user doesn't have one
+            if ($avatarUrl && !$user->getRawOriginal('avatar_url')) {
+                $localAvatarPath = $this->downloadAndStoreAvatar($avatarUrl, $user->id);
+                if ($localAvatarPath) {
+                    $user->avatar_url = $localAvatarPath;
+                    $user->save();
+                }
+            }
+
+            $token = $user->createToken('mobile_auth_token')->plainTextToken;
+
+            Log::info('=== FACEBOOK AUTHENTICATION SUCCESSFUL ===', ['user_id' => $user->id]);
+
+            return response()->json([
+                'status' => 'success',
+                'token' => $token,
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'avatar_url' => $user->avatar_url,
+                    'profile_completed' => $user->profile_completed,
+                    'mobile_country_code' => $user->mobile_country_code,
+                    'mobile_number' => $user->mobile_number,
+                    'tournament_contact_consent_at' => $user->tournament_contact_consent_at,
+                    'whatsapp_updates_opt_in' => $user->whatsapp_updates_opt_in,
+                    'created_at' => $user->created_at,
+                    'updated_at' => $user->updated_at,
+                ],
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('=== MOBILE FACEBOOK LOGIN ERROR ===', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Authentication failed: ' . $e->getMessage(),
             ], 500);
         }
     }
@@ -348,6 +521,11 @@ class AuthController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
                 'avatar_url' => $user->avatar_url,
+                'profile_completed' => $user->profile_completed,
+                'mobile_country_code' => $user->mobile_country_code,
+                'mobile_number' => $user->mobile_number,
+                'tournament_contact_consent_at' => $user->tournament_contact_consent_at,
+                'whatsapp_updates_opt_in' => $user->whatsapp_updates_opt_in,
             ],
         ]);
     }
@@ -494,6 +672,11 @@ class AuthController extends Controller
                     'name' => $user->name,
                     'email' => $user->email,
                     'avatar_url' => $user->avatar_url,
+                    'profile_completed' => $user->profile_completed,
+                    'mobile_country_code' => $user->mobile_country_code,
+                    'mobile_number' => $user->mobile_number,
+                    'tournament_contact_consent_at' => $user->tournament_contact_consent_at,
+                    'whatsapp_updates_opt_in' => $user->whatsapp_updates_opt_in,
                     'created_at' => $user->created_at,
                     'updated_at' => $user->updated_at,
                 ],

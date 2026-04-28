@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chess99 — Pamphlet (Simple)</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --navy:   #0A1628;
+  --navy2:  #0d1f3c;
+  --orange: #F5A623;
+  --gold:   #E8B84B;
+  --white:  #F8F5EF;
+  --cream:  #F5F2EC;
+  --muted:  #7a95b5;
+  --ink:    #1a2a44;
+  --soft:   #5a7090;
+  --fd: 'Playfair Display', Georgia, serif;
+  --fb: 'Inter', Helvetica, sans-serif;
+}
+body {
+  background: #b0b0b0;
+  font-family: var(--fb);
+  display: flex; flex-direction: column;
+  align-items: center; gap: 28px;
+  padding: 32px 20px;
+  color: var(--ink);
+}
+.print-note {
+  background: #222; color: #eee;
+  font-size: 13px; padding: 10px 20px;
+  border-radius: 6px; text-align: center;
+}
+.print-note strong { color: var(--orange); }
+
+/* ── A4 ── */
+.page {
+  width: 794px; height: 1123px;
+  position: relative; overflow: hidden;
+  box-shadow: 0 8px 48px rgba(0,0,0,0.45);
+  flex-shrink: 0;
+  display: flex; flex-direction: column;
+}
+
+/* ══════════ PAGE 1 — FRONT ══════════ */
+.p1 { background: var(--cream); color: var(--ink); }
+
+.p1-topstrip { height: 6px; background: var(--orange); flex-shrink: 0; }
+
+.p1-header {
+  padding: 22px 56px 18px;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(10,22,40,0.07);
+}
+.p1-header img.logo { height: 44px; width: auto; display: block; }
+.p1-header .header-right {
+  font-size: 12px; font-weight: 700;
+  letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--soft);
+}
+
+/* HERO — flex row with headline left, QR right */
+.p1-hero {
+  padding: 16px 56px 18px;
+  flex-shrink: 0;
+  position: relative;
+  display: flex; align-items: center; gap: 32px;
+}
+.p1-hero::before {
+  content: '♞';
+  position: absolute; right: -10px; top: -30px;
+  font-size: 280px; line-height: 1;
+  color: rgba(10,22,40,0.025);
+  pointer-events: none;
+}
+.hero-left { flex: 1; min-width: 0; }
+.hero-eyebrow {
+  font-size: 12px; font-weight: 700;
+  letter-spacing: 0.24em; text-transform: uppercase;
+  color: var(--orange); margin-bottom: 12px;
+}
+.hero-headline {
+  font-family: var(--fd);
+  font-size: 54px; font-weight: 900;
+  line-height: 0.98; color: var(--navy);
+  letter-spacing: -0.01em;
+}
+.hero-headline em { color: var(--orange); font-style: normal; }
+.hero-sub {
+  font-size: 15px; font-weight: 400;
+  color: var(--soft);
+  margin-top: 14px; line-height: 1.5;
+  max-width: 560px;
+}
+/* Hero QR — sits right of headline, stacked vertically (QR on top, caption below) */
+.hero-qr {
+  flex-shrink: 0;
+  width: 220px;
+  background: white;
+  border: 1px solid rgba(10,22,40,0.08);
+  border-radius: 12px;
+  padding: 18px 18px 16px;
+  display: flex; flex-direction: column;
+  align-items: center; gap: 12px;
+  box-shadow: 0 4px 14px rgba(10,22,40,0.06);
+}
+.hero-qr .qr-img {
+  width: 184px; height: 184px;
+  flex-shrink: 0;
+  background: white;
+  border: 1px solid rgba(10,22,40,0.08);
+  border-radius: 8px;
+  padding: 8px;
+  display: flex; align-items: center; justify-content: center;
+}
+.hero-qr .qr-img canvas,
+.hero-qr .qr-img img { width: 100% !important; height: 100% !important; display: block; }
+.hero-qr .qr-text { min-width: 0; text-align: center; width: 100%; }
+.hero-qr .qr-tag {
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--orange); margin-bottom: 4px;
+}
+.hero-qr .qr-title {
+  font-size: 16px; font-weight: 700;
+  color: var(--navy); line-height: 1.2;
+}
+.hero-qr .qr-sub {
+  font-size: 11.5px; color: var(--soft);
+  margin-top: 4px; line-height: 1.35;
+}
+
+/* HERO IMAGE — wide aspect */
+.hero-image {
+  margin: 0 56px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(10,22,40,0.08);
+  background: var(--white);
+  flex-shrink: 0;
+  height: 300px;
+  box-shadow: 0 6px 20px rgba(10,22,40,0.08);
+}
+.hero-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 45%;
+  display: block;
+}
+
+/* THREE-UP "what you get" */
+.three-up {
+  padding: 20px 56px 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  flex-shrink: 0;
+}
+.tile {
+  background: white;
+  border: 1px solid rgba(10,22,40,0.07);
+  border-radius: 10px;
+  padding: 14px 14px 14px;
+  text-align: left;
+}
+.tile .t-num {
+  font-family: var(--fd);
+  font-size: 24px; font-weight: 900;
+  color: var(--orange); line-height: 1;
+  margin-bottom: 6px;
+}
+.tile .t-title {
+  font-size: 14.5px; font-weight: 700;
+  color: var(--navy); margin-bottom: 4px;
+  line-height: 1.25;
+}
+.tile .t-desc {
+  font-size: 12px; color: var(--soft);
+  line-height: 1.45;
+}
+
+/* CTA bar (compact) at bottom of front */
+.p1-cta {
+  margin: 14px 56px 12px;
+  background: var(--navy);
+  border-radius: 10px;
+  padding: 12px 20px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px;
+  flex-shrink: 0;
+}
+.p1-cta .cta-text {
+  font-family: var(--fd);
+  font-size: 17px; font-weight: 700;
+  color: var(--white); line-height: 1.2;
+}
+.p1-cta .cta-text .small {
+  display: block;
+  font-family: var(--fb);
+  font-size: 11px; font-weight: 500;
+  color: rgba(248,245,239,0.55);
+  margin-top: 3px;
+  letter-spacing: 0.04em;
+}
+.p1-cta .cta-pill {
+  background: var(--orange); color: var(--navy);
+  font-weight: 800; font-size: 13px;
+  padding: 10px 18px; border-radius: 7px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+/* —— Stockfish / ELO scale —— */
+.scale-row {
+  margin: 0 56px 14px;
+  flex-shrink: 0;
+}
+.scale-row-p2 {
+  margin: 0;
+}
+.scale-row .sr-eyebrow {
+  font-size: 10.5px; font-weight: 700;
+  letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--orange); margin-bottom: 2px;
+}
+.scale-row .sr-title {
+  font-family: var(--fd);
+  font-size: 18px; font-weight: 700;
+  color: var(--navy); margin-bottom: 4px;
+  line-height: 1.2;
+}
+.scale-bar {
+  height: 16px; border-radius: 8px;
+  background: linear-gradient(90deg,
+    #4caf50 0%, #4caf50 20%,
+    #2e86c1 20%, #2e86c1 45%,
+    #f5a623 45%, #f5a623 70%,
+    #e74c3c 70%, #e74c3c 88%,
+    #8e44ad 88%, #8e44ad 100%);
+  position: relative;
+  border: 1px solid rgba(10,22,40,0.1);
+}
+.scale-ticks {
+  display: flex; justify-content: space-between;
+  margin-top: 6px;
+  font-size: 10px; font-weight: 700;
+  color: var(--soft);
+  font-family: var(--fb);
+  letter-spacing: 0.05em;
+}
+.scale-tiers {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin-top: 10px;
+}
+.scale-tier {
+  text-align: center;
+  padding: 6px 4px;
+  border-radius: 6px;
+  background: white;
+  border: 1px solid rgba(10,22,40,0.07);
+}
+.scale-tier .st-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  display: inline-block; margin-right: 5px;
+  vertical-align: middle;
+}
+.scale-tier .st-name {
+  font-size: 11px; font-weight: 700;
+  color: var(--navy); display: inline-block;
+  vertical-align: middle;
+}
+.scale-tier .st-elo {
+  font-size: 10px; color: var(--soft);
+  margin-top: 2px;
+  font-family: var(--fd);
+  font-weight: 700;
+}
+
+/* —— QR section —— */
+.qr-row {
+  margin: 0 56px 22px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  flex-shrink: 0;
+}
+.qr-card {
+  background: white;
+  border: 1px solid rgba(10,22,40,0.08);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex; align-items: center; gap: 12px;
+}
+.qr-card .qr-img {
+  width: 84px; height: 84px;
+  flex-shrink: 0;
+  background: white;
+  border: 1px solid rgba(10,22,40,0.08);
+  border-radius: 6px;
+  padding: 4px;
+  display: flex; align-items: center; justify-content: center;
+}
+.qr-card .qr-img canvas,
+.qr-card .qr-img img {
+  width: 100% !important; height: 100% !important;
+  display: block;
+}
+.qr-card .qr-text { min-width: 0; }
+.qr-card .qr-tag {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--orange); margin-bottom: 3px;
+}
+.qr-card .qr-title {
+  font-size: 13.5px; font-weight: 700;
+  color: var(--navy); line-height: 1.2;
+}
+.qr-card .qr-sub {
+  font-size: 11px; color: var(--soft);
+  margin-top: 4px; line-height: 1.4;
+  word-break: break-word;
+}
+
+/* ══════════ PAGE 2 — BACK ══════════ */
+.p2 { background: var(--cream); color: var(--ink); }
+
+.p2-topbar {
+  background: var(--navy);
+  padding: 14px 56px;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.p2-topbar img { height: 32px; width: auto; display: block; }
+.p2-topbar .p2-url {
+  font-size: 14px; font-weight: 800;
+  color: var(--orange); letter-spacing: 0.06em;
+}
+
+.p2-body {
+  flex: 1;
+  padding: 20px 56px 0;
+  display: flex; flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+}
+
+.sec-eyebrow {
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--orange);
+  margin-bottom: 6px;
+}
+.sec-h {
+  font-family: var(--fd);
+  font-size: 26px; font-weight: 700;
+  color: var(--navy);
+  line-height: 1.1;
+  letter-spacing: -0.005em;
+}
+.sec-s {
+  font-size: 13px; color: var(--soft);
+  line-height: 1.5; margin-top: 6px;
+  max-width: 580px;
+}
+
+/* "A day on Chess99" — three simple steps */
+.steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 14px;
+}
+.step {
+  background: white;
+  border-radius: 10px;
+  padding: 14px 16px 14px;
+  border: 1px solid rgba(10,22,40,0.07);
+  display: flex; flex-direction: column;
+}
+.step .s-num {
+  font-family: var(--fd);
+  font-size: 12px; font-weight: 700;
+  color: var(--orange);
+  letter-spacing: 0.18em;
+  margin-bottom: 6px;
+}
+.step .s-title {
+  font-size: 15px; font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 4px;
+}
+.step .s-desc {
+  font-size: 12.5px; color: var(--soft);
+  line-height: 1.5;
+}
+.step .s-time {
+  margin-top: auto;
+  padding-top: 10px;
+  font-size: 10.5px; font-weight: 700;
+  color: var(--orange);
+  letter-spacing: 0.12em; text-transform: uppercase;
+}
+
+/* —— NEW: Level-up / ELO progress section —— */
+.levelup {
+  background: white;
+  border: 1px solid rgba(10,22,40,0.07);
+  border-radius: 12px;
+  padding: 14px 20px 16px;
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  gap: 22px;
+  align-items: center;
+}
+.levelup .lu-eyebrow {
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--orange); margin-bottom: 6px;
+}
+.levelup h3 {
+  font-family: var(--fd);
+  font-size: 22px; font-weight: 700;
+  color: var(--navy); line-height: 1.15;
+  margin-bottom: 8px;
+}
+.levelup p {
+  font-size: 13px; color: var(--soft);
+  line-height: 1.55;
+}
+/* simple ELO ladder */
+.elo-ladder {
+  display: flex; flex-direction: column; gap: 6px;
+}
+.elo-row {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 12.5px;
+}
+.elo-row .el-label {
+  width: 96px; flex-shrink: 0;
+  font-weight: 700; color: var(--navy);
+}
+.elo-row .el-bar {
+  flex: 1; height: 10px;
+  background: rgba(10,22,40,0.07);
+  border-radius: 6px; overflow: hidden;
+  position: relative;
+}
+.elo-row .el-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--orange) 0%, var(--gold) 100%);
+  border-radius: 6px;
+}
+.elo-row .el-num {
+  width: 64px; flex-shrink: 0; text-align: right;
+  font-family: var(--fd); font-weight: 700;
+  color: var(--navy); font-size: 13px;
+}
+.elo-foot {
+  margin-top: 10px;
+  font-size: 11px; color: var(--soft);
+  font-style: italic;
+}
+
+/* In-game coaching showcase */
+.coaching {
+  display: grid;
+  grid-template-columns: 0.85fr 1fr;
+  gap: 22px;
+  align-items: center;
+}
+.coaching-img {
+  border-radius: 10px;
+  overflow: hidden;
+  background: #0c1a2e;
+  padding: 0;
+  aspect-ratio: 887 / 1011;
+  border: 1px solid rgba(10,22,40,0.1);
+  box-shadow: 0 6px 24px rgba(10,22,40,0.12);
+  max-height: 230px;
+  align-self: center;
+  justify-self: center;
+  width: 100%;
+}
+.coaching-img img {
+  width: 100%; height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.coaching-copy .cc-eyebrow {
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--orange); margin-bottom: 8px;
+}
+.coaching-copy h3 {
+  font-family: var(--fd);
+  font-size: 22px; font-weight: 700;
+  color: var(--navy); line-height: 1.15;
+  margin-bottom: 10px;
+}
+.coaching-copy p {
+  font-size: 13px; color: var(--soft);
+  line-height: 1.55;
+}
+.coaching-copy ul {
+  list-style: none;
+  margin-top: 12px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.coaching-copy li {
+  font-size: 12.5px;
+  color: var(--ink);
+  display: flex; align-items: flex-start; gap: 10px;
+  line-height: 1.45;
+}
+.coaching-copy li::before {
+  content: '';
+  width: 7px; height: 7px;
+  background: var(--orange);
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+
+/* CTA band */
+.cta-band {
+  margin-top: auto;
+  background: var(--navy);
+  border-radius: 12px;
+  padding: 16px 22px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 4px;
+  position: relative;
+  overflow: hidden;
+}
+.cta-band::after {
+  content: '♞';
+  position: absolute; right: -20px; top: -40px;
+  font-size: 200px; line-height: 1;
+  color: rgba(245,166,35,0.07);
+  pointer-events: none;
+}
+.cta-band .cb-left { position: relative; z-index: 1; }
+.cta-band .cb-head {
+  font-family: var(--fd);
+  font-size: 22px; font-weight: 800;
+  color: var(--white); line-height: 1.15;
+}
+.cta-band .cb-sub {
+  font-size: 12.5px; color: rgba(248,245,239,0.65);
+  margin-top: 6px;
+}
+.cta-band .cb-right {
+  text-align: right; flex-shrink: 0;
+  position: relative; z-index: 1;
+}
+.cta-band .cb-url {
+  font-size: 26px; font-weight: 900;
+  color: var(--orange);
+  letter-spacing: 0.01em;
+}
+.cta-band .cb-platforms {
+  font-size: 11px; font-weight: 600;
+  color: rgba(248,245,239,0.55);
+  margin-top: 4px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* contact strip — between CTA band and footer */
+.contact-strip {
+  background: white;
+  border: 1px solid rgba(10,22,40,0.08);
+  border-radius: 10px;
+  padding: 10px 18px;
+  display: flex; align-items: center; justify-content: center;
+  gap: 24px;
+  flex-shrink: 0;
+}
+.contact-strip .cs-eyebrow {
+  font-size: 10.5px; font-weight: 700;
+  letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--orange);
+}
+.contact-strip .cs-item {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; color: var(--navy);
+  font-weight: 600;
+}
+.contact-strip .cs-item .cs-icon {
+  font-size: 14px;
+  color: var(--orange);
+}
+.contact-strip .cs-divider {
+  width: 1px; height: 18px;
+  background: rgba(10,22,40,0.12);
+}
+
+/* footer */
+.p2-footer {
+  padding: 10px 56px;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+  border-top: 1px solid rgba(10,22,40,0.08);
+  margin-top: 10px;
+}
+.p2-footer .pf-l { font-size: 11px; color: var(--soft); }
+.p2-footer .pf-r {
+  font-size: 11px; font-weight: 700;
+  color: var(--navy); letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* ── PRINT ── */
+@media print {
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  body { background: white; padding: 0; gap: 0; }
+  .print-note { display: none; }
+  .page { box-shadow: none; width: 100%; height: 100vh; page-break-after: always; }
+}
+</style>
+</head>
+<body>
+
+<div class="print-note">
+  <strong>Chess99 Pamphlet — Simple</strong>&nbsp;·&nbsp;Print A4, two pages. Press <strong>Cmd+P / Ctrl+P</strong> → Color · A4 · No margins · Background graphics ON.
+</div>
+
+<!-- ════════ PAGE 1 — FRONT ════════ -->
+<div class="page p1" data-screen-label="01 Front">
+
+  <div class="p1-topstrip"></div>
+
+  <!-- Header -->
+  <div class="p1-header">
+    <img src="uploads/logo.png" class="logo" alt="Chess99">
+    <div class="header-right">chess99.com</div>
+  </div>
+
+  <!-- Hero — headline left, QR right -->
+  <div class="p1-hero">
+    <div class="hero-left">
+      <div class="hero-eyebrow">Online Chess Academy</div>
+      <div class="hero-headline">
+        Learn chess.<br>
+        Play <em>better</em>,<br>
+        every day.
+      </div>
+      <div class="hero-sub">
+        A friendly home for young players and parents — fun puzzles, games at the right level, and gentle coaching while you play.
+      </div>
+    </div>
+    <div class="hero-qr">
+      <div class="qr-img" id="qr-site"></div>
+      <div class="qr-text">
+        <div class="qr-tag">Scan to play</div>
+        <div class="qr-title">chess99.com</div>
+        <div class="qr-sub">Open the academy in your browser</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hero image: wide brand banner -->
+  <div class="hero-image">
+    <img src="uploads/grandmasters.png" alt="Learn and play with India's best — Chess99">
+  </div>
+
+  <!-- Three simple value tiles -->
+  <div class="three-up">
+    <div class="tile">
+      <div class="t-num">01</div>
+      <div class="t-title">Fun puzzles</div>
+      <div class="t-desc">Bite-sized challenges that grow with your child — start simple, build skill.</div>
+    </div>
+    <div class="tile">
+      <div class="t-num">02</div>
+      <div class="t-title">Games at your level</div>
+      <div class="t-desc">Play matches against opponents that match your strength. Win, lose, learn.</div>
+    </div>
+    <div class="tile">
+      <div class="t-num">03</div>
+      <div class="t-title">Coach by your side</div>
+      <div class="t-desc">Helpful hints during games — like a teacher whispering the next idea.</div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="p1-cta">
+    <div class="cta-text">
+      Free to try — no app needed.
+    </div>
+    <div class="cta-pill">Start at chess99.com</div>
+  </div>
+
+  <!-- Stockfish / ELO scale moved to page 2 -->
+
+  <!-- QR codes — YouTube + WhatsApp -->
+  <div class="qr-row">
+    <div class="qr-card">
+      <div class="qr-img" id="qr-yt"></div>
+      <div class="qr-text">
+        <div class="qr-tag">Scan to learn</div>
+        <div class="qr-title">YouTube training</div>
+        <div class="qr-sub">Free lessons on the Chess99 channel</div>
+      </div>
+    </div>
+    <div class="qr-card">
+      <div class="qr-img" id="qr-wa"></div>
+      <div class="qr-text">
+        <div class="qr-tag">Scan to follow</div>
+        <div class="qr-title">WhatsApp Channel</div>
+        <div class="qr-sub">Tips, updates, and puzzle of the day</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ════════ PAGE 2 — BACK ════════ -->
+<div class="page p2" data-screen-label="02 Back">
+
+  <div class="p2-topbar">
+    <img src="uploads/logo.png" alt="Chess99">
+    <div class="p2-url">chess99.com</div>
+  </div>
+
+  <div class="p2-body">
+
+    <!-- A day on Chess99 -->
+    <div>
+      <div class="sec-eyebrow">A day on Chess99</div>
+      <div class="sec-h">Three small habits.<br>One stronger player.</div>
+      <div class="sec-s">About fifty minutes a day, in three calm steps. Easy enough to fit between school and dinner.</div>
+
+      <div class="steps">
+        <div class="step">
+          <div class="s-num">STEP 01</div>
+          <div class="s-title">Solve puzzles</div>
+          <div class="s-desc">Ten quick puzzles to warm up the brain and spot patterns faster.</div>
+          <div class="s-time">10 minutes</div>
+        </div>
+        <div class="step">
+          <div class="s-num">STEP 02</div>
+          <div class="s-title">Play casual games</div>
+          <div class="s-desc">Three friendly matches at your level — no rating risk, just practice.</div>
+          <div class="s-time">30 minutes</div>
+        </div>
+        <div class="step">
+          <div class="s-num">STEP 03</div>
+          <div class="s-title">Look back together</div>
+          <div class="s-desc">Review one game with simple notes that show what worked and what didn't.</div>
+          <div class="s-time">10 minutes</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Coaching showcase: CCT analysis + best-move help -->
+    <div class="coaching">
+      <div class="coaching-img">
+        <img src="uploads/cct-analysis.png" alt="Live coaching during a casual game on Chess99">
+      </div>
+      <div class="coaching-copy">
+        <div class="cc-eyebrow">Casual games + live help</div>
+        <h3>Practice with a coach in every game.</h3>
+        <p>In casual matches, Chess99's <strong>CCT analysis</strong> shows ideas as you play, and <strong>best-move hints</strong> nudge you toward stronger choices — so kids build good habits one move at a time.</p>
+        <ul>
+          <li>Spot pieces in danger before you lose them</li>
+          <li>See helpful arrows for the strongest moves</li>
+          <li>Play unlimited casual games — no rating, no pressure</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- NEW: ELO improvement section -->
+    <div class="levelup">
+      <div>
+        <div class="lu-eyebrow">Watch the level grow</div>
+        <h3>From beginner to club player — in months, not years.</h3>
+        <p>With daily practice and casual games at the right level, kids typically see clear, steady rating gains. Each step builds on the last.</p>
+      </div>
+      <div>
+        <div class="elo-ladder">
+          <div class="elo-row">
+            <div class="el-label">Month 1</div>
+            <div class="el-bar"><div class="el-fill" style="width:30%;"></div></div>
+            <div class="el-num">+100</div>
+          </div>
+          <div class="elo-row">
+            <div class="el-label">Month 3</div>
+            <div class="el-bar"><div class="el-fill" style="width:55%;"></div></div>
+            <div class="el-num">+250</div>
+          </div>
+          <div class="elo-row">
+            <div class="el-label">Month 6</div>
+            <div class="el-bar"><div class="el-fill" style="width:80%;"></div></div>
+            <div class="el-num">+450</div>
+          </div>
+          <div class="elo-row">
+            <div class="el-label">Year 1</div>
+            <div class="el-bar"><div class="el-fill" style="width:100%;"></div></div>
+            <div class="el-num">+700</div>
+          </div>
+        </div>
+        <div class="elo-foot">Typical rating gain with the daily routine. Every player is different — progress is what matters.</div>
+      </div>
+    </div>
+
+    <!-- Stockfish / ELO scale (moved from page 1) -->
+    <div class="scale-row scale-row-p2">
+      <div class="sr-eyebrow">Find your level</div>
+      <div class="sr-title">From first move to club champion — Chess99 grows with you.</div>
+      <div class="scale-bar"></div>
+      <div class="scale-ticks">
+        <span>800</span><span>1200</span><span>1600</span><span>2000</span><span>2400+</span>
+      </div>
+      <div class="scale-tiers">
+        <div class="scale-tier">
+          <div><span class="st-dot" style="background:#4caf50;"></span><span class="st-name">Beginner</span></div>
+          <div class="st-elo">800–1100</div>
+        </div>
+        <div class="scale-tier">
+          <div><span class="st-dot" style="background:#2e86c1;"></span><span class="st-name">Club</span></div>
+          <div class="st-elo">1100–1500</div>
+        </div>
+        <div class="scale-tier">
+          <div><span class="st-dot" style="background:#f5a623;"></span><span class="st-name">Intermediate</span></div>
+          <div class="st-elo">1500–1900</div>
+        </div>
+        <div class="scale-tier">
+          <div><span class="st-dot" style="background:#e74c3c;"></span><span class="st-name">Advanced</span></div>
+          <div class="st-elo">1900–2200</div>
+        </div>
+        <div class="scale-tier">
+          <div><span class="st-dot" style="background:#8e44ad;"></span><span class="st-name">Expert</span></div>
+          <div class="st-elo">2200–2400+</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CTA band -->
+    <div class="cta-band">
+      <div class="cb-left">
+        <div class="cb-head">Ready to start?</div>
+        <div class="cb-sub">Free to play. No credit card. Open it in any browser.</div>
+      </div>
+      <div class="cb-right">
+        <div class="cb-url">chess99.com</div>
+        <div class="cb-platforms">Web · Android · iOS</div>
+      </div>
+    </div>
+
+    <!-- Contact strip -->
+    <div class="contact-strip">
+      <div class="cs-eyebrow">Reach us</div>
+      <div class="cs-item"><span class="cs-icon">✉</span>support@chess99.com</div>
+      <div class="cs-divider"></div>
+      <div class="cs-item"><span class="cs-icon">📱</span>WhatsApp +91 96506 67495</div>
+    </div>
+
+  </div>
+
+  <div class="p2-footer">
+    <div class="pf-l">© 2026 Chess99 — India's online chess academy</div>
+    <div class="pf-r">chess99.com</div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+<script>
+(function(){
+  function makeQR(targetId, data){
+    try {
+      var typeNumber = 0;
+      var errorCorrection = 'M';
+      var qr = qrcode(typeNumber, errorCorrection);
+      qr.addData(data);
+      qr.make();
+      var svg = qr.createSvgTag({ scalable: true, margin: 0 });
+      var el = document.getElementById(targetId);
+      if (el) el.innerHTML = svg;
+    } catch(e){
+      console.warn('QR fail', e);
+    }
+  }
+  makeQR('qr-site', 'https://chess99.com');
+  makeQR('qr-yt',   'https://www.youtube.com/channel/UCm6-DL4YpGmRCZtrmi_d1ag');
+  makeQR('qr-wa',   'https://whatsapp.com/channel/0029VbCRrep5Ejy61a2CJl2G');
+})();
+
+document.addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+    e.preventDefault();
+    window.print();
+  }
+});
+</script>
+</body>
+</html>

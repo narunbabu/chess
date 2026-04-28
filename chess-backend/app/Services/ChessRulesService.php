@@ -219,6 +219,121 @@ class ChessRulesService
     }
 
     /**
+     * Determine if the side-to-move's king is in check.
+     * Uses a simple board-scan approach: find the king, then check if any
+     * enemy piece attacks its square. Returns false if the king cannot be
+     * found (malformed FEN).
+     */
+    public function isKingInCheck(string $fen): bool
+    {
+        $parts = explode(' ', $fen);
+        if (count($parts) < 2) return false;
+
+        $boardStr = $parts[0];
+        $activeColor = $parts[1]; // 'w' or 'b'
+
+        // Build 8x8 board array
+        $ranks = explode('/', $boardStr);
+        $board = [];
+        foreach ($ranks as $r => $rank) {
+            $col = 0;
+            for ($i = 0; $i < strlen($rank); $i++) {
+                $ch = $rank[$i];
+                if (ctype_digit($ch)) {
+                    $col += (int)$ch;
+                } else {
+                    $board[$r][$col] = $ch;
+                    $col++;
+                }
+            }
+        }
+
+        // Find the king of the side to move
+        $kingChar = ($activeColor === 'w') ? 'K' : 'k';
+        $kingRow = $kingCol = -1;
+        for ($r = 0; $r < 8; $r++) {
+            for ($c = 0; $c < 8; $c++) {
+                if (($board[$r][$c] ?? '') === $kingChar) {
+                    $kingRow = $r;
+                    $kingCol = $c;
+                    break 2;
+                }
+            }
+        }
+        if ($kingRow < 0) return false; // king not found
+
+        // Enemy piece chars (uppercase = white pieces, lowercase = black)
+        $enemy = ($activeColor === 'w')
+            ? ['r', 'n', 'b', 'q', 'k', 'p']
+            : ['R', 'N', 'B', 'Q', 'K', 'P'];
+
+        // Check knight attacks
+        $knightMoves = [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]];
+        $enemyKnight = ($activeColor === 'w') ? 'n' : 'N';
+        foreach ($knightMoves as [$dr, $dc]) {
+            $nr = $kingRow + $dr; $nc = $kingCol + $dc;
+            if ($nr >= 0 && $nr < 8 && $nc >= 0 && $nc < 8 && ($board[$nr][$nc] ?? '') === $enemyKnight) {
+                return true;
+            }
+        }
+
+        // Check pawn attacks
+        $pawnDir = ($activeColor === 'w') ? -1 : 1; // pawns attack from this direction relative to king
+        $enemyPawn = ($activeColor === 'w') ? 'p' : 'P';
+        foreach ([-1, 1] as $dc) {
+            $pr = $kingRow + $pawnDir; $pc = $kingCol + $dc;
+            if ($pr >= 0 && $pr < 8 && $pc >= 0 && $pc < 8 && ($board[$pr][$pc] ?? '') === $enemyPawn) {
+                return true;
+            }
+        }
+
+        // Check king attacks (adjacent squares)
+        $enemyKing = ($activeColor === 'w') ? 'k' : 'K';
+        for ($dr = -1; $dr <= 1; $dr++) {
+            for ($dc = -1; $dc <= 1; $dc++) {
+                if ($dr === 0 && $dc === 0) continue;
+                $nr = $kingRow + $dr; $nc = $kingCol + $dc;
+                if ($nr >= 0 && $nr < 8 && $nc >= 0 && $nc < 8 && ($board[$nr][$nc] ?? '') === $enemyKing) {
+                    return true;
+                }
+            }
+        }
+
+        // Check sliding pieces (rook/queen on ranks/files, bishop/queen on diagonals)
+        $enemyRook = ($activeColor === 'w') ? 'r' : 'R';
+        $enemyBishop = ($activeColor === 'w') ? 'b' : 'B';
+        $enemyQueen = ($activeColor === 'w') ? 'q' : 'Q';
+
+        // Rook / Queen directions (straight lines)
+        foreach ([[0,1],[0,-1],[1,0],[-1,0]] as [$dr, $dc]) {
+            for ($i = 1; $i < 8; $i++) {
+                $nr = $kingRow + $dr * $i; $nc = $kingCol + $dc * $i;
+                if ($nr < 0 || $nr >= 8 || $nc < 0 || $nc >= 8) break;
+                $piece = $board[$nr][$nc] ?? '';
+                if ($piece !== '') {
+                    if ($piece === $enemyRook || $piece === $enemyQueen) return true;
+                    break; // blocked
+                }
+            }
+        }
+
+        // Bishop / Queen directions (diagonals)
+        foreach ([[1,1],[1,-1],[-1,1],[-1,-1]] as [$dr, $dc]) {
+            for ($i = 1; $i < 8; $i++) {
+                $nr = $kingRow + $dr * $i; $nc = $kingCol + $dc * $i;
+                if ($nr < 0 || $nr >= 8 || $nc < 0 || $nc >= 8) break;
+                $piece = $board[$nr][$nc] ?? '';
+                if ($piece !== '') {
+                    if ($piece === $enemyBishop || $piece === $enemyQueen) return true;
+                    break; // blocked
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Check for fifty-move rule
      */
     private function isFiftyMoveRule(string $fen, array $moves): bool

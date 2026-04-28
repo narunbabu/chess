@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import { Chess } from "chess.js";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
+import { Helmet } from 'react-helmet-async';
 
 // Import Components
 import ChessBoard from "./ChessBoard";
@@ -2557,6 +2558,14 @@ const PlayComputer = () => {
       {/* Game Mode Selection */}
       {gameMode === null && (
         <div className="pre-game-setup bg-surface-card backdrop-blur-lg rounded-2xl border border-white/10 p-6 text-center">
+          <div className="flex justify-start mb-4">
+            <button
+              onClick={() => navigate('/lobby')}
+              className="flex items-center gap-1 text-sm text-gray-400 hover:text-white transition-colors"
+            >
+              ← Back to Lobby
+            </button>
+          </div>
           <h2 className="text-3xl font-bold mb-6 text-gold">Choose Your Game Mode</h2>
           <div className="flex flex-col gap-4">
             <button className="start-button large green bg-chess-green hover:bg-chess-hover text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300" onClick={() => setGameMode('computer')}>
@@ -2572,6 +2581,16 @@ const PlayComputer = () => {
       {/* Difficulty and Color Selection */}
       {gameMode === 'computer' && (
         <div className="pre-game-setup bg-surface-card backdrop-blur-lg rounded-2xl border border-white/10 p-6 text-center">
+          {!countdownActive && (
+            <div className="flex justify-start mb-4">
+              <button
+                onClick={() => navigate('/lobby')}
+                className="flex items-center gap-1 text-sm text-gray-400 hover:text-white transition-colors"
+              >
+                ← Back to Lobby
+              </button>
+            </div>
+          )}
           <h2 className="text-3xl font-bold mb-2 text-gold">Play Against Computer</h2>
 
           {/* Game Mode Selector — only for logged-in users (guests always play casual) */}
@@ -3232,6 +3251,16 @@ const PlayComputer = () => {
   // Main layout — GameContainer handles its own 3-column grid
   return (
     <>
+      <Helmet>
+        <title>Play Chess — Chess99 | Play vs Computer or Online</title>
+        <meta name="description" content="Play chess against the computer with adjustable difficulty or challenge players online. Free chess games on Chess99." />
+        <meta property="og:title" content="Play Chess — Chess99" />
+        <meta property="og:description" content="Play chess against the computer or challenge players online on Chess99." />
+        <meta property="og:image" content="https://chess99.com/og-image.png" />
+        <meta property="og:url" content="https://chess99.com/play" />
+        <meta property="og:type" content="website" />
+        <link rel="canonical" href="https://chess99.com/play" />
+      </Helmet>
       <div className="min-h-screen" style={{ background: '#121212', width: '100%', maxWidth: '100vw', overflowX: 'hidden' }}>
 
         {/* Pre-Game Setup Screen */}

@@ -866,6 +866,9 @@ const GameHistory = () => {
                           <span>Moves: {summary.moveCount}</span>
                           <span>Score: {summary.finalScore}</span>
                         </div>
+                        {game.opening_name && (
+                          <div className="text-[10px] lg:text-xs text-[#a89f91] italic mt-0.5">{game.opening_name}{game.opening_eco ? ` (${game.opening_eco})` : ''}</div>
+                        )}
                       </div>
                     </div>
                   </li>

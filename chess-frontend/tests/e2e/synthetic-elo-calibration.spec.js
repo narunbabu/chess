@@ -193,10 +193,10 @@ test.describe('Synthetic Player ELO Calibration', () => {
     expect(budget1400).toBeGreaterThan(budget2000);
     expect(budget2000).toBeGreaterThan(budget2600);
 
-    // Specific values
-    expect(budget1400).toBe(131);  // (3500-1400)/16 = 131.25 → 131
-    expect(budget2000).toBe(93);   // (3500-2000)/16 = 93.75 → 93
-    expect(budget2600).toBe(56);   // (3500-2600)/16 = 56.25 → 56
+    // Specific values (formula returns float, no integer truncation)
+    expect(budget1400).toBe(131.25);  // (3500-1400)/16 = 131.25
+    expect(budget2000).toBe(93.75);   // (3500-2000)/16 = 93.75
+    expect(budget2600).toBe(56.25);   // (3500-2600)/16 = 56.25
   });
 
   test('selectMoveWithCpBudget — temperature scales correctly with ELO', () => {

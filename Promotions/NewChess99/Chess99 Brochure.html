@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chess99 — India's Chess Learning Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="deck-stage.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #000; }
+
+  /* ── Design tokens ── */
+  :root {
+    --black:   #080e0a;
+    --dkgreen: #0c1f11;
+    --green:   #2db54a;
+    --gold:    #f0c040;
+    --gold2:   #c8991a;
+    --white:   #f2efe9;
+    --muted:   rgba(242,239,233,0.6);
+    --card:    rgba(255,255,255,0.05);
+    --border:  rgba(255,255,255,0.08);
+    --ff-head: 'Bebas Neue', sans-serif;
+    --ff-body: 'DM Sans', sans-serif;
+  }
+
+  /* ── Shared slide base ── */
+  section {
+    width: 100%; height: 100%;
+    font-family: var(--ff-body);
+    color: var(--white);
+    background: var(--black);
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* ── Chess pattern ── */
+  .chess-bg {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(45deg, rgba(255,255,255,0.025) 25%, transparent 25%),
+      linear-gradient(-45deg, rgba(255,255,255,0.025) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.025) 75%),
+      linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.025) 75%);
+    background-size: 40px 40px;
+    background-position: 0 0, 0 20px, 20px -20px, -20px 0px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Green glow ── */
+  .glow-spot {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    pointer-events: none;
+  }
+
+  /* ── Utility ── */
+  .rel { position: relative; z-index: 1; }
+
+  /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     PAGE 1 — COVER
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+  .cover {
+    display: flex; flex-direction: column;
+  }
+  .cover-image {
+    height: 58%;
+    position: relative;
+    overflow: hidden;
+  }
+  .cover-image img {
+    width: 100%; height: 100%; object-fit: contain; object-position: center center;
+    display: block;
+  }
+  .cover-image-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(to bottom, rgba(8,14,10,0.1) 0%, rgba(8,14,10,0.85) 100%);
+  }
+  .cover-body {
+    flex: 1;
+    background: linear-gradient(160deg, #0a1a0e 0%, #080e0a 60%);
+    padding: 40px 56px 36px;
+    display: flex; flex-direction: column; justify-content: space-between;
+    position: relative;
+  }
+  .cover-logo {
+    font-family: var(--ff-head);
+    font-size: 96px;
+    letter-spacing: 0.04em;
+    line-height: 0.9;
+    color: var(--white);
+  }
+  .cover-logo span { color: var(--gold); }
+  .cover-sub {
+    font-size: 18px;
+    font-weight: 300;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--green);
+    margin-top: 10px;
+  }
+  .cover-tagline {
+    font-family: var(--ff-head);
+    font-size: 42px;
+    letter-spacing: 0.1em;
+    color: rgba(242,239,233,0.45);
+    margin-top: 12px;
+  }
+  .cover-desc {
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--muted);
+    max-width: 460px;
+    margin-top: 8px;
+  }
+  .cover-bottom {
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .cover-trust {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 13px; color: var(--muted);
+  }
+  .cover-trust::before {
+    content: '';
+    width: 28px; height: 2px;
+    background: var(--green);
+    display: block;
+  }
+  .cover-cta {
+    background: var(--green);
+    color: #fff;
+    font-family: var(--ff-body);
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 12px 28px;
+    border-radius: 4px;
+  }
+  .cover-king {
+    position: absolute;
+    right: 56px; top: -80px;
+    font-size: 140px;
+    opacity: 0.07;
+    line-height: 1;
+    pointer-events: none;
+  }
+
+  /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     PAGE 2 — INDIA'S CHESS GOLDEN ERA
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+  .page-header {
+    padding: 52px 56px 0;
+    position: relative; z-index: 1;
+  }
+  .page-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--green);
+    margin-bottom: 12px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .page-label::before {
+    content: '';
+    width: 24px; height: 2px; background: var(--green);
+    display: block;
+  }
+  .page-title {
+    font-family: var(--ff-head);
+    font-size: 72px;
+    letter-spacing: 0.03em;
+    line-height: 0.92;
+    color: var(--white);
+  }
+  .page-title span { color: var(--gold); }
+  .page-hook {
+    font-size: 16px;
+    font-weight: 300;
+    color: var(--muted);
+    margin-top: 14px;
+    max-width: 500px;
+    line-height: 1.6;
+  }
+
+  /* Era cards */
+  .era-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    padding: 32px 56px;
+    position: relative; z-index: 1;
+  }
+  .era-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 22px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .era-card.highlight {
+    border-color: rgba(240,192,64,0.35);
+    background: rgba(240,192,64,0.06);
+  }
+  .era-card-icon {
+    font-size: 28px; margin-bottom: 8px; display: block;
+  }
+  .era-card-stat {
+    font-family: var(--ff-head);
+    font-size: 38px;
+    color: var(--gold);
+    line-height: 1;
+  }
+  .era-card-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--white);
+    margin-top: 4px;
+  }
+  .era-card-sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+    line-height: 1.5;
+  }
+  .era-card-accent {
+    position: absolute;
+    right: -10px; bottom: -10px;
+    font-size: 60px; opacity: 0.06;
+    line-height: 1;
+  }
+
+  /* Photo strip */
+  .era-photo {
+    margin: 0 56px;
+    height: 350px;
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+    z-index: 1;
+  }
+  .era-photo img {
+    width: 100%; height: 100%; object-fit: cover; object-position: center 35%;
+  }
+  .era-photo-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(90deg, rgba(8,14,10,0.85) 0%, rgba(8,14,10,0.2) 50%, rgba(8,14,10,0.7) 100%);
+    display: flex; align-items: center;
+    padding: 0 32px;
+  }
+  .era-photo-quote {
+    font-family: var(--ff-head);
+    font-size: 22px;
+    letter-spacing: 0.04em;
+    color: var(--gold);
+    max-width: 340px;
+    line-height: 1.2;
+  }
+  .era-photo-attr {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 6px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     PAGE 3 — RESEARCH BENEFITS
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+  .stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    padding: 28px 56px 0;
+    position: relative; z-index: 1;
+  }
+  .stat-big {
+    background: linear-gradient(135deg, rgba(45,181,74,0.12), rgba(45,181,74,0.04));
+    border: 1px solid rgba(45,181,74,0.2);
+    border-radius: 10px;
+    padding: 28px;
+    text-align: center;
+  }
+  .stat-big-num {
+    font-family: var(--ff-head);
+    font-size: 80px;
+    color: var(--green);
+    line-height: 1;
+  }
+  .stat-big-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--white);
+    margin-top: 6px;
+  }
+  .stat-big-sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  .benefits-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 14px;
+    padding: 20px 56px 0;
+    position: relative; z-index: 1;
+  }
+  .benefit-item {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 16px;
+    text-align: center;
+  }
+  .benefit-icon { font-size: 24px; margin-bottom: 8px; display: block; }
+  .benefit-title { font-size: 13px; font-weight: 700; color: var(--white); }
+  .benefit-desc { font-size: 11px; color: var(--muted); margin-top: 4px; line-height: 1.5; }
+
+  /* Research photo */
+  .research-photo {
+    margin: 20px 56px 0;
+    height: 200px;
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+    z-index: 1;
+  }
+  .research-photo img {
+    width: 100%; height: 100%; object-fit: cover; object-position: center 20%;
+  }
+  .research-photo-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(to right, rgba(8,14,10,0.9) 0%, rgba(8,14,10,0.3) 100%);
+    display: flex; align-items: center; padding: 0 36px;
+  }
+
+  .policy-strip {
+    margin: 20px 56px 0;
+    background: linear-gradient(90deg, rgba(240,192,64,0.1), rgba(240,192,64,0.04));
+    border: 1px solid rgba(240,192,64,0.2);
+    border-radius: 8px;
+    padding: 18px 24px;
+    display: flex; align-items: center; gap: 24px;
+    position: relative; z-index: 1;
+  }
+  .policy-icon { font-size: 28px; }
+  .policy-title { font-size: 13px; font-weight: 700; color: var(--gold); margin-bottom: 3px; }
+  .policy-desc { font-size: 12px; color: var(--muted); }
+  .policy-tags { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+  .policy-tag {
+    background: rgba(240,192,64,0.12);
+    border: 1px solid rgba(240,192,64,0.2);
+    color: var(--gold);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 20px;
+  }
+
+  /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     PAGE 4 — PLATFORM FEATURES (visual showcase)
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+  .feat-elo-bar {
+    margin: 10px 56px 0;
+    position: relative; z-index: 1;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .feat-elo-label {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.15em;
+    text-transform: uppercase; color: var(--green); white-space: nowrap;
+  }
+  .feat-elo-track {
+    flex: 1; height: 6px; border-radius: 4px;
+    background: rgba(255,255,255,0.08);
+    position: relative; overflow: hidden;
+  }
+  .feat-elo-fill {
+    position: absolute; left: 0; top: 0; bottom: 0;
+    width: 92%;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--green), var(--gold));
+  }
+  .feat-elo-range {
+    font-size: 11px; color: var(--muted); white-space: nowrap;
+  }
+
+  /* Main 3-panel grid */
+  .feat-grid {
+    display: grid;
+    grid-template-columns: 1.15fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 10px;
+    padding: 12px 56px 0;
+    height: 620px;
+    position: relative; z-index: 1;
+  }
+  .feat-panel {
+    border-radius: 10px; overflow: hidden;
+    position: relative;
+    border: 1px solid rgba(255,255,255,0.09);
+    background: #0d1510;
+  }
+  .feat-panel.tall { grid-row: 1 / 3; }
+  .feat-panel img {
+    width: 100%; height: 100%;
+    object-fit: cover; object-position: top left;
+    display: block;
+  }
+  .feat-panel-label {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    padding: 28px 18px 14px;
+    background: linear-gradient(to top, rgba(8,14,10,0.97) 0%, transparent 100%);
+  }
+  .feat-panel-badge {
+    font-size: 9px; font-weight: 800; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--green);
+    margin-bottom: 5px;
+  }
+  .feat-panel-badge.gold { color: var(--gold); }
+  .feat-panel-title {
+    font-family: var(--ff-head);
+    font-size: 22px; letter-spacing: 0.04em;
+    color: var(--white); line-height: 1.1;
+  }
+  .feat-panel-desc {
+    font-size: 11px; color: var(--muted); margin-top: 4px; line-height: 1.5;
+  }
+  /* Glow border on hover — feels premium in print as just the default state */
+  .feat-panel.highlight {
+    border-color: rgba(45,181,74,0.35);
+    box-shadow: 0 0 30px rgba(45,181,74,0.1);
+  }
+  .feat-panel.gold-highlight {
+    border-color: rgba(240,192,64,0.3);
+    box-shadow: 0 0 30px rgba(240,192,64,0.08);
+  }
+
+  /* Bottom leaderboard strip */
+  .feat-bottom {
+    display: grid; grid-template-columns: auto 1fr;
+    gap: 16px; align-items: center;
+    margin: 10px 56px 0;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 10px; overflow: hidden;
+    position: relative; z-index: 1; height: 80px;
+  }
+  .feat-bottom-img {
+    width: 140px; height: 80px; object-fit: cover; object-position: top;
+    display: block;
+  }
+  .feat-bottom-text { padding: 0 16px; }
+  .feat-bottom-title { font-size: 14px; font-weight: 700; color: var(--white); }
+  .feat-bottom-sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+  /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     PAGE 5 — PRICING
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+  .billing-toggle {
+    display: flex; align-items: center; gap: 12px;
+    margin: 20px 56px 0;
+    position: relative; z-index: 1;
+  }
+  .toggle-pill {
+    display: flex;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--border);
+    border-radius: 40px;
+    padding: 4px;
+    gap: 2px;
+  }
+  .toggle-opt {
+    font-size: 12px; font-weight: 600;
+    padding: 6px 16px;
+    border-radius: 30px;
+    color: var(--muted);
+  }
+  .toggle-opt.active {
+    background: var(--green);
+    color: #fff;
+  }
+  .toggle-save {
+    font-size: 12px; color: var(--green); font-weight: 600;
+  }
+
+  .pricing-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    padding: 16px 56px 0;
+    position: relative; z-index: 1;
+  }
+  .price-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 26px 22px;
+    display: flex; flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+  .price-card.popular {
+    border-color: var(--green);
+    background: linear-gradient(160deg, rgba(45,181,74,0.1), rgba(8,14,10,0.9));
+    box-shadow: 0 0 40px rgba(45,181,74,0.15);
+  }
+  .price-card.gold-card {
+    border-color: rgba(240,192,64,0.3);
+    background: linear-gradient(160deg, rgba(240,192,64,0.07), rgba(8,14,10,0.9));
+  }
+  .popular-badge {
+    position: absolute;
+    top: 16px; right: 16px;
+    background: var(--green);
+    color: #fff;
+    font-size: 9px; font-weight: 800;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 4px 10px; border-radius: 20px;
+  }
+  .plan-tier {
+    font-size: 10px; font-weight: 700;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 10px;
+  }
+  .plan-tier.green-tier { color: var(--green); }
+  .plan-tier.gold-tier { color: var(--gold); }
+  .plan-price {
+    font-family: var(--ff-head);
+    font-size: 48px;
+    color: var(--white);
+    line-height: 1;
+  }
+  .plan-price sup { font-size: 22px; vertical-align: top; margin-top: 6px; display: inline-block; }
+  .plan-price-period { font-size: 13px; color: var(--muted); font-family: var(--ff-body); font-weight: 400; }
+  .plan-save {
+    font-size: 11px; color: var(--green); margin-top: 4px; font-weight: 600;
+  }
+  .plan-divider {
+    width: 100%; height: 1px;
+    background: var(--border);
+    margin: 16px 0;
+  }
+  .plan-features {
+    list-style: none;
+    display: flex; flex-direction: column; gap: 9px;
+    flex: 1;
+  }
+  .plan-features li {
+    font-size: 12px; color: var(--white);
+    display: flex; align-items: flex-start; gap: 8px;
+    line-height: 1.4;
+  }
+  .plan-features li::before {
+    content: '✓';
+    color: var(--green); font-weight: 800; flex-shrink: 0;
+    font-size: 12px;
+  }
+  .plan-features li.gold-feat::before { color: var(--gold); }
+  .plan-cta {
+    margin-top: 18px;
+    padding: 12px;
+    border-radius: 6px;
+    font-size: 13px; font-weight: 700;
+    text-align: center;
+    letter-spacing: 0.03em;
+  }
+  .plan-cta.free-cta {
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+  .plan-cta.silver-cta {
+    background: var(--green);
+    color: #fff;
+  }
+  .plan-cta.gold-cta {
+    background: linear-gradient(135deg, var(--gold), var(--gold2));
+    color: #000;
+  }
+
+  /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     PAGE 6 — CTA / CLOSING
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+  .cta-page {
+    display: flex; flex-direction: column;
+  }
+  .cta-image {
+    position: relative; overflow: hidden;
+    display: flex; justify-content: center; align-items: flex-start;
+    background: #0a1a0e;
+    padding: 20px 0 0;
+    flex: 1;
+  }
+  .cta-image img {
+    width: 100%; height: 100%; object-fit: contain;; display: block;
+  }
+  .cta-image-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(to bottom, rgba(8,14,10,0.3) 0%, rgba(8,14,10,0.9) 100%);
+  }
+  .cta-body {
+    background: linear-gradient(160deg, #0c1f11 0%, #080e0a 100%);
+    padding: 18px 56px 16px;
+    display: flex; flex-direction: column; justify-content: space-between;
+    position: relative;
+  }
+  .cta-main-title {
+    font-family: var(--ff-head);
+    font-size: 82px;
+    letter-spacing: 0.03em;
+    line-height: 0.9;
+    color: var(--white);
+  }
+  .cta-main-title span { color: var(--green); }
+  .cta-sub {
+    font-size: 16px; color: var(--muted); margin-top: 14px;
+    font-weight: 300; line-height: 1.6; max-width: 420px;
+  }
+  .cta-button {
+    display: inline-block;
+    margin-top: 24px;
+    background: var(--green);
+    color: #fff;
+    font-weight: 800;
+    font-size: 15px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 16px 40px;
+    border-radius: 6px;
+    box-shadow: 0 0 40px rgba(45,181,74,0.4);
+    width: fit-content;
+  }
+  .cta-contacts {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
+  }
+  .contact-item {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .contact-icon { font-size: 20px; flex-shrink: 0; }
+  .contact-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+  .contact-value { font-size: 13px; font-weight: 600; color: var(--white); margin-top: 2px; }
+
+  .cta-footer {
+    text-align: center;
+    font-size: 11px; color: rgba(242,239,233,0.25);
+    letter-spacing: 0.15em; text-transform: uppercase;
+    margin-top: 20px;
+  }
+
+  /* ── Slide footer strip ── */
+  .slide-footer {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 32px;
+    display: flex; align-items: center;
+    padding: 0 56px;
+    justify-content: space-between;
+    border-top: 1px solid var(--border);
+    font-size: 10px; color: rgba(242,239,233,0.25);
+    letter-spacing: 0.12em; text-transform: uppercase;
+    z-index: 10;
+  }
+  .slide-footer-logo { font-family: var(--ff-head); font-size: 13px; color: rgba(242,239,233,0.3); letter-spacing: 0.1em; }
+  .slide-footer-logo span { color: var(--gold); opacity: 0.7; }
+
+  /* ── Print / PDF export ── */
+  @media print {
+    @page { size: 794px 1123px; margin: 0; }
+    html, body { margin: 0; padding: 0; width: 794px; background: none; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    deck-stage { display: block !important; width: 794px !important; height: auto !important; }
+    section {
+      width: 794px !important; height: 1123px !important;
+      page-break-after: always;
+      break-after: page;
+      overflow: hidden;
+      position: relative;
+    }
+    section:last-child { page-break-after: avoid; break-after: auto; }
+    .chess-bg, .glow-spot { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+<deck-stage width="794" height="1123">
+
+  <!-- ══════════════════════════════════════════════
+       SLIDE 1 — COVER
+  ══════════════════════════════════════════════ -->
+  <section class="cover" data-label="Cover">
+    <div class="chess-bg"></div>
+    <div class="glow-spot" style="width:500px;height:500px;background:rgba(45,181,74,0.15);top:-200px;right:-100px;"></div>
+
+    <div class="cover-image">
+      <img src="uploads/grandmasters2.png" alt="Chess99 — glowing chess board">
+      <div class="cover-image-overlay"></div>
+    </div>
+
+    <div class="cover-body">
+      <div class="cover-king">♔</div>
+      <div class="glow-spot" style="width:400px;height:300px;background:rgba(45,181,74,0.08);top:0;left:-100px;"></div>
+
+      <div class="rel">
+        <div class="cover-logo">CHESS<span>99</span>.COM</div>
+        <div class="cover-sub">India's Chess Learning Platform</div>
+        <div class="cover-tagline">Think. Play. Win.</div>
+        <div class="cover-desc">India's dedicated platform for students and adults — combining play, structured training, video lessons, tournaments, and progress tracking in one place.</div>
+      </div>
+
+      <div class="cover-bottom rel">
+        <div class="cover-trust">Trusted by Schools Across India</div>
+        <div class="cover-cta">Free to Start · chess99.com</div>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <div class="slide-footer-logo">CHESS<span>99</span></div>
+      <div>chess99.com</div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════
+       SLIDE 2 — INDIA'S GOLDEN ERA
+  ══════════════════════════════════════════════ -->
+  <section data-label="Golden Era">
+    <div class="chess-bg"></div>
+    <div class="glow-spot" style="width:500px;height:400px;background:rgba(240,192,64,0.06);top:-100px;right:-100px;"></div>
+
+    <div class="page-header">
+      <div class="page-label">Why Chess Now</div>
+      <div class="page-title">India's Chess<br><span>Golden Era</span> ♟</div>
+      <div class="page-hook">India is the world's #1 chess superpower. Your students deserve to be part of this historic moment.</div>
+    </div>
+
+    <div class="era-grid">
+      <div class="era-card highlight">
+        <span class="era-card-icon">🏆</span>
+        <div class="era-card-stat">2024</div>
+        <div class="era-card-label">World Champion — D. Gukesh</div>
+        <div class="era-card-sub">At just 18, youngest World Chess Champion in history</div>
+        <div class="era-card-accent">♛</div>
+      </div>
+      <div class="era-card">
+        <span class="era-card-icon">🥇</span>
+        <div class="era-card-stat">Double Gold</div>
+        <div class="era-card-label">Chess Olympiad 2024</div>
+        <div class="era-card-sub">India won both Open &amp; Women's Olympiad — historic first</div>
+        <div class="era-card-accent">♚</div>
+      </div>
+      <div class="era-card">
+        <span class="era-card-icon">♟</span>
+        <div class="era-card-stat">85+</div>
+        <div class="era-card-label">Indian Grandmasters</div>
+        <div class="era-card-sub">From 1 GM in 1988 to 85+ today — fastest growth worldwide</div>
+        <div class="era-card-accent">♜</div>
+      </div>
+      <div class="era-card">
+        <span class="era-card-icon">🚀</span>
+        <div class="era-card-stat">#1</div>
+        <div class="era-card-label">Youth Chess Nation</div>
+        <div class="era-card-sub">India leads globally in producing young chess talent</div>
+        <div class="era-card-accent">♝</div>
+      </div>
+    </div>
+
+    <div class="era-photo rel">
+      <img src="uploads/indians_playing_chess.png" alt="Students playing chess">
+      <div class="era-photo-overlay">
+        <div>
+          <div class="era-photo-quote">"Historic and exemplary achievement for Indian chess"</div>
+          <div class="era-photo-attr">— PM Narendra Modi on India's Olympiad triumph</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <div class="slide-footer-logo">CHESS<span>99</span></div>
+      <div>India's Chess Golden Era</div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════
+       SLIDE 3 — RESEARCH BENEFITS
+  ══════════════════════════════════════════════ -->
+  <section data-label="Research Benefits">
+    <div class="chess-bg"></div>
+    <div class="glow-spot" style="width:400px;height:400px;background:rgba(45,181,74,0.08);top:-50px;left:-100px;"></div>
+
+    <div class="page-header">
+      <div class="page-label">Science-Backed</div>
+      <div class="page-title">Research-Backed<br><span>Benefits</span></div>
+      <div class="page-hook">Chess boosts academics and cognitive development — proven by global studies.</div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-big">
+        <div class="stat-big-num">+38%</div>
+        <div class="stat-big-label">Math Improvement</div>
+        <div class="stat-big-sub">Students playing chess regularly score significantly higher in mathematics</div>
+      </div>
+      <div class="stat-big">
+        <div class="stat-big-num">+34%</div>
+        <div class="stat-big-label">Cognitive Ability</div>
+        <div class="stat-big-sub">Measurable improvement in logical reasoning and memory retention</div>
+      </div>
+    </div>
+
+    <div class="benefits-grid">
+      <div class="benefit-item">
+        <span class="benefit-icon">🎯</span>
+        <div class="benefit-title">Problem Solving</div>
+        <div class="benefit-desc">Develops critical thinking &amp; strategic planning</div>
+      </div>
+      <div class="benefit-item">
+        <span class="benefit-icon">🧘</span>
+        <div class="benefit-title">Discipline</div>
+        <div class="benefit-desc">Builds focus, patience &amp; emotional regulation</div>
+      </div>
+      <div class="benefit-item">
+        <span class="benefit-icon">⏱</span>
+        <div class="benefit-title">1 Hour / Week</div>
+        <div class="benefit-desc">Measurable academic gains with minimal time investment</div>
+      </div>
+    </div>
+
+    <div class="research-photo rel">
+      <img src="uploads/chess_strategy.png" alt="Chess strategy with equations">
+      <div class="research-photo-overlay">
+        <div>
+          <div style="font-family:var(--ff-head);font-size:28px;color:var(--white);letter-spacing:0.04em;line-height:1.1;">Chess = The World's<br>Greatest Learning Tool</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="policy-strip">
+      <div class="policy-icon">🇮🇳</div>
+      <div>
+        <div class="policy-title">Policy Aligned</div>
+        <div class="policy-desc">Chess99 supports national educational initiatives</div>
+        <div class="policy-tags">
+          <span class="policy-tag">NEP 2020</span>
+          <span class="policy-tag">Khelo India</span>
+          <span class="policy-tag">CBSE</span>
+          <span class="policy-tag">Skill India</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <div class="slide-footer-logo">CHESS<span>99</span></div>
+      <div>Research-Backed Benefits</div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════
+       SLIDE 4 — PLATFORM FEATURES
+  ══════════════════════════════════════════════ -->
+  <section data-label="Platform Features">
+    <div class="chess-bg"></div>
+
+    <div class="page-header" style="padding-bottom:0">
+      <div class="page-label">The Platform</div>
+      <div class="page-title">Learn Smarter.<br><span>Play Better.</span></div>
+      <div class="page-hook">Powerful learning aids for every player — from beginner to 2400 ELO.</div>
+    </div>
+
+    <!-- ELO range bar -->
+    <div class="feat-elo-bar">
+      <div class="feat-elo-label">ELO Range</div>
+      <div class="feat-elo-track"><div class="feat-elo-fill"></div></div>
+      <div class="feat-elo-range">Beginner → 2400+ · All skill levels covered</div>
+    </div>
+
+    <!-- Full-width image -->
+    <div style="margin:12px 56px 0;border-radius:10px;overflow:hidden;position:relative;z-index:1;border:1px solid rgba(240,192,64,0.3);box-shadow:0 0 30px rgba(240,192,64,0.08);">
+      <img src="uploads/best-moves-aid.png" alt="CCT Move Arrows" style="width:100%;display:block;">
+    </div>
+
+    <!-- Two text boxes below -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 56px 0;position:relative;z-index:1;">
+      <div style="background:rgba(45,181,74,0.07);border:1px solid rgba(45,181,74,0.2);border-radius:8px;padding:14px 18px;">
+        <div style="font-size:10px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:var(--green);margin-bottom:6px;">Exclusive Feature</div>
+        <div style="font-family:var(--ff-head);font-size:20px;letter-spacing:0.04em;color:var(--white);line-height:1.1;margin-bottom:6px;">Play with a Companion</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.5;">Pick a rated companion to play moves on your behalf — learn real patterns from stronger players in live games. Ideal for 800–2000 ELO learners.</div>
+      </div>
+      <div style="background:rgba(240,192,64,0.06);border:1px solid rgba(240,192,64,0.2);border-radius:8px;padding:14px 18px;">
+        <div style="font-size:10px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:var(--gold);margin-bottom:6px;">CCT — Checks · Captures · Threats</div>
+        <div style="font-family:var(--ff-head);font-size:20px;letter-spacing:0.04em;color:var(--white);line-height:1.1;margin-bottom:6px;">Visual Move Aids</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.5;">See every threat on the board in real time. Ranked best-moves highlighted as arrows — the fastest way to stop blundering below 2400 ELO.</div>
+      </div>
+    </div>
+
+    <!-- Bottom strip — Leaderboard with two text boxes -->
+    <div class="feat-bottom">
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 16px;">
+        <div style="background:rgba(45,181,74,0.07);border:1px solid rgba(45,181,74,0.15);border-radius:6px;padding:10px 14px;">
+          <div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:3px;">Live Leaderboards</div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.4;">ELO-based national rankings updated in real time after every game</div>
+        </div>
+        <div style="background:rgba(240,192,64,0.07);border:1px solid rgba(240,192,64,0.15);border-radius:6px;padding:10px 14px;">
+          <div style="font-size:12px;font-weight:700;color:var(--gold);margin-bottom:3px;">School Rankings</div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.4;">School vs school tournaments · Weekly &amp; all-time boards</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <div class="slide-footer-logo">CHESS<span>99</span></div>
+      <div>Platform Features</div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════
+       SLIDE 5 — PRICING
+  ══════════════════════════════════════════════ -->
+  <section data-label="Pricing">
+    <div class="chess-bg"></div>
+    <div class="glow-spot" style="width:500px;height:400px;background:rgba(45,181,74,0.07);bottom:100px;left:50%;transform:translateX(-50%);"></div>
+
+    <div class="page-header">
+      <div class="page-label">Plans &amp; Pricing</div>
+      <div class="page-title">Simple,<br><span>Affordable</span> Plans</div>
+    </div>
+
+    <div class="billing-toggle">
+      <div class="toggle-pill">
+        <div class="toggle-opt">Monthly</div>
+        <div class="toggle-opt active">Yearly</div>
+      </div>
+      <div class="toggle-save">★ Save 16% with Yearly billing</div>
+    </div>
+
+    <div class="pricing-grid rel">
+      <!-- FREE -->
+      <div class="price-card">
+        <div class="plan-tier">Free Plan</div>
+        <div class="plan-price">₹<span>0</span></div>
+        <div class="plan-price-period">Forever Free</div>
+        <div class="plan-divider"></div>
+        <ul class="plan-features">
+          <li>Play vs Computer</li>
+          <li>5 Online Games / Day</li>
+          <li>Public Tournaments</li>
+          <li>Basic Game Statistics</li>
+          <li>5 Undos per Game</li>
+        </ul>
+        <div class="plan-cta free-cta">Start Playing Free</div>
+      </div>
+
+      <!-- SILVER -->
+      <div class="price-card popular">
+        <div class="popular-badge">Most Popular</div>
+        <div class="plan-tier green-tier">Silver Plan</div>
+        <div class="plan-price"><sup>₹</sup>1,999</div>
+        <div class="plan-price-period">per year</div>
+        <div class="plan-save">Save ₹189 vs monthly billing</div>
+        <div class="plan-divider"></div>
+        <ul class="plan-features">
+          <li>Unlimited Online Games</li>
+          <li>All Tournaments Access</li>
+          <li>ELO Rating Tracking</li>
+          <li>Full Game History</li>
+          <li>Ad-Free Experience</li>
+          <li>Unlimited Undos</li>
+          <li>Priority Matchmaking</li>
+          <li>Custom Board Themes</li>
+        </ul>
+        <div class="plan-cta silver-cta">Upgrade to Silver</div>
+      </div>
+
+      <!-- GOLD -->
+      <div class="price-card gold-card">
+        <div class="plan-tier gold-tier">Gold Plan</div>
+        <div class="plan-price"><sup>₹</sup>4,999</div>
+        <div class="plan-price-period">per year</div>
+        <div class="plan-save" style="color:var(--gold)">Save ₹989 vs monthly billing</div>
+        <div class="plan-divider" style="background:rgba(240,192,64,0.15)"></div>
+        <ul class="plan-features">
+          <li>Everything in Silver</li>
+          <li class="gold-feat">School / Org Affiliation</li>
+          <li class="gold-feat">Advanced Analytics</li>
+          <li class="gold-feat">AI Opponent</li>
+          <li class="gold-feat">Opening Explorer</li>
+          <li class="gold-feat">Game Annotations</li>
+          <li class="gold-feat">Priority Support</li>
+        </ul>
+        <div class="plan-cta gold-cta">Go Gold</div>
+      </div>
+    </div>
+
+    <!-- Play Chess Online section -->
+    <div style="margin:28px 56px 0;padding:24px 28px;border-radius:10px;border:1px solid var(--border);background:var(--card);position:relative;z-index:1;display:flex;align-items:center;justify-content:center;gap:32px;">
+      <div style="text-align:left;flex-shrink:0;max-width:380px;">
+        <div style="font-family:var(--ff-head);font-size:48px;letter-spacing:0.04em;line-height:0.92;color:var(--white);">Play Chess<br><span style="color:var(--green);">Online</span></div>
+        <div style="font-size:15px;color:var(--muted);margin-top:12px;line-height:1.65;">Learn, play, and improve. Safe for all ages.</div>
+        <div style="display:flex;gap:10px;margin-top:16px;">
+          <div style="background:var(--green);color:#fff;padding:11px 26px;border-radius:6px;font-size:14px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;box-shadow:0 4px 16px rgba(45,181,74,0.35);">Play Now</div>
+          <div style="background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--white);padding:11px 26px;border-radius:6px;font-size:14px;font-weight:600;">Login &amp; Play</div>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-top:12px;">🌐 Join <span style="color:var(--green);font-weight:600;">1,000+ players</span> — safe for all ages, no account needed</div>
+      </div>
+      <div style="position:relative;flex-shrink:0;">
+        <div style="position:absolute;inset:-24px;background:rgba(201,169,110,0.08);border-radius:16px;filter:blur(24px);"></div>
+        <div style="position:relative;border-radius:2px;width:220px;height:220px;box-shadow:rgb(61,43,26) 0px 0px 0px 4px,rgb(42,29,16) 0px 0px 0px 6px,rgba(0,0,0,0.6) 0px 8px 32px;overflow:hidden;">
+          <img src="uploads/chessboard.png" alt="Chess board" style="width:100%;height:100%;object-fit:cover;display:block;">
+        </div>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <div class="slide-footer-logo">CHESS<span>99</span></div>
+      <div>chess99.com · Free to Start</div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════
+       SLIDE 6 — CTA / CLOSE
+  ══════════════════════════════════════════════ -->
+  <section class="cta-page" data-label="Get Started">
+    <div class="chess-bg"></div>
+
+    <div class="cta-image">
+      <img src="uploads/leaderboard.png" alt="Chess99 leaderboard">
+      <div class="cta-image-overlay"></div>
+    </div>
+
+    <div class="cta-body">
+      <div class="glow-spot" style="width:400px;height:300px;background:rgba(45,181,74,0.12);top:-50px;left:-100px;"></div>
+
+      <div class="rel">
+        <div class="cta-main-title"><span>Get Started</span><br>Today</div>
+        <div class="cta-sub">Join thousands of students across India improving through the world's greatest mind game.</div>
+        <div class="cta-button">Visit chess99.com</div>
+      </div>
+
+      <div class="rel">
+        <div class="cta-contacts">
+          <div class="contact-item">
+            <div class="contact-icon">✉</div>
+            <div>
+              <div class="contact-label">Email</div>
+              <div class="contact-value">info@chess99.com</div>
+            </div>
+          </div>
+          <div class="contact-item">
+            <div class="contact-icon">🌐</div>
+            <div>
+              <div class="contact-label">Website</div>
+              <div class="contact-value">chess99.com</div>
+            </div>
+          </div>
+          <div class="contact-item">
+            <div class="contact-icon">📱</div>
+            <div>
+              <div class="contact-label">Mobile App</div>
+              <div class="contact-value">Google Play Store</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cta-footer">Chess99.com · India's #1 Chess Academy · Think. Play. Win.</div>
+      </div>
+    </div>
+  </section>
+
+</deck-stage>
+</body>
+</html>
