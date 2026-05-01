@@ -35,9 +35,11 @@
     31 => 'NunoMaduro\\Collision\\Adapters\\Laravel\\CollisionServiceProvider',
     32 => 'Termwind\\Laravel\\TermwindServiceProvider',
     33 => 'Phiki\\Adapters\\Laravel\\PhikiServiceProvider',
-    34 => 'App\\Providers\\AppServiceProvider',
-    35 => 'App\\Providers\\RouteServiceProvider',
-    36 => 'Laravel\\Socialite\\SocialiteServiceProvider',
+    34 => 'Sentry\\Laravel\\ServiceProvider',
+    35 => 'Sentry\\Laravel\\Tracing\\ServiceProvider',
+    36 => 'App\\Providers\\AppServiceProvider',
+    37 => 'App\\Providers\\RouteServiceProvider',
+    38 => 'Laravel\\Socialite\\SocialiteServiceProvider',
   ),
   'eager' => 
   array (
@@ -58,8 +60,10 @@
     14 => 'NunoMaduro\\Collision\\Adapters\\Laravel\\CollisionServiceProvider',
     15 => 'Termwind\\Laravel\\TermwindServiceProvider',
     16 => 'Phiki\\Adapters\\Laravel\\PhikiServiceProvider',
-    17 => 'App\\Providers\\AppServiceProvider',
-    18 => 'App\\Providers\\RouteServiceProvider',
+    17 => 'Sentry\\Laravel\\ServiceProvider',
+    18 => 'Sentry\\Laravel\\Tracing\\ServiceProvider',
+    19 => 'App\\Providers\\AppServiceProvider',
+    20 => 'App\\Providers\\RouteServiceProvider',
   ),
   'deferred' => 
   array (

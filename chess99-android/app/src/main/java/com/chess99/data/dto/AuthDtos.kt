@@ -32,6 +32,11 @@ data class AppleMobileLoginRequest(
     val userEmail: String? = null,
 )
 
+data class FacebookMobileLoginRequest(
+    @SerializedName("access_token")
+    val accessToken: String,
+)
+
 data class RefreshTokenRequest(
     @SerializedName("device_name")
     val deviceName: String? = null,

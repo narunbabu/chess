@@ -8,7 +8,7 @@ use Illuminate\Database\Seeder;
 class SyntheticPlayerSeeder extends Seeder
 {
     /**
-     * Seed ~50 synthetic players across levels 4-16 (1000-2440 ELO).
+     * Seed synthetic players across beginner and advanced levels (800-2440 ELO).
      *
      * Rating formula: 800 + (level * 100) + random(-50, +50)
      */
@@ -38,6 +38,10 @@ class SyntheticPlayerSeeder extends Seeder
 
         return [
             // Level 4 (1000 ± 50) — Casual / Beginner
+            ['name' => 'Aarav Beginner', 'avatar_seed' => 'aarav-beginner', 'computer_level' => 1, 'rating' => 800, 'personality' => 'Balanced', 'bio' => 'New to online chess and learning the basics', 'games_played_count' => 18, 'wins_count' => 6],
+            ['name' => 'Meera Starter', 'avatar_seed' => 'meera-starter', 'computer_level' => 2, 'rating' => 850, 'personality' => 'Defensive', 'bio' => 'Practices safe moves and simple tactics', 'games_played_count' => 24, 'wins_count' => 9],
+            ['name' => 'Kabir Learner', 'avatar_seed' => 'kabir-learner', 'computer_level' => 2, 'rating' => 900, 'personality' => 'Tactical', 'bio' => 'Looks for one-move checks and captures', 'games_played_count' => 31, 'wins_count' => 13],
+            ['name' => 'Ananya Practice', 'avatar_seed' => 'ananya-practice', 'computer_level' => 3, 'rating' => 950, 'personality' => 'Aggressive', 'bio' => 'Enjoys open games and quick development', 'games_played_count' => 39, 'wins_count' => 17],
             ['name' => 'Tara Bhatt', 'avatar_seed' => 'tara-bhatt', 'computer_level' => 4, 'rating' => 1000, 'personality' => 'Balanced', 'bio' => 'Just started playing chess online', 'games_played_count' => 45, 'wins_count' => 18],
             ['name' => 'Nikhil Shukla', 'avatar_seed' => 'nikhil-shukla', 'computer_level' => 4, 'rating' => 1025, 'personality' => 'Aggressive', 'bio' => 'Loves going for the king early', 'games_played_count' => 67, 'wins_count' => 28],
             ['name' => 'Pallavi Sen', 'avatar_seed' => 'pallavi-sen', 'computer_level' => 4, 'rating' => 1050, 'personality' => 'Defensive', 'bio' => 'Learning to hold the position', 'games_played_count' => 82, 'wins_count' => 35],

@@ -39,12 +39,19 @@ import kotlin.math.min
  * - Haptic feedback on capture
  */
 @Composable
+data class BoardArrow(
+    val from: Int,
+    val to: Int,
+    val color: Long, // ARGB
+)
+
 fun ChessBoardView(
     game: ChessGame,
     boardOrientation: com.chess99.engine.Color = com.chess99.engine.Color.WHITE,
     isInteractive: Boolean = true,
     lastMoveFrom: Int = -1,
     lastMoveTo: Int = -1,
+    arrows: List<BoardArrow> = emptyList(),
     onMove: ((from: String, to: String, promotion: Char?) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -262,6 +269,18 @@ fun ChessBoardView(
                 drawPieceUnicode(textMeasurer, draggedPiece, Offset(x, y), sqSize * 1.2f)
             }
 
+            // Draw analysis arrows
+            for (arrow in arrows) {
+                val fromPos = boardToView(arrow.from)
+                val toPos = boardToView(arrow.to)
+                drawArrowOnBoard(
+                    from = Offset(fromPos.x + sqSize / 2, fromPos.y + sqSize / 2),
+                    to = Offset(toPos.x + sqSize / 2, toPos.y + sqSize / 2),
+                    color = Color(arrow.color),
+                    squareSize = sqSize,
+                )
+            }
+
             // Draw coordinates
             drawCoordinates(textMeasurer, sqSize, boardOrientation)
         }
@@ -328,6 +347,61 @@ private fun pieceToUnicode(piece: Int): String? {
         Piece.PAWN -> if (isWhite) "\u2659" else "\u265F"
         else -> null
     }
+}
+
+private fun DrawScope.drawArrowOnBoard(
+    from: Offset,
+    to: Offset,
+    color: Color,
+    squareSize: Float,
+) {
+    val shaftWidth = squareSize * 0.15f
+    val headLength = squareSize * 0.35f
+    val headWidth = squareSize * 0.3f
+
+    val dx = to.x - from.x
+    val dy = to.y - from.y
+    val length = kotlin.math.sqrt(dx * dx + dy * dy)
+    if (length < 1f) return
+
+    val ux = dx / length
+    val uy = dy / length
+
+    // Shaft: from slightly past start to slightly before arrowhead
+    val shaftStart = Offset(from.x + ux * squareSize * 0.3f, from.y + uy * squareSize * 0.3f)
+    val shaftEnd = Offset(to.x - ux * headLength, to.y - uy * headLength)
+
+    // Perpendicular unit vector
+    val px = -uy
+    val py = ux
+
+    // Draw shaft as a filled rectangle (two triangles)
+    val s1 = Offset(shaftStart.x + px * shaftWidth / 2, shaftStart.y + py * shaftWidth / 2)
+    val s2 = Offset(shaftStart.x - px * shaftWidth / 2, shaftStart.y - py * shaftWidth / 2)
+    val s3 = Offset(shaftEnd.x + px * shaftWidth / 2, shaftEnd.y + py * shaftWidth / 2)
+    val s4 = Offset(shaftEnd.x - px * shaftWidth / 2, shaftEnd.y - py * shaftWidth / 2)
+
+    val shaftPath = androidx.compose.ui.graphics.Path().apply {
+        moveTo(s1.x, s1.y)
+        lineTo(s3.x, s3.y)
+        lineTo(s4.x, s4.y)
+        lineTo(s2.x, s2.y)
+        close()
+    }
+    drawPath(shaftPath, color)
+
+    // Draw arrowhead as a filled triangle
+    val h1 = to
+    val h2 = Offset(shaftEnd.x + px * headWidth / 2, shaftEnd.y + py * headWidth / 2)
+    val h3 = Offset(shaftEnd.x - px * headWidth / 2, shaftEnd.y - py * headWidth / 2)
+
+    val headPath = androidx.compose.ui.graphics.Path().apply {
+        moveTo(h1.x, h1.y)
+        lineTo(h2.x, h2.y)
+        lineTo(h3.x, h3.y)
+        close()
+    }
+    drawPath(headPath, color)
 }
 
 // ── Colors (matching web frontend) ───────────────────────────────────

@@ -1,5 +1,6 @@
 package com.chess99.presentation.auth
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chess99.domain.model.User
@@ -22,6 +23,8 @@ data class AuthUiState(
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val authRepository: AuthRepository,
+    private val googleSignInHelper: GoogleSignInHelper,
+    private val facebookSignInHelper: FacebookSignInHelper,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AuthUiState())
@@ -81,6 +84,86 @@ class AuthViewModel @Inject constructor(
         }
     }
 
+    fun initiateGoogleSignIn(activityContext: Context) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, error = null) }
+
+            when (val result = googleSignInHelper.signIn(activityContext)) {
+                is GoogleSignInResult.Success -> {
+                    authRepository.googleMobileLogin(result.idToken)
+                        .onSuccess { authResult ->
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    isAuthenticated = true,
+                                    user = authResult.user,
+                                )
+                            }
+                        }
+                        .onFailure { error ->
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    error = error.message ?: "Google sign-in failed",
+                                )
+                            }
+                        }
+                }
+                is GoogleSignInResult.Failure -> {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = error.exception.message ?: "Google sign-in failed",
+                        )
+                    }
+                }
+                GoogleSignInResult.Cancelled -> {
+                    _uiState.update { it.copy(isLoading = false) }
+                }
+            }
+        }
+    }
+
+    fun initiateFacebookSignIn(activityContext: Context) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, error = null) }
+
+            when (val result = facebookSignInHelper.signIn(activityContext as android.app.Activity)) {
+                is FacebookSignInResult.Success -> {
+                    authRepository.facebookMobileLogin(result.accessToken)
+                        .onSuccess { authResult ->
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    isAuthenticated = true,
+                                    user = authResult.user,
+                                )
+                            }
+                        }
+                        .onFailure { error ->
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    error = error.message ?: "Facebook sign-in failed",
+                                )
+                            }
+                        }
+                }
+                is FacebookSignInResult.Failure -> {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = error.exception.message ?: "Facebook sign-in failed",
+                        )
+                    }
+                }
+                FacebookSignInResult.Cancelled -> {
+                    _uiState.update { it.copy(isLoading = false) }
+                }
+            }
+        }
+    }
+
     fun googleSignIn(idToken: String) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
@@ -105,6 +188,34 @@ class AuthViewModel @Inject constructor(
                 }
         }
     }
+
+    fun facebookSignIn(accessToken: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, error = null) }
+
+            authRepository.facebookMobileLogin(accessToken)
+                .onSuccess { result ->
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            isAuthenticated = true,
+                            user = result.user,
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = error.message ?: "Facebook sign-in failed",
+                        )
+                    }
+                }
+        }
+    }
+
+    /** Get the Facebook CallbackManager for forwarding Activity results. */
+    fun getFacebookCallbackManager() = facebookSignInHelper.callbackManager
 
     fun logout() {
         viewModelScope.launch {

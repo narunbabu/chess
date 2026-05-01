@@ -128,4 +128,12 @@ interface WebSocketApi {
         @Path("gameId") gameId: Int,
         @Body body: JsonObject,
     ): Response<JsonObject>
+
+    // ── Synthetic Move (Companion Mode) ─────────────────────────────────
+
+    @POST("games/{gameId}/synthetic-move")
+    suspend fun sendSyntheticMove(
+        @Path("gameId") gameId: Int,
+        @Body body: JsonObject,
+    ): Response<JsonObject>
 }

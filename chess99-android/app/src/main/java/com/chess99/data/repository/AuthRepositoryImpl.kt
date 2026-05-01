@@ -35,6 +35,10 @@ class AuthRepositoryImpl @Inject constructor(
         return executeAuth { authApi.googleMobileLogin(GoogleMobileLoginRequest(idToken)) }
     }
 
+    override suspend fun facebookMobileLogin(accessToken: String): Result<AuthResult> {
+        return executeAuth { authApi.facebookMobileLogin(FacebookMobileLoginRequest(accessToken)) }
+    }
+
     override suspend fun refreshToken(deviceName: String?): Result<AuthResult> {
         return executeAuth { authApi.refreshToken(RefreshTokenRequest(deviceName)) }
     }

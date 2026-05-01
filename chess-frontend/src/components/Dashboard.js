@@ -414,7 +414,7 @@ const Dashboard = () => {
   };
 
   // Check if user should be prompted to set their rating
-  const shouldShowRatingPrompt = user && user.rating === 1200 && (user.games_played === 0 || !user.games_played);
+  const shouldShowRatingPrompt = user && user.rating === 800 && (user.games_played === 0 || !user.games_played);
 
   // Memoize stats calculations to prevent repetitive computation
   const stats = useMemo(() => {
@@ -558,7 +558,7 @@ const Dashboard = () => {
             {shouldShowRatingPrompt && (
               <div className="rating-prompt-banner">
                 <p className="rating-prompt-text">
-                  ⭐ You're using the default rating (1200). Take a quick skill assessment to get a personalized rating!
+                  ⭐ You're using the beginner default rating (800). Take a quick skill assessment to get a personalized rating!
                 </p>
                 <button
                   className="rating-prompt-btn"
@@ -1004,7 +1004,7 @@ const Dashboard = () => {
               <div className="unified-card centered">
                 <div className="unified-card-content">
                   <h3 className="unified-card-title title-large title-info">
-                    {user?.rating || 1200}
+                    {user?.rating || 800}
                   </h3>
                   <p className="unified-card-subtitle">Rating</p>
                 </div>

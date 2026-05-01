@@ -66,6 +66,11 @@ interface MatchmakingApi {
     @POST("invitations/{id}/cancel")
     suspend fun cancelInvitation(@Path("id") id: Int): Response<JsonObject>
 
+    // ── Synthetic Players (Companion Mode) ──────────────────────────────
+
+    @GET("v1/synthetic-players")
+    suspend fun getSyntheticPlayers(): Response<JsonObject>
+
     // ── Presence ────────────────────────────────────────────────────────
 
     @POST("presence/heartbeat")

@@ -112,6 +112,9 @@ dependencies {
     implementation(libs.credentials)
     implementation(libs.credentials.play.services)
 
+    // Facebook Sign-In
+    implementation(libs.facebook.login)
+
     // WebSocket (Pusher - Reverb compatible)
     implementation(libs.pusher.java.client)
 

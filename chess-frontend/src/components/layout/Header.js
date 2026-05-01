@@ -599,7 +599,7 @@ const Header = () => {
                 </span>
               )}
             </div>
-            <div className="user-avatar" onClick={handleUserMenuClick} title="User Menu" aria-label="User Menu">
+            <div className="user-avatar" data-tour="profile-menu" onClick={handleUserMenuClick} title="User Menu" aria-label="User Menu">
               <img
                 src={user?.avatar_url || `https://i.pravatar.cc/150?u=${user?.email}`}
                 alt={user?.name}

@@ -164,19 +164,19 @@ test.describe('Pricing Page & Checkout Flow', () => {
     await expect(tierLabels.nth(1)).toHaveText(/silver/i);
     await expect(tierLabels.nth(2)).toHaveText(/gold/i);
 
-    // Prices (monthly toggle is default)
+    // PricingPage defaults to the yearly billing interval.
     await expect(cards.nth(0).locator('.pricing-card__amount')).toHaveText('Free');
-    await expect(cards.nth(1).locator('.pricing-card__amount')).toHaveText('99');
-    await expect(cards.nth(2).locator('.pricing-card__amount')).toHaveText('499');
+    await expect(cards.nth(1).locator('.pricing-card__amount')).toHaveText('999');
+    await expect(cards.nth(2).locator('.pricing-card__amount')).toHaveText('4999');
 
     // Silver should show "Most Popular" badge
     await expect(cards.nth(1).locator('.pricing-card__popular-badge')).toBeVisible();
 
-    // Yearly toggle switches to annual prices
-    await page.locator('.pricing-page__toggle-btn:has-text("Yearly")').click();
+    // Monthly toggle switches to per-month prices
+    await page.locator('.pricing-page__toggle-btn:has-text("Monthly")').click();
     await page.waitForTimeout(300);
-    await expect(cards.nth(1).locator('.pricing-card__amount')).toHaveText('999');
-    await expect(cards.nth(2).locator('.pricing-card__amount')).toHaveText('4999');
+    await expect(cards.nth(1).locator('.pricing-card__amount')).toHaveText('99');
+    await expect(cards.nth(2).locator('.pricing-card__amount')).toHaveText('499');
   });
 
   // ── 2. Clicking Subscribe opens checkout overlay ─────────────────────────

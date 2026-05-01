@@ -174,6 +174,96 @@ class StockfishEngine @Inject constructor() {
     }
 
     /**
+     * Analyze a single position at a given depth. Returns evaluation and top moves.
+     * No artificial delay — used for post-game analysis, not gameplay.
+     *
+     * @param fen Position to analyze
+     * @param depth Search depth (default 18, matches backend)
+     * @return PositionAnalysis with eval score and ranked moves
+     */
+    suspend fun analyzePosition(fen: String, depth: Int = 18): PositionAnalysis = withContext(Dispatchers.Default) {
+        check(isInitialized) { "Engine not initialized. Call initialize() first." }
+        _state.value = EngineState.THINKING
+
+        try {
+            StockfishBridge.sendCommand("position fen $fen")
+            StockfishBridge.sendCommand("go depth $depth")
+
+            val rankedMoves = mutableListOf<RankedMove>()
+            var bestMove = ""
+            var evalScore = 0
+            var evalIsMate = false
+            var evalDepth = 0
+
+            while (true) {
+                val line = StockfishBridge.readLine() ?: continue
+
+                if (line.startsWith("bestmove")) {
+                    bestMove = line.split(" ").getOrElse(1) { "" }
+                    break
+                }
+
+                if (line.startsWith("info") && "pv" in line) {
+                    parseInfoLine(line)?.let { rankedMoves.add(it) }
+                    // Track the primary (multipv 1) eval
+                    if ("multipv 1" in line || ("multipv" !in line && " pv " in line)) {
+                        parseEvalFromInfoLine(line)?.let { (score, isMate, d) ->
+                            evalScore = score
+                            evalIsMate = isMate
+                            evalDepth = d
+                        }
+                    }
+                }
+            }
+
+            _state.value = EngineState.IDLE
+            PositionAnalysis(
+                evalCp = evalScore,
+                isMate = evalIsMate,
+                depth = evalDepth,
+                bestMove = bestMove,
+                rankedMoves = rankedMoves,
+            )
+        } catch (e: CancellationException) {
+            StockfishBridge.sendCommand("stop")
+            _state.value = EngineState.IDLE
+            throw e
+        } catch (e: Exception) {
+            _state.value = EngineState.ERROR
+            throw e
+        }
+    }
+
+    /**
+     * Parse evaluation score from an info line.
+     * Returns (score, isMate, depth) or null.
+     */
+    private fun parseEvalFromInfoLine(line: String): Triple<Int, Boolean, Int>? {
+        val parts = line.split(" ")
+        var score = 0
+        var isMate = false
+        var depth = 0
+        var foundScore = false
+
+        var i = 0
+        while (i < parts.size) {
+            when (parts[i]) {
+                "depth" -> depth = parts.getOrNull(i + 1)?.toIntOrNull() ?: 0
+                "score" -> {
+                    val scoreType = parts.getOrNull(i + 1)
+                    val scoreVal = parts.getOrNull(i + 2)?.toIntOrNull() ?: 0
+                    when (scoreType) {
+                        "cp" -> { score = scoreVal; foundScore = true }
+                        "mate" -> { score = scoreVal; isMate = true; foundScore = true }
+                    }
+                }
+            }
+            i++
+        }
+        return if (foundScore) Triple(score, isMate, depth) else null
+    }
+
+    /**
      * Reset engine state for a new game.
      */
     suspend fun newGame() {
@@ -284,4 +374,12 @@ data class RankedMove(
     val score: Int,     // centipawn score (or mate distance)
     val isMate: Boolean,
     val depth: Int,
+)
+
+data class PositionAnalysis(
+    val evalCp: Int,            // centipawn eval from white's perspective
+    val isMate: Boolean,        // true if eval is a mate score
+    val depth: Int,             // search depth reached
+    val bestMove: String,       // UCI format best move
+    val rankedMoves: List<RankedMove>,  // MultiPV top moves
 )

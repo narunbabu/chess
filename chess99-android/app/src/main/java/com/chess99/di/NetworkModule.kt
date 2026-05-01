@@ -111,4 +111,10 @@ object NetworkModule {
     fun provideReferralApi(retrofit: Retrofit): ReferralApi {
         return retrofit.create(ReferralApi::class.java)
     }
+
+    @Provides
+    @Singleton
+    fun provideTacticalApi(retrofit: Retrofit): TacticalApi {
+        return retrofit.create(TacticalApi::class.java)
+    }
 }

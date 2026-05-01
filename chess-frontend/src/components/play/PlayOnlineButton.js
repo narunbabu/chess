@@ -218,6 +218,7 @@ const PlayOnlineButton = ({ variant = 'primary', onSearchStart, onSearchEnd }) =
   if (variant === 'hero') {
     return (
       <button
+        data-tour="quick-play-button"
         onClick={startQuickMatch}
         style={{
           display: 'block',

@@ -271,6 +271,44 @@ class ShareManager @Inject constructor(
         }
     }
 
+    // ── PGN File Share ───────────────────────────────────────────────────
+
+    /**
+     * Save PGN content to a temp file and share via ACTION_SEND.
+     * Uses FileProvider to grant URI permissions to the receiving app.
+     */
+    fun sharePgnFile(context: Context, pgnContent: String, gameId: Int) {
+        try {
+            val cacheDir = File(context.cacheDir, "pgn_files")
+            cacheDir.mkdirs()
+            val pgnFile = File(cacheDir, "chess99-game-$gameId.pgn")
+            pgnFile.writeText(pgnContent)
+
+            val uri = FileProvider.getUriForFile(context, FILE_PROVIDER_AUTHORITY, pgnFile)
+
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "application/x-chess-pgn"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_SUBJECT, "Chess99 Game #$gameId")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            val chooser = Intent.createChooser(intent, "Share PGN")
+            chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(chooser)
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to share PGN file")
+            // Fallback: share as text
+            val fallbackIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_SUBJECT, "Chess99 Game #$gameId PGN")
+                putExtra(Intent.EXTRA_TEXT, pgnContent)
+            }
+            val chooser = Intent.createChooser(fallbackIntent, "Share PGN")
+            chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(chooser)
+        }
+    }
+
     // ── Analytics Tracking ──────────────────────────────────────────────
 
     private fun trackShare(gameId: Int, platform: String) {

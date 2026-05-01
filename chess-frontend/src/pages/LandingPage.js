@@ -1,23 +1,14 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Chessboard } from 'react-chessboard';
-import { Chess } from 'chess.js';
 import { Helmet } from 'react-helmet-async';
 import { useAuth } from '../contexts/AuthContext';
 import { trackUI } from '../utils/analytics';
 import AuthGateModal from '../components/layout/AuthGateModal';
-import { pieces3dLanding } from '../assets/pieces/pieces3d';
+import PlayModeGuide from '../components/onboarding/PlayModeGuide';
+import IntroVideo from '../components/onboarding/IntroVideo';
+import { ONBOARDING_GUIDE_GROUPS } from '../data/onboardingPlayModes';
 import logo from '../assets/images/logo.png';
 import chessPlayingKids from '../assets/images/chess-playing-kids-crop.jpeg';
-
-// Famous "Immortal Game" (Anderssen vs Kieseritzky, 1851) moves
-const IMMORTAL_GAME_MOVES = [
-  'e4', 'e5', 'f4', 'exf4', 'Bc4', 'Qh4+', 'Kf1', 'b5', 'Bxb5', 'Nf6',
-  'Nf3', 'Qh6', 'd3', 'Nh5', 'Nh4', 'Qg5', 'Nf5', 'c6', 'g4', 'Nf6',
-  'Rg1', 'cxb5', 'h4', 'Qg6', 'h5', 'Qg5', 'Qf3', 'Ng8', 'Bxf4', 'Qf6',
-  'Nc3', 'Bc5', 'Nd5', 'Qxb2', 'Bd6', 'Bxg1', 'e5', 'Qxa1+', 'Ke2', 'Na6',
-  'Nxg7+', 'Kd8', 'Qf6+', 'Nxf6', 'Be7#'
-];
 
 const LandingPage = () => {
   const { isAuthenticated, loading } = useAuth();
@@ -26,11 +17,6 @@ const LandingPage = () => {
   const [pricingInterval, setPricingInterval] = useState('monthly');
   const navigate = useNavigate();
 
-  // Chess animation state
-  const [game, setGame] = useState(new Chess());
-  const [moveIndex, setMoveIndex] = useState(0);
-  const [boardPosition, setBoardPosition] = useState('start');
-
   // Auto-redirect authenticated users to lobby
   useEffect(() => {
     if (!loading && isAuthenticated) {
@@ -38,68 +24,30 @@ const LandingPage = () => {
     }
   }, [loading, isAuthenticated, navigate]);
 
-  // Animate through game moves
-  useEffect(() => {
-    if (moveIndex >= IMMORTAL_GAME_MOVES.length) {
-      // Reset after game completes (pause then restart)
-      const resetTimeout = setTimeout(() => {
-        const newGame = new Chess();
-        setGame(newGame);
-        setMoveIndex(0);
-        setBoardPosition(newGame.fen());
-      }, 4000);
-      return () => clearTimeout(resetTimeout);
-    }
-
-    const moveTimeout = setTimeout(() => {
-      try {
-        const gameCopy = new Chess(game.fen());
-        const move = gameCopy.move(IMMORTAL_GAME_MOVES[moveIndex]);
-        if (move) {
-          setGame(gameCopy);
-          setBoardPosition(gameCopy.fen());
-          setMoveIndex(prev => prev + 1);
-        }
-      } catch {
-        // If move fails, reset
-        const newGame = new Chess();
-        setGame(newGame);
-        setMoveIndex(0);
-        setBoardPosition(newGame.fen());
-      }
-    }, moveIndex === 0 ? 1500 : 1800);
-
-    return () => clearTimeout(moveTimeout);
-  }, [moveIndex, game]);
-
   const handlePlayClick = useCallback(() => {
     trackUI('cta_button', 'click', { button: 'play_now', location: 'landing_hero' });
     navigate('/play');
   }, [navigate]);
 
-  const handleMultiplayerClick = useCallback(() => {
-    trackUI('cta_button', 'click', { button: 'play_online', location: 'landing_hero' });
-    setShowAuthGate(true);
-  }, []);
+  const handleGuideAction = useCallback((item) => {
+    trackUI('onboarding_guide', 'click', { item: item.id, location: 'landing' });
 
-  // Responsive board size - smaller on mobile so it fits in viewport
-  const [boardSize, setBoardSize] = useState(() => {
-    const w = typeof window !== 'undefined' ? window.innerWidth : 400;
-    return w < 640 ? Math.min(260, w - 48) : 400;
-  });
+    if (item.requiresAuth && !isAuthenticated) {
+      if (item.group === 'learn') {
+        navigate('/login?resource=tutorial');
+        return;
+      }
+      setShowAuthGate(true);
+      return;
+    }
 
-  useEffect(() => {
-    const handleResize = () => {
-      const w = window.innerWidth;
-      setBoardSize(w < 640 ? Math.min(260, w - 48) : 400);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+    if (item.action === 'openMatchmaking') {
+      navigate('/lobby');
+      return;
+    }
 
-  // Dark oak wood board theme
-  const darkSquareStyle = useMemo(() => ({ backgroundColor: '#6B4226' }), []);
-  const lightSquareStyle = useMemo(() => ({ backgroundColor: '#C9A96E' }), []);
+    navigate(item.path || '/', item.state ? { state: item.state } : undefined);
+  }, [isAuthenticated, navigate]);
 
   return (
     <div data-page="landing" className="bg-[#1a1a18] w-full min-h-screen overflow-x-hidden flex flex-col">
@@ -224,28 +172,32 @@ const LandingPage = () => {
         )}
       </header>
 
-      {/* Hero Section - Full Viewport */}
+      {/* Hero Section - Animated onboarding first */}
       <main className="flex-grow pt-14 flex flex-col">
-        <section className="flex-grow flex items-center justify-center relative overflow-hidden">
+        <section className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center relative overflow-hidden border-b border-[#3d3a37]/50">
           {/* Background image with dark overlay */}
           <img
             src={chessPlayingKids}
             alt=""
             className="absolute inset-0 w-full h-full object-cover opacity-[0.12]"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-[#1a1a18]/80 via-[#262421]/70 to-[#1a1a18]/90" />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#1a1a18]/86 via-[#262421]/74 to-[#1a1a18]/94" />
 
           {/* Content */}
-          <div className="relative z-10 w-full max-w-6xl mx-auto px-4 py-8 sm:py-12">
-            <div className="flex flex-col lg:flex-row items-center justify-center gap-8 lg:gap-16">
-              {/* Left: Text + CTAs */}
-              <div className="text-center lg:text-left flex-shrink-0 max-w-lg">
+          <div className="relative z-10 w-full max-w-7xl mx-auto px-4 py-8 sm:py-10">
+            <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] items-center gap-7 lg:gap-12">
+              <div className="text-center lg:text-left max-w-2xl mx-auto lg:mx-0">
+                <p className="text-[#e8a93e] text-xs sm:text-sm font-extrabold uppercase tracking-[0.18em] mb-3">
+                  New to Chess99?
+                </p>
                 <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold text-white mb-3 sm:mb-4 leading-tight">
-                  Play Chess<br />
-                  <span className="text-[#81b64c]">Online</span>
+                  Watch the journey,<br />
+                  then <span className="text-[#81b64c]">start playing</span>
                 </h1>
-                <p className="text-[#bababa] text-base sm:text-lg lg:text-xl mb-6 sm:mb-8 leading-relaxed">
-                  Learn, play, and improve. Safe for all ages.
+                <p className="text-[#d8d4cf] text-base sm:text-lg lg:text-xl mb-6 sm:mb-7 leading-relaxed">
+                  See how login, profile setup, casual games, rated games, CCT,
+                  Best Moves, Companion, Tactical Progression, Training Drills,
+                  and Lessons fit together before you make your first move.
                 </p>
 
                 <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
@@ -265,39 +217,29 @@ const LandingPage = () => {
                   )}
                 </div>
 
-                <p className="text-[#8b8987] text-sm mt-3">
-                  🌐 Join <span className="text-[#81b64c] font-semibold">1,000+ players</span> — safe for all ages, no account needed
+                <p className="text-[#bababa] text-sm mt-4">
+                  Join <span className="text-[#81b64c] font-semibold">1,000+ players</span> with beginner-friendly 800 ELO starts, online matchmaking, and guided learning.
                 </p>
               </div>
 
-              {/* Right: Animated Chessboard */}
-              <div className="relative flex-shrink-0">
-                {/* Warm glow behind board */}
-                <div className="absolute -inset-6 bg-[#C9A96E]/8 rounded-2xl blur-3xl" />
-                <div
-                  className="relative rounded-sm"
-                  style={{
-                    width: boardSize,
-                    height: boardSize,
-                    boxShadow: '0 0 0 4px #3d2b1a, 0 0 0 6px #2a1d10, 0 8px 32px rgba(0,0,0,0.6)',
-                  }}
-                >
-                  <Chessboard
-                    position={boardPosition}
-                    boardWidth={boardSize}
-                    animationDuration={600}
-                    arePiecesDraggable={false}
-                    customDarkSquareStyle={darkSquareStyle}
-                    customLightSquareStyle={lightSquareStyle}
-                    customPieces={pieces3dLanding}
-                    customBoardStyle={{
-                      borderRadius: '2px',
-                    }}
-                  />
-                </div>
+              <div className="w-full">
+                <IntroVideo
+                  variant="hero"
+                  showCopy={false}
+                  onLogin={() => navigate('/login')}
+                  onPlay={handlePlayClick}
+                />
               </div>
             </div>
           </div>
+        </section>
+
+        <section className="bg-[#1a1a18] border-t border-[#3d3a37]/50 py-10 sm:py-14 px-4">
+          <PlayModeGuide
+            groups={ONBOARDING_GUIDE_GROUPS}
+            isAuthenticated={isAuthenticated}
+            onAction={handleGuideAction}
+          />
         </section>
 
         {/* Compact Feature Strip */}
@@ -416,10 +358,10 @@ const LandingPage = () => {
                 <div className="mb-4">
                   <span className="inline-block px-3 py-1 text-xs font-semibold rounded-full bg-[#81b64c]/20 text-[#81b64c] mb-3">Silver</span>
                   <div className="text-3xl font-bold text-white">
-                    ₹{pricingInterval === 'monthly' ? '99' : '999'}
+                    ₹{pricingInterval === 'monthly' ? '199' : '1,999'}
                   </div>
                   <div className="text-[#8b8987] text-sm mt-1">
-                    {pricingInterval === 'monthly' ? 'per month' : 'per year · save ₹189'}
+                    {pricingInterval === 'monthly' ? 'per month' : 'per year · save ₹389'}
                   </div>
                 </div>
                 <ul className="space-y-2 flex-1 mb-6">

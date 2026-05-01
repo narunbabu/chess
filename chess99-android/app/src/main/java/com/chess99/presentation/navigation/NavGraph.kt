@@ -24,6 +24,7 @@ import com.chess99.presentation.learn.LearnScreen
 import com.chess99.presentation.learn.PuzzleScreen
 import com.chess99.presentation.learn.TrainingExerciseScreen
 import com.chess99.presentation.learn.TutorialLessonScreen
+import com.chess99.presentation.learn.tactical.TacticalTrainerDashboardScreen
 import com.chess99.presentation.lobby.LobbyScreen
 import com.chess99.presentation.payment.PricingScreen
 import com.chess99.presentation.payment.SubscriptionScreen
@@ -176,6 +177,9 @@ fun Chess99NavGraph(
                 onNavigateToTrainingExercise = { exerciseId ->
                     navController.navigate(Screen.TrainingExercise.createRoute(exerciseId))
                 },
+                onNavigateToTacticalTrainer = {
+                    navController.navigate(Screen.TacticalTrainer.route)
+                },
             )
         }
 
@@ -204,6 +208,13 @@ fun Chess99NavGraph(
             TrainingExerciseScreen(
                 exerciseId = exerciseId,
                 onNavigateBack = { navController.popBackStack() },
+            )
+        }
+
+        composable(Screen.TacticalTrainer.route) {
+            TacticalTrainerDashboardScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToStage = { /* Stage navigation handled within VM */ },
             )
         }
 

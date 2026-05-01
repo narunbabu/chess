@@ -4,7 +4,12 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chess99.data.api.GameApi
+import com.chess99.domain.model.*
 import com.chess99.engine.ChessGame
+import com.chess99.engine.StockfishEngine
+import com.chess99.engine.PositionAnalysis
+import com.chess99.engine.detectOpening
+import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -27,6 +32,8 @@ import javax.inject.Inject
 class GameHistoryViewModel @Inject constructor(
     private val gameApi: GameApi,
     private val savedStateHandle: SavedStateHandle,
+    private val stockfishEngine: StockfishEngine,
+    private val shareManager: com.chess99.presentation.social.ShareManager,
 ) : ViewModel() {
 
     companion object {
@@ -34,6 +41,7 @@ class GameHistoryViewModel @Inject constructor(
         private const val AUTOPLAY_DEFAULT_SPEED_MS = 1500L
         private const val AUTOPLAY_MIN_SPEED_MS = 500L
         private const val AUTOPLAY_MAX_SPEED_MS = 3000L
+        private const val ANALYSIS_DEPTH = 18
     }
 
     private val _uiState = MutableStateFlow(GameHistoryUiState())
@@ -453,6 +461,10 @@ class GameHistoryViewModel @Inject constructor(
                 sb.appendLine("[TimeControl \"${g.timeControl}\"]")
             }
         }
+        // Opening header
+        state.analysisReport?.openingName?.let { opening ->
+            sb.appendLine("[Opening \"$opening\"]")
+        }
         sb.appendLine()
 
         // Moves
@@ -476,6 +488,38 @@ class GameHistoryViewModel @Inject constructor(
         }
 
         return sb.toString().trim()
+    }
+
+    /**
+     * Fetch PGN from the backend API. Falls back to local generation on failure.
+     */
+    suspend fun fetchPgnFromServer(): String {
+        val gameId = _uiState.value.expandedGameId ?: return generatePgn()
+        return try {
+            val response = gameApi.getPgn(gameId)
+            if (response.isSuccessful) {
+                response.body()?.string() ?: generatePgn()
+            } else {
+                Timber.w("PGN API returned ${response.code()}, using local generation")
+                generatePgn()
+            }
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to fetch PGN from server, using local generation")
+            generatePgn()
+        }
+    }
+
+    /**
+     * Fetch PGN from server and share as file via Android share sheet.
+     */
+    fun exportPgn(context: android.content.Context) {
+        viewModelScope.launch {
+            val gameId = _uiState.value.expandedGameId ?: return@launch
+            val pgn = fetchPgnFromServer()
+            if (pgn.isNotBlank()) {
+                shareManager.sharePgnFile(context, pgn, gameId)
+            }
+        }
     }
 
     // ── Parsing ───────────────────────────────────────────────────────
@@ -561,6 +605,387 @@ class GameHistoryViewModel @Inject constructor(
         )
     }
 
+    // ── Game Analysis ──────────────────────────────────────────────────
+
+    fun triggerAnalysis(gameId: Int) {
+        val state = _uiState.value
+        if (state.analysisReport?.status == AnalysisStatus.LOADING) return
+
+        _uiState.value = state.copy(
+            analysisReport = GameAnalysisReport(status = AnalysisStatus.LOADING),
+        )
+
+        viewModelScope.launch {
+            // First, try to fetch existing analysis from backend
+            try {
+                val existingResponse = gameApi.getGameAnalysis(gameId)
+                if (existingResponse.isSuccessful) {
+                    val body = existingResponse.body()
+                    if (body != null && body.has("moves") && body.getAsJsonArray("moves").size() > 0) {
+                        val report = parseExistingAnalysis(body)
+                        _uiState.value = _uiState.value.copy(
+                            analysisReport = report.copy(status = AnalysisStatus.DONE),
+                        )
+                        return@launch
+                    }
+                }
+            } catch (e: Exception) {
+                Timber.d(e, "No existing analysis found, proceeding to generate")
+            }
+
+            // Try to trigger new backend analysis
+            try {
+                val response = gameApi.analyzeGame(gameId)
+                if (response.isSuccessful) {
+                    val body = response.body() ?: return@launch
+                    val analysisJson = body.getAsJsonObject("analysis") ?: body
+                    val report = parseAnalysisReport(analysisJson)
+                    _uiState.value = _uiState.value.copy(
+                        analysisReport = report.copy(status = AnalysisStatus.DONE),
+                    )
+                } else {
+                    Timber.w("Backend analysis failed (${response.code()}), falling back to local analysis")
+                    runLocalAnalysis()
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "Network error during analysis, falling back to local analysis")
+                runLocalAnalysis()
+            }
+        }
+    }
+
+    /**
+     * Run Stockfish analysis locally on device.
+     * Evaluates each position, classifies moves, computes accuracy.
+     *
+     * Accuracy uses exponential decay formula matching Lichess:
+     *   accuracy = 103.1668 * exp(-0.0272 * acpl) - 3.1668
+     *
+     * Brilliant move detection: the player's move is within 0.1 pawns of the
+     * best move AND there was a significant gap (>= 0.5 pawns) between the
+     * best move and the second-best alternative.
+     */
+    private suspend fun runLocalAnalysis() {
+        val replay = _uiState.value.replayState ?: run {
+            _uiState.value = _uiState.value.copy(
+                analysisReport = GameAnalysisReport(
+                    status = AnalysisStatus.ERROR,
+                    error = "No moves loaded for analysis",
+                ),
+            )
+            return
+        }
+        if (replay.moves.isEmpty()) {
+            _uiState.value = _uiState.value.copy(
+                analysisReport = GameAnalysisReport(
+                    status = AnalysisStatus.ERROR,
+                    error = "No moves to analyze",
+                ),
+            )
+            return
+        }
+
+        try {
+            stockfishEngine.initialize()
+            stockfishEngine.newGame()
+
+            val fenPositions = replay.fenPositions
+            val totalPositions = fenPositions.size
+
+            // Cache full position analyses (eval + bestMove + rankedMoves)
+            val positionAnalyses = mutableListOf<PositionAnalysis>()
+            for ((idx, fen) in fenPositions.withIndex()) {
+                // Update progress
+                val progress = ((idx + 1).toFloat() / totalPositions * 100).toInt()
+                _uiState.value = _uiState.value.copy(
+                    analysisReport = GameAnalysisReport(
+                        status = AnalysisStatus.LOADING,
+                        progress = progress,
+                    ),
+                )
+                positionAnalyses.add(stockfishEngine.analyzePosition(fen, ANALYSIS_DEPTH))
+            }
+
+            // Detect opening from SAN moves
+            val sanMoves = replay.moves.map { it.san }
+            val openingName = detectOpening(sanMoves)
+
+            // Convert mate scores to large centipawn values for consistent handling
+            fun evalToCp(analysis: PositionAnalysis): Int {
+                if (analysis.isMate) {
+                    return if (analysis.evalCp > 0) 100000 - kotlin.math.abs(analysis.evalCp)
+                    else -100000 + kotlin.math.abs(analysis.evalCp)
+                }
+                return analysis.evalCp
+            }
+
+            // Classify each move using cached analyses
+            val analyzedMoves = mutableListOf<AnalyzedMove>()
+            var whiteCpLoss = 0
+            var blackCpLoss = 0
+            var whiteMoveCount = 0
+            var blackMoveCount = 0
+
+            for (i in replay.moves.indices) {
+                val move = replay.moves[i]
+                val before = positionAnalyses.getOrElse(i) { PositionAnalysis(0, false, 0, "", emptyList()) }
+                val after = positionAnalyses.getOrElse(i + 1) { before }
+
+                val evalBeforeCp = evalToCp(before)
+                val evalAfterCp = evalToCp(after)
+
+                val isWhite = (i % 2 == 0)
+                // CP loss from the moving player's perspective
+                val cpLoss = if (isWhite) {
+                    (evalBeforeCp - evalAfterCp).coerceAtLeast(0)
+                } else {
+                    (evalAfterCp - evalBeforeCp).coerceAtLeast(0)
+                }
+
+                val playerMoveUci = move.from + move.to
+                val isPlayerMove = playerMoveUci.equals(before.bestMove, ignoreCase = true)
+                val classification = classifyMoveDetailed(
+                    cpLoss = cpLoss,
+                    isPlayerMove = isPlayerMove,
+                    rankedMoves = before.rankedMoves,
+                )
+
+                analyzedMoves.add(AnalyzedMove(
+                    moveNumber = move.moveNumber,
+                    color = if (isWhite) "white" else "black",
+                    san = move.san,
+                    from = move.from,
+                    to = move.to,
+                    evalBeforeCp = evalBeforeCp,
+                    evalAfterCp = evalAfterCp,
+                    cpLoss = cpLoss,
+                    bestMove = before.bestMove,
+                    classification = classification,
+                    isMateBefore = before.isMate,
+                    isMateAfter = after.isMate,
+                ))
+
+                if (isWhite) {
+                    whiteCpLoss += cpLoss
+                    whiteMoveCount++
+                } else {
+                    blackCpLoss += cpLoss
+                    blackMoveCount++
+                }
+            }
+
+            // Accuracy using exponential decay (Lichess-style formula)
+            val acplWhite = if (whiteMoveCount > 0) whiteCpLoss.toFloat() / whiteMoveCount else 0f
+            val acplBlack = if (blackMoveCount > 0) blackCpLoss.toFloat() / blackMoveCount else 0f
+            val accuracyWhite = computeAccuracy(acplWhite)
+            val accuracyBlack = computeAccuracy(acplBlack)
+
+            // Count quality per side
+            val whiteCounts = mutableMapOf<String, Int>()
+            val blackCounts = mutableMapOf<String, Int>()
+            for (am in analyzedMoves) {
+                val key = am.classification.name.lowercase()
+                val counts = if (am.color == "white") whiteCounts else blackCounts
+                counts[key] = (counts[key] ?: 0) + 1
+            }
+
+            _uiState.value = _uiState.value.copy(
+                analysisReport = GameAnalysisReport(
+                    status = AnalysisStatus.DONE,
+                    moveAnalyses = analyzedMoves,
+                    accuracyWhite = accuracyWhite,
+                    accuracyBlack = accuracyBlack,
+                    acplWhite = acplWhite,
+                    acplBlack = acplBlack,
+                    qualityCounts = QualityCounts(white = whiteCounts, black = blackCounts),
+                    openingName = openingName,
+                ),
+            )
+        } catch (e: Exception) {
+            Timber.e(e, "Local Stockfish analysis failed")
+            _uiState.value = _uiState.value.copy(
+                analysisReport = GameAnalysisReport(
+                    status = AnalysisStatus.ERROR,
+                    error = "Analysis failed: ${e.message}",
+                ),
+            )
+        }
+    }
+
+    /**
+     * Compute accuracy percentage from ACPL using exponential decay.
+     * Formula: accuracy = 103.1668 * e^(-0.0272 * acpl) - 3.1668
+     * Matches Lichess accuracy calculation.
+     */
+    private fun computeAccuracy(acpl: Float): Float {
+        return (103.1668 * kotlin.math.exp(-0.0272 * acpl) - 3.1668)
+            .toFloat().coerceIn(0f, 100f)
+    }
+
+    /**
+     * Classify a move with Brilliant detection.
+     *
+     * Brilliant: player found the best (or near-best) move AND the gap between
+     * the best and second-best was >= 50cp (0.5 pawns), indicating it was a
+     * non-obvious strong move.
+     *
+     * Other classifications based on centipawn loss thresholds matching
+     * chess-frontend MoveAnalysisService:
+     *   Excellent: <= 10cp loss
+     *   Good:      <= 30cp loss
+     *   Inaccuracy: 30-70cp loss
+     *   Mistake:    70-200cp loss
+     *   Blunder:    > 200cp loss
+     */
+    private fun classifyMoveDetailed(
+        cpLoss: Int,
+        isPlayerMove: Boolean,
+        rankedMoves: List<com.chess99.engine.RankedMove>,
+    ): MoveClassification {
+        // Check for Brilliant: played the best move AND it was significantly
+        // better than alternatives (>= 50cp gap between rank 1 and rank 2)
+        if (cpLoss <= 10 && isPlayerMove && rankedMoves.size >= 2) {
+            val sorted = rankedMoves.sortedBy { it.rank }
+            if (sorted.size >= 2) {
+                val best = sorted[0]
+                val second = sorted[1]
+                val gap = kotlin.math.abs(best.score - second.score)
+                if (gap >= 50) {
+                    return MoveClassification.BRILLIANT
+                }
+            }
+        }
+        return classifyMove(cpLoss)
+    }
+
+    /**
+     * Classify a move based on centipawn loss.
+     * Thresholds match chess-frontend MoveAnalysisService.
+     */
+    private fun classifyMove(cpLoss: Int): MoveClassification = when {
+        cpLoss <= 10 -> MoveClassification.EXCELLENT
+        cpLoss <= 30 -> MoveClassification.GOOD
+        cpLoss <= 70 -> MoveClassification.INACCURACY
+        cpLoss <= 200 -> MoveClassification.MISTAKE
+        else -> MoveClassification.BLUNDER
+    }
+
+    /**
+     * Parse existing analysis from GET /api/v1/games/{id}/analysis endpoint.
+     * Response format: { moves: [...], move_count: N }
+     */
+    private fun parseExistingAnalysis(json: JsonObject): GameAnalysisReport {
+        val movesArray = json.getAsJsonArray("moves") ?: JsonArray()
+        val moveAnalyses = mutableListOf<AnalyzedMove>()
+        var whiteCpLossTotal = 0
+        var blackCpLossTotal = 0
+        var whiteMoveCount = 0
+        var blackMoveCount = 0
+
+        for (el in movesArray) {
+            val m = el.asJsonObject
+            val classificationStr = m.get("classification")?.asString ?: "good"
+            val color = m.get("player_color")?.asString ?: "white"
+            val cpLoss = m.get("cp_loss")?.asInt ?: 0
+
+            moveAnalyses.add(AnalyzedMove(
+                moveNumber = m.get("move_number")?.asInt ?: 0,
+                color = color,
+                san = m.get("move_san")?.asString ?: "",
+                from = m.get("from_square")?.asString ?: "",
+                to = m.get("to_square")?.asString ?: "",
+                evalBeforeCp = m.get("eval_before_cp")?.asInt ?: 0,
+                evalAfterCp = m.get("eval_after_cp")?.asInt ?: 0,
+                cpLoss = cpLoss,
+                bestMove = m.get("best_move")?.asString,
+                classification = parseClassification(classificationStr),
+            ))
+
+            if (color == "white") {
+                whiteCpLossTotal += cpLoss
+                whiteMoveCount++
+            } else {
+                blackCpLossTotal += cpLoss
+                blackMoveCount++
+            }
+        }
+
+        val acplWhite = if (whiteMoveCount > 0) whiteCpLossTotal.toFloat() / whiteMoveCount else 0f
+        val acplBlack = if (blackMoveCount > 0) blackCpLossTotal.toFloat() / blackMoveCount else 0f
+
+        // Count quality per side
+        val whiteCounts = mutableMapOf<String, Int>()
+        val blackCounts = mutableMapOf<String, Int>()
+        for (am in moveAnalyses) {
+            val key = am.classification.name.lowercase()
+            val counts = if (am.color == "white") whiteCounts else blackCounts
+            counts[key] = (counts[key] ?: 0) + 1
+        }
+
+        return GameAnalysisReport(
+            moveAnalyses = moveAnalyses,
+            accuracyWhite = computeAccuracy(acplWhite),
+            accuracyBlack = computeAccuracy(acplBlack),
+            acplWhite = acplWhite,
+            acplBlack = acplBlack,
+            qualityCounts = QualityCounts(white = whiteCounts, black = blackCounts),
+            openingName = json.get("opening_name")?.asString,
+        )
+    }
+
+    private fun parseAnalysisReport(json: JsonObject): GameAnalysisReport {
+        val moveAnalysesJson = json.getAsJsonArray("move_analyses") ?: JsonArray()
+        val moveAnalyses = mutableListOf<AnalyzedMove>()
+        for (el in moveAnalysesJson) {
+            val m = el.asJsonObject
+            val classificationStr = m.get("classification")?.asString ?: "good"
+            moveAnalyses.add(AnalyzedMove(
+                moveNumber = m.get("move_number")?.asInt ?: 0,
+                color = m.get("color")?.asString ?: "white",
+                san = m.get("san")?.asString ?: "",
+                from = m.get("from")?.asString ?: "",
+                to = m.get("to")?.asString ?: "",
+                evalBeforeCp = m.get("eval_before_cp")?.asInt ?: 0,
+                evalAfterCp = m.get("eval_after_cp")?.asInt ?: 0,
+                cpLoss = m.get("cp_loss")?.asInt ?: 0,
+                bestMove = m.get("best_move")?.asString,
+                classification = parseClassification(classificationStr),
+            ))
+        }
+
+        val qualityCountsJson = json.getAsJsonObject("quality_counts")
+        val whiteCounts = mutableMapOf<String, Int>()
+        val blackCounts = mutableMapOf<String, Int>()
+        if (qualityCountsJson != null) {
+            val wObj = qualityCountsJson.getAsJsonObject("white")
+            val bObj = qualityCountsJson.getAsJsonObject("black")
+            wObj?.entrySet()?.forEach { e -> whiteCounts[e.key] = e.value.asInt }
+            bObj?.entrySet()?.forEach { e -> blackCounts[e.key] = e.value.asInt }
+        }
+
+        return GameAnalysisReport(
+            moveAnalyses = moveAnalyses,
+            accuracyWhite = json.get("accuracy_white")?.asFloat?.let { it / 1f } ?: 0f,
+            accuracyBlack = json.get("accuracy_black")?.asFloat?.let { it / 1f } ?: 0f,
+            acplWhite = json.get("acpl_white")?.asFloat ?: 0f,
+            acplBlack = json.get("acpl_black")?.asFloat ?: 0f,
+            qualityCounts = QualityCounts(white = whiteCounts, black = blackCounts),
+        )
+    }
+
+    private fun parseClassification(str: String): MoveClassification {
+        return when (str.lowercase()) {
+            "brilliant" -> MoveClassification.BRILLIANT
+            "excellent" -> MoveClassification.EXCELLENT
+            "good" -> MoveClassification.GOOD
+            "inaccuracy" -> MoveClassification.INACCURACY
+            "mistake" -> MoveClassification.MISTAKE
+            "blunder" -> MoveClassification.BLUNDER
+            "book" -> MoveClassification.BOOK
+            else -> MoveClassification.GOOD
+        }
+    }
+
     // ── Cleanup ───────────────────────────────────────────────────────
 
     fun clearError() {
@@ -570,6 +995,7 @@ class GameHistoryViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         autoPlayJob?.cancel()
+        stockfishEngine.shutdown()
     }
 }
 
@@ -593,6 +1019,9 @@ data class GameHistoryUiState(
     // Replay
     val expandedGameId: Int? = null,
     val replayState: ReplayState? = null,
+
+    // Analysis
+    val analysisReport: GameAnalysisReport? = null,
 )
 
 data class GameSummary(

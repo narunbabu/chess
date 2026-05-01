@@ -15,7 +15,7 @@ export const calculateEngineLevelFromRating = (rating) => {
   // 1100 → level 2
   // 1600 → level 7
   // 2400+ → level 16
-  const level = 1 + Math.floor((rating - 1000) / 100);
+  const level = 1 + Math.floor((rating - 800) / 100);
 
   // Clamp between 1 and 16
   return Math.min(16, Math.max(1, level));
@@ -36,7 +36,7 @@ export const calculateKFactor = (user) => {
     return 64;
   }
 
-  const rating = user.rating || 1200;
+  const rating = user.rating || 800;
 
   // Established players: based on rating level
   if (rating >= 2400) {

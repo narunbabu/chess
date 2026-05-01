@@ -57,7 +57,7 @@ class MatchmakingService
 
         return MatchmakingEntry::create([
             'user_id' => $user->id,
-            'rating' => $user->rating ?? 1200,
+            'rating' => $user->rating ?? 800,
             'rating_range' => 200,
             'status' => 'searching',
             'queued_at' => $now,
@@ -301,7 +301,7 @@ class MatchmakingService
      */
     public function quickMatch(User $user, array $preferences = []): array
     {
-        $userRating = $user->rating ?? 1200;
+        $userRating = $user->rating ?? 800;
         $timeControl = $preferences['time_control_minutes'] ?? 10;
         $increment = $preferences['increment_seconds'] ?? 0;
         $gameMode = $preferences['game_mode'] ?? 'rated';
@@ -332,7 +332,7 @@ class MatchmakingService
                 'opponent' => [
                     'id' => $opponent->id,
                     'name' => $opponent->name,
-                    'rating' => $opponent->rating ?? 1200,
+                    'rating' => $opponent->rating ?? 800,
                     'avatar' => $opponent->google_avatar ?? $opponent->avatar,
                 ],
                 'time_control_minutes' => $timeControl,
@@ -498,7 +498,7 @@ class MatchmakingService
             ->where('status', 'searching')
             ->update(['status' => 'cancelled']);
 
-        $userRating = $user->rating ?? 1200;
+        $userRating = $user->rating ?? 800;
 
         // IDs of users currently in an active human-vs-human game with recent activity.
         // Excludes computer games (players should be available for matchmaking while playing bots)

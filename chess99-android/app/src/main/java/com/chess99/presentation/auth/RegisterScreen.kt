@@ -10,6 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -34,6 +35,7 @@ fun RegisterScreen(
     var confirmPassword by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
+    val context = LocalContext.current
 
     LaunchedEffect(uiState.isAuthenticated) {
         if (uiState.isAuthenticated) onRegisterSuccess()
@@ -186,6 +188,36 @@ fun RegisterScreen(
             } else {
                 Text("Create Account")
             }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        HorizontalDivider(modifier = Modifier.fillMaxWidth())
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Google Sign-In shortcut
+        OutlinedButton(
+            onClick = { viewModel.initiateGoogleSignIn(context) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp),
+            enabled = !uiState.isLoading,
+        ) {
+            Text("Sign up with Google")
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Facebook Sign-In shortcut
+        OutlinedButton(
+            onClick = { viewModel.initiateFacebookSignIn(context) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp),
+            enabled = !uiState.isLoading,
+        ) {
+            Text("Sign up with Facebook")
         }
 
         Spacer(modifier = Modifier.height(16.dp))

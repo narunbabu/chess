@@ -211,6 +211,7 @@ const PlayComputer = () => {
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth); // For layout adjustments
   const navigate = useNavigate(); // For navigation buttons
   const location = useLocation();
+  const guideFocus = location.state?.guideFocus;
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth(); // Get user for rating
   const { invalidateGameHistory } = useAppData(); // Get cache invalidation
@@ -2592,6 +2593,14 @@ const PlayComputer = () => {
             </div>
           )}
           <h2 className="text-3xl font-bold mb-2 text-gold">Play Against Computer</h2>
+          {guideFocus === 'companion' && (
+            <div className="mb-4 rounded-lg border border-[#81b64c]/40 bg-[#81b64c]/10 px-4 py-3 text-left">
+              <p className="text-sm font-semibold text-[#a3d160] mb-1">Companion mode tip</p>
+              <p className="text-sm text-[#bababa]">
+                Start a casual game, then open the Companion tab to choose who can help with your moves.
+              </p>
+            </div>
+          )}
 
           {/* Game Mode Selector — only for logged-in users (guests always play casual) */}
           {user && (

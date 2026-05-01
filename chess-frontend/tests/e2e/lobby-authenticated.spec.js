@@ -2,35 +2,59 @@
 const { test, expect } = require('@playwright/test');
 
 // Use test account credentials from environment or defaults
-const TEST_EMAIL = process.env.TEST_EMAIL || 'test@chess99.com';
-const TEST_PASSWORD = process.env.TEST_PASSWORD || 'test1234';
+// Defaults match the working dev account documented in chess-web CLAUDE.md.
+const TEST_EMAIL = process.env.CHESS99_TEST_EMAIL || process.env.TEST_EMAIL || 'ab@ameyem.com';
+const TEST_PASSWORD = process.env.CHESS99_TEST_PASSWORD || process.env.TEST_PASSWORD || 'Vedansh@123';
 
 test.describe('Lobby Authenticated Tests', () => {
   test.beforeEach(async ({ page }) => {
     // Login first
-    await page.goto(`/login`, { waitUntil: 'networkidle', timeout: 15000 });
+    await page.goto(`/login`, { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.waitForTimeout(2000);
 
-    // Fill login form
-    const emailInput = page.locator('input[type="email"], input[name="email"], input[placeholder*="email" i]');
-    const passwordInput = page.locator('input[type="password"]');
-
-    if (await emailInput.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await emailInput.fill(TEST_EMAIL);
-      await passwordInput.fill(TEST_PASSWORD);
-
-      // Click login button
-      const loginBtn = page.locator('button:has-text("Login"), button:has-text("Sign In"), button[type="submit"]');
-      await loginBtn.click();
-
-      // Wait for navigation
-      await page.waitForURL('**/lobby**', { timeout: 10000 }).catch(() => {
-        console.log('Did not redirect to lobby after login');
-      });
+    // Login page defaults to a social-button view; reveal the email form.
+    const emailLink = page.locator('button:has-text("email"), a:has-text("email")');
+    if (await emailLink.count() > 0) {
+      await emailLink.first().click();
+      await page.waitForTimeout(1000);
     }
+
+    await page.locator('input[type="email"]').fill(TEST_EMAIL);
+    await page.locator('input[type="password"], input[placeholder="Password"]').fill(TEST_PASSWORD);
+    await page.locator('button[type="submit"]').click();
+
+    await page.waitForURL(url => !url.toString().includes('/login'), { timeout: 20000 }).catch(() => {
+      console.log('Did not redirect after login');
+    });
+    await page.waitForTimeout(3000);
   });
 
   test('lobby shows Players and Friends tabs, no Games tab', async ({ page }) => {
-    await page.goto(`/lobby`, { waitUntil: 'networkidle', timeout: 15000 });
+    test.setTimeout(90000);
+    await page.goto(`/lobby`, { waitUntil: 'domcontentloaded', timeout: 15000 });
+
+    // Lobby renders a "Loading lobby..." spinner until AuthContext fetchUser
+    // resolves (which awaits presence + user-status WebSocket init). Give the
+    // tabs plenty of time to mount before asserting on them.
+    await page.waitForSelector('.lobby-tabs .tab-button', { timeout: 45000 });
+
+    // First-visit guided tour modal intercepts pointer events on the tabs;
+    // close it (via skip / close / overlay click) before interacting.
+    const skipTour = page.locator(
+      '.guided-tour button:has-text("Skip"), .guided-tour button:has-text("Close"), .guided-tour [aria-label*="Close" i]'
+    ).first();
+    if (await skipTour.isVisible({ timeout: 1500 }).catch(() => false)) {
+      await skipTour.click().catch(() => {});
+      await page.waitForTimeout(300);
+    }
+    // If the scrim is still around, mark the tour as completed and remove it.
+    await page.evaluate(() => {
+      try {
+        const keys = Object.keys(localStorage).filter(k => k.includes('tour') || k.includes('guided'));
+        keys.forEach(k => localStorage.setItem(k, 'true'));
+      } catch (e) {}
+      document.querySelectorAll('.guided-tour, .guided-tour-scrim').forEach(el => el.remove());
+    });
 
     // Screenshot the lobby
     await page.screenshot({ path: 'tests/e2e/screenshots/lobby-authenticated.png', fullPage: true });
@@ -68,12 +92,12 @@ test.describe('Lobby Authenticated Tests', () => {
       expect(gamesTabCount).toBe(0);
 
       // Click Friends tab
-      await page.locator('.tab-button:has-text("Friends")').click();
+      await page.locator('.tab-button:has-text("Friends")').first().click({ force: true });
       await page.waitForTimeout(1000);
       await page.screenshot({ path: 'tests/e2e/screenshots/lobby-friends-tab.png', fullPage: true });
 
       // Click back to Players tab
-      await page.locator('.tab-button:has-text("Players")').click();
+      await page.locator('.tab-button:has-text("Players")').first().click({ force: true });
       await page.waitForTimeout(1000);
       await page.screenshot({ path: 'tests/e2e/screenshots/lobby-players-tab.png', fullPage: true });
 

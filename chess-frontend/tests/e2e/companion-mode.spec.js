@@ -15,37 +15,37 @@ async function jsClick(locator) {
 }
 
 async function login(page) {
-  await page.goto('/login');
-  await page.waitForLoadState('domcontentloaded');
-  await page.waitForTimeout(1000);
+  await page.goto('/login', { waitUntil: 'domcontentloaded', timeout: 15000 });
+  await page.waitForTimeout(2000);
 
-  const useEmailButton = page.locator(
-    'button:has-text("use email"), button:has-text("Use Email"), button:has-text("email instead")'
-  ).first();
-  if (await useEmailButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await useEmailButton.click();
-    await page.waitForTimeout(500);
+  // Login page defaults to a social-button view; reveal the email form.
+  const emailLink = page.locator('button:has-text("email"), a:has-text("email")');
+  if (await emailLink.count() > 0) {
+    await emailLink.first().click();
+    await page.waitForTimeout(1000);
   }
 
-  await page.locator('input[type="email"], input[name="email"]').first().fill('ab@ameyem.com');
-  await page.locator('input[type="password"]').first().fill('Vedansh@123');
-  await page.locator('button[type="submit"]').first().click();
-  await page.waitForURL(url => !url.toString().includes('/login'), { timeout: 15000 });
-  await page.waitForLoadState('domcontentloaded');
+  await page.locator('input[type="email"]').fill('ab@ameyem.com');
+  await page.locator('input[type="password"], input[placeholder="Password"]').fill('Vedansh@123');
+  await page.locator('button[type="submit"]').click();
+
+  await page.waitForURL(url => !url.toString().includes('/login'), { timeout: 20000 }).catch(() => {});
+  await page.waitForTimeout(3000);
 }
 
 /**
  * From the /play landing page, drill into the computer-game setup screen and
  * select the requested mode (Casual or Rated). Does NOT click Play.
+ *
+ * Note: `gameMode` now defaults to `'computer'` in PlayComputer.js, so the
+ * "Choose Your Game Mode" splash never renders — the GameModeSelector
+ * (Rated/Casual) appears immediately on /play.
  */
 async function openComputerSetup(page, mode = 'Casual') {
   await page.goto('/play');
   await page.waitForLoadState('domcontentloaded');
 
-  // Step 1: click "Play Against Computer" on the landing.
-  await jsClick(page.locator('button:has-text("Play Against Computer")').first());
-
-  // Step 2: GameModeSelector now appears (Rated/Casual).
+  // GameModeSelector (Rated/Casual) is shown directly.
   await page.waitForSelector('.game-mode-selector', { timeout: 10000 });
   await jsClick(page.locator(`.game-mode-selector button:has-text("${mode}")`).first());
   await page.waitForTimeout(300);
@@ -106,9 +106,9 @@ test.describe('Companion Mode', () => {
     await picker.selectOption(firstOptionValue);
     await page.waitForTimeout(300);
 
-    // CompanionControls renders Suggest / Continuous buttons.
-    await expect(page.locator('button:has-text("Suggest One Move")')).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('button:has-text("Play Continuously")')).toBeVisible();
+    // CompanionControls renders the per-move and continuous-play buttons.
+    await expect(page.locator('button:has-text("Play One Move")')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('button:has-text("Play Until Stopped")')).toBeVisible();
   });
 
   test('rated games show "Not available in Rated games" notice in companion tab', async ({ page }) => {

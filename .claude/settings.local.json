@@ -19,7 +19,9 @@
       "Bash(curl -s http://localhost:8000/api/health)",
       "Bash(curl -s http://localhost:8000)",
       "Bash(node extract_all_stages.cjs)",
-      "Bash(echo \"Extraction started in background \\(PID: $!\\)\")"
+      "Bash(echo \"Extraction started in background \\(PID: $!\\)\")",
+      "Bash(awk -F/ '{print $1}')",
+      "Bash(iconv -f utf-16 -t utf-8)"
     ],
     "deny": [],
     "ask": []

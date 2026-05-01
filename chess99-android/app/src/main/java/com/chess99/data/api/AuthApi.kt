@@ -19,6 +19,9 @@ interface AuthApi {
     @POST("auth/apple/mobile")
     suspend fun appleMobileLogin(@Body request: AppleMobileLoginRequest): Response<AuthResponse>
 
+    @POST("auth/facebook/mobile")
+    suspend fun facebookMobileLogin(@Body request: FacebookMobileLoginRequest): Response<AuthResponse>
+
     @POST("auth/refresh")
     suspend fun refreshToken(@Body request: RefreshTokenRequest): Response<AuthResponse>
 

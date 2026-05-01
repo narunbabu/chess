@@ -19,6 +19,41 @@ import FriendsList from '../components/lobby/FriendsList';
 import MatchmakingQueue from '../components/lobby/MatchmakingQueue';
 import PlayOnlineButton from '../components/play/PlayOnlineButton';
 import FriendSearch from '../components/lobby/FriendSearch';
+import PlayModeGuide from '../components/onboarding/PlayModeGuide';
+import GuidedTour from '../components/onboarding/GuidedTour';
+import { ONBOARDING_GUIDE_GROUPS } from '../data/onboardingPlayModes';
+
+const LOBBY_TOUR_STEPS = [
+  {
+    title: 'Welcome to your Chess99 lobby',
+    description: 'This is the signed-in starting point. From here users can start online games, challenge friends, open training tools, and return to profile setup.',
+  },
+  {
+    target: '[data-tour="quick-play"]',
+    title: 'Start a casual or rated game',
+    description: 'Use Play Online for quick match. Chess99 looks for a nearby online player first, then falls back to a synthetic opponent so beginners are not left waiting.',
+  },
+  {
+    target: '[data-tour="play-mode-guide"]',
+    title: 'Use the guided play and learn map',
+    description: 'These cards explain Casual, Rated, Casual + CCT, Best moves, Companion, Tactical Progression, Training Drills, Lessons, and Daily Challenges.',
+  },
+  {
+    target: '[data-tour="lobby-tabs"]',
+    title: 'Find people and friends',
+    description: 'Lobby tabs organize online players, friends, invitations, and other multiplayer actions so users know where to go next.',
+  },
+  {
+    target: '[data-tour="profile-menu"]',
+    title: 'Update profile and settings',
+    description: 'Open the profile menu to change name, avatar, class, mobile number, school or organization, area details, board theme, and progress tools.',
+  },
+  {
+    target: '[data-tour="replay-tour"]',
+    title: 'Replay the tour anytime',
+    description: 'The first-login tour only appears once. This button lets users or support staff replay it whenever they need a refresher.',
+  },
+];
 
 const LobbyPage = () => {
   const { user, loading } = useAuth();
@@ -37,12 +72,26 @@ const LobbyPage = () => {
   const [activeTab, setActiveTab] = useState('players');
   const [isRefreshing, setIsRefreshing] = useState(false); // Manual refresh state
   const [showMatchmaking, setShowMatchmaking] = useState(false); // Matchmaking modal
+  const [matchmakingGuide, setMatchmakingGuide] = useState(null);
+  const [showTour, setShowTour] = useState(false);
   const [showFriendSearch, setShowFriendSearch] = useState(false); // Play Friends toggle
   const [friends, setFriends] = useState([]);
   const [friendsLoading, setFriendsLoading] = useState(false);
 
   // Online player count for Play Online button badge
   const [onlineCount, setOnlineCount] = useState(null);
+  const tourStorageKey = user?.id ? `chess99:onboardingTour:v1:${user.id}` : 'chess99:onboardingTour:v1:guest';
+
+  useEffect(() => {
+    if (!user?.id || loading) return;
+    const hasSeenTour = localStorage.getItem(tourStorageKey) === 'completed';
+    const timer = setTimeout(() => {
+      if (!hasSeenTour) setShowTour(true);
+    }, 650);
+
+    return () => clearTimeout(timer);
+  }, [loading, tourStorageKey, user?.id]);
+
   useEffect(() => {
     const fetchCount = async () => {
       try {
@@ -513,6 +562,16 @@ const LobbyPage = () => {
     }
   };
 
+  const handleGuideAction = useCallback((item) => {
+    if (item.action === 'openMatchmaking') {
+      setMatchmakingGuide(item);
+      setShowMatchmaking(true);
+      return;
+    }
+
+    navigate(item.path || '/', item.state ? { state: item.state } : undefined);
+  }, [navigate]);
+
   if (loading) {
     return (
       <div className="lobby-container">
@@ -711,7 +770,7 @@ const LobbyPage = () => {
         )}
 
         {/* Hero Section — Play Online + Play Friends */}
-        <div className="lobby-hero">
+        <div className="lobby-hero" data-tour="quick-play">
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
             <PlayOnlineButton variant="hero" />
             <button
@@ -732,12 +791,13 @@ const LobbyPage = () => {
             </div>
           )}
         </div>
-
-        <LobbyTabs
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          tabs={tabs}
-        />
+        <div data-tour="lobby-tabs">
+          <LobbyTabs
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            tabs={tabs}
+          />
+        </div>
 
         {/* Manual refresh button */}
         {webSocketService && (
@@ -797,6 +857,40 @@ const LobbyPage = () => {
           )}
 
         </div>
+        
+        
+
+        <div style={{ marginBottom: '24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}>
+            <button
+              type="button"
+              data-tour="replay-tour"
+              onClick={() => setShowTour(true)}
+              style={{
+                border: '1px solid #4a4744',
+                borderRadius: '7px',
+                background: '#312e2b',
+                color: '#d8d4cf',
+                padding: '8px 12px',
+                fontSize: '13px',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              Replay tour
+            </button>
+          </div>
+          <PlayModeGuide
+            groups={ONBOARDING_GUIDE_GROUPS}
+            variant="compact"
+            isAuthenticated={true}
+            onAction={handleGuideAction}
+          />
+        </div>
+
+        
+
+        
 
         </div>
       </div>
@@ -823,7 +917,19 @@ const LobbyPage = () => {
 
       <MatchmakingQueue
         isOpen={showMatchmaking}
-        onClose={() => setShowMatchmaking(false)}
+        onClose={() => {
+          setShowMatchmaking(false);
+          setMatchmakingGuide(null);
+        }}
+        initialGameMode={matchmakingGuide?.gameMode}
+        guideHint={matchmakingGuide?.guideHint}
+      />
+
+      <GuidedTour
+        steps={LOBBY_TOUR_STEPS}
+        isOpen={showTour}
+        onClose={() => setShowTour(false)}
+        storageKey={tourStorageKey}
       />
     </>
   );

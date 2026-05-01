@@ -30,6 +30,7 @@ fun LearnScreen(
     onNavigateToLesson: (Int) -> Unit,
     onNavigateToPuzzles: () -> Unit = {},
     onNavigateToTrainingExercise: (String) -> Unit = {},
+    onNavigateToTacticalTrainer: () -> Unit = {},
     viewModel: LearnViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -116,6 +117,7 @@ fun LearnScreen(
                     achievements = state.achievements,
                     onNavigateToPuzzles = onNavigateToPuzzles,
                     onNavigateToTrainingExercise = onNavigateToTrainingExercise,
+                    onNavigateToTacticalTrainer = onNavigateToTacticalTrainer,
                 )
             }
         }
@@ -433,6 +435,7 @@ private fun TrainingTab(
     achievements: List<Achievement>,
     onNavigateToPuzzles: () -> Unit = {},
     onNavigateToTrainingExercise: (String) -> Unit = {},
+    onNavigateToTacticalTrainer: () -> Unit = {},
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -514,6 +517,14 @@ private fun TrainingTab(
                 description = "Solve chess puzzles to sharpen your tactical vision",
                 icon = Icons.Default.Extension,
                 onClick = onNavigateToPuzzles,
+            )
+        }
+        item {
+            PracticeCard(
+                title = "Tactical Progression",
+                description = "Staged puzzles from beginner to master with progression tracking",
+                icon = Icons.Default.TrendingUp,
+                onClick = onNavigateToTacticalTrainer,
             )
         }
         item {

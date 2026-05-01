@@ -1,6 +1,7 @@
 package com.chess99.data.api
 
 import com.google.gson.JsonObject
+import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.*
 
@@ -71,6 +72,17 @@ interface GameApi {
 
     @GET("games/{id}/draw/status")
     suspend fun getDrawStatus(@Path("id") id: Int): Response<JsonObject>
+
+    // Game analysis (Stockfish full-game analysis)
+    @POST("games/{id}/analyze")
+    suspend fun analyzeGame(@Path("id") id: Int): Response<JsonObject>
+
+    @GET("games/{id}/analysis")
+    suspend fun getGameAnalysis(@Path("id") id: Int): Response<JsonObject>
+
+    // PGN export
+    @GET("games/{id}/pgn")
+    suspend fun getPgn(@Path("id") id: Int): Response<ResponseBody>
 
     // Undo (via WebSocket API prefix)
     @POST("websocket/games/{id}/undo/request")

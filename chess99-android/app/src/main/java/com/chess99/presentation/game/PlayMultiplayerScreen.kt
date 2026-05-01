@@ -31,6 +31,7 @@ import com.chess99.presentation.common.ChessBoardView
 import com.chess99.presentation.common.GameCompletionAnimation
 import com.chess99.presentation.common.GameNavigationWarningDialog
 import com.chess99.presentation.common.GameTimerDisplay
+import kotlinx.coroutines.launch
 
 /**
  * Real-time multiplayer game screen.
@@ -43,9 +44,28 @@ fun PlayMultiplayerScreen(
     viewModel: PlayMultiplayerViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    val companionState by viewModel.companionState.collectAsState()
+    val cctState by viewModel.cctState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var showNavigationWarning by remember { mutableStateOf(false) }
     var showCompletionAnimation by remember { mutableStateOf(false) }
+
+    // Companion bottom sheet
+    val companionSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var showCompanionSheet by remember { mutableStateOf(false) }
+
+    // CCT analysis bottom sheet
+    val cctSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var showCctSheet by remember { mutableStateOf(false) }
+
+    val scope = rememberCoroutineScope()
+
+    // Load companions when sheet opens for the first time
+    LaunchedEffect(showCompanionSheet) {
+        if (showCompanionSheet && companionState.companions.isEmpty() && !companionState.isLoading) {
+            viewModel.loadCompanions()
+        }
+    }
 
     // Show completion animation when game ends
     LaunchedEffect(state.gamePhase) {
@@ -82,6 +102,13 @@ fun PlayMultiplayerScreen(
     // Sound effects
     LaunchedEffect(state.soundToPlay) {
         state.soundToPlay?.let { viewModel.soundPlayed() }
+    }
+
+    // Trigger CCT analysis when position changes
+    LaunchedEffect(state.fen, cctState.hintLevel, cctState.perspective) {
+        if (cctState.hintLevel > 0 && state.gamePhase == MultiplayerPhase.PLAYING) {
+            viewModel.updateCCTAnalysis()
+        }
     }
 
     // Snackbar
@@ -121,6 +148,40 @@ fun PlayMultiplayerScreen(
                     }
                 },
                 actions = {
+                    // Companion toggle (casual games only)
+                    if (!state.isRated && state.gamePhase != MultiplayerPhase.COMPLETED) {
+                        IconButton(onClick = {
+                            scope.launch {
+                                showCompanionSheet = true
+                            }
+                        }) {
+                            Icon(
+                                Icons.Default.SmartToy,
+                                contentDescription = "Companion",
+                                tint = if (companionState.selectedCompanion != null)
+                                    MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                    }
+
+                    // CCT Analysis toggle
+                    if (state.gamePhase == MultiplayerPhase.PLAYING) {
+                        IconButton(onClick = {
+                            scope.launch {
+                                showCctSheet = true
+                            }
+                        }) {
+                            Icon(
+                                Icons.Default.Analytics,
+                                contentDescription = "Analysis",
+                                tint = if (cctState.hintLevel > 0)
+                                    MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                    }
+
                     // Chat toggle
                     BadgedBox(
                         badge = {
@@ -204,6 +265,55 @@ fun PlayMultiplayerScreen(
                 },
             )
         }
+
+        // Companion bottom sheet
+        if (showCompanionSheet) {
+            val game = remember(state.fen) { ChessGame(state.fen) }
+            val isMyTurn = game.turn == state.playerColor
+                    && state.gamePhase == MultiplayerPhase.PLAYING
+
+            CompanionBottomSheet(
+                companions = companionState.companions,
+                selectedCompanion = companionState.selectedCompanion,
+                isLoading = companionState.isLoading,
+                error = companionState.error,
+                isContinuousPlay = companionState.isContinuousPlay,
+                moveCount = companionState.moveCount,
+                isMyTurn = isMyTurn,
+                isGameActive = state.gamePhase == MultiplayerPhase.PLAYING,
+                companionThinking = companionState.isThinking,
+                onSelect = { viewModel.selectCompanion(it) },
+                onPlayOneMove = { viewModel.companionPlayOneMove() },
+                onToggleContinuous = { viewModel.toggleCompanionContinuousPlay() },
+                onDismiss = {
+                    showCompanionSheet = false
+                    scope.launch { companionSheetState.hide() }
+                },
+                onRelease = {
+                    viewModel.releaseCompanion()
+                    showCompanionSheet = false
+                    scope.launch { companionSheetState.hide() }
+                },
+                onRetry = { viewModel.loadCompanions() },
+                sheetState = companionSheetState,
+            )
+        }
+
+        // CCT Analysis bottom sheet
+        if (showCctSheet) {
+            CCTBottomSheet(
+                state = cctState,
+                isActive = state.gamePhase == MultiplayerPhase.PLAYING,
+                isRated = state.isRated,
+                onHintLevelChange = { viewModel.setCctHintLevel(it) },
+                onPerspectiveChange = { viewModel.setCctPerspective(it) },
+                onDismiss = {
+                    showCctSheet = false
+                    scope.launch { cctSheetState.hide() }
+                },
+                sheetState = cctSheetState,
+            )
+        }
     }
 }
 
@@ -250,6 +360,7 @@ private fun GameBoard(
             isInteractive = isMyTurn,
             lastMoveFrom = state.lastMoveFrom,
             lastMoveTo = state.lastMoveTo,
+            arrows = state.cctArrows,
             onMove = onMove,
             modifier = Modifier
                 .fillMaxWidth()

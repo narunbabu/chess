@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.chess99.data.local.TokenManager
+import com.chess99.presentation.auth.FacebookSignInHelper
 import com.chess99.presentation.navigation.Chess99NavGraph
 import com.chess99.presentation.navigation.DeepLinkHandler
 import com.chess99.presentation.navigation.Screen
@@ -25,6 +26,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var tokenManager: TokenManager
+
+    @Inject
+    lateinit var facebookSignInHelper: FacebookSignInHelper
 
     private var navController: NavHostController? = null
 
@@ -61,6 +65,12 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         navController?.let { handleDeepLinkIntent(intent, it) }
+    }
+
+    @Deprecated("Used by Facebook SDK callback forwarding")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        facebookSignInHelper.callbackManager.onActivityResult(requestCode, resultCode, data)
     }
 
     private fun handleDeepLinkIntent(intent: Intent, navController: NavHostController) {

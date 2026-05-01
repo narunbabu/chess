@@ -16,6 +16,18 @@ const FIND_PLAYERS_TIMEOUT_SECONDS = 15; // Sync with backend match request expi
 const TOTAL_SEARCH_SECONDS = 15;
 const POLL_INTERVAL_MS = 2000;
 
+const BEGINNER_SYNTHETIC_PLAYERS = [
+  { id: 'local-800-1', name: 'Aarav Beginner', avatar_seed: 'aarav-beginner', computer_level: 1, rating: 800 },
+  { id: 'local-850-1', name: 'Meera Starter', avatar_seed: 'meera-starter', computer_level: 2, rating: 850 },
+  { id: 'local-900-1', name: 'Kabir Learner', avatar_seed: 'kabir-learner', computer_level: 2, rating: 900 },
+  { id: 'local-950-1', name: 'Ananya Practice', avatar_seed: 'ananya-practice', computer_level: 3, rating: 950 },
+  { id: 'local-1000-1', name: 'Tara Casual', avatar_seed: 'tara-casual', computer_level: 4, rating: 1000 },
+];
+
+const pickBeginnerSyntheticPlayer = () => {
+  return BEGINNER_SYNTHETIC_PLAYERS[Math.floor(Math.random() * BEGINNER_SYNTHETIC_PLAYERS.length)];
+};
+
 const TIME_PRESETS = [
   { minutes: 3, increment: 1, label: '3|1', category: 'Blitz' },
   { minutes: 3, increment: 2, label: '3|2', category: 'Blitz' },
@@ -32,7 +44,7 @@ const TIME_PRESETS = [
  *
  * States: idle (options) → findingPlayers (smart match) → searching (queue fallback) → matched → navigating
  */
-const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
+const MatchmakingQueue = ({ isOpen, onClose, autoStart = false, initialGameMode, guideHint }) => {
   const navigate = useNavigate();
   const [status, setStatus] = useState('idle'); // idle | findingPlayers | searching | matched | fallback | error
   const [entryId, setEntryId] = useState(null);
@@ -85,6 +97,13 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
     return saved === 'companion' ? 'casual' : saved;
   });
 
+  useEffect(() => {
+    if (!isOpen || !initialGameMode) return;
+    const normalizedMode = initialGameMode === 'rated' ? 'rated' : 'casual';
+    setGameMode(normalizedMode);
+    setPreferredGameMode(normalizedMode);
+  }, [isOpen, initialGameMode]);
+
   const cleanup = useCallback(() => {
     if (pollRef.current) clearInterval(pollRef.current);
     if (countdownRef.current) clearInterval(countdownRef.current);
@@ -100,15 +119,7 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
       console.log('[Matchmaking] Countdown reached 0, creating synthetic game');
       cleanup();
       setStatus('matched');
-      const syntheticPlayers = [
-        { id: 1, name: 'Priya Mehta', avatar_seed: 'priya-mehta', computer_level: 6, rating: 1370 },
-        { id: 2, name: 'Kiran Joshi', avatar_seed: 'kiran-joshi', computer_level: 6, rating: 1390 },
-        { id: 3, name: 'Ravi Patel', avatar_seed: 'ravi-patel', computer_level: 6, rating: 1420 },
-        { id: 4, name: 'Ananya Das', avatar_seed: 'ananya-das', computer_level: 6, rating: 1440 },
-        { id: 5, name: 'Vikram Rao', avatar_seed: 'vikram-rao', computer_level: 7, rating: 1470 },
-        { id: 6, name: 'Sneha Kulkarni', avatar_seed: 'sneha-kulkarni', computer_level: 7, rating: 1500 },
-      ];
-      const randomSynthetic = syntheticPlayers[Math.floor(Math.random() * syntheticPlayers.length)];
+      const randomSynthetic = pickBeginnerSyntheticPlayer();
       setMatchResult({
         match_type: 'synthetic',
         opponent: randomSynthetic,
@@ -212,13 +223,7 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
             // No match found — create synthetic game as fallback
             cleanup();
             setStatus('matched');
-            const syntheticPlayers = [
-              { id: 1, name: 'Priya Mehta', avatar_seed: 'priya-mehta', computer_level: 6, rating: 1370 },
-              { id: 2, name: 'Kiran Joshi', avatar_seed: 'kiran-joshi', computer_level: 6, rating: 1390 },
-              { id: 3, name: 'Ravi Patel', avatar_seed: 'ravi-patel', computer_level: 6, rating: 1420 },
-              { id: 4, name: 'Ananya Das', avatar_seed: 'ananya-das', computer_level: 6, rating: 1440 },
-            ];
-            const randomSynthetic = syntheticPlayers[Math.floor(Math.random() * syntheticPlayers.length)];
+            const randomSynthetic = pickBeginnerSyntheticPlayer();
             setMatchResult({
               match_type: 'synthetic',
               opponent: randomSynthetic,
@@ -252,13 +257,7 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
         console.log('[Matchmaking] Rate limited, creating synthetic game directly');
         cleanup();
         setStatus('matched');
-        const syntheticPlayers = [
-          { id: 1, name: 'Priya Mehta', avatar_seed: 'priya-mehta', computer_level: 6, rating: 1370 },
-          { id: 2, name: 'Kiran Joshi', avatar_seed: 'kiran-joshi', computer_level: 6, rating: 1390 },
-          { id: 3, name: 'Ravi Patel', avatar_seed: 'ravi-patel', computer_level: 6, rating: 1420 },
-          { id: 4, name: 'Ananya Das', avatar_seed: 'ananya-das', computer_level: 6, rating: 1440 },
-        ];
-        const randomSynthetic = syntheticPlayers[Math.floor(Math.random() * syntheticPlayers.length)];
+        const randomSynthetic = pickBeginnerSyntheticPlayer();
         setMatchResult({
           match_type: 'synthetic',
           opponent: randomSynthetic,
@@ -345,15 +344,7 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
         // Create synthetic game directly
         cleanup();
         setStatus('matched');
-        const syntheticPlayers = [
-          { id: 1, name: 'Priya Mehta', avatar_seed: 'priya-mehta', computer_level: 6, rating: 1370 },
-          { id: 2, name: 'Kiran Joshi', avatar_seed: 'kiran-joshi', computer_level: 6, rating: 1390 },
-          { id: 3, name: 'Ravi Patel', avatar_seed: 'ravi-patel', computer_level: 6, rating: 1420 },
-          { id: 4, name: 'Ananya Das', avatar_seed: 'ananya-das', computer_level: 6, rating: 1440 },
-          { id: 5, name: 'Vikram Rao', avatar_seed: 'vikram-rao', computer_level: 7, rating: 1470 },
-          { id: 6, name: 'Sneha Kulkarni', avatar_seed: 'sneha-kulkarni', computer_level: 7, rating: 1500 },
-        ];
-        const randomSynthetic = syntheticPlayers[Math.floor(Math.random() * syntheticPlayers.length)];
+        const randomSynthetic = pickBeginnerSyntheticPlayer();
         setMatchResult({
           match_type: 'synthetic',
           opponent: randomSynthetic,
@@ -480,6 +471,22 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false }) => {
         {status === 'idle' && (
           <>
             <h2 className="matchmaking-title" style={{ marginBottom: '16px' }}>Play Online</h2>
+            {guideHint && (
+              <p
+                style={{
+                  margin: '-6px 0 16px',
+                  padding: '10px 12px',
+                  borderRadius: '8px',
+                  backgroundColor: 'rgba(129, 182, 76, 0.12)',
+                  color: '#a3d160',
+                  fontSize: '13px',
+                  lineHeight: 1.4,
+                  textAlign: 'left',
+                }}
+              >
+                {guideHint}
+              </p>
+            )}
 
             {/* Time Control */}
             <div style={{ marginBottom: '16px', textAlign: 'left' }}>

@@ -35,7 +35,14 @@ class UserController extends Controller
     public function me(Request $request)
     {
         // Load user with roles and organization for frontend
-        $user = $request->user()->load(['roles:id,name', 'organization:id,name,type,logo_url,slug']);
+        $user = $request->user()->load([
+            'roles:id,name',
+            'organization:id,name,type,logo_url,slug',
+            'locationState:id,name,initial',
+            'locationDistrict:id,name,state_id',
+            'locationMandal:id,name,district_id',
+            'locationVillage:id,name,mandal_id',
+        ]);
         return response()->json($user);
     }
 
@@ -62,6 +69,10 @@ class UserController extends Controller
             'board_theme' => 'sometimes|string|max:30',
             'mobile_country_code' => 'sometimes|nullable|string|max:8',
             'mobile_number' => 'sometimes|nullable|string|max:30',
+            'location_state_id' => 'sometimes|nullable|integer|exists:states,id',
+            'location_district_id' => 'sometimes|nullable|integer|exists:districts,id',
+            'location_mandal_id' => 'sometimes|nullable|integer|exists:mandals,id',
+            'location_village_id' => 'sometimes|nullable|integer|exists:villages,id',
             'tournament_contact_consent' => 'sometimes|boolean',
             'whatsapp_updates_opt_in' => 'sometimes|boolean',
         ]);
@@ -116,6 +127,12 @@ class UserController extends Controller
         // Update class of study if provided
         if (array_key_exists('class_of_study', $validated)) {
             $user->class_of_study = $validated['class_of_study'];
+        }
+
+        foreach (['location_state_id', 'location_district_id', 'location_mandal_id', 'location_village_id'] as $locationField) {
+            if (array_key_exists($locationField, $validated)) {
+                $user->{$locationField} = $validated[$locationField];
+            }
         }
 
         // Update board theme if provided

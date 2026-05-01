@@ -4,14 +4,24 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chess99.data.api.GameApi
+import com.chess99.data.api.MatchmakingApi
+import com.chess99.data.api.WebSocketApi
 import com.chess99.data.local.TokenManager
 import com.chess99.data.websocket.GameEvent
 import com.chess99.data.websocket.GameWebSocketService
+import com.chess99.domain.model.SyntheticPlayer
+import com.chess99.engine.CCTAnalyzer
+import com.chess99.engine.CCTArrow
+import com.chess99.engine.CCTResult
 import com.chess99.engine.ChessGame
 import com.chess99.engine.Color
 import com.chess99.engine.Piece
+import com.chess99.engine.Square
+import com.chess99.engine.StockfishEngine
+import com.chess99.presentation.common.BoardArrow
 import com.google.gson.JsonObject
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,7 +41,10 @@ class PlayMultiplayerViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val gameWebSocketService: GameWebSocketService,
     private val gameApi: GameApi,
+    private val matchmakingApi: MatchmakingApi,
+    private val webSocketApi: WebSocketApi,
     private val tokenManager: TokenManager,
+    private val stockfishEngine: StockfishEngine,
 ) : ViewModel() {
 
     val gameId: Int = savedStateHandle.get<Int>("gameId") ?: 0
@@ -39,9 +52,16 @@ class PlayMultiplayerViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(MultiplayerUiState())
     val uiState: StateFlow<MultiplayerUiState> = _uiState.asStateFlow()
 
+    private val _companionState = MutableStateFlow(CompanionState())
+    val companionState: StateFlow<CompanionState> = _companionState.asStateFlow()
+
+    private val _cctState = MutableStateFlow(CCTPanelState())
+    val cctState: StateFlow<CCTPanelState> = _cctState.asStateFlow()
+
     private var game = ChessGame()
     private var timerJob: Job? = null
     private var myUserId: Int = 0
+    private var companionContinuousJob: Job? = null
 
     init {
         myUserId = tokenManager.getUserId()
@@ -652,9 +672,349 @@ class PlayMultiplayerViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(snackbarMessage = null)
     }
 
+    // ── Companion Mode ──────────────────────────────────────────────────
+
+    fun loadCompanions() {
+        viewModelScope.launch {
+            _companionState.value = _companionState.value.copy(isLoading = true, error = null)
+            try {
+                val response = matchmakingApi.getSyntheticPlayers()
+                if (!response.isSuccessful) {
+                    _companionState.value = _companionState.value.copy(
+                        isLoading = false,
+                        error = "Failed to load companions",
+                    )
+                    return@launch
+                }
+                val body = response.body() ?: return@launch
+                val dataArray = body.getAsJsonArray("data") ?: return@launch
+                val players = dataArray.map { el ->
+                    val obj = el.asJsonObject
+                    SyntheticPlayer(
+                        id = obj.get("id")?.asInt ?: 0,
+                        name = obj.get("name")?.asString ?: "Companion",
+                        rating = obj.get("rating")?.asInt ?: 1200,
+                        computerLevel = obj.get("computer_level")?.asInt ?: 2,
+                        personality = obj.get("personality")?.asString ?: "Balanced",
+                        bio = obj.get("bio")?.asString ?: "",
+                        avatarUrl = obj.get("avatar_url")?.asString ?: "",
+                        gamesPlayed = obj.get("games_played")?.asInt ?: 0,
+                        winRate = obj.get("win_rate")?.asDouble ?: 50.0,
+                    )
+                }
+                _companionState.value = _companionState.value.copy(
+                    isLoading = false,
+                    companions = players,
+                )
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to load companions")
+                _companionState.value = _companionState.value.copy(
+                    isLoading = false,
+                    error = "Failed to load companions: ${e.message}",
+                )
+            }
+        }
+    }
+
+    fun selectCompanion(companion: SyntheticPlayer) {
+        _companionState.value = _companionState.value.copy(selectedCompanion = companion)
+        viewModelScope.launch {
+            try {
+                stockfishEngine.initialize()
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to initialize Stockfish for companion")
+            }
+        }
+    }
+
+    fun releaseCompanion() {
+        companionContinuousJob?.cancel()
+        _companionState.value = CompanionState(companions = _companionState.value.companions)
+    }
+
+    fun companionPlayOneMove() {
+        val state = _uiState.value
+        val companionState = _companionState.value
+        val companion = companionState.selectedCompanion ?: return
+        if (state.gamePhase != MultiplayerPhase.PLAYING) return
+        if (game.turn != state.playerColor) return
+
+        viewModelScope.launch {
+            _companionState.value = _companionState.value.copy(isThinking = true)
+            try {
+                val fen = game.fen()
+                val result = stockfishEngine.getBestMove(fen, companion.computerLevel)
+                val uci = result.bestMove
+                if (uci.length < 4) {
+                    _companionState.value = _companionState.value.copy(
+                        isThinking = false,
+                        error = "Companion could not find a move",
+                    )
+                    return@launch
+                }
+                val from = uci.substring(0, 2)
+                val to = uci.substring(2, 4)
+                val promotion = uci.substring(4).ifEmpty { null }?.firstOrNull()
+
+                // Apply locally
+                val move = game.move(from, to, promotion)
+                if (move == null) {
+                    _companionState.value = _companionState.value.copy(
+                        isThinking = false,
+                        error = "Companion move was invalid",
+                    )
+                    return@launch
+                }
+
+                val sound = when {
+                    game.isCheck() -> MoveSound.CHECK
+                    move.captured != Piece.NONE || move.isEnPassant -> MoveSound.CAPTURE
+                    else -> MoveSound.MOVE
+                }
+
+                val moveRecord = GameMoveRecord(
+                    moveNumber = game.historyVerbose().size,
+                    from = from,
+                    to = to,
+                    san = move.san(game),
+                    fen = game.fen(),
+                    playerColor = state.playerColor,
+                    captured = move.captured != Piece.NONE,
+                )
+
+                val newWhiteTime = if (state.playerColor == Color.WHITE) {
+                    state.whiteTimeSeconds + state.incrementSeconds
+                } else state.whiteTimeSeconds
+
+                val newBlackTime = if (state.playerColor == Color.BLACK) {
+                    state.blackTimeSeconds + state.incrementSeconds
+                } else state.blackTimeSeconds
+
+                _uiState.value = state.copy(
+                    fen = game.fen(),
+                    lastMoveFrom = move.from,
+                    lastMoveTo = move.to,
+                    moveHistory = state.moveHistory + moveRecord,
+                    whiteTimeSeconds = newWhiteTime,
+                    blackTimeSeconds = newBlackTime,
+                    soundToPlay = sound,
+                )
+
+                // Send to server as synthetic move
+                val moveJson = JsonObject().apply {
+                    addProperty("from", from)
+                    addProperty("to", to)
+                    promotion?.let { addProperty("promotion", it.toString()) }
+                    addProperty("san", move.san(game))
+                    addProperty("uci", uci)
+                    addProperty("is_check", game.isCheck())
+                    addProperty("is_mate_hint", false)
+                    addProperty("is_stalemate", game.isStalemate())
+                }
+                val body = JsonObject().apply {
+                    add("move", moveJson)
+                }
+                val response = webSocketApi.sendSyntheticMove(gameId, body)
+                if (!response.isSuccessful) {
+                    Timber.w("Synthetic move API failed, falling back to regular move API")
+                    val fallbackJson = JsonObject().apply {
+                        addProperty("from", from)
+                        addProperty("to", to)
+                        promotion?.let { addProperty("promotion", it.toString()) }
+                    }
+                    val fallbackBody = JsonObject().apply {
+                        add("move", fallbackJson)
+                    }
+                    gameWebSocketService.sendMove(fallbackBody)
+                }
+
+                _companionState.value = _companionState.value.copy(
+                    isThinking = false,
+                    moveCount = _companionState.value.moveCount + 1,
+                )
+            } catch (e: Exception) {
+                Timber.e(e, "Companion move failed")
+                _companionState.value = _companionState.value.copy(
+                    isThinking = false,
+                    error = "Companion failed: ${e.message}",
+                )
+            }
+        }
+    }
+
+    fun toggleCompanionContinuousPlay() {
+        val isContinuous = _companionState.value.isContinuousPlay
+        if (isContinuous) {
+            companionContinuousJob?.cancel()
+            _companionState.value = _companionState.value.copy(isContinuousPlay = false)
+        } else {
+            _companionState.value = _companionState.value.copy(isContinuousPlay = true)
+            startContinuousCompanionPlay()
+        }
+    }
+
+    private fun startContinuousCompanionPlay() {
+        companionContinuousJob?.cancel()
+        companionContinuousJob = viewModelScope.launch {
+            while (isActive) {
+                val state = _uiState.value
+                val companionStateVal = _companionState.value
+                if (!companionStateVal.isContinuousPlay) break
+                if (state.gamePhase != MultiplayerPhase.PLAYING) break
+                if (game.turn == state.playerColor && !companionStateVal.isThinking) {
+                    companionPlayOneMove()
+                }
+                delay(600)
+            }
+        }
+    }
+
+    // ── CCT Analysis ────────────────────────────────────────────────────
+
+    private var cctAnalysisJob: Job? = null
+    private var bestMovesJob: Job? = null
+    private var lastCctFenKey: String = ""
+
+    fun updateCCTAnalysis() {
+        val state = _uiState.value
+        if (state.gamePhase != MultiplayerPhase.PLAYING && state.gamePhase != MultiplayerPhase.PAUSED) {
+            _cctState.value = CCTPanelState()
+            return
+        }
+
+        val fen = game.fen()
+        val cctStateVal = _cctState.value
+        val key = "${fen}::${cctStateVal.perspective}"
+        if (key == lastCctFenKey) return
+        lastCctFenKey = key
+
+        viewModelScope.launch(Dispatchers.Default) {
+            val cct = CCTAnalyzer.analyze(game, cctStateVal.perspective)
+            val opponentCct = CCTAnalyzer.analyze(game, "opponent")
+            val warning = CCTAnalyzer.getWarning(opponentCct, fen)
+
+            // Convert to board arrows
+            val arrows = when {
+                cctStateVal.hintLevel == 1 -> CCTAnalyzer.cctToArrows(cct)
+                cctStateVal.hintLevel == 2 && cctStateVal.bestMoves != null -> {
+                    cctStateVal.bestMoves!!.take(3).mapIndexed { i, m ->
+                        CCTArrow(m.from, m.to, CCTAnalyzer.BEST_COLORS.getOrElse(i) { 0xE6C0C0C0L })
+                    }
+                }
+                else -> emptyList()
+            }
+
+            val boardArrows = arrows.map { BoardArrow(it.from, it.to, it.color) }
+
+            _cctState.value = cctStateVal.copy(
+                cct = cct,
+                opponentCct = opponentCct,
+                warning = warning,
+            )
+
+            // Push arrows to UI state
+            _uiState.value = _uiState.value.copy(cctArrows = boardArrows)
+
+            // Trigger best moves analysis if in Best mode
+            if (cctStateVal.hintLevel == 2) {
+                loadBestMoves(fen, cct)
+            }
+        }
+    }
+
+    fun setCctHintLevel(level: Int) {
+        val current = _cctState.value
+        _cctState.value = current.copy(
+            hintLevel = level,
+            bestMoves = if (level != 2) null else current.bestMoves,
+            loadingBest = false,
+        )
+        lastCctFenKey = "" // force recompute
+        updateCCTArrowsOnBoard()
+
+        if (level == 2 && current.cct != null) {
+            loadBestMoves(game.fen(), current.cct)
+        }
+    }
+
+    fun setCctPerspective(perspective: String) {
+        _cctState.value = _cctState.value.copy(perspective = perspective)
+        lastCctFenKey = "" // force recompute
+        updateCCTAnalysis()
+    }
+
+    private fun updateCCTArrowsOnBoard() {
+        val cctStateVal = _cctState.value
+        val arrows = when {
+            cctStateVal.hintLevel == 0 || _uiState.value.isRated -> emptyList()
+            cctStateVal.hintLevel == 1 && cctStateVal.cct != null -> {
+                CCTAnalyzer.cctToArrows(cctStateVal.cct).map { BoardArrow(it.from, it.to, it.color) }
+            }
+            cctStateVal.hintLevel == 2 && cctStateVal.bestMoves != null -> {
+                cctStateVal.bestMoves!!.take(3).mapIndexed { i, m ->
+                    BoardArrow(m.from, m.to, CCTAnalyzer.BEST_COLORS.getOrElse(i) { 0xE6C0C0C0L })
+                }
+            }
+            else -> emptyList()
+        }
+        _uiState.value = _uiState.value.copy(cctArrows = arrows)
+    }
+
+    private fun loadBestMoves(fen: String, cct: CCTResult) {
+        bestMovesJob?.cancel()
+        bestMovesJob = viewModelScope.launch(Dispatchers.Default) {
+            _cctState.value = _cctState.value.copy(loadingBest = true, bestMoves = null)
+            try {
+                stockfishEngine.initialize()
+                val result = stockfishEngine.getBestMove(fen, 12)
+
+                val topMoves = result.rankedMoves
+                    .sortedBy { it.rank }
+                    .take(3)
+                    .map { rm ->
+                        val from = Square.fromAlgebraic(rm.uci.substring(0, 2))
+                        val to = Square.fromAlgebraic(rm.uci.substring(2, 4))
+                        val san = try {
+                            val g = ChessGame(fen)
+                            val m = g.moveUci(rm.uci)
+                            m?.san(g) ?: rm.uci
+                        } catch (_: Exception) { rm.uci }
+                        val tag = CCTAnalyzer.classifyMoveAgainstCCT(rm.uci, cct)
+
+                        BestMoveData(
+                            uci = rm.uci,
+                            from = from,
+                            to = to,
+                            san = san,
+                            cp = rm.score,
+                            isMate = rm.isMate,
+                            tag = tag,
+                        )
+                    }
+
+                _cctState.value = _cctState.value.copy(
+                    loadingBest = false,
+                    bestMoves = topMoves,
+                )
+                updateCCTArrowsOnBoard()
+            } catch (e: Exception) {
+                Timber.e(e, "CCT best moves analysis failed")
+                _cctState.value = _cctState.value.copy(
+                    loadingBest = false,
+                    bestMoves = emptyList(),
+                )
+            }
+        }
+    }
+
+
     override fun onCleared() {
         super.onCleared()
         timerJob?.cancel()
+        companionContinuousJob?.cancel()
+        cctAnalysisJob?.cancel()
+        bestMovesJob?.cancel()
+        stockfishEngine.shutdown()
         gameWebSocketService.disconnect()
     }
 }
@@ -689,6 +1049,7 @@ data class MultiplayerUiState(
     val soundToPlay: MoveSound? = null,
     val error: String? = null,
     val snackbarMessage: String? = null,
+    val cctArrows: List<BoardArrow> = emptyList(),
 )
 
 enum class MultiplayerPhase { CONNECTING, PLAYING, PAUSED, COMPLETED }
@@ -699,4 +1060,14 @@ data class ChatMessageData(
     val message: String,
     val timestamp: String,
     val isMe: Boolean,
+)
+
+data class CompanionState(
+    val companions: List<SyntheticPlayer> = emptyList(),
+    val selectedCompanion: SyntheticPlayer? = null,
+    val isLoading: Boolean = false,
+    val error: String? = null,
+    val isThinking: Boolean = false,
+    val isContinuousPlay: Boolean = false,
+    val moveCount: Int = 0,
 )

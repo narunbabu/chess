@@ -62,9 +62,7 @@ Route::get('/public/games/{id}', [GameController::class, 'publicShow']);
 
 // Protected routes for authenticated users (use a middleware like auth:sanctum or auth:api)
 Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/user', function (Illuminate\Http\Request $request) {
-        return $request->user()->load('roles');
-    });
+    Route::get('/user', [UserController::class, 'me']);
 
     // Profile routes
     Route::post('/profile', [UserController::class, 'updateProfile']);
@@ -389,6 +387,14 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Lobby routes
     Route::get('/lobby/players', [LobbyController::class, 'players']);
+
+    // Location picker routes for profile area selection
+    Route::prefix('locations')->group(function () {
+        Route::get('/states', [\App\Http\Controllers\LocationController::class, 'states']);
+        Route::get('/districts', [\App\Http\Controllers\LocationController::class, 'districts']);
+        Route::get('/mandals', [\App\Http\Controllers\LocationController::class, 'mandals']);
+        Route::get('/villages', [\App\Http\Controllers\LocationController::class, 'villages']);
+    });
 
     // Matchmaking routes
     Route::prefix('matchmaking')->group(function () {

@@ -8,6 +8,10 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use App\Models\PlaceRelated\District;
+use App\Models\PlaceRelated\Mandal;
+use App\Models\PlaceRelated\State;
+use App\Models\PlaceRelated\Village;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -57,6 +61,10 @@ class User extends Authenticatable implements MustVerifyEmail
         'referred_by_code_id',
         'mobile_country_code',
         'mobile_number',
+        'location_state_id',
+        'location_district_id',
+        'location_mandal_id',
+        'location_village_id',
         'mobile_verified_at',
         'tournament_contact_consent_at',
         'whatsapp_updates_opt_in',
@@ -279,6 +287,26 @@ class User extends Authenticatable implements MustVerifyEmail
     public function organization()
     {
         return $this->belongsTo(Organization::class);
+    }
+
+    public function locationState()
+    {
+        return $this->belongsTo(State::class, 'location_state_id');
+    }
+
+    public function locationDistrict()
+    {
+        return $this->belongsTo(District::class, 'location_district_id');
+    }
+
+    public function locationMandal()
+    {
+        return $this->belongsTo(Mandal::class, 'location_mandal_id');
+    }
+
+    public function locationVillage()
+    {
+        return $this->belongsTo(Village::class, 'location_village_id');
     }
 
     /**
