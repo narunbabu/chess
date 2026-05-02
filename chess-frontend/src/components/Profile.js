@@ -137,7 +137,7 @@ const Profile = () => {
   const [orgError, setOrgError] = useState('');
   const orgSearchTimeout = useRef(null);
   const [showOrgRequestModal, setShowOrgRequestModal] = useState(false);
-  const [orgRequestForm, setOrgRequestForm] = useState({ name: '', type: 'School', city: '', state: '', website: '' });
+  const [orgRequestForm, setOrgRequestForm] = useState({ name: '', type: 'school', city: '', state: '', website: '' });
   const [orgRequestSubmitting, setOrgRequestSubmitting] = useState(false);
   const [orgRequestSuccess, setOrgRequestSuccess] = useState(false);
   const [orgRequestError, setOrgRequestError] = useState('');
@@ -506,9 +506,11 @@ const Profile = () => {
     try {
       await api.post('/organizations/request', orgRequestForm);
       setOrgRequestSuccess(true);
-      setOrgRequestForm({ name: '', type: 'School', city: '', state: '', website: '' });
+      setOrgRequestForm({ name: '', type: 'school', city: '', state: '', website: '' });
     } catch (err) {
-      setOrgRequestError(err.response?.data?.error || 'Failed to submit request. Please try again.');
+      const data = err.response?.data;
+      const firstMsg = data?.messages ? Object.values(data.messages)[0]?.[0] : null;
+      setOrgRequestError(firstMsg || data?.error || 'Failed to submit request. Please try again.');
     } finally {
       setOrgRequestSubmitting(false);
     }
@@ -1291,10 +1293,12 @@ const Profile = () => {
                     onChange={(e) => setOrgRequestForm({ ...orgRequestForm, type: e.target.value })}
                     style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #444', backgroundColor: '#2a2a2a', color: '#e0e0e0', fontSize: '14px', marginBottom: '14px', boxSizing: 'border-box' }}
                   >
-                    <option value="School">School</option>
-                    <option value="Club">Club</option>
-                    <option value="Company">Company</option>
-                    <option value="Other">Other</option>
+                    <option value="school">School</option>
+                    <option value="club">Club</option>
+                    <option value="company">Company</option>
+                    <option value="federation">Federation</option>
+                    <option value="community">Community</option>
+                    <option value="other">Other</option>
                   </select>
                   <div style={{ display: 'flex', gap: '12px' }}>
                     <div style={{ flex: 1 }}>

@@ -59,6 +59,16 @@ const GuidedTour = ({
   }, [onClose, storageKey]);
 
   const tooltipStyle = useMemo(() => {
+    const isMobile = window.innerWidth <= 560;
+    if (isMobile) {
+      return {
+        left: '50%',
+        top: '50%',
+        width: 'calc(100vw - 32px)',
+        transform: 'translate(-50%, -50%)',
+      };
+    }
+
     if (!targetRect) {
       return {
         left: '50%',

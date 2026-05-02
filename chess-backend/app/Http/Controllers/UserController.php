@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\PendingLocation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
@@ -138,6 +139,8 @@ class UserController extends Controller
             }
         }
 
+        $this->syncPendingLocationRequest($user);
+
         // Update board theme if provided
         if (isset($validated['board_theme'])) {
             $user->board_theme = $validated['board_theme'];
@@ -251,6 +254,82 @@ class UserController extends Controller
             'message' => 'Profile updated successfully',
             'user' => $user
         ]);
+    }
+
+    private function syncPendingLocationRequest(User $user): void
+    {
+        $name = trim((string) $user->location_other);
+        if ($name === '') {
+            return;
+        }
+
+        $level = $this->detectPendingLocationLevel($user);
+        if (!$level) {
+            return;
+        }
+
+        $parents = [
+            'country_id' => $user->location_country_id,
+            'state_id' => $user->location_state_id,
+            'district_id' => $user->location_district_id,
+            'mandal_id' => $user->location_mandal_id,
+        ];
+
+        $query = PendingLocation::query()
+            ->where('level', $level)
+            ->where('name', $name);
+
+        foreach ($parents as $field => $value) {
+            $value === null
+                ? $query->whereNull($field)
+                : $query->where($field, $value);
+        }
+
+        $existing = $query->first();
+        if ($existing && $existing->status === PendingLocation::STATUS_APPROVED && $existing->created_place_id) {
+            $field = "location_{$level}_id";
+            $user->{$field} = $existing->created_place_id;
+            $user->location_other = null;
+            return;
+        }
+
+        if (!$existing) {
+            PendingLocation::create([
+                'user_id' => $user->id,
+                'level' => $level,
+                'name' => $name,
+                'country_id' => $parents['country_id'],
+                'state_id' => $parents['state_id'],
+                'district_id' => $parents['district_id'],
+                'mandal_id' => $parents['mandal_id'],
+                'status' => PendingLocation::STATUS_PENDING,
+            ]);
+        }
+    }
+
+    private function detectPendingLocationLevel(User $user): ?string
+    {
+        if (!$user->location_country_id) {
+            return 'country';
+        }
+
+        if (!$user->location_state_id) {
+            return 'state';
+        }
+
+        if (!$user->location_district_id) {
+            return 'district';
+        }
+
+        if (!$user->location_mandal_id) {
+            return 'mandal';
+        }
+
+        if (!$user->location_village_id) {
+            return 'village';
+        }
+
+        return null;
     }
 
     /**

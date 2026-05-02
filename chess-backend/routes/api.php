@@ -429,6 +429,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/{id}/approve', [\App\Http\Controllers\OrganizationController::class, 'approveRequest']);
         Route::post('/{id}/reject', [\App\Http\Controllers\OrganizationController::class, 'rejectRequest']);
     });
+
+    // Location approval queue (platform_admin only)
+    Route::prefix('admin/pending-locations')->middleware(['role:platform_admin'])->group(function () {
+        Route::get('/', [\App\Http\Controllers\PendingLocationController::class, 'index']);
+        Route::post('/{id}/approve', [\App\Http\Controllers\PendingLocationController::class, 'approve']);
+        Route::post('/{id}/reject', [\App\Http\Controllers\PendingLocationController::class, 'reject']);
+    });
 });
 
 // Public championship routes (no authentication required)
