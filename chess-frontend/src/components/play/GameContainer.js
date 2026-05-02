@@ -10,6 +10,7 @@ import ChatPanel from './ChatPanel';
 import GameChat from './GameChat';
 import CompanionControls from '../game/CompanionControls';
 import CCTPanel from '../game/CCTPanel';
+import PlayFeatureTour from './PlayFeatureTour';
 
 // Extract SAN from any gameHistory entry format:
 //   PlayComputer objects: { move: { san: "e4" }, ... }
@@ -21,6 +22,12 @@ const extractSan = (entry) => {
   if (entry.move?.san) return entry.move.san;
   if (entry.san) return entry.san;
   return null;
+};
+
+const normalizeChessColor = (color) => {
+  if (color === 'white') return 'w';
+  if (color === 'black') return 'b';
+  return color === 'b' ? 'b' : 'w';
 };
 
 /**
@@ -46,9 +53,14 @@ const GameContainer = ({
   companionData = null, // { companion: object, onMove: function, isMyTurn: boolean }
   cctData = null,       // { game, isActive, isRated, onArrowsChange }
   drawClaimInfo = null, // { available: bool, reason: string|null } — threefold/50-move claim status
+  tourOpen = false,
+  onTourOpen = () => {},
+  tourStorageKey = 'chess99:casual_tour:v1:guest',
 }) => {
   const [rightTab, setRightTab] = useState('moves');
   const [showRatedRules, setShowRatedRules] = useState(false);
+  const [mobileRightPanelOpen, setMobileRightPanelOpen] = useState(false);
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const moveListRef = useRef(null);
 
   // Extract timer data
@@ -85,6 +97,21 @@ const GameContainer = ({
 
   const isRated = ratedMode === 'rated';
 
+  const openMobilePanel = (tab = rightTab) => {
+    setMobileMoreOpen(false);
+    setRightTab(tab);
+    setMobileRightPanelOpen(true);
+    if (tab === 'chat') {
+      chatData?.onTabOpen?.();
+    }
+  };
+
+  const getPanelTitle = (tab) => {
+    if (tab === 'learn') return 'CCT';
+    if (tab === 'companion') return 'Companion';
+    return tab.charAt(0).toUpperCase() + tab.slice(1);
+  };
+
   // Build move pairs for two-column algebraic notation
   const movePairs = useMemo(() => {
     const pairs = [];
@@ -102,11 +129,12 @@ const GameContainer = ({
 
   // Auto-scroll move list
   useEffect(() => {
+    if (window.innerWidth <= 768 && !mobileRightPanelOpen) return;
     if (moveListRef.current) {
       const active = moveListRef.current.querySelector('[data-active="true"]');
       if (active) active.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
-  }, [gameHistory.length]);
+  }, [gameHistory.length, mobileRightPanelOpen]);
 
   // Determine status for the info panel
   const getStatusLabel = () => {
@@ -132,11 +160,150 @@ const GameContainer = ({
     }
   };
 
+  const lastMoveSummary = useMemo(() => {
+    const playerChessColor = normalizeChessColor(playerColor);
+    const opponentChessColor = playerChessColor === 'w' ? 'b' : 'w';
+    const moves = gameHistory
+      .map((entry, index) => ({
+        san: extractSan(entry),
+        color: index % 2 === 0 ? 'w' : 'b',
+      }))
+      .filter(move => move.san);
+
+    const lastPlayer = [...moves].reverse().find(move => move.color === playerChessColor)?.san || '--';
+    const lastOpponent = [...moves].reverse().find(move => move.color === opponentChessColor)?.san || '--';
+
+    return { player: lastPlayer, opponent: lastOpponent };
+  }, [gameHistory, playerColor]);
+
+  const renderMobileLastMoves = (placement = 'center') => (
+    <div className={`gc-mobile-last-moves gc-mobile-last-moves-${placement}`} aria-label="Last moves">
+      <span className="gc-mobile-last-moves-label">Last</span>
+      <span className="gc-mobile-last-move"><strong>You</strong> {lastMoveSummary.player}</span>
+      <span className="gc-mobile-last-move"><strong>Opp</strong> {lastMoveSummary.opponent}</span>
+    </div>
+  );
+
+  const renderMobileQuickActionButtons = () => (
+    <>
+      {!isRated && (
+        <button
+          className="gc-mobile-action-btn gc-mobile-action-icon gc-action-neutral"
+          onClick={() => isTimerRunning ? pauseTimer?.() : handleTimer?.()}
+          disabled={gameOver}
+          aria-label={isTimerRunning ? 'Pause game' : 'Resume game'}
+          title={isTimerRunning ? 'Pause' : 'Resume'}
+        >
+          {isTimerRunning ? '||' : '>'}
+        </button>
+      )}
+      {chatData && !gameOver && (
+        <button
+          className="gc-mobile-action-btn gc-mobile-action-icon gc-action-neutral"
+          onClick={() => openMobilePanel('chat')}
+          aria-label="Open chat"
+          title="Chat"
+        >
+          ...
+          {chatData.unreadCount > 0 && (
+            <span className="gc-mobile-action-badge">{chatData.unreadCount}</span>
+          )}
+        </button>
+      )}
+      {handleUndo && !isRated && (
+        <button
+          data-tour="action-undo"
+          className={`gc-mobile-action-btn gc-action-info ${(!canUndo || gameOver) ? 'gc-action-disabled' : ''}`}
+          onClick={handleUndo}
+          disabled={!canUndo || gameOver}
+          title={canUndo ? `Undo (${undoChancesRemaining} left)` : 'Cannot undo'}
+        >
+          Undo{undoChancesRemaining > 0 ? ` ${undoChancesRemaining}` : ''}
+        </button>
+      )}
+      {cctData && (
+        <button
+          data-tour="tab-cct"
+          className="gc-mobile-action-btn gc-action-primary"
+          onClick={() => openMobilePanel('learn')}
+        >
+          CCT
+        </button>
+      )}
+      <button
+        data-tour="tab-companion"
+        className={`gc-mobile-action-btn gc-action-primary ${companionData?.companion ? 'gc-mobile-action-active' : ''}`}
+        onClick={() => openMobilePanel('companion')}
+      >
+        Comp
+      </button>
+      <div className="gc-mobile-action-menu-wrap">
+        <button
+          type="button"
+          className={`gc-mobile-action-btn gc-action-neutral ${mobileMoreOpen ? 'gc-mobile-action-active' : ''}`}
+          onClick={() => setMobileMoreOpen(open => !open)}
+          aria-label="More play actions"
+          aria-expanded={mobileMoreOpen}
+        >
+          More
+        </button>
+        {mobileMoreOpen && (
+          <div className="gc-mobile-action-menu" role="menu">
+            <button type="button" role="menuitem" onClick={() => openMobilePanel('moves')}>Moves</button>
+            <button type="button" role="menuitem" onClick={() => openMobilePanel('info')}>Info</button>
+            {!isRated && !gameOver && (
+              <button
+                type="button"
+                role="menuitem"
+                data-tour="action-help"
+                onClick={() => {
+                  setMobileMoreOpen(false);
+                  onTourOpen(true);
+                }}
+              >
+                Help
+              </button>
+            )}
+            {handleDrawOffer && !gameOver && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMobileMoreOpen(false);
+                  handleDrawOffer();
+                }}
+              >
+                Draw
+              </button>
+            )}
+            {handleResign && !gameOver && (
+              <button
+                type="button"
+                role="menuitem"
+                className="gc-mobile-action-menu-danger"
+                onClick={() => {
+                  setMobileMoreOpen(false);
+                  handleResign();
+                }}
+              >
+                Resign
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </>
+  );
+
   // ----- ACTION BAR -----
   const renderActionBar = () => {
     if (!gameStarted || isReplayMode) return null;
     return (
       <div className="gc-action-bar">
+        <div className="gc-mobile-action-grid gc-mobile-action-grid-portrait">
+          {renderMobileQuickActionButtons()}
+        </div>
+        <div className="gc-desktop-action-group">
         {/* Pause/Resume — casual only */}
         {!isRated && (
           <button
@@ -150,12 +317,38 @@ const GameContainer = ({
         {/* Undo — casual only */}
         {handleUndo && !isRated && (
           <button
+            data-tour="action-undo"
             className={`gc-action-btn gc-action-info ${(!canUndo || gameOver) ? 'gc-action-disabled' : ''}`}
             onClick={handleUndo}
             disabled={!canUndo || gameOver}
             title={canUndo ? `Undo (${undoChancesRemaining} left)` : 'Cannot undo'}
           >
             ↩ Undo{undoChancesRemaining > 0 ? ` (${undoChancesRemaining})` : ''}
+          </button>
+        )}
+        {/* Help button — casual only, triggers tour */}
+        {!isRated && !gameOver && (
+          <button
+            data-tour="action-help"
+            className="gc-action-btn gc-action-neutral"
+            onClick={() => onTourOpen(true)}
+            title="Help & Tour"
+            style={{ fontSize: '14px' }}
+          >
+            ❓ Help
+          </button>
+        )}
+        {/* Moves toggle — opens/closes right panel on mobile */}
+        {!gameOver && (
+          <button
+            className="gc-action-btn gc-action-neutral gc-mobile-moves-toggle"
+            onClick={() => {
+              setRightTab('moves');
+              setMobileRightPanelOpen(prev => !prev);
+            }}
+            title="Toggle Moves Panel"
+          >
+            📋 Moves
           </button>
         )}
         {/* Rated Rules Info */}
@@ -217,6 +410,7 @@ const GameContainer = ({
             ♟ New Game
           </button>
         )}
+        </div>
       </div>
     );
   };
@@ -367,11 +561,29 @@ const GameContainer = ({
 
     return (
       <div style={{ padding: '12px 8px' }}>
+        {/* CompanionControls: keep one-move / until-stopped actions first on mobile */}
+        {companion && !gameOver && (
+          <CompanionControls
+            companion={companion}
+            game={game}
+            onMove={onMove}
+            onDismiss={onCompanionDismiss}
+            isMyTurn={isMyTurn}
+            disabled={!gameStarted || gameOver}
+            compact={true}
+          />
+        )}
+
         {/* Companion picker */}
         <div style={{ marginBottom: '12px' }}>
           <p style={{ fontSize: '12px', color: '#8b8987', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            Choose a companion to play on your behalf
+            Change companion
           </p>
+          {companion && (
+            <p style={{ fontSize: '12px', color: '#bababa', margin: '0 0 8px', lineHeight: '1.4' }}>
+              {companion.name} is ready. The action buttons are above; change helper only if needed.
+            </p>
+          )}
           <select
             value={companion ? companion.id : ''}
             onChange={(e) => {
@@ -403,7 +615,7 @@ const GameContainer = ({
           </select>
           {nearbyCompanions.length > 0 && (
             <p style={{ fontSize: '11px', color: '#8b8987', marginTop: '4px' }}>
-              Showing 5 companions around opponent's rating ({opponentRating})
+              Showing 5 available companions. Opponent rating: {opponentRating}
             </p>
           )}
         </div>
@@ -454,7 +666,13 @@ const GameContainer = ({
     ];
 
     return (
-      <div className="gc-right-panel">
+      <div className={`gc-right-panel ${mobileRightPanelOpen ? 'mobile-open' : ''}`}>
+        <div className="gc-mobile-panel-heading">
+          <span>{getPanelTitle(rightTab)}</span>
+          <button type="button" onClick={() => setMobileRightPanelOpen(false)} aria-label="Close panel">
+            Close
+          </button>
+        </div>
         {/* Tabs */}
         <div className="gc-tabs">
           {tabs.map((tab) => (
@@ -464,6 +682,10 @@ const GameContainer = ({
               onClick={() => {
                 const prevTab = rightTab;
                 setRightTab(tab);
+                // Open mobile drawer when a tab is selected on mobile
+                if (window.innerWidth <= 768) {
+                  setMobileRightPanelOpen(true);
+                }
                 if (tab === 'chat') {
                   chatData?.onTabOpen?.();
                 } else if (prevTab === 'chat') {
@@ -471,44 +693,46 @@ const GameContainer = ({
                 }
               }}
             >
-              {tab === 'moves' ? 'Moves'
-                : tab === 'info' ? 'Info'
-                : tab === 'learn' ? '💡 CCT'
-                : tab === 'companion' ? (
-                  <>
-                    🤝{companionData?.companion ? (
-                      <span style={{
-                        marginLeft: 4,
-                        background: '#a855f7',
-                        color: '#fff',
-                        borderRadius: '50%',
-                        fontSize: '0.65rem',
-                        padding: '1px 5px',
-                        verticalAlign: 'middle',
-                      }}>✓</span>
-                    ) : null}
-                  </>
-                )
-                : (
-                  <>
-                    Chat
-                    {chatData.unreadCount > 0 && (
-                      <span style={{
-                        marginLeft: 4,
-                        background: '#e04040',
-                        color: '#fff',
-                        borderRadius: '50%',
-                        fontSize: '0.65rem',
-                        padding: '1px 5px',
-                        verticalAlign: 'middle',
-                      }}>
-                        {chatData.unreadCount}
-                      </span>
-                    )}
-                  </>
-                )
-              }
-            </button>
+                {tab === 'moves' ? 'Moves'
+                  : tab === 'info' ? 'Info'
+                  : tab === 'learn' ? (
+                    <span data-tour="tab-cct">💡 CCT</span>
+                  )
+                  : tab === 'companion' ? (
+                    <span data-tour="tab-companion">
+                      🤝{companionData?.companion ? (
+                        <span style={{
+                          marginLeft: 4,
+                          background: '#a855f7',
+                          color: '#fff',
+                          borderRadius: '50%',
+                          fontSize: '0.65rem',
+                          padding: '1px 5px',
+                          verticalAlign: 'middle',
+                        }}>✓</span>
+                      ) : null}
+                    </span>
+                  )
+                  : (
+                    <>
+                      Chat
+                      {chatData.unreadCount > 0 && (
+                        <span style={{
+                          marginLeft: 4,
+                          background: '#e04040',
+                          color: '#fff',
+                          borderRadius: '50%',
+                          fontSize: '0.65rem',
+                          padding: '1px 5px',
+                          verticalAlign: 'middle',
+                        }}>
+                          {chatData.unreadCount}
+                        </span>
+                      )}
+                    </>
+                  )
+                }
+              </button>
           ))}
         </div>
         {/* Tab content */}
@@ -564,6 +788,59 @@ const GameContainer = ({
     </div>
   );
 
+  const renderMobileRail = () => {
+    if (!gameStarted || isReplayMode) return null;
+
+    return (
+      <aside className="gc-mobile-rail" aria-label="Mobile game controls">
+        <ActivePlayerBar
+          name={opponentData?.name || (mode === 'computer' ? 'Computer' : 'Opponent')}
+          rating={opponentData?.rating}
+          playerData={opponentData}
+          time={mode === 'computer' ? computerTime : (oppMs != null ? Math.floor(oppMs / 1000) : computerTime)}
+          isActive={mode === 'computer' ? activeTimer === (playerColor === 'w' ? 'b' : 'w') : !isMyTurn}
+          isWhite={playerColor === 'b'}
+          game={game}
+          isTop={true}
+          mode={mode}
+          isTimerRunning={mode === 'computer' ? (isTimerRunning && activeTimer !== playerColor) : !isMyTurn}
+          isThinking={mode === 'computer' && computerMoveInProgress}
+        />
+
+        <div className="gc-mobile-rail-tools">
+          {boardTheme !== undefined && onBoardThemeChange && (
+            <BoardCustomizer
+              boardTheme={boardTheme}
+              pieceStyle={pieceStyle}
+              onThemeChange={onBoardThemeChange}
+              onPieceStyleChange={onPieceStyleChange}
+            />
+          )}
+          <SoundToggle />
+        </div>
+
+        {renderMobileLastMoves('rail')}
+
+        <div className="gc-mobile-rail-actions">
+          {renderMobileQuickActionButtons()}
+        </div>
+
+        <ActivePlayerBar
+          name={playerData?.name || 'You'}
+          rating={playerData?.rating}
+          playerData={playerData}
+          time={mode === 'computer' ? playerTime : (myMs != null ? Math.floor(myMs / 1000) : playerTime)}
+          isActive={mode === 'computer' ? activeTimer === playerColor : isMyTurn}
+          isWhite={playerColor === 'w'}
+          game={game}
+          isTop={false}
+          mode={mode}
+          isTimerRunning={mode === 'computer' ? (isTimerRunning && activeTimer === playerColor) : isMyTurn}
+        />
+      </aside>
+    );
+  };
+
   // ========== MAIN RENDER ==========
   return (
     <div className="gc-layout">
@@ -605,6 +882,8 @@ const GameContainer = ({
           {children}
         </div>
 
+        {renderMobileLastMoves('center')}
+
         {/* Player bar */}
         <ActivePlayerBar
           name={playerData?.name || 'You'}
@@ -624,8 +903,19 @@ const GameContainer = ({
         {renderReplayBar()}
       </div>
 
+      {renderMobileRail()}
+
       {/* RIGHT PANEL — moves, game info */}
       {renderRightPanel()}
+
+      {/* Feature tour for casual play */}
+      {!isRated && (
+        <PlayFeatureTour
+          open={tourOpen}
+          onClose={() => onTourOpen(false)}
+          storageKey={tourStorageKey}
+        />
+      )}
     </div>
   );
 };

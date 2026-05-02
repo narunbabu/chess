@@ -51,7 +51,7 @@
 }
 
 /* === MOBILE LANDSCAPE OVERRIDES === */
-@media screen and (max-width: 812px) and (orientation: landscape) {
+@media screen and (max-width: 1400px) and (max-height: 700px) and (orientation: landscape) {
   /* Hide header and footer */
   html.mobile-landscape .app-header,
   html.mobile-landscape header,
@@ -93,14 +93,17 @@
     overflow: hidden !important;
   }
 
-  /* --- New GC Layout in landscape: board + moves panel --- */
+  /* --- New GC Layout in landscape: board + compact side rail --- */
   body.mobile-landscape .gc-layout {
-    grid-template-columns: 1fr 180px !important;
+    grid-template-columns: minmax(0, 1fr) minmax(174px, 218px) !important;
     grid-template-rows: 1fr !important;
-    gap: 4px !important;
+    gap: 6px !important;
     padding: 4px !important;
-    max-height: 100vh !important;
+    height: calc(var(--vh) * 100) !important;
+    min-height: 0 !important;
+    max-height: calc(var(--vh) * 100) !important;
     overflow: hidden !important;
+    align-items: stretch !important;
   }
 
   body.mobile-landscape .gc-left-panel {
@@ -108,20 +111,77 @@
   }
 
   body.mobile-landscape .gc-center {
-    max-height: 100vh !important;
+    max-height: calc(var(--vh) * 100 - 8px) !important;
     overflow: hidden !important;
+    padding: 0 !important;
+    justify-content: center !important;
   }
 
   body.mobile-landscape .gc-board-wrapper {
+    width: min(calc(var(--vh) * 100 - 8px), calc(100vw - 232px)) !important;
+    max-width: 100% !important;
     padding: 2px !important;
     border-radius: 6px !important;
   }
 
+  body.mobile-landscape .gc-center > .gc-toolbar,
+  body.mobile-landscape .gc-center > .apb,
+  body.mobile-landscape .gc-center > .gc-action-bar,
+  body.mobile-landscape .gc-center > .gc-mobile-last-moves {
+    display: none !important;
+  }
+
+  body.mobile-landscape .gc-mobile-rail {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+    align-self: stretch !important;
+    overflow: hidden !important;
+  }
+
+  body.mobile-landscape .gc-mobile-rail-tools {
+    display: flex !important;
+    justify-content: flex-end !important;
+    gap: 4px !important;
+    min-height: 34px !important;
+  }
+
+  body.mobile-landscape .gc-mobile-rail-actions {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 5px !important;
+    flex: 1 !important;
+    align-content: center !important;
+  }
+
+  body.mobile-landscape .gc-mobile-last-moves-rail {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 3px !important;
+    padding: 5px 6px !important;
+    border-radius: 6px !important;
+    background: rgba(30, 30, 30, 0.82) !important;
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    color: #bdbdbd !important;
+    font-size: 10px !important;
+    line-height: 1.2 !important;
+  }
+
   body.mobile-landscape .gc-right-panel {
-    position: static !important;
-    max-height: 100vh !important;
+    position: fixed !important;
+    top: 6px !important;
+    right: 6px !important;
+    bottom: 6px !important;
+    width: min(320px, 46vw) !important;
+    max-height: none !important;
     overflow-y: auto !important;
     font-size: 11px !important;
+    z-index: 9000 !important;
+    box-shadow: 0 18px 60px rgba(0, 0, 0, 0.65) !important;
+  }
+
+  body.mobile-landscape .gc-right-panel .gc-tabs {
+    display: none !important;
   }
 
   body.mobile-landscape .gc-action-bar {
@@ -130,8 +190,24 @@
   }
 
   body.mobile-landscape .gc-action-btn {
-    padding: 3px 5px !important;
+    padding: 6px 5px !important;
     font-size: 10px !important;
+    min-height: 34px !important;
+    max-width: none !important;
+    width: 100% !important;
+  }
+
+  body.mobile-landscape .gc-mobile-action-btn {
+    min-height: 32px !important;
+    padding: 5px 4px !important;
+    font-size: 10px !important;
+    width: 100% !important;
+  }
+
+  body.mobile-landscape .gc-mobile-action-menu {
+    top: calc(100% + 4px) !important;
+    bottom: auto !important;
+    right: 0 !important;
   }
 
   body.mobile-landscape .apb {
@@ -187,8 +263,8 @@
   }
 
   /* Compact buttons */
-  html.mobile-landscape button,
-  body.mobile-landscape button {
+  html.mobile-landscape .play-shell-setup button,
+  body.mobile-landscape .play-shell-setup button {
     padding: 0.4rem 0.8rem !important;
     font-size: 0.85rem !important;
   }

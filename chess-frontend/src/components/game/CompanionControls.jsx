@@ -13,7 +13,7 @@ import { getStockfishTopMoves, mapDepthToMoveTime } from '../../utils/computerMo
  * @param {boolean}  props.isMyTurn    - Whether it's the player's turn right now
  * @param {boolean}  props.disabled    - Disable all controls (game not started / game over)
  */
-const CompanionControls = ({ companion, game, onMove, onDismiss, isMyTurn, disabled = false }) => {
+const CompanionControls = ({ companion, game, onMove, onDismiss, isMyTurn, disabled = false, compact = false }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [moveCount, setMoveCount] = useState(0);
   const [error, setError] = useState(null);
@@ -114,11 +114,12 @@ const CompanionControls = ({ companion, game, onMove, onDismiss, isMyTurn, disab
   const canAct = !disabled && isMyTurn && !isLoading;
 
   return (
-    <div style={{
+    <div className={`companion-controls ${compact ? 'companion-controls-compact' : ''}`} style={{
       background: '#f5f0ff',
       border: '1px solid #d8b4fe',
       borderRadius: '8px',
-      padding: '12px',
+      padding: compact ? '10px' : '12px',
+      marginBottom: compact ? '10px' : 0,
     }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
@@ -150,9 +151,11 @@ const CompanionControls = ({ companion, game, onMove, onDismiss, isMyTurn, disab
       </div>
 
       {/* Buttons */}
-      <div style={{ display: 'flex', gap: '6px', marginBottom: '6px' }}>
+      <div className="companion-action-row" style={{ display: 'flex', gap: '6px', marginBottom: '6px' }}>
         {/* Play One Move */}
         <button
+          data-tour="companion-one-move"
+          className="companion-action-btn companion-action-btn-once"
           onClick={handlePlayOne}
           disabled={!canAct || continuousPlay}
           style={{
@@ -169,6 +172,8 @@ const CompanionControls = ({ companion, game, onMove, onDismiss, isMyTurn, disab
 
         {/* Play Until Stopped / Stop */}
         <button
+          data-tour="companion-continuous"
+          className="companion-action-btn companion-action-btn-auto"
           onClick={handleToggleContinuous}
           disabled={!canAct && !continuousPlay}
           style={{
