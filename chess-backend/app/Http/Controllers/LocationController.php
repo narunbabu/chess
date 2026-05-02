@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\PlaceRelated\Country;
 use App\Models\PlaceRelated\District;
 use App\Models\PlaceRelated\Mandal;
 use App\Models\PlaceRelated\State;
@@ -11,11 +12,20 @@ use Illuminate\Http\Request;
 
 class LocationController extends Controller
 {
-    public function states(): JsonResponse
+    public function countries(): JsonResponse
     {
         return response()->json(
-            State::select('id', 'name', 'initial')->orderBy('name')->get()
+            Country::select('id', 'name', 'initial')->orderBy('name')->get()
         );
+    }
+
+    public function states(Request $request): JsonResponse
+    {
+        $query = State::select('id', 'name', 'initial', 'country_id');
+        if ($request->filled('country_id')) {
+            $query->where('country_id', (int) $request->input('country_id'));
+        }
+        return response()->json($query->orderBy('name')->get());
     }
 
     public function districts(Request $request): JsonResponse

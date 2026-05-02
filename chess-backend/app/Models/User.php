@@ -61,10 +61,12 @@ class User extends Authenticatable implements MustVerifyEmail
         'referred_by_code_id',
         'mobile_country_code',
         'mobile_number',
+        'location_country_id',
         'location_state_id',
         'location_district_id',
         'location_mandal_id',
         'location_village_id',
+        'location_other',
         'mobile_verified_at',
         'tournament_contact_consent_at',
         'whatsapp_updates_opt_in',
@@ -287,6 +289,11 @@ class User extends Authenticatable implements MustVerifyEmail
     public function organization()
     {
         return $this->belongsTo(Organization::class);
+    }
+
+    public function locationCountry()
+    {
+        return $this->belongsTo(\App\Models\PlaceRelated\Country::class, 'location_country_id');
     }
 
     public function locationState()

@@ -65,10 +65,13 @@ const Profile = () => {
   const [mobileError, setMobileError] = useState('');
   const [tournamentConsent, setTournamentConsent] = useState(false);
   const [whatsappOptIn, setWhatsappOptIn] = useState(false);
+  const [locationCountryId, setLocationCountryId] = useState('');
   const [locationStateId, setLocationStateId] = useState('');
   const [locationDistrictId, setLocationDistrictId] = useState('');
   const [locationMandalId, setLocationMandalId] = useState('');
   const [locationVillageId, setLocationVillageId] = useState('');
+  const [locationOther, setLocationOther] = useState('');
+  const [locationCountries, setLocationCountries] = useState([]);
   const [locationStates, setLocationStates] = useState([]);
   const [locationDistricts, setLocationDistricts] = useState([]);
   const [locationMandals, setLocationMandals] = useState([]);
@@ -154,10 +157,17 @@ const Profile = () => {
       setClassOfStudy(user.class_of_study ? String(user.class_of_study) : '');
       setMobileCountryCode(user.mobile_country_code || '+91');
       setMobileNumber(user.mobile_number || '');
+      // Default to India (id=1) if no country chosen yet but a state is set,
+      // otherwise leave blank for the user to pick.
+      const inferredCountry = user.location_country_id
+        ? String(user.location_country_id)
+        : (user.location_state_id ? '1' : '');
+      setLocationCountryId(inferredCountry);
       setLocationStateId(user.location_state_id ? String(user.location_state_id) : '');
       setLocationDistrictId(user.location_district_id ? String(user.location_district_id) : '');
       setLocationMandalId(user.location_mandal_id ? String(user.location_mandal_id) : '');
       setLocationVillageId(user.location_village_id ? String(user.location_village_id) : '');
+      setLocationOther(user.location_other || '');
       setTournamentConsent(!!user.tournament_contact_consent_at);
       setWhatsappOptIn(!!user.whatsapp_updates_opt_in);
       loadFriends();
@@ -168,10 +178,29 @@ const Profile = () => {
 
   useEffect(() => {
     let active = true;
-    const loadStates = async () => {
+    const loadCountries = async () => {
       try {
         setLocationError('');
-        const response = await api.get('/locations/states');
+        const response = await api.get('/locations/countries');
+        if (active) setLocationCountries(response.data || []);
+      } catch (err) {
+        if (active) setLocationError('Could not load countries');
+      }
+    };
+    loadCountries();
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const loadStates = async () => {
+      if (!locationCountryId || locationCountryId === 'other') {
+        setLocationStates([]);
+        return;
+      }
+      try {
+        setLocationError('');
+        const response = await api.get('/locations/states', { params: { country_id: locationCountryId } });
         if (active) setLocationStates(response.data || []);
       } catch (err) {
         if (active) setLocationError('Could not load states');
@@ -180,12 +209,12 @@ const Profile = () => {
 
     loadStates();
     return () => { active = false; };
-  }, []);
+  }, [locationCountryId]);
 
   useEffect(() => {
     let active = true;
     const loadDistricts = async () => {
-      if (!locationStateId) {
+      if (!locationStateId || locationStateId === 'other') {
         setLocationDistricts([]);
         return;
       }
@@ -208,7 +237,7 @@ const Profile = () => {
   useEffect(() => {
     let active = true;
     const loadMandals = async () => {
-      if (!locationDistrictId) {
+      if (!locationDistrictId || locationDistrictId === 'other') {
         setLocationMandals([]);
         return;
       }
@@ -231,7 +260,7 @@ const Profile = () => {
   useEffect(() => {
     let active = true;
     const loadVillages = async () => {
-      if (!locationMandalId) {
+      if (!locationMandalId || locationMandalId === 'other') {
         setLocationVillages([]);
         return;
       }
@@ -536,21 +565,29 @@ const Profile = () => {
         hasChanges = true;
       }
 
+      // 'other' sentinel → empty (NULL) FK; the free-text goes in location_other.
+      const idOrNull = (v) => (v && v !== 'other' ? String(v) : '');
       const locationFields = [
-        ['location_state_id', locationStateId, user.location_state_id],
-        ['location_district_id', locationDistrictId, user.location_district_id],
-        ['location_mandal_id', locationMandalId, user.location_mandal_id],
-        ['location_village_id', locationVillageId, user.location_village_id],
+        ['location_country_id', idOrNull(locationCountryId), user.location_country_id],
+        ['location_state_id', idOrNull(locationStateId), user.location_state_id],
+        ['location_district_id', idOrNull(locationDistrictId), user.location_district_id],
+        ['location_mandal_id', idOrNull(locationMandalId), user.location_mandal_id],
+        ['location_village_id', idOrNull(locationVillageId), user.location_village_id],
       ];
 
       locationFields.forEach(([field, value, currentValue]) => {
-        const normalizedValue = value ? String(value) : '';
         const normalizedCurrent = currentValue ? String(currentValue) : '';
-        if (normalizedValue !== normalizedCurrent) {
-          formData.append(field, normalizedValue);
+        if (value !== normalizedCurrent) {
+          formData.append(field, value);
           hasChanges = true;
         }
       });
+
+      const currentOther = user.location_other || '';
+      if (locationOther !== currentOther) {
+        formData.append('location_other', locationOther || '');
+        hasChanges = true;
+      }
 
       // Mobile fields
       const currentCountryCode = user.mobile_country_code || '';
@@ -932,76 +969,134 @@ const Profile = () => {
             <label style={{ display: 'block', marginBottom: '8px', color: '#e5e7eb', fontWeight: '600', fontSize: '14px' }}>
               Area
               <span style={{ color: '#8b8987', fontWeight: '400', fontSize: '12px', marginLeft: '6px' }}>
-                (state, district, mandal, village)
+                (country, state, district, mandal, village — pick "Other" to type your own)
               </span>
             </label>
-            <div className="profile-field-row">
-              <div className="form-group profile-field-half">
-                <select
-                  value={locationStateId}
-                  onChange={(e) => {
-                    setLocationStateId(e.target.value);
-                    setLocationDistrictId('');
-                    setLocationMandalId('');
-                    setLocationVillageId('');
-                  }}
-                  className="profile-select"
-                >
-                  <option value="">Select State</option>
-                  {locationStates.map((state) => (
-                    <option key={state.id} value={state.id}>{state.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-group profile-field-half">
-                <select
-                  value={locationDistrictId}
-                  onChange={(e) => {
-                    setLocationDistrictId(e.target.value);
-                    setLocationMandalId('');
-                    setLocationVillageId('');
-                  }}
-                  className="profile-select"
-                  disabled={!locationStateId}
-                >
-                  <option value="">Select District</option>
-                  {locationDistricts.map((district) => (
-                    <option key={district.id} value={district.id}>{district.name}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div className="profile-field-row">
-              <div className="form-group profile-field-half">
-                <select
-                  value={locationMandalId}
-                  onChange={(e) => {
-                    setLocationMandalId(e.target.value);
-                    setLocationVillageId('');
-                  }}
-                  className="profile-select"
-                  disabled={!locationDistrictId}
-                >
-                  <option value="">Select Mandal</option>
-                  {locationMandals.map((mandal) => (
-                    <option key={mandal.id} value={mandal.id}>{mandal.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-group profile-field-half">
-                <select
-                  value={locationVillageId}
-                  onChange={(e) => setLocationVillageId(e.target.value)}
-                  className="profile-select"
-                  disabled={!locationMandalId}
-                >
-                  <option value="">Select Village / Area</option>
-                  {locationVillages.map((village) => (
-                    <option key={village.id} value={village.id}>{village.name}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
+            {(() => {
+              const countryIsOther = locationCountryId === 'other';
+              const stateIsOther = locationStateId === 'other';
+              const districtIsOther = locationDistrictId === 'other';
+              const mandalIsOther = locationMandalId === 'other';
+              const showOtherText = countryIsOther || stateIsOther || districtIsOther || mandalIsOther;
+              const otherOption = <option value="other">— Other (type below) —</option>;
+              return (
+                <>
+                  <div className="profile-field-row">
+                    <div className="form-group profile-field-half">
+                      <select
+                        value={locationCountryId}
+                        onChange={(e) => {
+                          setLocationCountryId(e.target.value);
+                          setLocationStateId('');
+                          setLocationDistrictId('');
+                          setLocationMandalId('');
+                          setLocationVillageId('');
+                        }}
+                        className="profile-select"
+                      >
+                        <option value="">Select Country</option>
+                        {locationCountries.map((country) => (
+                          <option key={country.id} value={country.id}>{country.name}</option>
+                        ))}
+                        {otherOption}
+                      </select>
+                    </div>
+                    {!countryIsOther && (
+                      <div className="form-group profile-field-half">
+                        <select
+                          value={locationStateId}
+                          onChange={(e) => {
+                            setLocationStateId(e.target.value);
+                            setLocationDistrictId('');
+                            setLocationMandalId('');
+                            setLocationVillageId('');
+                          }}
+                          className="profile-select"
+                          disabled={!locationCountryId}
+                        >
+                          <option value="">Select State</option>
+                          {locationStates.map((state) => (
+                            <option key={state.id} value={state.id}>{state.name}</option>
+                          ))}
+                          {otherOption}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                  {!countryIsOther && !stateIsOther && (
+                    <div className="profile-field-row">
+                      <div className="form-group profile-field-half">
+                        <select
+                          value={locationDistrictId}
+                          onChange={(e) => {
+                            setLocationDistrictId(e.target.value);
+                            setLocationMandalId('');
+                            setLocationVillageId('');
+                          }}
+                          className="profile-select"
+                          disabled={!locationStateId}
+                        >
+                          <option value="">Select District</option>
+                          {locationDistricts.map((district) => (
+                            <option key={district.id} value={district.id}>{district.name}</option>
+                          ))}
+                          {otherOption}
+                        </select>
+                      </div>
+                      {!districtIsOther && (
+                        <div className="form-group profile-field-half">
+                          <select
+                            value={locationMandalId}
+                            onChange={(e) => {
+                              setLocationMandalId(e.target.value);
+                              setLocationVillageId('');
+                            }}
+                            className="profile-select"
+                            disabled={!locationDistrictId}
+                          >
+                            <option value="">Select Mandal</option>
+                            {locationMandals.map((mandal) => (
+                              <option key={mandal.id} value={mandal.id}>{mandal.name}</option>
+                            ))}
+                            {otherOption}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {!countryIsOther && !stateIsOther && !districtIsOther && !mandalIsOther && (
+                    <div className="profile-field-row">
+                      <div className="form-group profile-field-half">
+                        <select
+                          value={locationVillageId}
+                          onChange={(e) => setLocationVillageId(e.target.value)}
+                          className="profile-select"
+                          disabled={!locationMandalId}
+                        >
+                          <option value="">Select Village / Area</option>
+                          {locationVillages.map((village) => (
+                            <option key={village.id} value={village.id}>{village.name}</option>
+                          ))}
+                          {otherOption}
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                  {(showOtherText || locationVillageId === 'other') && (
+                    <div className="form-group" style={{ marginTop: '8px' }}>
+                      <input
+                        type="text"
+                        value={locationOther}
+                        onChange={(e) => setLocationOther(e.target.value)}
+                        placeholder="Type your country / state / city / area"
+                        maxLength={255}
+                        className="profile-select"
+                      />
+                    </div>
+                  )}
+                </>
+              );
+            })()}
             {locationLoading && (
               <p style={{ color: '#8b8987', fontSize: '13px', margin: '4px 0 0' }}>Loading area options...</p>
             )}

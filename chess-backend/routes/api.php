@@ -390,6 +390,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Location picker routes for profile area selection
     Route::prefix('locations')->group(function () {
+        Route::get('/countries', [\App\Http\Controllers\LocationController::class, 'countries']);
         Route::get('/states', [\App\Http\Controllers\LocationController::class, 'states']);
         Route::get('/districts', [\App\Http\Controllers\LocationController::class, 'districts']);
         Route::get('/mandals', [\App\Http\Controllers\LocationController::class, 'mandals']);

@@ -38,6 +38,7 @@ class UserController extends Controller
         $user = $request->user()->load([
             'roles:id,name',
             'organization:id,name,type,logo_url,slug',
+            'locationCountry:id,name,initial',
             'locationState:id,name,initial',
             'locationDistrict:id,name,state_id',
             'locationMandal:id,name,district_id',
@@ -69,10 +70,12 @@ class UserController extends Controller
             'board_theme' => 'sometimes|string|max:30',
             'mobile_country_code' => 'sometimes|nullable|string|max:8',
             'mobile_number' => 'sometimes|nullable|string|max:30',
+            'location_country_id' => 'sometimes|nullable|integer|exists:countries,id',
             'location_state_id' => 'sometimes|nullable|integer|exists:states,id',
             'location_district_id' => 'sometimes|nullable|integer|exists:districts,id',
             'location_mandal_id' => 'sometimes|nullable|integer|exists:mandals,id',
             'location_village_id' => 'sometimes|nullable|integer|exists:villages,id',
+            'location_other' => 'sometimes|nullable|string|max:255',
             'tournament_contact_consent' => 'sometimes|boolean',
             'whatsapp_updates_opt_in' => 'sometimes|boolean',
         ]);
@@ -129,7 +132,7 @@ class UserController extends Controller
             $user->class_of_study = $validated['class_of_study'];
         }
 
-        foreach (['location_state_id', 'location_district_id', 'location_mandal_id', 'location_village_id'] as $locationField) {
+        foreach (['location_country_id', 'location_state_id', 'location_district_id', 'location_mandal_id', 'location_village_id', 'location_other'] as $locationField) {
             if (array_key_exists($locationField, $validated)) {
                 $user->{$locationField} = $validated[$locationField];
             }
