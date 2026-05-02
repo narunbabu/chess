@@ -54,6 +54,11 @@ const LoginPage = () => {
     if (resource) {
       setRequestedResource(resource);
     }
+    const mode = searchParams.get('mode');
+    if (mode === 'register' || mode === 'signup') {
+      setIsLogin(false);
+      setShowEmailForm(true);
+    }
     const verified = searchParams.get('verified');
     if (verified === '1') {
       setError('');

@@ -97,10 +97,10 @@ const LandingPage = () => {
                   Log In
                 </button>
                 <button
-                  onClick={() => navigate('/signup')}
+                  onClick={() => navigate('/login?mode=register')}
                   className="bg-[#312e2b] text-white px-4 py-1.5 rounded text-sm font-semibold hover:bg-[#3d3a37] transition-colors border border-[#4a4744]"
                 >
-                  Sign Up
+                  Register
                 </button>
               </>
             )}
@@ -142,10 +142,10 @@ const LandingPage = () => {
                     Log In
                   </button>
                   <button
-                    onClick={() => { navigate('/signup'); setShowMobileMenu(false); }}
+                    onClick={() => { navigate('/login?mode=register'); setShowMobileMenu(false); }}
                     className="text-left px-4 py-2.5 text-sm font-medium text-[#bababa] bg-transparent border-0 hover:text-white hover:bg-[#312e2b] rounded transition-colors"
                   >
-                    Sign Up
+                    Register
                   </button>
                 </>
               )}
@@ -208,12 +208,20 @@ const LandingPage = () => {
                     Play Now
                   </button>
                   {!isAuthenticated && (
-                    <button
-                      onClick={() => navigate('/login')}
-                      className="bg-[#312e2b] text-white px-8 py-3 rounded-lg text-lg font-semibold hover:bg-[#3d3a37] transition-all shadow-lg border border-[#4a4744] hover:border-[#81b64c]/40"
-                    >
-                      Login &amp; Play
-                    </button>
+                    <>
+                      <button
+                        onClick={() => navigate('/login')}
+                        className="bg-[#312e2b] text-white px-8 py-3 rounded-lg text-lg font-semibold hover:bg-[#3d3a37] transition-all shadow-lg border border-[#4a4744] hover:border-[#81b64c]/40"
+                      >
+                        Login
+                      </button>
+                      <button
+                        onClick={() => navigate('/login?mode=register')}
+                        className="bg-[#e8a93e] text-[#1a1a18] px-8 py-3 rounded-lg text-lg font-bold hover:bg-[#f0c060] transition-all shadow-lg hover:shadow-xl"
+                      >
+                        Register
+                      </button>
+                    </>
                   )}
                 </div>
 
