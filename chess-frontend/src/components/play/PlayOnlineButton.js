@@ -2,6 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import api from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 import {
   getPreferredGameMode,
   getPreferredTimeControl,
@@ -13,6 +14,7 @@ const SEARCH_DURATION = 10;
 
 const PlayOnlineButton = ({ variant = 'primary', onSearchStart, onSearchEnd }) => {
   const navigate = useNavigate();
+  const { isAuthenticated, loading } = useAuth();
   const [status, setStatus] = useState('idle');
   const [secondsLeft, setSecondsLeft] = useState(SEARCH_DURATION);
   const [matchResult, setMatchResult] = useState(null);
@@ -34,6 +36,14 @@ const PlayOnlineButton = ({ variant = 'primary', onSearchStart, onSearchEnd }) =
   }, [cleanup]);
 
   const startQuickMatch = useCallback(async () => {
+    if (loading) return;
+
+    if (!isAuthenticated) {
+      setStatus('authChoice');
+      setError(null);
+      return;
+    }
+
     const controller = new AbortController();
     abortRef.current = controller;
     setStatus('searching');
@@ -88,7 +98,7 @@ const PlayOnlineButton = ({ variant = 'primary', onSearchStart, onSearchEnd }) =
       setStatus('error');
       onSearchEnd?.();
     }
-  }, [cleanup, navigate, onSearchEnd, onSearchStart]);
+  }, [cleanup, isAuthenticated, loading, navigate, onSearchEnd, onSearchStart]);
 
   const navigateToGame = (data, prefs) => {
     if (data.match_type === 'human' && data.game_id) {
@@ -129,16 +139,57 @@ const PlayOnlineButton = ({ variant = 'primary', onSearchStart, onSearchEnd }) =
     startQuickMatch();
   };
 
+  const handleGuestPlay = () => {
+    cleanup();
+    setStatus('idle');
+    setError(null);
+    onSearchEnd?.();
+    navigate('/play');
+  };
+
+  const handleLoginPlay = () => {
+    cleanup();
+    setStatus('idle');
+    setError(null);
+    onSearchEnd?.();
+    navigate('/login', { state: { from: '/lobby' } });
+  };
+
   const progress = ((SEARCH_DURATION - secondsLeft) / SEARCH_DURATION) * 100;
 
   // Modal overlay during search/match
-  if (status === 'searching' || status === 'matched' || status === 'error') {
+  if (status === 'searching' || status === 'matched' || status === 'error' || status === 'authChoice') {
     return createPortal(
       <div
         className="matchmaking-overlay"
         onClick={status === 'searching' ? handleCancel : undefined}
       >
         <div className="matchmaking-modal" onClick={(e) => e.stopPropagation()}>
+          {status === 'authChoice' && (
+            <>
+              <div className="matchmaking-matched-icon">&#9654;</div>
+              <h2 className="matchmaking-title">Start Playing</h2>
+              <p className="matchmaking-subtitle">
+                Play a casual computer game now, or log in for online matchmaking.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '14px' }}>
+                <button
+                  className="matchmaking-cancel-btn"
+                  onClick={handleGuestPlay}
+                  style={{ backgroundColor: '#81b64c', color: '#fff', border: 'none' }}
+                >
+                  Play as Guest
+                </button>
+                <button className="matchmaking-cancel-btn" onClick={handleLoginPlay}>
+                  Login / Register
+                </button>
+                <button className="matchmaking-cancel-btn" onClick={handleCancel}>
+                  Cancel
+                </button>
+              </div>
+            </>
+          )}
+
           {status === 'searching' && (
             <>
               <div className="matchmaking-spinner">

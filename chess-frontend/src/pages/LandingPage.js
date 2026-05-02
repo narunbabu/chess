@@ -13,6 +13,7 @@ import chessPlayingKids from '../assets/images/chess-playing-kids-crop.jpeg';
 const LandingPage = () => {
   const { isAuthenticated, loading } = useAuth();
   const [showAuthGate, setShowAuthGate] = useState(false);
+  const [showPlayChoice, setShowPlayChoice] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [pricingInterval, setPricingInterval] = useState('monthly');
   const navigate = useNavigate();
@@ -26,7 +27,24 @@ const LandingPage = () => {
 
   const handlePlayClick = useCallback(() => {
     trackUI('cta_button', 'click', { button: 'play_now', location: 'landing_hero' });
+    if (!isAuthenticated) {
+      setShowPlayChoice(true);
+      setShowMobileMenu(false);
+      return;
+    }
     navigate('/play');
+  }, [isAuthenticated, navigate]);
+
+  const handleGuestPlay = useCallback(() => {
+    trackUI('cta_button', 'click', { button: 'play_as_guest', location: 'landing_play_choice' });
+    setShowPlayChoice(false);
+    navigate('/play');
+  }, [navigate]);
+
+  const handleLoginPlay = useCallback(() => {
+    trackUI('cta_button', 'click', { button: 'login_to_play', location: 'landing_play_choice' });
+    setShowPlayChoice(false);
+    navigate('/login');
   }, [navigate]);
 
   const handleGuideAction = useCallback((item) => {
@@ -94,7 +112,7 @@ const LandingPage = () => {
                   onClick={() => navigate('/login')}
                   className="text-[#bababa] bg-transparent border-0 px-3 py-1.5 text-sm font-medium hover:text-white transition-colors"
                 >
-                  Log In
+                  Login
                 </button>
                 <button
                   onClick={() => navigate('/login?mode=register')}
@@ -114,6 +132,14 @@ const LandingPage = () => {
             >
               Play
             </button>
+            {!isAuthenticated && (
+              <button
+                onClick={() => navigate('/login')}
+                className="bg-[#312e2b] text-white px-3 py-1.5 rounded text-xs font-semibold hover:bg-[#3d3a37] transition-colors border border-[#4a4744]"
+              >
+                Login
+              </button>
+            )}
             <button
               onClick={() => setShowMobileMenu(!showMobileMenu)}
               className="p-1.5 rounded bg-transparent border-0 hover:bg-[#3d3a37] transition-colors text-[#bababa]"
@@ -172,6 +198,37 @@ const LandingPage = () => {
         )}
       </header>
 
+      {showPlayChoice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="w-full max-w-sm rounded-xl border border-[#3d3a37] bg-[#262421] p-5 shadow-2xl">
+            <h2 className="text-xl font-bold text-white mb-2">Start Playing</h2>
+            <p className="text-sm text-[#bababa] mb-5">
+              Play a casual computer game now, or log in to use online matchmaking and save progress.
+            </p>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={handleGuestPlay}
+                className="w-full rounded-lg bg-[#81b64c] px-4 py-3 text-sm font-bold text-white hover:bg-[#a3d160] transition-colors"
+              >
+                Play as Guest
+              </button>
+              <button
+                onClick={handleLoginPlay}
+                className="w-full rounded-lg border border-[#4a4744] bg-[#312e2b] px-4 py-3 text-sm font-semibold text-white hover:bg-[#3d3a37] transition-colors"
+              >
+                Login / Register
+              </button>
+              <button
+                onClick={() => setShowPlayChoice(false)}
+                className="w-full rounded-lg bg-transparent px-4 py-2 text-sm font-medium text-[#bababa] hover:text-white transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Hero Section - Animated onboarding first */}
       <main className="flex-grow pt-14 flex flex-col">
         <section className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center relative overflow-hidden border-b border-[#3d3a37]/50">
@@ -207,22 +264,6 @@ const LandingPage = () => {
                   >
                     Play Now
                   </button>
-                  {!isAuthenticated && (
-                    <>
-                      <button
-                        onClick={() => navigate('/login')}
-                        className="bg-[#312e2b] text-white px-8 py-3 rounded-lg text-lg font-semibold hover:bg-[#3d3a37] transition-all shadow-lg border border-[#4a4744] hover:border-[#81b64c]/40"
-                      >
-                        Login
-                      </button>
-                      <button
-                        onClick={() => navigate('/login?mode=register')}
-                        className="bg-[#e8a93e] text-[#1a1a18] px-8 py-3 rounded-lg text-lg font-bold hover:bg-[#f0c060] transition-all shadow-lg hover:shadow-xl"
-                      >
-                        Register
-                      </button>
-                    </>
-                  )}
                 </div>
 
                 <p className="text-[#bababa] text-sm mt-4">
