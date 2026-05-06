@@ -1039,6 +1039,7 @@ const PlayComputer = () => {
       console.log('[PlayComputer] Setting up synthetic opponent:', bot.name, 'level:', bot.computer_level, 'mode:', lobbyRatedMode, 'time:', lobbyTimeControl, '+', lobbyIncrement);
 
       setSyntheticOpponent(bot);
+      syntheticOpponentRef.current = bot;
 
       // Apply time control from lobby ChallengeModal
       setTimeControlMin(lobbyTimeControl);
@@ -1072,7 +1073,13 @@ const PlayComputer = () => {
       // Skip countdown — go straight into the game
       // Pass overrides for ratedMode and playerColor to bypass stale closures
       const effectiveColor = location.state.preferredColor === 'black' ? 'b' : 'w';
-      onCountdownFinish(lobbyRatedMode, effectiveColor);
+      onCountdownFinish(lobbyRatedMode, effectiveColor, {
+        computerDepth: bot.computer_level || computerDepth,
+        syntheticOpponent: bot,
+        backendGameId: location.state.backendGameId || null,
+        timeControlMin: lobbyTimeControl,
+        incrementSec: lobbyIncrement,
+      });
 
       // Save active game state with synthetic opponent identity for refresh persistence
       // Use setTimeout to ensure state updates from above have been queued
@@ -1819,9 +1826,9 @@ const PlayComputer = () => {
         }
     }, [gameStarted, countdownActive, syntheticOpponent, computerDepth]);
 
-   const onCountdownFinish = useCallback(async (overrideRatedMode, overridePlayerColor) => {
+   const onCountdownFinish = useCallback(async (overrideRatedMode, overridePlayerColor, options = {}) => {
         // Initializes game state when countdown finishes
-        // overrideRatedMode/overridePlayerColor bypass stale closures when called from synthetic setup
+        // Overrides bypass stale closures when called from synthetic setup
 
         // Apply any pending synthetic opponent that was deferred from startGame()
         // to avoid prematurely unmounting the Countdown component.
@@ -1831,8 +1838,17 @@ const PlayComputer = () => {
           pendingSyntheticOpponentRef.current = null;
         }
 
+        if (options.syntheticOpponent) {
+          setSyntheticOpponent(options.syntheticOpponent);
+          syntheticOpponentRef.current = options.syntheticOpponent;
+        }
+
         const effectiveRatedMode = overrideRatedMode || ratedMode;
         const effectivePlayerColor = overridePlayerColor || playerColor;
+        const effectiveComputerDepth = options.computerDepth || computerDepth;
+        const effectiveTimeControlMin = options.timeControlMin ?? timeControlMin;
+        const effectiveIncrementSec = options.incrementSec ?? incrementSec;
+        const effectiveBackendGameId = options.backendGameId || currentGameId || null;
         console.log("Starting game...", { effectiveRatedMode });
         setCountdownActive(false);
 
@@ -1857,9 +1873,9 @@ const PlayComputer = () => {
         resetTimer(); // Reset timer values (ensure useGameTimer provides initial values)
 
         // Initialize undo chances based on difficulty and mode
-        const initialUndoChances = calculateUndoChances(computerDepth, effectiveRatedMode === 'rated');
+        const initialUndoChances = calculateUndoChances(effectiveComputerDepth, effectiveRatedMode === 'rated');
         setUndoChancesRemaining(initialUndoChances);
-        console.log(`[PlayComputer] 🎮 Game started - Mode: ${effectiveRatedMode}, Difficulty: ${computerDepth}, Undo chances: ${initialUndoChances}`);
+        console.log(`[PlayComputer] 🎮 Game started - Mode: ${effectiveRatedMode}, Difficulty: ${effectiveComputerDepth}, Undo chances: ${initialUndoChances}`);
 
         // White always starts in chess, so set active timer to white
         setActiveTimer("w"); // White always starts
@@ -1876,35 +1892,40 @@ const PlayComputer = () => {
         // - game.turn() will be 'w' (computer's color when player is black)
         // - activeTimer will be 'w'
 
+        if (effectiveBackendGameId) {
+          setCurrentGameId(effectiveBackendGameId);
+          setSearchParams({ gameId: effectiveBackendGameId.toString() }, { replace: true });
+        }
+
         // Save initial game state to localStorage for refresh persistence
         saveActiveGameState({
           fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
           gameStarted: true,
           playerColor: effectivePlayerColor,
-          computerDepth,
+          computerDepth: effectiveComputerDepth,
           ratedMode: effectiveRatedMode,
-          timeControlMin,
-          incrementSec,
+          timeControlMin: effectiveTimeControlMin,
+          incrementSec: effectiveIncrementSec,
           moves: [],
           playerScore: 0,
           computerScore: 0,
-          playerTime: timeControlMin * 60,
-          computerTime: timeControlMin * 60,
+          playerTime: effectiveTimeControlMin * 60,
+          computerTime: effectiveTimeControlMin * 60,
           syntheticOpponent: syntheticOpponentRef.current || null,
           undoChancesRemaining: initialUndoChances,
-          currentGameId: currentGameId || null,
+          currentGameId: effectiveBackendGameId,
         });
 
         // Create backend game asynchronously — don't block game start
-        if (user) {
+        if (user && !effectiveBackendGameId) {
           (async () => {
             try {
               const effectiveSynth = syntheticOpponentRef.current;
               const gameData = {
                 player_color: effectivePlayerColor === 'w' ? 'white' : 'black',
-                computer_level: computerDepth,
-                time_control: timeControlMin,
-                increment: incrementSec,
+                computer_level: effectiveComputerDepth,
+                time_control: effectiveTimeControlMin,
+                increment: effectiveIncrementSec,
                 game_mode: effectiveRatedMode,
                 synthetic_player_id: effectiveSynth?.id || null,
               };
@@ -1921,11 +1942,11 @@ const PlayComputer = () => {
         }
 
     }, [ // Dependencies for onCountdownFinish
-        playerColor, computerDepth, user, ratedMode, // Read
+        playerColor, computerDepth, user, ratedMode, timeControlMin, incrementSec, currentGameId, // Read
         setActiveTimer, startTimerInterval, resetTimer, // Stable from hook
         setGameStarted, setCountdownActive, setGameHistory, setMoveCount, setGameOver, // Stable setters
         setPlayerScore, setLastMoveEvaluation, setGame, setMoveCompleted, setGameStatus, // Stable setters
-        setCurrentGameId, setBackendGame, setUndoChancesRemaining, // Stable setters
+        setCurrentGameId, setBackendGame, setUndoChancesRemaining, setSearchParams, // Stable setters
         setSyntheticOpponent // Stable setter (used for pending opponent)
     ]);
 

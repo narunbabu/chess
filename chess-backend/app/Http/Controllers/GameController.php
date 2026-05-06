@@ -9,6 +9,7 @@ use App\Models\GameHistory;
 use App\Models\GameStatus;
 use App\Models\User;
 use App\Models\ComputerPlayer;
+use App\Models\SyntheticPlayer;
 use Illuminate\Http\Request;
 use App\Services\OpeningDetectionService;
 use Illuminate\Support\Facades\Auth;
@@ -103,12 +104,26 @@ class GameController extends Controller
             ], 429);
         }
         $playerColor = $request->player_color;
-        $computerLevel = $request->computer_level;
         $timeControl = $request->time_control ?? 10; // Default 10 minutes
         $increment = $request->increment ?? 0; // Default no increment
 
+        $syntheticPlayer = null;
+        $computerLevel = $request->computer_level;
+
+        if ($request->filled('synthetic_player_id')) {
+            $syntheticPlayer = SyntheticPlayer::active()->find($request->synthetic_player_id);
+
+            if (!$syntheticPlayer) {
+                return response()->json(['error' => 'Synthetic player is not active'], 422);
+            }
+
+            $computerLevel = $syntheticPlayer->computer_level;
+        }
+
         // Get or create computer player
-        $computerPlayer = ComputerPlayer::getByLevel($computerLevel);
+        $computerPlayer = $syntheticPlayer
+            ? $syntheticPlayer->getComputerPlayer()
+            : ComputerPlayer::getByLevel($computerLevel);
 
         // Set player IDs based on color choice
         if ($playerColor === 'white') {
@@ -125,7 +140,7 @@ class GameController extends Controller
             'black_player_id' => $blackPlayerId,
             'computer_player_id' => $computerPlayer->id,
             'computer_level' => $computerLevel,
-            'synthetic_player_id' => $request->synthetic_player_id,
+            'synthetic_player_id' => $syntheticPlayer?->id,
             'player_color' => $playerColor,
             'game_mode' => $request->game_mode ?? 'casual',
             'status' => 'active',

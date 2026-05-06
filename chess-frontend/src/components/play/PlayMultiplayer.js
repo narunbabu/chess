@@ -4246,9 +4246,9 @@ const PlayMultiplayer = () => {
     console.log('🤖 Computing synthetic move…');
 
     try {
-      // For ratings >= 1700 use the bot's actual DB rating; below 1700 the
-      // COMPUTER_LEVEL_RATINGS fallback inside makeComputerMove is accurate enough.
-      const ratingForMove = syntheticRating && syntheticRating >= 1700 ? syntheticRating : null;
+      // Use the synthetic player's DB rating at every level so lower-rated bots
+      // do not silently inherit a stronger level-based fallback.
+      const ratingForMove = syntheticRating && syntheticRating > 0 ? syntheticRating : null;
       const result = await makeComputerMove(
         game,
         syntheticLevel,
