@@ -45,6 +45,11 @@ const GameCompletionAnimation = ({
     kFactor: null,
     expectedScore: null,
     actualScore: null,
+    ratingType: null,
+    helpLimit: null,
+    helpUsed: null,
+    helpMultiplier: null,
+    baseRatingChange: null,
     error: null
   });
   const [hasProcessedRating, setHasProcessedRating] = useState(false);
@@ -103,10 +108,12 @@ const GameCompletionAnimation = ({
       // when fetchUser triggers AuthContext re-render → PlayMultiplayer remount → fresh state)
       const ratingKey = `rating_updated_game_${gameId}`;
       const alreadyUpdated = sessionStorage.getItem(ratingKey);
+      const isLearningRatedMode = !isMultiplayer && ratedMode === 'learning';
+      const learnerRatingUpdate = result?.learner_rating_update;
 
       // Only update rating if user is authenticated and we haven't processed yet
-      if (!isAuthenticated || !user || hasProcessedRating || alreadyUpdated) {
-        if (hasProcessedRating || alreadyUpdated) {
+      if (!isAuthenticated || !user || hasProcessedRating || (alreadyUpdated && !isLearningRatedMode)) {
+        if (hasProcessedRating || (alreadyUpdated && !isLearningRatedMode)) {
           setRatingUpdate(prev => ({ ...prev, isLoading: false }));
         }
         return;
@@ -117,6 +124,41 @@ const GameCompletionAnimation = ({
       if (isCancelled) {
         setRatingUpdate({ isLoading: false, oldRating: null, newRating: null, ratingChange: null, error: null });
         setHasProcessedRating(true);
+        return;
+      }
+
+      if (isLearningRatedMode) {
+        if (!learnerRatingUpdate) {
+          setRatingUpdate({ isLoading: false, oldRating: null, newRating: null, ratingChange: null, error: null });
+          return;
+        }
+
+        setRatingUpdate({
+          isLoading: false,
+          oldRating: learnerRatingUpdate.old_rating,
+          newRating: learnerRatingUpdate.new_rating,
+          ratingChange: learnerRatingUpdate.rating_change,
+          kFactor: learnerRatingUpdate.k_factor,
+          expectedScore: learnerRatingUpdate.expected_score,
+          actualScore: learnerRatingUpdate.actual_score,
+          ratingType: 'learner',
+          helpLimit: learnerRatingUpdate.help_limit,
+          helpUsed: learnerRatingUpdate.help_used,
+          helpMultiplier: learnerRatingUpdate.help_multiplier,
+          baseRatingChange: learnerRatingUpdate.base_rating_change,
+          error: null
+        });
+
+        setHasProcessedRating(true);
+        sessionStorage.setItem(ratingKey, 'true');
+
+        if (updateUser) {
+          updateUser({
+            learner_rating: learnerRatingUpdate.new_rating,
+            learner_games_played: learnerRatingUpdate.learner_games_played,
+            learner_peak_rating: learnerRatingUpdate.learner_peak_rating,
+          });
+        }
         return;
       }
 
@@ -183,6 +225,7 @@ const GameCompletionAnimation = ({
             kFactor: response.data.k_factor,
             expectedScore: response.data.expected_score,
             actualScore: response.data.actual_score,
+            ratingType: 'standard',
             error: null
           });
 
@@ -213,7 +256,7 @@ const GameCompletionAnimation = ({
     };
 
     handleRatingUpdate();
-  }, [isAuthenticated, user, updateUser, isPlayerWin, isDraw, isMultiplayer, computerLevel, opponentRating, opponentId, gameId, hasProcessedRating]);
+  }, [isAuthenticated, user, updateUser, isPlayerWin, isDraw, isMultiplayer, computerLevel, opponentRating, opponentId, gameId, hasProcessedRating, ratedMode, result]);
 
   // Handle Share Replay — generates animated GIF of the game
   const handleShareReplay = async () => {

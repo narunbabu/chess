@@ -3,23 +3,31 @@ import React from 'react';
 
 /**
  * GameModeSelector Component
- * Allows users to select between Rated, Casual, and Companion game modes
+ * Allows users to select between Rated, Casual, Learning, and Companion game modes
  *
  * @param {Object} props
- * @param {string} props.selectedMode - Currently selected mode ('rated', 'casual', or 'companion')
+ * @param {string} props.selectedMode - Currently selected mode ('rated', 'casual', 'learning', or 'companion')
  * @param {Function} props.onModeChange - Callback when mode changes
  * @param {boolean} props.disabled - Whether the selector is disabled
  * @param {boolean} props.showCompanion - Whether to show companion option (default: true for synthetic games)
+ * @param {boolean} props.showLearning - Whether to show learning option
  */
-const GameModeSelector = ({ selectedMode, onModeChange, disabled = false, showCompanion = true }) => {
+const GameModeSelector = ({ selectedMode, onModeChange, disabled = false, showCompanion = true, showLearning = true }) => {
+  const visibleModeCount = 2 + (showLearning ? 1 : 0) + (showCompanion ? 1 : 0);
+  const gridClass = visibleModeCount >= 4
+    ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4'
+    : visibleModeCount === 3
+      ? 'grid grid-cols-1 md:grid-cols-3 gap-4'
+      : 'flex flex-col sm:flex-row gap-4 max-w-2xl mx-auto';
+
   return (
     <div className="game-mode-selector mb-6">
       <div className="text-center mb-4">
         <h3 className="text-lg font-semibold text-gray-800 mb-2">Select Game Mode</h3>
-        <p className="text-sm text-gray-600">Choose how this game will affect your rating</p>
+        <p className="text-sm text-gray-600">Choose your play style for this game</p>
       </div>
 
-      <div className={`max-w-4xl mx-auto ${showCompanion ? 'grid grid-cols-1 md:grid-cols-3 gap-4' : 'flex gap-4 max-w-2xl mx-auto'}`}>
+      <div className={`max-w-4xl mx-auto ${gridClass}`}>
         {/* Rated Mode Button */}
         <button
           onClick={() => !disabled && onModeChange('rated')}
@@ -74,6 +82,35 @@ const GameModeSelector = ({ selectedMode, onModeChange, disabled = false, showCo
           </div>
         </button>
 
+        {/* Learning Mode Button */}
+        {showLearning && (
+          <button
+            onClick={() => !disabled && onModeChange('learning')}
+            disabled={disabled}
+            className={`
+              p-5 rounded-lg border-2 transition-all duration-200
+              ${selectedMode === 'learning'
+                ? 'border-emerald-500 bg-emerald-50 shadow-lg'
+                : 'border-gray-300 bg-white hover:border-emerald-300 hover:shadow-md'
+              }
+              ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+            `}
+          >
+            <div className="flex flex-col items-center">
+              <div className="text-3xl mb-2">ðŸ§ </div>
+              <div className="text-lg font-bold text-gray-800 mb-1">Learning</div>
+              <div className="text-xs text-gray-600 text-center">
+                Limited help, focused practice
+              </div>
+              {selectedMode === 'learning' && (
+                <div className="mt-2 px-2 py-1 bg-emerald-500 text-white text-xs rounded-full font-medium">
+                  Selected
+                </div>
+              )}
+            </div>
+          </button>
+        )}
+
         {/* Companion Mode Button */}
         {showCompanion && (
           <button
@@ -111,6 +148,8 @@ const GameModeSelector = ({ selectedMode, onModeChange, disabled = false, showCo
           <span>
             {selectedMode === 'rated'
               ? 'Your performance will be analyzed and your rating will change based on the outcome'
+              : selectedMode === 'learning'
+              ? 'Use a small helpline pool for undo and best-move help while CCT stays available'
               : selectedMode === 'companion'
               ? 'Get help from AI companions during your game - perfect for learning!'
               : 'Play for fun without affecting your rating - perfect for practice!'}

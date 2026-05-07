@@ -125,7 +125,7 @@ function bestMovesToLabels(moves) {
  *   onArrowsChange {Function} ({from,to,color}[]) → board arrows
  *   onLabelsChange {Function} ({square,label,color}[]) → numbered board labels
  */
-const CCTPanel = ({ game, isActive, isRated = false, onArrowsChange, onLabelsChange }) => {
+const CCTPanel = ({ game, isActive, isRated = false, onArrowsChange, onLabelsChange, bestMoveBudget = null }) => {
   const [perspective, setPerspective] = useState('mine');
   // 0=off  1=CCT arrows  2=Best moves
   // Default to 1 so CCT is active as soon as the tab is opened
@@ -134,6 +134,7 @@ const CCTPanel = ({ game, isActive, isRated = false, onArrowsChange, onLabelsCha
   const [cct,         setCct]         = useState(null);
   const [opponentCct, setOpponentCct] = useState(null); // always opponent view for warnings
   const [bestMoves,   setBestMoves]   = useState(null);
+  const [bestRevealFen, setBestRevealFen] = useState(null);
   const [loadingBest, setLoadingBest] = useState(false);
 
   const [openSection, setOpenSection] = useState({ checks: true, captures: true, threats: true });
@@ -159,6 +160,10 @@ const CCTPanel = ({ game, isActive, isRated = false, onArrowsChange, onLabelsCha
     setCct(analyzeCCT(game, perspective));
     setOpponentCct(analyzeCCT(game, 'opponent')); // always for warnings
     setBestMoves(null);
+    setBestRevealFen(null);
+    if (bestMoveBudget?.enabled && hintLevel === 2) {
+      setHintLevel(1);
+    }
     sfAbort.current = Date.now(); // cancel any in-flight Stockfish call
   }, [game, perspective, isActive]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -192,6 +197,7 @@ const CCTPanel = ({ game, isActive, isRated = false, onArrowsChange, onLabelsCha
     if (hintLevel !== 2 || !game || !isActive || isRated || !cct) return;
 
     const fen    = game.fen();
+    if (bestMoveBudget?.enabled && bestRevealFen !== fen) return;
     const callId = Date.now();
     sfAbort.current = callId;
 
@@ -210,7 +216,7 @@ const CCTPanel = ({ game, isActive, isRated = false, onArrowsChange, onLabelsCha
       })
       .catch(() => { if (sfAbort.current === callId) setBestMoves([]); })
       .finally(() => { if (sfAbort.current === callId) setLoadingBest(false); });
-  }, [hintLevel, cct]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [hintLevel, cct, bestRevealFen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Clean up board overlays on unmount
   useEffect(() => {
@@ -246,6 +252,33 @@ const CCTPanel = ({ game, isActive, isRated = false, onArrowsChange, onLabelsCha
 
   const fen     = game?.fen?.() || '';
   const warning = hintLevel >= 1 ? getWarningInfo(opponentCct, fen) : null;
+  const bestMoveBudgetEnabled = Boolean(bestMoveBudget?.enabled);
+  const bestMoveRemaining = bestMoveBudgetEnabled
+    ? Math.max(0, Number(bestMoveBudget?.remaining || 0))
+    : null;
+  const bestMoveLocked = bestMoveBudgetEnabled && bestMoveRemaining <= 0 && hintLevel !== 2 && bestRevealFen !== fen;
+  const bestMoveButtonTitle = bestMoveLocked
+    ? 'No best-move helplines remaining'
+    : hintLevel === 2
+      ? 'Click to turn off Best moves'
+      : bestMoveBudgetEnabled
+        ? `Show top 3 moves (${bestMoveRemaining} helplines left)`
+        : 'Show top 3 moves on board';
+
+  const handleBestToggle = () => {
+    if (hintLevel === 2) {
+      setHintLevel(0);
+      return;
+    }
+
+    if (bestMoveBudgetEnabled && bestRevealFen !== fen) {
+      const accepted = bestMoveBudget?.onConsume?.('best-move');
+      if (!accepted) return;
+    }
+
+    setBestRevealFen(fen);
+    setHintLevel(2);
+  };
 
   // ── main render ────────────────────────────────────────────────────────────
   return (
@@ -254,6 +287,7 @@ const CCTPanel = ({ game, isActive, isRated = false, onArrowsChange, onLabelsCha
       {/* ── Mode toggle buttons ─────────────────────────────────────────── */}
       <div className="cct-mode-row">
         <button
+          data-tour="action-cct"
           className={`cct-mode-btn cct-mode-cct ${hintLevel === 1 ? 'active' : ''}`}
           onClick={() => setHintLevel(hl => hl === 1 ? 0 : 1)}
           title={hintLevel === 1 ? 'Click to turn off CCT arrows' : 'Show CCT arrows on board'}
@@ -261,11 +295,13 @@ const CCTPanel = ({ game, isActive, isRated = false, onArrowsChange, onLabelsCha
           💡 CCT
         </button>
         <button
-          className={`cct-mode-btn cct-mode-best ${hintLevel === 2 ? 'active' : ''}`}
-          onClick={() => setHintLevel(hl => hl === 2 ? 0 : 2)}
-          title={hintLevel === 2 ? 'Click to turn off Best moves' : 'Show top 3 moves on board'}
+          data-tour="action-cct-best"
+          className={`cct-mode-btn cct-mode-best ${hintLevel === 2 ? 'active' : ''} ${bestMoveLocked ? 'disabled' : ''}`}
+          onClick={handleBestToggle}
+          disabled={bestMoveLocked}
+          title={bestMoveButtonTitle}
         >
-          ⭐ Best
+          ⭐ Best{bestMoveBudgetEnabled ? ` (${bestMoveRemaining})` : ''}
         </button>
       </div>
 

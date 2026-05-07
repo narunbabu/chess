@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\SubscriptionTier;
 use App\Events\GameEndedEvent;
 use App\Models\Game;
 use App\Models\GameHistory;
@@ -12,13 +11,14 @@ use App\Models\ComputerPlayer;
 use App\Models\SyntheticPlayer;
 use Illuminate\Http\Request;
 use App\Services\OpeningDetectionService;
+use App\Services\EntitlementService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class GameController extends Controller
 {
-    public function create(Request $request)
+    public function create(Request $request, EntitlementService $entitlements)
     {
         $request->validate([
             'opponent_id' => 'required|exists:users,id'
@@ -35,23 +35,16 @@ class GameController extends Controller
             ], 429);
         }
 
-        // Enforce daily game limit by tier: free=5, silver=15, gold=unlimited
-        $tier = $user->getSubscriptionTierEnum();
-        if (!$tier->isAtLeast(SubscriptionTier::GOLD)) {
-            $dailyLimit = $tier->isAtLeast(SubscriptionTier::SILVER) ? 15 : 5;
-            $todayCount = Game::dailyOnlineGameCountForUser($user->id);
-            if ($todayCount >= $dailyLimit) {
-                $tierName = $tier->isAtLeast(SubscriptionTier::SILVER) ? 'Silver' : 'Free';
-                $upgradeMsg = $tier->isAtLeast(SubscriptionTier::SILVER)
-                    ? "Silver plan allows {$dailyLimit} games per day. Upgrade to Gold for unlimited games."
-                    : "Free plan allows {$dailyLimit} online games per day. Upgrade to Silver for more games.";
-                return response()->json([
-                    'error' => $upgradeMsg,
-                    'daily_limit' => $dailyLimit,
-                    'games_today' => $todayCount,
-                    'upgrade_url' => '/pricing',
-                ], 429);
-            }
+        $quota = $entitlements->onlineGameQuota($user);
+        if (!$quota['unlimited'] && $quota['remaining'] <= 0) {
+            return response()->json([
+                'error' => "Free plan allows {$quota['daily_limit']} online games per day. Upgrade to Silver for unlimited games.",
+                'daily_limit' => $quota['daily_limit'],
+                'games_today' => $quota['games_today'],
+                'remaining' => $quota['remaining'],
+                'current_tier' => $quota['tier'],
+                'upgrade_url' => '/pricing',
+            ], 429);
         }
 
         $opponent = User::find($request->opponent_id);
@@ -91,6 +84,8 @@ class GameController extends Controller
             'increment' => 'sometimes|integer|min:0|max:60', // seconds per move
             'synthetic_player_id' => 'sometimes|nullable|integer|exists:synthetic_players,id',
             'game_mode' => 'sometimes|in:rated,casual',
+            'learning_mode' => 'sometimes|boolean',
+            'learning_help_limit' => 'nullable|integer|in:1,3,5,7',
         ]);
 
         $user = Auth::user();
@@ -106,6 +101,10 @@ class GameController extends Controller
         $playerColor = $request->player_color;
         $timeControl = $request->time_control ?? 10; // Default 10 minutes
         $increment = $request->increment ?? 0; // Default no increment
+        $isLearningMode = $request->boolean('learning_mode');
+        $learningHelpLimit = $isLearningMode
+            ? $this->normalizeLearningHelpLimit($request->input('learning_help_limit'))
+            : null;
 
         $syntheticPlayer = null;
         $computerLevel = $request->computer_level;
@@ -143,6 +142,9 @@ class GameController extends Controller
             'synthetic_player_id' => $syntheticPlayer?->id,
             'player_color' => $playerColor,
             'game_mode' => $request->game_mode ?? 'casual',
+            'learning_mode' => $isLearningMode,
+            'learning_help_limit' => $learningHelpLimit,
+            'learning_help_used' => 0,
             'status' => 'active',
             'result' => 'ongoing',
             'turn' => 'white', // White always starts
@@ -633,6 +635,10 @@ class GameController extends Controller
             'move_count' => 'nullable|integer|min:0',
             'fen'        => 'nullable|string|max:200',
             'moves'      => 'nullable|string',
+            'learning_mode' => 'sometimes|boolean',
+            'learning_help_limit' => 'nullable|integer|in:1,3,5,7',
+            'learning_help_used' => 'nullable|integer|min:0|max:7',
+            'learning_help_remaining' => 'nullable|integer|min:0|max:7',
         ]);
 
         $result    = $request->input('result');
@@ -640,6 +646,17 @@ class GameController extends Controller
         $moveCount = $request->input('move_count', 0);
         $fen       = $request->input('fen');
         $moves     = $request->input('moves');
+        $isLearningMode = (bool) ($game->learning_mode || $request->boolean('learning_mode'));
+        $learningHelpLimit = $isLearningMode
+            ? $this->normalizeLearningHelpLimit($request->input('learning_help_limit', $game->learning_help_limit))
+            : null;
+        $learningHelpUsed = $isLearningMode
+            ? $this->normalizeLearningHelpUsed(
+                $request->has('learning_help_used') ? (int) $request->input('learning_help_used') : ($game->learning_help_used ?? null),
+                $request->has('learning_help_remaining') ? (int) $request->input('learning_help_remaining') : null,
+                $learningHelpLimit
+            )
+            : 0;
 
         // Determine winner
         $winnerColor = null;
@@ -664,6 +681,11 @@ class GameController extends Controller
         // Save final FEN and moves if provided by the client
         if ($fen)   $updateData['fen']   = $fen;
         if ($moves) $updateData['moves'] = $moves;
+        if ($isLearningMode) {
+            $updateData['learning_mode'] = true;
+            $updateData['learning_help_limit'] = $learningHelpLimit;
+            $updateData['learning_help_used'] = $learningHelpUsed;
+        }
 
         $game->update($updateData);
 
@@ -681,6 +703,11 @@ class GameController extends Controller
             Cache::forget('leaderboard:7d');
             Cache::forget('leaderboard:30d');
             Cache::forget('leaderboard:all');
+        }
+
+        $learnerRatingData = null;
+        if ($isLearningMode && $game->computer_player_id) {
+            $learnerRatingData = $this->applyLearnerElo($game, $result, $user, $learningHelpLimit, $learningHelpUsed);
         }
 
         // Build response (include rating change if Elo was just applied)
@@ -703,6 +730,7 @@ class GameController extends Controller
         return response()->json([
             'message'     => 'Game completed',
             'rating_data' => $ratingData,
+            'learner_rating_data' => $learnerRatingData,
             'game'    => $game,
         ]);
     }
@@ -837,7 +865,225 @@ class GameController extends Controller
         return 20;
     }
 
-    public function resign($id)
+    private function normalizeLearningHelpLimit($value): int
+    {
+        $limit = (int) ($value ?? 5);
+        return in_array($limit, [1, 3, 5, 7], true) ? $limit : 5;
+    }
+
+    private function normalizeLearningHelpUsed($used, $remaining, int $limit): int
+    {
+        if ($used !== null) {
+            $value = (int) $used;
+        } elseif ($remaining !== null) {
+            $value = $limit - (int) $remaining;
+        } else {
+            $value = 0;
+        }
+
+        return max(0, min($limit, $value));
+    }
+
+    private function humanResultForGame(Game $game, string $result, User $user): string
+    {
+        $humanColor = (int) $game->white_player_id === (int) $user->id ? 'white' : 'black';
+
+        return match (true) {
+            $result === '1/2-1/2' => 'draw',
+            $result === '1-0' && $humanColor === 'white' => 'win',
+            $result === '0-1' && $humanColor === 'black' => 'win',
+            default => 'loss',
+        };
+    }
+
+    private function learningOpponentRating(Game $game): int
+    {
+        $game->loadMissing(['syntheticPlayer', 'computerPlayer']);
+
+        if ($game->syntheticPlayer?->rating) {
+            return max(100, (int) $game->syntheticPlayer->rating);
+        }
+
+        if ($game->computerPlayer?->rating) {
+            return max(100, (int) $game->computerPlayer->rating);
+        }
+
+        $levelRatings = [
+            1 => 400,
+            2 => 600,
+            3 => 800,
+            4 => 1000,
+            5 => 1200,
+            6 => 1400,
+            7 => 1600,
+            8 => 1800,
+            9 => 2000,
+            10 => 2200,
+            11 => 2400,
+            12 => 2600,
+            13 => 2750,
+            14 => 2900,
+            15 => 3050,
+            16 => 3200,
+        ];
+
+        return $levelRatings[(int) $game->computer_level] ?? 1500;
+    }
+
+    private function learnerEloKFactor(int $gamesPlayed, int $rating): int
+    {
+        if ($gamesPlayed < 10) return 40;
+        if ($gamesPlayed < 30) return 32;
+        if ($rating < 1400)    return 32;
+        if ($rating < 2000)    return 24;
+        return 20;
+    }
+
+    private function learnerHelpMultiplier(string $humanResult, int $helpUsed, int $helpLimit, float $baseRatingChange): float
+    {
+        $ratio = $helpLimit > 0 ? max(0.0, min(1.0, $helpUsed / $helpLimit)) : 0.0;
+
+        if ($humanResult === 'loss' || ($humanResult === 'draw' && $baseRatingChange < 0)) {
+            return round(0.75 + (0.65 * $ratio), 3);
+        }
+
+        return round(1.25 - (0.85 * $ratio), 3);
+    }
+
+    private function learnerRatingDataFromRow($row): array
+    {
+        return [
+            'type' => 'learner',
+            'old_rating' => (int) $row->old_rating,
+            'new_rating' => (int) $row->new_rating,
+            'rating_change' => (int) $row->rating_change,
+            'result' => $row->result,
+            'opponent_rating' => (int) $row->opponent_rating,
+            'computer_level' => $row->computer_level !== null ? (int) $row->computer_level : null,
+            'help_limit' => (int) $row->help_limit,
+            'help_used' => (int) $row->help_used,
+            'help_ratio' => (float) $row->help_ratio,
+            'help_multiplier' => (float) $row->help_multiplier,
+            'base_rating_change' => (float) $row->base_rating_change,
+            'k_factor' => (int) $row->k_factor,
+            'expected_score' => (float) $row->expected_score,
+            'actual_score' => (float) $row->actual_score,
+        ];
+    }
+
+    private function applyLearnerElo(Game $game, string $result, User $user, int $helpLimit, int $helpUsed): ?array
+    {
+        try {
+            return \DB::transaction(function () use ($game, $result, $user, $helpLimit, $helpUsed) {
+                $existing = \DB::table('learner_rating_history')
+                    ->where('user_id', $user->id)
+                    ->where('game_id', $game->id)
+                    ->first();
+
+                if ($existing) {
+                    return $this->learnerRatingDataFromRow($existing);
+                }
+
+                $freshUser = User::whereKey($user->id)->lockForUpdate()->first();
+                if (!$freshUser) {
+                    return null;
+                }
+
+                $oldRating = (int) ($freshUser->learner_rating ?? $freshUser->rating ?? 800);
+                $gamesPlayed = (int) ($freshUser->learner_games_played ?? 0);
+                $opponentRating = $this->learningOpponentRating($game);
+                $humanResult = $this->humanResultForGame($game, $result, $freshUser);
+                $actualScore = match ($humanResult) {
+                    'win' => 1.0,
+                    'draw' => 0.5,
+                    default => 0.0,
+                };
+                $expectedScore = 1 / (1 + pow(10, ($opponentRating - $oldRating) / 400));
+                $kFactor = $this->learnerEloKFactor($gamesPlayed, $oldRating);
+                $baseRatingChange = $kFactor * ($actualScore - $expectedScore);
+                $helpMultiplier = $this->learnerHelpMultiplier($humanResult, $helpUsed, $helpLimit, $baseRatingChange);
+                $ratingChange = (int) round($baseRatingChange * $helpMultiplier);
+
+                if ($humanResult === 'win') {
+                    $ratingChange = max(1, $ratingChange);
+                }
+                if ($humanResult === 'loss') {
+                    $ratingChange = min(-1, $ratingChange);
+                }
+
+                $newRating = max(400, min(3200, $oldRating + $ratingChange));
+                $newGamesPlayed = $gamesPlayed + 1;
+                $newPeakRating = max((int) ($freshUser->learner_peak_rating ?? 800), $newRating);
+                $helpRatio = $helpLimit > 0 ? $helpUsed / $helpLimit : 0;
+                $now = now();
+
+                $row = [
+                    'user_id' => $freshUser->id,
+                    'game_id' => $game->id,
+                    'synthetic_player_id' => $game->synthetic_player_id,
+                    'old_rating' => $oldRating,
+                    'new_rating' => $newRating,
+                    'rating_change' => $ratingChange,
+                    'opponent_rating' => $opponentRating,
+                    'computer_level' => $game->computer_level,
+                    'result' => $humanResult,
+                    'k_factor' => $kFactor,
+                    'expected_score' => round($expectedScore, 4),
+                    'actual_score' => $actualScore,
+                    'help_limit' => $helpLimit,
+                    'help_used' => $helpUsed,
+                    'help_ratio' => round($helpRatio, 4),
+                    'help_multiplier' => $helpMultiplier,
+                    'base_rating_change' => round($baseRatingChange, 2),
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+
+                \DB::table('learner_rating_history')->insert($row);
+
+                $freshUser->learner_rating = $newRating;
+                $freshUser->learner_games_played = $newGamesPlayed;
+                $freshUser->learner_peak_rating = $newPeakRating;
+                $freshUser->learner_rating_last_updated = $now;
+                $freshUser->save();
+
+                $data = $this->learnerRatingDataFromRow((object) $row);
+                $data['learner_games_played'] = $newGamesPlayed;
+                $data['learner_peak_rating'] = $newPeakRating;
+
+                $game->update([
+                    'learning_mode' => true,
+                    'learning_help_limit' => $helpLimit,
+                    'learning_help_used' => $helpUsed,
+                    'learner_rating_change' => $ratingChange,
+                    'learner_rating_data' => $data,
+                ]);
+
+                \Log::info('[ELO] Learner Elo applied', [
+                    'game_id' => $game->id,
+                    'user_id' => $freshUser->id,
+                    'result' => $humanResult,
+                    'help_used' => $helpUsed,
+                    'help_limit' => $helpLimit,
+                    'change' => $ratingChange,
+                    'old' => $oldRating,
+                    'new' => $newRating,
+                ]);
+
+                return $data;
+            });
+        } catch (\Throwable $e) {
+            \Log::error('[ELO] Learner Elo failed', [
+                'game_id' => $game->id,
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    public function resign(Request $request, $id)
     {
         $game = Game::find($id);
 
@@ -846,20 +1092,45 @@ class GameController extends Controller
         }
 
         $user = Auth::user();
+        $request->validate([
+            'learning_mode' => 'sometimes|boolean',
+            'learning_help_limit' => 'nullable|integer|in:1,3,5,7',
+            'learning_help_used' => 'nullable|integer|min:0|max:7',
+            'learning_help_remaining' => 'nullable|integer|min:0|max:7',
+        ]);
+
         $userColor = $game->getPlayerColor($user->id);
         $winnerColor = $userColor === 'white' ? 'black' : 'white';
         $winnerId = $winnerColor === 'white' ? $game->white_player_id : $game->black_player_id;
         $isComputerGame = !is_null($game->computer_player_id);
+        $isLearningMode = (bool) ($game->learning_mode || $request->boolean('learning_mode'));
+        $learningHelpLimit = $isLearningMode
+            ? $this->normalizeLearningHelpLimit($request->input('learning_help_limit', $game->learning_help_limit))
+            : null;
+        $learningHelpUsed = $isLearningMode
+            ? $this->normalizeLearningHelpUsed(
+                $request->has('learning_help_used') ? (int) $request->input('learning_help_used') : ($game->learning_help_used ?? null),
+                $request->has('learning_help_remaining') ? (int) $request->input('learning_help_remaining') : null,
+                $learningHelpLimit
+            )
+            : 0;
 
         // Update game with all resignation details
-        $game->update([
+        $updateData = [
             'status' => 'finished',
             'result' => $userColor === 'white' ? '0-1' : '1-0',
             'end_reason' => 'resignation',
             'winner_user_id' => $winnerId,
             'winner_player' => $winnerColor,
             'ended_at' => now()
-        ]);
+        ];
+        if ($isLearningMode) {
+            $updateData['learning_mode'] = true;
+            $updateData['learning_help_limit'] = $learningHelpLimit;
+            $updateData['learning_help_used'] = $learningHelpUsed;
+        }
+
+        $game->update($updateData);
 
         // For synthetic games: create game history and apply Elo if rated (same as completeGame)
         if ($game->synthetic_player_id) {
@@ -867,6 +1138,11 @@ class GameController extends Controller
             if ($game->game_mode === 'rated') {
                 $this->applyRatedSyntheticElo($game, $game->result, $user);
             }
+        }
+
+        $learnerRatingData = null;
+        if ($isLearningMode && $isComputerGame) {
+            $learnerRatingData = $this->applyLearnerElo($game, $game->result, $user, $learningHelpLimit, $learningHelpUsed);
         }
 
         // Reload relationships
@@ -935,6 +1211,7 @@ class GameController extends Controller
 
         return response()->json([
             'message' => 'Game resigned successfully',
+            'learner_rating_data' => $learnerRatingData,
             'game' => $game
         ]);
     }
@@ -1520,29 +1797,10 @@ class GameController extends Controller
      *
      * GET /api/games/daily-quota
      */
-    public function dailyQuota()
+    public function dailyQuota(EntitlementService $entitlements)
     {
         $user = Auth::user();
-        $tier = $user->getSubscriptionTierEnum();
-        $todayCount = Game::dailyOnlineGameCountForUser($user->id);
-
-        if ($tier->isAtLeast(SubscriptionTier::GOLD)) {
-            return response()->json([
-                'tier' => $tier->value,
-                'unlimited' => true,
-                'games_today' => $todayCount,
-            ]);
-        }
-
-        $dailyLimit = $tier->isAtLeast(SubscriptionTier::SILVER) ? 15 : 5;
-
-        return response()->json([
-            'tier' => $tier->value,
-            'unlimited' => false,
-            'daily_limit' => $dailyLimit,
-            'games_today' => $todayCount,
-            'remaining' => max(0, $dailyLimit - $todayCount),
-        ]);
+        return response()->json($entitlements->onlineGameQuota($user));
     }
 
     /**

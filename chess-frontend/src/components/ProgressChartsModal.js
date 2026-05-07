@@ -57,6 +57,7 @@ const ProgressChartsModal = ({ isOpen, onClose, userId }) => {
           userId={userId}
           period={period}
           apiUrl="/user/progress"
+          showEmptySections
         />
       </div>
     </div>

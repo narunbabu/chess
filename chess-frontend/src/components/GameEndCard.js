@@ -44,6 +44,7 @@ const GameEndCard = React.forwardRef(({
 
   const effectiveGameId = gameId || result?.id || result?.game_id;
   const replayLink = effectiveGameId ? `${window.location.origin}/games/${effectiveGameId}/replay` : null;
+  const isLearnerRating = ratingUpdate?.ratingType === 'learner';
 
   const handleCopyReplayLink = async () => {
     if (!replayLink) return;
@@ -977,7 +978,7 @@ const handleShare = async () => {
         {ratingUpdate && !ratingUpdate.isLoading && !ratingUpdate.error && ratingUpdate.newRating !== null && (
           <div className="p-2.5 rounded-xl text-center mb-3" style={{ backgroundColor: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', backdropFilter: 'blur(4px)' }}>
             <div className="flex items-center justify-center gap-2 mb-1">
-              <div className="text-xs font-bold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.6)' }}>Rating Update</div>
+              <div className="text-xs font-bold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.6)' }}>{isLearnerRating ? 'Learner Elo Update' : 'Rating Update'}</div>
               <button
                 onClick={() => setShowRatingInfo(true)}
                 style={{
@@ -1039,7 +1040,7 @@ const handleShare = async () => {
             >
               {/* Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <h3 style={{ color: '#fff', fontSize: '20px', fontWeight: 'bold', margin: 0 }}>How Ratings Work</h3>
+                <h3 style={{ color: '#fff', fontSize: '20px', fontWeight: 'bold', margin: 0 }}>{isLearnerRating ? 'How Learner Elo Works' : 'How Ratings Work'}</h3>
                 <button
                   onClick={() => setShowRatingInfo(false)}
                   style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: '24px', cursor: 'pointer', padding: 0 }}
@@ -1100,6 +1101,18 @@ const handleShare = async () => {
                     <span>Actual Score</span>
                     <span style={{ color: '#fff', fontWeight: 'bold' }}>{ratingUpdate.actualScore === 1 ? 'Win (1.0)' : ratingUpdate.actualScore === 0.5 ? 'Draw (0.5)' : ratingUpdate.actualScore === 0 ? 'Loss (0.0)' : 'N/A'}</span>
                   </div>
+                  {isLearnerRating && ratingUpdate.helpLimit != null && (
+                    <>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                        <span>Helplines Used</span>
+                        <span style={{ color: '#fff', fontWeight: 'bold' }}>{ratingUpdate.helpUsed || 0}/{ratingUpdate.helpLimit}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                        <span>Help Multiplier</span>
+                        <span style={{ color: '#fff', fontWeight: 'bold' }}>{Number(ratingUpdate.helpMultiplier || 1).toFixed(2)}x</span>
+                      </div>
+                    </>
+                  )}
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '8px', marginTop: '8px', paddingLeft: '10px' }}>
                     <span style={{ color: ratingUpdate.ratingChange >= 0 ? '#7CFC00' : '#FF6B6B', fontWeight: 'bold' }}>Final Change</span>
                     <span style={{ color: ratingUpdate.ratingChange >= 0 ? '#7CFC00' : '#FF6B6B', fontWeight: 'bold', fontSize: '16px' }}>

@@ -26,10 +26,14 @@ class User extends Authenticatable implements MustVerifyEmail
         'provider_token',
         'avatar_url',
         'rating',
+        'learner_rating',
         'is_provisional',
         'games_played',
+        'learner_games_played',
         'peak_rating',
+        'learner_peak_rating',
         'rating_last_updated',
+        'learner_rating_last_updated',
         'organization_id',
         'is_active',
         'last_login_at',
@@ -83,6 +87,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'password' => 'hashed',
         'is_provisional' => 'boolean',
         'rating_last_updated' => 'datetime',
+        'learner_rating_last_updated' => 'datetime',
         'is_active' => 'boolean',
         'last_login_at' => 'datetime',
         'last_activity_at' => 'datetime',
@@ -603,7 +608,7 @@ class User extends Authenticatable implements MustVerifyEmail
         }
 
         // Active if expiry is in the future (with 3-day grace period)
-        return $this->subscription_expires_at->addDays(3)->isFuture();
+        return $this->subscription_expires_at->copy()->addDays(3)->isFuture();
     }
 
     /**

@@ -60,7 +60,7 @@ function fillRatingGaps(sparseData, period) {
   }).filter(d => d.rating !== null);
 }
 
-const UserProgressCharts = ({ userId, period, apiUrl }) => {
+const UserProgressCharts = ({ userId, period, apiUrl, showEmptySections = false }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -106,13 +106,13 @@ const UserProgressCharts = ({ userId, period, apiUrl }) => {
       <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#81b64c] mx-auto" />
     </div>
   );
-  if (error) return (
-    <div className="text-[#e74c3c] text-xs text-center py-4">{error}</div>
-  );
-  if (!data) return null;
+  if (!data && !error) return null;
 
   const noData = ratingData.length === 0 && pointsData.length === 0 && gamesData.length === 0;
-  if (noData) return (
+  if (!showEmptySections && error) return (
+    <div className="text-[#e74c3c] text-xs text-center py-4">{error}</div>
+  );
+  if (!showEmptySections && noData) return (
     <div className="text-[#9b9895] text-xs text-center py-4">No game data for this period.</div>
   );
 
@@ -131,13 +131,19 @@ const UserProgressCharts = ({ userId, period, apiUrl }) => {
     axisLine: false,
   };
   const gridProps = { strokeDasharray: '3 3', stroke: CHART_COLORS.grid };
+  const emptyMessage = error || 'No game data for this period.';
+  const renderEmptyState = () => (
+    <div className="text-[#9b9895] text-xs text-center py-8">
+      {emptyMessage}
+    </div>
+  );
 
   return (
     <div className="space-y-4 mt-3">
       {/* Rating Progression */}
-      {ratingData.length > 0 && (
-        <div className="bg-[#262421] rounded p-3">
-          <h4 className="text-xs font-semibold text-white mb-2">Rating Progression</h4>
+      <div className="bg-[#262421] rounded p-3">
+        <h4 className="text-xs font-semibold text-white mb-2">Rating Progression</h4>
+        {ratingData.length > 0 ? (
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={ratingData}>
               <CartesianGrid {...gridProps} />
@@ -154,13 +160,13 @@ const UserProgressCharts = ({ userId, period, apiUrl }) => {
               />
             </LineChart>
           </ResponsiveContainer>
-        </div>
-      )}
+        ) : renderEmptyState()}
+      </div>
 
       {/* Rating Points Per Day */}
-      {pointsData.length > 0 && (
-        <div className="bg-[#262421] rounded p-3">
-          <h4 className="text-xs font-semibold text-white mb-2">Rating Points Per Day</h4>
+      <div className="bg-[#262421] rounded p-3">
+        <h4 className="text-xs font-semibold text-white mb-2">Rating Points Per Day</h4>
+        {pointsData.length > 0 ? (
           <ResponsiveContainer width="100%" height={180}>
             <BarChart data={pointsData}>
               <CartesianGrid {...gridProps} />
@@ -172,13 +178,13 @@ const UserProgressCharts = ({ userId, period, apiUrl }) => {
               <Bar dataKey="lost" stackId="a" fill={CHART_COLORS.red} name="Lost" radius={[2, 2, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
-        </div>
-      )}
+        ) : renderEmptyState()}
+      </div>
 
       {/* Games Played Per Day */}
-      {gamesData.length > 0 && (
-        <div className="bg-[#262421] rounded p-3">
-          <h4 className="text-xs font-semibold text-white mb-2">Games Played Per Day</h4>
+      <div className="bg-[#262421] rounded p-3">
+        <h4 className="text-xs font-semibold text-white mb-2">Games Played Per Day</h4>
+        {gamesData.length > 0 ? (
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={gamesData}>
               <CartesianGrid {...gridProps} />
@@ -191,8 +197,8 @@ const UserProgressCharts = ({ userId, period, apiUrl }) => {
               <Bar dataKey="losses" stackId="a" fill={CHART_COLORS.red} name="Losses" radius={[2, 2, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
-        </div>
-      )}
+        ) : renderEmptyState()}
+      </div>
     </div>
   );
 };

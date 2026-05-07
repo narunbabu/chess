@@ -40,6 +40,16 @@
   background: #3d3b38;
   color: #d1d0ce;
 }
+.cct-mode-btn:disabled,
+.cct-mode-btn.disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+.cct-mode-btn:disabled:hover,
+.cct-mode-btn.disabled:hover {
+  background: #2d2b28;
+  color: #8b8987;
+}
 .cct-mode-btn.cct-mode-cct.active {
   background: rgba(99,180,255,0.15);
   border-color: #63b4ff;

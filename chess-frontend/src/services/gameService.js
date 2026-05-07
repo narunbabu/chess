@@ -54,13 +54,27 @@ export const gameService = {
   /**
    * Mark a game as completed (finished)
    */
-  completeGame: async (gameId, { result, endReason, moveCount, fen = null, moves = null }) => {
+  completeGame: async (gameId, {
+    result,
+    endReason,
+    moveCount,
+    fen = null,
+    moves = null,
+    learningMode = false,
+    learningHelpLimit = null,
+    learningHelpUsed = null,
+    learningHelpRemaining = null,
+  }) => {
     const response = await api.post(`/games/${gameId}/complete`, {
       result,
       end_reason: endReason,
       move_count: moveCount,
       fen,
       moves,
+      learning_mode: learningMode,
+      learning_help_limit: learningHelpLimit,
+      learning_help_used: learningHelpUsed,
+      learning_help_remaining: learningHelpRemaining,
     });
     return response.data;
   },
@@ -68,8 +82,18 @@ export const gameService = {
   /**
    * Resign from a game
    */
-  resign: async (gameId) => {
-    const response = await api.post(`/games/${gameId}/resign`);
+  resign: async (gameId, {
+    learningMode = false,
+    learningHelpLimit = null,
+    learningHelpUsed = null,
+    learningHelpRemaining = null,
+  } = {}) => {
+    const response = await api.post(`/games/${gameId}/resign`, {
+      learning_mode: learningMode,
+      learning_help_limit: learningHelpLimit,
+      learning_help_used: learningHelpUsed,
+      learning_help_remaining: learningHelpRemaining,
+    });
     return response.data;
   },
 

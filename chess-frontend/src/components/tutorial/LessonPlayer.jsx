@@ -63,7 +63,11 @@ const LessonPlayer = () => {
 
       // Start the lesson to create attendance record
       if (loadedLesson.user_progress?.status === 'not_started' || !loadedLesson.user_progress) {
-        await startLesson();
+        const startedProgress = await startLesson();
+        if (startedProgress) {
+          setUserProgress(startedProgress);
+          setLesson(prev => prev ? { ...prev, user_progress: startedProgress } : prev);
+        }
       }
     } catch (error) {
       console.error('Error loading lesson:', error);
@@ -134,11 +138,11 @@ const LessonPlayer = () => {
 
   const startLesson = async () => {
     try {
-      await api.post(`/tutorial/lessons/${lessonId}/start`);
-      // Refresh progress
-      await loadLesson();
+      const response = await api.post(`/tutorial/lessons/${lessonId}/start`);
+      return response.data?.data || null;
     } catch (error) {
       console.error('Error starting lesson:', error);
+      return null;
     }
   };
 

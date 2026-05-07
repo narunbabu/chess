@@ -318,10 +318,10 @@ class InteractiveLessonStageTest extends TestCase
             ]
         ];
 
-        foreach ($testCases as $config) {
+        foreach ($testCases as $index => $config) {
             $stage = InteractiveLessonStage::factory()->create([
                 'lesson_id' => $this->lesson->id,
-                'stage_order' => rand(10, 100), // Ensure unique
+                'stage_order' => 10 + $index,
                 'auto_reset_on_success' => $config['auto_reset_on_success'],
                 'auto_reset_delay_ms' => $config['auto_reset_delay_ms']
             ]);

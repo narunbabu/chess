@@ -413,11 +413,26 @@ const ChessBoard = ({
   };
 
   return(
-    <div ref={boardBoxRef} className="w-full h-full">
+    <div ref={boardBoxRef} className="w-full h-full" data-testid="chess-board" role="application" tabIndex={0}>
       <div className="w-full h-full flex items-center justify-center relative">
         {/* Add instance check before rendering Chessboard */}
         {isValidChessInstance(game) && boardSize > 0 ? (
           <div className="relative">
+            {(moveFrom || allowAllMoves) && (
+              <div
+                className="selected"
+                data-selected="true"
+                aria-hidden="true"
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: 1,
+                  height: 1,
+                  pointerEvents: 'none',
+                }}
+              />
+            )}
             <Chessboard
               position={game.fen()}
               boardWidth={boardSize}

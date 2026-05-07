@@ -65,6 +65,15 @@ const DEFAULT_DEPTH = 2;
 const DEFAULT_RATING = 1200;
 const ACTIVE_GAME_KEY = 'chess99_active_computer_game';
 const ACTIVE_GAME_MAX_AGE_MS = 2 * 60 * 60 * 1000; // 2 hours
+const LEARNING_HELP_OPTIONS = [7, 5, 3, 1];
+const DEFAULT_LEARNING_HELP_LIMIT = 5;
+const FALLBACK_COMPANIONS = [
+  { id: 'local-coach-1200', name: 'Coach Tara', rating: 1200, computer_level: 4, avatar_url: null, personality: 'steady' },
+  { id: 'local-coach-1400', name: 'Coach Dev', rating: 1400, computer_level: 6, avatar_url: null, personality: 'calm' },
+  { id: 'local-coach-1600', name: 'Coach Mira', rating: 1600, computer_level: 8, avatar_url: null, personality: 'tactical' },
+  { id: 'local-coach-1800', name: 'Coach Arjun', rating: 1800, computer_level: 10, avatar_url: null, personality: 'sharp' },
+  { id: 'local-coach-2000', name: 'Coach Kavya', rating: 2000, computer_level: 12, avatar_url: null, personality: 'precise' },
+];
 
 // --- Utility Functions ---
 /**
@@ -82,6 +91,11 @@ const calculateUndoChances = (depth, isRated) => {
   if (depth <= 8) return 3; // Medium
   if (depth <= 12) return 2; // Hard
   return 1; // Expert
+};
+
+const normalizeLearningHelpLimit = (value) => {
+  const parsed = Number(value);
+  return LEARNING_HELP_OPTIONS.includes(parsed) ? parsed : DEFAULT_LEARNING_HELP_LIMIT;
 };
 
 /**
@@ -164,6 +178,11 @@ const generateLocalSyntheticOpponent = (level) => {
 
 const PlayComputer = () => {
   // --- State variables ---
+  const navigate = useNavigate(); // For navigation buttons
+  const location = useLocation();
+  const guideFocus = location.state?.guideFocus;
+  const [searchParams, setSearchParams] = useSearchParams();
+  const isGuestCasualMode = location.state?.guestMode === true;
   const [game, setGame] = useState(new Chess());
   const [boardOrientation, setBoardOrientation] = useState(() => {
     const saved = localStorage.getItem('playerColor') || 'w';
@@ -171,6 +190,9 @@ const PlayComputer = () => {
   });
   const [playerColor, setPlayerColor] = useState(() => localStorage.getItem('playerColor') || 'w');
   const [computerDepth, setComputerDepth] = useState(() => {
+    if (location.state?.computerDepth) {
+      return parseInt(location.state.computerDepth, 10);
+    }
     const saved = localStorage.getItem('computerDepth');
     return saved ? parseInt(saved, 10) : DEFAULT_DEPTH;
   });
@@ -209,17 +231,17 @@ const PlayComputer = () => {
   const chatIdRef = useRef(0); // Chat message ID counter
   const autoResponseTimerRef = useRef(null); // Pending synthetic response timeout
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth); // For layout adjustments
-  const navigate = useNavigate(); // For navigation buttons
-  const location = useLocation();
-  const guideFocus = location.state?.guideFocus;
-  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth(); // Get user for rating
   const { invalidateGameHistory } = useAppData(); // Get cache invalidation
   const [isOnlineGame, setIsOnlineGame] = useState(false);
   const [players, setPlayers] = useState(null);
   const [gameMode, setGameMode] = useState('computer'); // Default to computer mode for /play route
-  const [ratedMode, setRatedMode] = useState('casual'); // 'casual' or 'rated'
+  const [ratedMode, setRatedMode] = useState(() => location.state?.ratedMode || 'casual'); // 'casual', 'rated', or 'learning'
+  const [learningHelpLimit, setLearningHelpLimit] = useState(() => {
+    return normalizeLearningHelpLimit(localStorage.getItem('learningHelpLimit'));
+  });
   const [selectedCompanion, setSelectedCompanion] = useState(null); // Companion playing on behalf of player
+  const companionChoiceTouchedRef = useRef(false);
   const [companions, setCompanions] = useState([]); // Available companions list (fetched once)
   const [cctArrows,  setCctArrows]  = useState([]); // CCT board arrows from learning panel
   const [boardLabels, setBoardLabels] = useState([]); // Numbered square labels from Best mode
@@ -249,6 +271,12 @@ const PlayComputer = () => {
   const pendingSyntheticOpponentRef = useRef(null);
   useEffect(() => { backendGameRef.current = backendGame; }, [backendGame]);
   const [restoredFromRefresh, setRestoredFromRefresh] = useState(false); // Show "Game restored" toast
+
+  // Tour state for casual play feature tour
+  const [tourOpen, setTourOpen] = useState(false);
+  const tourStorageKey = user?.id
+    ? `chess99:casual_tour:v1:${user.id}`
+    : 'chess99:casual_tour:v1:guest';
 
   // Board customization state
   const [boardTheme, setBoardTheme] = useState(() => getBoardTheme(user));
@@ -298,13 +326,54 @@ const PlayComputer = () => {
 
   // --- Fetch companions once on mount ---
   useEffect(() => {
-    api.get('/v1/synthetic-players')
-      .then(res => setCompanions(res.data.data || res.data || []))
-      .catch(err => console.warn('[PlayComputer] Could not load companions:', err));
-  }, []);
+    if (isGuestCasualMode && !localStorage.getItem('auth_token')) {
+      setCompanions(FALLBACK_COMPANIONS);
+      return;
+    }
+
+    api.get('/v1/synthetic-players', { skipAuthRedirect: true })
+      .then(res => {
+        const loaded = res.data.data || res.data || [];
+        setCompanions(Array.isArray(loaded) && loaded.length > 0 ? loaded : FALLBACK_COMPANIONS);
+      })
+      .catch(err => {
+        console.warn('[PlayComputer] Could not load companions:', err);
+        setCompanions(FALLBACK_COMPANIONS);
+      });
+  }, [isGuestCasualMode]);
+
+  // Casual games start with a named, stronger companion ready to help.
+  useEffect(() => {
+    if (ratedMode !== 'casual' || selectedCompanion || companionChoiceTouchedRef.current || companions.length === 0) {
+      return;
+    }
+
+    const opponentRating = syntheticOpponentRef.current?.rating || getRatingFromLevel(computerDepth);
+    const sorted = [...companions]
+      .filter(companion => companion && companion.rating != null)
+      .sort((a, b) => a.rating - b.rating);
+    const defaultCompanion = sorted.find(companion => companion.rating > opponentRating) || sorted[sorted.length - 1];
+
+    if (defaultCompanion) {
+      setSelectedCompanion(defaultCompanion);
+    }
+  }, [ratedMode, selectedCompanion, companions, computerDepth]);
+
+  // Guest "Play as Guest" is always a casual level-3 game (800 ELO).
+  useEffect(() => {
+    if (!isGuestCasualMode) return;
+    setRatedMode('casual');
+    setComputerDepth(3);
+    localStorage.setItem('computerDepth', '3');
+  }, [isGuestCasualMode]);
 
   // --- Restore active game from localStorage on mount (refresh persistence) ---
   useEffect(() => {
+    if (isGuestCasualMode) {
+      clearActiveGameState();
+      return;
+    }
+
     // Skip if already started (e.g. from location.state synthetic or resume)
     if (gameStarted || location.state?.gameMode === 'synthetic' || location.state?.gameState?.isResume) {
       return;
@@ -331,6 +400,7 @@ const PlayComputer = () => {
 
       // Restore rated mode
       if (saved.ratedMode) setRatedMode(saved.ratedMode);
+      if (saved.learningHelpLimit) setLearningHelpLimit(normalizeLearningHelpLimit(saved.learningHelpLimit));
 
       // Restore time control settings
       if (saved.timeControlMin) setTimeControlMin(saved.timeControlMin);
@@ -453,6 +523,10 @@ const PlayComputer = () => {
     }
   }, [gameStarted, gameOver, gameHistory, playerColor, computerDepth, playerTime, computerTime, game, pauseTimer, user, invalidateGameHistory, currentGameId, setCurrentGameId]);
 
+  // Tour storage key helper
+  const TOUR_STORAGE_KEY = (userId) =>
+    userId ? `chess99:casual_tour:v1:${userId}` : 'chess99:casual_tour:v1:guest';
+
   // --- Utility Callbacks ---
    const safeGameMutate = useCallback((modify) => {
         // Provides a safe way to update the Chess.js instance state
@@ -501,6 +575,7 @@ const PlayComputer = () => {
         // --- Mark backend game as finished BEFORE showing end card ---
         // Use ref to avoid stale closure (backendGame may not be in useCallback deps)
         const activeBackendGame = backendGameRef.current || backendGame;
+        let backendCompletion = null;
         if (activeBackendGame?.id && user) {
           try {
             // Derive chess result string from status
@@ -522,12 +597,23 @@ const PlayComputer = () => {
             const moveSans = Array.isArray(finalHistory)
               ? finalHistory.map(h => h?.move?.san || h?.san || h).filter(Boolean)
               : [];
-            await gameService.completeGame(activeBackendGame.id, {
+            const isLearningGame = ratedMode === 'learning';
+            const learningHelpUsed = isLearningGame
+              ? Math.max(0, learningHelpLimit - undoChancesRemaining)
+              : null;
+            const learningHelpRemaining = isLearningGame
+              ? Math.max(0, undoChancesRemaining)
+              : null;
+            backendCompletion = await gameService.completeGame(activeBackendGame.id, {
               result: chessResult,
               endReason,
               moveCount: finalHistory?.length || 0,
               fen: finalFen,
               moves: JSON.stringify(moveSans),
+              learningMode: isLearningGame,
+              learningHelpLimit: isLearningGame ? learningHelpLimit : null,
+              learningHelpUsed,
+              learningHelpRemaining,
             });
             console.log('[PlayComputer] ✅ Backend game marked as finished:', activeBackendGame.id);
           } catch (err) {
@@ -581,6 +667,9 @@ const PlayComputer = () => {
             standardizedResult.opponent_name = currentSyntheticOpponent.name;
             standardizedResult.opponent_avatar_url = currentSyntheticOpponent.avatar_url;
             standardizedResult.opponent_rating = currentSyntheticOpponent.rating;
+        }
+        if (backendCompletion?.learner_rating_data) {
+            standardizedResult.learner_rating_update = backendCompletion.learner_rating_data;
         }
 
         console.log('🎯 [PlayComputer] Created standardized result:', standardizedResult);
@@ -686,7 +775,7 @@ const PlayComputer = () => {
 
    }, [ // Dependencies for handleGameComplete
      playerColor, computerDepth, playerScore, computerScore, isOnlineGame, players, // State variables read
-     backendGame, user, // Needed for backend game completion
+     backendGame, user, ratedMode, learningHelpLimit, undoChancesRemaining, // Needed for backend game completion
      setActiveTimer, setIsTimerRunning, // State setters (stable)
      playSound, // Stable callback
      timerRef, // Timer ref
@@ -710,6 +799,9 @@ const PlayComputer = () => {
       const shouldApply = isLandscape && isMobile;
       document.documentElement.classList.toggle('mobile-landscape', shouldApply);
       document.body.classList.toggle('mobile-landscape', shouldApply);
+
+      // Set --vh CSS variable for viewport-safe sizing (fix mobile 100vh issue)
+      document.documentElement.style.setProperty('--vh', `${window.innerHeight * 0.01}px`);
 
       // Debug logging
       if (shouldApply) {
@@ -839,6 +931,7 @@ const PlayComputer = () => {
             playerColor,
             computerDepth,
             ratedMode,
+            learningHelpLimit,
             timeControlMin,
             incrementSec,
             moves: gameHistory,
@@ -900,6 +993,7 @@ const PlayComputer = () => {
             playerColor,
             computerDepth,
             ratedMode,
+            learningHelpLimit,
             timeControlMin,
             incrementSec,
             moves: gameHistory,
@@ -931,7 +1025,7 @@ const PlayComputer = () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [gameStarted, gameOver, gameHistory, playerColor, computerDepth, playerTime, computerTime, game, saveUnfinishedGame, user, invalidateGameHistory, currentGameId, ratedMode, backendGame, playerScore, computerScore, syntheticOpponent, undoChancesRemaining]); // Dependencies for auto-save
+  }, [gameStarted, gameOver, gameHistory, playerColor, computerDepth, playerTime, computerTime, game, saveUnfinishedGame, user, invalidateGameHistory, currentGameId, ratedMode, learningHelpLimit, backendGame, playerScore, computerScore, syntheticOpponent, undoChancesRemaining]); // Dependencies for auto-save
 
   // Effect for in-app navigation protection (rated games only)
   useEffect(() => {
@@ -1036,6 +1130,7 @@ const PlayComputer = () => {
       const lobbyRatedMode = location.state.ratedMode || 'casual';
       const lobbyTimeControl = location.state.timeControl || 10;
       const lobbyIncrement = location.state.increment || 0;
+      const lobbyLearningHelpLimit = normalizeLearningHelpLimit(location.state.learningHelpLimit ?? learningHelpLimit);
       console.log('[PlayComputer] Setting up synthetic opponent:', bot.name, 'level:', bot.computer_level, 'mode:', lobbyRatedMode, 'time:', lobbyTimeControl, '+', lobbyIncrement);
 
       setSyntheticOpponent(bot);
@@ -1049,6 +1144,7 @@ const PlayComputer = () => {
       const normalizedMode = lobbyRatedMode === 'companion' ? 'casual' : lobbyRatedMode;
       setRatedMode(normalizedMode);
       localStorage.setItem('gameRatedMode', normalizedMode);
+      setLearningHelpLimit(lobbyLearningHelpLimit);
 
       // Set difficulty to the bot's level
       if (bot.computer_level) {
@@ -1079,6 +1175,7 @@ const PlayComputer = () => {
         backendGameId: location.state.backendGameId || null,
         timeControlMin: lobbyTimeControl,
         incrementSec: lobbyIncrement,
+        learningHelpLimit: lobbyLearningHelpLimit,
       });
 
       // Save active game state with synthetic opponent identity for refresh persistence
@@ -1093,6 +1190,7 @@ const PlayComputer = () => {
           playerColor: color,
           computerDepth: bot.computer_level || computerDepth,
           ratedMode: lobbyRatedMode,
+          learningHelpLimit: lobbyLearningHelpLimit,
           timeControlMin: lobbyTimeControl,
           incrementSec: lobbyIncrement,
           moves: [],
@@ -1101,7 +1199,9 @@ const PlayComputer = () => {
           playerTime: initialTimeSec,
           computerTime: initialTimeSec,
           syntheticOpponent: bot,
-          undoChancesRemaining: calculateUndoChances(bot.computer_level || computerDepth, isRated),
+          undoChancesRemaining: lobbyRatedMode === 'learning'
+            ? lobbyLearningHelpLimit
+            : calculateUndoChances(bot.computer_level || computerDepth, isRated),
           currentGameId: location.state.backendGameId || null,
           backendGameId: location.state.backendGameId || null,
         });
@@ -1524,7 +1624,7 @@ const PlayComputer = () => {
                   setGameHistory(prevHistory => {
                       const newHistory = [...prevHistory, computerHistoryEntry];
                       // Update undo availability - can undo after complete turns
-                      const newCanUndo = newHistory.length >= 2;
+                      const newCanUndo = newHistory.length >= 2 && undoChancesRemaining > 0;
                       console.log('[PlayComputer] 🔄 Computer move completed, updating canUndo:', {
                           newHistoryLength: newHistory.length,
                           newCanUndo
@@ -1590,7 +1690,7 @@ const PlayComputer = () => {
 
   }, [ // Dependencies for the computer turn useEffect
     gameStarted, gameOver, isReplayMode, computerMoveInProgress, activeTimer, playerColor, isOnlineGame,
-    game, computerDepth, gameHistory, computerScore, playerScore, user?.rating, // State values read or passed along
+    game, computerDepth, gameHistory, computerScore, playerScore, undoChancesRemaining, user?.rating, // State values read or passed along
     handleGameComplete, playSound, switchTimer, startTimerInterval, // Stable Callbacks/Timer functions
     setGame, setGameStatus, setMoveCount, setMoveCompleted, setComputerMoveInProgress, setTimerButtonColor, // Stable Setters
     setLastComputerEvaluation, setComputerScore // Stable Setters
@@ -1761,6 +1861,7 @@ const PlayComputer = () => {
           playerColor,
           computerDepth,
           ratedMode,
+          learningHelpLimit,
           timeControlMin,
           incrementSec,
           moves: updatedHistory,
@@ -1800,7 +1901,9 @@ const PlayComputer = () => {
         return true; // Indicate move was successful
     }, [ // Dependencies for onDrop useCallback
         game, gameStarted, gameOver, isReplayMode, activeTimer, playerColor, computerMoveInProgress, computerDepth,
-        gameHistory, settings.requireDoneButton, computerScore, playerScore, user?.rating, currentGameId, setCurrentGameId, // State reads
+        gameHistory, settings.requireDoneButton, computerScore, playerScore, user?.rating, currentGameId,
+        ratedMode, learningHelpLimit, timeControlMin, incrementSec, playerTime, computerTime,
+        syntheticOpponent, undoChancesRemaining, backendGame, setCurrentGameId, // State reads
         playSound, handleGameComplete, switchTimer, startTimerInterval, // Stable callbacks/timer fns
         setIsTimerRunning, setLastMoveEvaluation, setPlayerScore, setGameHistory, // Stable setters
         setMoveCount, setGame, setMoveFrom, setMoveSquares, setGameStatus, setMoveCompleted, // Stable setters
@@ -1849,6 +1952,8 @@ const PlayComputer = () => {
         const effectiveTimeControlMin = options.timeControlMin ?? timeControlMin;
         const effectiveIncrementSec = options.incrementSec ?? incrementSec;
         const effectiveBackendGameId = options.backendGameId || currentGameId || null;
+        const effectiveLearningHelpLimit = normalizeLearningHelpLimit(options.learningHelpLimit ?? learningHelpLimit);
+        const backendRatedMode = effectiveRatedMode === 'rated' ? 'rated' : 'casual';
         console.log("Starting game...", { effectiveRatedMode });
         setCountdownActive(false);
 
@@ -1863,6 +1968,16 @@ const PlayComputer = () => {
 
         // Start the game immediately — don't wait for backend API
         setGameStarted(true);
+
+        // Auto-show casual play tour on first game
+        if (effectiveRatedMode === 'casual') {
+          const hasSeenTour = localStorage.getItem(tourStorageKey) === 'completed';
+          if (!hasSeenTour) {
+            // Delay slightly so board renders before tour spotlight
+            setTimeout(() => setTourOpen(true), 800);
+          }
+        }
+
         previousGameStateRef.current = new Chess(); // Initial state for history
         setGameHistory([]);
         setMoveCount(0);
@@ -1873,7 +1988,9 @@ const PlayComputer = () => {
         resetTimer(); // Reset timer values (ensure useGameTimer provides initial values)
 
         // Initialize undo chances based on difficulty and mode
-        const initialUndoChances = calculateUndoChances(effectiveComputerDepth, effectiveRatedMode === 'rated');
+        const initialUndoChances = effectiveRatedMode === 'learning'
+          ? effectiveLearningHelpLimit
+          : calculateUndoChances(effectiveComputerDepth, effectiveRatedMode === 'rated');
         setUndoChancesRemaining(initialUndoChances);
         console.log(`[PlayComputer] 🎮 Game started - Mode: ${effectiveRatedMode}, Difficulty: ${effectiveComputerDepth}, Undo chances: ${initialUndoChances}`);
 
@@ -1904,6 +2021,7 @@ const PlayComputer = () => {
           playerColor: effectivePlayerColor,
           computerDepth: effectiveComputerDepth,
           ratedMode: effectiveRatedMode,
+          learningHelpLimit: effectiveLearningHelpLimit,
           timeControlMin: effectiveTimeControlMin,
           incrementSec: effectiveIncrementSec,
           moves: [],
@@ -1926,7 +2044,9 @@ const PlayComputer = () => {
                 computer_level: effectiveComputerDepth,
                 time_control: effectiveTimeControlMin,
                 increment: effectiveIncrementSec,
-                game_mode: effectiveRatedMode,
+                game_mode: backendRatedMode,
+                learning_mode: effectiveRatedMode === 'learning',
+                learning_help_limit: effectiveRatedMode === 'learning' ? effectiveLearningHelpLimit : null,
                 synthetic_player_id: effectiveSynth?.id || null,
               };
               const response = await gameService.createComputerGame(gameData);
@@ -1942,7 +2062,7 @@ const PlayComputer = () => {
         }
 
     }, [ // Dependencies for onCountdownFinish
-        playerColor, computerDepth, user, ratedMode, timeControlMin, incrementSec, currentGameId, // Read
+        playerColor, computerDepth, user, ratedMode, learningHelpLimit, timeControlMin, incrementSec, currentGameId, // Read
         setActiveTimer, startTimerInterval, resetTimer, // Stable from hook
         setGameStarted, setCountdownActive, setGameHistory, setMoveCount, setGameOver, // Stable setters
         setPlayerScore, setLastMoveEvaluation, setGame, setMoveCompleted, setGameStatus, // Stable setters
@@ -2108,7 +2228,23 @@ const PlayComputer = () => {
         const activeBackendGame = backendGameRef.current || backendGame;
         if (activeBackendGame && user) {
           try {
-            await gameService.resign(activeBackendGame.id);
+            const isLearningGame = ratedMode === 'learning';
+            const learningHelpUsed = isLearningGame
+              ? Math.max(0, learningHelpLimit - undoChancesRemaining)
+              : null;
+            const learningHelpRemaining = isLearningGame
+              ? Math.max(0, undoChancesRemaining)
+              : null;
+            const response = await gameService.resign(activeBackendGame.id, {
+              learningMode: isLearningGame,
+              learningHelpLimit: isLearningGame ? learningHelpLimit : null,
+              learningHelpUsed,
+              learningHelpRemaining,
+            });
+            if (response?.learner_rating_data) {
+              standardizedResult.learner_rating_update = response.learner_rating_data;
+              setGameResult({ ...standardizedResult });
+            }
             console.log('[PlayComputer] 🏳️ Resigned from backend game:', activeBackendGame.id);
           } catch (error) {
             console.error('[PlayComputer] ❌ Failed to resign from backend game:', error);
@@ -2138,7 +2274,8 @@ const PlayComputer = () => {
     }, [
         gameOver, gameStarted, isReplayMode, timerRef, gameHistory, playerColor,
         playerScore, computerScore, computerDepth, user?.rating, invalidateGameHistory,
-        backendGame, user, syntheticOpponent, currentGameId, searchParams
+        backendGame, user, syntheticOpponent, currentGameId, searchParams,
+        ratedMode, learningHelpLimit, undoChancesRemaining
     ]);
 
      const resetCurrentGameSetup = useCallback(() => {
@@ -2230,7 +2367,7 @@ const PlayComputer = () => {
         // Check if player has undo chances remaining
         if (undoChancesRemaining <= 0) {
             console.log('[PlayComputer] ❌ Undo blocked - no chances remaining');
-            setGameStatus("No undo chances remaining!");
+            setGameStatus(ratedMode === 'learning' ? "No learning helplines remaining!" : "No undo chances remaining!");
             return;
         }
 
@@ -2333,11 +2470,14 @@ const PlayComputer = () => {
             setMoveCompleted(false);
 
             // Decrement undo chances
-            const newUndoChances = undoChancesRemaining - 1;
+            const newUndoChances = Math.max(0, undoChancesRemaining - 1);
             setUndoChancesRemaining(newUndoChances);
             console.log(`[PlayComputer] 📉 Undo chances remaining: ${newUndoChances}`);
 
-            setGameStatus(`Last turn undone - your turn! (${newUndoChances} undo${newUndoChances !== 1 ? 's' : ''} remaining)`);
+            const remainingLabel = ratedMode === 'learning'
+                ? `helpline${newUndoChances !== 1 ? 's' : ''}`
+                : `undo${newUndoChances !== 1 ? 's' : ''}`;
+            setGameStatus(`Last turn undone - your turn! (${newUndoChances} ${remainingLabel} remaining)`);
             playSound(moveSoundEffect); // Play a sound to indicate undo
 
             // Update undo availability
@@ -2462,24 +2602,38 @@ const PlayComputer = () => {
         localStorage.setItem('computerDepth', val);
     }, []);
 
+   const handleLearningHelpLimitChange = useCallback((limit) => {
+        const normalizedLimit = normalizeLearningHelpLimit(limit);
+        setLearningHelpLimit(normalizedLimit);
+        localStorage.setItem('learningHelpLimit', String(normalizedLimit));
+    }, []);
+
    const handleModeChange = useCallback((mode) => {
         console.log(`[PlayComputer] 🎮 Game mode changed to: ${mode}`);
         setRatedMode(mode);
         localStorage.setItem('gameRatedMode', mode);
+        companionChoiceTouchedRef.current = mode === 'learning';
         // Companions are not allowed in rated games — clear any active companion
-        if (mode === 'rated') {
+        if (mode === 'rated' || mode === 'learning') {
+            companionChoiceTouchedRef.current = false;
             setSelectedCompanion(null);
         }
     }, []);
 
    const handleCompanionSelect = useCallback((companion) => {
         console.log(`[PlayComputer] 🤝 Companion selected: ${companion.name}`);
+        companionChoiceTouchedRef.current = true;
         setSelectedCompanion(companion);
+    }, []);
+
+   const handleCompanionDismiss = useCallback(() => {
+        companionChoiceTouchedRef.current = true;
+        setSelectedCompanion(null);
     }, []);
 
    const handleCompanionMove = useCallback(async (move) => {
         // Companions cannot play in rated games
-        if (ratedMode === 'rated') return;
+        if (ratedMode === 'rated' || ratedMode === 'learning') return;
         // It must be the player's turn
         if (!game || !gameStarted || gameOver) return;
         const playerColorChess = playerColor === 'white' || playerColor === 'w' ? 'w' : 'b';
@@ -2530,6 +2684,25 @@ const PlayComputer = () => {
     }, [game, gameStarted, gameOver, playerColor, ratedMode, playSound, switchTimer, startTimerInterval,
         setGame, setGameHistory, setMoveCount, setMoveSquares, setMoveFrom, setLastMoveHighlights,
         setMoveCompleted, handleGameComplete, playerScore, computerScore]);
+
+   const consumeLearningHelp = useCallback((kind = 'help') => {
+        if (ratedMode !== 'learning') return true;
+
+        if (undoChancesRemaining <= 0) {
+            setGameStatus(kind === 'best-move'
+                ? 'No best-move helplines remaining!'
+                : 'No learning helplines remaining!');
+            return false;
+        }
+
+        const nextRemaining = Math.max(0, undoChancesRemaining - 1);
+        setUndoChancesRemaining(nextRemaining);
+        if (nextRemaining <= 0) {
+            setCanUndo(false);
+        }
+        setGameStatus(`Best move helpline used. ${nextRemaining} helpline${nextRemaining !== 1 ? 's' : ''} remaining.`);
+        return true;
+    }, [ratedMode, undoChancesRemaining, setGameStatus, setUndoChancesRemaining, setCanUndo]);
 
    // --- Draw Handlers (Placeholder for future implementation) ---
    const handleDrawOffer = useCallback(() => {
@@ -2632,6 +2805,36 @@ const PlayComputer = () => {
                 disabled={countdownActive}
                 showCompanion={false}
               />
+            </div>
+          )}
+
+          {user && ratedMode === 'learning' && (
+            <div className="mb-5 border-y border-white/10 py-4">
+              <div className="flex flex-col items-center gap-3">
+                <div>
+                  <h3 className="text-lg font-semibold text-white mb-1">Choose Helplines</h3>
+                  <p className="text-sm text-[#bababa]">
+                    Undo and Best each use one helpline. CCT stays unlimited.
+                  </p>
+                </div>
+                <div className="inline-flex rounded-lg border border-white/10 bg-surface-elevated p-1">
+                  {LEARNING_HELP_OPTIONS.map(limit => (
+                    <button
+                      key={limit}
+                      type="button"
+                      onClick={() => handleLearningHelpLimitChange(limit)}
+                      disabled={countdownActive}
+                      className={`min-w-[48px] rounded-md px-4 py-2 text-sm font-bold transition ${
+                        learningHelpLimit === limit
+                          ? 'bg-chess-green text-white shadow'
+                          : 'text-[#bababa] hover:bg-white/10 hover:text-white'
+                      } ${countdownActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      {limit}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 
@@ -2782,11 +2985,11 @@ const PlayComputer = () => {
         onTabOpen: () => { chatTabOpenRef.current = true; setChatUnread(0); },
         onTabClose: () => { chatTabOpenRef.current = false; },
       }}
-      companionData={{
+      companionData={ratedMode === 'learning' ? null : {
         companion: selectedCompanion,
         companions,
         onCompanionSelect: handleCompanionSelect,
-        onCompanionDismiss: () => setSelectedCompanion(null),
+        onCompanionDismiss: handleCompanionDismiss,
         onMove: handleCompanionMove,
         isMyTurn: game?.turn() === playerColor,
       }}
@@ -2796,6 +2999,12 @@ const PlayComputer = () => {
         isRated: ratedMode === 'rated',
         onArrowsChange: setCctArrows,
         onLabelsChange: setBoardLabels,
+        bestMoveBudget: {
+          enabled: ratedMode === 'learning',
+          remaining: undoChancesRemaining,
+          limit: learningHelpLimit,
+          onConsume: consumeLearningHelp,
+        },
       }}
       controlsData={{
         gameStarted,
@@ -2830,6 +3039,9 @@ const PlayComputer = () => {
         gameOver,
         isPortrait
       }}
+      tourOpen={tourOpen}
+      onTourOpen={setTourOpen}
+      tourStorageKey={tourStorageKey}
     >
       <ChessBoard
         game={game}

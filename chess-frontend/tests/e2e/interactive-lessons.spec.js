@@ -1,7 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Interactive Chess Lessons', () => {
-  test.beforeEach(async ({ page }) => {
+test.beforeEach(async ({ page }) => {
     // Mock authentication - set up a fake user session
     await page.addInitScript(() => {
       window.localStorage.setItem('auth_token', 'fake-test-token');
@@ -11,14 +10,77 @@ test.describe('Interactive Chess Lessons', () => {
         email: 'test@example.com'
       }));
     });
-  });
+
+    const lesson = {
+      id: 1,
+      title: 'Interactive Board Basics',
+      lesson_type: 'interactive',
+      formatted_duration: '5 min',
+      difficulty_level: 'beginner',
+      xp_reward: 25,
+      module: { name: 'Basics' },
+      interactive_config: { enable_hints: true },
+      content_data: { slides: [{ title: 'Board basics' }] },
+    };
+    const stage = {
+      id: 101,
+      title: 'Find a good move',
+      instruction_text: 'Move a piece on the board.',
+      initial_fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+      orientation: 'white',
+      hints: ['Try developing a central pawn.'],
+      visual_aids: {},
+    };
+
+    await page.route('**/api/user', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: 1,
+        name: 'Test User',
+        email: 'test@example.com',
+        rating: 1200,
+      }),
+    }));
+    await page.route('**/api/user-status/**', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({}),
+    }));
+    await page.route('**/broadcasting/**', route => route.abort());
+
+    await page.route('**/api/tutorial/lessons/1**', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, data: lesson }),
+    }));
+    await page.route('**/api/tutorial/lessons/1/start', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, data: {} }),
+    }));
+    await page.route('**/api/tutorial/lessons/1/interactive', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        data: {
+          interactive_stages: [stage],
+          current_stage: stage,
+          progress: { 101: { attempts: 0, is_completed: false } },
+        },
+      }),
+    }));
+});
+
+test.describe('Interactive Chess Lessons', () => {
 
   test('should load interactive lesson page and display chess board', async ({ page }) => {
     // Navigate to interactive lesson page
     await page.goto('/tutorial/lesson/1');
 
     // Wait for page to load
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Check that chess board is visible
     await expect(page.locator('[data-testid="chess-board"]')).toBeVisible();
@@ -29,7 +91,7 @@ test.describe('Interactive Chess Lessons', () => {
 
   test('should display lesson stages and progress', async ({ page }) => {
     await page.goto('/tutorial/lesson/1');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Check for stage indicators
     await expect(page.locator('[data-testid="stage-indicator"], .stage-progress, .lesson-stage')).toBeVisible();
@@ -40,7 +102,7 @@ test.describe('Interactive Chess Lessons', () => {
 
   test('should handle chess piece moves correctly', async ({ page }) => {
     await page.goto('/tutorial/lesson/1');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Get the chess board
     const board = page.locator('[data-testid="chess-board"], .chessboard');
@@ -58,7 +120,7 @@ test.describe('Interactive Chess Lessons', () => {
 
   test('should show feedback when moves are made', async ({ page }) => {
     await page.goto('/tutorial/lesson/1');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Mock making a move by clicking two squares
     const squares = page.locator('.square-piece, [data-square]');
@@ -78,7 +140,7 @@ test.describe('Interactive Chess Lessons', () => {
 
   test('should display and handle hints correctly', async ({ page }) => {
     await page.goto('/tutorial/lesson/1');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Look for hint button
     const hintButton = page.locator('button:has-text("Hint"), button[aria-label*="hint"], .hint-button');
@@ -93,7 +155,7 @@ test.describe('Interactive Chess Lessons', () => {
 
   test('should track and display progress correctly', async ({ page }) => {
     await page.goto('/tutorial/lesson/1');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Check for progress indicators
     const progressBar = page.locator('.progress-bar, [role="progressbar"], .progress-indicator');
@@ -128,7 +190,7 @@ test.describe('Interactive Chess Lessons', () => {
 
   test('should handle lesson completion', async ({ page }) => {
     await page.goto('/tutorial/lesson/1');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Look for completion state or success message
     // This might appear after completing all stages or making correct moves
@@ -177,7 +239,7 @@ test.describe('Interactive Chess Lessons', () => {
     // Set mobile viewport
     await page.setViewportSize({ width: 375, height: 667 });
     await page.goto('/tutorial/lesson/1');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Check that chess board is visible and properly sized
     await expect(page.locator('[data-testid="chess-board"], .chessboard')).toBeVisible();
@@ -209,7 +271,7 @@ test.describe('Interactive Chess Lessons', () => {
     });
 
     await page.goto('/tutorial/lesson/1');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Check for error handling
     const errorElements = [
@@ -236,7 +298,7 @@ test.describe('Interactive Chess Lessons', () => {
 
   test('should maintain state during page reload', async ({ page }) => {
     await page.goto('/tutorial/lesson/1');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Make some initial interactions
     const board = page.locator('[data-testid="chess-board"], .chessboard');
@@ -250,7 +312,7 @@ test.describe('Interactive Chess Lessons', () => {
 
     // Reload the page
     await page.reload();
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Check that the board is still visible
     await expect(board).toBeVisible();
@@ -292,7 +354,7 @@ test.describe('Interactive Lesson API Integration', () => {
     });
 
     await page.goto('/tutorial/lesson/1');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Make a move
     const squares = page.locator('.square-piece, [data-square]');
@@ -327,7 +389,7 @@ test.describe('Interactive Lesson API Integration', () => {
     });
 
     await page.goto('/tutorial/lesson/1');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Click hint button if available
     const hintButton = page.locator('button:has-text("Hint"), .hint-button');
@@ -349,7 +411,7 @@ test.describe('Performance and Accessibility', () => {
     const startTime = Date.now();
 
     await page.goto('/tutorial/lesson/1');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const loadTime = Date.now() - startTime;
 
@@ -359,7 +421,7 @@ test.describe('Performance and Accessibility', () => {
 
   test('should have proper accessibility attributes', async ({ page }) => {
     await page.goto('/tutorial/lesson/1');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Check for ARIA labels and roles
     await expect(page.locator('main, [role="main"]')).toBeVisible();
@@ -378,7 +440,7 @@ test.describe('Performance and Accessibility', () => {
     await page.emulateMedia({ reducedMotion: 'reduce', colorScheme: 'dark' });
 
     await page.goto('/tutorial/lesson/1');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Check that elements are still visible and usable
     await expect(page.locator('[data-testid="chess-board"], .chessboard')).toBeVisible();

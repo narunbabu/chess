@@ -42,6 +42,11 @@ class Game extends Model
         'player_color',
         // Game mode and undo tracking
         'game_mode',
+        'learning_mode',
+        'learning_help_limit',
+        'learning_help_used',
+        'learner_rating_change',
+        'learner_rating_data',
         'undo_white_remaining',
         'undo_black_remaining',
         // Pause time tracking
@@ -85,6 +90,11 @@ class Game extends Model
         'resume_requested_by' => 'integer',
         'undo_white_remaining' => 'integer',
         'undo_black_remaining' => 'integer',
+        'learning_mode' => 'boolean',
+        'learning_help_limit' => 'integer',
+        'learning_help_used' => 'integer',
+        'learner_rating_change' => 'integer',
+        'learner_rating_data' => 'array',
         // Computer game casts
         'computer_player_id' => 'integer',
         'computer_level' => 'integer',

@@ -454,14 +454,27 @@ const EnhancedInteractiveLesson = ({ lesson, user, onLessonComplete }) => {
         hint_index: hintIndex
       });
 
-      setCurrentHint(response.data.data.hint);
+      const apiHint = response.data?.data?.hint;
+      if (!apiHint) {
+        throw new Error('Hint response missing hint text');
+      }
+
+      setCurrentHint(apiHint);
       setShowHint(true);
-      setHintIndex(response.data.data.hint_index + 1);
+      setHintIndex((response.data.data.hint_index ?? hintIndex) + 1);
 
       // Small score penalty for using hints
       setScore(prev => Math.max(0, prev - 2));
     } catch (error) {
       console.error('Error getting hint:', error);
+      const fallbackHint = currentStage.hints?.[hintIndex] || currentStage.hints?.[0];
+      if (fallbackHint) {
+        setCurrentHint(fallbackHint);
+        setShowHint(true);
+        setHintIndex(prev => Math.min(prev + 1, currentStage.hints?.length || prev + 1));
+        setScore(prev => Math.max(0, prev - 2));
+        return;
+      }
       setFeedback({
         type: 'error',
         message: 'Failed to get hint. Please try again.',
@@ -575,7 +588,7 @@ const EnhancedInteractiveLesson = ({ lesson, user, onLessonComplete }) => {
             style={{ width: `${progressPercentage}%` }}
           />
         </div>
-        <div className="text-sm text-[#8b8987] mt-1">
+        <div className="text-sm text-[#8b8987] mt-1" data-testid="stage-indicator">
           Stage {currentStageIndex + 1} of {stages.length} • {Math.round(progressPercentage)}% Complete
         </div>
       </div>
@@ -700,6 +713,7 @@ const EnhancedInteractiveLesson = ({ lesson, user, onLessonComplete }) => {
                   isCompletingLesson
                 }
                 className="flex-1 px-4 py-2 bg-[#81b64c] text-white rounded-lg hover:bg-[#a3d160] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                aria-label="next stage"
               >
                 {isCompletingLesson && currentStageIndex === stages.length - 1
                   ? '⏳ Completing...'

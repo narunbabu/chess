@@ -49,7 +49,15 @@ return [
         'sqlite_testing' => [
             'driver' => 'sqlite',
             'url' => env('DB_URL'),
-            'database' => env('DB_DATABASE', '/tmp/chess_test.sqlite'),
+            'database' => (function () {
+                $path = env('DB_DATABASE', 'testing.sqlite');
+                if ($path === ':memory:') {
+                    return $path;
+                }
+                return preg_match('/^(?:[A-Za-z]:[\/\\\\]|\/|\\\\)/', $path)
+                    ? $path
+                    : database_path($path);
+            })(),
             'prefix' => '',
             'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
             // Use DELETE journal mode for WSL compatibility (no WAL files)

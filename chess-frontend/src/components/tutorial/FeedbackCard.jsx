@@ -1,6 +1,10 @@
 import React from 'react';
 
 const FeedbackCard = ({ feedback, onDismiss, autoDismiss = true }) => {
+  if (!feedback) {
+    return null;
+  }
+
   const { type, message, scoreChange, subtext } = feedback;
 
   React.useEffect(() => {
@@ -64,9 +68,21 @@ const FeedbackCard = ({ feedback, onDismiss, autoDismiss = true }) => {
   };
 
   const styles = getStyles();
+  const feedbackClass = [
+    'feedback',
+    type,
+    type === 'hint' ? 'hint-message' : null,
+    styles.bg,
+    styles.border,
+    'border-2 rounded-lg p-4 shadow-sm relative',
+  ].filter(Boolean).join(' ');
 
   return (
-    <div className={`${styles.bg} ${styles.border} border-2 rounded-lg p-4 shadow-sm relative`}>
+    <div
+      className={feedbackClass}
+      role="status"
+      aria-live="polite"
+    >
       {/* Dismiss button */}
       {onDismiss && (
         <button

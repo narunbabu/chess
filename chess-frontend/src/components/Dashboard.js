@@ -950,8 +950,7 @@ const Dashboard = () => {
         <section className="unified-section">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
             <h2 className="unified-section-header" style={{ margin: 0 }}>📊 Your Statistics</h2>
-            {gameHistories.length > 0 && (
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <button
                   onClick={() => setShowProgressCharts(true)}
                   className="unified-card-btn primary"
@@ -966,8 +965,7 @@ const Dashboard = () => {
                 >
                   📋 View Details
                 </button>
-              </div>
-            )}
+            </div>
           </div>
           {stats.totalGames === 0 ? (
             <div className="unified-empty-state">

@@ -651,6 +651,7 @@ const Header = () => {
                   <h3>{user?.name}</h3>
                   <p className="nav-user-email">{user?.email}</p>
                   <p>Rating: {user?.rating || 1200}</p>
+                  <p>Learner Elo: {user?.learner_rating || 800}</p>
                   <div className="nav-quick-actions">
                     <button
                       className="nav-quick-action-btn"
@@ -701,6 +702,12 @@ const Header = () => {
                   style={{ color: '#81b64c' }}
                 >
                   🧩 Tactical Trainer
+                </button>
+                <button
+                  className="nav-item"
+                  onClick={() => handleNavItemClick(() => navigate('/ebook'), '/ebook')}
+                >
+                  📘 Chess 0→1000 E-Book
                 </button>
                 <button
                   className="nav-item"
@@ -822,6 +829,13 @@ const Header = () => {
           >
             <span className="learn-dropdown-icon">🧩</span>
             <span>Tactical Trainer</span>
+          </button>
+          <button
+            className="learn-dropdown-item"
+            onClick={() => { setShowLearnDropdown(false); handleNavItemClick(() => navigate('/ebook'), '/ebook'); }}
+          >
+            <span className="learn-dropdown-icon">📘</span>
+            <span>Chess 0→1000 E-Book</span>
           </button>
           <button
             className="learn-dropdown-item"

@@ -60,7 +60,7 @@ const GameContainer = ({
   const [rightTab, setRightTab] = useState('moves');
   const [showRatedRules, setShowRatedRules] = useState(false);
   const [mobileRightPanelOpen, setMobileRightPanelOpen] = useState(false);
-  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(null);
   const moveListRef = useRef(null);
 
   // Extract timer data
@@ -96,9 +96,14 @@ const GameContainer = ({
   } = controlsData || {};
 
   const isRated = ratedMode === 'rated';
+  const isLearningMode = ratedMode === 'learning';
+  const allowCompanion = Boolean(companionData) && !isRated && !isLearningMode;
+  const undoTitle = isLearningMode
+    ? (canUndo ? `Undo - ${undoChancesRemaining} helplines left` : 'Cannot undo')
+    : (canUndo ? `Undo (${undoChancesRemaining} left)` : 'Cannot undo');
 
   const openMobilePanel = (tab = rightTab) => {
-    setMobileMoreOpen(false);
+    setMobileMoreOpen(null);
     setRightTab(tab);
     setMobileRightPanelOpen(true);
     if (tab === 'chat') {
@@ -135,6 +140,12 @@ const GameContainer = ({
       if (active) active.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
   }, [gameHistory.length, mobileRightPanelOpen]);
+
+  useEffect(() => {
+    if (rightTab === 'companion' && !allowCompanion) {
+      setRightTab('moves');
+    }
+  }, [rightTab, allowCompanion]);
 
   // Determine status for the info panel
   const getStatusLabel = () => {
@@ -184,7 +195,7 @@ const GameContainer = ({
     </div>
   );
 
-  const renderMobileQuickActionButtons = () => (
+  const renderMobileQuickActionButtons = (placement = 'portrait') => (
     <>
       {!isRated && (
         <button
@@ -216,7 +227,7 @@ const GameContainer = ({
           className={`gc-mobile-action-btn gc-action-info ${(!canUndo || gameOver) ? 'gc-action-disabled' : ''}`}
           onClick={handleUndo}
           disabled={!canUndo || gameOver}
-          title={canUndo ? `Undo (${undoChancesRemaining} left)` : 'Cannot undo'}
+          title={undoTitle}
         >
           Undo{undoChancesRemaining > 0 ? ` ${undoChancesRemaining}` : ''}
         </button>
@@ -230,34 +241,36 @@ const GameContainer = ({
           CCT
         </button>
       )}
-      <button
-        data-tour="tab-companion"
-        className={`gc-mobile-action-btn gc-action-primary ${companionData?.companion ? 'gc-mobile-action-active' : ''}`}
-        onClick={() => openMobilePanel('companion')}
-      >
-        Comp
-      </button>
+      {allowCompanion && (
+        <button
+          data-tour="tab-companion"
+          className={`gc-mobile-action-btn gc-action-primary ${companionData?.companion ? 'gc-mobile-action-active' : ''}`}
+          onClick={() => openMobilePanel('companion')}
+        >
+          Comp
+        </button>
+      )}
       <div className="gc-mobile-action-menu-wrap">
         <button
           type="button"
-          className={`gc-mobile-action-btn gc-action-neutral ${mobileMoreOpen ? 'gc-mobile-action-active' : ''}`}
-          onClick={() => setMobileMoreOpen(open => !open)}
+          className={`gc-mobile-action-btn gc-action-neutral ${mobileMoreOpen === placement ? 'gc-mobile-action-active' : ''}`}
+          onClick={() => setMobileMoreOpen(open => open === placement ? null : placement)}
           aria-label="More play actions"
-          aria-expanded={mobileMoreOpen}
+          aria-expanded={mobileMoreOpen === placement}
         >
           More
         </button>
-        {mobileMoreOpen && (
+        {mobileMoreOpen === placement && (
           <div className="gc-mobile-action-menu" role="menu">
             <button type="button" role="menuitem" onClick={() => openMobilePanel('moves')}>Moves</button>
             <button type="button" role="menuitem" onClick={() => openMobilePanel('info')}>Info</button>
-            {!isRated && !gameOver && (
+            {!isRated && !isLearningMode && !gameOver && (
               <button
                 type="button"
                 role="menuitem"
                 data-tour="action-help"
                 onClick={() => {
-                  setMobileMoreOpen(false);
+                  setMobileMoreOpen(null);
                   onTourOpen(true);
                 }}
               >
@@ -269,7 +282,7 @@ const GameContainer = ({
                 type="button"
                 role="menuitem"
                 onClick={() => {
-                  setMobileMoreOpen(false);
+                  setMobileMoreOpen(null);
                   handleDrawOffer();
                 }}
               >
@@ -282,7 +295,7 @@ const GameContainer = ({
                 role="menuitem"
                 className="gc-mobile-action-menu-danger"
                 onClick={() => {
-                  setMobileMoreOpen(false);
+                  setMobileMoreOpen(null);
                   handleResign();
                 }}
               >
@@ -301,7 +314,7 @@ const GameContainer = ({
     return (
       <div className="gc-action-bar">
         <div className="gc-mobile-action-grid gc-mobile-action-grid-portrait">
-          {renderMobileQuickActionButtons()}
+          {renderMobileQuickActionButtons('portrait')}
         </div>
         <div className="gc-desktop-action-group">
         {/* Pause/Resume — casual only */}
@@ -321,13 +334,13 @@ const GameContainer = ({
             className={`gc-action-btn gc-action-info ${(!canUndo || gameOver) ? 'gc-action-disabled' : ''}`}
             onClick={handleUndo}
             disabled={!canUndo || gameOver}
-            title={canUndo ? `Undo (${undoChancesRemaining} left)` : 'Cannot undo'}
+            title={undoTitle}
           >
             ↩ Undo{undoChancesRemaining > 0 ? ` (${undoChancesRemaining})` : ''}
           </button>
         )}
         {/* Help button — casual only, triggers tour */}
-        {!isRated && !gameOver && (
+        {!isRated && !isLearningMode && !gameOver && (
           <button
             data-tour="action-help"
             className="gc-action-btn gc-action-neutral"
@@ -470,7 +483,7 @@ const GameContainer = ({
       {/* Mode */}
       <div className="gc-info-row">
         <span className="gc-info-label">Mode</span>
-        <span className="gc-info-value">{isRated ? 'Rated' : 'Casual'} · {mode === 'computer' ? 'vs Computer' : 'Multiplayer'}</span>
+        <span className="gc-info-value">{isRated ? 'Rated' : isLearningMode ? 'Learning' : 'Casual'} · {mode === 'computer' ? 'vs Computer' : 'Multiplayer'}</span>
       </div>
       {/* Moves */}
       <div className="gc-info-row">
@@ -525,6 +538,10 @@ const GameContainer = ({
   // ----- COMPANION TAB -----
   const renderCompanionPanel = () => {
     const { companion, companions = [], onCompanionSelect, onCompanionDismiss, onMove, isMyTurn } = companionData || {};
+
+    if (!allowCompanion) {
+      return null;
+    }
 
     // Companions are not allowed in rated games
     if (isRated) {
@@ -621,17 +638,6 @@ const GameContainer = ({
         </div>
 
         {/* CompanionControls — shown when a companion is active */}
-        {companion && !gameOver && (
-          <CompanionControls
-            companion={companion}
-            game={game}
-            onMove={onMove}
-            onDismiss={onCompanionDismiss}
-            isMyTurn={isMyTurn}
-            disabled={!gameStarted || gameOver}
-          />
-        )}
-
         {!companion && (
           <p style={{ fontSize: '12px', color: '#8b8987', textAlign: 'center', marginTop: '16px' }}>
             Select a companion above. They will play moves <strong>on your behalf</strong> when you ask.
@@ -651,6 +657,7 @@ const GameContainer = ({
         isRated={cctData.isRated}
         onArrowsChange={cctData.onArrowsChange}
         onLabelsChange={cctData.onLabelsChange}
+        bestMoveBudget={cctData.bestMoveBudget}
       />
     );
   };
@@ -661,7 +668,7 @@ const GameContainer = ({
       'moves',
       'info',
       ...(chatData ? ['chat'] : []),
-      'companion',
+      ...(allowCompanion ? ['companion'] : []),
       ...(cctData  ? ['learn'] : []),
     ];
 
@@ -740,7 +747,7 @@ const GameContainer = ({
           {rightTab === 'moves' && renderMoveList()}
           {rightTab === 'info' && renderGameInfo()}
           {rightTab === 'chat' && chatData && renderChatPanel()}
-          {rightTab === 'companion' && renderCompanionPanel()}
+          {rightTab === 'companion' && allowCompanion && renderCompanionPanel()}
           {rightTab === 'learn' && renderCctPanel()}
         </div>
       </div>
@@ -822,7 +829,7 @@ const GameContainer = ({
         {renderMobileLastMoves('rail')}
 
         <div className="gc-mobile-rail-actions">
-          {renderMobileQuickActionButtons()}
+          {renderMobileQuickActionButtons('rail')}
         </div>
 
         <ActivePlayerBar
@@ -878,7 +885,7 @@ const GameContainer = ({
         />
 
         {/* Board */}
-        <div className="gc-board-wrapper">
+        <div className="gc-board-wrapper" data-testid="chess-board" tabIndex={0}>
           {children}
         </div>
 
