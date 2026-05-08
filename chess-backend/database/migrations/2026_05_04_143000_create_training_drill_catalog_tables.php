@@ -87,8 +87,8 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['user_id', 'training_drill_id']);
-            $table->index(['user_id', 'is_mastered', 'review_due_at']);
-            $table->index(['user_id', 'last_attempted_at']);
+            $table->index(['user_id', 'is_mastered', 'review_due_at'], 'utdp_user_mastered_due_idx');
+            $table->index(['user_id', 'last_attempted_at'], 'utdp_user_last_attempt_idx');
         });
 
         Schema::create('user_training_drill_attempts', function (Blueprint $table) {
@@ -102,9 +102,9 @@ return new class extends Migration
             $table->string('failure_reason')->nullable();
             $table->timestamp('created_at')->useCurrent();
 
-            $table->index(['user_id', 'created_at']);
-            $table->index(['user_id', 'training_drill_id', 'created_at']);
-            $table->index(['training_drill_id', 'solved']);
+            $table->index(['user_id', 'created_at'], 'utda_user_created_idx');
+            $table->index(['user_id', 'training_drill_id', 'created_at'], 'utda_user_drill_created_idx');
+            $table->index(['training_drill_id', 'solved'], 'utda_drill_solved_idx');
         });
     }
 
