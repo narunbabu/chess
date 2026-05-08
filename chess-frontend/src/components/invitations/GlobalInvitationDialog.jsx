@@ -4,6 +4,48 @@ import { useGlobalInvitation } from '../../contexts/GlobalInvitationContext';
 import { getPlayerAvatar } from '../../utils/playerDisplayUtils';
 import './GlobalInvitationDialog.css';
 
+const getInvitationMetadata = (invitation) => {
+  const metadata = invitation?.metadata;
+  if (!metadata) return {};
+  if (typeof metadata !== 'string') return metadata;
+
+  try {
+    return JSON.parse(metadata);
+  } catch {
+    return {};
+  }
+};
+
+const getModeLabel = (mode) => {
+  if (mode === 'rated') return 'Rated';
+  if (mode === 'learning') return 'Learning';
+  return 'Casual';
+};
+
+const getInvitationSettings = (invitation) => {
+  const metadata = getInvitationMetadata(invitation);
+  const mode = metadata.game_mode || invitation?.game_mode || null;
+  const minutes = metadata.time_control_minutes || invitation?.time_control_minutes || null;
+  const increment = metadata.increment_seconds ?? invitation?.increment_seconds ?? 0;
+
+  return {
+    modeLabel: mode ? getModeLabel(mode) : null,
+    timeLabel: minutes ? `${minutes}+${increment}` : null,
+  };
+};
+
+const renderInvitationSettings = (invitation) => {
+  const settings = getInvitationSettings(invitation);
+  if (!settings.modeLabel && !settings.timeLabel) return null;
+
+  return (
+    <p className="invitation-meta" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+      {settings.modeLabel && <span>Mode: {settings.modeLabel}</span>}
+      {settings.timeLabel && <span>Time: {settings.timeLabel}</span>}
+    </p>
+  );
+};
+
 /**
  * GlobalInvitationDialog - App-wide dialog for game invitations and resume requests
  * Appears across all pages except during active gameplay
@@ -194,17 +236,7 @@ const GlobalInvitationDialog = () => {
                       {pendingInvitation.inviter_preferred_color === 'random' && ' (Random colors)'}
                     </p>
                   )}
-                  {/* Show game settings from invitation metadata */}
-                  {pendingInvitation.metadata && (
-                    <p className="invitation-meta" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                      {pendingInvitation.metadata.time_control_minutes && (
-                        <span>⏱️ {pendingInvitation.metadata.time_control_minutes}+{pendingInvitation.metadata.increment_seconds || 0}</span>
-                      )}
-                      {pendingInvitation.metadata.game_mode && (
-                        <span>{pendingInvitation.metadata.game_mode === 'rated' ? '⭐ Rated' : '📋 Casual'}</span>
-                      )}
-                    </p>
-                  )}
+                  {renderInvitationSettings(pendingInvitation)}
                   {invitationSecondsLeft > 0 && (
                     <p className="invitation-meta" style={{
                       color: invitationSecondsLeft <= 3 ? '#e74c3c' : '#e8a93e',
@@ -252,6 +284,7 @@ const GlobalInvitationDialog = () => {
                 {pendingInvitation.inviter.name} wants to play as{' '}
                 {pendingInvitation.inviter_preferred_color === 'white' ? '♔ White' : '♚ Black'}
               </p>
+              {renderInvitationSettings(pendingInvitation)}
               <div className="color-choices">
                 <button
                   className="color-choice-btn accept"

@@ -95,6 +95,34 @@ const COLOR_OPTIONS = [
   { value: 'random', label: 'Random' },
 ];
 
+const getModeLabel = (mode) => (
+  MODE_OPTIONS.find(option => option.value === mode)?.label || 'Casual'
+);
+
+const getInvitationMetadata = (invitation) => {
+  const metadata = invitation?.metadata;
+  if (!metadata) return {};
+  if (typeof metadata !== 'string') return metadata;
+
+  try {
+    return JSON.parse(metadata);
+  } catch {
+    return {};
+  }
+};
+
+const getInvitationSummary = (invitation) => {
+  const metadata = getInvitationMetadata(invitation);
+  const mode = metadata.game_mode || invitation?.game_mode || 'casual';
+  const minutes = metadata.time_control_minutes || invitation?.time_control_minutes;
+  const increment = metadata.increment_seconds ?? invitation?.increment_seconds ?? 0;
+
+  return {
+    modeLabel: getModeLabel(mode),
+    timeLabel: minutes ? `${minutes}+${increment}` : null,
+  };
+};
+
 const ChallengeModal = ({
   showColorModal,
   selectedPlayer,
@@ -314,7 +342,7 @@ const ChallengeModal = ({
                 fontWeight: 800,
               }}
             >
-              Play
+              Challenge
             </button>
           </div>
         </div>
@@ -325,6 +353,7 @@ const ChallengeModal = ({
   if (showResponseModal && selectedInvitation) {
     const isProcessing = processingInvitations.has(selectedInvitation.id);
     const inviterColor = selectedInvitation.inviter_preferred_color;
+    const invitationSummary = getInvitationSummary(selectedInvitation);
 
     return (
       <div className="invitation-modal">
@@ -334,6 +363,36 @@ const ChallengeModal = ({
             {selectedInvitation.inviter.name} wants to play as{' '}
             {inviterColor === 'white' ? 'White' : 'Black'}
           </p>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            gap: '8px',
+            flexWrap: 'wrap',
+            margin: '10px 0 14px',
+          }}>
+            <span style={{
+              padding: '6px 10px',
+              border: '1px solid #4a4744',
+              borderRadius: '14px',
+              color: '#e5e5e5',
+              fontWeight: 700,
+              fontSize: '13px',
+            }}>
+              Mode: {invitationSummary.modeLabel}
+            </span>
+            {invitationSummary.timeLabel && (
+              <span style={{
+                padding: '6px 10px',
+                border: '1px solid #4a4744',
+                borderRadius: '14px',
+                color: '#e5e5e5',
+                fontWeight: 700,
+                fontSize: '13px',
+              }}>
+                Time: {invitationSummary.timeLabel}
+              </span>
+            )}
+          </div>
           <p>Choose your response:</p>
           <div className="color-choices">
             <button
