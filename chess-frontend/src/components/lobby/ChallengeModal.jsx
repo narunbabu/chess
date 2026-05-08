@@ -143,6 +143,18 @@ const ChallengeModal = ({
   const [increment, setIncrement] = useState(5);
   const [preferredColor, setPreferredColor] = useState('random');
 
+  useEffect(() => {
+    if (!showColorModal || !selectedPlayer) return;
+
+    setPreferredColor('random');
+    setGameMode(currentMode => {
+      if (selectedPlayer.type === 'synthetic') {
+        return 'learning';
+      }
+      return currentMode === 'learning' ? 'casual' : currentMode;
+    });
+  }, [showColorModal, selectedPlayer?.id, selectedPlayer?.type]);
+
   if (showColorModal && selectedPlayer) {
     const categories = [...new Set(TIME_PRESETS.map(p => p.category))];
     const isSyntheticChallenge = selectedPlayer.type === 'synthetic';

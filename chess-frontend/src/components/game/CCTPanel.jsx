@@ -136,8 +136,8 @@ const CCTPanel = ({
 }) => {
   const [perspective, setPerspective] = useState('mine');
   // 0=off  1=CCT arrows  2=Best moves
-  // Default to 1 so CCT is active as soon as the tab is opened
-  const [hintLevel,   setHintLevel]   = useState(1);
+  // Learning mode opens Best as a one-shot help, so do not auto-enable CCT there.
+  const [hintLevel,   setHintLevel]   = useState(() => (bestMoveBudget?.enabled ? 0 : 1));
 
   const [cct,         setCct]         = useState(null);
   const [opponentCct, setOpponentCct] = useState(null); // always opponent view for warnings
@@ -171,7 +171,7 @@ const CCTPanel = ({
     setBestMoves(null);
     setBestRevealFen(null);
     if (bestMoveBudget?.enabled && hintLevel === 2) {
-      setHintLevel(1);
+      setHintLevel(0);
     }
     sfAbort.current = Date.now(); // cancel any in-flight Stockfish call
   }, [game, perspective, isActive]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -295,7 +295,7 @@ const CCTPanel = ({
     );
   }
 
-  const warning = hintLevel >= 1 ? getWarningInfo(opponentCct, fen) : null;
+  const warning = hintLevel === 1 ? getWarningInfo(opponentCct, fen) : null;
 
   // ── main render ────────────────────────────────────────────────────────────
   return (
@@ -346,29 +346,29 @@ const CCTPanel = ({
       </div>
 
       {/* ── CCT sections ─────────────────────────────────────────────────── */}
-      {cct ? (
+      {cct && hintLevel === 1 ? (
         <>
           <CctSection
             type="checks" label="Checks" moves={cct.checks}
-            open={openSection.checks} showMoves={hintLevel >= 1}
+            open={openSection.checks} showMoves
             onToggle={() => setOpenSection(s => ({ ...s, checks: !s.checks }))}
           />
           <CctSection
             type="captures" label="Captures" moves={cct.captures}
-            open={openSection.captures} showMoves={hintLevel >= 1}
+            open={openSection.captures} showMoves
             onToggle={() => setOpenSection(s => ({ ...s, captures: !s.captures }))}
             renderDetail={m => m.victimName ? `×${m.victimName}` : ''}
           />
           <CctSection
             type="threats" label="Threats" moves={cct.threats}
-            open={openSection.threats} showMoves={hintLevel >= 1}
+            open={openSection.threats} showMoves
             onToggle={() => setOpenSection(s => ({ ...s, threats: !s.threats }))}
             renderDetail={m => m.victimName ? `→ ${m.victimName}` : ''}
           />
         </>
-      ) : (
+      ) : !cct ? (
         <p className="cct-empty">Calculating…</p>
-      )}
+      ) : null}
 
       {/* ── Best moves list ──────────────────────────────────────────────── */}
       {hintLevel === 2 && (
