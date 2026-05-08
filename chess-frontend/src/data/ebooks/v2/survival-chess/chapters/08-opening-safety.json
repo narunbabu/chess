@@ -1,0 +1,485 @@
+{
+  "schemaVersion": "2.0.0",
+  "bookId": "survival-chess",
+  "chapterId": "08-opening-safety",
+  "title": "Opening Safety: Stop Moving The Same Piece",
+  "subtitle": "Develop, protect the king, and avoid early queen adventures.",
+  "eloRange": "300-700",
+  "requiredTier": "free",
+  "estimatedMinutes": 24,
+  "learningObjectives": [
+    "Develop pieces toward useful squares.",
+    "Avoid moving one piece repeatedly without reason.",
+    "Recognize why early queen moves can lose time."
+  ],
+  "sections": [
+    {
+      "id": "opening-survival",
+      "title": "Do Not Lose Before The Game Starts",
+      "blocks": [
+        {
+          "id": "b02-c08-p01",
+          "type": "prose",
+          "body_md": "Opening survival is simple: control the center, develop pieces, protect the king, and do not chase tricks with the same piece again and again."
+        },
+        {
+          "id": "b02-c08-d01",
+          "type": "board_diagram",
+          "title": "Develop toward the center",
+          "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "g1",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "f3",
+              "colorRole": "best"
+            },
+            {
+              "square": "e5",
+              "colorRole": "target"
+            },
+            {
+              "square": "d4",
+              "colorRole": "target"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "g1",
+              "to": "f3",
+              "colorRole": "best"
+            }
+          ],
+          "caption_md": "The knight move g1-f3 helps control central squares.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "g1",
+              "piece": "white_knight"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "f3"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "g1",
+              "to": "f3"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c08-d01-develop-nf3.png",
+            "hash": "bc152c6156f4c8f819a2562ae6904f909107174364936e20a60fcbf0242fa18b"
+          }
+        },
+        {
+          "id": "b02-c08-d02",
+          "type": "board_diagram",
+          "title": "Early queen moves invite tempo",
+          "fen": "rnbqkbnr/pppp1ppp/8/4p2Q/4P3/8/PPPP1PPP/RNB1KBNR b KQkq - 1 2",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "h5",
+              "colorRole": "target"
+            },
+            {
+              "square": "g8",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "f6",
+              "colorRole": "best"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "g8",
+              "to": "f6",
+              "colorRole": "best"
+            },
+            {
+              "from": "f6",
+              "to": "h5",
+              "colorRole": "threat"
+            }
+          ],
+          "caption_md": "The queen on h5 can be attacked by a developing knight.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "h5",
+              "piece": "white_queen"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "f6"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "g8",
+              "to": "f6"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c08-d02-early-queen.png",
+            "hash": "c08bb8be55c76e3c7148672c86468f5a1e92d75e1d64cff34773dc1b4d92907d"
+          }
+        },
+        {
+          "id": "b02-c08-d03",
+          "type": "board_diagram",
+          "title": "Moving one piece repeatedly costs time",
+          "fen": "rnbqkbnr/pppp1ppp/8/4p1N1/4P3/8/PPPP1PPP/RNBQKB1R b KQkq - 2 2",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "g5",
+              "colorRole": "target"
+            },
+            {
+              "square": "h7",
+              "colorRole": "threat"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "g5",
+              "to": "h7",
+              "colorRole": "threat"
+            }
+          ],
+          "caption_md": "The knight on g5 moved early and can become a target.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "g5",
+              "piece": "white_knight"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "g5"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "g5",
+              "to": "h7"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c08-d03-repeat-piece.png",
+            "hash": "ef06f59034013b34f9f204dc6dd96ea617f830827a1761cbb86725442af89b85"
+          }
+        },
+        {
+          "id": "b02-c08-d04",
+          "type": "board_diagram",
+          "title": "King safety is part of development",
+          "fen": "rnbqk2r/ppppbppp/5n2/4p3/4P3/5N2/PPPPBPPP/RNBQK2R w KQkq - 4 4",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "e1",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "g1",
+              "colorRole": "best"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "e1",
+              "to": "g1",
+              "colorRole": "best"
+            }
+          ],
+          "caption_md": "When the path is clear and safe, castling protects the king.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "e1",
+              "piece": "white_king"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "g1"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "e1",
+              "to": "g1"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c08-d04-castle-ready.png",
+            "hash": "9fbadaa6e8e232bea6a432f4fbd9ce7a73fe15407b9a9ca343cd0c30572fa253"
+          }
+        },
+        {
+          "id": "b02-c08-d05",
+          "type": "board_diagram",
+          "title": "The opening safety checklist",
+          "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "e4",
+              "colorRole": "target"
+            },
+            {
+              "square": "d4",
+              "colorRole": "target"
+            },
+            {
+              "square": "g1",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "b1",
+              "colorRole": "candidate"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "g1",
+              "to": "f3",
+              "colorRole": "candidate"
+            },
+            {
+              "from": "b1",
+              "to": "c3",
+              "colorRole": "candidate"
+            }
+          ],
+          "caption_md": "Center, development, king safety. These three ideas beat most beginner opening traps.",
+          "assertions": [
+            {
+              "type": "highlight_exists",
+              "square": "e4"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "d4"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "g1",
+              "to": "f3"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c08-d05-opening-checklist.png",
+            "hash": "84cfdce689c6653f11baa8cd39818ea9eebfc6132f2dc6aaaaed5ca64fbd6522"
+          }
+        },
+        {
+          "id": "b02-c08-g01",
+          "type": "guided_move",
+          "title": "Play a safe developing move",
+          "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "g1",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "f3",
+              "colorRole": "best"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "g1",
+              "to": "f3",
+              "colorRole": "best"
+            }
+          ],
+          "caption_md": "",
+          "assertions": [
+            {
+              "type": "legal_move",
+              "move": "g1f3"
+            },
+            {
+              "type": "piece_on",
+              "square": "g1",
+              "piece": "white_knight"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "f3"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "g1",
+              "to": "f3"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c08-g01-nf3.png",
+            "hash": "d631967b170a2f7ca02d76a728d3c7190daa00728bab1e59032ba234dbb49f52"
+          },
+          "prompt_md": "Develop the knight from g1 to f3.",
+          "acceptedMoves": [
+            "g1f3"
+          ],
+          "successMessage": "Correct. You found the safe survival move.",
+          "failureMessage": "Pause and scan checks, captures, and threats again."
+        },
+        {
+          "id": "b02-c08-m01",
+          "type": "mistake_refutation",
+          "title": "Common mistake: bring the queen out too early",
+          "fen": "rnbqkbnr/pppp1ppp/8/4p2Q/4P3/8/PPPP1PPP/RNB1KBNR b KQkq - 1 2",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "g8",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "f6",
+              "colorRole": "best"
+            },
+            {
+              "square": "h5",
+              "colorRole": "target"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "g8",
+              "to": "f6",
+              "colorRole": "best"
+            },
+            {
+              "from": "f6",
+              "to": "h5",
+              "colorRole": "threat"
+            }
+          ],
+          "caption_md": "The knight move g8-f6 attacks h5 with tempo.",
+          "assertions": [
+            {
+              "type": "highlight_exists",
+              "square": "h5"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "f6"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "g8",
+              "to": "f6"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c08-m01-queen-target.png",
+            "hash": "c08bb8be55c76e3c7148672c86468f5a1e92d75e1d64cff34773dc1b4d92907d"
+          },
+          "body_md": "If your queen becomes a target, the opponent develops while attacking it."
+        }
+      ]
+    }
+  ],
+  "checkpoint": {
+    "id": "b02-c08-checkpoint",
+    "title": "Chapter Checkpoint",
+    "summary_md": "Answer without guessing. The goal is a repeatable survival habit, not a lucky move.",
+    "blocks": [
+      {
+        "id": "b02-c08-q01",
+        "type": "quiz",
+        "title": "A safe opening move often:",
+        "question_md": "A safe opening move often:",
+        "options": [
+          {
+            "id": "a",
+            "label": "Develops a piece",
+            "isCorrect": true
+          },
+          {
+            "id": "b",
+            "label": "Moves the same piece for no reason",
+            "isCorrect": false
+          },
+          {
+            "id": "c",
+            "label": "Hangs the queen",
+            "isCorrect": false
+          }
+        ]
+      },
+      {
+        "id": "b02-c08-q02",
+        "type": "quiz",
+        "title": "Early queen moves can lose:",
+        "question_md": "Early queen moves can lose:",
+        "options": [
+          {
+            "id": "a",
+            "label": "Time",
+            "isCorrect": true
+          },
+          {
+            "id": "b",
+            "label": "The board colors",
+            "isCorrect": false
+          },
+          {
+            "id": "c",
+            "label": "All legal moves immediately",
+            "isCorrect": false
+          }
+        ]
+      },
+      {
+        "id": "b02-c08-q03",
+        "type": "quiz",
+        "title": "Opening survival includes:",
+        "question_md": "Opening survival includes:",
+        "options": [
+          {
+            "id": "a",
+            "label": "Center, development, king safety",
+            "isCorrect": true
+          },
+          {
+            "id": "b",
+            "label": "Only pawn hunting",
+            "isCorrect": false
+          },
+          {
+            "id": "c",
+            "label": "Never castling",
+            "isCorrect": false
+          }
+        ]
+      }
+    ]
+  },
+  "reviewAssertions": [
+    {
+      "type": "minimum_board_diagrams",
+      "value": 5
+    },
+    {
+      "type": "minimum_guided_moves",
+      "value": 1
+    },
+    {
+      "type": "minimum_quizzes",
+      "value": 3
+    },
+    {
+      "type": "tier_allowed",
+      "value": "free"
+    }
+  ]
+}

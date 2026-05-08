@@ -1,0 +1,140 @@
+{
+  "schemaVersion": "2.0.0",
+  "bookId": "beginner-board-rules",
+  "title": "The First Chessboard",
+  "subtitle": "Rules, coordinates, pieces, and the confidence to play a legal first game.",
+  "seriesPosition": 1,
+  "eloStart": 0,
+  "eloEnd": 300,
+  "requiredTier": "free",
+  "status": "complete-draft",
+  "purpose": "Turn a complete beginner into a player who can name squares, set up the board, make legal moves, and understand the goal of checkmate.",
+  "audience": [
+    "Complete beginners",
+    "School learners",
+    "Parents helping children start chess",
+    "Chess99 users who need a guided first step before puzzles"
+  ],
+  "howToRead": [
+    "Study the diagram before reading the explanation.",
+    "Say each highlighted square aloud.",
+    "Play every guided move on the board.",
+    "Do not advance until the checkpoint is solved without guessing."
+  ],
+  "prerequisites": [],
+  "outcomes": [
+    "Name any square using file and rank.",
+    "Recognize the correct board orientation.",
+    "Understand that moves can be written as from-square to to-square.",
+    "Play the first central pawn move from the starting position.",
+    "Name every piece and set up both armies correctly.",
+    "Move the king, rook, bishop, queen, knight, and pawns legally.",
+    "Recognize check, legal check escapes, checkmate, and stalemate.",
+    "Complete a short guided game ending in checkmate."
+  ],
+  "visualLanguage": {
+    "boardTheme": "instruction-classic",
+    "lightSquare": "#eeeed2",
+    "darkSquare": "#769656",
+    "colorRoles": {
+      "best": "#81b64c",
+      "candidate": "#7b61a6",
+      "check": "#ef4444",
+      "capture": "#5b8dd9",
+      "threat": "#c9882a",
+      "target": "#f59e0b",
+      "lastMove": "rgba(255,221,0,0.35)",
+      "wrong": "rgba(220,60,60,0.35)",
+      "safe": "rgba(129,182,76,0.25)"
+    }
+  },
+  "assetPolicy": {
+    "authoritativeDiagrams": "Generate from FEN, arrows, highlights, and board theme only.",
+    "generativeImages": "Allowed for cover and concept art only, never for exact chess positions.",
+    "diagramOutputRoot": "assets/diagrams",
+    "illustrationOutputRoot": "assets/illustrations"
+  },
+  "chapterOrder": [
+    {
+      "chapterId": "01-board-coordinates",
+      "path": "chapters/01-board-coordinates.json",
+      "title": "Board Coordinates And The First Map",
+      "estimatedMinutes": 18,
+      "requiredTier": "free"
+    },
+    {
+      "chapterId": "02-pieces-values-setup",
+      "path": "chapters/02-pieces-values-setup.json",
+      "title": "Pieces, Values, And Setup",
+      "estimatedMinutes": 22,
+      "requiredTier": "free"
+    },
+    {
+      "chapterId": "03-king-and-goal",
+      "path": "chapters/03-king-and-goal.json",
+      "title": "The King And The Goal",
+      "estimatedMinutes": 24,
+      "requiredTier": "free"
+    },
+    {
+      "chapterId": "04-rook-and-bishop",
+      "path": "chapters/04-rook-and-bishop.json",
+      "title": "Rooks And Bishops",
+      "estimatedMinutes": 26,
+      "requiredTier": "free"
+    },
+    {
+      "chapterId": "05-queen-power",
+      "path": "chapters/05-queen-power.json",
+      "title": "The Queen And Long-Range Power",
+      "estimatedMinutes": 24,
+      "requiredTier": "free"
+    },
+    {
+      "chapterId": "06-knight-jumps",
+      "path": "chapters/06-knight-jumps.json",
+      "title": "The Knight And Jumps",
+      "estimatedMinutes": 24,
+      "requiredTier": "free"
+    },
+    {
+      "chapterId": "07-pawn-rules",
+      "path": "chapters/07-pawn-rules.json",
+      "title": "Pawn Moves, Captures, And Promotion",
+      "estimatedMinutes": 28,
+      "requiredTier": "free"
+    },
+    {
+      "chapterId": "08-check-and-escape",
+      "path": "chapters/08-check-and-escape.json",
+      "title": "Check And Escaping Check",
+      "estimatedMinutes": 28,
+      "requiredTier": "free"
+    },
+    {
+      "chapterId": "09-checkmate-and-stalemate",
+      "path": "chapters/09-checkmate-and-stalemate.json",
+      "title": "Checkmate And Stalemate",
+      "estimatedMinutes": 30,
+      "requiredTier": "free"
+    },
+    {
+      "chapterId": "10-first-guided-game",
+      "path": "chapters/10-first-guided-game.json",
+      "title": "Your First Guided Game",
+      "estimatedMinutes": 32,
+      "requiredTier": "free"
+    }
+  ],
+  "assessment": {
+    "checkpointRequiredScore": 3,
+    "unlockRule": "Complete all guided moves and answer the checkpoint questions correctly."
+  },
+  "reviewStatus": {
+    "schema": "draft",
+    "chessLogic": "draft",
+    "diagramGeneration": "draft",
+    "textImageConsistency": "draft",
+    "humanChessReview": "pending"
+  }
+}

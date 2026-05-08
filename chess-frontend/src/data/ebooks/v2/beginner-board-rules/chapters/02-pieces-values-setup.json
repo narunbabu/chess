@@ -1,0 +1,751 @@
+{
+  "schemaVersion": "2.0.0",
+  "bookId": "beginner-board-rules",
+  "chapterId": "02-pieces-values-setup",
+  "title": "Pieces, Values, And Setup",
+  "subtitle": "The board is a map; now learn the army that lives on it.",
+  "eloRange": "0-300",
+  "requiredTier": "free",
+  "estimatedMinutes": 22,
+  "learningObjectives": [
+    "Name all six chess pieces.",
+    "Set up White and Black correctly from the starting position.",
+    "Use the queen-on-own-color rule.",
+    "Remember simple material values without pricing the king.",
+    "Identify and move White's e-pawn from the starting position."
+  ],
+  "sections": [
+    {
+      "id": "the-army",
+      "title": "The Two Armies",
+      "blocks": [
+        {
+          "id": "b01-c02-p01",
+          "type": "prose",
+          "body_md": "Chess begins with two equal armies. White starts on the 1st and 2nd ranks. Black starts on the 8th and 7th ranks.\n\nEach side has one king, one queen, two rooks, two bishops, two knights, and eight pawns."
+        },
+        {
+          "id": "b01-c02-d01",
+          "type": "board_diagram",
+          "title": "The starting position",
+          "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "a1",
+              "colorRole": "safe"
+            },
+            {
+              "square": "h1",
+              "colorRole": "safe"
+            },
+            {
+              "square": "a8",
+              "colorRole": "safe"
+            },
+            {
+              "square": "h8",
+              "colorRole": "safe"
+            }
+          ],
+          "caption_md": "This is the complete starting position: White pieces on ranks 1 and 2, Black pieces on ranks 8 and 7.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "e1",
+              "piece": "white_king"
+            },
+            {
+              "type": "piece_on",
+              "square": "e8",
+              "piece": "black_king"
+            },
+            {
+              "type": "piece_on",
+              "square": "a1",
+              "piece": "white_rook"
+            },
+            {
+              "type": "piece_on",
+              "square": "h8",
+              "piece": "black_rook"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c02-d01-starting-position.png",
+            "hash": "c5ca68f484c9bae968c8663233c6361cd7e8ee2784f52a8e51bd8102a8473b5b"
+          }
+        },
+        {
+          "id": "b01-c02-d02",
+          "type": "board_diagram",
+          "title": "White's back rank",
+          "fen": "8/8/8/8/8/8/8/RNBQKBNR w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "a1",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "b1",
+              "colorRole": "target"
+            },
+            {
+              "square": "c1",
+              "colorRole": "capture"
+            },
+            {
+              "square": "d1",
+              "colorRole": "best"
+            },
+            {
+              "square": "e1",
+              "colorRole": "check"
+            },
+            {
+              "square": "f1",
+              "colorRole": "capture"
+            },
+            {
+              "square": "g1",
+              "colorRole": "target"
+            },
+            {
+              "square": "h1",
+              "colorRole": "candidate"
+            }
+          ],
+          "caption_md": "From a1 to h1: rook, knight, bishop, queen, king, bishop, knight, rook.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "a1",
+              "piece": "white_rook"
+            },
+            {
+              "type": "piece_on",
+              "square": "b1",
+              "piece": "white_knight"
+            },
+            {
+              "type": "piece_on",
+              "square": "c1",
+              "piece": "white_bishop"
+            },
+            {
+              "type": "piece_on",
+              "square": "d1",
+              "piece": "white_queen"
+            },
+            {
+              "type": "piece_on",
+              "square": "e1",
+              "piece": "white_king"
+            },
+            {
+              "type": "piece_on",
+              "square": "f1",
+              "piece": "white_bishop"
+            },
+            {
+              "type": "piece_on",
+              "square": "g1",
+              "piece": "white_knight"
+            },
+            {
+              "type": "piece_on",
+              "square": "h1",
+              "piece": "white_rook"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c02-d02-white-back-rank.png",
+            "hash": "7d6632444cab7e724b5e7cb045346f0ccef90cec925ad3d688735e3d6ab20711"
+          }
+        }
+      ]
+    },
+    {
+      "id": "piece-names-values",
+      "title": "Piece Names And Simple Values",
+      "blocks": [
+        {
+          "id": "b01-c02-p02",
+          "type": "prose",
+          "body_md": "The king is the most important piece because losing the king means losing the game. Do not give the king a point value.\n\nFor simple counting, use this first material scale: queen 9, rook 5, bishop 3, knight 3, pawn 1. These numbers are not the whole story, but they help you notice when a trade is obviously good or bad."
+        },
+        {
+          "id": "b01-c02-d03",
+          "type": "board_diagram",
+          "title": "The royal pieces",
+          "fen": "4k3/8/8/8/8/8/8/3QK3 w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "e1",
+              "colorRole": "check"
+            },
+            {
+              "square": "d1",
+              "colorRole": "best"
+            },
+            {
+              "square": "e8",
+              "colorRole": "check"
+            }
+          ],
+          "caption_md": "The kings are on e1 and e8 in a normal setup. White's queen begins on d1.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "e1",
+              "piece": "white_king"
+            },
+            {
+              "type": "piece_on",
+              "square": "d1",
+              "piece": "white_queen"
+            },
+            {
+              "type": "piece_on",
+              "square": "e8",
+              "piece": "black_king"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c02-d03-royal-pieces.png",
+            "hash": "5b123692054c55a463d3f28370eba29a96db5e3bfe4b270257e42795be0ae2dc"
+          }
+        },
+        {
+          "id": "b01-c02-d04",
+          "type": "board_diagram",
+          "title": "A first material scale",
+          "fen": "8/8/8/3q4/8/2r1b1n1/4p3/4K3 w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "d5",
+              "colorRole": "best"
+            },
+            {
+              "square": "c3",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "e3",
+              "colorRole": "capture"
+            },
+            {
+              "square": "g3",
+              "colorRole": "target"
+            },
+            {
+              "square": "e2",
+              "colorRole": "safe"
+            },
+            {
+              "square": "e1",
+              "colorRole": "check"
+            }
+          ],
+          "caption_md": "Queen on d5 is 9, rook on c3 is 5, bishop on e3 is 3, knight on g3 is 3, pawn on e2 is 1, and king on e1 is priceless.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "d5",
+              "piece": "black_queen"
+            },
+            {
+              "type": "piece_on",
+              "square": "c3",
+              "piece": "black_rook"
+            },
+            {
+              "type": "piece_on",
+              "square": "e3",
+              "piece": "black_bishop"
+            },
+            {
+              "type": "piece_on",
+              "square": "g3",
+              "piece": "black_knight"
+            },
+            {
+              "type": "piece_on",
+              "square": "e2",
+              "piece": "black_pawn"
+            },
+            {
+              "type": "piece_on",
+              "square": "e1",
+              "piece": "white_king"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c02-d04-material-scale.png",
+            "hash": "63d4dd8728cdfd3860f1dd2ab1e193ad409b59aa7b2209e743426591fc7cd5d7"
+          }
+        }
+      ]
+    },
+    {
+      "id": "setup-rules",
+      "title": "The Setup Rules That Prevent Mistakes",
+      "blocks": [
+        {
+          "id": "b01-c02-p03",
+          "type": "prose",
+          "body_md": "The fastest setup check is the queen rule: queen on her own color. The White queen starts on the light square d1. The Black queen starts on the dark square d8.\n\nAfter the queen and king are correct, the bishops stand beside them, the knights stand beside the bishops, and the rooks go in the corners."
+        },
+        {
+          "id": "b01-c02-d05",
+          "type": "board_diagram",
+          "title": "Queen on her own color",
+          "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "d1",
+              "colorRole": "best"
+            },
+            {
+              "square": "d8",
+              "colorRole": "best"
+            }
+          ],
+          "caption_md": "White queen on d1, Black queen on d8. Queen on her own color fixes the center of the back rank.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "d1",
+              "piece": "white_queen"
+            },
+            {
+              "type": "piece_on",
+              "square": "d8",
+              "piece": "black_queen"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "d1"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "d8"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c02-d05-queen-color.png",
+            "hash": "c3387818914dcfeb6f9d6347f01a41efb33267a7e89686be6099e3016be8e457"
+          }
+        },
+        {
+          "id": "b01-c02-d06",
+          "type": "board_diagram",
+          "title": "The armies mirror each other",
+          "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "d1",
+              "to": "d8",
+              "colorRole": "best"
+            },
+            {
+              "from": "e1",
+              "to": "e8",
+              "colorRole": "check"
+            },
+            {
+              "from": "a1",
+              "to": "a8",
+              "colorRole": "candidate"
+            },
+            {
+              "from": "h1",
+              "to": "h8",
+              "colorRole": "candidate"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "d1",
+              "colorRole": "best"
+            },
+            {
+              "square": "d8",
+              "colorRole": "best"
+            },
+            {
+              "square": "e1",
+              "colorRole": "check"
+            },
+            {
+              "square": "e8",
+              "colorRole": "check"
+            }
+          ],
+          "caption_md": "White and Black mirror each other: queens face queens on the d-file, kings face kings on the e-file, and rooks sit in the corners.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "d1",
+              "piece": "white_queen"
+            },
+            {
+              "type": "piece_on",
+              "square": "d8",
+              "piece": "black_queen"
+            },
+            {
+              "type": "piece_on",
+              "square": "e1",
+              "piece": "white_king"
+            },
+            {
+              "type": "piece_on",
+              "square": "e8",
+              "piece": "black_king"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "d1",
+              "to": "d8"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "e1",
+              "to": "e8"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c02-d06-mirror-armies.png",
+            "hash": "cf55e76d7f81e0efa450e47aa7043ed4ca9615461583dda3ef426d1a8801e480"
+          }
+        },
+        {
+          "id": "b01-c02-m01",
+          "type": "mistake_refutation",
+          "title": "Common mistake: swapping king and queen",
+          "fen": "rnbkqbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBKQBNR w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "d1",
+              "colorRole": "wrong"
+            },
+            {
+              "square": "e1",
+              "colorRole": "wrong"
+            },
+            {
+              "square": "d8",
+              "colorRole": "wrong"
+            },
+            {
+              "square": "e8",
+              "colorRole": "wrong"
+            }
+          ],
+          "body_md": "This setup looks close, but both queens and kings are swapped. White's queen has been put on e1 instead of d1. Black's queen has been put on e8 instead of d8.\n\nFix it by returning each queen to her own color.",
+          "caption_md": "The wrong setup places White queen on e1 and Black queen on e8. Both queens should be on the d-file.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "d1",
+              "piece": "white_king"
+            },
+            {
+              "type": "piece_on",
+              "square": "e1",
+              "piece": "white_queen"
+            },
+            {
+              "type": "piece_on",
+              "square": "d8",
+              "piece": "black_king"
+            },
+            {
+              "type": "piece_on",
+              "square": "e8",
+              "piece": "black_queen"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c02-m01-swapped-royals.png",
+            "hash": "1ec6274509eb81425a6fe6579036ee97ba3575b529e072c88de63cccd7674c9d"
+          }
+        }
+      ]
+    },
+    {
+      "id": "identify-and-move",
+      "title": "Identify A Piece, Then Move It",
+      "blocks": [
+        {
+          "id": "b01-c02-p04",
+          "type": "prose",
+          "body_md": "When you know the setup, you can name a piece by its square. The piece on e2 at the start is White's e-pawn.\n\nIn the next board, move only that pawn one square forward to e3. The goal is not speed; the goal is matching the piece name, square name, and move."
+        },
+        {
+          "id": "b01-c02-d07",
+          "type": "board_diagram",
+          "title": "Find White's e-pawn",
+          "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "e2",
+              "to": "e3",
+              "colorRole": "best"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "e2",
+              "colorRole": "lastMove"
+            },
+            {
+              "square": "e3",
+              "colorRole": "best"
+            }
+          ],
+          "caption_md": "The e-pawn starts on e2. The arrow shows e2 to e3.",
+          "assertions": [
+            {
+              "type": "side_to_move",
+              "value": "white"
+            },
+            {
+              "type": "piece_on",
+              "square": "e2",
+              "piece": "white_pawn"
+            },
+            {
+              "type": "legal_move",
+              "move": "e2e3"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "e2",
+              "to": "e3"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c02-d07-find-e-pawn.png",
+            "hash": "955e0ec932f5663f41583b7995ea4e1814f67cb4896bdf4abbb23a94df7e1ee3"
+          }
+        },
+        {
+          "id": "b01-c02-g01",
+          "type": "guided_move",
+          "title": "Move the e-pawn to e3",
+          "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          "orientation": "white",
+          "prompt_md": "Move White's e-pawn from e2 to e3.",
+          "acceptedMoves": [
+            "e2e3"
+          ],
+          "successMessage": "Correct. You identified the e-pawn and moved it to e3.",
+          "failureMessage": "Use the pawn on e2 and move it to e3.",
+          "arrows": [
+            {
+              "from": "e2",
+              "to": "e3",
+              "colorRole": "best"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "e2",
+              "colorRole": "lastMove"
+            },
+            {
+              "square": "e3",
+              "colorRole": "best"
+            }
+          ],
+          "assertions": [
+            {
+              "type": "legal_move",
+              "move": "e2e3"
+            },
+            {
+              "type": "piece_on",
+              "square": "e2",
+              "piece": "white_pawn"
+            }
+          ]
+        },
+        {
+          "id": "b01-c02-a01",
+          "type": "board_animation",
+          "title": "After e2 to e3",
+          "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          "orientation": "white",
+          "sequence": [
+            {
+              "move": "e2e3",
+              "arrow": {
+                "from": "e2",
+                "to": "e3",
+                "colorRole": "best"
+              }
+            }
+          ],
+          "speed": "slow",
+          "caption_md": "After e2e3, the pawn leaves e2 and stands on e3.",
+          "assertions": [
+            {
+              "type": "legal_move",
+              "move": "e2e3"
+            },
+            {
+              "type": "piece_on",
+              "square": "e2",
+              "piece": "white_pawn"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c02-a01-after-e3.png",
+            "hash": "28716f42b91007bb1fdb530c4a7555fe1d59ff43eb50d0ce01279e9f71f73104"
+          }
+        },
+        {
+          "id": "b01-c02-q01",
+          "type": "quiz",
+          "title": "Quick check: what moved?",
+          "question_md": "In the move e2e3, which piece moved?",
+          "options": [
+            {
+              "id": "a",
+              "label": "White's e-pawn",
+              "isCorrect": true,
+              "feedback": "Correct. The pawn started on e2."
+            },
+            {
+              "id": "b",
+              "label": "White's queen",
+              "isCorrect": false,
+              "feedback": "The queen starts on d1, not e2."
+            },
+            {
+              "id": "c",
+              "label": "Black's e-pawn",
+              "isCorrect": false,
+              "feedback": "Black's e-pawn starts on e7."
+            }
+          ],
+          "successMessage": "Good. Setup knowledge now connects to a legal move."
+        }
+      ]
+    }
+  ],
+  "checkpoint": {
+    "id": "b01-c02-checkpoint",
+    "type": "checkpoint",
+    "title": "Chapter Checkpoint",
+    "requiredScore": 3,
+    "summary_md": "Pass this chapter when you can name every piece, place both queens correctly, and identify the e-pawn before moving it.",
+    "blocks": [
+      {
+        "id": "b01-c02-q02",
+        "type": "quiz",
+        "title": "Where does White's queen start?",
+        "question_md": "In the correct starting setup, White's queen begins on:",
+        "options": [
+          {
+            "id": "a",
+            "label": "d1",
+            "isCorrect": true,
+            "feedback": "Correct. White queen starts on the light square d1."
+          },
+          {
+            "id": "b",
+            "label": "e1",
+            "isCorrect": false,
+            "feedback": "White king starts on e1."
+          },
+          {
+            "id": "c",
+            "label": "d8",
+            "isCorrect": false,
+            "feedback": "Black queen starts on d8."
+          }
+        ]
+      },
+      {
+        "id": "b01-c02-q03",
+        "type": "quiz",
+        "title": "Which piece is priceless?",
+        "question_md": "Which piece should not be assigned a normal material point value?",
+        "options": [
+          {
+            "id": "a",
+            "label": "King",
+            "isCorrect": true,
+            "feedback": "Correct. The king decides the game."
+          },
+          {
+            "id": "b",
+            "label": "Queen",
+            "isCorrect": false,
+            "feedback": "A queen is usually counted as 9 points."
+          },
+          {
+            "id": "c",
+            "label": "Rook",
+            "isCorrect": false,
+            "feedback": "A rook is usually counted as 5 points."
+          }
+        ]
+      },
+      {
+        "id": "b01-c02-q04",
+        "type": "quiz",
+        "title": "What are the corner pieces?",
+        "question_md": "At the start of the game, the pieces in the four corners are:",
+        "options": [
+          {
+            "id": "a",
+            "label": "Rooks",
+            "isCorrect": true,
+            "feedback": "Correct. Rooks start on a1, h1, a8, and h8."
+          },
+          {
+            "id": "b",
+            "label": "Knights",
+            "isCorrect": false,
+            "feedback": "Knights stand next to the rooks."
+          },
+          {
+            "id": "c",
+            "label": "Bishops",
+            "isCorrect": false,
+            "feedback": "Bishops stand next to the king and queen."
+          }
+        ]
+      }
+    ]
+  },
+  "reviewAssertions": [
+    {
+      "type": "minimum_board_diagrams",
+      "value": 7
+    },
+    {
+      "type": "minimum_guided_moves",
+      "value": 1
+    },
+    {
+      "type": "minimum_quizzes",
+      "value": 3
+    },
+    {
+      "type": "tier_allowed",
+      "value": "free"
+    }
+  ]
+}

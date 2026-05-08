@@ -89,6 +89,22 @@ class GameHistoryController extends Controller
                     ->where('game_id', $gameId)
                     ->first();
                 if ($existing) {
+                    if (empty($existing->moves) && !empty($validated['moves'])) {
+                        $resultValue = $validated['result'];
+                        if (is_array($resultValue) || is_object($resultValue)) {
+                            $resultValue = json_encode($resultValue);
+                        }
+
+                        $existing->moves = $validated['moves'];
+                        $existing->final_score = $validated['final_score'];
+                        $existing->opponent_score = $validated['opponent_score'] ?? $existing->opponent_score;
+                        $existing->result = $resultValue;
+                        $existing->opponent_name = $validated['opponent_name'] ?? $existing->opponent_name;
+                        $existing->opponent_avatar_url = $validated['opponent_avatar_url'] ?? $existing->opponent_avatar_url;
+                        $existing->opponent_rating = $validated['opponent_rating'] ?? $existing->opponent_rating;
+                        $existing->save();
+                    }
+
                     Log::info('Game history already exists (server-side), returning existing record', [
                         'game_history_id' => $existing->id,
                         'game_id' => $gameId,

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\SubscriptionTier;
 use App\Models\TutorialModule;
 use App\Models\TutorialLesson;
 use App\Models\UserTutorialProgress;
@@ -480,15 +481,98 @@ class TutorialController extends Controller
         ]);
     }
 
+    private const FREE_DAILY_CHALLENGE_LIMIT = 1;
+
+    private function resolveDailyTrack(Request $request): array
+    {
+        return DailyChallenge::track(
+            $request->query('track')
+                ?? $request->query('track_slug')
+                ?? $request->input('track')
+                ?? $request->input('track_slug')
+                ?? DailyChallenge::DEFAULT_TRACK
+        );
+    }
+
+    private function dailyTrackIsAccessible($user, array $track): bool
+    {
+        return $user->hasSubscriptionTier($track['required_tier']);
+    }
+
+    private function dailyTracksForUser($user): array
+    {
+        return collect(DailyChallenge::tracks())
+            ->map(function (array $track) use ($user) {
+                return array_merge($track, [
+                    'is_locked' => !$this->dailyTrackIsAccessible($user, $track),
+                ]);
+            })
+            ->values()
+            ->all();
+    }
+
+    private function dailyChallengeCapForUser($user): ?array
+    {
+        if ($user->hasSubscriptionTier(SubscriptionTier::SILVER)) {
+            return null;
+        }
+
+        $used = UserDailyChallengeCompletion::where('user_id', $user->id)
+            ->where('completed', true)
+            ->whereDate('completed_at', today())
+            ->count();
+
+        return [
+            'limit' => self::FREE_DAILY_CHALLENGE_LIMIT,
+            'used' => $used,
+            'remaining' => max(0, self::FREE_DAILY_CHALLENGE_LIMIT - $used),
+        ];
+    }
+
+    private function serializeDailyChallenge(DailyChallenge $challenge, UserDailyChallengeCompletion $userCompletion, $user): array
+    {
+        return array_merge($challenge->toArray(), [
+            'user_completion' => $userCompletion,
+            'challenge_type_display' => $challenge->challenge_type_display,
+            'challenge_type_icon' => $challenge->challenge_type_icon,
+            'tier_color_class' => $challenge->tier_color_class,
+            'completion_count' => $challenge->completion_count,
+            'success_rate' => $challenge->success_rate,
+            'daily_puzzle_cap' => $this->dailyChallengeCapForUser($user),
+            'track' => $challenge->track_metadata,
+            'available_tracks' => $this->dailyTracksForUser($user),
+            'access' => [
+                'current_tier' => $user->subscription_tier ?? SubscriptionTier::FREE->value,
+                'required_tier' => $challenge->required_tier ?? SubscriptionTier::FREE->value,
+                'is_locked' => !$this->dailyTrackIsAccessible($user, $challenge->track_metadata),
+            ],
+        ]);
+    }
+
     /**
      * Get today's daily challenge
      */
     public function getDailyChallenge(Request $request): JsonResponse
     {
         $user = Auth::user();
-        $tier = $request->query('tier', $user->current_skill_tier);
+        $track = $this->resolveDailyTrack($request);
 
-        $challenge = DailyChallenge::getOrCreateToday('puzzle', $tier);
+        if (!$this->dailyTrackIsAccessible($user, $track)) {
+            return response()->json([
+                'success' => false,
+                'message' => "{$track['label']} is available on " . ucfirst($track['required_tier']) . ' and above.',
+                'required_tier' => $track['required_tier'],
+                'upgrade_url' => '/pricing',
+                'available_tracks' => $this->dailyTracksForUser($user),
+            ], 403);
+        }
+
+        $challenge = DailyChallenge::getOrCreateToday(
+            $track['challenge_type'],
+            $track['skill_tier'],
+            $track['slug'],
+            $request->query('skill_band')
+        );
         $userCompletion = $challenge->getUserCompletion($user->id);
 
         if (!$userCompletion) {
@@ -499,31 +583,9 @@ class TutorialController extends Controller
             ]);
         }
 
-        // Daily puzzle cap info for free users
-        $dailyPuzzleCap = null;
-        if (!$user->hasSubscriptionTier(\App\Enums\SubscriptionTier::SILVER)) {
-            $todayCompletions = UserDailyChallengeCompletion::where('user_id', $user->id)
-                ->where('completed', true)
-                ->whereDate('completed_at', today())
-                ->count();
-            $dailyPuzzleCap = [
-                'limit' => 3,
-                'used' => $todayCompletions,
-                'remaining' => max(0, 3 - $todayCompletions),
-            ];
-        }
-
         return response()->json([
             'success' => true,
-            'data' => array_merge($challenge->toArray(), [
-                'user_completion' => $userCompletion,
-                'challenge_type_display' => $challenge->challenge_type_display,
-                'challenge_type_icon' => $challenge->challenge_type_icon,
-                'tier_color_class' => $challenge->tier_color_class,
-                'completion_count' => $challenge->completion_count,
-                'success_rate' => $challenge->success_rate,
-                'daily_puzzle_cap' => $dailyPuzzleCap,
-            ]),
+            'data' => $this->serializeDailyChallenge($challenge, $userCompletion, $user),
         ]);
     }
 
@@ -535,26 +597,34 @@ class TutorialController extends Controller
         $request->validate([
             'solution' => 'required|array',
             'time_spent_seconds' => 'required|integer|min:0',
+            'track' => ['nullable', 'string', Rule::in(array_keys(DailyChallenge::TRACKS))],
+            'track_slug' => ['nullable', 'string', Rule::in(array_keys(DailyChallenge::TRACKS))],
+            'challenge_id' => 'nullable|integer|exists:daily_challenges,id',
         ]);
 
         $user = Auth::user();
+        $track = $this->resolveDailyTrack($request);
 
-        // Daily puzzle cap for free users (3 per day)
-        if (!$user->hasSubscriptionTier(\App\Enums\SubscriptionTier::SILVER)) {
-            $todayCompletions = UserDailyChallengeCompletion::where('user_id', $user->id)
-                ->where('completed', true)
-                ->whereDate('completed_at', today())
-                ->count();
-            if ($todayCompletions >= 3) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Free users can solve up to 3 daily puzzles. Upgrade to Silver for unlimited puzzles!',
-                    'upgrade_url' => '/pricing',
-                ], 429);
-            }
+        if ($request->filled('challenge_id')) {
+            $challenge = DailyChallenge::findOrFail($request->integer('challenge_id'));
+            $track = $challenge->track_metadata;
+        } else {
+            $challenge = DailyChallenge::getOrCreateToday(
+                $track['challenge_type'],
+                $track['skill_tier'],
+                $track['slug'],
+                $request->input('skill_band')
+            );
         }
 
-        $challenge = DailyChallenge::current()->firstOrFail();
+        if (!$this->dailyTrackIsAccessible($user, $track)) {
+            return response()->json([
+                'success' => false,
+                'message' => "{$track['label']} is available on " . ucfirst($track['required_tier']) . ' and above.',
+                'required_tier' => $track['required_tier'],
+                'upgrade_url' => '/pricing',
+            ], 403);
+        }
 
         if ($challenge->isCompletedBy($user->id)) {
             return response()->json([
@@ -564,6 +634,24 @@ class TutorialController extends Controller
         }
 
         $userCompletion = $challenge->getUserCompletion($user->id);
+        if (!$userCompletion) {
+            $userCompletion = $challenge->userCompletions()->create([
+                'user_id' => $user->id,
+                'completed' => false,
+                'attempts' => 0,
+            ]);
+        }
+
+        $dailyCap = $this->dailyChallengeCapForUser($user);
+        if ($dailyCap && $dailyCap['remaining'] <= 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Free users get the Daily Starter. Upgrade to Silver for the improvement and endgame tracks.',
+                'upgrade_url' => '/pricing',
+                'daily_puzzle_cap' => $dailyCap,
+            ], 429);
+        }
+
         $solution = $request->solution;
 
         // Validate solution — compare move-by-move (case-insensitive, trim whitespace)
@@ -597,6 +685,7 @@ class TutorialController extends Controller
                 'xp_awarded' => $isCorrect ? $challenge->xp_reward : 0,
                 'user_completion' => $userCompletion->fresh(),
                 'user_stats' => $user->fresh()->tutorial_stats,
+                'daily_puzzle_cap' => $this->dailyChallengeCapForUser($user->fresh()),
             ],
         ]);
     }
@@ -608,14 +697,45 @@ class TutorialController extends Controller
     public function getDailyChallengeLeaderboard(Request $request): JsonResponse
     {
         $date = $request->query('date', now()->format('Y-m-d'));
+        $user = Auth::user();
+        $track = $this->resolveDailyTrack($request);
 
-        $challenge = DailyChallenge::whereDate('date', $date)->first();
+        if (!$this->dailyTrackIsAccessible($user, $track)) {
+            return response()->json([
+                'success' => false,
+                'message' => "{$track['label']} is available on " . ucfirst($track['required_tier']) . ' and above.',
+                'required_tier' => $track['required_tier'],
+                'upgrade_url' => '/pricing',
+            ], 403);
+        }
+
+        if ($request->filled('challenge_id')) {
+            $challenge = DailyChallenge::find($request->integer('challenge_id'));
+            if ($challenge) {
+                $track = $challenge->track_metadata;
+            }
+        } else {
+            $challenge = DailyChallenge::whereDate('date', $date)
+                ->where('track_slug', $track['slug'])
+                ->first();
+        }
+
+        if ($challenge && !$this->dailyTrackIsAccessible($user, $track)) {
+            return response()->json([
+                'success' => false,
+                'message' => "{$track['label']} is available on " . ucfirst($track['required_tier']) . ' and above.',
+                'required_tier' => $track['required_tier'],
+                'upgrade_url' => '/pricing',
+            ], 403);
+        }
 
         if (!$challenge) {
             return response()->json([
                 'success' => true,
                 'data' => [],
                 'challenge_date' => $date,
+                'track' => $track,
+                'available_tracks' => $this->dailyTracksForUser($user),
                 'total_completions' => 0,
             ]);
         }
@@ -647,7 +767,7 @@ class TutorialController extends Controller
         });
 
         // Determine current user's position
-        $currentUser = Auth::user();
+        $currentUser = $user;
         $userRank = null;
         if ($currentUser) {
             foreach ($leaderboard as $entry) {
@@ -662,6 +782,8 @@ class TutorialController extends Controller
             'success'           => true,
             'data'              => $leaderboard,
             'challenge_date'    => $date,
+            'track'             => $challenge->track_metadata,
+            'available_tracks'   => $this->dailyTracksForUser($user),
             'total_completions' => $challenge->completion_count,
             'user_rank'         => $userRank,
         ]);

@@ -1,7 +1,17 @@
 import React from 'react';
 
-const VisualAidsOverlay = ({ visualAids, boardSize = 480 }) => {
-  const { arrows = [], highlights = [], ghostPieces = [] } = visualAids;
+const VisualAidsOverlay = ({
+  visualAids,
+  boardSize = 480,
+  arrows: propArrows = [],
+  highlights: propHighlights = [],
+  ghostPieces: propGhostPieces = [],
+}) => {
+  const {
+    arrows = propArrows,
+    highlights = propHighlights,
+    ghostPieces = propGhostPieces,
+  } = visualAids || {};
 
   // Convert square coordinates to pixel positions
   const squareToPixel = (square, isArrow = false) => {
@@ -28,15 +38,21 @@ const VisualAidsOverlay = ({ visualAids, boardSize = 480 }) => {
 
   return (
     <div
+      data-testid="visual-aids-overlay"
       className="absolute pointer-events-none"
       style={{
         width: boardSize,
         height: boardSize,
         top: 0,
-        left: 0
+        left: 0,
+        zIndex: 10,
+        pointerEvents: 'none'
       }}
     >
       <svg
+        role="img"
+        aria-label="Visual aids overlay"
+        xmlns="http://www.w3.org/2000/svg"
         width={boardSize}
         height={boardSize}
         className="absolute"
@@ -91,6 +107,7 @@ const VisualAidsOverlay = ({ visualAids, boardSize = 480 }) => {
           return (
             <rect
               key={`highlight-${index}`}
+              data-testid={`highlight-${square || index}`}
               x={x}
               y={y}
               width={squareSize}
@@ -104,7 +121,9 @@ const VisualAidsOverlay = ({ visualAids, boardSize = 480 }) => {
 
         {/* Arrows */}
         {arrows.map((arrow, index) => {
-          const { from: startSquare, to: endSquare, color = 'green' } = arrow;
+          const { from, to, start, end, color = 'green' } = arrow;
+          const startSquare = from || start;
+          const endSquare = to || end;
           const startPos = squareToPixel(startSquare, true);
           const endPos = squareToPixel(endSquare, true);
 
@@ -124,6 +143,7 @@ const VisualAidsOverlay = ({ visualAids, boardSize = 480 }) => {
           return (
             <line
               key={`arrow-${index}`}
+              data-testid={`arrow-${index}`}
               x1={startPos.x}
               y1={startPos.y}
               x2={endPos.x}
@@ -146,6 +166,9 @@ const VisualAidsOverlay = ({ visualAids, boardSize = 480 }) => {
           return (
             <text
               key={`ghost-${index}`}
+              data-testid={`ghost-piece-${index}`}
+              data-piece={pieceType}
+              data-square={square}
               x={x + squareSize / 2}
               y={y + squareSize / 2 + squareSize / 4}
               fontSize={squareSize * 0.8}

@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The First Chessboard: The Knight And Jumps</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+
+    body { font-family: Arial, sans-serif; color: #172018; font-size: 17px; margin: 0; background: #f7f7f2; line-height: 1.62; }
+    main { max-width: 900px; margin: 0 auto; padding: 40px 34px 60px; background: #fff; }
+    h1, h2, h3 { line-height: 1.2; color: #172018; }
+    h1 { font-size: 36px; margin: 0 0 8px; }
+    h2 { font-size: 25px; margin: 38px 0 16px; border-top: 1px solid #d8ddcf; padding-top: 24px; }
+    h3 { font-size: 20px; margin: 0 0 10px; }
+    p { margin: 0 0 16px; }
+    .meta { color: #536257; margin-bottom: 24px; }
+    .objectives { background: #eef4e7; border-left: 4px solid #81b64c; padding: 14px 18px; }
+    .block { break-inside: avoid; margin: 24px 0; }
+    .block + .block { margin-top: 30px; }
+    .diagram { width: min(100%, 560px); display: block; margin: 14px auto; border: 1px solid #d4dcc8; }
+    .caption { color: #536257; font-size: 15px; margin-top: 8px; }
+    .quiz-options { margin-top: 10px; }
+    .quiz-option { margin: 7px 0; }
+    @media print {
+      body { background: #fff; }
+      main { max-width: none; padding: 0; }
+      .block { page-break-inside: avoid; }
+    }
+  
+</style>
+</head>
+<body>
+<main>
+<h1>The Knight And Jumps</h1>
+<div class="meta">The First Chessboard | 0-300 | free</div>
+<p>The knight is the only piece that jumps over blockers.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Move a knight in an L shape.</li>
+<li>List the knight moves from a center square.</li>
+<li>Understand that knights jump over pieces but cannot land on friendly pieces.</li>
+<li>Recognize that edge knights have fewer moves.</li>
+</ul>
+</section>
+<h2>The L Shape</h2>
+<section class="block" id="b01-c06-p01">
+<p>The knight moves in an L shape: two squares in one direction and one square sideways. It is the only piece that can jump over pieces.</p>
+</section>
+<section class="block" id="b01-c06-d01">
+<h3>Knight moves from e4</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c06-d01-knight-e4-eight-moves.png" alt="Knight moves from e4">
+<div class="caption"><p>A knight on e4 has up to eight landing squares.</p></div>
+</section>
+<section class="block" id="b01-c06-d02">
+<h3>The knight jumps over blockers</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c06-d02-knight-jumps-blockers.png" alt="The knight jumps over blockers">
+<div class="caption"><p>Even when surrounded, the knight on e4 can jump to its L-shaped landing squares.</p></div>
+</section>
+<h2>Knights From The Starting Position</h2>
+<section class="block" id="b01-c06-p02">
+<p>From the starting position, the knight is the first piece that can move without a pawn moving first. The knight jumps over the pawns.</p>
+</section>
+<section class="block" id="b01-c06-d03">
+<h3>The b1 knight can jump</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c06-d03-b1-knight-start.png" alt="The b1 knight can jump">
+<div class="caption"><p>The knight on b1 can jump to a3 or c3 at the start.</p></div>
+</section>
+<section class="block" id="b01-c06-d04">
+<h3>A knight fork pattern</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c06-d04-knight-fork-pattern.png" alt="A knight fork pattern">
+<div class="caption"><p>A knight on f7 attacks the king on d8 and the rook on h8 at the same time.</p></div>
+</section>
+<section class="block" id="b01-c06-d05">
+<h3>Edge knights have fewer moves</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c06-d05-edge-knight-fewer-moves.png" alt="Edge knights have fewer moves">
+<div class="caption"><p>A knight on a4 has only four legal landing squares instead of eight.</p></div>
+</section>
+<section class="block" id="b01-c06-g01">
+<h3>Develop the knight to f3</h3>
+<p>Move the knight from g1 to f3.</p>
+</section>
+<h2>Common Mistake</h2>
+<section class="block" id="b01-c06-m01">
+<h3>Common mistake: sliding the knight</h3>
+<p>A knight on g1 cannot slide to g3. Knights do not move straight; they move in an L shape.</p>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c06-m01-knight-sliding-mistake.png" alt="Common mistake: sliding the knight">
+<div class="caption"><p>g1 to f3 is a knight move. g1 to g3 is not.</p></div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b01-c06-q01">
+<h3>What shape is a knight move?</h3>
+<p>A knight moves:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. In an L shape</div>
+<div class="quiz-option">b. Only diagonally</div>
+<div class="quiz-option">c. Only one square</div>
+</div>
+</section>
+<section class="block" id="b01-c06-q02">
+<h3>Can knights jump?</h3>
+<p>A knight can jump over pieces:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Yes</div>
+<div class="quiz-option">b. No</div>
+<div class="quiz-option">c. Only over pawns</div>
+</div>
+</section>
+<section class="block" id="b01-c06-q03">
+<h3>Where can the g1 knight move at the start?</h3>
+<p>From the starting position, the knight on g1 can move to:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. f3</div>
+<div class="quiz-option">b. g3</div>
+<div class="quiz-option">c. g2</div>
+</div>
+</section>
+</main>
+</body>
+</html>

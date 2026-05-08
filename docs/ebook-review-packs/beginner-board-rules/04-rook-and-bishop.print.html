@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The First Chessboard: Rooks And Bishops</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+
+    body { font-family: Arial, sans-serif; color: #172018; font-size: 17px; margin: 0; background: #f7f7f2; line-height: 1.62; }
+    main { max-width: 900px; margin: 0 auto; padding: 40px 34px 60px; background: #fff; }
+    h1, h2, h3 { line-height: 1.2; color: #172018; }
+    h1 { font-size: 36px; margin: 0 0 8px; }
+    h2 { font-size: 25px; margin: 38px 0 16px; border-top: 1px solid #d8ddcf; padding-top: 24px; }
+    h3 { font-size: 20px; margin: 0 0 10px; }
+    p { margin: 0 0 16px; }
+    .meta { color: #536257; margin-bottom: 24px; }
+    .objectives { background: #eef4e7; border-left: 4px solid #81b64c; padding: 14px 18px; }
+    .block { break-inside: avoid; margin: 24px 0; }
+    .block + .block { margin-top: 30px; }
+    .diagram { width: min(100%, 560px); display: block; margin: 14px auto; border: 1px solid #d4dcc8; }
+    .caption { color: #536257; font-size: 15px; margin-top: 8px; }
+    .quiz-options { margin-top: 10px; }
+    .quiz-option { margin: 7px 0; }
+    @media print {
+      body { background: #fff; }
+      main { max-width: none; padding: 0; }
+      .block { page-break-inside: avoid; }
+    }
+  
+</style>
+</head>
+<body>
+<main>
+<h1>Rooks And Bishops</h1>
+<div class="meta">The First Chessboard | 0-300 | free</div>
+<p>Straight lines and diagonals are the first long-range patterns.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Move a rook along ranks and files.</li>
+<li>Move a bishop along diagonals.</li>
+<li>Notice when friendly pieces block long-range pieces.</li>
+<li>Explain why bishops stay on one color complex.</li>
+</ul>
+</section>
+<h2>Rooks Use Files And Ranks</h2>
+<section class="block" id="b01-c04-p01">
+<p>The rook is the straight-line piece. It moves up, down, left, or right as far as the path is clear. It cannot jump over pieces.</p>
+</section>
+<section class="block" id="b01-c04-d01">
+<h3>Rook lines from e4</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c04-d01-rook-lines-e4.png" alt="Rook lines from e4">
+<div class="caption"><p>From e4, a rook moves along the e-file or across the 4th rank.</p></div>
+</section>
+<section class="block" id="b01-c04-d02">
+<h3>Own pieces block rooks</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c04-d02-rook-blocked-by-pawn.png" alt="Own pieces block rooks">
+<div class="caption"><p>The white pawn on e3 blocks the rook. The rook cannot move through its own pawn.</p></div>
+</section>
+<h2>Bishops Use Diagonals</h2>
+<section class="block" id="b01-c04-p02">
+<p>The bishop is the diagonal long-range piece. Because every diagonal keeps the same square color, a bishop that starts on a light square always stays on light squares.</p>
+</section>
+<section class="block" id="b01-c04-d03">
+<h3>Bishop diagonals from d4</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c04-d03-bishop-diagonals-d4.png" alt="Bishop diagonals from d4">
+<div class="caption"><p>A bishop on d4 moves only on diagonals.</p></div>
+</section>
+<section class="block" id="b01-c04-d04">
+<h3>The bishop stays on one color</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c04-d04-bishop-color-complex.png" alt="The bishop stays on one color">
+<div class="caption"><p>This bishop is on a dark-square diagonal. It will never land on a light square.</p></div>
+</section>
+<section class="block" id="b01-c04-d05">
+<h3>Rook and bishop side by side</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c04-d05-rook-bishop-patterns.png" alt="Rook and bishop side by side">
+<div class="caption"><p>The rook on e4 uses straight lines. The bishop on d4 uses diagonals.</p></div>
+</section>
+<section class="block" id="b01-c04-g01">
+<h3>Move the rook to e8</h3>
+<p>Move the rook from e4 to e8 along the e-file.</p>
+</section>
+<h2>Common Mistake</h2>
+<section class="block" id="b01-c04-m01">
+<h3>Common mistake: moving a bishop straight</h3>
+<p>A bishop on d4 cannot move to d6. That is a straight-file move, and bishops only use diagonals.</p>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c04-m01-bishop-straight-move.png" alt="Common mistake: moving a bishop straight">
+<div class="caption"><p>d4 to d6 is wrong. d4 to f6 is diagonal and legal if the path is clear.</p></div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b01-c04-q01">
+<h3>Which lines does a rook use?</h3>
+<p>A rook moves along:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Files and ranks</div>
+<div class="quiz-option">b. Only diagonals</div>
+<div class="quiz-option">c. Knight jumps</div>
+</div>
+</section>
+<section class="block" id="b01-c04-q02">
+<h3>Can a bishop change color?</h3>
+<p>A bishop that starts on a dark square can later land on a light square:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. No</div>
+<div class="quiz-option">b. Yes, after a capture</div>
+<div class="quiz-option">c. Only near the edge</div>
+</div>
+</section>
+<section class="block" id="b01-c04-q03">
+<h3>What blocks a rook?</h3>
+<p>A rook is blocked by:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Any piece on its path</div>
+<div class="quiz-option">b. Only enemy pieces</div>
+<div class="quiz-option">c. Only the king</div>
+</div>
+</section>
+</main>
+</body>
+</html>

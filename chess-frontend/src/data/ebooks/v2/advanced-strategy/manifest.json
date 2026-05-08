@@ -1,0 +1,137 @@
+{
+  "schemaVersion": "2.0.0",
+  "bookId": "advanced-strategy",
+  "title": "Advanced Strategy",
+  "subtitle": "Imbalances, pawn structures, prophylaxis, and long-term decisions.",
+  "seriesPosition": 9,
+  "eloStart": 1800,
+  "eloEnd": 2100,
+  "requiredTier": "gold",
+  "status": "complete-draft",
+  "purpose": "Teach strategic evaluation for serious competition.",
+  "audience": [
+    "Strong club players",
+    "Gold users",
+    "Tournament competitors"
+  ],
+  "howToRead": [
+    "Study each diagram before reading the explanation.",
+    "Write or say the candidate idea before playing the guided move.",
+    "Review the common mistake before attempting the checkpoint.",
+    "Do not advance until the checkpoint is passed without hints."
+  ],
+  "prerequisites": [
+    "Earlier books in the Chess99 ladder"
+  ],
+  "outcomes": [
+    "Recognize the core patterns in Advanced Strategy.",
+    "Use generated board diagrams as calculation anchors.",
+    "Play the guided moves with a reason, not guesswork.",
+    "Pass chapter checkpoints and retain the habit in real games."
+  ],
+  "visualLanguage": {
+    "boardTheme": "instruction-classic",
+    "lightSquare": "#eeeed2",
+    "darkSquare": "#769656",
+    "colorRoles": {
+      "best": "#81b64c",
+      "candidate": "#7b61a6",
+      "check": "#ef4444",
+      "capture": "#5b8dd9",
+      "threat": "#c9882a",
+      "target": "#f59e0b",
+      "lastMove": "rgba(255,221,0,0.35)",
+      "wrong": "rgba(220,60,60,0.35)",
+      "safe": "rgba(129,182,76,0.25)"
+    }
+  },
+  "assetPolicy": {
+    "authoritativeDiagrams": "Generate from FEN, arrows, highlights, and board theme only.",
+    "generativeImages": "Allowed for cover and concept art only, never for exact chess positions.",
+    "diagramOutputRoot": "assets/diagrams",
+    "illustrationOutputRoot": "assets/illustrations"
+  },
+  "chapterOrder": [
+    {
+      "chapterId": "01-imbalances",
+      "path": "chapters/01-imbalances.json",
+      "title": "Imbalances",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    },
+    {
+      "chapterId": "02-static-vs-dynamic-advantages",
+      "path": "chapters/02-static-vs-dynamic-advantages.json",
+      "title": "Static Vs Dynamic Advantages",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    },
+    {
+      "chapterId": "03-prophylaxis",
+      "path": "chapters/03-prophylaxis.json",
+      "title": "Prophylaxis",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    },
+    {
+      "chapterId": "04-pawn-majorities",
+      "path": "chapters/04-pawn-majorities.json",
+      "title": "Pawn Majorities",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    },
+    {
+      "chapterId": "05-minority-attack",
+      "path": "chapters/05-minority-attack.json",
+      "title": "Minority Attack",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    },
+    {
+      "chapterId": "06-isolated-queen-pawn-positions",
+      "path": "chapters/06-isolated-queen-pawn-positions.json",
+      "title": "Isolated Queen Pawn Positions",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    },
+    {
+      "chapterId": "07-hanging-pawns",
+      "path": "chapters/07-hanging-pawns.json",
+      "title": "Hanging Pawns",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    },
+    {
+      "chapterId": "08-exchange-sacrifices",
+      "path": "chapters/08-exchange-sacrifices.json",
+      "title": "Exchange Sacrifices",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    },
+    {
+      "chapterId": "09-strategic-defense",
+      "path": "chapters/09-strategic-defense.json",
+      "title": "Strategic Defense",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    },
+    {
+      "chapterId": "10-model-game-strategy-test",
+      "path": "chapters/10-model-game-strategy-test.json",
+      "title": "Model-Game Strategy Test",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    }
+  ],
+  "assessment": {
+    "checkpointRequiredScore": 3,
+    "unlockRule": "Complete the guided move and answer all checkpoint questions correctly."
+  },
+  "reviewStatus": {
+    "schema": "draft",
+    "chessLogic": "draft",
+    "diagramGeneration": "draft",
+    "textImageConsistency": "draft",
+    "humanChessReview": "pending"
+  }
+}

@@ -1,0 +1,948 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Survival Chess - Chess99 Ebook</title>
+<style>
+  @page { size: A4; margin: 14mm 12mm 16mm; }
+  body {
+    font-family: Arial, sans-serif;
+    color: #172018;
+    font-size: 15.5px;
+    margin: 0;
+    background: #ffffff;
+    line-height: 1.58;
+  }
+  .cover {
+    min-height: 250mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    break-after: page;
+  }
+  .cover h1 {
+    font-size: 42px;
+    line-height: 1.08;
+    margin: 0 0 12px;
+  }
+  .cover .subtitle {
+    font-size: 18px;
+    color: #536257;
+    max-width: 620px;
+  }
+  .cover .meta {
+    margin-top: 28px;
+    font-size: 13px;
+    color: #536257;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .toc {
+    break-after: page;
+  }
+  .toc h2 {
+    font-size: 26px;
+    margin: 0 0 16px;
+  }
+  .toc ol {
+    padding-left: 22px;
+  }
+  .toc li {
+    margin: 8px 0;
+  }
+  .chapter-print {
+    break-after: page;
+  }
+  .chapter-print:last-child {
+    break-after: auto;
+  }
+  h1, h2, h3 {
+    color: #172018;
+    line-height: 1.2;
+  }
+  h1 {
+    font-size: 30px;
+    margin: 0 0 8px;
+  }
+  h2 {
+    font-size: 22px;
+    margin-top: 30px;
+    border-top: 1px solid #d8ddcf;
+    padding-top: 18px;
+  }
+  h3 {
+    font-size: 18px;
+    margin-bottom: 8px;
+  }
+  .meta {
+    color: #536257;
+    margin-bottom: 20px;
+  }
+  .objectives {
+    background: #eef4e7;
+    border-left: 4px solid #81b64c;
+    padding: 12px 16px;
+  }
+  .block {
+    break-inside: avoid;
+    margin: 20px 0;
+  }
+  .diagram {
+    width: min(100%, 138mm);
+    display: block;
+    margin: 10px auto;
+    border: 1px solid #d4dcc8;
+  }
+  .caption {
+    color: #536257;
+    font-size: 13px;
+    line-height: 1.45;
+    margin-top: 6px;
+  }
+  .review {
+    display: none;
+    font-size: 11px;
+    color: #536257;
+    background: #f5f7f0;
+    padding: 8px 10px;
+    border-radius: 6px;
+  }
+  .quiz-option {
+    margin: 4px 0;
+  }
+  code {
+    font-family: Consolas, monospace;
+  }
+</style>
+</head>
+<body>
+  <section class="cover">
+    <div class="meta">Chess99 Book 2 | ELO 300-700 | free</div>
+    <h1>Survival Chess</h1>
+    <div class="subtitle">Checks, captures, threats, loose pieces, safe kings, and the habits that stop beginner losses.</div>
+  </section>
+  <section class="toc">
+    <h2>Contents</h2>
+    <ol>
+      <li>The Three Questions: Checks, Captures, Threats <span class="meta">24 min</span></li>
+<li>What Is A Hanging Piece? <span class="meta">24 min</span></li>
+<li>One-Move Attacks And One-Move Defenses <span class="meta">25 min</span></li>
+<li>Safe Squares For The King <span class="meta">25 min</span></li>
+<li>Capturing Wisely: Good Trades And Bad Trades <span class="meta">26 min</span></li>
+<li>Basic Checkmates With Queen And Rook <span class="meta">28 min</span></li>
+<li>Avoiding Stalemate <span class="meta">26 min</span></li>
+<li>Opening Safety: Stop Moving The Same Piece <span class="meta">24 min</span></li>
+<li>Blunder-Check Before Every Move <span class="meta">24 min</span></li>
+<li>Ten Survival Games: Find The Safe Move <span class="meta">30 min</span></li>
+    </ol>
+  </section>
+  <section class="chapter-print">
+<h1>The Three Questions: Checks, Captures, Threats</h1>
+<div class="meta">Survival Chess | 300-700 | free</div>
+<p>Build the CCT scan that protects every move.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Scan checks before attractive captures.</li>
+<li>Spot free captures and direct threats.</li>
+<li>Use one checklist before choosing a move.</li>
+</ul>
+</section>
+<h2>The Scan Comes First</h2>
+<section class="block" id="b02-c01-p01">
+<p>Survival chess begins before you touch a piece. Ask three questions in order: <strong>What checks exist? What captures exist? What threats exist?</strong> This habit stops many beginner losses immediately.</p>
+</section>
+<section class="block" id="b02-c01-d01">
+<h3>Check candidate on f7</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c01-d01-check-f7.png" alt="Check candidate on f7">
+<div class="caption"><p>The bishop can check on f7. Checks must be seen before quieter moves.</p></div>
+</section>
+<section class="block" id="b02-c01-d02">
+<h3>Capture candidate on e5</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c01-d02-capture-e5.png" alt="Capture candidate on e5">
+<div class="caption"><p>The knight also sees e5, but a capture is checked after checks.</p></div>
+</section>
+<section class="block" id="b02-c01-d03">
+<h3>Threat target on f7</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c01-d03-threat-f7.png" alt="Threat target on f7">
+<div class="caption"><p>Queen and bishop both point at f7. That is a threat map.</p></div>
+</section>
+<section class="block" id="b02-c01-d04">
+<h3>A quiet start still needs a scan</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c01-d04-quiet-scan.png" alt="A quiet start still needs a scan">
+<div class="caption"><p>Even the first move should be chosen after seeing the center and development squares.</p></div>
+</section>
+<section class="block" id="b02-c01-d05">
+<h3>Rank the forcing moves</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c01-d05-ranked-candidates.png" alt="Rank the forcing moves">
+<div class="caption"><p>The scan finds both c4-f7 and f3-e5. The check has priority.</p></div>
+</section>
+<section class="block" id="b02-c01-g01">
+<h3>Play the forcing check</h3>
+<p>Use the CCT order and play the checking move from c4 to f7.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c01-g01-play-bxf7.png" alt="Play the forcing check">
+</section>
+<section class="block" id="b02-c01-m01">
+<h3>Common mistake: capture before checking</h3>
+<p>The natural capture on e5 may be playable, but beginners should train the scan order. Checks first, then captures, then threats.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c01-m01-capture-before-check.png" alt="Common mistake: capture before checking">
+<div class="caption"><p>The wrong order starts with f3-e5 while the forcing check on f7 waits.</p></div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b02-c01-q01">
+<h3>Which question comes first in the survival scan?</h3>
+<p>Which question comes first in the survival scan?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Captures</div>
+<div class="quiz-option">b. Checks</div>
+<div class="quiz-option">c. Threats</div>
+</div>
+</section>
+<section class="block" id="b02-c01-q02">
+<h3>A move that attacks the king is called a:</h3>
+<p>A move that attacks the king is called a:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Check</div>
+<div class="quiz-option">b. Trade</div>
+<div class="quiz-option">c. Castle</div>
+</div>
+</section>
+<section class="block" id="b02-c01-q03">
+<h3>After checks and captures, what do you scan?</h3>
+<p>After checks and captures, what do you scan?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Threats</div>
+<div class="quiz-option">b. Piece names</div>
+<div class="quiz-option">c. Clock color</div>
+</div>
+</section>
+</section>
+<section class="chapter-print">
+<h1>What Is A Hanging Piece?</h1>
+<div class="meta">Survival Chess | 300-700 | free</div>
+<p>Stop giving pieces away for free.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Define a hanging piece.</li>
+<li>Count whether a target is defended.</li>
+<li>Capture loose material without rushing.</li>
+</ul>
+</section>
+<h2>Loose Pieces Fall</h2>
+<section class="block" id="b02-c02-p01">
+<p>A hanging piece is attacked and not safely defended. At beginner level, many games are decided by one loose knight, bishop, rook, or queen.</p>
+</section>
+<section class="block" id="b02-c02-d01">
+<h3>The knight on e5 is loose</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c02-d01-knight-e5.png" alt="The knight on e5 is loose">
+<div class="caption"><p>White can capture e5 because the knight is sitting in the open.</p></div>
+</section>
+<section class="block" id="b02-c02-d02">
+<h3>The bishop on c5 needs checking</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c02-d02-bishop-c5.png" alt="The bishop on c5 needs checking">
+<div class="caption"><p>Do not call a piece loose until you count attackers and defenders.</p></div>
+</section>
+<section class="block" id="b02-c02-d03">
+<h3>Defended is different from hanging</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c02-d03-defended-c6.png" alt="Defended is different from hanging">
+<div class="caption"><p>The knight on c6 has defenders. A target is not automatically free.</p></div>
+</section>
+<section class="block" id="b02-c02-d04">
+<h3>Count before collecting</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c02-d04-count-board.png" alt="Count before collecting">
+<div class="caption"><p>The e5 pawn is a clearer target than the defended c6 knight.</p></div>
+</section>
+<section class="block" id="b02-c02-d05">
+<h3>Open lines create loose rooks</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c02-d05-rook-a8.png" alt="Open lines create loose rooks">
+<div class="caption"><p>The rook on a8 is exposed on the same file as White rook on a1.</p></div>
+</section>
+<section class="block" id="b02-c02-g01">
+<h3>Capture the hanging knight</h3>
+<p>The black knight on e5 is loose. Play f3 to e5.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c02-g01-take-e5.png" alt="Capture the hanging knight">
+</section>
+<section class="block" id="b02-c02-m01">
+<h3>Common mistake: every attacked piece is not free</h3>
+<p>If a piece is defended, a capture may only trade instead of win. Count before you grab.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c02-m01-automatic-capture.png" alt="Common mistake: every attacked piece is not free">
+<div class="caption"><p>The c6 knight is marked safe because b7 helps defend it.</p></div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b02-c02-q01">
+<h3>A hanging piece is:</h3>
+<p>A hanging piece is:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Attacked and safely defended</div>
+<div class="quiz-option">b. Attacked and not safely defended</div>
+<div class="quiz-option">c. A king in check</div>
+</div>
+</section>
+<section class="block" id="b02-c02-q02">
+<h3>Before capturing a target, you should count:</h3>
+<p>Before capturing a target, you should count:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Attackers and defenders</div>
+<div class="quiz-option">b. Only piece color</div>
+<div class="quiz-option">c. Only move number</div>
+</div>
+</section>
+<section class="block" id="b02-c02-q03">
+<h3>A defended piece is always free material.</h3>
+<p>A defended piece is always free material.</p>
+<div class="quiz-options">
+<div class="quiz-option">a. True</div>
+<div class="quiz-option">b. False</div>
+</div>
+</section>
+</section>
+<section class="chapter-print">
+<h1>One-Move Attacks And One-Move Defenses</h1>
+<div class="meta">Survival Chess | 300-700 | free</div>
+<p>See the opponent threat and answer it simply.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Notice direct one-move attacks.</li>
+<li>Choose a simple defense.</li>
+<li>Find moves that attack and defend at the same time.</li>
+</ul>
+</section>
+<h2>One Move Is Enough</h2>
+<section class="block" id="b02-c03-p01">
+<p>A beginner blunder often has a one-move story: one piece attacks, one piece is attacked, and nobody answered. Your job is to notice the story before it becomes material loss.</p>
+</section>
+<section class="block" id="b02-c03-d01">
+<h3>The e4 pawn is attacked</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c03-d01-e4-attacked.png" alt="The e4 pawn is attacked">
+<div class="caption"><p>The knight on f6 points at e4. White should notice the attack.</p></div>
+</section>
+<section class="block" id="b02-c03-d02">
+<h3>Defend with b1-c3</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c03-d02-defend-nc3.png" alt="Defend with b1-c3">
+<div class="caption"><p>The move b1-c3 adds a defender to e4 while developing a knight.</p></div>
+</section>
+<section class="block" id="b02-c03-d03">
+<h3>A loose queen can be attacked</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c03-d03-queen-target.png" alt="A loose queen can be attacked">
+<div class="caption"><p>The knight on f3 attacks d4. Big targets count too.</p></div>
+</section>
+<section class="block" id="b02-c03-d04">
+<h3>Moving away is a defense</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c03-d04-move-attacked-piece.png" alt="Moving away is a defense">
+<div class="caption"><p>If the rook is attacked, one answer is to move it to a safe square.</p></div>
+</section>
+<section class="block" id="b02-c03-d05">
+<h3>Attack and defend together</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c03-d05-attack-and-defend.png" alt="Attack and defend together">
+<div class="caption"><p>The knight on c3 defends e4 and also looks toward d5 and b5.</p></div>
+</section>
+<section class="block" id="b02-c03-g01">
+<h3>Defend the attacked pawn</h3>
+<p>The pawn on e4 is attacked. Develop the knight from b1 to c3.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c03-g01-play-nc3.png" alt="Defend the attacked pawn">
+</section>
+<section class="block" id="b02-c03-m01">
+<h3>Common mistake: ignore the direct attack</h3>
+<p>If White plays a random move, Black can take e4. One-move threats must be answered.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c03-m01-ignore-threat.png" alt="Common mistake: ignore the direct attack">
+<div class="caption"><p>The arrow from f6 to e4 is the warning.</p></div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b02-c03-q01">
+<h3>A simple defense can be:</h3>
+<p>A simple defense can be:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Move the attacked piece</div>
+<div class="quiz-option">b. Pretend there is no threat</div>
+<div class="quiz-option">c. Always move the queen</div>
+</div>
+</section>
+<section class="block" id="b02-c03-q02">
+<h3>A developing move is especially good when it also:</h3>
+<p>A developing move is especially good when it also:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Defends something important</div>
+<div class="quiz-option">b. Loses a rook</div>
+<div class="quiz-option">c. Blocks your king forever</div>
+</div>
+</section>
+<section class="block" id="b02-c03-q03">
+<h3>If your opponent attacks a pawn, you should:</h3>
+<p>If your opponent attacks a pawn, you should:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Scan ways to defend or move it</div>
+<div class="quiz-option">b. Always resign</div>
+<div class="quiz-option">c. Move instantly</div>
+</div>
+</section>
+</section>
+<section class="chapter-print">
+<h1>Safe Squares For The King</h1>
+<div class="meta">Survival Chess | 300-700 | free</div>
+<p>Escape check without walking into another one.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Identify the line of check.</li>
+<li>Choose king moves that leave danger behind.</li>
+<li>Compare moving, blocking, and capturing the checking piece.</li>
+</ul>
+</section>
+<h2>The King Needs Legal Air</h2>
+<section class="block" id="b02-c04-p01">
+<p>When your king is in check, normal plans stop. You must get out of check by moving the king, blocking the line, or capturing the checking piece.</p>
+</section>
+<section class="block" id="b02-c04-d01">
+<h3>The e-file check</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c04-d01-rook-check.png" alt="The e-file check">
+<div class="caption"><p>The rook checks down the e-file. The king on e2 must leave the line.</p></div>
+</section>
+<section class="block" id="b02-c04-d02">
+<h3>The e-file is still unsafe</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c04-d02-unsafe-file.png" alt="The e-file is still unsafe">
+<div class="caption"><p>Moving along the same file can remain dangerous. Look for a square off the line.</p></div>
+</section>
+<section class="block" id="b02-c04-d03">
+<h3>Step to d2</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c04-d03-safe-left.png" alt="Step to d2">
+<div class="caption"><p>The square d2 is not on the rook line.</p></div>
+</section>
+<section class="block" id="b02-c04-d04">
+<h3>Sometimes capture the checker</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c04-d04-capture-checker.png" alt="Sometimes capture the checker">
+<div class="caption"><p>If the checking piece is close and undefended, the king may capture it.</p></div>
+</section>
+<section class="block" id="b02-c04-d05">
+<h3>A block can also work</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c04-d05-block-line.png" alt="A block can also work">
+<div class="caption"><p>A bishop can block the rook line on e2 only if the square and piece movement allow it.</p></div>
+</section>
+<section class="block" id="b02-c04-g01">
+<h3>Escape the rook check</h3>
+<p>Move the king from e2 to d2.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c04-g01-king-d2.png" alt="Escape the rook check">
+</section>
+<section class="block" id="b02-c04-m01">
+<h3>Common mistake: stay on the checking line</h3>
+<p>If the rook controls the e-file, the king should not stay on that file.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c04-m01-walk-line.png" alt="Common mistake: stay on the checking line">
+<div class="caption"><p>The unsafe square e3 is still on the rook line.</p></div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b02-c04-q01">
+<h3>When in check, you may:</h3>
+<p>When in check, you may:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Ignore it</div>
+<div class="quiz-option">b. Move, block, or capture the checker</div>
+<div class="quiz-option">c. Only move a pawn</div>
+</div>
+</section>
+<section class="block" id="b02-c04-q02">
+<h3>A safe king square must be:</h3>
+<p>A safe king square must be:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Not controlled by enemy pieces</div>
+<div class="quiz-option">b. On the same line as a rook check</div>
+<div class="quiz-option">c. Chosen quickly</div>
+</div>
+</section>
+<section class="block" id="b02-c04-q03">
+<h3>The first priority in check is:</h3>
+<p>The first priority in check is:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Win material</div>
+<div class="quiz-option">b. Get legally out of check</div>
+<div class="quiz-option">c. Castle later</div>
+</div>
+</section>
+</section>
+<section class="chapter-print">
+<h1>Capturing Wisely: Good Trades And Bad Trades</h1>
+<div class="meta">Survival Chess | 300-700 | free</div>
+<p>Use value and safety before every capture.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Compare simple material values.</li>
+<li>Separate winning material from equal trades.</li>
+<li>Notice recaptures before taking.</li>
+</ul>
+</section>
+<h2>A Capture Is A Decision</h2>
+<section class="block" id="b02-c05-p01">
+<p>Captures feel satisfying, but not every capture is good. Ask: what do I win, what can recapture me, and what is the value exchange?</p>
+</section>
+<section class="block" id="b02-c05-d01">
+<h3>A simple pawn capture</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c05-d01-pawn-capture.png" alt="A simple pawn capture">
+<div class="caption"><p>The e4 pawn can capture d5. Pawns often trade evenly.</p></div>
+</section>
+<section class="block" id="b02-c05-d02">
+<h3>Do not risk a queen for a pawn</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c05-d02-queen-for-pawn.png" alt="Do not risk a queen for a pawn">
+<div class="caption"><p>The pawn on d5 is small. A queen move to d5 must be checked for danger.</p></div>
+</section>
+<section class="block" id="b02-c05-d03">
+<h3>A bishop can win a rook</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c05-d03-bishop-wins-rook.png" alt="A bishop can win a rook">
+<div class="caption"><p>The bishop on c4 can capture the rook on f7.</p></div>
+</section>
+<section class="block" id="b02-c05-d04">
+<h3>Count value before capture</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c05-d04-count-value.png" alt="Count value before capture">
+<div class="caption"><p>Bishop for rook is usually profitable because rook value is higher.</p></div>
+</section>
+<section class="block" id="b02-c05-d05">
+<h3>Look for the recapture</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c05-d05-recapture-warning.png" alt="Look for the recapture">
+<div class="caption"><p>After e4xd5, the c6 pawn may recapture. Notice the second move.</p></div>
+</section>
+<section class="block" id="b02-c05-g01">
+<h3>Make the equal pawn capture</h3>
+<p>Capture from e4 to d5.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c05-g01-exd5.png" alt="Make the equal pawn capture">
+</section>
+<section class="block" id="b02-c05-m01">
+<h3>Common mistake: forget the recapture</h3>
+<p>If another pawn can recapture, the first capture may only be a trade.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c05-m01-forget-recapture.png" alt="Common mistake: forget the recapture">
+<div class="caption"><p>The c6 pawn points back to d5.</p></div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b02-c05-q01">
+<h3>Before a capture, ask what can:</h3>
+<p>Before a capture, ask what can:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Recapture</div>
+<div class="quiz-option">b. Rename the board</div>
+<div class="quiz-option">c. Change the clock color</div>
+</div>
+</section>
+<section class="block" id="b02-c05-q02">
+<h3>Winning a rook for a bishop is usually:</h3>
+<p>Winning a rook for a bishop is usually:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Good</div>
+<div class="quiz-option">b. Always illegal</div>
+<div class="quiz-option">c. The same as losing a queen</div>
+</div>
+</section>
+<section class="block" id="b02-c05-q03">
+<h3>A pawn capture may simply be:</h3>
+<p>A pawn capture may simply be:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. An equal trade</div>
+<div class="quiz-option">b. Always checkmate</div>
+<div class="quiz-option">c. Always a blunder</div>
+</div>
+</section>
+</section>
+<section class="chapter-print">
+<h1>Basic Checkmates With Queen And Rook</h1>
+<div class="meta">Survival Chess | 300-700 | free</div>
+<p>Turn a winning position into checkmate.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Use the queen or rook to cut off the king.</li>
+<li>Bring your king close enough to support mate.</li>
+<li>Deliver a final checking move.</li>
+</ul>
+</section>
+<h2>Win The Won Game</h2>
+<section class="block" id="b02-c06-p01">
+<p>A big material advantage is not enough. You still need checkmate. Queen and rook mates work by making a box, bringing the king closer, and giving the final check.</p>
+</section>
+<section class="block" id="b02-c06-d01">
+<h3>The queen builds a box</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c06-d01-queen-box.png" alt="The queen builds a box">
+<div class="caption"><p>The queen can cut files and ranks while the king gives support.</p></div>
+</section>
+<section class="block" id="b02-c06-d02">
+<h3>The rook checks along a rank</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c06-d02-rook-rank.png" alt="The rook checks along a rank">
+<div class="caption"><p>The rook can travel to a8 and check across the 8th rank.</p></div>
+</section>
+<section class="block" id="b02-c06-d03">
+<h3>The king takes escape squares</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c06-d03-king-support.png" alt="The king takes escape squares">
+<div class="caption"><p>The king on g6 controls g7 and h7, so the enemy king has fewer exits.</p></div>
+</section>
+<section class="block" id="b02-c06-d04">
+<h3>Final rook mate pattern</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c06-d04-final-rook-mate.png" alt="Final rook mate pattern">
+<div class="caption"><p>Rook to a8 is the final checking move in this pattern.</p></div>
+</section>
+<section class="block" id="b02-c06-d05">
+<h3>Queen mate uses the same idea</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c06-d05-queen-final-line.png" alt="Queen mate uses the same idea">
+<div class="caption"><p>The queen should cut the king while your own king guards escape.</p></div>
+</section>
+<section class="block" id="b02-c06-g01">
+<h3>Deliver rook mate</h3>
+<p>Move the rook from a1 to a8.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c06-g01-rook-a8.png" alt="Deliver rook mate">
+</section>
+<section class="block" id="b02-c06-m01">
+<h3>Common mistake: check without a box</h3>
+<p>Random checks let the king run. First make a box and bring support.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c06-m01-checking-too-soon.png" alt="Common mistake: check without a box">
+<div class="caption"><p>The rook checks, but the white king is too far to control escape squares.</p></div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b02-c06-q01">
+<h3>Queen and rook mates usually need:</h3>
+<p>Queen and rook mates usually need:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. A box and king support</div>
+<div class="quiz-option">b. Only random checks</div>
+<div class="quiz-option">c. No king</div>
+</div>
+</section>
+<section class="block" id="b02-c06-q02">
+<h3>The final mating move must give:</h3>
+<p>The final mating move must give:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Check</div>
+<div class="quiz-option">b. A draw offer</div>
+<div class="quiz-option">c. A pawn value</div>
+</div>
+</section>
+<section class="block" id="b02-c06-q03">
+<h3>Your king helps mate by:</h3>
+<p>Your king helps mate by:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Controlling escape squares</div>
+<div class="quiz-option">b. Standing far away forever</div>
+<div class="quiz-option">c. Leaving the board</div>
+</div>
+</section>
+</section>
+<section class="chapter-print">
+<h1>Avoiding Stalemate</h1>
+<div class="meta">Survival Chess | 300-700 | free</div>
+<p>Do not turn a win into a draw.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Recognize stalemate danger.</li>
+<li>Prefer checking moves in winning king hunts.</li>
+<li>Leave the defender legal moves until mate is ready.</li>
+</ul>
+</section>
+<h2>Winning Still Needs Care</h2>
+<section class="block" id="b02-c07-p01">
+<p>Stalemate happens when the side to move has no legal move but is not in check. Beginners often stalemate with a queen because they take every escape square without giving check.</p>
+</section>
+<section class="block" id="b02-c07-d01">
+<h3>The danger around h8</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c07-d01-stalemate-danger.png" alt="The danger around h8">
+<div class="caption"><p>The black king has very little room. White must use checks carefully.</p></div>
+</section>
+<section class="block" id="b02-c07-d02">
+<h3>Give a checking move</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c07-d02-mate-with-check.png" alt="Give a checking move">
+<div class="caption"><p>Queen f8 gives check instead of merely taking squares.</p></div>
+</section>
+<section class="block" id="b02-c07-d03">
+<h3>The king controls escape squares</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c07-d03-king-box.png" alt="The king controls escape squares">
+<div class="caption"><p>The white king on g6 controls h7 and g7.</p></div>
+</section>
+<section class="block" id="b02-c07-d04">
+<h3>A quiet squeeze can stalemate</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c07-d04-bad-squeeze.png" alt="A quiet squeeze can stalemate">
+<div class="caption"><p>If you only take squares and do not check, you may give the defender no legal move.</p></div>
+</section>
+<section class="block" id="b02-c07-d05">
+<h3>The survival rule: check before the box closes</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c07-d05-safe-rule.png" alt="The survival rule: check before the box closes">
+<div class="caption"><p>When the enemy king is trapped, choose a move that gives check.</p></div>
+</section>
+<section class="block" id="b02-c07-g01">
+<h3>Avoid stalemate with check</h3>
+<p>Move the queen from f7 to f8.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c07-g01-qf8.png" alt="Avoid stalemate with check">
+</section>
+<section class="block" id="b02-c07-m01">
+<h3>Common mistake: squeeze without check</h3>
+<p>A quiet queen move can remove all moves without checking. In a won ending, ask if the defender is in check.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c07-m01-no-check-squeeze.png" alt="Common mistake: squeeze without check">
+<div class="caption"><p>The wrong arrow shows a queen move that focuses only on the box.</p></div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b02-c07-q01">
+<h3>Stalemate is:</h3>
+<p>Stalemate is:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. No legal moves and not in check</div>
+<div class="quiz-option">b. Any checkmate</div>
+<div class="quiz-option">c. A pawn trade</div>
+</div>
+</section>
+<section class="block" id="b02-c07-q02">
+<h3>Near a trapped king, prefer moves that:</h3>
+<p>Near a trapped king, prefer moves that:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Give check</div>
+<div class="quiz-option">b. Only take squares quietly</div>
+<div class="quiz-option">c. Lose the queen</div>
+</div>
+</section>
+<section class="block" id="b02-c07-q03">
+<h3>Stalemate makes a won game become:</h3>
+<p>Stalemate makes a won game become:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. A draw</div>
+<div class="quiz-option">b. A bigger win</div>
+<div class="quiz-option">c. An illegal board</div>
+</div>
+</section>
+</section>
+<section class="chapter-print">
+<h1>Opening Safety: Stop Moving The Same Piece</h1>
+<div class="meta">Survival Chess | 300-700 | free</div>
+<p>Develop, protect the king, and avoid early queen adventures.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Develop pieces toward useful squares.</li>
+<li>Avoid moving one piece repeatedly without reason.</li>
+<li>Recognize why early queen moves can lose time.</li>
+</ul>
+</section>
+<h2>Do Not Lose Before The Game Starts</h2>
+<section class="block" id="b02-c08-p01">
+<p>Opening survival is simple: control the center, develop pieces, protect the king, and do not chase tricks with the same piece again and again.</p>
+</section>
+<section class="block" id="b02-c08-d01">
+<h3>Develop toward the center</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c08-d01-develop-nf3.png" alt="Develop toward the center">
+<div class="caption"><p>The knight move g1-f3 helps control central squares.</p></div>
+</section>
+<section class="block" id="b02-c08-d02">
+<h3>Early queen moves invite tempo</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c08-d02-early-queen.png" alt="Early queen moves invite tempo">
+<div class="caption"><p>The queen on h5 can be attacked by a developing knight.</p></div>
+</section>
+<section class="block" id="b02-c08-d03">
+<h3>Moving one piece repeatedly costs time</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c08-d03-repeat-piece.png" alt="Moving one piece repeatedly costs time">
+<div class="caption"><p>The knight on g5 moved early and can become a target.</p></div>
+</section>
+<section class="block" id="b02-c08-d04">
+<h3>King safety is part of development</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c08-d04-castle-ready.png" alt="King safety is part of development">
+<div class="caption"><p>When the path is clear and safe, castling protects the king.</p></div>
+</section>
+<section class="block" id="b02-c08-d05">
+<h3>The opening safety checklist</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c08-d05-opening-checklist.png" alt="The opening safety checklist">
+<div class="caption"><p>Center, development, king safety. These three ideas beat most beginner opening traps.</p></div>
+</section>
+<section class="block" id="b02-c08-g01">
+<h3>Play a safe developing move</h3>
+<p>Develop the knight from g1 to f3.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c08-g01-nf3.png" alt="Play a safe developing move">
+</section>
+<section class="block" id="b02-c08-m01">
+<h3>Common mistake: bring the queen out too early</h3>
+<p>If your queen becomes a target, the opponent develops while attacking it.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c08-m01-queen-target.png" alt="Common mistake: bring the queen out too early">
+<div class="caption"><p>The knight move g8-f6 attacks h5 with tempo.</p></div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b02-c08-q01">
+<h3>A safe opening move often:</h3>
+<p>A safe opening move often:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Develops a piece</div>
+<div class="quiz-option">b. Moves the same piece for no reason</div>
+<div class="quiz-option">c. Hangs the queen</div>
+</div>
+</section>
+<section class="block" id="b02-c08-q02">
+<h3>Early queen moves can lose:</h3>
+<p>Early queen moves can lose:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Time</div>
+<div class="quiz-option">b. The board colors</div>
+<div class="quiz-option">c. All legal moves immediately</div>
+</div>
+</section>
+<section class="block" id="b02-c08-q03">
+<h3>Opening survival includes:</h3>
+<p>Opening survival includes:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Center, development, king safety</div>
+<div class="quiz-option">b. Only pawn hunting</div>
+<div class="quiz-option">c. Never castling</div>
+</div>
+</section>
+</section>
+<section class="chapter-print">
+<h1>Blunder-Check Before Every Move</h1>
+<div class="meta">Survival Chess | 300-700 | free</div>
+<p>Pause once before the move leaves your hand.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Ask what your move leaves behind.</li>
+<li>Check whether your moved piece becomes loose.</li>
+<li>Notice immediate checks and captures against you.</li>
+</ul>
+</section>
+<h2>The One-Second Pause</h2>
+<section class="block" id="b02-c09-p01">
+<p>A blunder-check is the final pause before moving. Ask: after my move, what can my opponent check, capture, or threaten?</p>
+</section>
+<section class="block" id="b02-c09-d01">
+<h3>Develop with a final check</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c09-d01-before-nf3.png" alt="Develop with a final check">
+<div class="caption"><p>Before g1-f3, notice that the knight lands on a protected, useful square.</p></div>
+</section>
+<section class="block" id="b02-c09-d02">
+<h3>Do not leave the queen loose</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c09-d02-queen-loose.png" alt="Do not leave the queen loose">
+<div class="caption"><p>The queen on d4 is attacked. If it were your queen, you must notice it.</p></div>
+</section>
+<section class="block" id="b02-c09-d03">
+<h3>Check danger overrides plans</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c09-d03-king-danger.png" alt="Check danger overrides plans">
+<div class="caption"><p>If your king is checked, the blunder-check has already found the emergency.</p></div>
+</section>
+<section class="block" id="b02-c09-d04">
+<h3>Your moved piece can become loose</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c09-d04-hanging-after-move.png" alt="Your moved piece can become loose">
+<div class="caption"><p>A piece that moves into attack can become the new target.</p></div>
+</section>
+<section class="block" id="b02-c09-d05">
+<h3>A safe move passes the scan</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c09-d05-safe-choice.png" alt="A safe move passes the scan">
+<div class="caption"><p>The move b1-c3 develops and helps e4, so it passes the scan.</p></div>
+</section>
+<section class="block" id="b02-c09-g01">
+<h3>Make a move that passes the scan</h3>
+<p>Play g1 to f3 after checking that the piece lands safely.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c09-g01-nf3-check.png" alt="Make a move that passes the scan">
+</section>
+<section class="block" id="b02-c09-m01">
+<h3>Common mistake: move without the final pause</h3>
+<p>A fast move can walk into a simple capture. Slow chess is stronger chess.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c09-m01-move-without-pause.png" alt="Common mistake: move without the final pause">
+<div class="caption"><p>The wrong square f4 is marked because it walks into the queen attack.</p></div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b02-c09-q01">
+<h3>A blunder-check asks what the opponent can:</h3>
+<p>A blunder-check asks what the opponent can:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Check, capture, or threaten</div>
+<div class="quiz-option">b. Eat for lunch</div>
+<div class="quiz-option">c. Rename the pieces</div>
+</div>
+</section>
+<section class="block" id="b02-c09-q02">
+<h3>The best time for a blunder-check is:</h3>
+<p>The best time for a blunder-check is:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Before releasing the move</div>
+<div class="quiz-option">b. After losing the queen</div>
+<div class="quiz-option">c. Only after checkmate</div>
+</div>
+</section>
+<section class="block" id="b02-c09-q03">
+<h3>Fast moves are always stronger than checked moves.</h3>
+<p>Fast moves are always stronger than checked moves.</p>
+<div class="quiz-options">
+<div class="quiz-option">a. True</div>
+<div class="quiz-option">b. False</div>
+</div>
+</section>
+</section>
+<section class="chapter-print">
+<h1>Ten Survival Games: Find The Safe Move</h1>
+<div class="meta">Survival Chess | 300-700 | free</div>
+<p>Apply the survival checklist in miniature game moments.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Use CCT in mixed positions.</li>
+<li>Choose safety over impulse.</li>
+<li>Convert advantages without stalemate or loose pieces.</li>
+</ul>
+</section>
+<h2>Put The Habits Together</h2>
+<section class="block" id="b02-c10-p01">
+<p>This final chapter mixes the whole book. Each position asks for the safest practical move, not the flashiest move.</p>
+</section>
+<section class="block" id="b02-c10-d01">
+<h3>Game moment: forcing check</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c10-d01-mixed-cct.png" alt="Game moment: forcing check">
+<div class="caption"><p>The CCT scan still begins with the check on f7.</p></div>
+</section>
+<section class="block" id="b02-c10-d02">
+<h3>Game moment: loose knight</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c10-d02-mixed-hanging.png" alt="Game moment: loose knight">
+<div class="caption"><p>The knight on e5 can be captured after the scan.</p></div>
+</section>
+<section class="block" id="b02-c10-d03">
+<h3>Game moment: defend e4</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c10-d03-mixed-defense.png" alt="Game moment: defend e4">
+<div class="caption"><p>The move b1-c3 develops and defends.</p></div>
+</section>
+<section class="block" id="b02-c10-d04">
+<h3>Game moment: castle when ready</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c10-d04-mixed-castle.png" alt="Game moment: castle when ready">
+<div class="caption"><p>Castling is a survival move when the path is clear.</p></div>
+</section>
+<section class="block" id="b02-c10-d05">
+<h3>Game moment: finish cleanly</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c10-d05-mixed-mate.png" alt="Game moment: finish cleanly">
+<div class="caption"><p>A won rook ending still needs the final mating check.</p></div>
+</section>
+<section class="block" id="b02-c10-g01">
+<h3>Find the safe game move</h3>
+<p>The king is ready. Castle from e1 to g1.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c10-g01-castle-safe.png" alt="Find the safe game move">
+</section>
+<section class="block" id="b02-c10-m01">
+<h3>Common mistake: skip the survival checklist</h3>
+<p>In a real game, a safe developing or castling move often beats a pawn grab.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c10-m01-skip-checklist.png" alt="Common mistake: skip the survival checklist">
+<div class="caption"><p>The safe arrow goes from e1 to g1.</p></div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b02-c10-q01">
+<h3>In mixed positions, start with:</h3>
+<p>In mixed positions, start with:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Checks, captures, threats</div>
+<div class="quiz-option">b. The prettiest move</div>
+<div class="quiz-option">c. A random pawn</div>
+</div>
+</section>
+<section class="block" id="b02-c10-q02">
+<h3>A safe practical move can be:</h3>
+<p>A safe practical move can be:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Castling</div>
+<div class="quiz-option">b. Hanging the queen</div>
+<div class="quiz-option">c. Ignoring check</div>
+</div>
+</section>
+<section class="block" id="b02-c10-q03">
+<h3>The goal of Survival Chess is to:</h3>
+<p>The goal of Survival Chess is to:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Stop beginner losses</div>
+<div class="quiz-option">b. Memorize every opening</div>
+<div class="quiz-option">c. Avoid all captures forever</div>
+</div>
+</section>
+</section>
+</body>
+</html>

@@ -8,15 +8,12 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Generates tomorrow's daily challenge from the pool of seeded puzzles.
- *
- * If tomorrow's challenge already exists, does nothing.
- * Picks a puzzle that hasn't been used in the last 30 days, cycling through tiers.
+ * Generates upcoming daily challenge tracks from the seeded puzzle pool.
  *
  * Usage:
- *   php artisan daily-challenge:generate           # Generate tomorrow's
- *   php artisan daily-challenge:generate --days=7  # Generate next 7 days
- *   php artisan daily-challenge:generate --dry-run  # Preview without creating
+ *   php artisan daily-challenge:generate
+ *   php artisan daily-challenge:generate --days=7
+ *   php artisan daily-challenge:generate --dry-run
  */
 class GenerateDailyChallenge extends Command
 {
@@ -24,23 +21,17 @@ class GenerateDailyChallenge extends Command
                             {--days=1 : Number of days ahead to generate}
                             {--dry-run : Preview without creating}';
 
-    protected $description = 'Generate upcoming daily challenges from the puzzle pool';
-
-    // Cycle through tiers: beginner → intermediate → advanced → repeat
-    private const TIER_CYCLE = ['beginner', 'intermediate', 'advanced'];
-
-    // Cycle through types
-    private const TYPE_CYCLE = ['tactic', 'endgame', 'puzzle', 'opening'];
+    protected $description = 'Generate upcoming daily challenge tracks from the puzzle pool';
 
     public function handle(): int
     {
         $days = (int) $this->option('days');
         $dryRun = $this->option('dry-run');
 
-        $this->info("Generating daily challenges for the next {$days} day(s)...");
+        $this->info("Generating daily challenge tracks for the next {$days} day(s)...");
 
         if ($dryRun) {
-            $this->warn('DRY RUN — no changes will be made');
+            $this->warn('DRY RUN - no changes will be made');
         }
 
         $created = 0;
@@ -49,69 +40,45 @@ class GenerateDailyChallenge extends Command
         for ($i = 1; $i <= $days; $i++) {
             $date = Carbon::today()->addDays($i)->toDateString();
 
-            // Skip if already exists
-            if (DailyChallenge::where('date', $date)->exists()) {
-                $this->line("  {$date}: already exists — skipped");
-                $skipped++;
-                continue;
-            }
+            foreach (DailyChallenge::tracks() as $track) {
+                if (DailyChallenge::where('date', $date)->where('track_slug', $track['slug'])->exists()) {
+                    $this->line("  {$date} {$track['slug']}: already exists - skipped");
+                    $skipped++;
+                    continue;
+                }
 
-            // Determine tier and type based on date offset (cycles evenly)
-            $dayOffset = Carbon::today()->diffInDays(Carbon::parse($date));
-            $tier = self::TIER_CYCLE[$dayOffset % count(self::TIER_CYCLE)];
-            $type = self::TYPE_CYCLE[$dayOffset % count(self::TYPE_CYCLE)];
+                $source = $this->findSourceChallenge($track);
 
-            // Find a puzzle not used in the last 30 days
-            $recentlyUsedIds = DailyChallenge::where('date', '>=', Carbon::today()->subDays(30)->toDateString())
-                ->pluck('id')
-                ->toArray();
+                if (!$source || !$source->challenge_data) {
+                    $this->error("  {$date} {$track['slug']}: no puzzle data available - skipped");
+                    continue;
+                }
 
-            // Pick a random puzzle matching the tier, excluding recently used
-            $source = DailyChallenge::where('skill_tier', $tier)
-                ->whereNotIn('id', $recentlyUsedIds)
-                ->inRandomOrder()
-                ->first();
-
-            // Fallback: any puzzle from this tier
-            if (!$source) {
-                $source = DailyChallenge::where('skill_tier', $tier)
-                    ->inRandomOrder()
-                    ->first();
-            }
-
-            // Fallback: any puzzle at all
-            if (!$source) {
-                $source = DailyChallenge::inRandomOrder()->first();
-            }
-
-            if (!$source || !$source->challenge_data) {
-                $this->error("  {$date}: no puzzle data available — skipped");
-                continue;
-            }
-
-            $xp = match ($tier) {
-                'beginner' => 15,
-                'intermediate' => 25,
-                'advanced' => 40,
-                default => 25,
-            };
-
-            if ($dryRun) {
                 $title = $source->challenge_data['title'] ?? 'Untitled';
-                $this->line("  {$date}: would create [{$tier}/{$type}] \"{$title}\" ({$xp} XP)");
-            } else {
+                $tier = $track['skill_tier'];
+                $type = $track['challenge_type'];
+
+                if ($dryRun) {
+                    $this->line("  {$date} {$track['slug']}: would create [{$tier}/{$type}] \"{$title}\" ({$track['xp_reward']} XP)");
+                    $created++;
+                    continue;
+                }
+
                 DailyChallenge::create([
                     'date' => $date,
+                    'track_slug' => $track['slug'],
+                    'required_tier' => $track['required_tier'],
                     'challenge_type' => $type,
                     'skill_tier' => $tier,
+                    'skill_band' => DailyChallenge::resolveSkillBandForTrack($track, null, $tier),
+                    'track_label' => $track['label'],
                     'challenge_data' => $source->challenge_data,
-                    'xp_reward' => $xp,
+                    'xp_reward' => $track['xp_reward'],
                 ]);
-                $title = $source->challenge_data['title'] ?? 'Untitled';
-                $this->line("  {$date}: created [{$tier}/{$type}] \"{$title}\" ({$xp} XP)");
-            }
 
-            $created++;
+                $this->line("  {$date} {$track['slug']}: created [{$tier}/{$type}] \"{$title}\" ({$track['xp_reward']} XP)");
+                $created++;
+            }
         }
 
         $this->info("Done: {$created} created, {$skipped} skipped.");
@@ -124,5 +91,30 @@ class GenerateDailyChallenge extends Command
         ]);
 
         return Command::SUCCESS;
+    }
+
+    private function findSourceChallenge(array $track): ?DailyChallenge
+    {
+        $recentlyUsedIds = DailyChallenge::where('date', '>=', Carbon::today()->subDays(30)->toDateString())
+            ->where('track_slug', $track['slug'])
+            ->pluck('id')
+            ->toArray();
+
+        $source = DailyChallenge::where('skill_tier', $track['skill_tier'])
+            ->where('challenge_type', $track['challenge_type'])
+            ->whereNotIn('id', $recentlyUsedIds)
+            ->inRandomOrder()
+            ->first();
+
+        if ($source) {
+            return $source;
+        }
+
+        $source = DailyChallenge::where('skill_tier', $track['skill_tier'])
+            ->whereNotIn('id', $recentlyUsedIds)
+            ->inRandomOrder()
+            ->first();
+
+        return $source ?: DailyChallenge::inRandomOrder()->first();
     }
 }

@@ -1,0 +1,115 @@
+{
+  "id": "ch06",
+  "title": "Practical Play & Avoiding Blunders",
+  "subtitle": "\"The blunders are all there on the board, waiting to be made.\" — Savielly Tartakower",
+  "eloRange": "All Levels",
+  "sections": [
+    {
+      "id": "6.1",
+      "title": "6.1 The Blunder Hierarchy",
+      "blocks": [
+        {
+          "type": "text",
+          "html": "<p>Not all mistakes are equal. Understanding the types helps you prioritize what to fix:</p><table><tr><th>Type</th><th>ELO Cost</th><th>Fix</th></tr><tr><td>Hanging a piece</td><td>-200</td><td>CCT scan</td></tr><tr><td>Missing a tactic</td><td>-150</td><td>CCT scan</td></tr><tr><td>One-move blunder</td><td>-100</td><td>Blunder check</td></tr><tr><td>Positional mistake</td><td>-30</td><td>Study + experience</td></tr><tr><td>Opening inaccuracy</td><td>-20</td><td>Opening knowledge</td></tr></table><p><strong>Fix the top three first.</strong> At ELO 0-1000, 90% of losses come from the top three. The CCT scan addresses all of them.</p>"
+        }
+      ]
+    },
+    {
+      "id": "6.2",
+      "title": "6.2 The Blunder Prevention Protocol",
+      "blocks": [
+        {
+          "type": "text",
+          "html": "<p>Use this on EVERY move:</p><ol><li><strong>Opponent's last move — what changed?</strong> What does that piece now attack? What was it defending? (3 seconds)</li><li><strong>CCT Scan:</strong> Checks, Captures, Threats — your turn.</li><li><strong>Choose your move.</strong> Select a candidate. STOP. Don't play it yet.</li><li><strong>Blunder Check:</strong> Is the destination safe? What am I leaving undefended? What's their best reply? Am I walking into a discovered attack? (5 seconds)</li><li><strong>Play the move.</strong></li></ol><p>This protocol takes 10 seconds and will save more games than any other single habit.</p>"
+        }
+      ]
+    },
+    {
+      "id": "6.3",
+      "title": "6.3 Common Blunder Patterns and Fixes",
+      "blocks": [
+        {
+          "type": "text",
+          "html": "<h3>Pattern 1: \"I didn't see the bishop\"</h3><p>A long-range bishop or queen on the other side of the board captures your piece.</p><p><strong>Fix:</strong> Trace the diagonals from every enemy bishop and queen before moving.</p><h3>Pattern 2: \"Knight forks everywhere\"</h3><p>King and queen get forked by an enemy knight.</p><p><strong>Fix:</strong> Check if any enemy knight can reach a fork square (especially one that attacks king + queen).</p>"
+        },
+        {
+          "type": "board",
+          "fen": "r1bqkb1r/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 3",
+          "highlights": ["e5", "d4"],
+          "orientation": "white",
+          "arrows": [
+            ["c6", "e5", "rgba(201,136,42,0.5)"],
+            ["c6", "d4", "rgba(201,136,42,0.5)"]
+          ],
+          "caption": "Black's knight on c6 could jump to e5 (forking queen + f7) or d4 (forking queen + c2). Always scan for knight fork squares before moving your queen!",
+          "size": 320
+        },
+        {
+          "type": "text",
+          "html": "<h3>Pattern 3: \"I captured the wrong thing\"</h3><p>You saw a free piece and captured it — but it was a trap.</p><p><strong>Fix:</strong> If a capture looks too easy, take 10 extra seconds. Ask \"Why is this free?\"</p><h3>Pattern 4: \"I forgot about pins\"</h3><p>Moved a pinned piece, exposing the king or queen.</p><p><strong>Fix:</strong> Check alignment of enemy bishops/rooks/queens with your king and queen.</p><h3>Pattern 5: \"Back rank checkmate\"</h3><p>Castled king with no luft gets mated on the back rank.</p><p><strong>Fix:</strong> Play h3/h6 or g3/g6 early enough to create an escape square.</p>"
+        }
+      ]
+    },
+    {
+      "id": "6.4",
+      "title": "6.4 Time Management",
+      "blocks": [
+        {
+          "type": "text",
+          "html": "<h3>Two Types of Players at ELO 0-1000:</h3><ol><li><strong>The Speed Demon:</strong> Plays every move in 2 seconds. Blunders by move 15.</li><li><strong>The Overthinker:</strong> Spends 3 minutes on move 4. Time trouble by move 25.</li></ol><h3>Time Budgeting (10-minute game):</h3><table><tr><th>Phase</th><th>Moves</th><th>Budget</th></tr><tr><td>Opening</td><td>1-8</td><td>1 minute</td></tr><tr><td>Early middlegame</td><td>9-20</td><td>3 minutes</td></tr><tr><td>Late middlegame</td><td>21-35</td><td>3 minutes</td></tr><tr><td>Endgame</td><td>36+</td><td>3 minutes</td></tr></table><p><strong>Critical moves deserve more time:</strong> capture sequences, material-changing moves, king danger.</p><p><strong>The Time Check Habit:</strong> Every 5 moves, glance at the clock. \"Too fast? Too slow?\"</p>"
+        }
+      ]
+    },
+    {
+      "id": "6.5",
+      "title": "6.5 The Psychology of Not Blundering",
+      "blocks": [
+        {
+          "type": "text",
+          "html": "<h3>Tilt Management</h3><p>You just blundered your queen. What now?</p><p><strong>Wrong response:</strong> \"I'm an idiot.\" <em>Makes 5 more bad moves and loses.</em></p><p><strong>Right response:</strong> Deep breath. Stand up. Close your eyes for 10 seconds. The game isn't over — your opponent still has to prove they can win.</p><h3>Don't Resign</h3><p>At ELO 0-1000: Opponents stalemate when up 15 points, opponents flag in winning positions, opponents hang their queen back. Unless you're facing unavoidable checkmate, don't resign.</p><h3>The \"One Good Move\" Mindset</h3><p>You don't need 40 perfect moves. You need to play fewer bad moves than your opponent. Focus on not blundering, and their blunders will come.</p>"
+        }
+      ]
+    },
+    {
+      "id": "6.6",
+      "title": "6.6 Game Review — Fastest Path to Improvement",
+      "blocks": [
+        {
+          "type": "text",
+          "html": "<h3>The 5-Minute Review Protocol</h3><p>After each game:</p><ol><li><strong>Find the decisive mistake.</strong> Where did the evaluation swing? Why did you play that move?</li><li><strong>Replay from that position.</strong> What should you have played?</li><li><strong>Identify the pattern.</strong> Hanging piece? Missed tactic? Write it down.</li><li><strong>Set a goal for next game.</strong> \"Next game, I will scan for enemy bishop diagonals.\"</li></ol><p>Playing 100 games without reviewing is nearly useless. Playing 10 games and reviewing each deeply is how you improve.</p>"
+        }
+      ]
+    },
+    {
+      "id": "6.7",
+      "title": "6.7 Study Plan: 0 to 1000 ELO",
+      "blocks": [
+        {
+          "type": "text",
+          "html": "<h3>Daily Routine (30-45 minutes)</h3><table><tr><th>Activity</th><th>Time</th><th>Purpose</th></tr><tr><td>Tactics puzzles</td><td>15 min</td><td>Pattern recognition, CCT practice</td></tr><tr><td>One serious game</td><td>10-15 min</td><td>Apply principles</td></tr><tr><td>Review your game</td><td>5-10 min</td><td>Learn from mistakes</td></tr><tr><td>Study a concept</td><td>5-10 min</td><td>Rotate through chapters</td></tr></table><h3>Milestones</h3><table><tr><th>ELO</th><th>What You Should Be Able to Do</th></tr><tr><td>200</td><td>Set up board, move all pieces, know values</td></tr><tr><td>400</td><td>Control center, develop, castle, spot forks</td></tr><tr><td>600</td><td>Run CCT scan automatically, avoid blunders</td></tr><tr><td>800</td><td>Play a sound opening, win basic endgames</td></tr><tr><td>1000</td><td>Convert winning positions, manage time, review games</td></tr></table>"
+        }
+      ]
+    },
+    {
+      "id": "6.8",
+      "title": "6.8 Using the Chess99 Tactical Trainer",
+      "blocks": [
+        {
+          "type": "text",
+          "html": "<h3>Stage 0: Beginner Tactics (800-1400 puzzles)</h3><p>Focus on basic tactical patterns: forks, pins, skewers. Run the CCT scan on every puzzle. Don't skip the CCT phases! <strong>Goal:</strong> 15 puzzles correctly.</p><h3>Stage 1: Tactical Sharpness (1400-1650)</h3><p>Longer sequences, complex patterns. Practice calculating 2-3 moves ahead. <strong>Goal:</strong> 20 puzzles.</p><h3>Training Tips</h3><ul><li><strong>Accuracy over speed.</strong> 5 puzzles at 100% > 20 at 25%.</li><li><strong>Use slow mode.</strong> Complete full CCT analysis each time.</li><li><strong>Review wrong attempts.</strong> Understand WHY it was wrong.</li></ul>"
+        }
+      ]
+    },
+    {
+      "id": "6.9",
+      "title": "6.9 Final Words",
+      "blocks": [
+        {
+          "type": "text",
+          "html": "<p>Chess is a journey, not a destination. ELO 1000 is not the end — it's the beginning of real chess understanding.</p><p><strong>Three things to remember:</strong></p><ol><li><strong>CCT on every move.</strong> Checks, Captures, Threats. Make it automatic.</li><li><strong>Blunder check before you move.</strong> 5 seconds. It's your insurance policy.</li><li><strong>Review your games.</strong> Each game has one lesson. Find it.</li></ol><p>The player who makes the fewest mistakes wins. Be that player.</p><p><em>Good luck. See you at 1000.</em></p>"
+        }
+      ]
+    }
+  ],
+  "summary": "<table><tr><th>Skill</th><th>Action</th></tr><tr><td>Blunder check</td><td>5-step protocol on every move</td></tr><tr><td>Common patterns</td><td>Bishop diagonals, knight forks, pins, back rank</td></tr><tr><td>Time management</td><td>Budget your time; spend it on critical moves</td></tr><tr><td>Psychology</td><td>Don't resign, manage tilt</td></tr><tr><td>Game review</td><td>5-minute protocol after every game</td></tr><tr><td>CCT practice</td><td>Tactical trainer, 15 mins/day</td></tr></table>"
+}

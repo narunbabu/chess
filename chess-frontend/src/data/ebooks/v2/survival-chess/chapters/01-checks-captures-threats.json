@@ -1,0 +1,488 @@
+{
+  "schemaVersion": "2.0.0",
+  "bookId": "survival-chess",
+  "chapterId": "01-checks-captures-threats",
+  "title": "The Three Questions: Checks, Captures, Threats",
+  "subtitle": "Build the CCT scan that protects every move.",
+  "eloRange": "300-700",
+  "requiredTier": "free",
+  "estimatedMinutes": 24,
+  "learningObjectives": [
+    "Scan checks before attractive captures.",
+    "Spot free captures and direct threats.",
+    "Use one checklist before choosing a move."
+  ],
+  "sections": [
+    {
+      "id": "cct-habit",
+      "title": "The Scan Comes First",
+      "blocks": [
+        {
+          "id": "b02-c01-p01",
+          "type": "prose",
+          "body_md": "Survival chess begins before you touch a piece. Ask three questions in order: **What checks exist? What captures exist? What threats exist?** This habit stops many beginner losses immediately."
+        },
+        {
+          "id": "b02-c01-d01",
+          "type": "board_diagram",
+          "title": "Check candidate on f7",
+          "fen": "rnbqkbnr/pppp1ppp/8/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 1 3",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "c4",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "f7",
+              "colorRole": "check"
+            },
+            {
+              "square": "e8",
+              "colorRole": "check"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "c4",
+              "to": "f7",
+              "colorRole": "check"
+            }
+          ],
+          "caption_md": "The bishop can check on f7. Checks must be seen before quieter moves.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "c4",
+              "piece": "white_bishop"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "f7"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "c4",
+              "to": "f7"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c01-d01-check-f7.png",
+            "hash": "39a15b2b6ae9d397dce46428e4bbd20629c2f84f94dbfb5de3cf7a471d9e81ef"
+          }
+        },
+        {
+          "id": "b02-c01-d02",
+          "type": "board_diagram",
+          "title": "Capture candidate on e5",
+          "fen": "rnbqkbnr/pppp1ppp/8/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 1 3",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "f3",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "e5",
+              "colorRole": "capture"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "f3",
+              "to": "e5",
+              "colorRole": "capture"
+            }
+          ],
+          "caption_md": "The knight also sees e5, but a capture is checked after checks.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "f3",
+              "piece": "white_knight"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "e5"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "f3",
+              "to": "e5"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c01-d02-capture-e5.png",
+            "hash": "5234ddd782315cb2d3aac5b5a4f431dd610e517134545b7db5595c16c82b5a8c"
+          }
+        },
+        {
+          "id": "b02-c01-d03",
+          "type": "board_diagram",
+          "title": "Threat target on f7",
+          "fen": "rnbqkbnr/pppp1ppp/8/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 1 3",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "h5",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "c4",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "f7",
+              "colorRole": "threat"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "h5",
+              "to": "f7",
+              "colorRole": "threat"
+            },
+            {
+              "from": "c4",
+              "to": "f7",
+              "colorRole": "threat"
+            }
+          ],
+          "caption_md": "Queen and bishop both point at f7. That is a threat map.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "h5",
+              "piece": "white_queen"
+            },
+            {
+              "type": "piece_on",
+              "square": "c4",
+              "piece": "white_bishop"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "f7"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c01-d03-threat-f7.png",
+            "hash": "6d0dbd220fe7ddbb0f9e62860eb8763d7c0739520104457c6e22e63d5778ca52"
+          }
+        },
+        {
+          "id": "b02-c01-d04",
+          "type": "board_diagram",
+          "title": "A quiet start still needs a scan",
+          "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "e4",
+              "colorRole": "target"
+            },
+            {
+              "square": "d4",
+              "colorRole": "target"
+            },
+            {
+              "square": "g1",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "f3",
+              "colorRole": "candidate"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "g1",
+              "to": "f3",
+              "colorRole": "candidate"
+            }
+          ],
+          "caption_md": "Even the first move should be chosen after seeing the center and development squares.",
+          "assertions": [
+            {
+              "type": "highlight_exists",
+              "square": "e4"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "d4"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "g1",
+              "to": "f3"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c01-d04-quiet-scan.png",
+            "hash": "4998d4fc785d058e6a0ab6727d10701047a37a7f49b7ec176b40f74af505cb61"
+          }
+        },
+        {
+          "id": "b02-c01-d05",
+          "type": "board_diagram",
+          "title": "Rank the forcing moves",
+          "fen": "rnbqkbnr/pppp1ppp/8/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 1 3",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "c4",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "f7",
+              "colorRole": "check"
+            },
+            {
+              "square": "f3",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "e5",
+              "colorRole": "capture"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "c4",
+              "to": "f7",
+              "colorRole": "check"
+            },
+            {
+              "from": "f3",
+              "to": "e5",
+              "colorRole": "capture"
+            }
+          ],
+          "caption_md": "The scan finds both c4-f7 and f3-e5. The check has priority.",
+          "assertions": [
+            {
+              "type": "highlight_exists",
+              "square": "f7"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "e5"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "c4",
+              "to": "f7"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c01-d05-ranked-candidates.png",
+            "hash": "7da77b66eb6a4256e11375ec374bd1739a6037e6f2b359cceaa2b7043313b375"
+          }
+        },
+        {
+          "id": "b02-c01-g01",
+          "type": "guided_move",
+          "title": "Play the forcing check",
+          "fen": "rnbqkbnr/pppp1ppp/8/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 1 3",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "c4",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "f7",
+              "colorRole": "check"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "c4",
+              "to": "f7",
+              "colorRole": "check"
+            }
+          ],
+          "caption_md": "",
+          "assertions": [
+            {
+              "type": "legal_move",
+              "move": "c4f7"
+            },
+            {
+              "type": "piece_on",
+              "square": "c4",
+              "piece": "white_bishop"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "f7"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "c4",
+              "to": "f7"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c01-g01-play-bxf7.png",
+            "hash": "cd7bf58c52f5ce2ea9091dff9d9699e297398d0cca9f00d58024561a62094514"
+          },
+          "prompt_md": "Use the CCT order and play the checking move from c4 to f7.",
+          "acceptedMoves": [
+            "c4f7"
+          ],
+          "successMessage": "Correct. You found the safe survival move.",
+          "failureMessage": "Pause and scan checks, captures, and threats again."
+        },
+        {
+          "id": "b02-c01-m01",
+          "type": "mistake_refutation",
+          "title": "Common mistake: capture before checking",
+          "fen": "rnbqkbnr/pppp1ppp/8/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 1 3",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "f3",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "e5",
+              "colorRole": "wrong"
+            },
+            {
+              "square": "f7",
+              "colorRole": "check"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "f3",
+              "to": "e5",
+              "colorRole": "wrong"
+            },
+            {
+              "from": "c4",
+              "to": "f7",
+              "colorRole": "check"
+            }
+          ],
+          "caption_md": "The wrong order starts with f3-e5 while the forcing check on f7 waits.",
+          "assertions": [
+            {
+              "type": "highlight_exists",
+              "square": "e5"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "f7"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "f3",
+              "to": "e5"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c01-m01-capture-before-check.png",
+            "hash": "b6e5ee8f712c47224640214032005453ca5553360bb5cb0088f8e24e41f013b8"
+          },
+          "body_md": "The natural capture on e5 may be playable, but beginners should train the scan order. Checks first, then captures, then threats."
+        }
+      ]
+    }
+  ],
+  "checkpoint": {
+    "id": "b02-c01-checkpoint",
+    "title": "Chapter Checkpoint",
+    "summary_md": "Answer without guessing. The goal is a repeatable survival habit, not a lucky move.",
+    "blocks": [
+      {
+        "id": "b02-c01-q01",
+        "type": "quiz",
+        "title": "Which question comes first in the survival scan?",
+        "question_md": "Which question comes first in the survival scan?",
+        "options": [
+          {
+            "id": "a",
+            "label": "Captures",
+            "isCorrect": false
+          },
+          {
+            "id": "b",
+            "label": "Checks",
+            "isCorrect": true
+          },
+          {
+            "id": "c",
+            "label": "Threats",
+            "isCorrect": false
+          }
+        ]
+      },
+      {
+        "id": "b02-c01-q02",
+        "type": "quiz",
+        "title": "A move that attacks the king is called a:",
+        "question_md": "A move that attacks the king is called a:",
+        "options": [
+          {
+            "id": "a",
+            "label": "Check",
+            "isCorrect": true
+          },
+          {
+            "id": "b",
+            "label": "Trade",
+            "isCorrect": false
+          },
+          {
+            "id": "c",
+            "label": "Castle",
+            "isCorrect": false
+          }
+        ]
+      },
+      {
+        "id": "b02-c01-q03",
+        "type": "quiz",
+        "title": "After checks and captures, what do you scan?",
+        "question_md": "After checks and captures, what do you scan?",
+        "options": [
+          {
+            "id": "a",
+            "label": "Threats",
+            "isCorrect": true
+          },
+          {
+            "id": "b",
+            "label": "Piece names",
+            "isCorrect": false
+          },
+          {
+            "id": "c",
+            "label": "Clock color",
+            "isCorrect": false
+          }
+        ]
+      }
+    ]
+  },
+  "reviewAssertions": [
+    {
+      "type": "minimum_board_diagrams",
+      "value": 5
+    },
+    {
+      "type": "minimum_guided_moves",
+      "value": 1
+    },
+    {
+      "type": "minimum_quizzes",
+      "value": 3
+    },
+    {
+      "type": "tier_allowed",
+      "value": "free"
+    }
+  ]
+}

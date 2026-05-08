@@ -1,0 +1,137 @@
+{
+  "schemaVersion": "2.0.0",
+  "bookId": "positional-chess-club",
+  "title": "Positional Chess For Club Players",
+  "subtitle": "Plans, structures, weak squares, and piece activity in quiet positions.",
+  "seriesPosition": 7,
+  "eloStart": 1500,
+  "eloEnd": 1800,
+  "requiredTier": "silver",
+  "status": "complete-draft",
+  "purpose": "Teach plans when there is no immediate tactic.",
+  "audience": [
+    "Club players",
+    "Tactical players who need plans",
+    "Silver training plan users"
+  ],
+  "howToRead": [
+    "Study each diagram before reading the explanation.",
+    "Write or say the candidate idea before playing the guided move.",
+    "Review the common mistake before attempting the checkpoint.",
+    "Do not advance until the checkpoint is passed without hints."
+  ],
+  "prerequisites": [
+    "Earlier books in the Chess99 ladder"
+  ],
+  "outcomes": [
+    "Recognize the core patterns in Positional Chess For Club Players.",
+    "Use generated board diagrams as calculation anchors.",
+    "Play the guided moves with a reason, not guesswork.",
+    "Pass chapter checkpoints and retain the habit in real games."
+  ],
+  "visualLanguage": {
+    "boardTheme": "instruction-classic",
+    "lightSquare": "#eeeed2",
+    "darkSquare": "#769656",
+    "colorRoles": {
+      "best": "#81b64c",
+      "candidate": "#7b61a6",
+      "check": "#ef4444",
+      "capture": "#5b8dd9",
+      "threat": "#c9882a",
+      "target": "#f59e0b",
+      "lastMove": "rgba(255,221,0,0.35)",
+      "wrong": "rgba(220,60,60,0.35)",
+      "safe": "rgba(129,182,76,0.25)"
+    }
+  },
+  "assetPolicy": {
+    "authoritativeDiagrams": "Generate from FEN, arrows, highlights, and board theme only.",
+    "generativeImages": "Allowed for cover and concept art only, never for exact chess positions.",
+    "diagramOutputRoot": "assets/diagrams",
+    "illustrationOutputRoot": "assets/illustrations"
+  },
+  "chapterOrder": [
+    {
+      "chapterId": "01-what-is-a-plan",
+      "path": "chapters/01-what-is-a-plan.json",
+      "title": "What Is A Plan",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    },
+    {
+      "chapterId": "02-pawn-structure-basics",
+      "path": "chapters/02-pawn-structure-basics.json",
+      "title": "Pawn Structure Basics",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    },
+    {
+      "chapterId": "03-weak-squares",
+      "path": "chapters/03-weak-squares.json",
+      "title": "Weak Squares",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    },
+    {
+      "chapterId": "04-open-files-and-rooks",
+      "path": "chapters/04-open-files-and-rooks.json",
+      "title": "Open Files And Rooks",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    },
+    {
+      "chapterId": "05-outposts",
+      "path": "chapters/05-outposts.json",
+      "title": "Outposts",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    },
+    {
+      "chapterId": "06-good-bishop-vs-bad-bishop",
+      "path": "chapters/06-good-bishop-vs-bad-bishop.json",
+      "title": "Good Bishop Vs Bad Bishop",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    },
+    {
+      "chapterId": "07-space-advantage",
+      "path": "chapters/07-space-advantage.json",
+      "title": "Space Advantage",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    },
+    {
+      "chapterId": "08-piece-activity",
+      "path": "chapters/08-piece-activity.json",
+      "title": "Piece Activity",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    },
+    {
+      "chapterId": "09-trading-with-purpose",
+      "path": "chapters/09-trading-with-purpose.json",
+      "title": "Trading With Purpose",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    },
+    {
+      "chapterId": "10-plan-selection-checkpoint",
+      "path": "chapters/10-plan-selection-checkpoint.json",
+      "title": "Plan Selection Checkpoint",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    }
+  ],
+  "assessment": {
+    "checkpointRequiredScore": 3,
+    "unlockRule": "Complete the guided move and answer all checkpoint questions correctly."
+  },
+  "reviewStatus": {
+    "schema": "draft",
+    "chessLogic": "draft",
+    "diagramGeneration": "draft",
+    "textImageConsistency": "draft",
+    "humanChessReview": "pending"
+  }
+}

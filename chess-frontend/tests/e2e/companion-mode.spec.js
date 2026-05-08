@@ -64,7 +64,28 @@ async function startGame(page) {
 
 test.describe('Companion Mode', () => {
   test.beforeEach(async ({ page }) => {
-    await login(page);
+    await page.addInitScript(() => {
+      localStorage.setItem('chess99:casual_tour:v1:guest', 'completed');
+      localStorage.removeItem('chess99_active_computer_game');
+      localStorage.setItem('computerDepth', '3');
+      localStorage.setItem('auth_token', 'test-token');
+      localStorage.setItem('user', JSON.stringify({
+        id: 1,
+        name: 'Test User',
+        email: 'test@example.com',
+      }));
+    });
+
+    await page.route('**/api/user', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: 1,
+        name: 'Test User',
+        email: 'test@example.com',
+        rating: 1200,
+      }),
+    }));
   });
 
   test('shows 🤝 companion tab in the right panel during a casual game', async ({ page }) => {
@@ -111,14 +132,11 @@ test.describe('Companion Mode', () => {
     await expect(page.locator('button:has-text("Play Until Stopped")')).toBeVisible();
   });
 
-  test('rated games show "Not available in Rated games" notice in companion tab', async ({ page }) => {
+  test('rated games hide companion controls', async ({ page }) => {
     await openComputerSetup(page, 'Rated');
     await startGame(page);
 
-    await jsClick(page.locator('.gc-tabs button', { hasText: '🤝' }));
-
-    await expect(
-      page.locator('.gc-tab-content', { hasText: 'Not available in Rated games' })
-    ).toBeVisible();
+    await expect(page.locator('[data-tour="tab-companion"]')).toHaveCount(0);
+    await expect(page.locator('[data-tour="companion-one-move"]')).toHaveCount(0);
   });
 });

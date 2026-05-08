@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Survival Chess: Avoiding Stalemate</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+
+    body { font-family: Arial, sans-serif; color: #172018; font-size: 17px; margin: 0; background: #f7f7f2; line-height: 1.62; }
+    main { max-width: 900px; margin: 0 auto; padding: 40px 34px 60px; background: #fff; }
+    h1, h2, h3 { line-height: 1.2; color: #172018; }
+    h1 { font-size: 36px; margin: 0 0 8px; }
+    h2 { font-size: 25px; margin: 38px 0 16px; border-top: 1px solid #d8ddcf; padding-top: 24px; }
+    h3 { font-size: 20px; margin: 0 0 10px; }
+    p { margin: 0 0 16px; }
+    .meta { color: #536257; margin-bottom: 24px; }
+    .objectives { background: #eef4e7; border-left: 4px solid #81b64c; padding: 14px 18px; }
+    .block { break-inside: avoid; margin: 24px 0; }
+    .block + .block { margin-top: 30px; }
+    .diagram { width: min(100%, 560px); display: block; margin: 14px auto; border: 1px solid #d4dcc8; }
+    .caption { color: #536257; font-size: 15px; margin-top: 8px; }
+    .quiz-options { margin-top: 10px; }
+    .quiz-option { margin: 7px 0; }
+    @media print {
+      body { background: #fff; }
+      main { max-width: none; padding: 0; }
+      .block { page-break-inside: avoid; }
+    }
+  
+</style>
+</head>
+<body>
+<main>
+<h1>Avoiding Stalemate</h1>
+<div class="meta">Survival Chess | 300-700 | free</div>
+<p>Do not turn a win into a draw.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Recognize stalemate danger.</li>
+<li>Prefer checking moves in winning king hunts.</li>
+<li>Leave the defender legal moves until mate is ready.</li>
+</ul>
+</section>
+<h2>Winning Still Needs Care</h2>
+<section class="block" id="b02-c07-p01">
+<p>Stalemate happens when the side to move has no legal move but is not in check. Beginners often stalemate with a queen because they take every escape square without giving check.</p>
+</section>
+<section class="block" id="b02-c07-d01">
+<h3>The danger around h8</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c07-d01-stalemate-danger.png" alt="The danger around h8">
+<div class="caption"><p>The black king has very little room. White must use checks carefully.</p></div>
+</section>
+<section class="block" id="b02-c07-d02">
+<h3>Give a checking move</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c07-d02-mate-with-check.png" alt="Give a checking move">
+<div class="caption"><p>Queen f8 gives check instead of merely taking squares.</p></div>
+</section>
+<section class="block" id="b02-c07-d03">
+<h3>The king controls escape squares</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c07-d03-king-box.png" alt="The king controls escape squares">
+<div class="caption"><p>The white king on g6 controls h7 and g7.</p></div>
+</section>
+<section class="block" id="b02-c07-d04">
+<h3>A quiet squeeze can stalemate</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c07-d04-bad-squeeze.png" alt="A quiet squeeze can stalemate">
+<div class="caption"><p>If you only take squares and do not check, you may give the defender no legal move.</p></div>
+</section>
+<section class="block" id="b02-c07-d05">
+<h3>The survival rule: check before the box closes</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c07-d05-safe-rule.png" alt="The survival rule: check before the box closes">
+<div class="caption"><p>When the enemy king is trapped, choose a move that gives check.</p></div>
+</section>
+<section class="block" id="b02-c07-g01">
+<h3>Avoid stalemate with check</h3>
+<p>Move the queen from f7 to f8.</p>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c07-g01-qf8.png" alt="Avoid stalemate with check">
+</section>
+<section class="block" id="b02-c07-m01">
+<h3>Common mistake: squeeze without check</h3>
+<p>A quiet queen move can remove all moves without checking. In a won ending, ask if the defender is in check.</p>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c07-m01-no-check-squeeze.png" alt="Common mistake: squeeze without check">
+<div class="caption"><p>The wrong arrow shows a queen move that focuses only on the box.</p></div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b02-c07-q01">
+<h3>Stalemate is:</h3>
+<p>Stalemate is:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. No legal moves and not in check</div>
+<div class="quiz-option">b. Any checkmate</div>
+<div class="quiz-option">c. A pawn trade</div>
+</div>
+</section>
+<section class="block" id="b02-c07-q02">
+<h3>Near a trapped king, prefer moves that:</h3>
+<p>Near a trapped king, prefer moves that:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Give check</div>
+<div class="quiz-option">b. Only take squares quietly</div>
+<div class="quiz-option">c. Lose the queen</div>
+</div>
+</section>
+<section class="block" id="b02-c07-q03">
+<h3>Stalemate makes a won game become:</h3>
+<p>Stalemate makes a won game become:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. A draw</div>
+<div class="quiz-option">b. A bigger win</div>
+<div class="quiz-option">c. An illegal board</div>
+</div>
+</section>
+</main>
+</body>
+</html>

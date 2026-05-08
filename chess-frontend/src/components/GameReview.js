@@ -12,6 +12,7 @@ import BoardCustomizer, { getBoardTheme, getPieceStyle } from './play/BoardCusto
 import { pieces3dLanding } from '../assets/pieces/pieces3d';
 import { getTheme } from '../config/boardThemes';
 import { detectOpening } from '../utils/openingDetection';
+import { normalizeLearningHelpMarkers } from '../utils/gameHistoryStringUtils';
 
 // ═══ Image helpers (kept verbatim — battle-tested for share capture) ═══
 
@@ -162,10 +163,34 @@ const EVAL_BADGE_STYLES = {
   blunder: { icon: '??', color: '#c33a3a' },
 };
 
-const MoveCell = ({ san, isActive, onClick, dataIndex, evaluation }) => {
+const parseCompactMoveFields = (moveStr) => {
+  const fields = moveStr.split(',');
+  return {
+    notation: fields[0],
+    time: fields[1],
+    evalTotal: fields.length > 2 && fields[2] !== '' ? parseFloat(fields[2]) : null,
+    moveClass: fields.length > 3 ? fields[3] : null,
+    lifelines: fields.length > 4 ? normalizeLearningHelpMarkers(fields[4]) : [],
+  };
+};
+
+const getMoveLifelines = (moveEntry) => normalizeLearningHelpMarkers(moveEntry);
+
+const getLifelineLabel = (lifeline) => {
+  const type = typeof lifeline === 'string' ? lifeline : lifeline?.type;
+  if (type === 'best-move') return 'Best';
+  if (type === 'undo') return 'Undo';
+  return 'Help';
+};
+
+const MoveCell = ({ san, isActive, onClick, dataIndex, evaluation, lifelines = [] }) => {
   const badge = evaluation?.moveClassification
     ? EVAL_BADGE_STYLES[evaluation.moveClassification.toLowerCase()]
     : null;
+  const moveLifelines = normalizeLearningHelpMarkers(lifelines);
+  const lifelineTitle = moveLifelines.length
+    ? `Lifeline used: ${moveLifelines.map(getLifelineLabel).join(', ')}`
+    : '';
   return (
     <span
       onClick={onClick}
@@ -179,6 +204,24 @@ const MoveCell = ({ san, isActive, onClick, dataIndex, evaluation }) => {
     >
       {san}
       {badge && <span style={{ color: badge.color, fontSize: '10px', marginLeft: '2px' }} title={evaluation.moveClassification}>{badge.icon}</span>}
+      {moveLifelines.length > 0 && (
+        <span
+          style={{
+            marginLeft: '4px',
+            padding: '1px 4px',
+            borderRadius: '6px',
+            background: 'rgba(63, 185, 143, 0.18)',
+            border: '1px solid rgba(63, 185, 143, 0.35)',
+            color: '#9ce5ca',
+            fontSize: '9px',
+            fontFamily: 'Inter, system-ui, sans-serif',
+            fontWeight: 800,
+          }}
+          title={lifelineTitle}
+        >
+          {moveLifelines.map(getLifelineLabel).join('+')}
+        </span>
+      )}
     </span>
   );
 };
@@ -254,13 +297,28 @@ const GameReview = () => {
         white: moves[i]?.move?.san || '',
         whiteIdx: i + 1, // +1 because we skipped Start
         whiteEval: moves[i]?.evaluation || null,
+        whiteLifelines: getMoveLifelines(moves[i]),
         black: moves[i + 1]?.move?.san || null,
         blackIdx: moves[i + 1] ? i + 2 : null,
         blackEval: moves[i + 1]?.evaluation || null,
+        blackLifelines: getMoveLifelines(moves[i + 1]),
       });
     }
     return pairs;
   }, [gameHistory.moves]);
+
+  const learningHelpSummary = useMemo(() => {
+    const ratingUpdate = gameHistory.result?.learner_rating_update || gameHistory.result?.learnerRatingUpdate || {};
+    const limit = gameHistory.learning_help_limit ?? ratingUpdate.help_limit ?? ratingUpdate.helpLimit ?? null;
+    const storedUsed = gameHistory.learning_help_used ?? ratingUpdate.help_used ?? ratingUpdate.helpUsed ?? null;
+    const markerUsed = (gameHistory.moves || []).reduce((total, moveEntry) => {
+      return total + getMoveLifelines(moveEntry).length;
+    }, 0);
+    const used = storedUsed != null ? Number(storedUsed) : markerUsed;
+
+    if (limit == null && used <= 0) return null;
+    return { used: Number.isFinite(used) ? used : 0, limit };
+  }, [gameHistory]);
 
   // Player info derived from gameHistory
   const playerInfo = useMemo(() => {
@@ -427,6 +485,9 @@ const GameReview = () => {
             white_player: gameData.white_player,
             black_player: gameData.black_player,
             winner_user_id: gameData.winner_user_id,
+            learning_mode: gameData.learning_mode,
+            learning_help_limit: gameData.learning_help_limit,
+            learning_help_used: gameData.learning_help_used,
             computer_level: 0
           };
 
@@ -435,11 +496,7 @@ const GameReview = () => {
           if (typeof gameData.moves === 'string' && gameData.moves.length > 0) {
             const tempGame = new Chess();
             gameData.moves.split(';').forEach(moveStr => {
-              const fields = moveStr.split(',');
-              const notation = fields[0];
-              const time = fields[1];
-              const evalTotal = fields.length > 2 && fields[2] !== '' ? parseFloat(fields[2]) : null;
-              const moveClass = fields.length > 3 ? fields[3] : null;
+              const { notation, time, evalTotal, moveClass, lifelines } = parseCompactMoveFields(moveStr);
               if (notation && notation.trim()) {
                 try {
                   const move = tempGame.move(notation.trim());
@@ -449,6 +506,7 @@ const GameReview = () => {
                       fen: tempGame.fen(),
                       time: parseFloat(time) || undefined,
                       evaluation: evalTotal != null ? { total: evalTotal, moveClassification: moveClass } : null,
+                      learningHelp: lifelines,
                     });
                   }
                 } catch (moveError) { console.error('Error processing move:', notation, moveError); }
@@ -478,7 +536,12 @@ const GameReview = () => {
               try {
                 const move = tempGame.move(moveData.notation);
                 if (move) {
-                  convertedMoves.push({ move: { san: move.san }, fen: tempGame.fen(), time: moveData.time });
+                  convertedMoves.push({
+                    move: { san: move.san },
+                    fen: tempGame.fen(),
+                    time: moveData.time,
+                    learningHelp: getMoveLifelines(moveData),
+                  });
                 }
               } catch (moveError) { console.error('Error processing move:', moveData.notation, moveError); }
             });
@@ -492,7 +555,7 @@ const GameReview = () => {
                 try {
                   const move = tempGame.move(notation.trim());
                   if (move) {
-                    convertedMoves.push({ move: { san: move.san }, fen: tempGame.fen(), time: moveData.move_time_ms });
+                    convertedMoves.push({ move: { san: move.san }, fen: tempGame.fen(), time: moveData.move_time_ms, learningHelp: getMoveLifelines(moveData) });
                   }
                 } catch (moveError) { console.error('Error processing move:', notation, moveError); }
               }
@@ -585,6 +648,9 @@ const GameReview = () => {
                   white_player: gameData.white_player,
                   black_player: gameData.black_player,
                   winner_user_id: gameData.winner_user_id,
+                  learning_mode: gameData.learning_mode,
+                  learning_help_limit: gameData.learning_help_limit,
+                  learning_help_used: gameData.learning_help_used,
                   computer_level: 0
                 };
 
@@ -592,12 +658,12 @@ const GameReview = () => {
                 if (typeof gameData.moves === 'string' && gameData.moves.length > 0) {
                   const tempGame = new Chess();
                   gameData.moves.split(';').forEach(moveStr => {
-                    const [notation, time] = moveStr.split(',');
+                    const { notation, time, lifelines } = parseCompactMoveFields(moveStr);
                     if (notation && notation.trim()) {
                       try {
                         const move = tempGame.move(notation.trim());
                         if (move) {
-                          convertedMoves.push({ move: { san: move.san }, fen: tempGame.fen(), time: parseFloat(time) || undefined });
+                          convertedMoves.push({ move: { san: move.san }, fen: tempGame.fen(), time: parseFloat(time) || undefined, learningHelp: lifelines });
                         }
                       } catch { /* skip invalid move */ }
                     }
@@ -612,7 +678,7 @@ const GameReview = () => {
                       try {
                         const move = tempGame.move(notation.trim());
                         if (move) {
-                          convertedMoves.push({ move: { san: move.san }, fen: tempGame.fen(), time: moveData.move_time_ms });
+                          convertedMoves.push({ move: { san: move.san }, fen: tempGame.fen(), time: moveData.move_time_ms, learningHelp: getMoveLifelines(moveData) });
                         }
                       } catch { /* skip invalid move */ }
                     }
@@ -642,14 +708,34 @@ const GameReview = () => {
           let formattedGameHistory = { ...gameData };
           let convertedMoves = [{ move: { san: 'Start' }, fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1' }];
 
+          if ((!gameData.moves || (Array.isArray(gameData.moves) && gameData.moves.length === 0)) && gameData.game_id) {
+            try {
+              const linkedResponse = await api.get(`/games/${gameData.game_id}`);
+              const linkedGame = linkedResponse.data?.data || linkedResponse.data;
+              if (linkedGame?.moves) {
+                gameData = {
+                  ...gameData,
+                  moves: linkedGame.moves,
+                  learning_mode: linkedGame.learning_mode ?? gameData.learning_mode,
+                  learning_help_limit: linkedGame.learning_help_limit ?? gameData.learning_help_limit,
+                  learning_help_used: linkedGame.learning_help_used ?? gameData.learning_help_used,
+                };
+                formattedGameHistory = {
+                  ...formattedGameHistory,
+                  learning_mode: gameData.learning_mode,
+                  learning_help_limit: gameData.learning_help_limit,
+                  learning_help_used: gameData.learning_help_used,
+                };
+              }
+            } catch (linkedError) {
+              console.warn('[GameReview] Could not load linked game moves', linkedError);
+            }
+          }
+
           if (typeof gameData.moves === 'string' && gameData.moves.length > 0) {
             const tempGame = new Chess();
             gameData.moves.split(';').forEach(moveStr => {
-              const fields = moveStr.split(',');
-              const notation = fields[0];
-              const time = fields[1];
-              const evalTotal = fields.length > 2 && fields[2] !== '' ? parseFloat(fields[2]) : null;
-              const moveClass = fields.length > 3 ? fields[3] : null;
+              const { notation, time, evalTotal, moveClass, lifelines } = parseCompactMoveFields(moveStr);
               if (notation && notation.trim()) {
                 try {
                   const move = tempGame.move(notation.trim());
@@ -659,6 +745,7 @@ const GameReview = () => {
                       fen: tempGame.fen(),
                       time: parseFloat(time) || undefined,
                       evaluation: evalTotal != null ? { total: evalTotal, moveClassification: moveClass } : null,
+                      learningHelp: lifelines,
                     });
                   }
                 } catch (moveError) { console.error('Error processing move:', notation, moveError); }
@@ -688,7 +775,7 @@ const GameReview = () => {
               try {
                 const move = tempGame.move(moveData.notation);
                 if (move) {
-                  convertedMoves.push({ move: { san: move.san }, fen: tempGame.fen(), time: moveData.time });
+                  convertedMoves.push({ move: { san: move.san }, fen: tempGame.fen(), time: moveData.time, learningHelp: getMoveLifelines(moveData) });
                 }
               } catch (moveError) { console.error('Error processing move:', moveData.notation, moveError); }
             });
@@ -702,7 +789,7 @@ const GameReview = () => {
                 try {
                   const move = tempGame.move(notation.trim());
                   if (move) {
-                    convertedMoves.push({ move: { san: move.san }, fen: tempGame.fen(), time: moveData.move_time_ms });
+                    convertedMoves.push({ move: { san: move.san }, fen: tempGame.fen(), time: moveData.move_time_ms, learningHelp: getMoveLifelines(moveData) });
                   }
                 } catch (moveError) { console.error('Error processing move:', notation, moveError); }
               }
@@ -1340,6 +1427,14 @@ const GameReview = () => {
                     <div className="text-[#8b8987] text-xs">Moves</div>
                     <div className="text-white text-sm font-semibold">{totalMoves}</div>
                   </div>
+                  {learningHelpSummary && (
+                    <div className="bg-[#26342d] rounded-lg px-3 py-2 border border-[#3fb98f]/30">
+                      <div className="text-[#8b8987] text-xs">Lifelines</div>
+                      <div className="text-[#9ce5ca] text-sm font-semibold">
+                        {learningHelpSummary.used}{learningHelpSummary.limit != null ? `/${learningHelpSummary.limit}` : ''}
+                      </div>
+                    </div>
+                  )}
                   {gameHistory.computer_level > 0 && (
                     <div className="bg-[#262421] rounded-lg px-3 py-2">
                       <div className="text-[#8b8987] text-xs">Level</div>
@@ -1385,6 +1480,7 @@ const GameReview = () => {
                           onClick={() => jumpToMove(pair.whiteIdx)}
                           dataIndex={pair.whiteIdx}
                           evaluation={pair.whiteEval}
+                          lifelines={pair.whiteLifelines}
                         />
                         {pair.black ? (
                           <MoveCell
@@ -1393,6 +1489,7 @@ const GameReview = () => {
                             onClick={() => jumpToMove(pair.blackIdx)}
                             dataIndex={pair.blackIdx}
                             evaluation={pair.blackEval}
+                            lifelines={pair.blackLifelines}
                           />
                         ) : <span />}
                       </div>

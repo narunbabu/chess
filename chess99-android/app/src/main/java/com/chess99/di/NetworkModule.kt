@@ -117,4 +117,10 @@ object NetworkModule {
     fun provideTacticalApi(retrofit: Retrofit): TacticalApi {
         return retrofit.create(TacticalApi::class.java)
     }
+
+    @Provides
+    @Singleton
+    fun provideEntitlementApi(retrofit: Retrofit): EntitlementApi {
+        return retrofit.create(EntitlementApi::class.java)
+    }
 }

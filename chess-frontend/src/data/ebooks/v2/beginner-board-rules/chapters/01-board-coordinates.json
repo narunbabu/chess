@@ -1,0 +1,549 @@
+{
+  "schemaVersion": "2.0.0",
+  "bookId": "beginner-board-rules",
+  "chapterId": "01-board-coordinates",
+  "title": "Board Coordinates And The First Map",
+  "subtitle": "Before pieces make sense, the board must become a map.",
+  "eloRange": "0-300",
+  "requiredTier": "free",
+  "estimatedMinutes": 18,
+  "learningObjectives": [
+    "Recognize the correct board orientation.",
+    "Name files, ranks, and coordinates.",
+    "Read a move as from-square to to-square.",
+    "Play 1.e4 from the starting position."
+  ],
+  "sections": [
+    {
+      "id": "map-before-moves",
+      "title": "The Board Is A Map",
+      "blocks": [
+        {
+          "id": "b01-c01-p01",
+          "type": "prose",
+          "body_md": "A chessboard is not only 64 squares. It is a map. Strong players do not say \"move this pawn up two.\" They say **e2 to e4** because the square names let everyone see the same position in their mind.\n\nIn this chapter, you will learn the board language that every later lesson will use."
+        },
+        {
+          "id": "b01-c01-d01",
+          "type": "board_diagram",
+          "title": "The empty board",
+          "fen": "8/8/8/8/8/8/8/8 w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "h1",
+              "colorRole": "best"
+            },
+            {
+              "square": "a8",
+              "colorRole": "safe"
+            }
+          ],
+          "caption_md": "Correct setup starts with a light square on White's bottom-right corner: h1.",
+          "assertions": [
+            {
+              "type": "highlight_exists",
+              "square": "h1"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c01-d01-empty-board.png",
+            "hash": "8e15916fb28f316a7d4626a173e86dd691102f2d3f10f5e703a93a68c13acc26"
+          }
+        },
+        {
+          "id": "b01-c01-d02",
+          "type": "board_diagram",
+          "title": "The four center squares",
+          "fen": "8/8/8/8/8/8/8/8 w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "d4",
+              "colorRole": "target"
+            },
+            {
+              "square": "e4",
+              "colorRole": "target"
+            },
+            {
+              "square": "d5",
+              "colorRole": "target"
+            },
+            {
+              "square": "e5",
+              "colorRole": "target"
+            }
+          ],
+          "caption_md": "The center squares d4, e4, d5, and e5 are marked because later your pieces will fight for them.",
+          "assertions": [
+            {
+              "type": "highlight_exists",
+              "square": "d4"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "e4"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "d5"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "e5"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c01-d02-center.png",
+            "hash": "4fe065eb857e45fcbbb1b94bb3926b26414fdd827b565fa8d4e4e7017d19fe51"
+          }
+        }
+      ]
+    },
+    {
+      "id": "files-ranks-coordinates",
+      "title": "Files, Ranks, And Square Names",
+      "blocks": [
+        {
+          "id": "b01-c01-p02",
+          "type": "prose",
+          "body_md": "The vertical columns are **files**. They are named a through h from White's left to White's right.\n\nThe horizontal rows are **ranks**. They are numbered 1 through 8 from White's side toward Black's side.\n\nA square name is file plus rank. The square **e4** means the e-file and the 4th rank."
+        },
+        {
+          "id": "b01-c01-d03",
+          "type": "board_diagram",
+          "title": "The e-file",
+          "fen": "8/8/8/8/8/8/8/8 w - - 0 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "e1",
+              "to": "e8",
+              "colorRole": "candidate"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "e1",
+              "colorRole": "safe"
+            },
+            {
+              "square": "e2",
+              "colorRole": "safe"
+            },
+            {
+              "square": "e3",
+              "colorRole": "safe"
+            },
+            {
+              "square": "e4",
+              "colorRole": "target"
+            },
+            {
+              "square": "e5",
+              "colorRole": "target"
+            },
+            {
+              "square": "e6",
+              "colorRole": "safe"
+            },
+            {
+              "square": "e7",
+              "colorRole": "safe"
+            },
+            {
+              "square": "e8",
+              "colorRole": "safe"
+            }
+          ],
+          "caption_md": "Every square in this column starts with e: e1, e2, e3, and so on.",
+          "assertions": [
+            {
+              "type": "highlight_exists",
+              "square": "e4"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "e1",
+              "to": "e8"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c01-d03-e-file.png",
+            "hash": "8a7bb6d9d9a3a84e341de222033515111791d9d32201475f81a291aed5a46abf"
+          }
+        },
+        {
+          "id": "b01-c01-d04",
+          "type": "board_diagram",
+          "title": "The 4th rank",
+          "fen": "8/8/8/8/8/8/8/8 w - - 0 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "a4",
+              "to": "h4",
+              "colorRole": "capture"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "a4",
+              "colorRole": "safe"
+            },
+            {
+              "square": "b4",
+              "colorRole": "safe"
+            },
+            {
+              "square": "c4",
+              "colorRole": "safe"
+            },
+            {
+              "square": "d4",
+              "colorRole": "target"
+            },
+            {
+              "square": "e4",
+              "colorRole": "target"
+            },
+            {
+              "square": "f4",
+              "colorRole": "safe"
+            },
+            {
+              "square": "g4",
+              "colorRole": "safe"
+            },
+            {
+              "square": "h4",
+              "colorRole": "safe"
+            }
+          ],
+          "caption_md": "Every square in this row ends with 4: a4, b4, c4, d4, e4, f4, g4, h4.",
+          "assertions": [
+            {
+              "type": "highlight_exists",
+              "square": "d4"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "a4",
+              "to": "h4"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c01-d04-fourth-rank.png",
+            "hash": "0b74c517314927bccd3bf342c4f53b60fd608ff0958d28591d2d780561c13fd2"
+          }
+        },
+        {
+          "id": "b01-c01-d05",
+          "type": "board_diagram",
+          "title": "A piece on e4",
+          "fen": "8/8/8/8/4N3/8/8/8 w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "e4",
+              "colorRole": "best"
+            }
+          ],
+          "caption_md": "The knight is on e4: e-file, 4th rank. Say it aloud before moving on.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "e4",
+              "piece": "white_knight"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "e4"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c01-d05-knight-e4.png",
+            "hash": "41cae0011629d50cbddb3111af6967f0d117cf568405e422905cd7290600085c"
+          }
+        }
+      ]
+    },
+    {
+      "id": "first-move",
+      "title": "A Move Has Two Squares",
+      "blocks": [
+        {
+          "id": "b01-c01-p03",
+          "type": "prose",
+          "body_md": "A written move often starts with two coordinates: the square the piece leaves and the square it lands on.\n\nFor example, **e2e4** means: take the piece on e2 and move it to e4. In a normal starting position, that piece is White's king pawn."
+        },
+        {
+          "id": "b01-c01-d06",
+          "type": "board_diagram",
+          "title": "Before 1.e4",
+          "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "e2",
+              "to": "e4",
+              "colorRole": "best"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "e2",
+              "colorRole": "lastMove"
+            },
+            {
+              "square": "e4",
+              "colorRole": "best"
+            }
+          ],
+          "caption_md": "The arrow shows the pawn's first move: e2 to e4.",
+          "assertions": [
+            {
+              "type": "side_to_move",
+              "value": "white"
+            },
+            {
+              "type": "piece_on",
+              "square": "e2",
+              "piece": "white_pawn"
+            },
+            {
+              "type": "legal_move",
+              "move": "e2e4"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c01-d06-before-e4.png",
+            "hash": "cab16a7b8d27fb4b3f61ccfdd13a34adc4a7038d861a7844e4d9f9ced2de36ba"
+          }
+        },
+        {
+          "id": "b01-c01-g01",
+          "type": "guided_move",
+          "title": "Play e2 to e4",
+          "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          "orientation": "white",
+          "prompt_md": "Move the pawn from e2 to e4. Use the coordinates, not guesswork.",
+          "acceptedMoves": [
+            "e2e4"
+          ],
+          "successMessage": "Correct. You read a move as from-square to to-square.",
+          "failureMessage": "Use the e-file pawn and land on e4.",
+          "arrows": [
+            {
+              "from": "e2",
+              "to": "e4",
+              "colorRole": "best"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "e2",
+              "colorRole": "lastMove"
+            },
+            {
+              "square": "e4",
+              "colorRole": "best"
+            }
+          ],
+          "assertions": [
+            {
+              "type": "legal_move",
+              "move": "e2e4"
+            }
+          ]
+        },
+        {
+          "id": "b01-c01-a01",
+          "type": "board_animation",
+          "title": "The board after 1.e4",
+          "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          "orientation": "white",
+          "sequence": [
+            {
+              "move": "e2e4",
+              "arrow": {
+                "from": "e2",
+                "to": "e4",
+                "colorRole": "best"
+              }
+            }
+          ],
+          "speed": "slow",
+          "caption_md": "After e2e4, the pawn leaves e2 and stands on e4. The move also opens lines for White's queen and bishop.",
+          "assertions": [
+            {
+              "type": "legal_move",
+              "move": "e2e4"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c01-a01-e4-animation.png",
+            "hash": "246d262d03f9a9e61a2e06fec5ba00b4cd579bee166f6495298cc875b9831bad"
+          }
+        }
+      ]
+    },
+    {
+      "id": "common-mistake",
+      "title": "Common Mistake: Trusting The Picture, Not The Coordinates",
+      "blocks": [
+        {
+          "id": "b01-c01-m01",
+          "type": "mistake_refutation",
+          "title": "Wrong board orientation ruins every square name",
+          "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "h1",
+              "colorRole": "best"
+            },
+            {
+              "square": "d1",
+              "colorRole": "target"
+            },
+            {
+              "square": "d8",
+              "colorRole": "target"
+            }
+          ],
+          "body_md": "If the board is rotated incorrectly in real life, every coordinate becomes unreliable. The simple check is: **light square on the right** for White. Then queens start on their own color: White queen on d1, Black queen on d8.",
+          "caption_md": "h1 is the orientation check. d1 and d8 show the queen-on-own-color rule.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "h1",
+              "piece": "white_rook"
+            },
+            {
+              "type": "piece_on",
+              "square": "d1",
+              "piece": "white_queen"
+            },
+            {
+              "type": "piece_on",
+              "square": "d8",
+              "piece": "black_queen"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c01-m01-orientation.png",
+            "hash": "eb94c09513cedf2553070d22aabf9e0d0bfb1af59c14190d3331c346148cb9b1"
+          }
+        },
+        {
+          "id": "b01-c01-q01",
+          "type": "quiz",
+          "title": "Checkpoint: name the square",
+          "question_md": "A knight is placed on the e-file and the 4th rank. What square is it on?",
+          "options": [
+            {
+              "id": "a",
+              "label": "d4",
+              "isCorrect": false,
+              "feedback": "d4 is the d-file, 4th rank."
+            },
+            {
+              "id": "b",
+              "label": "e4",
+              "isCorrect": true,
+              "feedback": "Correct. File first, rank second."
+            },
+            {
+              "id": "c",
+              "label": "4e",
+              "isCorrect": false,
+              "feedback": "Chess coordinates use file first, then rank."
+            }
+          ],
+          "successMessage": "Good. You can now read a basic coordinate."
+        }
+      ]
+    }
+  ],
+  "checkpoint": {
+    "id": "b01-c01-checkpoint",
+    "type": "checkpoint",
+    "title": "Chapter Checkpoint",
+    "requiredScore": 3,
+    "summary_md": "Pass this chapter when you can name h1, d4, e4, and play e2e4 without hints.",
+    "blocks": [
+      {
+        "id": "b01-c01-q02",
+        "type": "quiz",
+        "title": "Which square is White's bottom-right corner?",
+        "question_md": "With White at the bottom, the bottom-right corner is:",
+        "options": [
+          {
+            "id": "a",
+            "label": "a1",
+            "isCorrect": false,
+            "feedback": "a1 is White's bottom-left corner."
+          },
+          {
+            "id": "b",
+            "label": "h1",
+            "isCorrect": true,
+            "feedback": "Correct. h1 must be a light square."
+          },
+          {
+            "id": "c",
+            "label": "h8",
+            "isCorrect": false,
+            "feedback": "h8 is on Black's back rank."
+          }
+        ]
+      },
+      {
+        "id": "b01-c01-q03",
+        "type": "quiz",
+        "title": "How do you read e2e4?",
+        "question_md": "The move e2e4 means:",
+        "options": [
+          {
+            "id": "a",
+            "label": "Move from e2 to e4",
+            "isCorrect": true,
+            "feedback": "Correct. First square is the start, second square is the destination."
+          },
+          {
+            "id": "b",
+            "label": "Move from e4 to e2",
+            "isCorrect": false,
+            "feedback": "The order matters: e2 first, e4 second."
+          },
+          {
+            "id": "c",
+            "label": "Move any pawn two squares",
+            "isCorrect": false,
+            "feedback": "Coordinates name exact squares, not just a general idea."
+          }
+        ]
+      }
+    ]
+  },
+  "reviewAssertions": [
+    {
+      "type": "minimum_board_diagrams",
+      "value": 5
+    },
+    {
+      "type": "minimum_guided_moves",
+      "value": 1
+    },
+    {
+      "type": "minimum_quizzes",
+      "value": 2
+    },
+    {
+      "type": "tier_allowed",
+      "value": "free"
+    }
+  ]
+}

@@ -1,0 +1,478 @@
+{
+  "schemaVersion": "2.0.0",
+  "bookId": "survival-chess",
+  "chapterId": "07-avoiding-stalemate",
+  "title": "Avoiding Stalemate",
+  "subtitle": "Do not turn a win into a draw.",
+  "eloRange": "300-700",
+  "requiredTier": "free",
+  "estimatedMinutes": 26,
+  "learningObjectives": [
+    "Recognize stalemate danger.",
+    "Prefer checking moves in winning king hunts.",
+    "Leave the defender legal moves until mate is ready."
+  ],
+  "sections": [
+    {
+      "id": "stalemate-safety",
+      "title": "Winning Still Needs Care",
+      "blocks": [
+        {
+          "id": "b02-c07-p01",
+          "type": "prose",
+          "body_md": "Stalemate happens when the side to move has no legal move but is not in check. Beginners often stalemate with a queen because they take every escape square without giving check."
+        },
+        {
+          "id": "b02-c07-d01",
+          "type": "board_diagram",
+          "title": "The danger around h8",
+          "fen": "7k/5Q2/6K1/8/8/8/8/8 w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "h8",
+              "colorRole": "target"
+            },
+            {
+              "square": "f7",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "g6",
+              "colorRole": "safe"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "f7",
+              "to": "f8",
+              "colorRole": "best"
+            }
+          ],
+          "caption_md": "The black king has very little room. White must use checks carefully.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "h8",
+              "piece": "black_king"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "h8"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "f7",
+              "to": "f8"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c07-d01-stalemate-danger.png",
+            "hash": "7c36eda9bb91c532b0abafd0416ad99b779f5e5a25ce64444bbed204e677e678"
+          }
+        },
+        {
+          "id": "b02-c07-d02",
+          "type": "board_diagram",
+          "title": "Give a checking move",
+          "fen": "7k/5Q2/6K1/8/8/8/8/8 w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "f7",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "f8",
+              "colorRole": "best"
+            },
+            {
+              "square": "h8",
+              "colorRole": "check"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "f7",
+              "to": "f8",
+              "colorRole": "best"
+            }
+          ],
+          "caption_md": "Queen f8 gives check instead of merely taking squares.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "f7",
+              "piece": "white_queen"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "f8"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "f7",
+              "to": "f8"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c07-d02-mate-with-check.png",
+            "hash": "d7cd98c25669d54c99372da70f24005effa3b885b72bebd287ba10e43de7e9a5"
+          }
+        },
+        {
+          "id": "b02-c07-d03",
+          "type": "board_diagram",
+          "title": "The king controls escape squares",
+          "fen": "7k/5Q2/6K1/8/8/8/8/8 w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "g6",
+              "colorRole": "safe"
+            },
+            {
+              "square": "h7",
+              "colorRole": "target"
+            },
+            {
+              "square": "g7",
+              "colorRole": "target"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "g6",
+              "to": "h7",
+              "colorRole": "safe"
+            },
+            {
+              "from": "g6",
+              "to": "g7",
+              "colorRole": "safe"
+            }
+          ],
+          "caption_md": "The white king on g6 controls h7 and g7.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "g6",
+              "piece": "white_king"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "h7"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "g7"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c07-d03-king-box.png",
+            "hash": "12da0b39b29148d417f543fb900672a990b9ae333cd9a6967059acb3c7622af3"
+          }
+        },
+        {
+          "id": "b02-c07-d04",
+          "type": "board_diagram",
+          "title": "A quiet squeeze can stalemate",
+          "fen": "7k/8/6K1/8/8/8/8/5Q2 w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "f1",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "f7",
+              "colorRole": "wrong"
+            },
+            {
+              "square": "h8",
+              "colorRole": "target"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "f1",
+              "to": "f7",
+              "colorRole": "wrong"
+            }
+          ],
+          "caption_md": "If you only take squares and do not check, you may give the defender no legal move.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "f1",
+              "piece": "white_queen"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "f7"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "f1",
+              "to": "f7"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c07-d04-bad-squeeze.png",
+            "hash": "c7fd38106fab2fc1ab625abdd25ef507d5252990bdfdc21809488447ca3fdc79"
+          }
+        },
+        {
+          "id": "b02-c07-d05",
+          "type": "board_diagram",
+          "title": "The survival rule: check before the box closes",
+          "fen": "7k/5Q2/6K1/8/8/8/8/8 w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "f7",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "f8",
+              "colorRole": "check"
+            },
+            {
+              "square": "h8",
+              "colorRole": "check"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "f7",
+              "to": "f8",
+              "colorRole": "check"
+            }
+          ],
+          "caption_md": "When the enemy king is trapped, choose a move that gives check.",
+          "assertions": [
+            {
+              "type": "highlight_exists",
+              "square": "f8"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "h8"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "f7",
+              "to": "f8"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c07-d05-safe-rule.png",
+            "hash": "71b8e5a981bdf9adbd9305ed53e5c95abc0d9d01b4d75a1931318e55197cb318"
+          }
+        },
+        {
+          "id": "b02-c07-g01",
+          "type": "guided_move",
+          "title": "Avoid stalemate with check",
+          "fen": "7k/5Q2/6K1/8/8/8/8/8 w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "f7",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "f8",
+              "colorRole": "best"
+            },
+            {
+              "square": "h8",
+              "colorRole": "check"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "f7",
+              "to": "f8",
+              "colorRole": "best"
+            }
+          ],
+          "caption_md": "",
+          "assertions": [
+            {
+              "type": "legal_move",
+              "move": "f7f8"
+            },
+            {
+              "type": "piece_on",
+              "square": "f7",
+              "piece": "white_queen"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "f8"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "f7",
+              "to": "f8"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c07-g01-qf8.png",
+            "hash": "d7cd98c25669d54c99372da70f24005effa3b885b72bebd287ba10e43de7e9a5"
+          },
+          "prompt_md": "Move the queen from f7 to f8.",
+          "acceptedMoves": [
+            "f7f8"
+          ],
+          "successMessage": "Correct. You found the safe survival move.",
+          "failureMessage": "Pause and scan checks, captures, and threats again."
+        },
+        {
+          "id": "b02-c07-m01",
+          "type": "mistake_refutation",
+          "title": "Common mistake: squeeze without check",
+          "fen": "7k/8/6K1/8/8/8/8/5Q2 w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "f1",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "f7",
+              "colorRole": "wrong"
+            },
+            {
+              "square": "h8",
+              "colorRole": "target"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "f1",
+              "to": "f7",
+              "colorRole": "wrong"
+            }
+          ],
+          "caption_md": "The wrong arrow shows a queen move that focuses only on the box.",
+          "assertions": [
+            {
+              "type": "highlight_exists",
+              "square": "f7"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "h8"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "f1",
+              "to": "f7"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c07-m01-no-check-squeeze.png",
+            "hash": "c7fd38106fab2fc1ab625abdd25ef507d5252990bdfdc21809488447ca3fdc79"
+          },
+          "body_md": "A quiet queen move can remove all moves without checking. In a won ending, ask if the defender is in check."
+        }
+      ]
+    }
+  ],
+  "checkpoint": {
+    "id": "b02-c07-checkpoint",
+    "title": "Chapter Checkpoint",
+    "summary_md": "Answer without guessing. The goal is a repeatable survival habit, not a lucky move.",
+    "blocks": [
+      {
+        "id": "b02-c07-q01",
+        "type": "quiz",
+        "title": "Stalemate is:",
+        "question_md": "Stalemate is:",
+        "options": [
+          {
+            "id": "a",
+            "label": "No legal moves and not in check",
+            "isCorrect": true
+          },
+          {
+            "id": "b",
+            "label": "Any checkmate",
+            "isCorrect": false
+          },
+          {
+            "id": "c",
+            "label": "A pawn trade",
+            "isCorrect": false
+          }
+        ]
+      },
+      {
+        "id": "b02-c07-q02",
+        "type": "quiz",
+        "title": "Near a trapped king, prefer moves that:",
+        "question_md": "Near a trapped king, prefer moves that:",
+        "options": [
+          {
+            "id": "a",
+            "label": "Give check",
+            "isCorrect": true
+          },
+          {
+            "id": "b",
+            "label": "Only take squares quietly",
+            "isCorrect": false
+          },
+          {
+            "id": "c",
+            "label": "Lose the queen",
+            "isCorrect": false
+          }
+        ]
+      },
+      {
+        "id": "b02-c07-q03",
+        "type": "quiz",
+        "title": "Stalemate makes a won game become:",
+        "question_md": "Stalemate makes a won game become:",
+        "options": [
+          {
+            "id": "a",
+            "label": "A draw",
+            "isCorrect": true
+          },
+          {
+            "id": "b",
+            "label": "A bigger win",
+            "isCorrect": false
+          },
+          {
+            "id": "c",
+            "label": "An illegal board",
+            "isCorrect": false
+          }
+        ]
+      }
+    ]
+  },
+  "reviewAssertions": [
+    {
+      "type": "minimum_board_diagrams",
+      "value": 5
+    },
+    {
+      "type": "minimum_guided_moves",
+      "value": 1
+    },
+    {
+      "type": "minimum_quizzes",
+      "value": 3
+    },
+    {
+      "type": "tier_allowed",
+      "value": "free"
+    }
+  ]
+}

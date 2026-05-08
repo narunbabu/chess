@@ -18,6 +18,7 @@ import { GlobalInvitationProvider } from "./contexts/GlobalInvitationContext";
 import { ChampionshipProvider } from "./contexts/ChampionshipContext";
 import { ChampionshipInvitationProvider } from "./contexts/ChampionshipInvitationContext";
 import { SubscriptionProvider } from "./contexts/SubscriptionContext";
+import { EntitlementProvider } from "./contexts/EntitlementContext";
 import { GameNavigationProvider } from "./contexts/GameNavigationContext";
 import GlobalInvitationDialog from "./components/invitations/GlobalInvitationDialog";
 import { GameNavigationWarningDialogWrapper } from "./components/game/GameNavigationWarningDialog";
@@ -58,6 +59,7 @@ const Dashboard = createLazyComponent(() => import("./components/Dashboard"), { 
 const TrainingHub = createLazyComponent(() => import("./components/TrainingHub"), { componentName: "TrainingHub" });
 const TrainingExercise = createLazyComponent(() => import("./components/TrainingExercise"), { componentName: "TrainingExercise" });
 const TacticalTrainer = createLazyComponent(() => import("./components/tactical/TacticalTrainer"), { componentName: "TacticalTrainer" });
+const EbookViewer = createLazyComponent(() => import("./components/ebook/EbookViewer"), { componentName: "EbookViewer" });
 const TutorialHub = createLazyComponent(() => import("./components/tutorial/TutorialHub"), { componentName: "TutorialHub" });
 const ModuleDetail = createLazyComponent(() => import("./components/tutorial/ModuleDetail"), { componentName: "ModuleDetail" });
 const LessonPlayer = createLazyComponent(() => import("./components/tutorial/LessonPlayer"), { componentName: "LessonPlayer" });
@@ -81,6 +83,8 @@ const ReferralDashboard = createLazyComponent(() => import("./pages/ReferralDash
 const AdminReferralDashboard = createLazyComponent(() => import("./pages/AdminReferralDashboard"), { componentName: "AdminReferralDashboard" });
 const AdminDashboard = createLazyComponent(() => import("./pages/AdminDashboard"), { componentName: "AdminDashboard" });
 const AmbassadorDashboard = createLazyComponent(() => import("./pages/AmbassadorDashboard"), { componentName: "AmbassadorDashboard" });
+const AmbassadorPoster = createLazyComponent(() => import("./pages/AmbassadorPoster"), { componentName: "AmbassadorPoster" });
+const BecomeAmbassador = createLazyComponent(() => import("./pages/BecomeAmbassador"), { componentName: "BecomeAmbassador" });
 const OrganizationDashboard = createLazyComponent(() => import("./pages/OrganizationDashboard"), { componentName: "OrganizationDashboard" });
 const FriendsPage = createLazyComponent(() => import("./pages/FriendsPage"), { componentName: "FriendsPage" });
 const LeaderboardPage = createLazyComponent(() => import("./pages/LeaderboardPage"), { componentName: "LeaderboardPage" });
@@ -102,6 +106,7 @@ const App = () => {
     <AuthProvider>
       <AppDataProvider>
         <SubscriptionProvider>
+          <EntitlementProvider>
         <FeatureFlagsProvider>
           <ChampionshipProvider>
             <ChampionshipInvitationProvider>
@@ -123,6 +128,7 @@ const App = () => {
           </ChampionshipProvider>
            
         </FeatureFlagsProvider>
+          </EntitlementProvider>
         </SubscriptionProvider>
       </AppDataProvider>
     </AuthProvider>
@@ -132,7 +138,7 @@ const App = () => {
 // Component to add full-bleed class for landing/login pages
 const AppContent = () => {
   const location = useLocation();
-  const isFullBleed = ['/', '/login', '/forgot-password', '/reset-password'].includes(location.pathname) || location.pathname.startsWith('/join/');
+  const isFullBleed = ['/', '/login', '/forgot-password', '/reset-password', '/ambassador/poster'].includes(location.pathname) || location.pathname.startsWith('/join/') || location.pathname.startsWith('/r/');
 
   useEffect(() => {
     Sentry.addBreadcrumb({
@@ -159,6 +165,8 @@ const AppContent = () => {
             <Route path="/coming-soon" element={<ComingSoon />} />
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="/join/:code" element={<JoinRedirect />} />
+            {/* /r/<code> — short ambassador URL, alias of /join/<code> */}
+            <Route path="/r/:code" element={<JoinRedirect />} />
             <Route path="/share/result/:uniqueId" element={<SharedResultPage />} />
             <Route path="/games/:id/replay" element={<GameReplayPage />} />
             <Route path="/leaderboard" element={<LeaderboardPage />} />
@@ -256,6 +264,8 @@ const AppContent = () => {
             />
             {/* Tactical Progression Trainer - accessible without auth */}
             <Route path="/tactical-trainer" element={<TacticalTrainer />} />
+            {/* Interactive E-Book: Chess 0 -> 1000 */}
+            <Route path="/ebook" element={<EbookViewer />} />
             <Route
               path="/history"
               element={
@@ -303,6 +313,22 @@ const AppContent = () => {
               element={
                 <RouteGuard>
                   <AmbassadorDashboard />
+                </RouteGuard>
+              }
+            />
+            <Route
+              path="/ambassador/poster"
+              element={
+                <RouteGuard>
+                  <AmbassadorPoster />
+                </RouteGuard>
+              }
+            />
+            <Route
+              path="/become-ambassador"
+              element={
+                <RouteGuard>
+                  <BecomeAmbassador />
                 </RouteGuard>
               }
             />

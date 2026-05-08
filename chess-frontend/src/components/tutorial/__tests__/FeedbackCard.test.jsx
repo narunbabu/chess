@@ -38,7 +38,7 @@ describe('FeedbackCard', () => {
   it('renders error feedback correctly', () => {
     render(<FeedbackCard feedback={mockErrorFeedback} onDismiss={mockOnDismiss} />);
 
-    expect(screen.getByText('Not quite!')).toBeInTheDocument();
+    expect(screen.getByText('Try Again')).toBeInTheDocument();
     expect(screen.getByText('That square is dangerous. Try again.')).toBeInTheDocument();
     expect(screen.getByText('-5 points')).toBeInTheDocument();
   });
@@ -46,20 +46,20 @@ describe('FeedbackCard', () => {
   it('shows close button when onDismiss is provided', () => {
     render(<FeedbackCard feedback={mockSuccessFeedback} onDismiss={mockOnDismiss} />);
 
-    const closeButton = screen.getByRole('button', { name: /close/i });
+    const closeButton = screen.getByRole('button', { name: /dismiss/i });
     expect(closeButton).toBeInTheDocument();
   });
 
   it('does not show close button when onDismiss is not provided', () => {
     render(<FeedbackCard feedback={mockSuccessFeedback} />);
 
-    expect(screen.queryByRole('button', { name: /close/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /dismiss/i })).not.toBeInTheDocument();
   });
 
   it('calls onDismiss when close button is clicked', () => {
     render(<FeedbackCard feedback={mockSuccessFeedback} onDismiss={mockOnDismiss} />);
 
-    const closeButton = screen.getByRole('button', { name: /close/i });
+    const closeButton = screen.getByRole('button', { name: /dismiss/i });
     fireEvent.click(closeButton);
 
     expect(mockOnDismiss).toHaveBeenCalledTimes(1);
@@ -93,9 +93,9 @@ describe('FeedbackCard', () => {
       <FeedbackCard feedback={mockSuccessFeedback} onDismiss={mockOnDismiss} />
     );
 
-    expect(container.querySelector('.bg-green-50')).toBeInTheDocument();
-    expect(container.querySelector('.border-green-200')).toBeInTheDocument();
-    expect(container.querySelector('.text-green-800')).toBeInTheDocument();
+    expect(container.firstChild).toHaveClass('bg-[#4e7837]/20');
+    expect(container.firstChild).toHaveClass('border-[#81b64c]');
+    expect(screen.getByText('Excellent!')).toHaveClass('text-[#a3d160]');
   });
 
   it('applies correct CSS classes for error feedback', () => {
@@ -103,9 +103,9 @@ describe('FeedbackCard', () => {
       <FeedbackCard feedback={mockErrorFeedback} onDismiss={mockOnDismiss} />
     );
 
-    expect(container.querySelector('.bg-red-50')).toBeInTheDocument();
-    expect(container.querySelector('.border-red-200')).toBeInTheDocument();
-    expect(container.querySelector('.text-red-800')).toBeInTheDocument();
+    expect(container.firstChild).toHaveClass('bg-[#e74c3c]/15');
+    expect(container.firstChild).toHaveClass('border-[#e74c3c]');
+    expect(screen.getByText('Try Again')).toHaveClass('text-[#fa6a5b]');
   });
 
   it('renders subtext when provided', () => {

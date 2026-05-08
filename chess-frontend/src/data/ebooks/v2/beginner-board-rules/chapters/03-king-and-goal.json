@@ -1,0 +1,462 @@
+{
+  "schemaVersion": "2.0.0",
+  "bookId": "beginner-board-rules",
+  "chapterId": "03-king-and-goal",
+  "title": "The King And The Goal",
+  "subtitle": "The king moves slowly, but the whole game turns around him.",
+  "eloRange": "0-300",
+  "requiredTier": "free",
+  "estimatedMinutes": 24,
+  "learningObjectives": [
+    "Move the king one square in any direction.",
+    "Know that kings may never stand next to each other.",
+    "Understand that the king may not move into danger.",
+    "Explain why the king is never traded or captured."
+  ],
+  "sections": [
+    {
+      "id": "king-basics",
+      "title": "The King Is The Game",
+      "blocks": [
+        {
+          "id": "b01-c03-p01",
+          "type": "prose",
+          "body_md": "Every piece can be traded except the king. You do not win by taking the king off the board. You win by attacking the king so strongly that there is no legal escape. That final position is checkmate."
+        },
+        {
+          "id": "b01-c03-d01",
+          "type": "board_diagram",
+          "title": "The king moves one square",
+          "fen": "8/8/8/8/4K3/8/8/4k3 w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "d5",
+              "colorRole": "safe"
+            },
+            {
+              "square": "e5",
+              "colorRole": "safe"
+            },
+            {
+              "square": "f5",
+              "colorRole": "safe"
+            },
+            {
+              "square": "d4",
+              "colorRole": "safe"
+            },
+            {
+              "square": "f4",
+              "colorRole": "safe"
+            },
+            {
+              "square": "d3",
+              "colorRole": "safe"
+            },
+            {
+              "square": "e3",
+              "colorRole": "safe"
+            },
+            {
+              "square": "f3",
+              "colorRole": "safe"
+            }
+          ],
+          "caption_md": "From e4, the king can step to any adjacent highlighted square if that square is safe.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "e4",
+              "piece": "white_king"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "f5"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "d3"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c03-d01-king-one-square.png",
+            "hash": "3b3267d7087d19eb8888c1e22871428280407dec226b0b8cd99a74bd14cbadf5"
+          }
+        },
+        {
+          "id": "b01-c03-d02",
+          "type": "board_diagram",
+          "title": "Kings cannot touch",
+          "fen": "8/8/8/8/4K3/8/4k3/8 w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "e3",
+              "colorRole": "wrong"
+            },
+            {
+              "square": "d3",
+              "colorRole": "wrong"
+            },
+            {
+              "square": "f3",
+              "colorRole": "wrong"
+            }
+          ],
+          "caption_md": "The kings control the squares beside them. White may not move next to the black king.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "e4",
+              "piece": "white_king"
+            },
+            {
+              "type": "piece_on",
+              "square": "e2",
+              "piece": "black_king"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "e3"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c03-d02-kings-cannot-touch.png",
+            "hash": "c380781c2c60592c6e903bb1909ba1f0d61a0f7fd4eceb325f84e8c20f04dc6d"
+          }
+        }
+      ]
+    },
+    {
+      "id": "king-safety",
+      "title": "Safe Squares Matter",
+      "blocks": [
+        {
+          "id": "b01-c03-p02",
+          "type": "prose",
+          "body_md": "A king move has two questions. First, does the king move one square? Second, is the landing square safe? A one-square move is still illegal if the king walks into an attack."
+        },
+        {
+          "id": "b01-c03-d03",
+          "type": "board_diagram",
+          "title": "The king can capture a loose piece",
+          "fen": "8/8/8/3p4/4K3/8/8/4k3 w - - 0 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "e4",
+              "to": "d5",
+              "colorRole": "capture"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "d5",
+              "colorRole": "capture"
+            }
+          ],
+          "caption_md": "If the pawn on d5 is not protected, the king may capture it by moving one square diagonally.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "e4",
+              "piece": "white_king"
+            },
+            {
+              "type": "piece_on",
+              "square": "d5",
+              "piece": "black_pawn"
+            },
+            {
+              "type": "legal_move",
+              "move": "e4d5"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c03-d03-king-captures-loose-pawn.png",
+            "hash": "3abceca38b6647e45bb21af6bdd4997b8b7d9fa806ec82e5563421f395d2286d"
+          }
+        },
+        {
+          "id": "b01-c03-d04",
+          "type": "board_diagram",
+          "title": "A rook controls the e-file",
+          "fen": "4r3/8/8/8/3K4/8/8/6k1 w - - 0 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "e8",
+              "to": "e4",
+              "colorRole": "check"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "e4",
+              "colorRole": "wrong"
+            }
+          ],
+          "caption_md": "The black rook controls e4, so the white king on d4 may not step onto e4.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "d4",
+              "piece": "white_king"
+            },
+            {
+              "type": "piece_on",
+              "square": "e8",
+              "piece": "black_rook"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "e8",
+              "to": "e4"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c03-d04-king-cannot-enter-rook-file.png",
+            "hash": "ea7d325c41b5233768b8846037aeb93044345e73e948388fbb64128556e4599f"
+          }
+        },
+        {
+          "id": "b01-c03-d05",
+          "type": "board_diagram",
+          "title": "A safe king step",
+          "fen": "8/8/8/8/4K3/8/8/4k3 w - - 0 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "e4",
+              "to": "f5",
+              "colorRole": "best"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "f5",
+              "colorRole": "best"
+            }
+          ],
+          "caption_md": "e4 to f5 is a normal one-square king move in this position.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "e4",
+              "piece": "white_king"
+            },
+            {
+              "type": "legal_move",
+              "move": "e4f5"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "e4",
+              "to": "f5"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c03-d05-safe-king-step.png",
+            "hash": "3c3510f645715336206dc044e24963028afcf8de73b0d7f0f56d4bee5b994f0b"
+          }
+        },
+        {
+          "id": "b01-c03-g01",
+          "type": "guided_move",
+          "title": "Move the king to f5",
+          "fen": "8/8/8/8/4K3/8/8/4k3 w - - 0 1",
+          "orientation": "white",
+          "prompt_md": "Move the white king from e4 to f5.",
+          "acceptedMoves": [
+            "e4f5"
+          ],
+          "successMessage": "Correct. A king may step one square diagonally when the square is safe.",
+          "failureMessage": "The king starts on e4 and should land on f5.",
+          "arrows": [
+            {
+              "from": "e4",
+              "to": "f5",
+              "colorRole": "best"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "e4",
+              "colorRole": "lastMove"
+            },
+            {
+              "square": "f5",
+              "colorRole": "best"
+            }
+          ],
+          "assertions": [
+            {
+              "type": "legal_move",
+              "move": "e4f5"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "king-mistake",
+      "title": "Common Mistake",
+      "blocks": [
+        {
+          "id": "b01-c03-m01",
+          "type": "mistake_refutation",
+          "title": "Common mistake: walking into attack",
+          "fen": "4r3/8/8/8/3K4/8/8/6k1 w - - 0 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "d4",
+              "to": "e4",
+              "colorRole": "wrong"
+            },
+            {
+              "from": "e8",
+              "to": "e4",
+              "colorRole": "check"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "e4",
+              "colorRole": "wrong"
+            }
+          ],
+          "body_md": "The move from d4 to e4 looks like a legal one-square move, but e4 is controlled by the rook on e8. A king move must satisfy both rules: one square and safe.",
+          "caption_md": "The red square is not safe. The rook already controls it.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "d4",
+              "piece": "white_king"
+            },
+            {
+              "type": "piece_on",
+              "square": "e8",
+              "piece": "black_rook"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "e8",
+              "to": "e4"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c03-m01-king-walks-into-rook.png",
+            "hash": "fc5a23d10252be0eb0695315108128d6ccdcb3e6441d3dec2f96a0dadf42d055"
+          }
+        }
+      ]
+    }
+  ],
+  "checkpoint": {
+    "id": "b01-c03-checkpoint",
+    "type": "checkpoint",
+    "title": "Chapter Checkpoint",
+    "requiredScore": 3,
+    "summary_md": "Pass this chapter when you can move the king one square, reject unsafe squares, and explain why kings may not touch.",
+    "blocks": [
+      {
+        "id": "b01-c03-q01",
+        "type": "quiz",
+        "title": "How far does a king move?",
+        "question_md": "A king normally moves:",
+        "options": [
+          {
+            "id": "a",
+            "label": "One square in any direction",
+            "isCorrect": true,
+            "feedback": "Correct."
+          },
+          {
+            "id": "b",
+            "label": "Any number of squares in a straight line",
+            "isCorrect": false,
+            "feedback": "That is how a rook or queen can move."
+          },
+          {
+            "id": "c",
+            "label": "Only forward",
+            "isCorrect": false,
+            "feedback": "Kings can move backward, sideways, and diagonally."
+          }
+        ]
+      },
+      {
+        "id": "b01-c03-q02",
+        "type": "quiz",
+        "title": "Can kings stand next to each other?",
+        "question_md": "Two kings may stand on adjacent squares:",
+        "options": [
+          {
+            "id": "a",
+            "label": "No",
+            "isCorrect": true,
+            "feedback": "Correct. Kings may not touch."
+          },
+          {
+            "id": "b",
+            "label": "Yes, if no other pieces are nearby",
+            "isCorrect": false,
+            "feedback": "Kings attack adjacent squares, so they cannot touch."
+          },
+          {
+            "id": "c",
+            "label": "Only in the endgame",
+            "isCorrect": false,
+            "feedback": "The rule never changes."
+          }
+        ]
+      },
+      {
+        "id": "b01-c03-q03",
+        "type": "quiz",
+        "title": "What makes a king move illegal?",
+        "question_md": "A one-square king move is illegal when:",
+        "options": [
+          {
+            "id": "a",
+            "label": "The landing square is attacked",
+            "isCorrect": true,
+            "feedback": "Correct. The king may not move into danger."
+          },
+          {
+            "id": "b",
+            "label": "The king moves diagonally",
+            "isCorrect": false,
+            "feedback": "Diagonal king moves are allowed if safe."
+          },
+          {
+            "id": "c",
+            "label": "The king captures a piece",
+            "isCorrect": false,
+            "feedback": "Kings can capture loose enemy pieces."
+          }
+        ]
+      }
+    ]
+  },
+  "reviewAssertions": [
+    {
+      "type": "minimum_board_diagrams",
+      "value": 5
+    },
+    {
+      "type": "minimum_guided_moves",
+      "value": 1
+    },
+    {
+      "type": "minimum_quizzes",
+      "value": 3
+    },
+    {
+      "type": "tier_allowed",
+      "value": "free"
+    }
+  ]
+}

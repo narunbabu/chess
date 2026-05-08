@@ -21,10 +21,10 @@ const DailyChallengeCard = () => {
     if (!user) return;
 
     const fetchData = () => {
-      api.get('/v1/daily-challenge')
+      api.get('/tutorial/daily-challenge?track=daily-starter')
         .then(res => setChallenge(res.data.data || res.data))
         .catch(() => {});
-      api.get('/v1/tutorial/progress/stats')
+      api.get('/tutorial/progress/stats')
         .then(res => {
           const stats = res.data.data || res.data;
           setStreak(stats.daily_streak || 0);
@@ -42,7 +42,7 @@ const DailyChallengeCard = () => {
     return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [user]);
 
-  const handleClick = () => navigate('/daily-challenge');
+  const handleClick = () => navigate('/daily-challenge?track=daily-starter');
 
   if (loading) {
     return (
@@ -63,7 +63,7 @@ const DailyChallengeCard = () => {
   return (
     <section className="unified-section">
       <h2 className="unified-section-header">
-        <span>Daily Challenge</span>
+        <span>{challenge.track?.label || 'Daily Challenge'}</span>
       </h2>
       <div
         className="unified-card"

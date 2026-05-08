@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
 import { useSubscription } from '../../contexts/SubscriptionContext';
 import api from '../../services/api';
 import logger from '../../utils/logger';
 import { DEFAULTS, TIMING, getTierColor, getTierIcon, getTierName } from '../../constants/tutorialConstants';
+import { SKILL_BANDS, canAccessTier, getSubscriptionLabel } from '../../constants/learningCurriculum';
 import ErrorBoundary from './ErrorBoundary';
 import '../../styles/UnifiedCards.css';
 
 const TutorialHub = () => {
-  const { user } = useAuth();
-  const { subscription } = useSubscription();
+  const { currentTier } = useSubscription();
   const navigate = useNavigate();
   const location = useLocation();
   const [modules, setModules] = useState([]);
@@ -454,6 +453,43 @@ const TutorialHub = () => {
     );
   };
 
+  const LearningPathOverview = () => (
+    <div className="mb-8 bg-[#312e2b] border border-[#3d3a37] rounded-xl p-5">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+        <div>
+          <h2 className="text-xl font-bold text-white m-0">Player paths</h2>
+          <p className="text-sm text-[#bababa] m-0">Lessons are grouped by player need; access is shown separately.</p>
+        </div>
+        <div className="text-sm font-bold text-[#81b64c]">Current tier: {getSubscriptionLabel(currentTier)}</div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+        {SKILL_BANDS.map((band) => {
+          const locked = !canAccessTier(currentTier, band.requiredTier);
+          return (
+            <button
+              key={band.id}
+              onClick={() => setSelectedTier(band.legacyTier)}
+              className="text-left rounded-lg border p-4 transition-all hover:border-[#81b64c]"
+              style={{
+                background: selectedTier === band.legacyTier ? 'rgba(129,182,76,0.08)' : '#262421',
+                borderColor: selectedTier === band.legacyTier ? '#81b64c66' : '#3d3a37',
+              }}
+            >
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <span className="text-white font-bold">{band.label}</span>
+                <span className={`text-xs font-bold ${locked ? 'text-[#e8a93e]' : 'text-[#81b64c]'}`}>
+                  {locked ? `${getSubscriptionLabel(band.requiredTier)} lock` : getSubscriptionLabel(band.requiredTier)}
+                </span>
+              </div>
+              <div className="text-xs text-[#8b8987] mb-2">{band.ratingRange}</div>
+              <div className="text-sm text-[#bababa]">{band.focus}</div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+
   // Show authentication error message if user is not authenticated
   if (authError) {
     return (
@@ -565,6 +601,8 @@ const TutorialHub = () => {
             🏋️ Want puzzles &amp; exercises? Try Training Hub →
           </Link>
         </div>
+
+        <LearningPathOverview />
 
         {/* Tier Filter */}
         <div className="flex justify-center mb-8">

@@ -1,0 +1,543 @@
+{
+  "schemaVersion": "2.0.0",
+  "bookId": "beginner-board-rules",
+  "chapterId": "10-first-guided-game",
+  "title": "Your First Guided Game",
+  "subtitle": "Use the rules together in one short game.",
+  "eloRange": "0-300",
+  "requiredTier": "free",
+  "estimatedMinutes": 32,
+  "learningObjectives": [
+    "Play a legal opening sequence from the starting position.",
+    "See how center control opens queen and bishop lines.",
+    "Recognize a simple mate threat on f7.",
+    "Complete a short guided game ending in checkmate."
+  ],
+  "sections": [
+    {
+      "id": "game-start",
+      "title": "A Short Legal Game",
+      "blocks": [
+        {
+          "id": "b01-c10-p01",
+          "type": "prose",
+          "body_md": "Now we connect the first rules into a real sequence. This short game is not a full opening course. Its purpose is to show how legal moves, piece lines, check, and checkmate fit together."
+        },
+        {
+          "id": "b01-c10-d01",
+          "type": "board_diagram",
+          "title": "Start from the normal setup",
+          "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "e2",
+              "colorRole": "best"
+            },
+            {
+              "square": "e7",
+              "colorRole": "target"
+            }
+          ],
+          "caption_md": "The game begins from the correct starting position.",
+          "assertions": [
+            {
+              "type": "side_to_move",
+              "value": "white"
+            },
+            {
+              "type": "piece_on",
+              "square": "e2",
+              "piece": "white_pawn"
+            },
+            {
+              "type": "piece_on",
+              "square": "e7",
+              "piece": "black_pawn"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c10-d01-guided-game-start.png",
+            "hash": "c624720f3072bb84469375c0e0423fd0af136200b28bf2efdb91ce1ac9a81e52"
+          }
+        },
+        {
+          "id": "b01-c10-d02",
+          "type": "board_diagram",
+          "title": "Both players claim the center",
+          "fen": "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "e4",
+              "colorRole": "best"
+            },
+            {
+              "square": "e5",
+              "colorRole": "target"
+            }
+          ],
+          "caption_md": "After 1.e4 e5, both center pawns stand in the middle.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "e4",
+              "piece": "white_pawn"
+            },
+            {
+              "type": "piece_on",
+              "square": "e5",
+              "piece": "black_pawn"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c10-d02-e4-e5-center.png",
+            "hash": "70c280546465d6ccf96212d633c42ceb09f475a526fb689400a3d6d86efc28ea"
+          }
+        }
+      ]
+    },
+    {
+      "id": "build-threat",
+      "title": "Build The Mate Threat",
+      "blocks": [
+        {
+          "id": "b01-c10-p02",
+          "type": "prose",
+          "body_md": "The weak f7 square is protected only by the Black king at the start. The White queen and bishop can team up on it."
+        },
+        {
+          "id": "b01-c10-d03",
+          "type": "board_diagram",
+          "title": "Queen eyes f7",
+          "fen": "rnbqkbnr/pppp1ppp/8/4p2Q/4P3/8/PPPP1PPP/RNB1KBNR b KQkq - 1 2",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "h5",
+              "to": "f7",
+              "colorRole": "threat"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "h5",
+              "colorRole": "best"
+            },
+            {
+              "square": "f7",
+              "colorRole": "target"
+            }
+          ],
+          "caption_md": "After Qh5, the queen attacks f7.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "h5",
+              "piece": "white_queen"
+            },
+            {
+              "type": "piece_on",
+              "square": "f7",
+              "piece": "black_pawn"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "h5",
+              "to": "f7"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c10-d03-queen-eyes-f7.png",
+            "hash": "419fb9da5104bbe01212476491929c3c6f7cf61a01ea1de402474f9dd696c8cd"
+          }
+        },
+        {
+          "id": "b01-c10-d04",
+          "type": "board_diagram",
+          "title": "Bishop joins the attack",
+          "fen": "r1bqkbnr/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 3 3",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "c4",
+              "to": "f7",
+              "colorRole": "threat"
+            },
+            {
+              "from": "h5",
+              "to": "f7",
+              "colorRole": "threat"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "c4",
+              "colorRole": "best"
+            },
+            {
+              "square": "h5",
+              "colorRole": "best"
+            },
+            {
+              "square": "f7",
+              "colorRole": "target"
+            }
+          ],
+          "caption_md": "The bishop on c4 and queen on h5 both point at f7.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "c4",
+              "piece": "white_bishop"
+            },
+            {
+              "type": "piece_on",
+              "square": "h5",
+              "piece": "white_queen"
+            },
+            {
+              "type": "piece_on",
+              "square": "f7",
+              "piece": "black_pawn"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c10-d04-bishop-joins-f7.png",
+            "hash": "621adfeec88e871df29a8810edf0cbbba0360327e8964fbb67e9f3f420af9832"
+          }
+        },
+        {
+          "id": "b01-c10-d05",
+          "type": "board_diagram",
+          "title": "The final mate on f7",
+          "fen": "r1bqkb1r/pppp1Qpp/2n2n2/4p3/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 0 4",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "f7",
+              "to": "e8",
+              "colorRole": "check"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "f7",
+              "colorRole": "best"
+            },
+            {
+              "square": "e8",
+              "colorRole": "check"
+            }
+          ],
+          "caption_md": "Qxf7 is checkmate in this beginner pattern because the queen is protected and the king has no good escape.",
+          "assertions": [
+            {
+              "type": "side_to_move",
+              "value": "black"
+            },
+            {
+              "type": "piece_on",
+              "square": "f7",
+              "piece": "white_queen"
+            },
+            {
+              "type": "piece_on",
+              "square": "e8",
+              "piece": "black_king"
+            },
+            {
+              "type": "piece_on",
+              "square": "c4",
+              "piece": "white_bishop"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c10-d05-qxf7-mate-final.png",
+            "hash": "b7a3247093c7618319d2b6c780e6fc4c27af13d05d87dd6c00cca266639b7ab9"
+          }
+        },
+        {
+          "id": "b01-c10-a01",
+          "type": "board_animation",
+          "title": "The full guided sequence",
+          "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          "orientation": "white",
+          "sequence": [
+            {
+              "move": "e2e4",
+              "arrow": {
+                "from": "e2",
+                "to": "e4",
+                "colorRole": "best"
+              }
+            },
+            {
+              "move": "e7e5",
+              "arrow": {
+                "from": "e7",
+                "to": "e5",
+                "colorRole": "candidate"
+              }
+            },
+            {
+              "move": "d1h5",
+              "arrow": {
+                "from": "d1",
+                "to": "h5",
+                "colorRole": "best"
+              }
+            },
+            {
+              "move": "b8c6",
+              "arrow": {
+                "from": "b8",
+                "to": "c6",
+                "colorRole": "candidate"
+              }
+            },
+            {
+              "move": "f1c4",
+              "arrow": {
+                "from": "f1",
+                "to": "c4",
+                "colorRole": "best"
+              }
+            },
+            {
+              "move": "g8f6",
+              "arrow": {
+                "from": "g8",
+                "to": "f6",
+                "colorRole": "candidate"
+              }
+            },
+            {
+              "move": "h5f7",
+              "arrow": {
+                "from": "h5",
+                "to": "f7",
+                "colorRole": "check"
+              }
+            }
+          ],
+          "caption_md": "The sequence is 1.e4 e5 2.Qh5 Nc6 3.Bc4 Nf6 4.Qxf7#.",
+          "assertions": [
+            {
+              "type": "side_to_move",
+              "value": "white"
+            },
+            {
+              "type": "piece_on",
+              "square": "e2",
+              "piece": "white_pawn"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c10-a01-full-guided-game.png",
+            "hash": "af06e81f9b5bd5299951d9a9b15e9c06f07911956de314290b5373b779d498b2"
+          }
+        },
+        {
+          "id": "b01-c10-g01",
+          "type": "guided_move",
+          "title": "Play the checkmate move",
+          "fen": "r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4",
+          "orientation": "white",
+          "prompt_md": "White to move: capture f7 with the queen.",
+          "acceptedMoves": [
+            "h5f7"
+          ],
+          "successMessage": "Correct. Qxf7 is checkmate in this beginner pattern.",
+          "failureMessage": "Use the queen on h5 to capture f7.",
+          "arrows": [
+            {
+              "from": "h5",
+              "to": "f7",
+              "colorRole": "check"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "h5",
+              "colorRole": "lastMove"
+            },
+            {
+              "square": "f7",
+              "colorRole": "best"
+            },
+            {
+              "square": "e8",
+              "colorRole": "check"
+            }
+          ],
+          "assertions": [
+            {
+              "type": "legal_move",
+              "move": "h5f7"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "game-mistake",
+      "title": "Common Mistake",
+      "blocks": [
+        {
+          "id": "b01-c10-m01",
+          "type": "mistake_refutation",
+          "title": "Common mistake: moving without checking threats",
+          "fen": "r1bqkbnr/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 3 3",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "h5",
+              "to": "f7",
+              "colorRole": "threat"
+            },
+            {
+              "from": "c4",
+              "to": "f7",
+              "colorRole": "threat"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "f7",
+              "colorRole": "target"
+            }
+          ],
+          "body_md": "Black must notice the threat on f7. A move that ignores both queen and bishop pressure can allow Qxf7 mate.",
+          "caption_md": "Both attacking pieces point to f7. The threat should be checked before moving.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "h5",
+              "piece": "white_queen"
+            },
+            {
+              "type": "piece_on",
+              "square": "c4",
+              "piece": "white_bishop"
+            },
+            {
+              "type": "piece_on",
+              "square": "f7",
+              "piece": "black_pawn"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c10-m01-ignore-f7-threat.png",
+            "hash": "e74a2ce59a791cb5220557a6cbb41036f7104c9a2ecf06528f9eadd8088ffd53"
+          }
+        }
+      ]
+    }
+  ],
+  "checkpoint": {
+    "id": "b01-c10-checkpoint",
+    "type": "checkpoint",
+    "title": "Chapter Checkpoint",
+    "requiredScore": 3,
+    "summary_md": "Pass this chapter when you can replay the short legal game and explain why the final move is checkmate.",
+    "blocks": [
+      {
+        "id": "b01-c10-q01",
+        "type": "quiz",
+        "title": "What did 1.e4 open?",
+        "question_md": "The move 1.e4 helps open lines for:",
+        "options": [
+          {
+            "id": "a",
+            "label": "The queen and bishop",
+            "isCorrect": true,
+            "feedback": "Correct."
+          },
+          {
+            "id": "b",
+            "label": "Only the rook on a1",
+            "isCorrect": false,
+            "feedback": "The e-pawn mainly opens central lines."
+          },
+          {
+            "id": "c",
+            "label": "Only the king",
+            "isCorrect": false,
+            "feedback": "The king is not trying to run out early."
+          }
+        ]
+      },
+      {
+        "id": "b01-c10-q02",
+        "type": "quiz",
+        "title": "Which square was targeted?",
+        "question_md": "In the guided game, White attacked:",
+        "options": [
+          {
+            "id": "a",
+            "label": "f7",
+            "isCorrect": true,
+            "feedback": "Correct."
+          },
+          {
+            "id": "b",
+            "label": "a8",
+            "isCorrect": false,
+            "feedback": "The mate pattern focuses on f7."
+          },
+          {
+            "id": "c",
+            "label": "h1",
+            "isCorrect": false,
+            "feedback": "h1 is the White rook square."
+          }
+        ]
+      },
+      {
+        "id": "b01-c10-q03",
+        "type": "quiz",
+        "title": "What was the final move?",
+        "question_md": "The final move of the guided game was:",
+        "options": [
+          {
+            "id": "a",
+            "label": "Qxf7#",
+            "isCorrect": true,
+            "feedback": "Correct."
+          },
+          {
+            "id": "b",
+            "label": "Nf3",
+            "isCorrect": false,
+            "feedback": "That is a normal developing move, not the final mate here."
+          },
+          {
+            "id": "c",
+            "label": "a3",
+            "isCorrect": false,
+            "feedback": "That ignores the attacking pattern."
+          }
+        ]
+      }
+    ]
+  },
+  "reviewAssertions": [
+    {
+      "type": "minimum_board_diagrams",
+      "value": 5
+    },
+    {
+      "type": "minimum_guided_moves",
+      "value": 1
+    },
+    {
+      "type": "minimum_quizzes",
+      "value": 3
+    },
+    {
+      "type": "tier_allowed",
+      "value": "free"
+    }
+  ]
+}

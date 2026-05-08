@@ -38,7 +38,13 @@ const LandingPage = () => {
   const handleGuestPlay = useCallback(() => {
     trackUI('cta_button', 'click', { button: 'play_as_guest', location: 'landing_play_choice' });
     setShowPlayChoice(false);
-    navigate('/play');
+    navigate('/play', {
+      state: {
+        guestMode: true,
+        ratedMode: 'casual',
+        computerDepth: 3,
+      },
+    });
   }, [navigate]);
 
   const handleLoginPlay = useCallback(() => {

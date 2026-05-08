@@ -7,6 +7,11 @@ import {
   getPreferredTimeControl, setPreferredTimeControl,
   getPreferredColor as getSavedColor, setPreferredColor as saveColor,
 } from '../../utils/gamePreferences';
+import {
+  getStoredLearningHelpLimit,
+  normalizeLearningHelpLimit,
+  pickBeginnerSyntheticPlayer,
+} from '../../utils/syntheticMatchPlayers';
 import { BASE_URL } from '../../config';
 import '../../styles/UnifiedCards.css';
 import '../../pages/LobbyPage.css'; // Matchmaking overlay/modal styles
@@ -16,16 +21,12 @@ const FIND_PLAYERS_TIMEOUT_SECONDS = 15; // Sync with backend match request expi
 const TOTAL_SEARCH_SECONDS = 15;
 const POLL_INTERVAL_MS = 2000;
 
-const BEGINNER_SYNTHETIC_PLAYERS = [
-  { id: 'local-800-1', name: 'Aarav Beginner', avatar_seed: 'aarav-beginner', computer_level: 1, rating: 800 },
-  { id: 'local-850-1', name: 'Meera Starter', avatar_seed: 'meera-starter', computer_level: 2, rating: 850 },
-  { id: 'local-900-1', name: 'Kabir Learner', avatar_seed: 'kabir-learner', computer_level: 2, rating: 900 },
-  { id: 'local-950-1', name: 'Ananya Practice', avatar_seed: 'ananya-practice', computer_level: 3, rating: 950 },
-  { id: 'local-1000-1', name: 'Tara Casual', avatar_seed: 'tara-casual', computer_level: 4, rating: 1000 },
-];
+const LEARNING_HELP_OPTIONS = [1, 3, 5, 7];
 
-const pickBeginnerSyntheticPlayer = () => {
-  return BEGINNER_SYNTHETIC_PLAYERS[Math.floor(Math.random() * BEGINNER_SYNTHETIC_PLAYERS.length)];
+const getGameModeLabel = (mode) => {
+  if (mode === 'learning') return 'Learner';
+  if (mode === 'rated') return 'Rated';
+  return 'Casual';
 };
 
 const TIME_PRESETS = [
@@ -96,10 +97,13 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false, initialGameMode,
     // Never restore 'companion' from localStorage (legacy guard)
     return saved === 'companion' ? 'casual' : saved;
   });
+  const [learningHelpLimit, setLearningHelpLimit] = useState(() => getStoredLearningHelpLimit());
 
   useEffect(() => {
     if (!isOpen || !initialGameMode) return;
-    const normalizedMode = initialGameMode === 'rated' ? 'rated' : 'casual';
+    const normalizedMode = ['learning', 'rated', 'casual'].includes(initialGameMode)
+      ? initialGameMode
+      : 'learning';
     setGameMode(normalizedMode);
     setPreferredGameMode(normalizedMode);
   }, [isOpen, initialGameMode]);
@@ -138,11 +142,12 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false, initialGameMode,
             ratedMode: gameMode,
             timeControl,
             increment,
+            learningHelpLimit: gameMode === 'learning' ? learningHelpLimit : null,
           },
         });
       }, 1500);
     }
-  }, [secondsLeft, status, cleanup, navigate, onClose, preferredColor, gameMode, timeControl, increment]);
+  }, [secondsLeft, status, cleanup, navigate, onClose, preferredColor, gameMode, learningHelpLimit, timeControl, increment]);
 
   // Reset when modal closes
   useEffect(() => {
@@ -215,6 +220,7 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false, initialGameMode,
                     ratedMode: gameMode, // Respect user's rated/casual selection
                     timeControl,
                     increment,
+                    learningHelpLimit: gameMode === 'learning' ? learningHelpLimit : null,
                   },
                 });
               }
@@ -242,6 +248,7 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false, initialGameMode,
                   ratedMode: gameMode,
                   timeControl,
                   increment,
+                  learningHelpLimit: gameMode === 'learning' ? learningHelpLimit : null,
                 },
               });
             }, 1500);
@@ -276,6 +283,7 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false, initialGameMode,
               ratedMode: gameMode,
               timeControl,
               increment,
+              learningHelpLimit: gameMode === 'learning' ? learningHelpLimit : null,
             },
           });
         }, 1500);
@@ -283,10 +291,39 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false, initialGameMode,
         setStatus('error');
       }
     }
-  }, [preferredColor, timeControl, increment, gameMode, cleanup, navigate, onClose]);
+  }, [preferredColor, timeControl, increment, gameMode, learningHelpLimit, cleanup, navigate, onClose]);
 
   // Start smart matchmaking: try findPlayers first, then fall back
   const startSearch = useCallback(async () => {
+    if (gameMode === 'learning') {
+      cleanup();
+      setStatus('matched');
+      const randomSynthetic = pickBeginnerSyntheticPlayer();
+      setMatchResult({
+        match_type: 'synthetic',
+        opponent: randomSynthetic,
+        game_id: null,
+      });
+      setTimeout(() => {
+        onClose();
+        navigate('/play', {
+          state: {
+            gameMode: 'synthetic',
+            syntheticPlayer: randomSynthetic,
+            backendGameId: null,
+            preferredColor: preferredColor === 'random'
+              ? (Math.random() < 0.5 ? 'white' : 'black')
+              : preferredColor,
+            ratedMode: 'learning',
+            timeControl,
+            increment,
+            learningHelpLimit,
+          },
+        });
+      }, 900);
+      return;
+    }
+
     try {
       setStatus('findingPlayers');
       searchStartTimeRef.current = Date.now();
@@ -363,6 +400,7 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false, initialGameMode,
               ratedMode: gameMode,
               timeControl,
               increment,
+              learningHelpLimit: gameMode === 'learning' ? learningHelpLimit : null,
             },
           });
         }, 1500);
@@ -382,7 +420,7 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false, initialGameMode,
         }, 1500);
       }
     }
-  }, [preferredColor, timeControl, increment, gameMode, cleanup, fallbackToQueue]);
+  }, [preferredColor, timeControl, increment, gameMode, learningHelpLimit, cleanup, fallbackToQueue, navigate, onClose]);
 
   // Listen for matchRequestAccepted DOM event (from GlobalInvitationContext)
   useEffect(() => {
@@ -527,8 +565,9 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false, initialGameMode,
               <p style={{ marginBottom: '8px', fontWeight: 'bold', color: '#bababa', fontSize: '14px' }}>Game Mode:</p>
               <div style={{ display: 'flex', gap: '8px' }}>
                 {[
-                  { value: 'rated',  label: 'Rated',  desc: 'Rating changes',   emoji: '⭐', color: '#e8a735' },
-                  { value: 'casual', label: 'Casual', desc: 'No rating change', emoji: '📋', color: '#81b64c' },
+                  { value: 'casual', label: 'Casual', desc: 'No rating change', emoji: '', color: '#81b64c' },
+                  { value: 'learning', label: 'Learner', desc: 'Limited lifelines', emoji: '', color: '#3fb98f' },
+                  { value: 'rated', label: 'Rated', desc: 'Rating changes', emoji: '', color: '#e8a735' },
                 ].map(opt => {
                   const isSelected = gameMode === opt.value;
                   return (
@@ -552,13 +591,49 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false, initialGameMode,
                         textAlign: 'center',
                       }}
                     >
-                      <div>{opt.emoji} {opt.label}</div>
+                      <div>{opt.emoji ? `${opt.emoji} ` : ''}{opt.label}</div>
                       <div style={{ fontSize: '10px', opacity: 0.7, marginTop: '2px' }}>{opt.desc}</div>
                     </button>
                   );
                 })}
               </div>
             </div>
+
+            {gameMode === 'learning' && (
+              <div style={{ marginBottom: '16px', textAlign: 'left' }}>
+                <p style={{ marginBottom: '8px', fontWeight: 'bold', color: '#bababa', fontSize: '14px' }}>Lifelines:</p>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {LEARNING_HELP_OPTIONS.map(limit => {
+                    const isSelected = learningHelpLimit === limit;
+                    return (
+                      <button
+                        key={limit}
+                        type="button"
+                        onClick={() => {
+                          const normalizedLimit = normalizeLearningHelpLimit(limit);
+                          setLearningHelpLimit(normalizedLimit);
+                          localStorage.setItem('learningHelpLimit', String(normalizedLimit));
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: '8px 8px',
+                          borderRadius: '8px',
+                          border: `2px solid ${isSelected ? '#3fb98f' : '#4a4744'}`,
+                          backgroundColor: isSelected ? 'rgba(63, 185, 143, 0.22)' : 'transparent',
+                          color: isSelected ? '#9ce5ca' : '#bababa',
+                          cursor: 'pointer',
+                          fontSize: '13px',
+                          fontWeight: isSelected ? 'bold' : 'normal',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        {limit}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Color Preference */}
             <div style={{ marginBottom: '20px', textAlign: 'left' }}>
@@ -631,7 +706,7 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false, initialGameMode,
             </div>
             <h2 className="matchmaking-title">Looking for an opponent...</h2>
             <p className="matchmaking-subtitle">
-              {timeControl}+{increment} &bull; {gameMode === 'rated' ? '⭐ Rated' : 'Casual'} &bull; {preferredColor === 'random' ? 'Any color' : preferredColor.charAt(0).toUpperCase() + preferredColor.slice(1)}
+              {timeControl}+{increment} &bull; {getGameModeLabel(gameMode)} &bull; {preferredColor === 'random' ? 'Any color' : preferredColor.charAt(0).toUpperCase() + preferredColor.slice(1)}
             </p>
 
             <div className="matchmaking-progress-bar">
@@ -667,7 +742,7 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false, initialGameMode,
             <h2 className="matchmaking-title">Match Found!</h2>
             {matchResult.match_type !== 'human' && (
               <p style={{ fontSize: '0.8rem', color: '#e8a93e', margin: '-4px 0 8px' }}>
-                No players online — matched with AI opponent
+                {gameMode === 'learning' ? 'Learner mode starts with an AI opponent' : 'No players online — matched with AI opponent'}
               </p>
             )}
             <div className="matchmaking-opponent-card">

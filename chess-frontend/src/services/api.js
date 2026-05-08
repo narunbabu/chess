@@ -22,7 +22,7 @@ api.interceptors.response.use(
     if (error.response && error.response.status === 401) {
       const url = error.config?.url || '';
       // Don't redirect for auth endpoints — their 401 is an expected failure (wrong credentials)
-      if (!url.includes('/auth/login') && !url.includes('/auth/register')) {
+      if (!error.config?.skipAuthRedirect && !url.includes('/auth/login') && !url.includes('/auth/register')) {
         localStorage.removeItem("auth_token");
         window.location.href = "/login";
       }

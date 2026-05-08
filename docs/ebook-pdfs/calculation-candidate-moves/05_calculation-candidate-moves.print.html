@@ -1,0 +1,1010 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Calculation I - Candidate Moves - Chess99 Ebook</title>
+<style>
+  @page { size: A4; margin: 14mm 12mm 16mm; }
+  body {
+    font-family: Arial, sans-serif;
+    color: #172018;
+    font-size: 15.5px;
+    margin: 0;
+    background: #ffffff;
+    line-height: 1.58;
+  }
+  .cover {
+    min-height: 250mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    break-after: page;
+  }
+  .cover h1 {
+    font-size: 42px;
+    line-height: 1.08;
+    margin: 0 0 12px;
+  }
+  .cover .subtitle {
+    font-size: 18px;
+    color: #536257;
+    max-width: 620px;
+  }
+  .cover .meta {
+    margin-top: 28px;
+    font-size: 13px;
+    color: #536257;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .toc {
+    break-after: page;
+  }
+  .toc h2 {
+    font-size: 26px;
+    margin: 0 0 16px;
+  }
+  .toc ol {
+    padding-left: 22px;
+  }
+  .toc li {
+    margin: 8px 0;
+  }
+  .chapter-print {
+    break-after: page;
+  }
+  .chapter-print:last-child {
+    break-after: auto;
+  }
+  h1, h2, h3 {
+    color: #172018;
+    line-height: 1.2;
+  }
+  h1 {
+    font-size: 30px;
+    margin: 0 0 8px;
+  }
+  h2 {
+    font-size: 22px;
+    margin-top: 30px;
+    border-top: 1px solid #d8ddcf;
+    padding-top: 18px;
+  }
+  h3 {
+    font-size: 18px;
+    margin-bottom: 8px;
+  }
+  .meta {
+    color: #536257;
+    margin-bottom: 20px;
+  }
+  .objectives {
+    background: #eef4e7;
+    border-left: 4px solid #81b64c;
+    padding: 12px 16px;
+  }
+  .block {
+    break-inside: avoid;
+    margin: 20px 0;
+  }
+  .diagram {
+    width: min(100%, 138mm);
+    display: block;
+    margin: 10px auto;
+    border: 1px solid #d4dcc8;
+  }
+  .caption {
+    color: #536257;
+    font-size: 13px;
+    line-height: 1.45;
+    margin-top: 6px;
+  }
+  .review {
+    display: none;
+    font-size: 11px;
+    color: #536257;
+    background: #f5f7f0;
+    padding: 8px 10px;
+    border-radius: 6px;
+  }
+  .quiz-option {
+    margin: 4px 0;
+  }
+  code {
+    font-family: Consolas, monospace;
+  }
+</style>
+</head>
+<body>
+  <section class="cover">
+    <div class="meta">Chess99 Book 5 | ELO 1100-1400 | silver</div>
+    <h1>Calculation I - Candidate Moves</h1>
+    <div class="subtitle">A repeatable process for choosing moves instead of guessing.</div>
+  </section>
+  <section class="toc">
+    <h2>Contents</h2>
+    <ol>
+      <li>Candidate Moves <span class="meta">28 min</span></li>
+<li>Forcing Moves First <span class="meta">28 min</span></li>
+<li>Checks <span class="meta">28 min</span></li>
+<li>Captures <span class="meta">28 min</span></li>
+<li>Threats <span class="meta">28 min</span></li>
+<li>Opponent Best Reply <span class="meta">28 min</span></li>
+<li>One Move Deeper <span class="meta">28 min</span></li>
+<li>When To Stop Calculating <span class="meta">28 min</span></li>
+<li>Avoiding Hope Chess <span class="meta">28 min</span></li>
+<li>Calculation Checkpoint <span class="meta">28 min</span></li>
+    </ol>
+  </section>
+  <section class="chapter-print">
+<h1>Candidate Moves</h1>
+<div class="meta">Calculation I - Candidate Moves | 1100-1400 | silver</div>
+<p>Candidate Moves converted into a repeatable Chess99 training habit.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Recognize the visual signal for candidate moves.</li>
+<li>Choose a move or plan that fits candidate moves.</li>
+<li>Avoid the common beginner error connected with candidate moves.</li>
+<li>Pass a checkpoint without relying on guesswork.</li>
+</ul>
+</section>
+<h2>Goal And Pattern</h2>
+<section class="block" id="b05-c01-p01">
+<p>Candidate Moves is not a memory trick. It is a way to organize the position. First name the signal, then compare candidate moves, then choose the move that improves your position without creating a new weakness.</p>
+</section>
+<section class="block" id="b05-c01-d01">
+<h3>Training Diagram: main pattern</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c01-d01-castle-safety.png" alt="Training Diagram: main pattern">
+<div class="caption"><p>King safety often beats a tempting pawn grab or one-move threat. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c01-d02">
+<h3>Training Diagram: candidate move</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c01-d02-cct-check.png" alt="Training Diagram: candidate move">
+<div class="caption"><p>Checks are forcing moves and should be examined before quieter ideas. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<h2>Analysis And Decision</h2>
+<section class="block" id="b05-c01-p02">
+<p>Use the diagram as a thinking board. Ask what is forcing, what is loose, and what changes after the move. Strong players do not only see a move; they see the reason the move works.</p>
+</section>
+<section class="block" id="b05-c01-d03">
+<h3>Training Diagram: comparison position</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c01-d03-rook-activity.png" alt="Training Diagram: comparison position">
+<div class="caption"><p>Open files are highways for rooks, especially when a king or target is exposed. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c01-d04">
+<h3>Training Diagram: best practical choice</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c01-d04-king-pawn.png" alt="Training Diagram: best practical choice">
+<div class="caption"><p>In pawn endings, one tempo can decide whether the pawn advances or stalls. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c01-d05">
+<h3>Training Diagram: review position</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c01-d05-quiet-king.png" alt="Training Diagram: review position">
+<div class="caption"><p>Not every best move is a capture; sometimes the quiet improving move is the point. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c01-g01">
+<h3>Try It: Find The Training Move</h3>
+<p>Play the highlighted move from <strong>e1</strong> to <strong>g1</strong>. Do it only after saying the idea in words.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c01-g01-castle-safety.png" alt="Try It: Find The Training Move">
+<div class="caption"><p>The guided move turns the diagram idea into a playable habit.</p></div>
+</section>
+<section class="block" id="b05-c01-m01">
+<h3>Common Mistake: Missing The Diagram Signal</h3>
+<p>The common mistake is to move by habit and miss the chapter signal. The diagram marks the useful move and the important target so the error is visible before it happens.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c01-m01-castle-safety.png" alt="Common Mistake: Missing The Diagram Signal">
+<div class="caption"><p>The marked relationship is the reason the natural careless move fails.</p></div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b05-c01-q01">
+<h3>Candidate Moves Check 1</h3>
+<p>What should you do first in a position about <strong>candidate moves</strong>?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Name the key signal before choosing a move.</div>
+<div class="quiz-option">b. Move instantly because the first idea is usually enough.</div>
+<div class="quiz-option">c. Ignore the diagram and choose by piece value only.</div>
+</div>
+</section>
+<section class="block" id="b05-c01-q02">
+<h3>Candidate Moves Check 2</h3>
+<p>Which answer best matches the chapter habit for <strong>candidate moves</strong>?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Compare candidate moves and reject the unsafe one.</div>
+<div class="quiz-option">b. Move instantly because the first idea is usually enough.</div>
+<div class="quiz-option">c. Ignore the diagram and choose by piece value only.</div>
+</div>
+</section>
+<section class="block" id="b05-c01-q03">
+<h3>Candidate Moves Check 3</h3>
+<p>What is the biggest danger if you ignore <strong>candidate moves</strong>?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. You may miss a tactic, plan, or defensive resource.</div>
+<div class="quiz-option">b. Move instantly because the first idea is usually enough.</div>
+<div class="quiz-option">c. Ignore the diagram and choose by piece value only.</div>
+</div>
+</section>
+</section>
+<section class="chapter-print">
+<h1>Forcing Moves First</h1>
+<div class="meta">Calculation I - Candidate Moves | 1100-1400 | silver</div>
+<p>Forcing Moves First converted into a repeatable Chess99 training habit.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Recognize the visual signal for forcing moves first.</li>
+<li>Choose a move or plan that fits forcing moves first.</li>
+<li>Avoid the common beginner error connected with forcing moves first.</li>
+<li>Pass a checkpoint without relying on guesswork.</li>
+</ul>
+</section>
+<h2>Goal And Pattern</h2>
+<section class="block" id="b05-c02-p01">
+<p>Forcing Moves First is not a memory trick. It is a way to organize the position. First name the signal, then compare candidate moves, then choose the move that improves your position without creating a new weakness.</p>
+</section>
+<section class="block" id="b05-c02-d01">
+<h3>Training Diagram: main pattern</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c02-d01-cct-check.png" alt="Training Diagram: main pattern">
+<div class="caption"><p>Checks are forcing moves and should be examined before quieter ideas. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c02-d02">
+<h3>Training Diagram: candidate move</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c02-d02-rook-activity.png" alt="Training Diagram: candidate move">
+<div class="caption"><p>Open files are highways for rooks, especially when a king or target is exposed. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<h2>Analysis And Decision</h2>
+<section class="block" id="b05-c02-p02">
+<p>Use the diagram as a thinking board. Ask what is forcing, what is loose, and what changes after the move. Strong players do not only see a move; they see the reason the move works.</p>
+</section>
+<section class="block" id="b05-c02-d03">
+<h3>Training Diagram: comparison position</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c02-d03-king-pawn.png" alt="Training Diagram: comparison position">
+<div class="caption"><p>In pawn endings, one tempo can decide whether the pawn advances or stalls. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c02-d04">
+<h3>Training Diagram: best practical choice</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c02-d04-quiet-king.png" alt="Training Diagram: best practical choice">
+<div class="caption"><p>Not every best move is a capture; sometimes the quiet improving move is the point. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c02-d05">
+<h3>Training Diagram: review position</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c02-d05-knight-fork.png" alt="Training Diagram: review position">
+<div class="caption"><p>The best square creates two problems at once: king danger and material pressure. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c02-g01">
+<h3>Try It: Find The Training Move</h3>
+<p>Play the highlighted move from <strong>c4</strong> to <strong>f7</strong>. Do it only after saying the idea in words.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c02-g01-cct-check.png" alt="Try It: Find The Training Move">
+<div class="caption"><p>The guided move turns the diagram idea into a playable habit.</p></div>
+</section>
+<section class="block" id="b05-c02-m01">
+<h3>Common Mistake: Missing The Diagram Signal</h3>
+<p>The common mistake is to move by habit and miss the chapter signal. The diagram marks the useful move and the important target so the error is visible before it happens.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c02-m01-cct-check.png" alt="Common Mistake: Missing The Diagram Signal">
+<div class="caption"><p>The marked relationship is the reason the natural careless move fails.</p></div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b05-c02-q01">
+<h3>Forcing Moves First Check 1</h3>
+<p>What should you do first in a position about <strong>forcing moves first</strong>?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Name the key signal before choosing a move.</div>
+<div class="quiz-option">b. Move instantly because the first idea is usually enough.</div>
+<div class="quiz-option">c. Ignore the diagram and choose by piece value only.</div>
+</div>
+</section>
+<section class="block" id="b05-c02-q02">
+<h3>Forcing Moves First Check 2</h3>
+<p>Which answer best matches the chapter habit for <strong>forcing moves first</strong>?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Compare candidate moves and reject the unsafe one.</div>
+<div class="quiz-option">b. Move instantly because the first idea is usually enough.</div>
+<div class="quiz-option">c. Ignore the diagram and choose by piece value only.</div>
+</div>
+</section>
+<section class="block" id="b05-c02-q03">
+<h3>Forcing Moves First Check 3</h3>
+<p>What is the biggest danger if you ignore <strong>forcing moves first</strong>?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. You may miss a tactic, plan, or defensive resource.</div>
+<div class="quiz-option">b. Move instantly because the first idea is usually enough.</div>
+<div class="quiz-option">c. Ignore the diagram and choose by piece value only.</div>
+</div>
+</section>
+</section>
+<section class="chapter-print">
+<h1>Checks</h1>
+<div class="meta">Calculation I - Candidate Moves | 1100-1400 | silver</div>
+<p>Checks converted into a repeatable Chess99 training habit.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Recognize the visual signal for checks.</li>
+<li>Choose a move or plan that fits checks.</li>
+<li>Avoid the common beginner error connected with checks.</li>
+<li>Pass a checkpoint without relying on guesswork.</li>
+</ul>
+</section>
+<h2>Goal And Pattern</h2>
+<section class="block" id="b05-c03-p01">
+<p>Checks is not a memory trick. It is a way to organize the position. First name the signal, then compare candidate moves, then choose the move that improves your position without creating a new weakness.</p>
+</section>
+<section class="block" id="b05-c03-d01">
+<h3>Training Diagram: main pattern</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c03-d01-rook-activity.png" alt="Training Diagram: main pattern">
+<div class="caption"><p>Open files are highways for rooks, especially when a king or target is exposed. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c03-d02">
+<h3>Training Diagram: candidate move</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c03-d02-king-pawn.png" alt="Training Diagram: candidate move">
+<div class="caption"><p>In pawn endings, one tempo can decide whether the pawn advances or stalls. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<h2>Analysis And Decision</h2>
+<section class="block" id="b05-c03-p02">
+<p>Use the diagram as a thinking board. Ask what is forcing, what is loose, and what changes after the move. Strong players do not only see a move; they see the reason the move works.</p>
+</section>
+<section class="block" id="b05-c03-d03">
+<h3>Training Diagram: comparison position</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c03-d03-quiet-king.png" alt="Training Diagram: comparison position">
+<div class="caption"><p>Not every best move is a capture; sometimes the quiet improving move is the point. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c03-d04">
+<h3>Training Diagram: best practical choice</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c03-d04-knight-fork.png" alt="Training Diagram: best practical choice">
+<div class="caption"><p>The best square creates two problems at once: king danger and material pressure. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c03-d05">
+<h3>Training Diagram: review position</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c03-d05-pin-file.png" alt="Training Diagram: review position">
+<div class="caption"><p>The target cannot move freely because the king behind it matters. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c03-g01">
+<h3>Try It: Find The Training Move</h3>
+<p>Play the highlighted move from <strong>a1</strong> to <strong>a8</strong>. Do it only after saying the idea in words.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c03-g01-rook-activity.png" alt="Try It: Find The Training Move">
+<div class="caption"><p>The guided move turns the diagram idea into a playable habit.</p></div>
+</section>
+<section class="block" id="b05-c03-m01">
+<h3>Common Mistake: Missing The Diagram Signal</h3>
+<p>The common mistake is to move by habit and miss the chapter signal. The diagram marks the useful move and the important target so the error is visible before it happens.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c03-m01-rook-activity.png" alt="Common Mistake: Missing The Diagram Signal">
+<div class="caption"><p>The marked relationship is the reason the natural careless move fails.</p></div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b05-c03-q01">
+<h3>Checks Check 1</h3>
+<p>What should you do first in a position about <strong>checks</strong>?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Name the key signal before choosing a move.</div>
+<div class="quiz-option">b. Move instantly because the first idea is usually enough.</div>
+<div class="quiz-option">c. Ignore the diagram and choose by piece value only.</div>
+</div>
+</section>
+<section class="block" id="b05-c03-q02">
+<h3>Checks Check 2</h3>
+<p>Which answer best matches the chapter habit for <strong>checks</strong>?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Compare candidate moves and reject the unsafe one.</div>
+<div class="quiz-option">b. Move instantly because the first idea is usually enough.</div>
+<div class="quiz-option">c. Ignore the diagram and choose by piece value only.</div>
+</div>
+</section>
+<section class="block" id="b05-c03-q03">
+<h3>Checks Check 3</h3>
+<p>What is the biggest danger if you ignore <strong>checks</strong>?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. You may miss a tactic, plan, or defensive resource.</div>
+<div class="quiz-option">b. Move instantly because the first idea is usually enough.</div>
+<div class="quiz-option">c. Ignore the diagram and choose by piece value only.</div>
+</div>
+</section>
+</section>
+<section class="chapter-print">
+<h1>Captures</h1>
+<div class="meta">Calculation I - Candidate Moves | 1100-1400 | silver</div>
+<p>Captures converted into a repeatable Chess99 training habit.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Recognize the visual signal for captures.</li>
+<li>Choose a move or plan that fits captures.</li>
+<li>Avoid the common beginner error connected with captures.</li>
+<li>Pass a checkpoint without relying on guesswork.</li>
+</ul>
+</section>
+<h2>Goal And Pattern</h2>
+<section class="block" id="b05-c04-p01">
+<p>Captures is not a memory trick. It is a way to organize the position. First name the signal, then compare candidate moves, then choose the move that improves your position without creating a new weakness.</p>
+</section>
+<section class="block" id="b05-c04-d01">
+<h3>Training Diagram: main pattern</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c04-d01-king-pawn.png" alt="Training Diagram: main pattern">
+<div class="caption"><p>In pawn endings, one tempo can decide whether the pawn advances or stalls. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c04-d02">
+<h3>Training Diagram: candidate move</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c04-d02-quiet-king.png" alt="Training Diagram: candidate move">
+<div class="caption"><p>Not every best move is a capture; sometimes the quiet improving move is the point. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<h2>Analysis And Decision</h2>
+<section class="block" id="b05-c04-p02">
+<p>Use the diagram as a thinking board. Ask what is forcing, what is loose, and what changes after the move. Strong players do not only see a move; they see the reason the move works.</p>
+</section>
+<section class="block" id="b05-c04-d03">
+<h3>Training Diagram: comparison position</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c04-d03-knight-fork.png" alt="Training Diagram: comparison position">
+<div class="caption"><p>The best square creates two problems at once: king danger and material pressure. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c04-d04">
+<h3>Training Diagram: best practical choice</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c04-d04-pin-file.png" alt="Training Diagram: best practical choice">
+<div class="caption"><p>The target cannot move freely because the king behind it matters. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c04-d05">
+<h3>Training Diagram: review position</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c04-d05-back-rank.png" alt="Training Diagram: review position">
+<div class="caption"><p>A rook reaches the back rank when the escape squares are boxed in. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c04-g01">
+<h3>Try It: Find The Training Move</h3>
+<p>Play the highlighted move from <strong>e2</strong> to <strong>e4</strong>. Do it only after saying the idea in words.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c04-g01-king-pawn.png" alt="Try It: Find The Training Move">
+<div class="caption"><p>The guided move turns the diagram idea into a playable habit.</p></div>
+</section>
+<section class="block" id="b05-c04-m01">
+<h3>Common Mistake: Missing The Diagram Signal</h3>
+<p>The common mistake is to move by habit and miss the chapter signal. The diagram marks the useful move and the important target so the error is visible before it happens.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c04-m01-king-pawn.png" alt="Common Mistake: Missing The Diagram Signal">
+<div class="caption"><p>The marked relationship is the reason the natural careless move fails.</p></div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b05-c04-q01">
+<h3>Captures Check 1</h3>
+<p>What should you do first in a position about <strong>captures</strong>?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Name the key signal before choosing a move.</div>
+<div class="quiz-option">b. Move instantly because the first idea is usually enough.</div>
+<div class="quiz-option">c. Ignore the diagram and choose by piece value only.</div>
+</div>
+</section>
+<section class="block" id="b05-c04-q02">
+<h3>Captures Check 2</h3>
+<p>Which answer best matches the chapter habit for <strong>captures</strong>?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Compare candidate moves and reject the unsafe one.</div>
+<div class="quiz-option">b. Move instantly because the first idea is usually enough.</div>
+<div class="quiz-option">c. Ignore the diagram and choose by piece value only.</div>
+</div>
+</section>
+<section class="block" id="b05-c04-q03">
+<h3>Captures Check 3</h3>
+<p>What is the biggest danger if you ignore <strong>captures</strong>?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. You may miss a tactic, plan, or defensive resource.</div>
+<div class="quiz-option">b. Move instantly because the first idea is usually enough.</div>
+<div class="quiz-option">c. Ignore the diagram and choose by piece value only.</div>
+</div>
+</section>
+</section>
+<section class="chapter-print">
+<h1>Threats</h1>
+<div class="meta">Calculation I - Candidate Moves | 1100-1400 | silver</div>
+<p>Threats converted into a repeatable Chess99 training habit.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Recognize the visual signal for threats.</li>
+<li>Choose a move or plan that fits threats.</li>
+<li>Avoid the common beginner error connected with threats.</li>
+<li>Pass a checkpoint without relying on guesswork.</li>
+</ul>
+</section>
+<h2>Goal And Pattern</h2>
+<section class="block" id="b05-c05-p01">
+<p>Threats is not a memory trick. It is a way to organize the position. First name the signal, then compare candidate moves, then choose the move that improves your position without creating a new weakness.</p>
+</section>
+<section class="block" id="b05-c05-d01">
+<h3>Training Diagram: main pattern</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c05-d01-quiet-king.png" alt="Training Diagram: main pattern">
+<div class="caption"><p>Not every best move is a capture; sometimes the quiet improving move is the point. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c05-d02">
+<h3>Training Diagram: candidate move</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c05-d02-knight-fork.png" alt="Training Diagram: candidate move">
+<div class="caption"><p>The best square creates two problems at once: king danger and material pressure. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<h2>Analysis And Decision</h2>
+<section class="block" id="b05-c05-p02">
+<p>Use the diagram as a thinking board. Ask what is forcing, what is loose, and what changes after the move. Strong players do not only see a move; they see the reason the move works.</p>
+</section>
+<section class="block" id="b05-c05-d03">
+<h3>Training Diagram: comparison position</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c05-d03-pin-file.png" alt="Training Diagram: comparison position">
+<div class="caption"><p>The target cannot move freely because the king behind it matters. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c05-d04">
+<h3>Training Diagram: best practical choice</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c05-d04-back-rank.png" alt="Training Diagram: best practical choice">
+<div class="caption"><p>A rook reaches the back rank when the escape squares are boxed in. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c05-d05">
+<h3>Training Diagram: review position</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c05-d05-bishop-wins-rook.png" alt="Training Diagram: review position">
+<div class="caption"><p>The line to the target is clear, so the capture wins higher-value material. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c05-g01">
+<h3>Try It: Find The Training Move</h3>
+<p>Play the highlighted move from <strong>e2</strong> to <strong>e3</strong>. Do it only after saying the idea in words.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c05-g01-quiet-king.png" alt="Try It: Find The Training Move">
+<div class="caption"><p>The guided move turns the diagram idea into a playable habit.</p></div>
+</section>
+<section class="block" id="b05-c05-m01">
+<h3>Common Mistake: Missing The Diagram Signal</h3>
+<p>The common mistake is to move by habit and miss the chapter signal. The diagram marks the useful move and the important target so the error is visible before it happens.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c05-m01-quiet-king.png" alt="Common Mistake: Missing The Diagram Signal">
+<div class="caption"><p>The marked relationship is the reason the natural careless move fails.</p></div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b05-c05-q01">
+<h3>Threats Check 1</h3>
+<p>What should you do first in a position about <strong>threats</strong>?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Name the key signal before choosing a move.</div>
+<div class="quiz-option">b. Move instantly because the first idea is usually enough.</div>
+<div class="quiz-option">c. Ignore the diagram and choose by piece value only.</div>
+</div>
+</section>
+<section class="block" id="b05-c05-q02">
+<h3>Threats Check 2</h3>
+<p>Which answer best matches the chapter habit for <strong>threats</strong>?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Compare candidate moves and reject the unsafe one.</div>
+<div class="quiz-option">b. Move instantly because the first idea is usually enough.</div>
+<div class="quiz-option">c. Ignore the diagram and choose by piece value only.</div>
+</div>
+</section>
+<section class="block" id="b05-c05-q03">
+<h3>Threats Check 3</h3>
+<p>What is the biggest danger if you ignore <strong>threats</strong>?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. You may miss a tactic, plan, or defensive resource.</div>
+<div class="quiz-option">b. Move instantly because the first idea is usually enough.</div>
+<div class="quiz-option">c. Ignore the diagram and choose by piece value only.</div>
+</div>
+</section>
+</section>
+<section class="chapter-print">
+<h1>Opponent Best Reply</h1>
+<div class="meta">Calculation I - Candidate Moves | 1100-1400 | silver</div>
+<p>Opponent Best Reply converted into a repeatable Chess99 training habit.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Recognize the visual signal for opponent best reply.</li>
+<li>Choose a move or plan that fits opponent best reply.</li>
+<li>Avoid the common beginner error connected with opponent best reply.</li>
+<li>Pass a checkpoint without relying on guesswork.</li>
+</ul>
+</section>
+<h2>Goal And Pattern</h2>
+<section class="block" id="b05-c06-p01">
+<p>Opponent Best Reply is not a memory trick. It is a way to organize the position. First name the signal, then compare candidate moves, then choose the move that improves your position without creating a new weakness.</p>
+</section>
+<section class="block" id="b05-c06-d01">
+<h3>Training Diagram: main pattern</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c06-d01-knight-fork.png" alt="Training Diagram: main pattern">
+<div class="caption"><p>The best square creates two problems at once: king danger and material pressure. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c06-d02">
+<h3>Training Diagram: candidate move</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c06-d02-pin-file.png" alt="Training Diagram: candidate move">
+<div class="caption"><p>The target cannot move freely because the king behind it matters. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<h2>Analysis And Decision</h2>
+<section class="block" id="b05-c06-p02">
+<p>Use the diagram as a thinking board. Ask what is forcing, what is loose, and what changes after the move. Strong players do not only see a move; they see the reason the move works.</p>
+</section>
+<section class="block" id="b05-c06-d03">
+<h3>Training Diagram: comparison position</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c06-d03-back-rank.png" alt="Training Diagram: comparison position">
+<div class="caption"><p>A rook reaches the back rank when the escape squares are boxed in. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c06-d04">
+<h3>Training Diagram: best practical choice</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c06-d04-bishop-wins-rook.png" alt="Training Diagram: best practical choice">
+<div class="caption"><p>The line to the target is clear, so the capture wins higher-value material. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c06-d05">
+<h3>Training Diagram: review position</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c06-d05-queen-target.png" alt="Training Diagram: review position">
+<div class="caption"><p>A high-value target changes the whole position when it is undefended. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c06-g01">
+<h3>Try It: Find The Training Move</h3>
+<p>Play the highlighted move from <strong>b3</strong> to <strong>c5</strong>. Do it only after saying the idea in words.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c06-g01-knight-fork.png" alt="Try It: Find The Training Move">
+<div class="caption"><p>The guided move turns the diagram idea into a playable habit.</p></div>
+</section>
+<section class="block" id="b05-c06-m01">
+<h3>Common Mistake: Missing The Diagram Signal</h3>
+<p>The common mistake is to move by habit and miss the chapter signal. The diagram marks the useful move and the important target so the error is visible before it happens.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c06-m01-knight-fork.png" alt="Common Mistake: Missing The Diagram Signal">
+<div class="caption"><p>The marked relationship is the reason the natural careless move fails.</p></div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b05-c06-q01">
+<h3>Opponent Best Reply Check 1</h3>
+<p>What should you do first in a position about <strong>opponent best reply</strong>?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Name the key signal before choosing a move.</div>
+<div class="quiz-option">b. Move instantly because the first idea is usually enough.</div>
+<div class="quiz-option">c. Ignore the diagram and choose by piece value only.</div>
+</div>
+</section>
+<section class="block" id="b05-c06-q02">
+<h3>Opponent Best Reply Check 2</h3>
+<p>Which answer best matches the chapter habit for <strong>opponent best reply</strong>?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Compare candidate moves and reject the unsafe one.</div>
+<div class="quiz-option">b. Move instantly because the first idea is usually enough.</div>
+<div class="quiz-option">c. Ignore the diagram and choose by piece value only.</div>
+</div>
+</section>
+<section class="block" id="b05-c06-q03">
+<h3>Opponent Best Reply Check 3</h3>
+<p>What is the biggest danger if you ignore <strong>opponent best reply</strong>?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. You may miss a tactic, plan, or defensive resource.</div>
+<div class="quiz-option">b. Move instantly because the first idea is usually enough.</div>
+<div class="quiz-option">c. Ignore the diagram and choose by piece value only.</div>
+</div>
+</section>
+</section>
+<section class="chapter-print">
+<h1>One Move Deeper</h1>
+<div class="meta">Calculation I - Candidate Moves | 1100-1400 | silver</div>
+<p>One Move Deeper converted into a repeatable Chess99 training habit.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Recognize the visual signal for one move deeper.</li>
+<li>Choose a move or plan that fits one move deeper.</li>
+<li>Avoid the common beginner error connected with one move deeper.</li>
+<li>Pass a checkpoint without relying on guesswork.</li>
+</ul>
+</section>
+<h2>Goal And Pattern</h2>
+<section class="block" id="b05-c07-p01">
+<p>One Move Deeper is not a memory trick. It is a way to organize the position. First name the signal, then compare candidate moves, then choose the move that improves your position without creating a new weakness.</p>
+</section>
+<section class="block" id="b05-c07-d01">
+<h3>Training Diagram: main pattern</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c07-d01-pin-file.png" alt="Training Diagram: main pattern">
+<div class="caption"><p>The target cannot move freely because the king behind it matters. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c07-d02">
+<h3>Training Diagram: candidate move</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c07-d02-back-rank.png" alt="Training Diagram: candidate move">
+<div class="caption"><p>A rook reaches the back rank when the escape squares are boxed in. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<h2>Analysis And Decision</h2>
+<section class="block" id="b05-c07-p02">
+<p>Use the diagram as a thinking board. Ask what is forcing, what is loose, and what changes after the move. Strong players do not only see a move; they see the reason the move works.</p>
+</section>
+<section class="block" id="b05-c07-d03">
+<h3>Training Diagram: comparison position</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c07-d03-bishop-wins-rook.png" alt="Training Diagram: comparison position">
+<div class="caption"><p>The line to the target is clear, so the capture wins higher-value material. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c07-d04">
+<h3>Training Diagram: best practical choice</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c07-d04-queen-target.png" alt="Training Diagram: best practical choice">
+<div class="caption"><p>A high-value target changes the whole position when it is undefended. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c07-d05">
+<h3>Training Diagram: review position</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c07-d05-castle-safety.png" alt="Training Diagram: review position">
+<div class="caption"><p>King safety often beats a tempting pawn grab or one-move threat. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c07-g01">
+<h3>Try It: Find The Training Move</h3>
+<p>Play the highlighted move from <strong>e1</strong> to <strong>e7</strong>. Do it only after saying the idea in words.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c07-g01-pin-file.png" alt="Try It: Find The Training Move">
+<div class="caption"><p>The guided move turns the diagram idea into a playable habit.</p></div>
+</section>
+<section class="block" id="b05-c07-m01">
+<h3>Common Mistake: Missing The Diagram Signal</h3>
+<p>The common mistake is to move by habit and miss the chapter signal. The diagram marks the useful move and the important target so the error is visible before it happens.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c07-m01-pin-file.png" alt="Common Mistake: Missing The Diagram Signal">
+<div class="caption"><p>The marked relationship is the reason the natural careless move fails.</p></div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b05-c07-q01">
+<h3>One Move Deeper Check 1</h3>
+<p>What should you do first in a position about <strong>one move deeper</strong>?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Name the key signal before choosing a move.</div>
+<div class="quiz-option">b. Move instantly because the first idea is usually enough.</div>
+<div class="quiz-option">c. Ignore the diagram and choose by piece value only.</div>
+</div>
+</section>
+<section class="block" id="b05-c07-q02">
+<h3>One Move Deeper Check 2</h3>
+<p>Which answer best matches the chapter habit for <strong>one move deeper</strong>?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Compare candidate moves and reject the unsafe one.</div>
+<div class="quiz-option">b. Move instantly because the first idea is usually enough.</div>
+<div class="quiz-option">c. Ignore the diagram and choose by piece value only.</div>
+</div>
+</section>
+<section class="block" id="b05-c07-q03">
+<h3>One Move Deeper Check 3</h3>
+<p>What is the biggest danger if you ignore <strong>one move deeper</strong>?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. You may miss a tactic, plan, or defensive resource.</div>
+<div class="quiz-option">b. Move instantly because the first idea is usually enough.</div>
+<div class="quiz-option">c. Ignore the diagram and choose by piece value only.</div>
+</div>
+</section>
+</section>
+<section class="chapter-print">
+<h1>When To Stop Calculating</h1>
+<div class="meta">Calculation I - Candidate Moves | 1100-1400 | silver</div>
+<p>When To Stop Calculating converted into a repeatable Chess99 training habit.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Recognize the visual signal for when to stop calculating.</li>
+<li>Choose a move or plan that fits when to stop calculating.</li>
+<li>Avoid the common beginner error connected with when to stop calculating.</li>
+<li>Pass a checkpoint without relying on guesswork.</li>
+</ul>
+</section>
+<h2>Goal And Pattern</h2>
+<section class="block" id="b05-c08-p01">
+<p>When To Stop Calculating is not a memory trick. It is a way to organize the position. First name the signal, then compare candidate moves, then choose the move that improves your position without creating a new weakness.</p>
+</section>
+<section class="block" id="b05-c08-d01">
+<h3>Training Diagram: main pattern</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c08-d01-back-rank.png" alt="Training Diagram: main pattern">
+<div class="caption"><p>A rook reaches the back rank when the escape squares are boxed in. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c08-d02">
+<h3>Training Diagram: candidate move</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c08-d02-bishop-wins-rook.png" alt="Training Diagram: candidate move">
+<div class="caption"><p>The line to the target is clear, so the capture wins higher-value material. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<h2>Analysis And Decision</h2>
+<section class="block" id="b05-c08-p02">
+<p>Use the diagram as a thinking board. Ask what is forcing, what is loose, and what changes after the move. Strong players do not only see a move; they see the reason the move works.</p>
+</section>
+<section class="block" id="b05-c08-d03">
+<h3>Training Diagram: comparison position</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c08-d03-queen-target.png" alt="Training Diagram: comparison position">
+<div class="caption"><p>A high-value target changes the whole position when it is undefended. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c08-d04">
+<h3>Training Diagram: best practical choice</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c08-d04-castle-safety.png" alt="Training Diagram: best practical choice">
+<div class="caption"><p>King safety often beats a tempting pawn grab or one-move threat. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c08-d05">
+<h3>Training Diagram: review position</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c08-d05-cct-check.png" alt="Training Diagram: review position">
+<div class="caption"><p>Checks are forcing moves and should be examined before quieter ideas. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c08-g01">
+<h3>Try It: Find The Training Move</h3>
+<p>Play the highlighted move from <strong>c1</strong> to <strong>c8</strong>. Do it only after saying the idea in words.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c08-g01-back-rank.png" alt="Try It: Find The Training Move">
+<div class="caption"><p>The guided move turns the diagram idea into a playable habit.</p></div>
+</section>
+<section class="block" id="b05-c08-m01">
+<h3>Common Mistake: Missing The Diagram Signal</h3>
+<p>The common mistake is to move by habit and miss the chapter signal. The diagram marks the useful move and the important target so the error is visible before it happens.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c08-m01-back-rank.png" alt="Common Mistake: Missing The Diagram Signal">
+<div class="caption"><p>The marked relationship is the reason the natural careless move fails.</p></div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b05-c08-q01">
+<h3>When To Stop Calculating Check 1</h3>
+<p>What should you do first in a position about <strong>when to stop calculating</strong>?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Name the key signal before choosing a move.</div>
+<div class="quiz-option">b. Move instantly because the first idea is usually enough.</div>
+<div class="quiz-option">c. Ignore the diagram and choose by piece value only.</div>
+</div>
+</section>
+<section class="block" id="b05-c08-q02">
+<h3>When To Stop Calculating Check 2</h3>
+<p>Which answer best matches the chapter habit for <strong>when to stop calculating</strong>?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Compare candidate moves and reject the unsafe one.</div>
+<div class="quiz-option">b. Move instantly because the first idea is usually enough.</div>
+<div class="quiz-option">c. Ignore the diagram and choose by piece value only.</div>
+</div>
+</section>
+<section class="block" id="b05-c08-q03">
+<h3>When To Stop Calculating Check 3</h3>
+<p>What is the biggest danger if you ignore <strong>when to stop calculating</strong>?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. You may miss a tactic, plan, or defensive resource.</div>
+<div class="quiz-option">b. Move instantly because the first idea is usually enough.</div>
+<div class="quiz-option">c. Ignore the diagram and choose by piece value only.</div>
+</div>
+</section>
+</section>
+<section class="chapter-print">
+<h1>Avoiding Hope Chess</h1>
+<div class="meta">Calculation I - Candidate Moves | 1100-1400 | silver</div>
+<p>Avoiding Hope Chess converted into a repeatable Chess99 training habit.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Recognize the visual signal for avoiding hope chess.</li>
+<li>Choose a move or plan that fits avoiding hope chess.</li>
+<li>Avoid the common beginner error connected with avoiding hope chess.</li>
+<li>Pass a checkpoint without relying on guesswork.</li>
+</ul>
+</section>
+<h2>Goal And Pattern</h2>
+<section class="block" id="b05-c09-p01">
+<p>Avoiding Hope Chess is not a memory trick. It is a way to organize the position. First name the signal, then compare candidate moves, then choose the move that improves your position without creating a new weakness.</p>
+</section>
+<section class="block" id="b05-c09-d01">
+<h3>Training Diagram: main pattern</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c09-d01-bishop-wins-rook.png" alt="Training Diagram: main pattern">
+<div class="caption"><p>The line to the target is clear, so the capture wins higher-value material. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c09-d02">
+<h3>Training Diagram: candidate move</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c09-d02-queen-target.png" alt="Training Diagram: candidate move">
+<div class="caption"><p>A high-value target changes the whole position when it is undefended. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<h2>Analysis And Decision</h2>
+<section class="block" id="b05-c09-p02">
+<p>Use the diagram as a thinking board. Ask what is forcing, what is loose, and what changes after the move. Strong players do not only see a move; they see the reason the move works.</p>
+</section>
+<section class="block" id="b05-c09-d03">
+<h3>Training Diagram: comparison position</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c09-d03-castle-safety.png" alt="Training Diagram: comparison position">
+<div class="caption"><p>King safety often beats a tempting pawn grab or one-move threat. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c09-d04">
+<h3>Training Diagram: best practical choice</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c09-d04-cct-check.png" alt="Training Diagram: best practical choice">
+<div class="caption"><p>Checks are forcing moves and should be examined before quieter ideas. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c09-d05">
+<h3>Training Diagram: review position</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c09-d05-rook-activity.png" alt="Training Diagram: review position">
+<div class="caption"><p>Open files are highways for rooks, especially when a king or target is exposed. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c09-g01">
+<h3>Try It: Find The Training Move</h3>
+<p>Play the highlighted move from <strong>c4</strong> to <strong>f7</strong>. Do it only after saying the idea in words.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c09-g01-bishop-wins-rook.png" alt="Try It: Find The Training Move">
+<div class="caption"><p>The guided move turns the diagram idea into a playable habit.</p></div>
+</section>
+<section class="block" id="b05-c09-m01">
+<h3>Common Mistake: Missing The Diagram Signal</h3>
+<p>The common mistake is to move by habit and miss the chapter signal. The diagram marks the useful move and the important target so the error is visible before it happens.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c09-m01-bishop-wins-rook.png" alt="Common Mistake: Missing The Diagram Signal">
+<div class="caption"><p>The marked relationship is the reason the natural careless move fails.</p></div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b05-c09-q01">
+<h3>Avoiding Hope Chess Check 1</h3>
+<p>What should you do first in a position about <strong>avoiding hope chess</strong>?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Name the key signal before choosing a move.</div>
+<div class="quiz-option">b. Move instantly because the first idea is usually enough.</div>
+<div class="quiz-option">c. Ignore the diagram and choose by piece value only.</div>
+</div>
+</section>
+<section class="block" id="b05-c09-q02">
+<h3>Avoiding Hope Chess Check 2</h3>
+<p>Which answer best matches the chapter habit for <strong>avoiding hope chess</strong>?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Compare candidate moves and reject the unsafe one.</div>
+<div class="quiz-option">b. Move instantly because the first idea is usually enough.</div>
+<div class="quiz-option">c. Ignore the diagram and choose by piece value only.</div>
+</div>
+</section>
+<section class="block" id="b05-c09-q03">
+<h3>Avoiding Hope Chess Check 3</h3>
+<p>What is the biggest danger if you ignore <strong>avoiding hope chess</strong>?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. You may miss a tactic, plan, or defensive resource.</div>
+<div class="quiz-option">b. Move instantly because the first idea is usually enough.</div>
+<div class="quiz-option">c. Ignore the diagram and choose by piece value only.</div>
+</div>
+</section>
+</section>
+<section class="chapter-print">
+<h1>Calculation Checkpoint</h1>
+<div class="meta">Calculation I - Candidate Moves | 1100-1400 | silver</div>
+<p>Calculation Checkpoint converted into a repeatable Chess99 training habit.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Recognize the visual signal for calculation checkpoint.</li>
+<li>Choose a move or plan that fits calculation checkpoint.</li>
+<li>Avoid the common beginner error connected with calculation checkpoint.</li>
+<li>Pass a checkpoint without relying on guesswork.</li>
+</ul>
+</section>
+<h2>Goal And Pattern</h2>
+<section class="block" id="b05-c10-p01">
+<p>Calculation Checkpoint is not a memory trick. It is a way to organize the position. First name the signal, then compare candidate moves, then choose the move that improves your position without creating a new weakness.</p>
+</section>
+<section class="block" id="b05-c10-d01">
+<h3>Training Diagram: main pattern</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c10-d01-queen-target.png" alt="Training Diagram: main pattern">
+<div class="caption"><p>A high-value target changes the whole position when it is undefended. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c10-d02">
+<h3>Training Diagram: candidate move</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c10-d02-castle-safety.png" alt="Training Diagram: candidate move">
+<div class="caption"><p>King safety often beats a tempting pawn grab or one-move threat. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<h2>Analysis And Decision</h2>
+<section class="block" id="b05-c10-p02">
+<p>Use the diagram as a thinking board. Ask what is forcing, what is loose, and what changes after the move. Strong players do not only see a move; they see the reason the move works.</p>
+</section>
+<section class="block" id="b05-c10-d03">
+<h3>Training Diagram: comparison position</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c10-d03-cct-check.png" alt="Training Diagram: comparison position">
+<div class="caption"><p>Checks are forcing moves and should be examined before quieter ideas. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c10-d04">
+<h3>Training Diagram: best practical choice</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c10-d04-rook-activity.png" alt="Training Diagram: best practical choice">
+<div class="caption"><p>Open files are highways for rooks, especially when a king or target is exposed. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c10-d05">
+<h3>Training Diagram: review position</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c10-d05-king-pawn.png" alt="Training Diagram: review position">
+<div class="caption"><p>In pawn endings, one tempo can decide whether the pawn advances or stalls. Study the highlighted relationship before reading the move.</p></div>
+</section>
+<section class="block" id="b05-c10-g01">
+<h3>Try It: Find The Training Move</h3>
+<p>Play the highlighted move from <strong>f3</strong> to <strong>d4</strong>. Do it only after saying the idea in words.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c10-g01-queen-target.png" alt="Try It: Find The Training Move">
+<div class="caption"><p>The guided move turns the diagram idea into a playable habit.</p></div>
+</section>
+<section class="block" id="b05-c10-m01">
+<h3>Common Mistake: Missing The Diagram Signal</h3>
+<p>The common mistake is to move by habit and miss the chapter signal. The diagram marks the useful move and the important target so the error is visible before it happens.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/calculation-candidate-moves/assets/diagrams/b05-c10-m01-queen-target.png" alt="Common Mistake: Missing The Diagram Signal">
+<div class="caption"><p>The marked relationship is the reason the natural careless move fails.</p></div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b05-c10-q01">
+<h3>Calculation Checkpoint Check 1</h3>
+<p>What should you do first in a position about <strong>calculation checkpoint</strong>?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Name the key signal before choosing a move.</div>
+<div class="quiz-option">b. Move instantly because the first idea is usually enough.</div>
+<div class="quiz-option">c. Ignore the diagram and choose by piece value only.</div>
+</div>
+</section>
+<section class="block" id="b05-c10-q02">
+<h3>Calculation Checkpoint Check 2</h3>
+<p>Which answer best matches the chapter habit for <strong>calculation checkpoint</strong>?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Compare candidate moves and reject the unsafe one.</div>
+<div class="quiz-option">b. Move instantly because the first idea is usually enough.</div>
+<div class="quiz-option">c. Ignore the diagram and choose by piece value only.</div>
+</div>
+</section>
+<section class="block" id="b05-c10-q03">
+<h3>Calculation Checkpoint Check 3</h3>
+<p>What is the biggest danger if you ignore <strong>calculation checkpoint</strong>?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. You may miss a tactic, plan, or defensive resource.</div>
+<div class="quiz-option">b. Move instantly because the first idea is usually enough.</div>
+<div class="quiz-option">c. Ignore the diagram and choose by piece value only.</div>
+</div>
+</section>
+</section>
+</body>
+</html>

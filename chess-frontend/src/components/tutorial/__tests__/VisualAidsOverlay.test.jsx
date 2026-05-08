@@ -33,7 +33,7 @@ describe('VisualAidsOverlay', () => {
     expect(arrows[0]).toHaveAttribute('y1');
     expect(arrows[0]).toHaveAttribute('x2');
     expect(arrows[0]).toHaveAttribute('y2');
-    expect(arrows[0]).toHaveAttribute('stroke', 'green');
+    expect(arrows[0]).toHaveAttribute('stroke', '#10b981');
   });
 
   it('renders highlights correctly', () => {
@@ -43,7 +43,7 @@ describe('VisualAidsOverlay', () => {
     expect(highlights).toHaveLength(3);
 
     // Check first highlight
-    expect(highlights[0]).toHaveAttribute('fill', 'rgba(74, 222, 128, 0.4)');
+    expect(highlights[0]).toHaveAttribute('fill', 'rgba(59, 130, 246, 0.25)');
   });
 
   it('renders ghost pieces correctly', () => {
@@ -110,8 +110,8 @@ describe('VisualAidsOverlay', () => {
     const firstArrow = screen.getByTestId('arrow-0');
     const secondArrow = screen.getByTestId('arrow-1');
 
-    expect(firstArrow).toHaveAttribute('stroke', 'green');
-    expect(secondArrow).toHaveAttribute('stroke', 'blue');
+    expect(firstArrow).toHaveAttribute('stroke', '#10b981');
+    expect(secondArrow).toHaveAttribute('stroke', '#3b82f6');
   });
 
   it('applies correct highlight opacity', () => {
@@ -119,7 +119,7 @@ describe('VisualAidsOverlay', () => {
 
     const highlights = screen.getAllByTestId(/highlight-/);
     highlights.forEach(highlight => {
-      expect(highlight).toHaveAttribute('fill', 'rgba(74, 222, 128, 0.4)');
+      expect(highlight).toHaveAttribute('fill', 'rgba(59, 130, 246, 0.25)');
     });
   });
 
@@ -131,12 +131,11 @@ describe('VisualAidsOverlay', () => {
   });
 
   it('renders arrow heads correctly', () => {
-    render(<VisualAidsOverlay {...defaultProps} />);
+    const { container } = render(<VisualAidsOverlay {...defaultProps} />);
 
-    const arrows = screen.getAllByTestId(/arrow-/);
-    arrows.forEach(arrow => {
-      const marker = arrow.querySelector('marker');
-      expect(marker).toBeInTheDocument();
+    const markers = container.querySelectorAll('marker');
+    expect(markers).toHaveLength(2);
+    markers.forEach(marker => {
       expect(marker).toHaveAttribute('markerWidth', '10');
       expect(marker).toHaveAttribute('markerHeight', '10');
     });

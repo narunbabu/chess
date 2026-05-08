@@ -1,0 +1,261 @@
+{
+  "id": "ch01",
+  "title": "The Board and Pieces",
+  "subtitle": "\"You cannot play a symphony before you've tuned your instrument.\"",
+  "eloRange": "0-200",
+  "sections": [
+    {
+      "id": "1.1",
+      "title": "1.1 The Chessboard",
+      "blocks": [
+        {
+          "type": "text",
+          "html": "<p>Before touching a single piece, you must know the battlefield.</p><h3>The 64 Squares</h3><p>A chessboard has <strong>64 squares</strong> arranged in an 8x8 grid. The squares alternate between <strong>light</strong> and <strong>dark</strong>.</p>"
+        },
+        {
+          "type": "board",
+          "fen": "8/8/8/8/8/8/8/8 w - - 0 1",
+          "highlights": ["e4", "d4", "e5", "d5"],
+          "caption": "Empty board. The four center squares (d4, d5, e4, e5) are highlighted — these are the most important squares on the board.",
+          "size": 320
+        },
+        {
+          "type": "text",
+          "html": "<h3>Files and Ranks</h3><ul><li><strong>Files</strong> are vertical columns (a-h). File a is on White's left.</li><li><strong>Ranks</strong> are horizontal rows (1-8). Rank 1 is White's home row.</li><li>Every square has a unique name: <strong>file + rank</strong> (e.g., e4, h1, a8).</li></ul><h3>The Golden Rule of Setup</h3><blockquote><strong>\"Light square on the right.\"</strong></blockquote><p>When sitting at the board, the bottom-right corner square (h1 for White, a8 for Black) <strong>must be a light square</strong>. If it's dark, you've set the board wrong.</p><h3>Center vs. Edge</h3><ul><li>A knight on e4 attacks 8 squares</li><li>A knight on a1 attacks only 2 squares</li></ul><p><strong>Key Insight:</strong> You want your pieces in or near the center. Always.</p>"
+        }
+      ]
+    },
+    {
+      "id": "1.2",
+      "title": "1.2 The Pieces",
+      "blocks": [
+        {
+          "type": "text",
+          "html": "<p>There are <strong>6 types of pieces</strong>, each with unique movement patterns.</p><h3>The King (K)</h3><p><strong>Value:</strong> The game itself. Lose the king, lose the game.</p><p><strong>Movement:</strong> One square in any direction — horizontal, vertical, or diagonal.</p>"
+        },
+        {
+          "type": "board",
+          "fen": "8/8/8/8/4K3/8/8/8 w - - 0 1",
+          "highlights": ["d5", "e5", "f5", "d4", "f4", "d3", "e3", "f3"],
+          "orientation": "white",
+          "caption": "The king on e4 can move to any highlighted square (8 possible moves). It cannot move next to the enemy king.",
+          "size": 280
+        },
+        {
+          "type": "text",
+          "html": "<p><strong>Special rules:</strong> Cannot move into check. Cannot move next to the enemy king (kings must stay one square apart). <strong>Castling</strong> — a special move with the rook.</p><h3>The Queen (Q)</h3><p><strong>Value:</strong> 9 points. Your most powerful piece.</p><p><strong>Movement:</strong> Any number of squares in any direction — horizontally, vertically, or diagonally. Think: rook + bishop combined.</p>"
+        },
+        {
+          "type": "board",
+          "fen": "8/8/8/8/3Q4/8/8/8 w - - 0 1",
+          "highlights": ["d8", "d7", "d6", "d5", "d3", "d2", "d1", "a4", "b4", "c4", "e4", "f4", "g4", "h4", "a1", "e5", "f6", "g7", "h8", "a7", "b6", "c5", "e3", "f2", "g1", "b2", "c3", "e5", "a7"],
+          "caption": "The queen on d4 attacks 27 squares. Rook movement (straight lines) + Bishop movement (diagonals).",
+          "size": 280
+        },
+        {
+          "type": "text",
+          "html": "<h3>The Rook (R)</h3><p><strong>Value:</strong> 5 points.</p><p><strong>Movement:</strong> Any number of squares horizontally or vertically.</p>"
+        },
+        {
+          "type": "board",
+          "fen": "8/8/8/8/4R3/8/8/8 w - - 0 1",
+          "highlights": ["e8", "e7", "e6", "e5", "e3", "e2", "e1", "a4", "b4", "c4", "d4", "f4", "g4", "h4"],
+          "caption": "The rook on e4 attacks 14 squares — all squares on the e-file and 4th rank.",
+          "size": 280
+        },
+        {
+          "type": "text",
+          "html": "<h3>The Bishop (B)</h3><p><strong>Value:</strong> 3 points.</p><p><strong>Movement:</strong> Any number of squares diagonally. Each bishop stays on squares of <strong>one color</strong> for its entire life — a \"light-squared bishop\" or \"dark-squared bishop.\"</p>"
+        },
+        {
+          "type": "board",
+          "fen": "8/8/8/8/3B4/8/8/8 w - - 0 1",
+          "highlights": ["a1", "b2", "c3", "e5", "f6", "g7", "h8", "a7", "b6", "c5", "e3", "f2", "g1"],
+          "caption": "The bishop on d4 attacks 13 squares diagonally. It can never reach a light square — notice all its reachable squares are dark.",
+          "size": 280
+        },
+        {
+          "type": "text",
+          "html": "<h3>The Knight (N)</h3><p><strong>Value:</strong> 3 points.</p><p><strong>Movement:</strong> In an <strong>L-shape</strong> — two squares in one direction, then one square perpendicular. The knight is the only piece that can <strong>jump over other pieces</strong>.</p><p><em>Memory trick: \"one-two-and-turn\"</em></p>"
+        },
+        {
+          "type": "board",
+          "fen": "8/8/8/8/3N4/8/8/8 w - - 0 1",
+          "highlights": ["c6", "e6", "b5", "f5", "b3", "f3", "c2", "e2"],
+          "caption": "The knight on d4 attacks 8 squares in an L-shaped pattern. It can jump over any pieces in the way.",
+          "size": 280
+        },
+        {
+          "type": "text",
+          "html": "<h3>The Pawn (P)</h3><p><strong>Value:</strong> 1 point. But don't underestimate them — pawns are the soul of chess.</p><p><strong>Movement:</strong></p><ul><li><strong>Forward only</strong>, one square at a time</li><li>On its <strong>first move only</strong>, a pawn may advance <strong>two squares</strong></li><li>Pawns <strong>capture diagonally</strong> (one square forward-left or forward-right)</li></ul><p><strong>Critical rule:</strong> Pawns capture differently than they move. This is the #1 mistake beginners make.</p>"
+        },
+        {
+          "type": "board",
+          "fen": "8/8/8/8/4P3/8/8/8 w - - 0 1",
+          "highlights": ["e5", "d5", "f5"],
+          "orientation": "white",
+          "caption": "White pawn on e4: can move forward to e5 (green), capture on d5 (left diagonal), or capture on f5 (right diagonal). It can NOT move sideways or backward.",
+          "size": 280
+        },
+        {
+          "type": "interactive",
+          "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          "orientation": "white",
+          "caption": "Try moving pieces on the starting position. Click a piece then click where you want to move it.",
+          "size": 340
+        }
+      ]
+    },
+    {
+      "id": "1.3",
+      "title": "1.3 Piece Values (The Point System)",
+      "blocks": [
+        {
+          "type": "text",
+          "html": "<table><tr><th>Piece</th><th>Points</th><th>Nickname</th></tr><tr><td>Queen</td><td>9</td><td>The Powerhouse</td></tr><tr><td>Rook</td><td>5</td><td>The Tower</td></tr><tr><td>Bishop</td><td>3</td><td>The Sniper</td></tr><tr><td>Knight</td><td>3</td><td>The Trickster</td></tr><tr><td>Pawn</td><td>1</td><td>The Soldier</td></tr></table><p><strong>The king has no point value</strong> — it's priceless. You can never trade your king.</p><h3>Good Trades, Bad Trades</h3><ul><li><strong>Winning a trade:</strong> Trading a knight (3) for a rook (5) = +2 advantage</li><li><strong>Losing a trade:</strong> Trading a rook (5) for a bishop (3) = -2 disadvantage</li><li><strong>Equal trade:</strong> Bishop (3) for knight (3) = even</li></ul><p><strong>The Rule of Thumb:</strong> Don't trade a stronger piece for a weaker one unless you get something concrete in return.</p>"
+        }
+      ]
+    },
+    {
+      "id": "1.4",
+      "title": "1.4 The Starting Position",
+      "blocks": [
+        {
+          "type": "board",
+          "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          "orientation": "white",
+          "caption": "The starting position. White always moves first.",
+          "size": 360
+        },
+        {
+          "type": "text",
+          "html": "<p><strong>Setup checklist:</strong></p><ol><li>Rooks in the corners (a1, h1, a8, h8)</li><li>Knights next to rooks (b1, g1, b8, g8)</li><li>Bishops next to knights (c1, f1, c8, f8)</li><li>Queen on her own color: White queen on d1 (light), Black queen on d8 (dark)</li><li>King on the remaining center square</li><li>Pawns fill the second rank for each side</li></ol><p><strong>Memory trick:</strong> \"Queen on her own color.\"</p>"
+        }
+      ]
+    },
+    {
+      "id": "1.5",
+      "title": "1.5 Special Moves",
+      "blocks": [
+        {
+          "type": "text",
+          "html": "<h3>Castling</h3><p>The only move where you move two pieces at once — the king moves two squares toward a rook, and the rook jumps over the king.</p><p><strong>Requirements:</strong> Neither piece has moved, no pieces between them, king not in check or moving through check.</p><p><strong>Kingside (O-O):</strong> King to g1/g8, rook to f1/f8<br><strong>Queenside (O-O-O):</strong> King to c1/c8, rook to d1/d8</p>"
+        },
+        {
+          "type": "animation",
+          "fen": "r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/2NP1N2/PPP2PPP/R1BQK2R w KQkq - 0 4",
+          "sequence": ["e1g1"],
+          "speed": "slow",
+          "orientation": "white",
+          "caption": "White castles kingside (O-O). King moves from e1 to g1, rook jumps from h1 to f1. The king is now safe behind a wall of pawns.",
+          "size": 340
+        },
+        {
+          "type": "text",
+          "html": "<h3>En Passant</h3><p>French for \"in passing.\" If a pawn moves two squares forward and lands beside an enemy pawn, the enemy pawn can capture it <em>as if it had only moved one square</em>. This capture must be made immediately.</p>"
+        },
+        {
+          "type": "animation",
+          "fen": "rnbqkbnr/1ppppppp/8/p7/4P3/8/PPPP1PPP/RNBQKBNR w KQkq a6 0 2",
+          "sequence": [
+            {"move": "a7a5", "arrow": ["a7","a5","rgba(91,141,217,0.6)"]},
+            {"move": "b5a6", "arrow": ["b5","a6","rgba(239,68,68,0.7)"]}
+          ],
+          "speed": "slow",
+          "orientation": "white",
+          "caption": "Black's pawn moves from a7 to a5. White's pawn on b5 captures it en passant — moving to a6 and removing the a5 pawn. This is only legal immediately after Black's two-square push.",
+          "size": 340
+        },
+        {
+          "type": "text",
+          "html": "<h3>Pawn Promotion</h3><p>When a pawn reaches the opposite end of the board (rank 8 for White, rank 1 for Black), it must promote to a queen, rook, bishop, or knight. Nearly always, promote to a <strong>queen</strong>.</p>"
+        },
+        {
+          "type": "animation",
+          "fen": "8/4P3/8/8/8/8/8/8 w - - 0 1",
+          "sequence": ["e7e8q"],
+          "speed": "slow",
+          "orientation": "white",
+          "caption": "White pawn on e7 promotes to a queen on e8. A tiny pawn transforms into the most powerful piece on the board!",
+          "size": 280
+        }
+      ]
+    },
+    {
+      "id": "1.6",
+      "title": "1.6 Check, Checkmate, and Stalemate",
+      "blocks": [
+        {
+          "type": "text",
+          "html": "<h3>Check</h3><p>The king is under attack. The player in check <strong>must</strong> get out of check on their next move. Three ways:</p><ol><li><strong>Move</strong> the king to a safe square</li><li><strong>Block</strong> the check (doesn't work against knights)</li><li><strong>Capture</strong> the checking piece</li></ol>"
+        },
+        {
+          "type": "board",
+          "fen": "4k3/8/4R3/8/8/8/8/4K3 b - - 0 1",
+          "orientation": "white",
+          "arrows": [["e6", "e8", "rgba(239,68,68,0.7)"]],
+          "caption": "The Black king on e8 is in CHECK from the White rook on e6. The rook attacks the king along the e-file. Black must get out of check on the next move.",
+          "size": 300
+        },
+        {
+          "type": "text",
+          "html": "<h3>Checkmate</h3><p>The king is in check and <strong>none of the three escape methods work</strong>. The game ends immediately — the player who delivered checkmate wins.</p><p>The fastest possible checkmate is <strong>Fool's Mate</strong> (two moves).</p>"
+        },
+        {
+          "type": "animation",
+          "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          "sequence": ["f2f3", "e7e5", "g2g4", "d8h4"],
+          "speed": "normal",
+          "orientation": "white",
+          "caption": "Fool's Mate — the fastest checkmate possible. 1.f3 e5 2.g4 Qh4#. White opens a deadly diagonal to their own king.",
+          "size": 340
+        },
+        {
+          "type": "text",
+          "html": "<h3>Stalemate</h3><p>The king is <strong>not</strong> in check, but the player has <strong>no legal moves</strong>. The game ends in a draw (tie). Stalemate is a common pitfall for beginners — you must always give the opponent's king a legal square when you're winning!</p>"
+        },
+        {
+          "type": "board",
+          "fen": "7k/5Q2/8/8/8/8/8/6K1 b - - 0 1",
+          "orientation": "white",
+          "highlights": ["h8"],
+          "caption": "Black to move. The king on h8 is NOT in check but has NO legal squares to move to (g7, g8, h7 are all attacked by the queen). This is STALEMATE — a draw, even though White is up a queen! White needed to play Qg7# instead.",
+          "size": 300
+        }
+      ]
+    },
+    {
+      "id": "1.7",
+      "title": "1.7 Your First Goal: The Ladder Mate",
+      "blocks": [
+        {
+          "type": "text",
+          "html": "<p>Before you learn anything else, learn to checkmate with <strong>king + queen vs. king</strong>. This is called the \"ladder mate\" because you push the enemy king to the edge like climbing rungs of a ladder.</p><p><strong>The Method:</strong></p><ol><li>Use your queen to cut off the enemy king — place her a \"knight's move away\"</li><li>When the enemy king is on the edge, bring your own king close</li><li>Deliver checkmate with the queen protected by your king</li></ol>"
+        },
+        {
+          "type": "animation",
+          "fen": "8/8/8/5k2/8/8/8/4Q1K1 w - - 0 1",
+          "sequence": ["e1e7", "f5f6", "e7g5", "f6e6", "g1f2"],
+          "speed": "normal",
+          "loop": true,
+          "orientation": "white",
+          "caption": "Ladder mate demonstration: The queen cuts off the enemy king (\"knight's move away\"), then the White king approaches to support checkmate.",
+          "size": 340
+        },
+        {
+          "type": "interactive",
+          "fen": "8/8/8/5k2/8/8/8/4Q1K1 w - - 0 1",
+          "orientation": "white",
+          "caption": "Practice the ladder mate yourself! White to move. Try to checkmate the Black king.",
+          "size": 340
+        },
+        {
+          "type": "text",
+          "html": "<p><strong>Practice this 20 times.</strong> If you can't do this in your sleep, you're not ready for ELO 200.</p>"
+        }
+      ]
+    }
+  ],
+  "checkpoint": "Can you set up the board from memory? Do you know how every piece moves without hesitation? Can you checkmate a lone king with king + queen? If yes, proceed to Chapter 2.",
+  "summary": "<table><tr><th>Concept</th><th>What You Must Know</th></tr><tr><td>Board layout</td><td>Files a-h, ranks 1-8, light square on right</td></tr><tr><td>Piece movement</td><td>All 6 pieces, how they move and capture</td></tr><tr><td>Piece values</td><td>Q=9, R=5, B=3, N=3, P=1</td></tr><tr><td>Special moves</td><td>Castling, en passant, promotion</td></tr><tr><td>Check vs Mate vs Stalemate</td><td>Know the difference cold</td></tr><tr><td>Ladder mate</td><td>K+Q vs K checkmate pattern</td></tr></table>"
+}

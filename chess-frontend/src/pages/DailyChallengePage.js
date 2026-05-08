@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useSubscription } from '../contexts/SubscriptionContext';
+import { getAvailableDailyTracks, getSubscriptionLabel } from '../constants/learningCurriculum';
 import api from '../services/api';
 
 const TIER_COLORS = {
@@ -15,6 +18,10 @@ const TYPE_ICONS = { tactic: '⚡', endgame: '♟️', opening: '📖', puzzle: 
 
 const DailyChallengePage = () => {
   const { user } = useAuth();
+  const { currentTier } = useSubscription();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedTrack = searchParams.get('track') || 'daily-starter';
   const [challenge, setChallenge] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -43,7 +50,8 @@ const DailyChallengePage = () => {
     const fetchChallenge = async () => {
       try {
         setLoading(true);
-        const res = await api.get('/tutorial/daily-challenge');
+        setError(null);
+        const res = await api.get(`/tutorial/daily-challenge?track=${encodeURIComponent(selectedTrack)}`);
         const data = res.data.data || res.data;
         setChallenge(data);
 
@@ -76,14 +84,18 @@ const DailyChallengePage = () => {
         }
       } catch (err) {
         console.error('[DailyChallenge] Error loading:', err);
-        setError(err.response?.status === 401 ? 'Please log in to access daily challenges.' : 'Failed to load daily challenge.');
+        if (err.response?.status === 403) {
+          setError(err.response?.data?.message || 'This daily challenge track needs an upgrade.');
+        } else {
+          setError(err.response?.status === 401 ? 'Please log in to access daily challenges.' : 'Failed to load daily challenge.');
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchChallenge();
-  }, [user]);
+  }, [user, selectedTrack]);
 
   // Timer
   useEffect(() => {
@@ -210,6 +222,8 @@ const DailyChallengePage = () => {
 
     try {
       const res = await api.post('/tutorial/daily-challenge/submit', {
+        challenge_id: challenge.id,
+        track: challenge.track_slug || challenge.track?.slug || selectedTrack,
         solution: moves,
         time_spent_seconds: elapsed,
       });
@@ -266,6 +280,18 @@ const DailyChallengePage = () => {
     setElapsed(0);
   };
 
+  const handleTrackSelect = (track) => {
+    const trackId = track.id || track.slug;
+    const locked = track.isLocked ?? track.is_locked;
+
+    if (locked) {
+      navigate('/pricing');
+      return;
+    }
+
+    setSearchParams({ track: trackId });
+  };
+
   // ── Render ──────────────────────────────────────────────────────────
 
   if (loading) {
@@ -294,6 +320,12 @@ const DailyChallengePage = () => {
   const hints = data.hints || [];
   const solution = data.solution || [];
   const isComplete = status === 'correct' || status === 'completed';
+  const dailyTracks = (challenge.available_tracks || getAvailableDailyTracks(currentTier)).map((track) => ({
+    ...track,
+    id: track.id || track.slug,
+    requiredTier: track.requiredTier || track.required_tier,
+    isLocked: track.isLocked ?? track.is_locked,
+  }));
 
   return (
     <div style={{ minHeight: '100vh', background: '#262421', color: '#bababa', padding: '16px 8px' }}>
@@ -302,7 +334,7 @@ const DailyChallengePage = () => {
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: 16 }}>
           <h1 style={{ fontSize: 24, fontWeight: 'bold', color: '#fff', margin: 0 }}>
-            {TYPE_ICONS[challenge.challenge_type] || '🧩'} Daily Challenge
+            {TYPE_ICONS[challenge.challenge_type] || '🧩'} {challenge.track?.label || 'Daily Challenge'}
           </h1>
           <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
             <span style={{
@@ -326,6 +358,33 @@ const DailyChallengePage = () => {
               </span>
             )}
           </div>
+        </div>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+          gap: 8,
+          marginBottom: 16,
+        }}>
+          {dailyTracks.map((track) => (
+            <div
+              key={track.id}
+              onClick={() => handleTrackSelect(track)}
+              style={{
+                background: '#312e2b',
+                border: `1px solid ${track.id === selectedTrack ? '#81b64c' : (track.isLocked ? 'rgba(232,169,62,0.35)' : 'rgba(129,182,76,0.35)')}`,
+                borderRadius: 8,
+                padding: '10px 12px',
+                opacity: track.isLocked ? 0.72 : 1,
+                cursor: 'pointer',
+              }}
+            >
+              <div style={{ color: '#fff', fontWeight: 700, fontSize: 13 }}>{track.label}</div>
+              <div style={{ color: track.isLocked ? '#e8a93e' : '#81b64c', fontSize: 12, fontWeight: 700 }}>
+                {track.isLocked ? `${getSubscriptionLabel(track.requiredTier)} unlock` : 'Available'}
+              </div>
+            </div>
+          ))}
         </div>
 
         {/* Puzzle info */}

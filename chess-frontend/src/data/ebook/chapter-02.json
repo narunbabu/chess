@@ -1,0 +1,177 @@
+{
+  "id": "ch02",
+  "title": "Basic Principles",
+  "subtitle": "\"Chess is 99% tactics.\" — Richard Teichmann",
+  "eloRange": "200-400",
+  "sections": [
+    {
+      "id": "2.1",
+      "title": "2.1 The Three Golden Rules of the Opening",
+      "blocks": [
+        {
+          "type": "text",
+          "html": "<p>For the first 10-15 moves of every game, you have three jobs. Memorize them:</p><h3>Rule 1: Control the Center</h3><p>The center squares (e4, d4, e5, d5) are the high ground. Pieces in the center attack more squares and reach both sides faster.</p><p><strong>Good first moves:</strong> 1. e4, 1. d4, 1. Nf3, 1. c4<br><strong>Bad first moves:</strong> 1. a4, 1. h4, 1. Na3</p><p><strong>The test:</strong> After every move, ask — \"Did this move increase my control over the center?\"</p><h3>Rule 2: Develop Your Pieces (Quickly!)</h3><p>\"Development\" means bringing pieces off the back rank and into the game.</p><p><strong>The ideal first 10 moves:</strong> Move both center pawns, bring out both knights, bring out both bishops, castle.</p><p><strong>Rule of thumb:</strong> Don't move the same piece twice in the opening unless forced.</p><h3>Rule 3: King Safety (Castle Early!)</h3><p>Castle within the first 5-10 moves. When in doubt, castle kingside.</p>"
+        },
+        {
+          "type": "board",
+          "fen": "r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/2NP1N2/PPP2PPP/R1BQK2R w KQkq - 0 4",
+          "orientation": "white",
+          "highlights": ["e4", "d4", "c3", "f3", "c4"],
+          "caption": "After 4 moves in the Italian Game: White has claimed the center (e4, preparing d4), developed both knights (c3, f3), developed a bishop (c4), and is ready to castle.",
+          "size": 340
+        },
+        {
+          "type": "text",
+          "html": "<h3>What NOT to Do in the Opening</h3><table><tr><th>Mistake</th><th>Why It's Bad</th></tr><tr><td>Bringing queen out early</td><td>She becomes a target</td></tr><tr><td>Moving pawns on the edge (a4, h4)</td><td>Doesn't control center</td></tr><tr><td>Making too many pawn moves</td><td>Pawns don't develop</td></tr><tr><td>Not castling</td><td>King sits exposed</td></tr></table>"
+        }
+      ]
+    },
+    {
+      "id": "2.2",
+      "title": "2.2 Developing Board Sense",
+      "blocks": [
+        {
+          "type": "text",
+          "html": "<p>Between ELO 200-400, most games are lost because one player simply doesn't see that their piece is being attacked.</p><h3>The Pre-Move Checklist</h3><p>Before you touch a piece, ask three questions:</p><ol><li><strong>Checks:</strong> Can I check my opponent? Can my opponent check me?</li><li><strong>Captures:</strong> What can I capture? What can my opponent capture?</li><li><strong>Threats:</strong> What am I threatening? What is my opponent threatening?</li></ol><p>This is the <strong>CCT Framework</strong> — Checks, Captures, Threats. Get in the habit of scanning for CCT on every move.</p><h3>Hanging Pieces</h3><p>A \"hanging\" piece is undefended and can be captured for free. Most decisive advantages at this level come from capturing hanging pieces — and not hanging your own.</p>"
+        },
+        {
+          "type": "board",
+          "fen": "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 3",
+          "orientation": "white",
+          "arrows": [["e4", "e5", "rgba(91,141,217,0.6)"]],
+          "highlights": ["e5"],
+          "caption": "White's knight on f3 attacks Black's pawn on e5. Is the e5 pawn defended? Let's count — Black's knight on c6 defends it. 1 attacker vs 1 defender. White can't win it yet.",
+          "size": 320
+        }
+      ]
+    },
+    {
+      "id": "2.3",
+      "title": "2.3 Counting Attackers and Defenders",
+      "blocks": [
+        {
+          "type": "text",
+          "html": "<p>Before capturing, count:</p><ol><li>How many of your pieces attack the target</li><li>How many of your opponent's pieces defend it</li><li>The value of the pieces involved</li></ol><p><strong>If attackers > defenders:</strong> You can safely capture.<br><strong>If attackers = defenders:</strong> The exchange may be equal. Capture with the least valuable piece first.</p>"
+        },
+        {
+          "type": "board",
+          "fen": "r1bqk2r/ppp2ppp/2n2n2/3pp3/1b1PP3/2N2N2/PPP2PPP/R1BQKB1R w KQkq - 0 5",
+          "arrows": [
+            ["f3", "e5", "rgba(91,141,217,0.5)"],
+            ["d4", "e5", "rgba(91,141,217,0.5)"],
+            ["c3", "d5", "rgba(91,141,217,0.5)"]
+          ],
+          "highlights": ["e5", "d5"],
+          "orientation": "white",
+          "caption": "White attacks e5 with 2 pieces (Nf3 + d4 pawn). Black defends e5 with 2 pieces (Nc6 + d6 pawn). White also eyes d5. Count before you capture!",
+          "size": 340
+        }
+      ]
+    },
+    {
+      "id": "2.4",
+      "title": "2.4 Introduction to Tactics",
+      "blocks": [
+        {
+          "type": "text",
+          "html": "<p>Tactics are short, forcing sequences that win material or deliver checkmate. Master these four basic patterns.</p><h3>The Fork</h3><p>A single piece attacks two (or more) enemy pieces simultaneously. The opponent can only save one. <strong>The Knight Fork</strong> is the most dangerous because knights jump unexpectedly.</p>"
+        },
+        {
+          "type": "board",
+          "fen": "r1bqkb1r/pppp1ppp/2n5/4N3/4P3/8/PPPP1PPP/RNBQKB1R b KQkq - 0 3",
+          "arrows": [
+            ["e5", "d8", "rgba(239,68,68,0.7)"],
+            ["e5", "c7", "rgba(239,68,68,0.7)"]
+          ],
+          "highlights": ["d8", "c7"],
+          "orientation": "white",
+          "caption": "White's knight on e5 FORKS Black's queen and the c7 pawn. Black can only save one. This is why you should never let a knight reach e5 unchallenged!",
+          "size": 340
+        },
+        {
+          "type": "text",
+          "html": "<h3>The Pin</h3><p>A piece is \"pinned\" when moving it would expose a more valuable piece behind it to attack.</p><p><strong>Absolute pin:</strong> The pinned piece cannot legally move (exposes king to check).<br><strong>Relative pin:</strong> The piece can move, but loses material.</p>"
+        },
+        {
+          "type": "board",
+          "fen": "r1bqk2r/pppp1ppp/2n2n2/4p3/1b2P3/2NP1N2/PPP2PPP/R1BQKB1R w KQkq - 0 4",
+          "arrows": [["b4", "c3", "rgba(239,68,68,0.6)"]],
+          "highlights": ["c3", "e1"],
+          "orientation": "white",
+          "caption": "Black's bishop on b4 PINS White's knight on c3 to the king on e1. The knight CANNOT move — doing so would expose the king to check. This is an absolute pin.",
+          "size": 340
+        },
+        {
+          "type": "text",
+          "html": "<h3>The Skewer</h3><p>Like a pin, but the more valuable piece is in front. The front piece must move, exposing the piece behind to capture. Also called an X-ray attack.</p>"
+        },
+        {
+          "type": "board",
+          "fen": "4k3/4r3/8/8/8/8/8/2R1K3 w - - 0 1",
+          "arrows": [["c1", "c8", "rgba(239,68,68,0.7)"]],
+          "highlights": ["c8", "e8", "e7"],
+          "orientation": "white",
+          "caption": "White rook to c8+! This SKEWERS the Black king and rook. The king MUST move out of check, and then White captures the rook on e7 for free.",
+          "size": 300
+        },
+        {
+          "type": "text",
+          "html": "<h3>The Discovered Attack</h3><p>Move a piece to uncover an attack from another piece behind it. Devastating when combined with check (discovered check).</p>"
+        },
+        {
+          "type": "animation",
+          "fen": "r1bqkb1r/pppp1ppp/2n5/4N3/2B1P3/8/PPPP1PPP/RNBQK2R w KQkq - 0 4",
+          "sequence": ["e5f7"],
+          "speed": "slow",
+          "orientation": "white",
+          "arrows": [["c4", "f7", "rgba(239,68,68,0.5)"]],
+          "highlights": ["e5", "c4", "f7"],
+          "caption": "White plays Nxf7! The knight moves, uncovering a discovered attack from the bishop on c4 to f7. Black must deal with BOTH threats — the knight and bishop both attack f7.",
+          "size": 340
+        }
+      ]
+    },
+    {
+      "id": "2.5",
+      "title": "2.5 Basic Checkmate Patterns",
+      "blocks": [
+        {
+          "type": "text",
+          "html": "<h3>Back Rank Mate</h3><p>The enemy king is trapped on the back rank by its own pawns. A rook or queen delivers checkmate along that rank.</p>"
+        },
+        {
+          "type": "board",
+          "fen": "6k1/5ppp/8/8/8/8/5PPP/4R1K1 w - - 0 1",
+          "arrows": [["e1", "e8", "rgba(239,68,68,0.8)"]],
+          "orientation": "white",
+          "caption": "Re8# — Back rank checkmate! The Black king is trapped behind its own pawns on f7, g7, h7. The rook delivers checkmate from e8.",
+          "size": 300
+        },
+        {
+          "type": "text",
+          "html": "<p><strong>Prevention:</strong> Give your king \"luft\" (air) by pushing a pawn in front of the castled king (h3/h6 or g3/g6) before it's too late.</p><h3>Smothered Mate</h3><p>A knight delivers checkmate to a king completely surrounded by its own pieces.</p>"
+        },
+        {
+          "type": "board",
+          "fen": "6rk/6pp/7N/8/8/8/8/6KR w - - 0 1",
+          "arrows": [["h6", "f7", "rgba(239,68,68,0.8)"]],
+          "orientation": "white",
+          "caption": "Nf7# — Smothered mate! The Black king on g8 is surrounded by a rook on f8 and pawns on g7, h7. The knight delivers checkmate — the king has nowhere to go.",
+          "size": 300
+        }
+      ]
+    },
+    {
+      "id": "2.6",
+      "title": "2.6 Common Beginner Mistakes",
+      "blocks": [
+        {
+          "type": "text",
+          "html": "<h3>Mistake 1: Copycat Chess</h3><p>Mirroring the opponent's moves. The player who copies second is always one move behind.</p><p><strong>Fix:</strong> Play your own plan.</p><h3>Mistake 2: Premature Attacks</h3><p>Attacking before finishing development. Your attack fizzles and they counter-attack.</p><p><strong>Fix:</strong> Complete development, castle, then attack.</p><h3>Mistake 3: Trading for No Reason</h3><p>Capturing just because you can. <strong>Fix:</strong> Ask \"Does this trade improve my position?\"</p><h3>Mistake 4: Neglecting King Safety</h3><p>Leaving the king in the center past move 10. <strong>Fix:</strong> Castle early.</p><h3>Mistake 5: Resigning Too Early</h3><p>At 200-400 ELO, comebacks happen constantly. <strong>Fix:</strong> Never resign. Make them prove it.</p>"
+        }
+      ]
+    }
+  ],
+  "checkpoint": "Can you name the three opening rules? Can you spot a fork, pin, or skewer when it's on the board? Do you count attackers and defenders before capturing? If yes, proceed to Chapter 3.",
+  "summary": "<table><tr><th>Principle</th><th>Key Takeaway</th></tr><tr><td>Three opening rules</td><td>Center, develop, castle</td></tr><tr><td>Pre-move checklist</td><td>Checks -> Captures -> Threats</td></tr><tr><td>Counting</td><td>Attackers vs. Defenders</td></tr><tr><td>Basic tactics</td><td>Fork, pin, skewer, discovered attack</td></tr><tr><td>Checkmate patterns</td><td>Back rank, smothered</td></tr><tr><td>Common mistakes</td><td>Don't mirror, don't attack undeveloped, castle early</td></tr></table>"
+}

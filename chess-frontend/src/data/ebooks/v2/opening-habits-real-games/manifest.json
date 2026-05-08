@@ -1,0 +1,137 @@
+{
+  "schemaVersion": "2.0.0",
+  "bookId": "opening-habits-real-games",
+  "title": "Opening Habits For Real Games",
+  "subtitle": "Safe development and useful opening principles without memorization.",
+  "seriesPosition": 4,
+  "eloStart": 900,
+  "eloEnd": 1200,
+  "requiredTier": "silver",
+  "status": "complete-draft",
+  "purpose": "Teach opening decisions that produce playable middlegames.",
+  "audience": [
+    "Players with early bad positions",
+    "Club beginners",
+    "School competitors"
+  ],
+  "howToRead": [
+    "Study each diagram before reading the explanation.",
+    "Write or say the candidate idea before playing the guided move.",
+    "Review the common mistake before attempting the checkpoint.",
+    "Do not advance until the checkpoint is passed without hints."
+  ],
+  "prerequisites": [
+    "Survival Chess"
+  ],
+  "outcomes": [
+    "Recognize the core patterns in Opening Habits For Real Games.",
+    "Use generated board diagrams as calculation anchors.",
+    "Play the guided moves with a reason, not guesswork.",
+    "Pass chapter checkpoints and retain the habit in real games."
+  ],
+  "visualLanguage": {
+    "boardTheme": "instruction-classic",
+    "lightSquare": "#eeeed2",
+    "darkSquare": "#769656",
+    "colorRoles": {
+      "best": "#81b64c",
+      "candidate": "#7b61a6",
+      "check": "#ef4444",
+      "capture": "#5b8dd9",
+      "threat": "#c9882a",
+      "target": "#f59e0b",
+      "lastMove": "rgba(255,221,0,0.35)",
+      "wrong": "rgba(220,60,60,0.35)",
+      "safe": "rgba(129,182,76,0.25)"
+    }
+  },
+  "assetPolicy": {
+    "authoritativeDiagrams": "Generate from FEN, arrows, highlights, and board theme only.",
+    "generativeImages": "Allowed for cover and concept art only, never for exact chess positions.",
+    "diagramOutputRoot": "assets/diagrams",
+    "illustrationOutputRoot": "assets/illustrations"
+  },
+  "chapterOrder": [
+    {
+      "chapterId": "01-control-the-center",
+      "path": "chapters/01-control-the-center.json",
+      "title": "Control The Center",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    },
+    {
+      "chapterId": "02-develop-knights-and-bishops",
+      "path": "chapters/02-develop-knights-and-bishops.json",
+      "title": "Develop Knights And Bishops",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    },
+    {
+      "chapterId": "03-king-safety-and-castling",
+      "path": "chapters/03-king-safety-and-castling.json",
+      "title": "King Safety And Castling",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    },
+    {
+      "chapterId": "04-do-not-bring-the-queen-out-too-early",
+      "path": "chapters/04-do-not-bring-the-queen-out-too-early.json",
+      "title": "Do Not Bring The Queen Out Too Early",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    },
+    {
+      "chapterId": "05-pawn-moves-that-help-vs-weaken",
+      "path": "chapters/05-pawn-moves-that-help-vs-weaken.json",
+      "title": "Pawn Moves That Help Vs Weaken",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    },
+    {
+      "chapterId": "06-openings-after-1-e4",
+      "path": "chapters/06-openings-after-1-e4.json",
+      "title": "Openings After 1.e4",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    },
+    {
+      "chapterId": "07-openings-after-1-d4",
+      "path": "chapters/07-openings-after-1-d4.json",
+      "title": "Openings After 1.d4",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    },
+    {
+      "chapterId": "08-when-the-opponent-plays-strange-moves",
+      "path": "chapters/08-when-the-opponent-plays-strange-moves.json",
+      "title": "When The Opponent Plays Strange Moves",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    },
+    {
+      "chapterId": "09-first-ten-move-plans",
+      "path": "chapters/09-first-ten-move-plans.json",
+      "title": "First Ten-Move Plans",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    },
+    {
+      "chapterId": "10-opening-checkpoint-games",
+      "path": "chapters/10-opening-checkpoint-games.json",
+      "title": "Opening Checkpoint Games",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    }
+  ],
+  "assessment": {
+    "checkpointRequiredScore": 3,
+    "unlockRule": "Complete the guided move and answer all checkpoint questions correctly."
+  },
+  "reviewStatus": {
+    "schema": "draft",
+    "chessLogic": "draft",
+    "diagramGeneration": "draft",
+    "textImageConsistency": "draft",
+    "humanChessReview": "pending"
+  }
+}

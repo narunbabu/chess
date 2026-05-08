@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import Header from './Header';
 import Background from './Background';
+import EnrolledUnderBanner from './EnrolledUnderBanner';
 
 const Layout = ({ children }) => {
   const location = useLocation();
@@ -68,6 +69,7 @@ const Layout = ({ children }) => {
       <div ref={headerRef}>
         <Header />
       </div>
+      <EnrolledUnderBanner />
       <div className="relative">{children}</div>
     </div>
   );

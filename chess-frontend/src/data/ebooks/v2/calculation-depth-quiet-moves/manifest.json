@@ -1,0 +1,137 @@
+{
+  "schemaVersion": "2.0.0",
+  "bookId": "calculation-depth-quiet-moves",
+  "title": "Calculation II - Depth And Quiet Moves",
+  "subtitle": "Deep candidate trees, defensive resources, quiet moves, and advanced exams.",
+  "seriesPosition": 10,
+  "eloStart": 1900,
+  "eloEnd": 2200,
+  "requiredTier": "gold",
+  "status": "complete-draft",
+  "purpose": "Build depth and non-obvious move recognition.",
+  "audience": [
+    "Advanced players",
+    "Gold calculation trainees",
+    "Competitive improvers"
+  ],
+  "howToRead": [
+    "Study each diagram before reading the explanation.",
+    "Write or say the candidate idea before playing the guided move.",
+    "Review the common mistake before attempting the checkpoint.",
+    "Do not advance until the checkpoint is passed without hints."
+  ],
+  "prerequisites": [
+    "Earlier books in the Chess99 ladder"
+  ],
+  "outcomes": [
+    "Recognize the core patterns in Calculation II - Depth And Quiet Moves.",
+    "Use generated board diagrams as calculation anchors.",
+    "Play the guided moves with a reason, not guesswork.",
+    "Pass chapter checkpoints and retain the habit in real games."
+  ],
+  "visualLanguage": {
+    "boardTheme": "instruction-classic",
+    "lightSquare": "#eeeed2",
+    "darkSquare": "#769656",
+    "colorRoles": {
+      "best": "#81b64c",
+      "candidate": "#7b61a6",
+      "check": "#ef4444",
+      "capture": "#5b8dd9",
+      "threat": "#c9882a",
+      "target": "#f59e0b",
+      "lastMove": "rgba(255,221,0,0.35)",
+      "wrong": "rgba(220,60,60,0.35)",
+      "safe": "rgba(129,182,76,0.25)"
+    }
+  },
+  "assetPolicy": {
+    "authoritativeDiagrams": "Generate from FEN, arrows, highlights, and board theme only.",
+    "generativeImages": "Allowed for cover and concept art only, never for exact chess positions.",
+    "diagramOutputRoot": "assets/diagrams",
+    "illustrationOutputRoot": "assets/illustrations"
+  },
+  "chapterOrder": [
+    {
+      "chapterId": "01-candidate-trees",
+      "path": "chapters/01-candidate-trees.json",
+      "title": "Candidate Trees",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    },
+    {
+      "chapterId": "02-defensive-resources",
+      "path": "chapters/02-defensive-resources.json",
+      "title": "Defensive Resources",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    },
+    {
+      "chapterId": "03-quiet-moves",
+      "path": "chapters/03-quiet-moves.json",
+      "title": "Quiet Moves",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    },
+    {
+      "chapterId": "04-zwischenzug-at-depth",
+      "path": "chapters/04-zwischenzug-at-depth.json",
+      "title": "Zwischenzug At Depth",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    },
+    {
+      "chapterId": "05-sacrifice-evaluation",
+      "path": "chapters/05-sacrifice-evaluation.json",
+      "title": "Sacrifice Evaluation",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    },
+    {
+      "chapterId": "06-perpetual-check-awareness",
+      "path": "chapters/06-perpetual-check-awareness.json",
+      "title": "Perpetual Check Awareness",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    },
+    {
+      "chapterId": "07-mating-nets",
+      "path": "chapters/07-mating-nets.json",
+      "title": "Mating Nets",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    },
+    {
+      "chapterId": "08-endgame-tactics",
+      "path": "chapters/08-endgame-tactics.json",
+      "title": "Endgame Tactics",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    },
+    {
+      "chapterId": "09-time-pressure-calculation",
+      "path": "chapters/09-time-pressure-calculation.json",
+      "title": "Time-Pressure Calculation",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    },
+    {
+      "chapterId": "10-advanced-calculation-exam",
+      "path": "chapters/10-advanced-calculation-exam.json",
+      "title": "Advanced Calculation Exam",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    }
+  ],
+  "assessment": {
+    "checkpointRequiredScore": 3,
+    "unlockRule": "Complete the guided move and answer all checkpoint questions correctly."
+  },
+  "reviewStatus": {
+    "schema": "draft",
+    "chessLogic": "draft",
+    "diagramGeneration": "draft",
+    "textImageConsistency": "draft",
+    "humanChessReview": "pending"
+  }
+}

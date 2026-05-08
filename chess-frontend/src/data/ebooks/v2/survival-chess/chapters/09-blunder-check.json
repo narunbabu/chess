@@ -1,0 +1,486 @@
+{
+  "schemaVersion": "2.0.0",
+  "bookId": "survival-chess",
+  "chapterId": "09-blunder-check",
+  "title": "Blunder-Check Before Every Move",
+  "subtitle": "Pause once before the move leaves your hand.",
+  "eloRange": "300-700",
+  "requiredTier": "free",
+  "estimatedMinutes": 24,
+  "learningObjectives": [
+    "Ask what your move leaves behind.",
+    "Check whether your moved piece becomes loose.",
+    "Notice immediate checks and captures against you."
+  ],
+  "sections": [
+    {
+      "id": "final-pause",
+      "title": "The One-Second Pause",
+      "blocks": [
+        {
+          "id": "b02-c09-p01",
+          "type": "prose",
+          "body_md": "A blunder-check is the final pause before moving. Ask: after my move, what can my opponent check, capture, or threaten?"
+        },
+        {
+          "id": "b02-c09-d01",
+          "type": "board_diagram",
+          "title": "Develop with a final check",
+          "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "g1",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "f3",
+              "colorRole": "best"
+            },
+            {
+              "square": "e5",
+              "colorRole": "target"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "g1",
+              "to": "f3",
+              "colorRole": "best"
+            },
+            {
+              "from": "f3",
+              "to": "e5",
+              "colorRole": "candidate"
+            }
+          ],
+          "caption_md": "Before g1-f3, notice that the knight lands on a protected, useful square.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "g1",
+              "piece": "white_knight"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "f3"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "g1",
+              "to": "f3"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c09-d01-before-nf3.png",
+            "hash": "b51986aa5218d6b9e5b6723628784b15161b721adbf2c45e74ab468c8639229a"
+          }
+        },
+        {
+          "id": "b02-c09-d02",
+          "type": "board_diagram",
+          "title": "Do not leave the queen loose",
+          "fen": "4k3/8/8/8/3q4/5N2/8/4K3 w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "d4",
+              "colorRole": "target"
+            },
+            {
+              "square": "f3",
+              "colorRole": "candidate"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "f3",
+              "to": "d4",
+              "colorRole": "capture"
+            }
+          ],
+          "caption_md": "The queen on d4 is attacked. If it were your queen, you must notice it.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "d4",
+              "piece": "black_queen"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "d4"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "f3",
+              "to": "d4"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c09-d02-queen-loose.png",
+            "hash": "39629a3e4fa9bfabc8ea6fbeccc006f760bf1996628593719916eee8b7a131d5"
+          }
+        },
+        {
+          "id": "b02-c09-d03",
+          "type": "board_diagram",
+          "title": "Check danger overrides plans",
+          "fen": "4r1k1/8/8/8/8/8/4K3/8 w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "e8",
+              "colorRole": "check"
+            },
+            {
+              "square": "e2",
+              "colorRole": "check"
+            },
+            {
+              "square": "d2",
+              "colorRole": "best"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "e8",
+              "to": "e2",
+              "colorRole": "check"
+            },
+            {
+              "from": "e2",
+              "to": "d2",
+              "colorRole": "best"
+            }
+          ],
+          "caption_md": "If your king is checked, the blunder-check has already found the emergency.",
+          "assertions": [
+            {
+              "type": "highlight_exists",
+              "square": "e2"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "d2"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "e2",
+              "to": "d2"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c09-d03-king-danger.png",
+            "hash": "b30e07e0955de8b7dd1b1049b76950b5b27b47e272a73015eb1c13d7c4fafbcb"
+          }
+        },
+        {
+          "id": "b02-c09-d04",
+          "type": "board_diagram",
+          "title": "Your moved piece can become loose",
+          "fen": "4k3/8/8/8/3q4/8/4N3/4K3 w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "e2",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "d4",
+              "colorRole": "target"
+            },
+            {
+              "square": "f4",
+              "colorRole": "wrong"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "e2",
+              "to": "f4",
+              "colorRole": "wrong"
+            },
+            {
+              "from": "d4",
+              "to": "f4",
+              "colorRole": "threat"
+            }
+          ],
+          "caption_md": "A piece that moves into attack can become the new target.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "e2",
+              "piece": "white_knight"
+            },
+            {
+              "type": "piece_on",
+              "square": "d4",
+              "piece": "black_queen"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "f4"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "d4",
+              "to": "f4"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c09-d04-hanging-after-move.png",
+            "hash": "a646a23a3f0a79cbe4e0020301cb7b3b8a623c758adf7d2a7509e8a6e715bb11"
+          }
+        },
+        {
+          "id": "b02-c09-d05",
+          "type": "board_diagram",
+          "title": "A safe move passes the scan",
+          "fen": "rnbqkb1r/pppppppp/5n2/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 2",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "b1",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "c3",
+              "colorRole": "best"
+            },
+            {
+              "square": "e4",
+              "colorRole": "safe"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "b1",
+              "to": "c3",
+              "colorRole": "best"
+            },
+            {
+              "from": "c3",
+              "to": "e4",
+              "colorRole": "safe"
+            }
+          ],
+          "caption_md": "The move b1-c3 develops and helps e4, so it passes the scan.",
+          "assertions": [
+            {
+              "type": "highlight_exists",
+              "square": "c3"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "e4"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "b1",
+              "to": "c3"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c09-d05-safe-choice.png",
+            "hash": "4c0e4fdf8fd12f7c11c13cec0cac92632e8ebe775e30af1c14288714e8417d0a"
+          }
+        },
+        {
+          "id": "b02-c09-g01",
+          "type": "guided_move",
+          "title": "Make a move that passes the scan",
+          "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "g1",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "f3",
+              "colorRole": "best"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "g1",
+              "to": "f3",
+              "colorRole": "best"
+            }
+          ],
+          "caption_md": "",
+          "assertions": [
+            {
+              "type": "legal_move",
+              "move": "g1f3"
+            },
+            {
+              "type": "piece_on",
+              "square": "g1",
+              "piece": "white_knight"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "f3"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "g1",
+              "to": "f3"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c09-g01-nf3-check.png",
+            "hash": "d631967b170a2f7ca02d76a728d3c7190daa00728bab1e59032ba234dbb49f52"
+          },
+          "prompt_md": "Play g1 to f3 after checking that the piece lands safely.",
+          "acceptedMoves": [
+            "g1f3"
+          ],
+          "successMessage": "Correct. You found the safe survival move.",
+          "failureMessage": "Pause and scan checks, captures, and threats again."
+        },
+        {
+          "id": "b02-c09-m01",
+          "type": "mistake_refutation",
+          "title": "Common mistake: move without the final pause",
+          "fen": "4k3/8/8/8/3q4/8/4N3/4K3 w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "e2",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "f4",
+              "colorRole": "wrong"
+            },
+            {
+              "square": "d4",
+              "colorRole": "threat"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "e2",
+              "to": "f4",
+              "colorRole": "wrong"
+            },
+            {
+              "from": "d4",
+              "to": "f4",
+              "colorRole": "threat"
+            }
+          ],
+          "caption_md": "The wrong square f4 is marked because it walks into the queen attack.",
+          "assertions": [
+            {
+              "type": "highlight_exists",
+              "square": "f4"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "d4",
+              "to": "f4"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c09-m01-move-without-pause.png",
+            "hash": "7c851715e3555fc2820cb6b7937af51ac7b1e70fa547d62f684e8e3aac1d9371"
+          },
+          "body_md": "A fast move can walk into a simple capture. Slow chess is stronger chess."
+        }
+      ]
+    }
+  ],
+  "checkpoint": {
+    "id": "b02-c09-checkpoint",
+    "title": "Chapter Checkpoint",
+    "summary_md": "Answer without guessing. The goal is a repeatable survival habit, not a lucky move.",
+    "blocks": [
+      {
+        "id": "b02-c09-q01",
+        "type": "quiz",
+        "title": "A blunder-check asks what the opponent can:",
+        "question_md": "A blunder-check asks what the opponent can:",
+        "options": [
+          {
+            "id": "a",
+            "label": "Check, capture, or threaten",
+            "isCorrect": true
+          },
+          {
+            "id": "b",
+            "label": "Eat for lunch",
+            "isCorrect": false
+          },
+          {
+            "id": "c",
+            "label": "Rename the pieces",
+            "isCorrect": false
+          }
+        ]
+      },
+      {
+        "id": "b02-c09-q02",
+        "type": "quiz",
+        "title": "The best time for a blunder-check is:",
+        "question_md": "The best time for a blunder-check is:",
+        "options": [
+          {
+            "id": "a",
+            "label": "Before releasing the move",
+            "isCorrect": true
+          },
+          {
+            "id": "b",
+            "label": "After losing the queen",
+            "isCorrect": false
+          },
+          {
+            "id": "c",
+            "label": "Only after checkmate",
+            "isCorrect": false
+          }
+        ]
+      },
+      {
+        "id": "b02-c09-q03",
+        "type": "quiz",
+        "title": "Fast moves are always stronger than checked moves.",
+        "question_md": "Fast moves are always stronger than checked moves.",
+        "options": [
+          {
+            "id": "a",
+            "label": "True",
+            "isCorrect": false
+          },
+          {
+            "id": "b",
+            "label": "False",
+            "isCorrect": true
+          }
+        ]
+      }
+    ]
+  },
+  "reviewAssertions": [
+    {
+      "type": "minimum_board_diagrams",
+      "value": 5
+    },
+    {
+      "type": "minimum_guided_moves",
+      "value": 1
+    },
+    {
+      "type": "minimum_quizzes",
+      "value": 3
+    },
+    {
+      "type": "tier_allowed",
+      "value": "free"
+    }
+  ]
+}

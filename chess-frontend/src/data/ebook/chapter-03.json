@@ -1,0 +1,131 @@
+{
+  "id": "ch03",
+  "title": "Tactical Foundations — The CCT System",
+  "subtitle": "\"The winner of the game is the player who makes the next-to-last mistake.\" — Savielly Tartakower",
+  "eloRange": "400-600",
+  "sections": [
+    {
+      "id": "3.1",
+      "title": "3.1 Why Tactics Win Games at This Level",
+      "blocks": [
+        {
+          "type": "text",
+          "html": "<p>Between ELO 400-600, games are decided by tactics — not strategy, not positional understanding, not opening theory. The player who spots one more tactic than their opponent wins.</p><p><strong>The hard truth:</strong> 80% of games are decided by:</p><ol><li>One player hangs a piece</li><li>One player misses a simple tactic</li><li>One player doesn't see a checkmate in 1-2 moves</li></ol><p>Your job is to stop being the player who misses these.</p>"
+        }
+      ]
+    },
+    {
+      "id": "3.2",
+      "title": "3.2 The CCT Framework",
+      "blocks": [
+        {
+          "type": "text",
+          "html": "<p><strong>CCT stands for Checks, Captures, Threats.</strong> It's a systematic way to analyze any position. Run it on every single turn.</p><h3>The CCT Scan (For YOUR Move)</h3><ol><li><strong>CHECKS:</strong> \"Can I check my opponent's king?\"</li><li><strong>CAPTURES:</strong> \"What can I capture? In what order?\"</li><li><strong>THREATS:</strong> \"What threats can I create?\"</li></ol><p><strong>Why this order?</strong> Checks are the most forcing — opponent MUST respond. Captures are next. Threats are third.</p><h3>The CCT Scan (For THEIR Move)</h3><p>After your opponent moves, run the scan from their perspective. If their move looks suspicious, there's probably a tactic.</p>"
+        }
+      ]
+    },
+    {
+      "id": "3.3",
+      "title": "3.3 Checks — The Most Forcing Move",
+      "blocks": [
+        {
+          "type": "text",
+          "html": "<p>A check must be answered. Three ways to escape: move the king, block the check, capture the checking piece.</p><h3>Check With a Purpose</h3><table><tr><th>Type</th><th>Purpose</th></tr><tr><td>Driving check</td><td>Force king to worse square</td></tr><tr><td>Discovery check</td><td>Uncover attack while checking</td></tr><tr><td>Double check</td><td>Check from 2 pieces — king MUST move!</td></tr><tr><td>Checkmate</td><td>End the game</td></tr></table><h3>The Power of Double Check</h3><p>A double check is the most powerful move in chess. The king MUST move — you cannot block or capture two checking pieces at once.</p>"
+        },
+        {
+          "type": "animation",
+          "fen": "r1bqkb1r/pppp1ppp/2n5/4N3/2B1P3/8/PPPP1PPP/RNBQK2R w KQkq - 0 4",
+          "sequence": [{"move": "e5g6", "arrow": ["e5","g6","rgba(239,68,68,0.8)"]}],
+          "speed": "slow",
+          "arrows": [["c4", "f7", "rgba(239,68,68,0.5)"]],
+          "highlights": ["e5", "c4", "g8"],
+          "caption": "Nxg6+! — DOUBLE CHECK. The knight checks from g6, AND the bishop on c4 discovers check. The Black king MUST move. After ...Kf8 or ...Ke7, White has Nxh8 winning the rook.",
+          "size": 340
+        }
+      ]
+    },
+    {
+      "id": "3.4",
+      "title": "3.4 Captures — The Most Common Tactic",
+      "blocks": [
+        {
+          "type": "text",
+          "html": "<h3>The Capture Hierarchy</h3><p>When multiple captures are possible:</p><ol><li>Pawns capture first (cheapest, 1 point)</li><li>Minor pieces next (knights, bishops = 3)</li><li>Rooks next (5)</li><li>Queen last (9)</li></ol><p><strong>Always capture with the least valuable piece first.</strong></p><h3>Removal of the Defender</h3><p>Sometimes you can't capture the piece you want because it's defended. Solution: <strong>capture the defender first.</strong></p>"
+        },
+        {
+          "type": "animation",
+          "fen": "r1bqkb1r/ppp2ppp/2n2n2/3pp3/2B1P3/3P1N2/PPP2PPP/RNBQK2R w KQkq - 0 4",
+          "sequence": [{"move": "c1g5", "arrow": ["c1","g5","rgba(239,68,68,0.6)"]}],
+          "speed": "slow",
+          "orientation": "white",
+          "arrows": [["g5", "d8", "rgba(239,68,68,0.4)"]],
+          "highlights": ["f6", "d5"],
+          "caption": "Bcf1-g5! — Pinning the defender. Black's knight on f6 defends the d5 pawn. The bishop pins it to the queen. Now White can win the d5 pawn.",
+          "size": 340
+        },
+        {
+          "type": "text",
+          "html": "<h3>Desperado</h3><p>When one of your pieces is going to be captured, make sure it takes something with it. A desperado piece \"sells its life dearly\" by taking the most valuable enemy piece it can before being captured.</p>"
+        }
+      ]
+    },
+    {
+      "id": "3.5",
+      "title": "3.5 Threats — Creating Problems",
+      "blocks": [
+        {
+          "type": "text",
+          "html": "<h3>Types of Threats</h3><table><tr><th>Threat</th><th>Difficulty to Spot</th></tr><tr><td>Fork</td><td>Easy</td></tr><tr><td>Pin</td><td>Medium</td></tr><tr><td>Skewer</td><td>Medium</td></tr><tr><td>Discovered attack</td><td>Hard</td></tr><tr><td>Zwischenzug</td><td>Hard</td></tr></table><h3>Zwischenzug (The In-Between Move)</h3><p>Your opponent expects you to recapture immediately. Instead, you throw in a check or threat first, then recapture.</p>"
+        }
+      ]
+    },
+    {
+      "id": "3.6",
+      "title": "3.6 The Blunder Check — Most Important Habit",
+      "blocks": [
+        {
+          "type": "text",
+          "html": "<p>Every time you're about to make a move, do a <strong>blunder check:</strong></p><ol><li>What will my opponent's best reply be?</li><li>Am I moving a piece to an attacked square?</li><li>Am I leaving something undefended?</li></ol><p>This takes 2-3 seconds and will save more pieces than any other single habit.</p><blockquote><strong>Sit on your hands for 5 seconds</strong> after deciding on a move. Look at the board one more time. Many blunders happen because players move instantly.</blockquote>"
+        }
+      ]
+    },
+    {
+      "id": "3.7",
+      "title": "3.7 Key Tactical Themes",
+      "blocks": [
+        {
+          "type": "text",
+          "html": "<h3>Theme 1: The f7/f2 Square</h3><p>The f7 (Black) and f2 (White) squares are the weakest at the start — only defended by the king!</p>"
+        },
+        {
+          "type": "board",
+          "fen": "r1bqkbnr/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 0 4",
+          "arrows": [
+            ["h5", "f7", "rgba(239,68,68,0.8)"],
+            ["c4", "f7", "rgba(239,68,68,0.6)"]
+          ],
+          "highlights": ["f7"],
+          "orientation": "white",
+          "caption": "Scholar's Mate threat. White's queen and bishop both target f7, which is only defended by the Black king. Qxf7 would be checkmate! Black must play ...Qe7, ...Qf6, ...g6, or ...Nh6.",
+          "size": 340
+        },
+        {
+          "type": "text",
+          "html": "<h3>Theme 2: Knight on the Rim</h3><p>\"Knight on the rim is dim.\" A knight on the edge controls half as many squares. Trap opponent knights on the a-file or h-file.</p><h3>Theme 3: Overloaded Defender</h3><p>A piece defending two things is \"overloaded.\" Attack one, and it can't protect both.</p><h3>Theme 4: Discovered Attack With Tempo</h3><p>Moving a piece to reveal an attack, while the moving piece ALSO creates a threat. Two threats at once!</p>"
+        }
+      ]
+    },
+    {
+      "id": "3.8",
+      "title": "3.8 Building the CCT Habit",
+      "blocks": [
+        {
+          "type": "text",
+          "html": "<h3>Training Method: The 30-Second CCT Scan</h3><ol><li>Go to any chess puzzle position</li><li>Set a timer for 30 seconds</li><li>Count: \"Checks from me: ___. Captures from me: ___. Threats from me: ___.\"</li><li>Do the same for your opponent</li><li>Only AFTER the full scan, start calculating</li></ol><p>Do this 50 times. By puzzle 50, you'll do it in 10 seconds automatically.</p><p><strong>Pro tip:</strong> The Chess99 Tactical Trainer enforces this — you must identify CCTs before solving puzzles. Complete the CCT phases every time!</p>"
+        }
+      ]
+    }
+  ],
+  "checkpoint": "Do you automatically scan for checks, captures, and threats on every move? Can you spot a fork, pin, skewer, and discovered attack? Do you do a blunder check before every move? If yes, proceed to Chapter 4.",
+  "summary": "<table><tr><th>Skill</th><th>What You Must Master</th></tr><tr><td>CCT Scan</td><td>Checks -> Captures -> Threats (every move, both sides)</td></tr><tr><td>Blunder Check</td><td>5-second final scan before moving</td></tr><tr><td>Capture Order</td><td>Least valuable piece first</td></tr><tr><td>Removal of Defender</td><td>Capture the defender, then the target</td></tr><tr><td>Tactical Themes</td><td>f7/f2, overloaded defender, knight on rim, discovered attacks</td></tr><tr><td>CCT Practice</td><td>50 puzzles minimum, 30-second scan each</td></tr></table>"
+}

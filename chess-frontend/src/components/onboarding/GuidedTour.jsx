@@ -3,7 +3,16 @@ import './GuidedTour.css';
 
 const getTargetRect = (selector) => {
   if (!selector || typeof document === 'undefined') return null;
-  const element = document.querySelector(selector);
+  const candidates = Array.from(document.querySelectorAll(selector));
+  const element = candidates.find(candidate => {
+    const rect = candidate.getBoundingClientRect();
+    const style = window.getComputedStyle(candidate);
+    return rect.width > 0
+      && rect.height > 0
+      && style.display !== 'none'
+      && style.visibility !== 'hidden'
+      && style.opacity !== '0';
+  });
   if (!element) return null;
 
   const rect = element.getBoundingClientRect();

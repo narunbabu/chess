@@ -1,0 +1,451 @@
+{
+  "schemaVersion": "2.0.0",
+  "bookId": "survival-chess",
+  "chapterId": "02-hanging-pieces",
+  "title": "What Is A Hanging Piece?",
+  "subtitle": "Stop giving pieces away for free.",
+  "eloRange": "300-700",
+  "requiredTier": "free",
+  "estimatedMinutes": 24,
+  "learningObjectives": [
+    "Define a hanging piece.",
+    "Count whether a target is defended.",
+    "Capture loose material without rushing."
+  ],
+  "sections": [
+    {
+      "id": "loose-material",
+      "title": "Loose Pieces Fall",
+      "blocks": [
+        {
+          "id": "b02-c02-p01",
+          "type": "prose",
+          "body_md": "A hanging piece is attacked and not safely defended. At beginner level, many games are decided by one loose knight, bishop, rook, or queen."
+        },
+        {
+          "id": "b02-c02-d01",
+          "type": "board_diagram",
+          "title": "The knight on e5 is loose",
+          "fen": "rnbqkbnr/pppp1ppp/8/4n3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 3",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "f3",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "e5",
+              "colorRole": "capture"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "f3",
+              "to": "e5",
+              "colorRole": "capture"
+            }
+          ],
+          "caption_md": "White can capture e5 because the knight is sitting in the open.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "f3",
+              "piece": "white_knight"
+            },
+            {
+              "type": "piece_on",
+              "square": "e5",
+              "piece": "black_knight"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "e5"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "f3",
+              "to": "e5"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c02-d01-knight-e5.png",
+            "hash": "27289613f3c66af5eec00bd72d3287377b53446efe5c66ed4392391e6a65cbbc"
+          }
+        },
+        {
+          "id": "b02-c02-d02",
+          "type": "board_diagram",
+          "title": "The bishop on c5 needs checking",
+          "fen": "rnbqk1nr/pppp1ppp/8/2b1p3/4P3/2N2N2/PPPP1PPP/R1BQKB1R w KQkq - 3 3",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "c5",
+              "colorRole": "target"
+            },
+            {
+              "square": "c3",
+              "colorRole": "candidate"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "c3",
+              "to": "b5",
+              "colorRole": "candidate"
+            }
+          ],
+          "caption_md": "Do not call a piece loose until you count attackers and defenders.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "c5",
+              "piece": "black_bishop"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "c5"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "c3",
+              "to": "b5"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c02-d02-bishop-c5.png",
+            "hash": "ab432f1448d078f6dec274fac45ca6370cc4c0f39fed6664a6e1c1fde1c9882e"
+          }
+        },
+        {
+          "id": "b02-c02-d03",
+          "type": "board_diagram",
+          "title": "Defended is different from hanging",
+          "fen": "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/2N2N2/PPPP1PPP/R1BQKB1R w KQkq - 2 3",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "c6",
+              "colorRole": "safe"
+            },
+            {
+              "square": "b7",
+              "colorRole": "safe"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "b7",
+              "to": "c6",
+              "colorRole": "safe"
+            }
+          ],
+          "caption_md": "The knight on c6 has defenders. A target is not automatically free.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "c6",
+              "piece": "black_knight"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "c6"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "b7",
+              "to": "c6"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c02-d03-defended-c6.png",
+            "hash": "5077d5c700fd824ba88fea2bd6173da3924cad6574f75783caaa7e50483bd9f5"
+          }
+        },
+        {
+          "id": "b02-c02-d04",
+          "type": "board_diagram",
+          "title": "Count before collecting",
+          "fen": "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/2N2N2/PPPP1PPP/R1BQKB1R w KQkq - 2 3",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "e5",
+              "colorRole": "capture"
+            },
+            {
+              "square": "c6",
+              "colorRole": "safe"
+            },
+            {
+              "square": "f3",
+              "colorRole": "candidate"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "f3",
+              "to": "e5",
+              "colorRole": "capture"
+            }
+          ],
+          "caption_md": "The e5 pawn is a clearer target than the defended c6 knight.",
+          "assertions": [
+            {
+              "type": "highlight_exists",
+              "square": "e5"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "c6"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "f3",
+              "to": "e5"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c02-d04-count-board.png",
+            "hash": "4750e033cd71131a6abe16847da9910e81fdded94a46b4eff0985eec5e3518d0"
+          }
+        },
+        {
+          "id": "b02-c02-d05",
+          "type": "board_diagram",
+          "title": "Open lines create loose rooks",
+          "fen": "r3k3/8/8/8/8/8/8/R3K3 w Qq - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "a1",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "a8",
+              "colorRole": "capture"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "a1",
+              "to": "a8",
+              "colorRole": "capture"
+            }
+          ],
+          "caption_md": "The rook on a8 is exposed on the same file as White rook on a1.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "a1",
+              "piece": "white_rook"
+            },
+            {
+              "type": "piece_on",
+              "square": "a8",
+              "piece": "black_rook"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "a8"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "a1",
+              "to": "a8"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c02-d05-rook-a8.png",
+            "hash": "1ab42af2706e1d1c0ccca10082ccda79812fc68b58b60a6e577ae8b8ed480701"
+          }
+        },
+        {
+          "id": "b02-c02-g01",
+          "type": "guided_move",
+          "title": "Capture the hanging knight",
+          "fen": "rnbqkbnr/pppp1ppp/8/4n3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 3",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "f3",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "e5",
+              "colorRole": "capture"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "f3",
+              "to": "e5",
+              "colorRole": "capture"
+            }
+          ],
+          "caption_md": "",
+          "assertions": [
+            {
+              "type": "legal_move",
+              "move": "f3e5"
+            },
+            {
+              "type": "piece_on",
+              "square": "f3",
+              "piece": "white_knight"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "e5"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "f3",
+              "to": "e5"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c02-g01-take-e5.png",
+            "hash": "27289613f3c66af5eec00bd72d3287377b53446efe5c66ed4392391e6a65cbbc"
+          },
+          "prompt_md": "The black knight on e5 is loose. Play f3 to e5.",
+          "acceptedMoves": [
+            "f3e5"
+          ],
+          "successMessage": "Correct. You found the safe survival move.",
+          "failureMessage": "Pause and scan checks, captures, and threats again."
+        },
+        {
+          "id": "b02-c02-m01",
+          "type": "mistake_refutation",
+          "title": "Common mistake: every attacked piece is not free",
+          "fen": "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/2N2N2/PPPP1PPP/R1BQKB1R w KQkq - 2 3",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "c6",
+              "colorRole": "safe"
+            },
+            {
+              "square": "b7",
+              "colorRole": "safe"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "b7",
+              "to": "c6",
+              "colorRole": "safe"
+            }
+          ],
+          "caption_md": "The c6 knight is marked safe because b7 helps defend it.",
+          "assertions": [
+            {
+              "type": "highlight_exists",
+              "square": "c6"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "b7",
+              "to": "c6"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c02-m01-automatic-capture.png",
+            "hash": "5077d5c700fd824ba88fea2bd6173da3924cad6574f75783caaa7e50483bd9f5"
+          },
+          "body_md": "If a piece is defended, a capture may only trade instead of win. Count before you grab."
+        }
+      ]
+    }
+  ],
+  "checkpoint": {
+    "id": "b02-c02-checkpoint",
+    "title": "Chapter Checkpoint",
+    "summary_md": "Answer without guessing. The goal is a repeatable survival habit, not a lucky move.",
+    "blocks": [
+      {
+        "id": "b02-c02-q01",
+        "type": "quiz",
+        "title": "A hanging piece is:",
+        "question_md": "A hanging piece is:",
+        "options": [
+          {
+            "id": "a",
+            "label": "Attacked and safely defended",
+            "isCorrect": false
+          },
+          {
+            "id": "b",
+            "label": "Attacked and not safely defended",
+            "isCorrect": true
+          },
+          {
+            "id": "c",
+            "label": "A king in check",
+            "isCorrect": false
+          }
+        ]
+      },
+      {
+        "id": "b02-c02-q02",
+        "type": "quiz",
+        "title": "Before capturing a target, you should count:",
+        "question_md": "Before capturing a target, you should count:",
+        "options": [
+          {
+            "id": "a",
+            "label": "Attackers and defenders",
+            "isCorrect": true
+          },
+          {
+            "id": "b",
+            "label": "Only piece color",
+            "isCorrect": false
+          },
+          {
+            "id": "c",
+            "label": "Only move number",
+            "isCorrect": false
+          }
+        ]
+      },
+      {
+        "id": "b02-c02-q03",
+        "type": "quiz",
+        "title": "A defended piece is always free material.",
+        "question_md": "A defended piece is always free material.",
+        "options": [
+          {
+            "id": "a",
+            "label": "True",
+            "isCorrect": false
+          },
+          {
+            "id": "b",
+            "label": "False",
+            "isCorrect": true
+          }
+        ]
+      }
+    ]
+  },
+  "reviewAssertions": [
+    {
+      "type": "minimum_board_diagrams",
+      "value": 5
+    },
+    {
+      "type": "minimum_guided_moves",
+      "value": 1
+    },
+    {
+      "type": "minimum_quizzes",
+      "value": 3
+    },
+    {
+      "type": "tier_allowed",
+      "value": "free"
+    }
+  ]
+}

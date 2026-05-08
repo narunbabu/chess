@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
+import { BACKEND_URL } from '../config';
 
 const AdminReferralDashboard = () => {
   const [overview, setOverview] = useState(null);
@@ -9,6 +10,7 @@ const AdminReferralDashboard = () => {
   const [calculating, setCalculating] = useState(false);
   const [period, setPeriod] = useState('');
   const [payoutFilter, setPayoutFilter] = useState('pending');
+  const [expanded, setExpanded] = useState(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -56,6 +58,34 @@ const AdminReferralDashboard = () => {
       alert('Failed: ' + (err.response?.data?.message || err.message));
     }
   };
+
+  const downloadCsv = () => {
+    const params = new URLSearchParams({ status: payoutFilter });
+    if (period) params.set('period', period);
+    const token = localStorage.getItem('auth_token');
+    fetch(`${BACKEND_URL}/admin/referrals/payouts/export?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.ok ? r.blob() : Promise.reject(new Error(`HTTP ${r.status}`)))
+      .then(blob => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `chess99-payouts-${period || 'all'}-${payoutFilter}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      })
+      .catch(err => alert('CSV download failed: ' + err.message));
+  };
+
+  const formatEvent = (et) => ({
+    signup_phone: 'Signup ₹2',
+    first_activity: 'First activity ₹3',
+    activity_100: '100 games+puzzles ₹5',
+    subscription: 'Subscription %',
+  }[et] || et);
 
   if (loading) {
     return (
@@ -131,9 +161,9 @@ const AdminReferralDashboard = () => {
         </div>
       )}
 
-      {/* Pending Payouts */}
+      {/* Payouts */}
       <div className="bg-[#262421] rounded-xl border border-[#3d3a37] p-6 mb-6">
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
           <h2 className="text-lg font-semibold">Payouts</h2>
           <div className="flex gap-2">
             {['pending', 'paid'].map(s => (
@@ -149,6 +179,13 @@ const AdminReferralDashboard = () => {
                 {s.charAt(0).toUpperCase() + s.slice(1)}
               </button>
             ))}
+            <button
+              onClick={downloadCsv}
+              className="px-3 py-1 rounded text-xs font-medium bg-[#3d3a37] text-white hover:bg-[#4d4a47]"
+              title="Download CSV — paste-ready for bulk UPI transfers"
+            >
+              ⬇ CSV
+            </button>
           </div>
         </div>
         {payouts.length === 0 ? (
@@ -157,38 +194,82 @@ const AdminReferralDashboard = () => {
           <table className="w-full text-sm">
             <thead>
               <tr className="text-[#8b8987] text-left border-b border-[#3d3a37]">
-                <th className="pb-2">Referrer</th>
+                <th className="pb-2">Ambassador</th>
+                <th className="pb-2">Mobile</th>
+                <th className="pb-2">UPI</th>
                 <th className="pb-2">Period</th>
                 <th className="pb-2 text-right">Amount</th>
-                <th className="pb-2 text-right">Payments</th>
+                <th className="pb-2 text-right">Earnings</th>
                 <th className="pb-2 text-right">Action</th>
               </tr>
             </thead>
             <tbody>
               {payouts.map(p => (
-                <tr key={p.id} className="border-b border-[#3d3a37]/50">
-                  <td className="py-2">
-                    <div>{p.referrer?.name || '-'}</div>
-                    <div className="text-xs text-[#6b6966]">{p.referrer?.email}</div>
-                  </td>
-                  <td className="py-2">{p.period}</td>
-                  <td className="py-2 text-right font-medium">₹{p.total_amount}</td>
-                  <td className="py-2 text-right">{p.earnings_count}</td>
-                  <td className="py-2 text-right">
-                    {p.status === 'pending' ? (
-                      <button
-                        onClick={() => markPaid(p.id)}
-                        className="px-3 py-1 bg-[#81b64c] text-white rounded text-xs hover:bg-[#93c85a]"
-                      >
-                        Mark Paid
-                      </button>
-                    ) : (
-                      <span className="text-xs text-[#81b64c]">
-                        Paid {p.paid_at ? new Date(p.paid_at).toLocaleDateString() : ''}
-                      </span>
-                    )}
-                  </td>
-                </tr>
+                <React.Fragment key={p.id}>
+                  <tr className="border-b border-[#3d3a37]/50 hover:bg-[#1a1a18]/50 cursor-pointer"
+                      onClick={() => setExpanded(expanded === p.id ? null : p.id)}>
+                    <td className="py-2">
+                      <div>{p.referrer?.name || '-'}</div>
+                      <div className="text-xs text-[#6b6966]">{p.referrer?.email}</div>
+                    </td>
+                    <td className="py-2 font-mono text-xs">
+                      {p.referrer_mobile ? (
+                        <a
+                          onClick={e => e.stopPropagation()}
+                          href={`https://wa.me/${p.referrer_mobile.replace(/\D/g, '')}`}
+                          target="_blank" rel="noreferrer"
+                          className="text-[#81b64c] hover:underline"
+                        >
+                          {p.referrer_mobile}
+                        </a>
+                      ) : (
+                        <span className="text-[#6b6966]">—</span>
+                      )}
+                    </td>
+                    <td className="py-2 font-mono text-xs text-[#bababa]">
+                      {p.referrer_upi || <span className="text-[#6b6966]">— ask in WhatsApp</span>}
+                    </td>
+                    <td className="py-2">{p.period}</td>
+                    <td className="py-2 text-right font-medium">₹{p.total_amount}</td>
+                    <td className="py-2 text-right">{p.earnings_count}</td>
+                    <td className="py-2 text-right">
+                      {p.status === 'pending' ? (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); markPaid(p.id); }}
+                          className="px-3 py-1 bg-[#81b64c] text-white rounded text-xs hover:bg-[#93c85a]"
+                        >
+                          Mark Paid
+                        </button>
+                      ) : (
+                        <span className="text-xs text-[#81b64c]">
+                          Paid {p.paid_at ? new Date(p.paid_at).toLocaleDateString() : ''}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                  {expanded === p.id && p.breakdown && (
+                    <tr className="bg-[#1a1a18]">
+                      <td colSpan="7" className="py-3 px-4">
+                        <p className="text-xs text-[#8b8987] mb-2 uppercase tracking-wider">Earnings breakdown</p>
+                        {p.breakdown.length === 0 ? (
+                          <p className="text-xs text-[#6b6966]">No breakdown available.</p>
+                        ) : (
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                            {p.breakdown.map(b => (
+                              <div key={b.event_type} className="bg-[#262421] rounded p-2 border border-[#3d3a37]">
+                                <p className="text-xs text-[#8b8987]">{formatEvent(b.event_type)}</p>
+                                <p className="text-sm text-white">{b.count} × = <span className="text-[#81b64c]">₹{b.total}</span></p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {p.notes && (
+                          <p className="text-xs text-[#bababa] mt-2"><span className="text-[#8b8987]">Notes:</span> {p.notes}</p>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               ))}
             </tbody>
           </table>

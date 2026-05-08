@@ -2,10 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\PayoutRequest;
+use App\Models\ReferralEarning;
 use App\Models\ReferralPayout;
 use App\Services\ReferralService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReferralController extends Controller
 {
@@ -219,7 +223,10 @@ class ReferralController extends Controller
 
     /**
      * GET /api/admin/referrals/payouts
-     * Admin: list all payouts across all referrers.
+     * Admin: list all payouts across all referrers, enriched with the
+     * referrer's mobile, last-known UPI (from PayoutRequest history) and
+     * earning breakdown by event_type. The admin pays manually via UPI at
+     * end of month, so they need this contact + breakdown info inline.
      */
     public function adminPayouts(Request $request): JsonResponse
     {
@@ -227,7 +234,7 @@ class ReferralController extends Controller
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
-        $query = ReferralPayout::with('referrer:id,name,email');
+        $query = ReferralPayout::with('referrer:id,name,email,mobile_country_code,mobile_number');
 
         if ($request->has('status')) {
             $query->where('status', $request->status);
@@ -239,7 +246,110 @@ class ReferralController extends Controller
 
         $payouts = $query->orderByDesc('created_at')->paginate(50);
 
+        // Bulk-fetch last UPI + breakdown for the page.
+        $referrerIds = $payouts->pluck('referrer_user_id')->unique();
+        $payoutIds = $payouts->pluck('id');
+
+        $lastUpiByUser = PayoutRequest::whereIn('user_id', $referrerIds)
+            ->where('payment_method', 'upi')
+            ->whereNotNull('upi_id')
+            ->orderByDesc('created_at')
+            ->get(['user_id', 'upi_id'])
+            ->groupBy('user_id')
+            ->map(fn ($rows) => $rows->first()->upi_id);
+
+        $breakdownByPayout = ReferralEarning::whereIn('payout_id', $payoutIds)
+            ->select('payout_id', 'event_type',
+                DB::raw('SUM(earning_amount) as total'),
+                DB::raw('COUNT(*) as count'))
+            ->groupBy('payout_id', 'event_type')
+            ->get()
+            ->groupBy('payout_id');
+
+        $payouts->getCollection()->transform(function ($p) use ($lastUpiByUser, $breakdownByPayout) {
+            $ref = $p->referrer;
+            $mobile = $ref && $ref->mobile_country_code && $ref->mobile_number
+                ? $ref->mobile_country_code . $ref->mobile_number
+                : null;
+            $p->referrer_mobile = $mobile;
+            $p->referrer_upi = $lastUpiByUser[$p->referrer_user_id] ?? null;
+            $p->breakdown = ($breakdownByPayout[$p->id] ?? collect())->map(fn ($r) => [
+                'event_type' => $r->event_type,
+                'count' => (int) $r->count,
+                'total' => round((float) $r->total, 2),
+            ])->values();
+            return $p;
+        });
+
         return response()->json($payouts);
+    }
+
+    /**
+     * GET /api/admin/referrals/payouts/export
+     * Admin: stream a CSV of payouts (paste-ready for bulk UPI transfers).
+     * Same status/period filters as adminPayouts.
+     */
+    public function payoutsCsv(Request $request): StreamedResponse
+    {
+        if (!$this->isAdmin($request)) {
+            abort(403, 'Unauthorized');
+        }
+
+        $status = $request->query('status', 'pending');
+        $period = $request->query('period');
+
+        $filename = 'chess99-payouts-' . ($period ?: 'all') . '-' . $status . '.csv';
+
+        return response()->streamDownload(function () use ($status, $period) {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, [
+                'Period', 'Ambassador', 'Email', 'Mobile', 'UPI', 'Amount (INR)',
+                'Earnings #', 'Status', 'Paid At', 'Notes',
+            ]);
+
+            $q = ReferralPayout::with('referrer:id,name,email,mobile_country_code,mobile_number')
+                ->orderBy('period')->orderBy('referrer_user_id');
+            if ($status) {
+                $q->where('status', $status);
+            }
+            if ($period) {
+                $q->where('period', $period);
+            }
+
+            $referrerIds = (clone $q)->pluck('referrer_user_id')->unique();
+            $lastUpi = PayoutRequest::whereIn('user_id', $referrerIds)
+                ->where('payment_method', 'upi')
+                ->whereNotNull('upi_id')
+                ->orderByDesc('created_at')
+                ->get(['user_id', 'upi_id'])
+                ->groupBy('user_id')
+                ->map(fn ($rows) => $rows->first()->upi_id);
+
+            $q->chunk(200, function ($rows) use ($out, $lastUpi) {
+                foreach ($rows as $p) {
+                    $ref = $p->referrer;
+                    $mobile = $ref && $ref->mobile_country_code && $ref->mobile_number
+                        ? $ref->mobile_country_code . $ref->mobile_number
+                        : '';
+                    fputcsv($out, [
+                        $p->period,
+                        $ref->name ?? '',
+                        $ref->email ?? '',
+                        $mobile,
+                        $lastUpi[$p->referrer_user_id] ?? '',
+                        number_format((float) $p->total_amount, 2, '.', ''),
+                        $p->earnings_count,
+                        $p->status,
+                        $p->paid_at?->toDateTimeString() ?? '',
+                        $p->notes ?? '',
+                    ]);
+                }
+            });
+
+            fclose($out);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
     }
 
     private function isAdmin(Request $request): bool

@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The First Chessboard: The King And The Goal</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+
+    body { font-family: Arial, sans-serif; color: #172018; font-size: 17px; margin: 0; background: #f7f7f2; line-height: 1.62; }
+    main { max-width: 900px; margin: 0 auto; padding: 40px 34px 60px; background: #fff; }
+    h1, h2, h3 { line-height: 1.2; color: #172018; }
+    h1 { font-size: 36px; margin: 0 0 8px; }
+    h2 { font-size: 25px; margin: 38px 0 16px; border-top: 1px solid #d8ddcf; padding-top: 24px; }
+    h3 { font-size: 20px; margin: 0 0 10px; }
+    p { margin: 0 0 16px; }
+    .meta { color: #536257; margin-bottom: 24px; }
+    .objectives { background: #eef4e7; border-left: 4px solid #81b64c; padding: 14px 18px; }
+    .block { break-inside: avoid; margin: 24px 0; }
+    .block + .block { margin-top: 30px; }
+    .diagram { width: min(100%, 560px); display: block; margin: 14px auto; border: 1px solid #d4dcc8; }
+    .caption { color: #536257; font-size: 15px; margin-top: 8px; }
+    .quiz-options { margin-top: 10px; }
+    .quiz-option { margin: 7px 0; }
+    @media print {
+      body { background: #fff; }
+      main { max-width: none; padding: 0; }
+      .block { page-break-inside: avoid; }
+    }
+  
+</style>
+</head>
+<body>
+<main>
+<h1>The King And The Goal</h1>
+<div class="meta">The First Chessboard | 0-300 | free</div>
+<p>The king moves slowly, but the whole game turns around him.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Move the king one square in any direction.</li>
+<li>Know that kings may never stand next to each other.</li>
+<li>Understand that the king may not move into danger.</li>
+<li>Explain why the king is never traded or captured.</li>
+</ul>
+</section>
+<h2>The King Is The Game</h2>
+<section class="block" id="b01-c03-p01">
+<p>Every piece can be traded except the king. You do not win by taking the king off the board. You win by attacking the king so strongly that there is no legal escape. That final position is checkmate.</p>
+</section>
+<section class="block" id="b01-c03-d01">
+<h3>The king moves one square</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c03-d01-king-one-square.png" alt="The king moves one square">
+<div class="caption"><p>From e4, the king can step to any adjacent highlighted square if that square is safe.</p></div>
+</section>
+<section class="block" id="b01-c03-d02">
+<h3>Kings cannot touch</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c03-d02-kings-cannot-touch.png" alt="Kings cannot touch">
+<div class="caption"><p>The kings control the squares beside them. White may not move next to the black king.</p></div>
+</section>
+<h2>Safe Squares Matter</h2>
+<section class="block" id="b01-c03-p02">
+<p>A king move has two questions. First, does the king move one square? Second, is the landing square safe? A one-square move is still illegal if the king walks into an attack.</p>
+</section>
+<section class="block" id="b01-c03-d03">
+<h3>The king can capture a loose piece</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c03-d03-king-captures-loose-pawn.png" alt="The king can capture a loose piece">
+<div class="caption"><p>If the pawn on d5 is not protected, the king may capture it by moving one square diagonally.</p></div>
+</section>
+<section class="block" id="b01-c03-d04">
+<h3>A rook controls the e-file</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c03-d04-king-cannot-enter-rook-file.png" alt="A rook controls the e-file">
+<div class="caption"><p>The black rook controls e4, so the white king on d4 may not step onto e4.</p></div>
+</section>
+<section class="block" id="b01-c03-d05">
+<h3>A safe king step</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c03-d05-safe-king-step.png" alt="A safe king step">
+<div class="caption"><p>e4 to f5 is a normal one-square king move in this position.</p></div>
+</section>
+<section class="block" id="b01-c03-g01">
+<h3>Move the king to f5</h3>
+<p>Move the white king from e4 to f5.</p>
+</section>
+<h2>Common Mistake</h2>
+<section class="block" id="b01-c03-m01">
+<h3>Common mistake: walking into attack</h3>
+<p>The move from d4 to e4 looks like a legal one-square move, but e4 is controlled by the rook on e8. A king move must satisfy both rules: one square and safe.</p>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c03-m01-king-walks-into-rook.png" alt="Common mistake: walking into attack">
+<div class="caption"><p>The red square is not safe. The rook already controls it.</p></div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b01-c03-q01">
+<h3>How far does a king move?</h3>
+<p>A king normally moves:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. One square in any direction</div>
+<div class="quiz-option">b. Any number of squares in a straight line</div>
+<div class="quiz-option">c. Only forward</div>
+</div>
+</section>
+<section class="block" id="b01-c03-q02">
+<h3>Can kings stand next to each other?</h3>
+<p>Two kings may stand on adjacent squares:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. No</div>
+<div class="quiz-option">b. Yes, if no other pieces are nearby</div>
+<div class="quiz-option">c. Only in the endgame</div>
+</div>
+</section>
+<section class="block" id="b01-c03-q03">
+<h3>What makes a king move illegal?</h3>
+<p>A one-square king move is illegal when:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. The landing square is attacked</div>
+<div class="quiz-option">b. The king moves diagonally</div>
+<div class="quiz-option">c. The king captures a piece</div>
+</div>
+</section>
+</main>
+</body>
+</html>

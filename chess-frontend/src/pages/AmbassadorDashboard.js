@@ -1,15 +1,41 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import QRCode from 'qrcode';
 import { useAuth } from '../contexts/AuthContext';
 import { BACKEND_URL } from '../config';
 import { isAmbassador } from '../utils/permissionHelpers';
 
-const TIER_COLORS = {
-  Starter: '#9b9895',
-  Bronze: '#cd7f32',
-  Silver: '#c0c0c0',
-  Gold: '#ffd700',
-  Platinum: '#e5e4e2',
-};
+const SHARE_TEMPLATES = [
+  {
+    id: 'parent',
+    label: 'For Parents',
+    text: (url) =>
+      `Chess99 helps kids think sharper. Daily puzzles, rated games, and tactical trainer — built for Indian schools.\n\nSign up here: ${url}`,
+  },
+  {
+    id: 'student',
+    label: 'For Students',
+    text: (url) =>
+      `Play rated chess and solve daily tactics on Chess99. Track your rating, climb the leaderboard, learn from your games.\n\n${url}`,
+  },
+  {
+    id: 'friend',
+    label: 'For Friends',
+    text: (url) =>
+      `Found a clean Indian chess platform — Chess99. No ads, instant matchmaking, and a tactical trainer that actually helps.\n\nJoin me: ${url}`,
+  },
+  {
+    id: 'coach',
+    label: 'For Coaches',
+    text: (url) =>
+      `Chess99 has a structured tactical trainer (5 stages, 500 puzzles each) and rated play with full game review. Worth showing your students.\n\n${url}`,
+  },
+  {
+    id: 'telugu',
+    label: 'తెలుగులో',
+    text: (url) =>
+      `Chess99 — భారతదేశపు చెస్ ప్లాట్‌ఫారమ్. రోజువారీ పజిల్స్, రేటెడ్ గేమ్స్, ట్యాక్టికల్ ట్రైనర్.\n\nఇక్కడ చేరండి: ${url}`,
+  },
+];
 
 const AmbassadorDashboard = () => {
   const { user } = useAuth();
@@ -18,7 +44,11 @@ const AmbassadorDashboard = () => {
   const [error, setError] = useState(null);
   const [enrolling, setEnrolling] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copiedTemplate, setCopiedTemplate] = useState(null);
   const [showQR, setShowQR] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState(null);
+  const [activeTemplate, setActiveTemplate] = useState('parent');
+  const qrCanvasRef = useRef(null);
 
   // Payout request state
   const [payoutRequests, setPayoutRequests] = useState([]);
@@ -141,26 +171,59 @@ const AmbassadorDashboard = () => {
     }
   };
 
+  const shareUrl = data?.share?.short_url || data?.share?.join_url;
+
   const copyLink = () => {
-    if (data?.join_url) {
-      navigator.clipboard.writeText(data.join_url);
+    if (shareUrl) {
+      navigator.clipboard.writeText(shareUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
   };
 
-  const shareWhatsApp = () => {
-    if (data?.join_url) {
-      const text = encodeURIComponent(
-        `Join me on Chess99 - India's best chess platform! Play, learn, and compete. Use my link to sign up:\n${data.join_url}`
-      );
-      window.open(`https://wa.me/?text=${text}`, '_blank');
-    }
+  const buildMessage = (templateId) => {
+    const tpl = SHARE_TEMPLATES.find(t => t.id === templateId) || SHARE_TEMPLATES[0];
+    return tpl.text(shareUrl || '');
   };
 
-  const qrUrl = data?.join_url
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(data.join_url)}`
-    : null;
+  const shareWhatsApp = (templateId) => {
+    if (!shareUrl) return;
+    window.open(`https://wa.me/?text=${encodeURIComponent(buildMessage(templateId))}`, '_blank');
+  };
+
+  const copyMessage = (templateId) => {
+    if (!shareUrl) return;
+    navigator.clipboard.writeText(buildMessage(templateId));
+    setCopiedTemplate(templateId);
+    setTimeout(() => setCopiedTemplate(null), 2000);
+  };
+
+  useEffect(() => {
+    if (!shareUrl) { setQrDataUrl(null); return; }
+    QRCode.toDataURL(shareUrl, {
+      width: 512,
+      margin: 2,
+      color: { dark: '#262421', light: '#ffffff' },
+      errorCorrectionLevel: 'M',
+    })
+      .then(setQrDataUrl)
+      .catch(() => setQrDataUrl(null));
+  }, [shareUrl]);
+
+  const downloadQR = () => {
+    if (!qrDataUrl) return;
+    const a = document.createElement('a');
+    a.href = qrDataUrl;
+    a.download = `chess99-referral-${data?.share?.code || 'qr'}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const openPoster = () => {
+    if (!data?.share?.code) return;
+    window.open(`/ambassador/poster?code=${encodeURIComponent(data.share.code)}`, '_blank');
+  };
 
   // Not an ambassador yet — show enrollment page
   if (!userIsAmbassador && !loading) {
@@ -170,40 +233,36 @@ const AmbassadorDashboard = () => {
           <div className="text-5xl mb-4">&#9819;</div>
           <h1 className="text-2xl font-bold text-white mb-3">Become a Chess99 Ambassador</h1>
           <p className="text-[#bababa] mb-2">Share Chess99 with friends, students, and chess enthusiasts.</p>
-          <p className="text-[#bababa] mb-4">Start at <span className="text-[#81b64c] font-bold">10% commission</span>, unlock up to <span className="text-[#ffd700] font-bold">20%</span> as you grow.</p>
-          {/* Tier preview */}
-          <div className="bg-[#262421] rounded-lg p-4 mb-6 text-left">
-            <p className="text-xs text-[#9b9895] mb-2 uppercase tracking-wider">Commission Tiers</p>
-            <div className="space-y-1 text-sm">
-              {[
-                { name: 'Starter', req: '0', rate: '10%' },
-                { name: 'Bronze', req: '50', rate: '12%' },
-                { name: 'Silver', req: '200', rate: '15%' },
-                { name: 'Gold', req: '500', rate: '18%' },
-                { name: 'Platinum', req: '1000', rate: '20%' },
-              ].map(t => (
-                <div key={t.name} className="flex justify-between">
-                  <span style={{ color: TIER_COLORS[t.name] }}>{t.name}</span>
-                  <span className="text-[#bababa]">{t.req}+ paid subs = <span className="text-white font-semibold">{t.rate}</span></span>
-                </div>
-              ))}
+          <p className="text-[#bababa] mb-4">Earn ₹2 per signup, ₹3 on first activity, ₹5 at 100 games/puzzles, plus a share of every subscription you bring in.</p>
+          {/* Earnings preview */}
+          <div className="bg-[#262421] rounded-lg p-4 mb-6 text-left space-y-3">
+            <div>
+              <p className="text-xs text-[#9b9895] mb-2 uppercase tracking-wider">Activity Milestones</p>
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between"><span>User signs up with phone</span><span className="text-[#81b64c] font-semibold">₹2</span></div>
+                <div className="flex justify-between"><span>First rated game or puzzle solved</span><span className="text-[#81b64c] font-semibold">₹3</span></div>
+                <div className="flex justify-between"><span>100 games + puzzles combined</span><span className="text-[#81b64c] font-semibold">₹5</span></div>
+              </div>
+            </div>
+            <div className="border-t border-[#464340] pt-3">
+              <p className="text-xs text-[#9b9895] mb-2 uppercase tracking-wider">Subscription Commission</p>
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between"><span>Year 1</span><span className="text-[#ffd700] font-semibold">10%</span></div>
+                <div className="flex justify-between"><span>Year 2</span><span className="text-[#e8a93e] font-semibold">5%</span></div>
+                <div className="flex justify-between"><span>Years 3 & 4</span><span className="text-[#bababa] font-semibold">2%</span></div>
+              </div>
             </div>
           </div>
           <button
-            onClick={handleSelfEnroll}
-            disabled={enrolling}
-            className="w-full py-3 rounded-lg bg-[#81b64c] text-white font-bold text-lg hover:bg-[#6da03d] disabled:opacity-50 transition"
+            onClick={() => { window.location.href = '/become-ambassador'; }}
+            className="w-full py-3 rounded-lg bg-[#81b64c] text-white font-bold text-lg hover:bg-[#6da03d] transition"
           >
-            {enrolling ? 'Enrolling...' : 'Become an Ambassador'}
+            Apply to be an Ambassador
           </button>
         </div>
       </div>
     );
   }
-
-  const tier = data?.tier;
-  const currentTierName = tier?.current_tier?.name || 'Starter';
-  const tierColor = TIER_COLORS[currentTierName] || '#9b9895';
 
   return (
     <div className="min-h-screen bg-[#262421] text-[#bababa] p-4 md:p-6 max-w-5xl mx-auto">
@@ -219,73 +278,44 @@ const AmbassadorDashboard = () => {
 
       {data && (
         <>
-          {/* Tier Banner */}
-          <div className="bg-[#312e2b] rounded-lg p-4 mb-6 border-l-4" style={{ borderColor: tierColor }}>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-2xl font-bold" style={{ color: tierColor }}>{currentTierName}</span>
-                  <span className="text-xs bg-[#262421] px-2 py-0.5 rounded text-[#bababa]">
-                    {data.stats.commission_rate} commission
-                  </span>
-                </div>
-                <p className="text-sm text-[#9b9895]">
-                  {tier?.paid_referrals ?? 0} paid subscriber{(tier?.paid_referrals ?? 0) !== 1 ? 's' : ''} referred
-                </p>
-              </div>
-              {tier?.next_tier && (
-                <div className="text-right">
-                  <p className="text-xs text-[#9b9895]">
-                    Next: <span style={{ color: TIER_COLORS[tier.next_tier.name] || '#bababa' }}>{tier.next_tier.name}</span> ({Math.round(tier.next_tier.commission_rate * 100)}%)
-                  </p>
-                  <p className="text-xs text-[#9b9895]">
-                    {tier.next_tier.referrals_needed} more paid subscriber{tier.next_tier.referrals_needed !== 1 ? 's' : ''} needed
-                  </p>
-                </div>
-              )}
+          {/* Activity Milestones earned */}
+          {data.milestones && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+              {[
+                { key: 'signup_phone',   label: 'Signups (with phone)', amount: '₹2' },
+                { key: 'first_activity', label: 'First Activity',       amount: '₹3' },
+                { key: 'activity_100',   label: '100 Games + Puzzles',   amount: '₹5' },
+              ].map(m => {
+                const row = data.milestones[m.key] || { count: 0, total: 0 };
+                return (
+                  <div key={m.key} className="bg-[#312e2b] rounded-lg p-4">
+                    <p className="text-xs text-[#9b9895] uppercase tracking-wider">{m.label}</p>
+                    <p className="text-xs text-[#5ba4cf] mb-1">{m.amount} per user</p>
+                    <p className="text-2xl font-bold text-white">{row.count}</p>
+                    <p className="text-sm text-[#81b64c]">₹{Number(row.total).toFixed(2)} earned</p>
+                  </div>
+                );
+              })}
             </div>
-            {/* Progress bar */}
-            {tier?.next_tier && (
-              <div className="mt-3">
-                <div className="h-2 bg-[#262421] rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{
-                      width: `${tier.progress_to_next ?? 0}%`,
-                      background: `linear-gradient(90deg, ${tierColor}, ${TIER_COLORS[tier.next_tier.name] || '#bababa'})`,
-                    }}
-                  />
-                </div>
-                <p className="text-xs text-[#9b9895] mt-1 text-right">{Math.round(tier.progress_to_next ?? 0)}%</p>
-              </div>
-            )}
-            {!tier?.next_tier && (
-              <p className="text-xs text-[#81b64c] mt-2">Maximum tier reached!</p>
-            )}
-          </div>
+          )}
 
-          {/* All Tiers Overview */}
-          <div className="bg-[#312e2b] rounded-lg p-4 mb-6">
-            <h2 className="text-sm font-semibold text-white mb-3 uppercase tracking-wider">Commission Tiers</h2>
-            <div className="flex flex-wrap gap-2">
-              {tier?.all_tiers?.map(t => (
-                <div
-                  key={t.name}
-                  className={`px-3 py-2 rounded-lg text-sm ${
-                    t.is_current ? 'ring-2' : 'opacity-60'
-                  }`}
-                  style={{
-                    background: t.is_current ? `${TIER_COLORS[t.name]}15` : '#262421',
-                    ringColor: TIER_COLORS[t.name],
-                    borderColor: TIER_COLORS[t.name],
-                  }}
-                >
-                  <p className="font-semibold" style={{ color: TIER_COLORS[t.name] || '#bababa' }}>{t.name}</p>
-                  <p className="text-xs text-[#9b9895]">{t.min_paid_referrals}+ subs = {Math.round(t.commission_rate * 100)}%</p>
-                </div>
-              ))}
+          {/* Subscription Commission Schedule */}
+          {Array.isArray(data.subscription_years) && (
+            <div className="bg-[#312e2b] rounded-lg p-4 mb-6">
+              <h2 className="text-sm font-semibold text-white mb-3 uppercase tracking-wider">Subscription Commission</h2>
+              <p className="text-xs text-[#9b9895] mb-3">Earned for each subscription you brought in. Time-decaying — pays nothing after Year 4.</p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {data.subscription_years.map(y => (
+                  <div key={y.year} className="bg-[#262421] rounded-lg p-3">
+                    <p className="text-xs text-[#9b9895] uppercase tracking-wider">Year {y.year}</p>
+                    <p className="text-lg font-bold" style={{ color: y.year === 1 ? '#ffd700' : y.year === 2 ? '#e8a93e' : '#bababa' }}>{y.rate_pct}%</p>
+                    <p className="text-xs text-[#bababa]">{y.count} payment{y.count !== 1 ? 's' : ''}</p>
+                    <p className="text-sm text-[#81b64c]">₹{Number(y.total).toFixed(2)}</p>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Stat Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
@@ -471,7 +501,7 @@ const AmbassadorDashboard = () => {
             <h2 className="text-lg font-semibold text-white mb-3">Your Referral Link</h2>
             <div className="flex flex-col sm:flex-row gap-3 mb-4">
               <div className="flex-1 bg-[#262421] rounded px-3 py-2 text-sm font-mono text-[#81b64c] truncate">
-                {data.join_url}
+                {shareUrl}
               </div>
               <button
                 onClick={copyLink}
@@ -480,24 +510,75 @@ const AmbassadorDashboard = () => {
                 {copied ? 'Copied!' : 'Copy Link'}
               </button>
             </div>
-            <div className="flex flex-wrap gap-3">
-              <button
-                onClick={shareWhatsApp}
-                className="px-4 py-2 rounded bg-[#25D366] text-white text-sm font-medium hover:bg-[#1da851] transition"
-              >
-                Share on WhatsApp
-              </button>
+
+            {/* Message templates */}
+            <div className="mb-4">
+              <p className="text-xs text-[#9b9895] uppercase tracking-wider mb-2">Message Templates</p>
+              <div className="flex flex-wrap gap-2 mb-3">
+                {SHARE_TEMPLATES.map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => setActiveTemplate(t.id)}
+                    className={`text-xs px-3 py-1 rounded ${
+                      activeTemplate === t.id
+                        ? 'bg-[#81b64c] text-white'
+                        : 'bg-[#262421] text-[#bababa] hover:bg-[#3d3a36]'
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+              <textarea
+                readOnly
+                value={buildMessage(activeTemplate)}
+                rows={4}
+                className="w-full bg-[#262421] rounded px-3 py-2 text-sm text-[#bababa] font-sans resize-none border border-[#464340]"
+              />
+              <div className="flex flex-wrap gap-2 mt-2">
+                <button
+                  onClick={() => copyMessage(activeTemplate)}
+                  className="px-3 py-1.5 rounded bg-[#464340] text-white text-xs font-medium hover:bg-[#555] transition"
+                >
+                  {copiedTemplate === activeTemplate ? 'Copied!' : 'Copy Message'}
+                </button>
+                <button
+                  onClick={() => shareWhatsApp(activeTemplate)}
+                  className="px-3 py-1.5 rounded bg-[#25D366] text-white text-xs font-medium hover:bg-[#1da851] transition"
+                >
+                  Send via WhatsApp
+                </button>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-3 border-t border-[#464340] pt-4">
               <button
                 onClick={() => setShowQR(!showQR)}
                 className="px-4 py-2 rounded bg-[#464340] text-white text-sm font-medium hover:bg-[#555] transition"
               >
                 {showQR ? 'Hide QR Code' : 'Show QR Code'}
               </button>
+              <button
+                onClick={downloadQR}
+                disabled={!qrDataUrl}
+                className="px-4 py-2 rounded bg-[#464340] text-white text-sm font-medium hover:bg-[#555] transition disabled:opacity-50"
+              >
+                Download QR (PNG)
+              </button>
+              <button
+                onClick={openPoster}
+                disabled={!data?.share?.code}
+                className="px-4 py-2 rounded bg-[#e8a93e] text-[#262421] text-sm font-medium hover:bg-[#d99a2f] transition disabled:opacity-50"
+              >
+                Printable Poster
+              </button>
             </div>
-            {showQR && qrUrl && (
+
+            {showQR && qrDataUrl && (
               <div className="mt-4 flex flex-col items-center">
                 <img
-                  src={qrUrl}
+                  ref={qrCanvasRef}
+                  src={qrDataUrl}
                   alt="Referral QR Code"
                   className="rounded-lg bg-white p-2"
                   width={250}
@@ -541,38 +622,69 @@ const AmbassadorDashboard = () => {
             </div>
           )}
 
-          {/* Referred Users */}
+          {/* Referred Users — mini-tutor view */}
           <div className="bg-[#312e2b] rounded-lg p-4 mb-6">
-            <h2 className="text-lg font-semibold text-white mb-3">
+            <h2 className="text-lg font-semibold text-white mb-1">
               People You Referred ({data.referred_users.length})
             </h2>
+            <p className="text-xs text-[#9b9895] mb-3">Reach out to your users to encourage them to play. Every game and puzzle they finish moves them closer to your next milestone.</p>
             {data.referred_users.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-left text-[#9b9895] border-b border-[#464340]">
-                      <th className="py-2 pr-4">Name</th>
-                      <th className="py-2 pr-4">Joined</th>
-                      <th className="py-2 pr-4">Plan</th>
-                      <th className="py-2 hidden sm:table-cell">Last Active</th>
+                      <th className="py-2 pr-3">Name</th>
+                      <th className="py-2 pr-3">Joined</th>
+                      <th className="py-2 pr-3 text-center">Phone</th>
+                      <th className="py-2 pr-3 text-right">Games</th>
+                      <th className="py-2 pr-3 text-right">Puzzles</th>
+                      <th className="py-2 pr-3">Toward 100</th>
+                      <th className="py-2 pr-3">Plan</th>
+                      <th className="py-2 pr-3 text-right hidden sm:table-cell">Earned</th>
                     </tr>
                   </thead>
                   <tbody>
                     {data.referred_users.map(u => (
                       <tr key={u.id} className="border-b border-[#3d3a36]">
-                        <td className="py-2 pr-4 text-white">{u.name}</td>
-                        <td className="py-2 pr-4 text-[#9b9895]">{new Date(u.created_at).toLocaleDateString()}</td>
-                        <td className="py-2 pr-4">
-                          <span className={`text-xs px-2 py-0.5 rounded ${
-                            u.subscription_tier && u.subscription_tier !== 'free'
-                              ? 'bg-[#e8a93e]/20 text-[#e8a93e]'
-                              : 'bg-[#464340] text-[#9b9895]'
-                          }`}>
-                            {u.subscription_tier || 'free'}
-                          </span>
+                        <td className="py-2 pr-3 text-white">{u.name}</td>
+                        <td className="py-2 pr-3 text-[#9b9895]">{new Date(u.joined_at).toLocaleDateString()}</td>
+                        <td className="py-2 pr-3 text-center">
+                          {u.milestones?.signup_phone ? (
+                            <span title="Phone signup ₹2 earned" className="text-[#81b64c]">✓</span>
+                          ) : u.has_phone ? (
+                            <span title="Phone present" className="text-[#5ba4cf]">●</span>
+                          ) : (
+                            <span title="No phone" className="text-[#9b9895]">—</span>
+                          )}
                         </td>
-                        <td className="py-2 hidden sm:table-cell text-[#9b9895]">
-                          {u.last_activity_at ? new Date(u.last_activity_at).toLocaleDateString() : 'Never'}
+                        <td className="py-2 pr-3 text-right font-mono text-[#bababa]">{u.games_played}</td>
+                        <td className="py-2 pr-3 text-right font-mono text-[#bababa]">{u.puzzles_solved}</td>
+                        <td className="py-2 pr-3">
+                          <div className="flex items-center gap-2 min-w-[120px]">
+                            <div className="flex-1 h-1.5 bg-[#262421] rounded-full overflow-hidden">
+                              <div
+                                className="h-full rounded-full"
+                                style={{
+                                  width: `${u.activity_100_progress}%`,
+                                  background: u.milestones?.activity_100 ? '#81b64c' : '#5ba4cf',
+                                }}
+                              />
+                            </div>
+                            <span className="text-xs text-[#9b9895] tabular-nums">{u.activity_combined}/100</span>
+                          </div>
+                        </td>
+                        <td className="py-2 pr-3">
+                          {u.subscription_tier && u.subscription_tier !== 'free' ? (
+                            <span className="text-xs px-2 py-0.5 rounded bg-[#e8a93e]/20 text-[#e8a93e]">
+                              {u.subscription_tier}{u.subscription_year ? ` Y${u.subscription_year}` : ''}
+                              {u.subscription_rate ? ` (${Math.round(u.subscription_rate * 100)}%)` : ''}
+                            </span>
+                          ) : (
+                            <span className="text-xs px-2 py-0.5 rounded bg-[#464340] text-[#9b9895]">free</span>
+                          )}
+                        </td>
+                        <td className="py-2 pr-3 text-right hidden sm:table-cell font-mono text-[#81b64c]">
+                          ₹{Number(u.earned_from_user || 0).toFixed(2)}
                         </td>
                       </tr>
                     ))}

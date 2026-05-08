@@ -1,0 +1,436 @@
+{
+  "schemaVersion": "2.0.0",
+  "bookId": "survival-chess",
+  "chapterId": "10-survival-games",
+  "title": "Ten Survival Games: Find The Safe Move",
+  "subtitle": "Apply the survival checklist in miniature game moments.",
+  "eloRange": "300-700",
+  "requiredTier": "free",
+  "estimatedMinutes": 30,
+  "learningObjectives": [
+    "Use CCT in mixed positions.",
+    "Choose safety over impulse.",
+    "Convert advantages without stalemate or loose pieces."
+  ],
+  "sections": [
+    {
+      "id": "mixed-survival",
+      "title": "Put The Habits Together",
+      "blocks": [
+        {
+          "id": "b02-c10-p01",
+          "type": "prose",
+          "body_md": "This final chapter mixes the whole book. Each position asks for the safest practical move, not the flashiest move."
+        },
+        {
+          "id": "b02-c10-d01",
+          "type": "board_diagram",
+          "title": "Game moment: forcing check",
+          "fen": "rnbqkbnr/pppp1ppp/8/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 1 3",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "c4",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "f7",
+              "colorRole": "check"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "c4",
+              "to": "f7",
+              "colorRole": "check"
+            }
+          ],
+          "caption_md": "The CCT scan still begins with the check on f7.",
+          "assertions": [
+            {
+              "type": "highlight_exists",
+              "square": "f7"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "c4",
+              "to": "f7"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c10-d01-mixed-cct.png",
+            "hash": "cd7bf58c52f5ce2ea9091dff9d9699e297398d0cca9f00d58024561a62094514"
+          }
+        },
+        {
+          "id": "b02-c10-d02",
+          "type": "board_diagram",
+          "title": "Game moment: loose knight",
+          "fen": "rnbqkbnr/pppp1ppp/8/4n3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 3",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "f3",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "e5",
+              "colorRole": "capture"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "f3",
+              "to": "e5",
+              "colorRole": "capture"
+            }
+          ],
+          "caption_md": "The knight on e5 can be captured after the scan.",
+          "assertions": [
+            {
+              "type": "highlight_exists",
+              "square": "e5"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "f3",
+              "to": "e5"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c10-d02-mixed-hanging.png",
+            "hash": "27289613f3c66af5eec00bd72d3287377b53446efe5c66ed4392391e6a65cbbc"
+          }
+        },
+        {
+          "id": "b02-c10-d03",
+          "type": "board_diagram",
+          "title": "Game moment: defend e4",
+          "fen": "rnbqkb1r/pppppppp/5n2/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 2",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "b1",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "c3",
+              "colorRole": "best"
+            },
+            {
+              "square": "e4",
+              "colorRole": "safe"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "b1",
+              "to": "c3",
+              "colorRole": "best"
+            },
+            {
+              "from": "c3",
+              "to": "e4",
+              "colorRole": "safe"
+            }
+          ],
+          "caption_md": "The move b1-c3 develops and defends.",
+          "assertions": [
+            {
+              "type": "highlight_exists",
+              "square": "c3"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "e4"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "b1",
+              "to": "c3"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c10-d03-mixed-defense.png",
+            "hash": "4c0e4fdf8fd12f7c11c13cec0cac92632e8ebe775e30af1c14288714e8417d0a"
+          }
+        },
+        {
+          "id": "b02-c10-d04",
+          "type": "board_diagram",
+          "title": "Game moment: castle when ready",
+          "fen": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 2 3",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "e1",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "g1",
+              "colorRole": "best"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "e1",
+              "to": "g1",
+              "colorRole": "best"
+            }
+          ],
+          "caption_md": "Castling is a survival move when the path is clear.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "e1",
+              "piece": "white_king"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "g1"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "e1",
+              "to": "g1"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c10-d04-mixed-castle.png",
+            "hash": "bbcb2c368a0078f539f1c9c47349e2b59046e437076291ef3e230238b0a56aa5"
+          }
+        },
+        {
+          "id": "b02-c10-d05",
+          "type": "board_diagram",
+          "title": "Game moment: finish cleanly",
+          "fen": "6k1/8/6K1/8/8/8/8/R7 w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "a1",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "a8",
+              "colorRole": "best"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "a1",
+              "to": "a8",
+              "colorRole": "best"
+            }
+          ],
+          "caption_md": "A won rook ending still needs the final mating check.",
+          "assertions": [
+            {
+              "type": "highlight_exists",
+              "square": "a8"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "a1",
+              "to": "a8"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c10-d05-mixed-mate.png",
+            "hash": "6df86f814dc15522f8d02a6f658057cc8a36b83f6c49ff20b85260cb25326726"
+          }
+        },
+        {
+          "id": "b02-c10-g01",
+          "type": "guided_move",
+          "title": "Find the safe game move",
+          "fen": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 2 3",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "e1",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "g1",
+              "colorRole": "best"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "e1",
+              "to": "g1",
+              "colorRole": "best"
+            }
+          ],
+          "caption_md": "",
+          "assertions": [
+            {
+              "type": "legal_move",
+              "move": "e1g1"
+            },
+            {
+              "type": "piece_on",
+              "square": "e1",
+              "piece": "white_king"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "g1"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "e1",
+              "to": "g1"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c10-g01-castle-safe.png",
+            "hash": "bbcb2c368a0078f539f1c9c47349e2b59046e437076291ef3e230238b0a56aa5"
+          },
+          "prompt_md": "The king is ready. Castle from e1 to g1.",
+          "acceptedMoves": [
+            "e1g1"
+          ],
+          "successMessage": "Correct. You found the safe survival move.",
+          "failureMessage": "Pause and scan checks, captures, and threats again."
+        },
+        {
+          "id": "b02-c10-m01",
+          "type": "mistake_refutation",
+          "title": "Common mistake: skip the survival checklist",
+          "fen": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 2 3",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "e1",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "g1",
+              "colorRole": "best"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "e1",
+              "to": "g1",
+              "colorRole": "best"
+            }
+          ],
+          "caption_md": "The safe arrow goes from e1 to g1.",
+          "assertions": [
+            {
+              "type": "highlight_exists",
+              "square": "g1"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "e1",
+              "to": "g1"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c10-m01-skip-checklist.png",
+            "hash": "bbcb2c368a0078f539f1c9c47349e2b59046e437076291ef3e230238b0a56aa5"
+          },
+          "body_md": "In a real game, a safe developing or castling move often beats a pawn grab."
+        }
+      ]
+    }
+  ],
+  "checkpoint": {
+    "id": "b02-c10-checkpoint",
+    "title": "Chapter Checkpoint",
+    "summary_md": "Answer without guessing. The goal is a repeatable survival habit, not a lucky move.",
+    "blocks": [
+      {
+        "id": "b02-c10-q01",
+        "type": "quiz",
+        "title": "In mixed positions, start with:",
+        "question_md": "In mixed positions, start with:",
+        "options": [
+          {
+            "id": "a",
+            "label": "Checks, captures, threats",
+            "isCorrect": true
+          },
+          {
+            "id": "b",
+            "label": "The prettiest move",
+            "isCorrect": false
+          },
+          {
+            "id": "c",
+            "label": "A random pawn",
+            "isCorrect": false
+          }
+        ]
+      },
+      {
+        "id": "b02-c10-q02",
+        "type": "quiz",
+        "title": "A safe practical move can be:",
+        "question_md": "A safe practical move can be:",
+        "options": [
+          {
+            "id": "a",
+            "label": "Castling",
+            "isCorrect": true
+          },
+          {
+            "id": "b",
+            "label": "Hanging the queen",
+            "isCorrect": false
+          },
+          {
+            "id": "c",
+            "label": "Ignoring check",
+            "isCorrect": false
+          }
+        ]
+      },
+      {
+        "id": "b02-c10-q03",
+        "type": "quiz",
+        "title": "The goal of Survival Chess is to:",
+        "question_md": "The goal of Survival Chess is to:",
+        "options": [
+          {
+            "id": "a",
+            "label": "Stop beginner losses",
+            "isCorrect": true
+          },
+          {
+            "id": "b",
+            "label": "Memorize every opening",
+            "isCorrect": false
+          },
+          {
+            "id": "c",
+            "label": "Avoid all captures forever",
+            "isCorrect": false
+          }
+        ]
+      }
+    ]
+  },
+  "reviewAssertions": [
+    {
+      "type": "minimum_board_diagrams",
+      "value": 5
+    },
+    {
+      "type": "minimum_guided_moves",
+      "value": 1
+    },
+    {
+      "type": "minimum_quizzes",
+      "value": 3
+    },
+    {
+      "type": "tier_allowed",
+      "value": "free"
+    }
+  ]
+}

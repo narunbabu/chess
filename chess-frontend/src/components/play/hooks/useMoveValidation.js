@@ -125,9 +125,13 @@ export const useMoveValidation = ({
       };
     } catch (error) {
       console.error('Error validating move:', error);
+      const reason = error?.message?.toLowerCase().includes('invalid move')
+        ? 'Invalid move'
+        : 'Move validation error';
+
       return {
         valid: false,
-        reason: 'Move validation error',
+        reason,
         move: null,
         error,
       };

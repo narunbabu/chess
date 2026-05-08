@@ -1,0 +1,1062 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The First Chessboard - Chess99 Ebook</title>
+<style>
+  @page { size: A4; margin: 14mm 12mm 16mm; }
+  body {
+    font-family: Arial, sans-serif;
+    color: #172018;
+    font-size: 15.5px;
+    margin: 0;
+    background: #ffffff;
+    line-height: 1.58;
+  }
+  .cover {
+    min-height: 250mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    break-after: page;
+  }
+  .cover h1 {
+    font-size: 42px;
+    line-height: 1.08;
+    margin: 0 0 12px;
+  }
+  .cover .subtitle {
+    font-size: 18px;
+    color: #536257;
+    max-width: 620px;
+  }
+  .cover .meta {
+    margin-top: 28px;
+    font-size: 13px;
+    color: #536257;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .toc {
+    break-after: page;
+  }
+  .toc h2 {
+    font-size: 26px;
+    margin: 0 0 16px;
+  }
+  .toc ol {
+    padding-left: 22px;
+  }
+  .toc li {
+    margin: 8px 0;
+  }
+  .chapter-print {
+    break-after: page;
+  }
+  .chapter-print:last-child {
+    break-after: auto;
+  }
+  h1, h2, h3 {
+    color: #172018;
+    line-height: 1.2;
+  }
+  h1 {
+    font-size: 30px;
+    margin: 0 0 8px;
+  }
+  h2 {
+    font-size: 22px;
+    margin-top: 30px;
+    border-top: 1px solid #d8ddcf;
+    padding-top: 18px;
+  }
+  h3 {
+    font-size: 18px;
+    margin-bottom: 8px;
+  }
+  .meta {
+    color: #536257;
+    margin-bottom: 20px;
+  }
+  .objectives {
+    background: #eef4e7;
+    border-left: 4px solid #81b64c;
+    padding: 12px 16px;
+  }
+  .block {
+    break-inside: avoid;
+    margin: 20px 0;
+  }
+  .diagram {
+    width: min(100%, 138mm);
+    display: block;
+    margin: 10px auto;
+    border: 1px solid #d4dcc8;
+  }
+  .caption {
+    color: #536257;
+    font-size: 13px;
+    line-height: 1.45;
+    margin-top: 6px;
+  }
+  .review {
+    display: none;
+    font-size: 11px;
+    color: #536257;
+    background: #f5f7f0;
+    padding: 8px 10px;
+    border-radius: 6px;
+  }
+  .quiz-option {
+    margin: 4px 0;
+  }
+  code {
+    font-family: Consolas, monospace;
+  }
+</style>
+</head>
+<body>
+  <section class="cover">
+    <div class="meta">Chess99 Book 1 | ELO -300 | free</div>
+    <h1>The First Chessboard</h1>
+    <div class="subtitle">Rules, coordinates, pieces, and the confidence to play a legal first game.</div>
+  </section>
+  <section class="toc">
+    <h2>Contents</h2>
+    <ol>
+      <li>Board Coordinates And The First Map <span class="meta">18 min</span></li>
+<li>Pieces, Values, And Setup <span class="meta">22 min</span></li>
+<li>The King And The Goal <span class="meta">24 min</span></li>
+<li>Rooks And Bishops <span class="meta">26 min</span></li>
+<li>The Queen And Long-Range Power <span class="meta">24 min</span></li>
+<li>The Knight And Jumps <span class="meta">24 min</span></li>
+<li>Pawn Moves, Captures, And Promotion <span class="meta">28 min</span></li>
+<li>Check And Escaping Check <span class="meta">28 min</span></li>
+<li>Checkmate And Stalemate <span class="meta">30 min</span></li>
+<li>Your First Guided Game <span class="meta">32 min</span></li>
+    </ol>
+  </section>
+  <section class="chapter-print">
+<h1>Board Coordinates And The First Map</h1>
+<div class="meta">The First Chessboard | 0-300 | free</div>
+<p>Before pieces make sense, the board must become a map.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Recognize the correct board orientation.</li>
+<li>Name files, ranks, and coordinates.</li>
+<li>Read a move as from-square to to-square.</li>
+<li>Play 1.e4 from the starting position.</li>
+</ul>
+</section>
+<h2>The Board Is A Map</h2>
+<section class="block" id="b01-c01-p01">
+<p>A chessboard is not only 64 squares. It is a map. Strong players do not say &quot;move this pawn up two.&quot; They say <strong>e2 to e4</strong> because the square names let everyone see the same position in their mind.</p>
+<p>In this chapter, you will learn the board language that every later lesson will use.</p>
+</section>
+<section class="block" id="b01-c01-d01">
+<h3>The empty board</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c01-d01-empty-board.png" alt="The empty board">
+<div class="caption"><p>Correct setup starts with a light square on White's bottom-right corner: h1.</p></div>
+</section>
+<section class="block" id="b01-c01-d02">
+<h3>The four center squares</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c01-d02-center.png" alt="The four center squares">
+<div class="caption"><p>The center squares d4, e4, d5, and e5 are marked because later your pieces will fight for them.</p></div>
+</section>
+<h2>Files, Ranks, And Square Names</h2>
+<section class="block" id="b01-c01-p02">
+<p>The vertical columns are <strong>files</strong>. They are named a through h from White's left to White's right.</p>
+<p>The horizontal rows are <strong>ranks</strong>. They are numbered 1 through 8 from White's side toward Black's side.</p>
+<p>A square name is file plus rank. The square <strong>e4</strong> means the e-file and the 4th rank.</p>
+</section>
+<section class="block" id="b01-c01-d03">
+<h3>The e-file</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c01-d03-e-file.png" alt="The e-file">
+<div class="caption"><p>Every square in this column starts with e: e1, e2, e3, and so on.</p></div>
+</section>
+<section class="block" id="b01-c01-d04">
+<h3>The 4th rank</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c01-d04-fourth-rank.png" alt="The 4th rank">
+<div class="caption"><p>Every square in this row ends with 4: a4, b4, c4, d4, e4, f4, g4, h4.</p></div>
+</section>
+<section class="block" id="b01-c01-d05">
+<h3>A piece on e4</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c01-d05-knight-e4.png" alt="A piece on e4">
+<div class="caption"><p>The knight is on e4: e-file, 4th rank. Say it aloud before moving on.</p></div>
+</section>
+<h2>A Move Has Two Squares</h2>
+<section class="block" id="b01-c01-p03">
+<p>A written move often starts with two coordinates: the square the piece leaves and the square it lands on.</p>
+<p>For example, <strong>e2e4</strong> means: take the piece on e2 and move it to e4. In a normal starting position, that piece is White's king pawn.</p>
+</section>
+<section class="block" id="b01-c01-d06">
+<h3>Before 1.e4</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c01-d06-before-e4.png" alt="Before 1.e4">
+<div class="caption"><p>The arrow shows the pawn's first move: e2 to e4.</p></div>
+</section>
+<section class="block" id="b01-c01-g01">
+<h3>Play e2 to e4</h3>
+<p>Move the pawn from e2 to e4. Use the coordinates, not guesswork.</p>
+</section>
+<section class="block" id="b01-c01-a01">
+<h3>The board after 1.e4</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c01-a01-e4-animation.png" alt="The board after 1.e4">
+<div class="caption"><p>After e2e4, the pawn leaves e2 and stands on e4. The move also opens lines for White's queen and bishop.</p></div>
+</section>
+<h2>Common Mistake: Trusting The Picture, Not The Coordinates</h2>
+<section class="block" id="b01-c01-m01">
+<h3>Wrong board orientation ruins every square name</h3>
+<p>If the board is rotated incorrectly in real life, every coordinate becomes unreliable. The simple check is: <strong>light square on the right</strong> for White. Then queens start on their own color: White queen on d1, Black queen on d8.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c01-m01-orientation.png" alt="Wrong board orientation ruins every square name">
+<div class="caption"><p>h1 is the orientation check. d1 and d8 show the queen-on-own-color rule.</p></div>
+</section>
+<section class="block" id="b01-c01-q01">
+<h3>Checkpoint: name the square</h3>
+<p>A knight is placed on the e-file and the 4th rank. What square is it on?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. d4</div>
+<div class="quiz-option">b. e4</div>
+<div class="quiz-option">c. 4e</div>
+</div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b01-c01-q02">
+<h3>Which square is White's bottom-right corner?</h3>
+<p>With White at the bottom, the bottom-right corner is:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. a1</div>
+<div class="quiz-option">b. h1</div>
+<div class="quiz-option">c. h8</div>
+</div>
+</section>
+<section class="block" id="b01-c01-q03">
+<h3>How do you read e2e4?</h3>
+<p>The move e2e4 means:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Move from e2 to e4</div>
+<div class="quiz-option">b. Move from e4 to e2</div>
+<div class="quiz-option">c. Move any pawn two squares</div>
+</div>
+</section>
+</section>
+<section class="chapter-print">
+<h1>Pieces, Values, And Setup</h1>
+<div class="meta">The First Chessboard | 0-300 | free</div>
+<p>The board is a map; now learn the army that lives on it.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Name all six chess pieces.</li>
+<li>Set up White and Black correctly from the starting position.</li>
+<li>Use the queen-on-own-color rule.</li>
+<li>Remember simple material values without pricing the king.</li>
+<li>Identify and move White's e-pawn from the starting position.</li>
+</ul>
+</section>
+<h2>The Two Armies</h2>
+<section class="block" id="b01-c02-p01">
+<p>Chess begins with two equal armies. White starts on the 1st and 2nd ranks. Black starts on the 8th and 7th ranks.</p>
+<p>Each side has one king, one queen, two rooks, two bishops, two knights, and eight pawns.</p>
+</section>
+<section class="block" id="b01-c02-d01">
+<h3>The starting position</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c02-d01-starting-position.png" alt="The starting position">
+<div class="caption"><p>This is the complete starting position: White pieces on ranks 1 and 2, Black pieces on ranks 8 and 7.</p></div>
+</section>
+<section class="block" id="b01-c02-d02">
+<h3>White's back rank</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c02-d02-white-back-rank.png" alt="White's back rank">
+<div class="caption"><p>From a1 to h1: rook, knight, bishop, queen, king, bishop, knight, rook.</p></div>
+</section>
+<h2>Piece Names And Simple Values</h2>
+<section class="block" id="b01-c02-p02">
+<p>The king is the most important piece because losing the king means losing the game. Do not give the king a point value.</p>
+<p>For simple counting, use this first material scale: queen 9, rook 5, bishop 3, knight 3, pawn 1. These numbers are not the whole story, but they help you notice when a trade is obviously good or bad.</p>
+</section>
+<section class="block" id="b01-c02-d03">
+<h3>The royal pieces</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c02-d03-royal-pieces.png" alt="The royal pieces">
+<div class="caption"><p>The kings are on e1 and e8 in a normal setup. White's queen begins on d1.</p></div>
+</section>
+<section class="block" id="b01-c02-d04">
+<h3>A first material scale</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c02-d04-material-scale.png" alt="A first material scale">
+<div class="caption"><p>Queen on d5 is 9, rook on c3 is 5, bishop on e3 is 3, knight on g3 is 3, pawn on e2 is 1, and king on e1 is priceless.</p></div>
+</section>
+<h2>The Setup Rules That Prevent Mistakes</h2>
+<section class="block" id="b01-c02-p03">
+<p>The fastest setup check is the queen rule: queen on her own color. The White queen starts on the light square d1. The Black queen starts on the dark square d8.</p>
+<p>After the queen and king are correct, the bishops stand beside them, the knights stand beside the bishops, and the rooks go in the corners.</p>
+</section>
+<section class="block" id="b01-c02-d05">
+<h3>Queen on her own color</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c02-d05-queen-color.png" alt="Queen on her own color">
+<div class="caption"><p>White queen on d1, Black queen on d8. Queen on her own color fixes the center of the back rank.</p></div>
+</section>
+<section class="block" id="b01-c02-d06">
+<h3>The armies mirror each other</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c02-d06-mirror-armies.png" alt="The armies mirror each other">
+<div class="caption"><p>White and Black mirror each other: queens face queens on the d-file, kings face kings on the e-file, and rooks sit in the corners.</p></div>
+</section>
+<section class="block" id="b01-c02-m01">
+<h3>Common mistake: swapping king and queen</h3>
+<p>This setup looks close, but both queens and kings are swapped. White's queen has been put on e1 instead of d1. Black's queen has been put on e8 instead of d8.</p>
+<p>Fix it by returning each queen to her own color.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c02-m01-swapped-royals.png" alt="Common mistake: swapping king and queen">
+<div class="caption"><p>The wrong setup places White queen on e1 and Black queen on e8. Both queens should be on the d-file.</p></div>
+</section>
+<h2>Identify A Piece, Then Move It</h2>
+<section class="block" id="b01-c02-p04">
+<p>When you know the setup, you can name a piece by its square. The piece on e2 at the start is White's e-pawn.</p>
+<p>In the next board, move only that pawn one square forward to e3. The goal is not speed; the goal is matching the piece name, square name, and move.</p>
+</section>
+<section class="block" id="b01-c02-d07">
+<h3>Find White's e-pawn</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c02-d07-find-e-pawn.png" alt="Find White's e-pawn">
+<div class="caption"><p>The e-pawn starts on e2. The arrow shows e2 to e3.</p></div>
+</section>
+<section class="block" id="b01-c02-g01">
+<h3>Move the e-pawn to e3</h3>
+<p>Move White's e-pawn from e2 to e3.</p>
+</section>
+<section class="block" id="b01-c02-a01">
+<h3>After e2 to e3</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c02-a01-after-e3.png" alt="After e2 to e3">
+<div class="caption"><p>After e2e3, the pawn leaves e2 and stands on e3.</p></div>
+</section>
+<section class="block" id="b01-c02-q01">
+<h3>Quick check: what moved?</h3>
+<p>In the move e2e3, which piece moved?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. White's e-pawn</div>
+<div class="quiz-option">b. White's queen</div>
+<div class="quiz-option">c. Black's e-pawn</div>
+</div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b01-c02-q02">
+<h3>Where does White's queen start?</h3>
+<p>In the correct starting setup, White's queen begins on:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. d1</div>
+<div class="quiz-option">b. e1</div>
+<div class="quiz-option">c. d8</div>
+</div>
+</section>
+<section class="block" id="b01-c02-q03">
+<h3>Which piece is priceless?</h3>
+<p>Which piece should not be assigned a normal material point value?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. King</div>
+<div class="quiz-option">b. Queen</div>
+<div class="quiz-option">c. Rook</div>
+</div>
+</section>
+<section class="block" id="b01-c02-q04">
+<h3>What are the corner pieces?</h3>
+<p>At the start of the game, the pieces in the four corners are:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Rooks</div>
+<div class="quiz-option">b. Knights</div>
+<div class="quiz-option">c. Bishops</div>
+</div>
+</section>
+</section>
+<section class="chapter-print">
+<h1>The King And The Goal</h1>
+<div class="meta">The First Chessboard | 0-300 | free</div>
+<p>The king moves slowly, but the whole game turns around him.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Move the king one square in any direction.</li>
+<li>Know that kings may never stand next to each other.</li>
+<li>Understand that the king may not move into danger.</li>
+<li>Explain why the king is never traded or captured.</li>
+</ul>
+</section>
+<h2>The King Is The Game</h2>
+<section class="block" id="b01-c03-p01">
+<p>Every piece can be traded except the king. You do not win by taking the king off the board. You win by attacking the king so strongly that there is no legal escape. That final position is checkmate.</p>
+</section>
+<section class="block" id="b01-c03-d01">
+<h3>The king moves one square</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c03-d01-king-one-square.png" alt="The king moves one square">
+<div class="caption"><p>From e4, the king can step to any adjacent highlighted square if that square is safe.</p></div>
+</section>
+<section class="block" id="b01-c03-d02">
+<h3>Kings cannot touch</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c03-d02-kings-cannot-touch.png" alt="Kings cannot touch">
+<div class="caption"><p>The kings control the squares beside them. White may not move next to the black king.</p></div>
+</section>
+<h2>Safe Squares Matter</h2>
+<section class="block" id="b01-c03-p02">
+<p>A king move has two questions. First, does the king move one square? Second, is the landing square safe? A one-square move is still illegal if the king walks into an attack.</p>
+</section>
+<section class="block" id="b01-c03-d03">
+<h3>The king can capture a loose piece</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c03-d03-king-captures-loose-pawn.png" alt="The king can capture a loose piece">
+<div class="caption"><p>If the pawn on d5 is not protected, the king may capture it by moving one square diagonally.</p></div>
+</section>
+<section class="block" id="b01-c03-d04">
+<h3>A rook controls the e-file</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c03-d04-king-cannot-enter-rook-file.png" alt="A rook controls the e-file">
+<div class="caption"><p>The black rook controls e4, so the white king on d4 may not step onto e4.</p></div>
+</section>
+<section class="block" id="b01-c03-d05">
+<h3>A safe king step</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c03-d05-safe-king-step.png" alt="A safe king step">
+<div class="caption"><p>e4 to f5 is a normal one-square king move in this position.</p></div>
+</section>
+<section class="block" id="b01-c03-g01">
+<h3>Move the king to f5</h3>
+<p>Move the white king from e4 to f5.</p>
+</section>
+<h2>Common Mistake</h2>
+<section class="block" id="b01-c03-m01">
+<h3>Common mistake: walking into attack</h3>
+<p>The move from d4 to e4 looks like a legal one-square move, but e4 is controlled by the rook on e8. A king move must satisfy both rules: one square and safe.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c03-m01-king-walks-into-rook.png" alt="Common mistake: walking into attack">
+<div class="caption"><p>The red square is not safe. The rook already controls it.</p></div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b01-c03-q01">
+<h3>How far does a king move?</h3>
+<p>A king normally moves:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. One square in any direction</div>
+<div class="quiz-option">b. Any number of squares in a straight line</div>
+<div class="quiz-option">c. Only forward</div>
+</div>
+</section>
+<section class="block" id="b01-c03-q02">
+<h3>Can kings stand next to each other?</h3>
+<p>Two kings may stand on adjacent squares:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. No</div>
+<div class="quiz-option">b. Yes, if no other pieces are nearby</div>
+<div class="quiz-option">c. Only in the endgame</div>
+</div>
+</section>
+<section class="block" id="b01-c03-q03">
+<h3>What makes a king move illegal?</h3>
+<p>A one-square king move is illegal when:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. The landing square is attacked</div>
+<div class="quiz-option">b. The king moves diagonally</div>
+<div class="quiz-option">c. The king captures a piece</div>
+</div>
+</section>
+</section>
+<section class="chapter-print">
+<h1>Rooks And Bishops</h1>
+<div class="meta">The First Chessboard | 0-300 | free</div>
+<p>Straight lines and diagonals are the first long-range patterns.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Move a rook along ranks and files.</li>
+<li>Move a bishop along diagonals.</li>
+<li>Notice when friendly pieces block long-range pieces.</li>
+<li>Explain why bishops stay on one color complex.</li>
+</ul>
+</section>
+<h2>Rooks Use Files And Ranks</h2>
+<section class="block" id="b01-c04-p01">
+<p>The rook is the straight-line piece. It moves up, down, left, or right as far as the path is clear. It cannot jump over pieces.</p>
+</section>
+<section class="block" id="b01-c04-d01">
+<h3>Rook lines from e4</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c04-d01-rook-lines-e4.png" alt="Rook lines from e4">
+<div class="caption"><p>From e4, a rook moves along the e-file or across the 4th rank.</p></div>
+</section>
+<section class="block" id="b01-c04-d02">
+<h3>Own pieces block rooks</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c04-d02-rook-blocked-by-pawn.png" alt="Own pieces block rooks">
+<div class="caption"><p>The white pawn on e3 blocks the rook. The rook cannot move through its own pawn.</p></div>
+</section>
+<h2>Bishops Use Diagonals</h2>
+<section class="block" id="b01-c04-p02">
+<p>The bishop is the diagonal long-range piece. Because every diagonal keeps the same square color, a bishop that starts on a light square always stays on light squares.</p>
+</section>
+<section class="block" id="b01-c04-d03">
+<h3>Bishop diagonals from d4</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c04-d03-bishop-diagonals-d4.png" alt="Bishop diagonals from d4">
+<div class="caption"><p>A bishop on d4 moves only on diagonals.</p></div>
+</section>
+<section class="block" id="b01-c04-d04">
+<h3>The bishop stays on one color</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c04-d04-bishop-color-complex.png" alt="The bishop stays on one color">
+<div class="caption"><p>This bishop is on a dark-square diagonal. It will never land on a light square.</p></div>
+</section>
+<section class="block" id="b01-c04-d05">
+<h3>Rook and bishop side by side</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c04-d05-rook-bishop-patterns.png" alt="Rook and bishop side by side">
+<div class="caption"><p>The rook on e4 uses straight lines. The bishop on d4 uses diagonals.</p></div>
+</section>
+<section class="block" id="b01-c04-g01">
+<h3>Move the rook to e8</h3>
+<p>Move the rook from e4 to e8 along the e-file.</p>
+</section>
+<h2>Common Mistake</h2>
+<section class="block" id="b01-c04-m01">
+<h3>Common mistake: moving a bishop straight</h3>
+<p>A bishop on d4 cannot move to d6. That is a straight-file move, and bishops only use diagonals.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c04-m01-bishop-straight-move.png" alt="Common mistake: moving a bishop straight">
+<div class="caption"><p>d4 to d6 is wrong. d4 to f6 is diagonal and legal if the path is clear.</p></div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b01-c04-q01">
+<h3>Which lines does a rook use?</h3>
+<p>A rook moves along:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Files and ranks</div>
+<div class="quiz-option">b. Only diagonals</div>
+<div class="quiz-option">c. Knight jumps</div>
+</div>
+</section>
+<section class="block" id="b01-c04-q02">
+<h3>Can a bishop change color?</h3>
+<p>A bishop that starts on a dark square can later land on a light square:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. No</div>
+<div class="quiz-option">b. Yes, after a capture</div>
+<div class="quiz-option">c. Only near the edge</div>
+</div>
+</section>
+<section class="block" id="b01-c04-q03">
+<h3>What blocks a rook?</h3>
+<p>A rook is blocked by:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Any piece on its path</div>
+<div class="quiz-option">b. Only enemy pieces</div>
+<div class="quiz-option">c. Only the king</div>
+</div>
+</section>
+</section>
+<section class="chapter-print">
+<h1>The Queen And Long-Range Power</h1>
+<div class="meta">The First Chessboard | 0-300 | free</div>
+<p>The queen combines rook lines and bishop diagonals.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Move the queen along ranks, files, and diagonals.</li>
+<li>Recognize that the queen cannot jump.</li>
+<li>Use the queen to target weak squares.</li>
+<li>Avoid bringing the queen into easy attack too early.</li>
+</ul>
+</section>
+<h2>The Queen Combines Two Pieces</h2>
+<section class="block" id="b01-c05-p01">
+<p>The queen is the strongest attacking piece because she moves like a rook and a bishop together. She can use files, ranks, and diagonals, but she still cannot jump.</p>
+</section>
+<section class="block" id="b01-c05-d01">
+<h3>Queen lines from d4</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c05-d01-queen-lines-d4.png" alt="Queen lines from d4">
+<div class="caption"><p>The queen can move vertically, horizontally, and diagonally from d4.</p></div>
+</section>
+<section class="block" id="b01-c05-d02">
+<h3>Queen as rook plus bishop</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c05-d02-queen-rook-bishop.png" alt="Queen as rook plus bishop">
+<div class="caption"><p>The queen on d4 shares the straight-line idea of the rook and the diagonal idea of the bishop.</p></div>
+</section>
+<h2>Targets And Blocks</h2>
+<section class="block" id="b01-c05-p02">
+<p>A queen becomes powerful when she attacks a clear target. But if a piece sits on the path, the queen must stop before it or capture it if it is an enemy piece.</p>
+</section>
+<section class="block" id="b01-c05-d03">
+<h3>The queen targets h8</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c05-d03-queen-target-h8.png" alt="The queen targets h8">
+<div class="caption"><p>The queen on d4 attacks the rook on h8 along the diagonal.</p></div>
+</section>
+<section class="block" id="b01-c05-d04">
+<h3>A blocked queen line</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c05-d04-queen-line-blocked.png" alt="A blocked queen line">
+<div class="caption"><p>The white pawn on f6 blocks the diagonal, so the queen no longer attacks h8.</p></div>
+</section>
+<section class="block" id="b01-c05-d05">
+<h3>Early queen move</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c05-d05-queen-out-early.png" alt="Early queen move">
+<div class="caption"><p>A queen on h5 can be useful, but Black can gain time by attacking her with Ng8 to f6.</p></div>
+</section>
+<section class="block" id="b01-c05-g01">
+<h3>Move the queen to h5</h3>
+<p>Move the queen from d1 to h5 along the diagonal.</p>
+</section>
+<h2>Common Mistake</h2>
+<section class="block" id="b01-c05-m01">
+<h3>Common mistake: ignoring attacks on the queen</h3>
+<p>Beginners often bring the queen out and forget that the opponent can attack it. Here Black can play Ng8 to f6 and make the queen move again.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c05-m01-queen-attacked-by-knight.png" alt="Common mistake: ignoring attacks on the queen">
+<div class="caption"><p>The knight move attacks the queen. A queen move that loses time needs a clear reason.</p></div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b01-c05-q01">
+<h3>How does the queen move?</h3>
+<p>The queen moves like:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. A rook and bishop combined</div>
+<div class="quiz-option">b. A knight and pawn combined</div>
+<div class="quiz-option">c. Only one square</div>
+</div>
+</section>
+<section class="block" id="b01-c05-q02">
+<h3>Can a queen jump?</h3>
+<p>A queen can jump over pieces:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. No</div>
+<div class="quiz-option">b. Yes, if she captures</div>
+<div class="quiz-option">c. Only diagonally</div>
+</div>
+</section>
+<section class="block" id="b01-c05-q03">
+<h3>Why can early queen moves be risky?</h3>
+<p>Early queen moves can be risky because:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. The queen may get attacked and lose time</div>
+<div class="quiz-option">b. The queen cannot capture</div>
+<div class="quiz-option">c. The queen is worth only one point</div>
+</div>
+</section>
+</section>
+<section class="chapter-print">
+<h1>The Knight And Jumps</h1>
+<div class="meta">The First Chessboard | 0-300 | free</div>
+<p>The knight is the only piece that jumps over blockers.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Move a knight in an L shape.</li>
+<li>List the knight moves from a center square.</li>
+<li>Understand that knights jump over pieces but cannot land on friendly pieces.</li>
+<li>Recognize that edge knights have fewer moves.</li>
+</ul>
+</section>
+<h2>The L Shape</h2>
+<section class="block" id="b01-c06-p01">
+<p>The knight moves in an L shape: two squares in one direction and one square sideways. It is the only piece that can jump over pieces.</p>
+</section>
+<section class="block" id="b01-c06-d01">
+<h3>Knight moves from e4</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c06-d01-knight-e4-eight-moves.png" alt="Knight moves from e4">
+<div class="caption"><p>A knight on e4 has up to eight landing squares.</p></div>
+</section>
+<section class="block" id="b01-c06-d02">
+<h3>The knight jumps over blockers</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c06-d02-knight-jumps-blockers.png" alt="The knight jumps over blockers">
+<div class="caption"><p>Even when surrounded, the knight on e4 can jump to its L-shaped landing squares.</p></div>
+</section>
+<h2>Knights From The Starting Position</h2>
+<section class="block" id="b01-c06-p02">
+<p>From the starting position, the knight is the first piece that can move without a pawn moving first. The knight jumps over the pawns.</p>
+</section>
+<section class="block" id="b01-c06-d03">
+<h3>The b1 knight can jump</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c06-d03-b1-knight-start.png" alt="The b1 knight can jump">
+<div class="caption"><p>The knight on b1 can jump to a3 or c3 at the start.</p></div>
+</section>
+<section class="block" id="b01-c06-d04">
+<h3>A knight fork pattern</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c06-d04-knight-fork-pattern.png" alt="A knight fork pattern">
+<div class="caption"><p>A knight on f7 attacks the king on d8 and the rook on h8 at the same time.</p></div>
+</section>
+<section class="block" id="b01-c06-d05">
+<h3>Edge knights have fewer moves</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c06-d05-edge-knight-fewer-moves.png" alt="Edge knights have fewer moves">
+<div class="caption"><p>A knight on a4 has only four legal landing squares instead of eight.</p></div>
+</section>
+<section class="block" id="b01-c06-g01">
+<h3>Develop the knight to f3</h3>
+<p>Move the knight from g1 to f3.</p>
+</section>
+<h2>Common Mistake</h2>
+<section class="block" id="b01-c06-m01">
+<h3>Common mistake: sliding the knight</h3>
+<p>A knight on g1 cannot slide to g3. Knights do not move straight; they move in an L shape.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c06-m01-knight-sliding-mistake.png" alt="Common mistake: sliding the knight">
+<div class="caption"><p>g1 to f3 is a knight move. g1 to g3 is not.</p></div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b01-c06-q01">
+<h3>What shape is a knight move?</h3>
+<p>A knight moves:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. In an L shape</div>
+<div class="quiz-option">b. Only diagonally</div>
+<div class="quiz-option">c. Only one square</div>
+</div>
+</section>
+<section class="block" id="b01-c06-q02">
+<h3>Can knights jump?</h3>
+<p>A knight can jump over pieces:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Yes</div>
+<div class="quiz-option">b. No</div>
+<div class="quiz-option">c. Only over pawns</div>
+</div>
+</section>
+<section class="block" id="b01-c06-q03">
+<h3>Where can the g1 knight move at the start?</h3>
+<p>From the starting position, the knight on g1 can move to:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. f3</div>
+<div class="quiz-option">b. g3</div>
+<div class="quiz-option">c. g2</div>
+</div>
+</section>
+</section>
+<section class="chapter-print">
+<h1>Pawn Moves, Captures, And Promotion</h1>
+<div class="meta">The First Chessboard | 0-300 | free</div>
+<p>Pawns are small pieces with the most special rules.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Move pawns one square forward.</li>
+<li>Use the two-square first move.</li>
+<li>Capture diagonally with pawns.</li>
+<li>Reject backward pawn moves.</li>
+<li>Understand promotion on the last rank.</li>
+</ul>
+</section>
+<h2>Forward Movement</h2>
+<section class="block" id="b01-c07-p01">
+<p>Pawns move forward, but they capture diagonally. White pawns move toward rank 8. Black pawns move toward rank 1.</p>
+</section>
+<section class="block" id="b01-c07-d01">
+<h3>White pawn one step</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c07-d01-pawn-one-step-e3.png" alt="White pawn one step">
+<div class="caption"><p>The white e-pawn can move one square from e2 to e3.</p></div>
+</section>
+<section class="block" id="b01-c07-d02">
+<h3>Two-square first move</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c07-d02-pawn-two-step-e4.png" alt="Two-square first move">
+<div class="caption"><p>From its starting square, the e-pawn can move two squares to e4 if the path is clear.</p></div>
+</section>
+<h2>Captures And Promotion</h2>
+<section class="block" id="b01-c07-p02">
+<p>A pawn does not capture straight ahead. It captures one square diagonally forward. If a pawn reaches the last rank, it promotes, usually to a queen.</p>
+</section>
+<section class="block" id="b01-c07-d03">
+<h3>Pawn captures diagonally</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c07-d03-pawn-diagonal-captures.png" alt="Pawn captures diagonally">
+<div class="caption"><p>The pawn on e3 can capture the enemy pawns on d4 or f4.</p></div>
+</section>
+<section class="block" id="b01-c07-d04">
+<h3>Pawns do not capture forward</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c07-d04-pawn-cannot-capture-forward.png" alt="Pawns do not capture forward">
+<div class="caption"><p>The pawn on e3 cannot capture the enemy pawn directly in front of it on e4.</p></div>
+</section>
+<section class="block" id="b01-c07-d05">
+<h3>Promotion square</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c07-d05-pawn-promotion-e8.png" alt="Promotion square">
+<div class="caption"><p>When the pawn moves from e7 to e8, it promotes. The usual choice is a queen.</p></div>
+</section>
+<section class="block" id="b01-c07-g01">
+<h3>Play the two-square pawn move</h3>
+<p>Move the White e-pawn from e2 to e4.</p>
+</section>
+<h2>Common Mistake</h2>
+<section class="block" id="b01-c07-m01">
+<h3>Common mistake: moving backward</h3>
+<p>A white pawn on e4 cannot move backward to e3. Pawns only move forward unless they are promoting or capturing diagonally forward.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c07-m01-pawn-backward-move.png" alt="Common mistake: moving backward">
+<div class="caption"><p>Backward pawn moves are not legal.</p></div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b01-c07-q01">
+<h3>How does a white pawn move?</h3>
+<p>A white pawn normally moves:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Toward higher ranks</div>
+<div class="quiz-option">b. Backward toward rank 1</div>
+<div class="quiz-option">c. Sideways</div>
+</div>
+</section>
+<section class="block" id="b01-c07-q02">
+<h3>How does a pawn capture?</h3>
+<p>A pawn captures:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. One square diagonally forward</div>
+<div class="quiz-option">b. Straight forward</div>
+<div class="quiz-option">c. Like a knight</div>
+</div>
+</section>
+<section class="block" id="b01-c07-q03">
+<h3>What happens on the last rank?</h3>
+<p>A pawn that reaches the last rank:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Promotes</div>
+<div class="quiz-option">b. Disappears</div>
+<div class="quiz-option">c. Must become a king</div>
+</div>
+</section>
+</section>
+<section class="chapter-print">
+<h1>Check And Escaping Check</h1>
+<div class="meta">The First Chessboard | 0-300 | free</div>
+<p>When the king is attacked, the next move must answer it.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Recognize when a king is in check.</li>
+<li>Escape check by moving the king.</li>
+<li>Escape check by blocking the attack.</li>
+<li>Escape check by capturing the checking piece.</li>
+<li>Reject moves that ignore check.</li>
+</ul>
+</section>
+<h2>A Direct Attack On The King</h2>
+<section class="block" id="b01-c08-p01">
+<p>Check means the king is under attack. When your king is in check, you do not get to play any move you like. Your move must make the king safe.</p>
+</section>
+<section class="block" id="b01-c08-d01">
+<h3>The rook gives check</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c08-d01-rook-check-e-file.png" alt="The rook gives check">
+<div class="caption"><p>The rook on e8 attacks the king on e1 along the open e-file.</p></div>
+</section>
+<section class="block" id="b01-c08-d02">
+<h3>Escape by moving the king</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c08-d02-escape-king-move.png" alt="Escape by moving the king">
+<div class="caption"><p>White can move the king from e1 to f1 to leave the rook line.</p></div>
+</section>
+<h2>Three Ways To Escape</h2>
+<section class="block" id="b01-c08-p02">
+<p>There are three normal ways to answer check: move the king, block the line, or capture the checking piece. Some checks allow only one of these.</p>
+</section>
+<section class="block" id="b01-c08-d03">
+<h3>Escape by blocking</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c08-d03-escape-by-blocking.png" alt="Escape by blocking">
+<div class="caption"><p>The bishop can move to e2 and block the rook line.</p></div>
+</section>
+<section class="block" id="b01-c08-d04">
+<h3>Escape by capturing</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c08-d04-escape-by-capture.png" alt="Escape by capturing">
+<div class="caption"><p>If the checking rook is unprotected, the king can capture it on e2.</p></div>
+</section>
+<section class="block" id="b01-c08-d05">
+<h3>You may not ignore check</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c08-d05-cannot-ignore-check.png" alt="You may not ignore check">
+<div class="caption"><p>The move a2 to a3 does not answer the check, so it is illegal here.</p></div>
+</section>
+<section class="block" id="b01-c08-g01">
+<h3>Move out of check</h3>
+<p>White is in check from the rook on e8. Move the king from e1 to f1.</p>
+</section>
+<h2>Common Mistake</h2>
+<section class="block" id="b01-c08-m01">
+<h3>Common mistake: playing a normal move in check</h3>
+<p>The pawn move a2 to a3 may be legal in a quiet position, but not while the king on e1 is in check. Check must be answered immediately.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c08-m01-ignore-check.png" alt="Common mistake: playing a normal move in check">
+<div class="caption"><p>A move that ignores check is not legal.</p></div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b01-c08-q01">
+<h3>What is check?</h3>
+<p>Check means:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. The king is attacked</div>
+<div class="quiz-option">b. A queen was captured</div>
+<div class="quiz-option">c. A pawn promoted</div>
+</div>
+</section>
+<section class="block" id="b01-c08-q02">
+<h3>What must you do in check?</h3>
+<p>When your king is in check, your next move must:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Make the king safe</div>
+<div class="quiz-option">b. Capture any piece</div>
+<div class="quiz-option">c. Move a pawn</div>
+</div>
+</section>
+<section class="block" id="b01-c08-q03">
+<h3>Which is not a normal escape from check?</h3>
+<p>Which answer does not normally escape check?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Ignore it and attack elsewhere</div>
+<div class="quiz-option">b. Move the king</div>
+<div class="quiz-option">c. Block the line</div>
+</div>
+</section>
+</section>
+<section class="chapter-print">
+<h1>Checkmate And Stalemate</h1>
+<div class="meta">The First Chessboard | 0-300 | free</div>
+<p>Winning requires mate, not just trapping the king.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Define checkmate as check with no legal escape.</li>
+<li>Recognize stalemate as no legal move but no check.</li>
+<li>Avoid stalemating a winning position.</li>
+<li>Deliver a simple queen-assisted mate.</li>
+</ul>
+</section>
+<h2>Check Plus No Escape</h2>
+<section class="block" id="b01-c09-p01">
+<p>Checkmate means the king is in check and there is no legal escape. If the king is not in check, the position is not checkmate.</p>
+</section>
+<section class="block" id="b01-c09-d01">
+<h3>Queen-supported checkmate</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c09-d01-queen-supported-mate.png" alt="Queen-supported checkmate">
+<div class="caption"><p>The queen checks h8, and the king on g6 supports the queen. Black has no escape.</p></div>
+</section>
+<section class="block" id="b01-c09-d02">
+<h3>Check but not mate</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c09-d02-check-not-mate.png" alt="Check but not mate">
+<div class="caption"><p>This is check, but the queen is not protected. Black can capture it.</p></div>
+</section>
+<h2>Stalemate Is Not A Win</h2>
+<section class="block" id="b01-c09-p02">
+<p>Stalemate happens when the player to move is not in check but has no legal move. Stalemate is a draw. Beginners lose many winning positions by forgetting this difference.</p>
+</section>
+<section class="block" id="b01-c09-d03">
+<h3>Stalemate pattern</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c09-d03-stalemate-pattern.png" alt="Stalemate pattern">
+<div class="caption"><p>Black is not in check, but every black king move is controlled. This is stalemate, not checkmate.</p></div>
+</section>
+<section class="block" id="b01-c09-d04">
+<h3>The missing check</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c09-d04-stalemate-missing-check.png" alt="The missing check">
+<div class="caption"><p>The queen controls escape squares, but she does not attack h8. No check means no checkmate.</p></div>
+</section>
+<section class="block" id="b01-c09-d05">
+<h3>Mate move available</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c09-d05-mate-move-available.png" alt="Mate move available">
+<div class="caption"><p>White can play Qa1 to g7, giving a protected queen checkmate.</p></div>
+</section>
+<section class="block" id="b01-c09-g01">
+<h3>Deliver queen-supported mate</h3>
+<p>Move the queen from a1 to g7 to give checkmate.</p>
+</section>
+<h2>Common Mistake</h2>
+<section class="block" id="b01-c09-m01">
+<h3>Common mistake: stalemate instead of mate</h3>
+<p>This looks winning because the king is trapped, but the black king is not in check. Trapped without check is stalemate, so the game is drawn.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c09-m01-stalemate-not-mate.png" alt="Common mistake: stalemate instead of mate">
+<div class="caption"><p>No check on h8 means this is stalemate, not mate.</p></div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b01-c09-q01">
+<h3>What is checkmate?</h3>
+<p>Checkmate means:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. The king is in check with no legal escape</div>
+<div class="quiz-option">b. The king has no legal move but is not checked</div>
+<div class="quiz-option">c. The queen was captured</div>
+</div>
+</section>
+<section class="block" id="b01-c09-q02">
+<h3>What is stalemate?</h3>
+<p>Stalemate means:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. No legal move and no check</div>
+<div class="quiz-option">b. Check with no escape</div>
+<div class="quiz-option">c. Both players have queens</div>
+</div>
+</section>
+<section class="block" id="b01-c09-q03">
+<h3>Is stalemate a win?</h3>
+<p>Stalemate is:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. A draw</div>
+<div class="quiz-option">b. A win for the player with more pieces</div>
+<div class="quiz-option">c. A checkmate</div>
+</div>
+</section>
+</section>
+<section class="chapter-print">
+<h1>Your First Guided Game</h1>
+<div class="meta">The First Chessboard | 0-300 | free</div>
+<p>Use the rules together in one short game.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Play a legal opening sequence from the starting position.</li>
+<li>See how center control opens queen and bishop lines.</li>
+<li>Recognize a simple mate threat on f7.</li>
+<li>Complete a short guided game ending in checkmate.</li>
+</ul>
+</section>
+<h2>A Short Legal Game</h2>
+<section class="block" id="b01-c10-p01">
+<p>Now we connect the first rules into a real sequence. This short game is not a full opening course. Its purpose is to show how legal moves, piece lines, check, and checkmate fit together.</p>
+</section>
+<section class="block" id="b01-c10-d01">
+<h3>Start from the normal setup</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c10-d01-guided-game-start.png" alt="Start from the normal setup">
+<div class="caption"><p>The game begins from the correct starting position.</p></div>
+</section>
+<section class="block" id="b01-c10-d02">
+<h3>Both players claim the center</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c10-d02-e4-e5-center.png" alt="Both players claim the center">
+<div class="caption"><p>After 1.e4 e5, both center pawns stand in the middle.</p></div>
+</section>
+<h2>Build The Mate Threat</h2>
+<section class="block" id="b01-c10-p02">
+<p>The weak f7 square is protected only by the Black king at the start. The White queen and bishop can team up on it.</p>
+</section>
+<section class="block" id="b01-c10-d03">
+<h3>Queen eyes f7</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c10-d03-queen-eyes-f7.png" alt="Queen eyes f7">
+<div class="caption"><p>After Qh5, the queen attacks f7.</p></div>
+</section>
+<section class="block" id="b01-c10-d04">
+<h3>Bishop joins the attack</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c10-d04-bishop-joins-f7.png" alt="Bishop joins the attack">
+<div class="caption"><p>The bishop on c4 and queen on h5 both point at f7.</p></div>
+</section>
+<section class="block" id="b01-c10-d05">
+<h3>The final mate on f7</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c10-d05-qxf7-mate-final.png" alt="The final mate on f7">
+<div class="caption"><p>Qxf7 is checkmate in this beginner pattern because the queen is protected and the king has no good escape.</p></div>
+</section>
+<section class="block" id="b01-c10-a01">
+<h3>The full guided sequence</h3>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c10-a01-full-guided-game.png" alt="The full guided sequence">
+<div class="caption"><p>The sequence is 1.e4 e5 2.Qh5 Nc6 3.Bc4 Nf6 4.Qxf7#.</p></div>
+</section>
+<section class="block" id="b01-c10-g01">
+<h3>Play the checkmate move</h3>
+<p>White to move: capture f7 with the queen.</p>
+</section>
+<h2>Common Mistake</h2>
+<section class="block" id="b01-c10-m01">
+<h3>Common mistake: moving without checking threats</h3>
+<p>Black must notice the threat on f7. A move that ignores both queen and bishop pressure can allow Qxf7 mate.</p>
+<img class="diagram" src="file:///C:/ArunApps/Chess-Web/chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c10-m01-ignore-f7-threat.png" alt="Common mistake: moving without checking threats">
+<div class="caption"><p>Both attacking pieces point to f7. The threat should be checked before moving.</p></div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b01-c10-q01">
+<h3>What did 1.e4 open?</h3>
+<p>The move 1.e4 helps open lines for:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. The queen and bishop</div>
+<div class="quiz-option">b. Only the rook on a1</div>
+<div class="quiz-option">c. Only the king</div>
+</div>
+</section>
+<section class="block" id="b01-c10-q02">
+<h3>Which square was targeted?</h3>
+<p>In the guided game, White attacked:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. f7</div>
+<div class="quiz-option">b. a8</div>
+<div class="quiz-option">c. h1</div>
+</div>
+</section>
+<section class="block" id="b01-c10-q03">
+<h3>What was the final move?</h3>
+<p>The final move of the guided game was:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Qxf7#</div>
+<div class="quiz-option">b. Nf3</div>
+<div class="quiz-option">c. a3</div>
+</div>
+</section>
+</section>
+</body>
+</html>

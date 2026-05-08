@@ -1,0 +1,137 @@
+{
+  "schemaVersion": "2.0.0",
+  "bookId": "repertoire-model-games",
+  "title": "Repertoire And Model Games",
+  "subtitle": "Opening choices connected to middlegame plans and model-game anchors.",
+  "seriesPosition": 11,
+  "eloStart": 2000,
+  "eloEnd": 2300,
+  "requiredTier": "gold",
+  "status": "complete-draft",
+  "purpose": "Connect openings to plans and model games.",
+  "audience": [
+    "Competitive players",
+    "Gold repertoire users",
+    "Coaches"
+  ],
+  "howToRead": [
+    "Study each diagram before reading the explanation.",
+    "Write or say the candidate idea before playing the guided move.",
+    "Review the common mistake before attempting the checkpoint.",
+    "Do not advance until the checkpoint is passed without hints."
+  ],
+  "prerequisites": [
+    "Earlier books in the Chess99 ladder"
+  ],
+  "outcomes": [
+    "Recognize the core patterns in Repertoire And Model Games.",
+    "Use generated board diagrams as calculation anchors.",
+    "Play the guided moves with a reason, not guesswork.",
+    "Pass chapter checkpoints and retain the habit in real games."
+  ],
+  "visualLanguage": {
+    "boardTheme": "instruction-classic",
+    "lightSquare": "#eeeed2",
+    "darkSquare": "#769656",
+    "colorRoles": {
+      "best": "#81b64c",
+      "candidate": "#7b61a6",
+      "check": "#ef4444",
+      "capture": "#5b8dd9",
+      "threat": "#c9882a",
+      "target": "#f59e0b",
+      "lastMove": "rgba(255,221,0,0.35)",
+      "wrong": "rgba(220,60,60,0.35)",
+      "safe": "rgba(129,182,76,0.25)"
+    }
+  },
+  "assetPolicy": {
+    "authoritativeDiagrams": "Generate from FEN, arrows, highlights, and board theme only.",
+    "generativeImages": "Allowed for cover and concept art only, never for exact chess positions.",
+    "diagramOutputRoot": "assets/diagrams",
+    "illustrationOutputRoot": "assets/illustrations"
+  },
+  "chapterOrder": [
+    {
+      "chapterId": "01-building-a-repertoire",
+      "path": "chapters/01-building-a-repertoire.json",
+      "title": "Building A Repertoire",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    },
+    {
+      "chapterId": "02-choosing-openings-by-style",
+      "path": "chapters/02-choosing-openings-by-style.json",
+      "title": "Choosing Openings By Style",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    },
+    {
+      "chapterId": "03-model-games-as-memory-anchors",
+      "path": "chapters/03-model-games-as-memory-anchors.json",
+      "title": "Model Games As Memory Anchors",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    },
+    {
+      "chapterId": "04-typical-pawn-breaks",
+      "path": "chapters/04-typical-pawn-breaks.json",
+      "title": "Typical Pawn Breaks",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    },
+    {
+      "chapterId": "05-typical-piece-placements",
+      "path": "chapters/05-typical-piece-placements.json",
+      "title": "Typical Piece Placements",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    },
+    {
+      "chapterId": "06-anti-sidelines",
+      "path": "chapters/06-anti-sidelines.json",
+      "title": "Anti-Sidelines",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    },
+    {
+      "chapterId": "07-transition-to-middlegame",
+      "path": "chapters/07-transition-to-middlegame.json",
+      "title": "Transition To Middlegame",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    },
+    {
+      "chapterId": "08-opening-mistakes-and-punishments",
+      "path": "chapters/08-opening-mistakes-and-punishments.json",
+      "title": "Opening Mistakes And Punishments",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    },
+    {
+      "chapterId": "09-repertoire-review-drills",
+      "path": "chapters/09-repertoire-review-drills.json",
+      "title": "Repertoire Review Drills",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    },
+    {
+      "chapterId": "10-build-your-first-chess99-repertoire-file",
+      "path": "chapters/10-build-your-first-chess99-repertoire-file.json",
+      "title": "Build Your First Chess99 Repertoire File",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    }
+  ],
+  "assessment": {
+    "checkpointRequiredScore": 3,
+    "unlockRule": "Complete the guided move and answer all checkpoint questions correctly."
+  },
+  "reviewStatus": {
+    "schema": "draft",
+    "chessLogic": "draft",
+    "diagramGeneration": "draft",
+    "textImageConsistency": "draft",
+    "humanChessReview": "pending"
+  }
+}

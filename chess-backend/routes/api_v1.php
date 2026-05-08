@@ -34,6 +34,8 @@ use App\Http\Controllers\LeaderboardController;
 use App\Http\Controllers\AmbassadorController;
 use App\Http\Controllers\FriendController;
 use App\Http\Controllers\TacticalProgressController;
+use App\Http\Controllers\TrainingDrillController;
+use App\Http\Controllers\EntitlementController;
 use Illuminate\Support\Facades\Route;
 
 // ─── Health Check (public) ────────────────────────────────────────────────────
@@ -72,6 +74,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', function (Illuminate\Http\Request $request) {
         return $request->user()->load('roles');
     });
+    Route::get('/entitlements/me', [EntitlementController::class, 'me']);
 
     // ── Device Token Management (Push Notifications) ──────────────────────
     Route::prefix('devices')->group(function () {
@@ -198,6 +201,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/lessons/{id}/hint', [TutorialController::class, 'getInteractiveHint']);
         Route::post('/lessons/{id}/reset-stage', [TutorialController::class, 'resetInteractiveStage']);
         Route::get('/lessons/{id}/interactive-progress', [TutorialController::class, 'getInteractiveProgress']);
+    });
+
+    // Training Drills
+    Route::prefix('training')->group(function () {
+        Route::get('/drills', [TrainingDrillController::class, 'index']);
+        Route::get('/drills/recommended', [TrainingDrillController::class, 'recommended']);
+        Route::get('/drills/{slug}', [TrainingDrillController::class, 'show']);
+        Route::post('/drills/{slug}/attempt', [TrainingDrillController::class, 'attempt']);
     });
 
     // ── WebSocket API ─────────────────────────────────────────────────────
@@ -349,6 +360,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/self-assign', [AmbassadorController::class, 'selfAssign']);
         Route::post('/payout-request', [AmbassadorController::class, 'payoutRequest']);
         Route::get('/payout-requests', [AmbassadorController::class, 'payoutHistory']);
+        Route::post('/apply', [AmbassadorController::class, 'apply']);
+        Route::get('/application', [AmbassadorController::class, 'myApplication']);
     });
 
     // ── Organizations ─────────────────────────────────────────────────────

@@ -1,0 +1,453 @@
+{
+  "schemaVersion": "2.0.0",
+  "bookId": "beginner-board-rules",
+  "chapterId": "07-pawn-rules",
+  "title": "Pawn Moves, Captures, And Promotion",
+  "subtitle": "Pawns are small pieces with the most special rules.",
+  "eloRange": "0-300",
+  "requiredTier": "free",
+  "estimatedMinutes": 28,
+  "learningObjectives": [
+    "Move pawns one square forward.",
+    "Use the two-square first move.",
+    "Capture diagonally with pawns.",
+    "Reject backward pawn moves.",
+    "Understand promotion on the last rank."
+  ],
+  "sections": [
+    {
+      "id": "pawn-forward",
+      "title": "Forward Movement",
+      "blocks": [
+        {
+          "id": "b01-c07-p01",
+          "type": "prose",
+          "body_md": "Pawns move forward, but they capture diagonally. White pawns move toward rank 8. Black pawns move toward rank 1."
+        },
+        {
+          "id": "b01-c07-d01",
+          "type": "board_diagram",
+          "title": "White pawn one step",
+          "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "e2",
+              "to": "e3",
+              "colorRole": "best"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "e2",
+              "colorRole": "lastMove"
+            },
+            {
+              "square": "e3",
+              "colorRole": "best"
+            }
+          ],
+          "caption_md": "The white e-pawn can move one square from e2 to e3.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "e2",
+              "piece": "white_pawn"
+            },
+            {
+              "type": "legal_move",
+              "move": "e2e3"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "e2",
+              "to": "e3"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c07-d01-pawn-one-step-e3.png",
+            "hash": "955e0ec932f5663f41583b7995ea4e1814f67cb4896bdf4abbb23a94df7e1ee3"
+          }
+        },
+        {
+          "id": "b01-c07-d02",
+          "type": "board_diagram",
+          "title": "Two-square first move",
+          "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "e2",
+              "to": "e4",
+              "colorRole": "best"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "e2",
+              "colorRole": "lastMove"
+            },
+            {
+              "square": "e4",
+              "colorRole": "best"
+            }
+          ],
+          "caption_md": "From its starting square, the e-pawn can move two squares to e4 if the path is clear.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "e2",
+              "piece": "white_pawn"
+            },
+            {
+              "type": "legal_move",
+              "move": "e2e4"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "e2",
+              "to": "e4"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c07-d02-pawn-two-step-e4.png",
+            "hash": "cab16a7b8d27fb4b3f61ccfdd13a34adc4a7038d861a7844e4d9f9ced2de36ba"
+          }
+        }
+      ]
+    },
+    {
+      "id": "pawn-captures",
+      "title": "Captures And Promotion",
+      "blocks": [
+        {
+          "id": "b01-c07-p02",
+          "type": "prose",
+          "body_md": "A pawn does not capture straight ahead. It captures one square diagonally forward. If a pawn reaches the last rank, it promotes, usually to a queen."
+        },
+        {
+          "id": "b01-c07-d03",
+          "type": "board_diagram",
+          "title": "Pawn captures diagonally",
+          "fen": "4k3/8/8/8/3p1p2/4P3/8/4K3 w - - 0 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "e3",
+              "to": "d4",
+              "colorRole": "capture"
+            },
+            {
+              "from": "e3",
+              "to": "f4",
+              "colorRole": "capture"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "d4",
+              "colorRole": "target"
+            },
+            {
+              "square": "f4",
+              "colorRole": "target"
+            }
+          ],
+          "caption_md": "The pawn on e3 can capture the enemy pawns on d4 or f4.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "e3",
+              "piece": "white_pawn"
+            },
+            {
+              "type": "piece_on",
+              "square": "d4",
+              "piece": "black_pawn"
+            },
+            {
+              "type": "piece_on",
+              "square": "f4",
+              "piece": "black_pawn"
+            },
+            {
+              "type": "legal_move",
+              "move": "e3d4"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c07-d03-pawn-diagonal-captures.png",
+            "hash": "60da04ae846f57e730eb0d6b72536dc2eaf7ddf5186bf37e0bf21051e03ee224"
+          }
+        },
+        {
+          "id": "b01-c07-d04",
+          "type": "board_diagram",
+          "title": "Pawns do not capture forward",
+          "fen": "4k3/8/8/8/4p3/4P3/8/4K3 w - - 0 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "e3",
+              "to": "e4",
+              "colorRole": "wrong"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "e4",
+              "colorRole": "wrong"
+            }
+          ],
+          "caption_md": "The pawn on e3 cannot capture the enemy pawn directly in front of it on e4.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "e3",
+              "piece": "white_pawn"
+            },
+            {
+              "type": "piece_on",
+              "square": "e4",
+              "piece": "black_pawn"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "e4"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c07-d04-pawn-cannot-capture-forward.png",
+            "hash": "3037741221dbb47e396582ba885eb43eaa90932cb1109bb13b0423a4424be8d2"
+          }
+        },
+        {
+          "id": "b01-c07-d05",
+          "type": "board_diagram",
+          "title": "Promotion square",
+          "fen": "k7/4P3/8/8/8/8/8/4K3 w - - 0 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "e7",
+              "to": "e8",
+              "colorRole": "best"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "e8",
+              "colorRole": "best"
+            }
+          ],
+          "caption_md": "When the pawn moves from e7 to e8, it promotes. The usual choice is a queen.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "e7",
+              "piece": "white_pawn"
+            },
+            {
+              "type": "legal_move",
+              "move": "e7e8q"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "e7",
+              "to": "e8"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c07-d05-pawn-promotion-e8.png",
+            "hash": "f3004c763dfd0d35e53c236b2e86acb1ed1bbd29f24df487656c3298e844969a"
+          }
+        },
+        {
+          "id": "b01-c07-g01",
+          "type": "guided_move",
+          "title": "Play the two-square pawn move",
+          "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          "orientation": "white",
+          "prompt_md": "Move the White e-pawn from e2 to e4.",
+          "acceptedMoves": [
+            "e2e4"
+          ],
+          "successMessage": "Correct. A pawn can move two squares from its starting square.",
+          "failureMessage": "Use the pawn on e2 and move it to e4.",
+          "arrows": [
+            {
+              "from": "e2",
+              "to": "e4",
+              "colorRole": "best"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "e2",
+              "colorRole": "lastMove"
+            },
+            {
+              "square": "e4",
+              "colorRole": "best"
+            }
+          ],
+          "assertions": [
+            {
+              "type": "legal_move",
+              "move": "e2e4"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pawn-mistake",
+      "title": "Common Mistake",
+      "blocks": [
+        {
+          "id": "b01-c07-m01",
+          "type": "mistake_refutation",
+          "title": "Common mistake: moving backward",
+          "fen": "4k3/8/8/8/4P3/8/8/4K3 w - - 0 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "e4",
+              "to": "e3",
+              "colorRole": "wrong"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "e3",
+              "colorRole": "wrong"
+            }
+          ],
+          "body_md": "A white pawn on e4 cannot move backward to e3. Pawns only move forward unless they are promoting or capturing diagonally forward.",
+          "caption_md": "Backward pawn moves are not legal.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "e4",
+              "piece": "white_pawn"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "e4",
+              "to": "e3"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c07-m01-pawn-backward-move.png",
+            "hash": "b5d9a5f72f50146cad95d04323c2c330ab02636135dacae3ed66af10060e8a17"
+          }
+        }
+      ]
+    }
+  ],
+  "checkpoint": {
+    "id": "b01-c07-checkpoint",
+    "type": "checkpoint",
+    "title": "Chapter Checkpoint",
+    "requiredScore": 3,
+    "summary_md": "Pass this chapter when you can separate pawn movement, pawn captures, and promotion.",
+    "blocks": [
+      {
+        "id": "b01-c07-q01",
+        "type": "quiz",
+        "title": "How does a white pawn move?",
+        "question_md": "A white pawn normally moves:",
+        "options": [
+          {
+            "id": "a",
+            "label": "Toward higher ranks",
+            "isCorrect": true,
+            "feedback": "Correct. White pawns move toward rank 8."
+          },
+          {
+            "id": "b",
+            "label": "Backward toward rank 1",
+            "isCorrect": false,
+            "feedback": "That is backward for White."
+          },
+          {
+            "id": "c",
+            "label": "Sideways",
+            "isCorrect": false,
+            "feedback": "Pawns do not move sideways."
+          }
+        ]
+      },
+      {
+        "id": "b01-c07-q02",
+        "type": "quiz",
+        "title": "How does a pawn capture?",
+        "question_md": "A pawn captures:",
+        "options": [
+          {
+            "id": "a",
+            "label": "One square diagonally forward",
+            "isCorrect": true,
+            "feedback": "Correct."
+          },
+          {
+            "id": "b",
+            "label": "Straight forward",
+            "isCorrect": false,
+            "feedback": "Pawns move forward but capture diagonally."
+          },
+          {
+            "id": "c",
+            "label": "Like a knight",
+            "isCorrect": false,
+            "feedback": "Pawns do not jump."
+          }
+        ]
+      },
+      {
+        "id": "b01-c07-q03",
+        "type": "quiz",
+        "title": "What happens on the last rank?",
+        "question_md": "A pawn that reaches the last rank:",
+        "options": [
+          {
+            "id": "a",
+            "label": "Promotes",
+            "isCorrect": true,
+            "feedback": "Correct."
+          },
+          {
+            "id": "b",
+            "label": "Disappears",
+            "isCorrect": false,
+            "feedback": "It becomes another piece."
+          },
+          {
+            "id": "c",
+            "label": "Must become a king",
+            "isCorrect": false,
+            "feedback": "A side can never have two kings."
+          }
+        ]
+      }
+    ]
+  },
+  "reviewAssertions": [
+    {
+      "type": "minimum_board_diagrams",
+      "value": 5
+    },
+    {
+      "type": "minimum_guided_moves",
+      "value": 1
+    },
+    {
+      "type": "minimum_quizzes",
+      "value": 3
+    },
+    {
+      "type": "tier_allowed",
+      "value": "free"
+    }
+  ]
+}

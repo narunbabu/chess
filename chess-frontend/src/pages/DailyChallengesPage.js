@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Chess } from 'chess.js';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Chessboard } from 'react-chessboard';
 import { useAuth } from '../contexts/AuthContext';
+import { useSubscription } from '../contexts/SubscriptionContext';
+import { getAvailableDailyTracks, getSubscriptionLabel } from '../constants/learningCurriculum';
 import api from '../services/api';
 import '../styles/UnifiedCards.css';
 
@@ -16,7 +17,10 @@ const TIER_ICONS = { beginner: '🌱', intermediate: '🎯', advanced: '🏆' };
 
 const DailyChallengesPage = () => {
   const { user } = useAuth();
+  const { currentTier } = useSubscription();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedTrack = searchParams.get('track') || 'daily-starter';
   const [challenge, setChallenge] = useState(null);
   const [streak, setStreak] = useState(0);
   const [leaderboard, setLeaderboard] = useState([]);
@@ -27,10 +31,13 @@ const DailyChallengesPage = () => {
 
     const fetchData = async () => {
       try {
+        setLoading(true);
+        setChallenge(null);
+        setLeaderboard([]);
         const [challengeRes, statsRes, lbRes] = await Promise.allSettled([
-          api.get('/v1/daily-challenge'),
-          api.get('/v1/tutorial/progress/stats'),
-          api.get('/v1/daily-challenge/leaderboard'),
+          api.get(`/tutorial/daily-challenge?track=${encodeURIComponent(selectedTrack)}`),
+          api.get('/tutorial/progress/stats'),
+          api.get(`/tutorial/daily-challenge/leaderboard?track=${encodeURIComponent(selectedTrack)}`),
         ]);
 
         if (challengeRes.status === 'fulfilled') {
@@ -52,7 +59,7 @@ const DailyChallengesPage = () => {
     };
 
     fetchData();
-  }, [user]);
+  }, [user, selectedTrack]);
 
   if (loading) {
     return (
@@ -77,10 +84,28 @@ const DailyChallengesPage = () => {
     );
   }
 
+  const handleTrackSelect = (track) => {
+    const trackId = track.id || track.slug;
+    const locked = track.isLocked ?? track.is_locked;
+
+    if (locked) {
+      navigate('/pricing');
+      return;
+    }
+
+    setSearchParams({ track: trackId });
+  };
+
   const completed = challenge?.user_completion?.completed;
   const tier = challenge ? (TIER_COLORS[challenge.skill_tier] || TIER_COLORS.beginner) : null;
   const fen = challenge?.challenge_data?.fen;
   const turnColor = fen ? (fen.split(' ')[1] === 'b' ? 'black' : 'white') : 'white';
+  const dailyTracks = (challenge?.available_tracks || getAvailableDailyTracks(currentTier)).map((track) => ({
+    ...track,
+    id: track.id || track.slug,
+    requiredTier: track.requiredTier || track.required_tier,
+    isLocked: track.isLocked ?? track.is_locked,
+  }));
 
   return (
     <div style={{ minHeight: '100vh', background: '#262421', color: '#bababa', padding: '24px 16px' }}>
@@ -96,12 +121,41 @@ const DailyChallengesPage = () => {
           </p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
+          gap: 10,
+          marginBottom: 20,
+        }}>
+          {dailyTracks.map((track) => (
+            <div
+              key={track.id}
+              className="unified-card"
+              onClick={() => handleTrackSelect(track)}
+              style={{
+                padding: '0.85rem',
+                borderColor: track.id === selectedTrack ? '#81b64c' : (track.isLocked ? 'rgba(232,169,62,0.35)' : 'rgba(129,182,76,0.35)'),
+                opacity: track.isLocked ? 0.76 : 1,
+                cursor: 'pointer',
+              }}
+            >
+              <div style={{ color: '#fff', fontWeight: 700, fontSize: 13, marginBottom: 4 }}>{track.label}</div>
+              <div style={{ color: '#999', fontSize: 12, minHeight: 34 }}>{track.focus}</div>
+              <div style={{ color: track.isLocked ? '#e8a93e' : '#81b64c', fontSize: 12, fontWeight: 700, marginTop: 8 }}>
+                {track.isLocked ? `${getSubscriptionLabel(track.requiredTier)} unlock` : 'Available now'}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20, alignItems: 'start' }}>
           {/* Left: Today's Challenge */}
           <div>
             <div className="unified-card" style={{ padding: '1.25rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <h2 style={{ fontSize: 17, fontWeight: 700, color: '#fff', margin: 0 }}>Today's Puzzle</h2>
+                <h2 style={{ fontSize: 17, fontWeight: 700, color: '#fff', margin: 0 }}>
+                  {challenge?.track?.label || "Today's Puzzle"}
+                </h2>
                 {challenge && tier && (
                   <span style={{ fontSize: 11, padding: '2px 10px', borderRadius: 10, fontWeight: 600, background: tier.bg, color: '#fff' }}>
                     {TIER_ICONS[challenge.skill_tier]} {tier.label}
@@ -114,7 +168,7 @@ const DailyChallengesPage = () => {
                   {/* Mini Board */}
                   <div
                     style={{ width: '100%', aspectRatio: '1', marginBottom: 12, borderRadius: 6, overflow: 'hidden', cursor: 'pointer', position: 'relative' }}
-                    onClick={() => navigate('/daily-challenge')}
+                    onClick={() => navigate(`/daily-challenge?track=${encodeURIComponent(selectedTrack)}`)}
                   >
                     <Chessboard
                       id="daily-preview-board"
@@ -153,7 +207,7 @@ const DailyChallengesPage = () => {
 
                   {/* Action button */}
                   <button
-                    onClick={() => navigate('/daily-challenge')}
+                    onClick={() => navigate(`/daily-challenge?track=${encodeURIComponent(selectedTrack)}`)}
                     className={`unified-card-btn ${completed ? 'secondary' : 'primary'}`}
                     style={{ width: '100%' }}
                   >

@@ -143,11 +143,17 @@ const LoginPage = () => {
         if (response.data.requires_verification) {
           setRegistrationSuccess(true);
           setRegisteredEmail(email);
+          if (referrerName) {
+            localStorage.setItem('chess99_enrolled_under', referrerName);
+          }
           localStorage.removeItem('chess99_referral_code');
           setIsLoading(false);
           return;
         }
         if (response.data.status === 'success' && response.data.token) {
+          if (referrerName) {
+            localStorage.setItem('chess99_enrolled_under', referrerName);
+          }
           await login(response.data.token);
           setShowSkillAssessment(true);
           setIsLoading(false);

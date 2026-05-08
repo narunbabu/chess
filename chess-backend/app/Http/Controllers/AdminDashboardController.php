@@ -273,8 +273,6 @@ class AdminDashboardController extends Controller
                         $totalEarnings = ReferralEarning::where('referrer_user_id', $amb->id)
                             ->sum('earning_amount');
 
-                        $tier = \App\Models\AmbassadorTier::getTierForCount($subscribedPaid);
-
                         return [
                             'id' => $amb->id,
                             'name' => $amb->name,
@@ -285,8 +283,6 @@ class AdminDashboardController extends Controller
                             'active_this_week' => $activeThisWeek,
                             'earnings_this_month' => round($earningsMonth, 2),
                             'total_earnings' => round($totalEarnings, 2),
-                            'tier_name' => $tier ? $tier->name : 'Starter',
-                            'commission_rate' => $tier ? round($tier->commission_rate * 100) . '%' : '10%',
                         ];
                     });
 

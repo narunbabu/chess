@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The First Chessboard: Pieces, Values, And Setup</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+
+    body { font-family: Arial, sans-serif; color: #172018; font-size: 17px; margin: 0; background: #f7f7f2; line-height: 1.62; }
+    main { max-width: 900px; margin: 0 auto; padding: 40px 34px 60px; background: #fff; }
+    h1, h2, h3 { line-height: 1.2; color: #172018; }
+    h1 { font-size: 36px; margin: 0 0 8px; }
+    h2 { font-size: 25px; margin: 38px 0 16px; border-top: 1px solid #d8ddcf; padding-top: 24px; }
+    h3 { font-size: 20px; margin: 0 0 10px; }
+    p { margin: 0 0 16px; }
+    .meta { color: #536257; margin-bottom: 24px; }
+    .objectives { background: #eef4e7; border-left: 4px solid #81b64c; padding: 14px 18px; }
+    .block { break-inside: avoid; margin: 24px 0; }
+    .block + .block { margin-top: 30px; }
+    .diagram { width: min(100%, 560px); display: block; margin: 14px auto; border: 1px solid #d4dcc8; }
+    .caption { color: #536257; font-size: 15px; margin-top: 8px; }
+    .quiz-options { margin-top: 10px; }
+    .quiz-option { margin: 7px 0; }
+    @media print {
+      body { background: #fff; }
+      main { max-width: none; padding: 0; }
+      .block { page-break-inside: avoid; }
+    }
+  
+</style>
+</head>
+<body>
+<main>
+<h1>Pieces, Values, And Setup</h1>
+<div class="meta">The First Chessboard | 0-300 | free</div>
+<p>The board is a map; now learn the army that lives on it.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Name all six chess pieces.</li>
+<li>Set up White and Black correctly from the starting position.</li>
+<li>Use the queen-on-own-color rule.</li>
+<li>Remember simple material values without pricing the king.</li>
+<li>Identify and move White's e-pawn from the starting position.</li>
+</ul>
+</section>
+<h2>The Two Armies</h2>
+<section class="block" id="b01-c02-p01">
+<p>Chess begins with two equal armies. White starts on the 1st and 2nd ranks. Black starts on the 8th and 7th ranks.</p>
+<p>Each side has one king, one queen, two rooks, two bishops, two knights, and eight pawns.</p>
+</section>
+<section class="block" id="b01-c02-d01">
+<h3>The starting position</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c02-d01-starting-position.png" alt="The starting position">
+<div class="caption"><p>This is the complete starting position: White pieces on ranks 1 and 2, Black pieces on ranks 8 and 7.</p></div>
+</section>
+<section class="block" id="b01-c02-d02">
+<h3>White's back rank</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c02-d02-white-back-rank.png" alt="White's back rank">
+<div class="caption"><p>From a1 to h1: rook, knight, bishop, queen, king, bishop, knight, rook.</p></div>
+</section>
+<h2>Piece Names And Simple Values</h2>
+<section class="block" id="b01-c02-p02">
+<p>The king is the most important piece because losing the king means losing the game. Do not give the king a point value.</p>
+<p>For simple counting, use this first material scale: queen 9, rook 5, bishop 3, knight 3, pawn 1. These numbers are not the whole story, but they help you notice when a trade is obviously good or bad.</p>
+</section>
+<section class="block" id="b01-c02-d03">
+<h3>The royal pieces</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c02-d03-royal-pieces.png" alt="The royal pieces">
+<div class="caption"><p>The kings are on e1 and e8 in a normal setup. White's queen begins on d1.</p></div>
+</section>
+<section class="block" id="b01-c02-d04">
+<h3>A first material scale</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c02-d04-material-scale.png" alt="A first material scale">
+<div class="caption"><p>Queen on d5 is 9, rook on c3 is 5, bishop on e3 is 3, knight on g3 is 3, pawn on e2 is 1, and king on e1 is priceless.</p></div>
+</section>
+<h2>The Setup Rules That Prevent Mistakes</h2>
+<section class="block" id="b01-c02-p03">
+<p>The fastest setup check is the queen rule: queen on her own color. The White queen starts on the light square d1. The Black queen starts on the dark square d8.</p>
+<p>After the queen and king are correct, the bishops stand beside them, the knights stand beside the bishops, and the rooks go in the corners.</p>
+</section>
+<section class="block" id="b01-c02-d05">
+<h3>Queen on her own color</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c02-d05-queen-color.png" alt="Queen on her own color">
+<div class="caption"><p>White queen on d1, Black queen on d8. Queen on her own color fixes the center of the back rank.</p></div>
+</section>
+<section class="block" id="b01-c02-d06">
+<h3>The armies mirror each other</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c02-d06-mirror-armies.png" alt="The armies mirror each other">
+<div class="caption"><p>White and Black mirror each other: queens face queens on the d-file, kings face kings on the e-file, and rooks sit in the corners.</p></div>
+</section>
+<section class="block" id="b01-c02-m01">
+<h3>Common mistake: swapping king and queen</h3>
+<p>This setup looks close, but both queens and kings are swapped. White's queen has been put on e1 instead of d1. Black's queen has been put on e8 instead of d8.</p>
+<p>Fix it by returning each queen to her own color.</p>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c02-m01-swapped-royals.png" alt="Common mistake: swapping king and queen">
+<div class="caption"><p>The wrong setup places White queen on e1 and Black queen on e8. Both queens should be on the d-file.</p></div>
+</section>
+<h2>Identify A Piece, Then Move It</h2>
+<section class="block" id="b01-c02-p04">
+<p>When you know the setup, you can name a piece by its square. The piece on e2 at the start is White's e-pawn.</p>
+<p>In the next board, move only that pawn one square forward to e3. The goal is not speed; the goal is matching the piece name, square name, and move.</p>
+</section>
+<section class="block" id="b01-c02-d07">
+<h3>Find White's e-pawn</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c02-d07-find-e-pawn.png" alt="Find White's e-pawn">
+<div class="caption"><p>The e-pawn starts on e2. The arrow shows e2 to e3.</p></div>
+</section>
+<section class="block" id="b01-c02-g01">
+<h3>Move the e-pawn to e3</h3>
+<p>Move White's e-pawn from e2 to e3.</p>
+</section>
+<section class="block" id="b01-c02-a01">
+<h3>After e2 to e3</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c02-a01-after-e3.png" alt="After e2 to e3">
+<div class="caption"><p>After e2e3, the pawn leaves e2 and stands on e3.</p></div>
+</section>
+<section class="block" id="b01-c02-q01">
+<h3>Quick check: what moved?</h3>
+<p>In the move e2e3, which piece moved?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. White's e-pawn</div>
+<div class="quiz-option">b. White's queen</div>
+<div class="quiz-option">c. Black's e-pawn</div>
+</div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b01-c02-q02">
+<h3>Where does White's queen start?</h3>
+<p>In the correct starting setup, White's queen begins on:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. d1</div>
+<div class="quiz-option">b. e1</div>
+<div class="quiz-option">c. d8</div>
+</div>
+</section>
+<section class="block" id="b01-c02-q03">
+<h3>Which piece is priceless?</h3>
+<p>Which piece should not be assigned a normal material point value?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. King</div>
+<div class="quiz-option">b. Queen</div>
+<div class="quiz-option">c. Rook</div>
+</div>
+</section>
+<section class="block" id="b01-c02-q04">
+<h3>What are the corner pieces?</h3>
+<p>At the start of the game, the pieces in the four corners are:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Rooks</div>
+<div class="quiz-option">b. Knights</div>
+<div class="quiz-option">c. Bishops</div>
+</div>
+</section>
+</main>
+</body>
+</html>

@@ -1,0 +1,138 @@
+{
+  "schemaVersion": "2.0.0",
+  "bookId": "tournament-mastery-self-coaching",
+  "title": "Tournament Mastery And Self-Coaching",
+  "subtitle": "Preparation, annotation, mistake taxonomy, routines, and long-term training plans.",
+  "seriesPosition": 12,
+  "eloStart": 2100,
+  "eloEnd": 2500,
+  "requiredTier": "gold",
+  "status": "complete-draft",
+  "purpose": "Turn advanced knowledge into repeatable performance.",
+  "audience": [
+    "Tournament players",
+    "Coaches",
+    "School-team leaders",
+    "Ambitious advanced users"
+  ],
+  "howToRead": [
+    "Study each diagram before reading the explanation.",
+    "Write or say the candidate idea before playing the guided move.",
+    "Review the common mistake before attempting the checkpoint.",
+    "Do not advance until the checkpoint is passed without hints."
+  ],
+  "prerequisites": [
+    "Earlier books in the Chess99 ladder"
+  ],
+  "outcomes": [
+    "Recognize the core patterns in Tournament Mastery And Self-Coaching.",
+    "Use generated board diagrams as calculation anchors.",
+    "Play the guided moves with a reason, not guesswork.",
+    "Pass chapter checkpoints and retain the habit in real games."
+  ],
+  "visualLanguage": {
+    "boardTheme": "instruction-classic",
+    "lightSquare": "#eeeed2",
+    "darkSquare": "#769656",
+    "colorRoles": {
+      "best": "#81b64c",
+      "candidate": "#7b61a6",
+      "check": "#ef4444",
+      "capture": "#5b8dd9",
+      "threat": "#c9882a",
+      "target": "#f59e0b",
+      "lastMove": "rgba(255,221,0,0.35)",
+      "wrong": "rgba(220,60,60,0.35)",
+      "safe": "rgba(129,182,76,0.25)"
+    }
+  },
+  "assetPolicy": {
+    "authoritativeDiagrams": "Generate from FEN, arrows, highlights, and board theme only.",
+    "generativeImages": "Allowed for cover and concept art only, never for exact chess positions.",
+    "diagramOutputRoot": "assets/diagrams",
+    "illustrationOutputRoot": "assets/illustrations"
+  },
+  "chapterOrder": [
+    {
+      "chapterId": "01-pre-game-preparation",
+      "path": "chapters/01-pre-game-preparation.json",
+      "title": "Pre-Game Preparation",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    },
+    {
+      "chapterId": "02-opponent-style-preparation",
+      "path": "chapters/02-opponent-style-preparation.json",
+      "title": "Opponent-Style Preparation",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    },
+    {
+      "chapterId": "03-time-management",
+      "path": "chapters/03-time-management.json",
+      "title": "Time Management",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    },
+    {
+      "chapterId": "04-decision-journals",
+      "path": "chapters/04-decision-journals.json",
+      "title": "Decision Journals",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    },
+    {
+      "chapterId": "05-post-game-annotation",
+      "path": "chapters/05-post-game-annotation.json",
+      "title": "Post-Game Annotation",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    },
+    {
+      "chapterId": "06-blunder-taxonomy",
+      "path": "chapters/06-blunder-taxonomy.json",
+      "title": "Blunder Taxonomy",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    },
+    {
+      "chapterId": "07-opening-repair",
+      "path": "chapters/07-opening-repair.json",
+      "title": "Opening Repair",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    },
+    {
+      "chapterId": "08-endgame-repair",
+      "path": "chapters/08-endgame-repair.json",
+      "title": "Endgame Repair",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    },
+    {
+      "chapterId": "09-tournament-routines",
+      "path": "chapters/09-tournament-routines.json",
+      "title": "Tournament Routines",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    },
+    {
+      "chapterId": "10-personal-training-plan",
+      "path": "chapters/10-personal-training-plan.json",
+      "title": "Personal Training Plan",
+      "estimatedMinutes": 28,
+      "requiredTier": "gold"
+    }
+  ],
+  "assessment": {
+    "checkpointRequiredScore": 3,
+    "unlockRule": "Complete the guided move and answer all checkpoint questions correctly."
+  },
+  "reviewStatus": {
+    "schema": "draft",
+    "chessLogic": "draft",
+    "diagramGeneration": "draft",
+    "textImageConsistency": "draft",
+    "humanChessReview": "pending"
+  }
+}

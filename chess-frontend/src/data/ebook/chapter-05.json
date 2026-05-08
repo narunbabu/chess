@@ -1,0 +1,138 @@
+{
+  "id": "ch05",
+  "title": "Endgame Essentials",
+  "subtitle": "\"The hardest thing in chess is to win a won game.\" — Frank Marshall",
+  "eloRange": "800-1000",
+  "sections": [
+    {
+      "id": "5.1",
+      "title": "5.1 The Endgame Mindset Shift",
+      "blocks": [
+        {
+          "type": "text",
+          "html": "<p>In the endgame, the priorities change:</p><table><tr><th>Middlegame Priority</th><th>Endgame Priority</th></tr><tr><td>Attack the king</td><td>Activate your king</td></tr><tr><td>Coordinate pieces</td><td>Push passed pawns</td></tr><tr><td>Create threats</td><td>Restrict opponent's king</td></tr><tr><td>Avoid trades (if attacking)</td><td>Trade down to simplify</td></tr></table><p><strong>The biggest mindset shift:</strong> Your king transforms from a liability to an asset. Bring it to the center!</p>"
+        }
+      ]
+    },
+    {
+      "id": "5.2",
+      "title": "5.2 King Activity — The King Fights",
+      "blocks": [
+        {
+          "type": "text",
+          "html": "<h3>The Rule of the Square</h3><p>Draw an imaginary square from the pawn to the promotion square. If the enemy king is inside the square (or can step into it), the king catches the pawn. If not, the pawn promotes.</p>"
+        },
+        {
+          "type": "board",
+          "fen": "8/8/8/8/3P4/8/8/7k w - - 0 1",
+          "highlights": ["d4", "d8", "h8", "h4", "d5", "d6", "d7"],
+          "orientation": "white",
+          "caption": "White pawn on d4, Black king on h1. The square is d4-d8-h8-h4-h1. The king is on h1 — inside the square! It can catch the pawn. If the pawn were on d5, the square would be d5-d8-g8-g5 and the king on h1 would be OUTSIDE — pawn promotes.",
+          "size": 300
+        },
+        {
+          "type": "text",
+          "html": "<h3>Opposition</h3><p>When two kings face each other with one square between them, the player who <strong>does not</strong> have to move has the opposition. This is a powerful zugzwang weapon.</p>"
+        },
+        {
+          "type": "board",
+          "fen": "8/8/4k3/8/4K3/8/8/8 w - - 0 1",
+          "highlights": ["e4", "e6", "d5", "f5", "d4", "f4"],
+          "orientation": "white",
+          "caption": "White king on e4, Black king on e6. One square between them. White to move — Black has the opposition. After 1.Ke4-d5 Black must give way: ...Kf6 or ...Kd7, and White advances.",
+          "size": 280
+        }
+      ]
+    },
+    {
+      "id": "5.3",
+      "title": "5.3 Basic Checkmates You MUST Know",
+      "blocks": [
+        {
+          "type": "text",
+          "html": "<h3>King + Queen vs. King</h3><p><strong>The Method:</strong></p><ol><li>Use queen to restrict enemy king — place her a \"knight's move away\"</li><li>Walk your king closer</li><li>When king is on edge, deliver checkmate with queen + king</li></ol><p><strong>Never stalemate!</strong> When the enemy king is on the edge, make sure it has a legal square.</p>"
+        },
+        {
+          "type": "board",
+          "fen": "4k3/6Q1/3K4/8/8/8/8/8 w - - 0 1",
+          "highlights": ["e8"],
+          "caption": "White to move. Qg7?? would be STALEMATE (king on e8 has no legal squares). Instead Qe7# (protected by king on d6) is checkmate. Always verify the enemy king can move before closing in.",
+          "size": 280
+        },
+        {
+          "type": "text",
+          "html": "<h3>King + Rook vs. King</h3><p>Similar to K+Q vs K but slower. The \"ladder\" or \"box\" method: use the rook to cut off the king, walk your king closer, deliver checkmate when kings are in opposition on the edge.</p>"
+        },
+        {
+          "type": "interactive",
+          "fen": "8/8/8/8/3k4/8/8/4K2R w - - 0 1",
+          "orientation": "white",
+          "caption": "Practice K+R vs K. White to move. Use the rook to cut off the Black king, then bring your king. Can you deliver checkmate?",
+          "size": 300
+        }
+      ]
+    },
+    {
+      "id": "5.4",
+      "title": "5.4 Passed Pawns — The Deciding Factor",
+      "blocks": [
+        {
+          "type": "text",
+          "html": "<p>A <strong>passed pawn</strong> has no enemy pawns in front of it (on its file or adjacent files) that can block or capture it.</p><h3>Why Passed Pawns Win Games</h3><p>A passed pawn is a constant threat to promote. Your opponent must dedicate pieces to stop it — while you attack elsewhere.</p><h3>The Principle of Two Weaknesses</h3><p>Create a passed pawn on one side, force opponent's pieces to stop it, then attack on the other side. They can't be in two places at once.</p>"
+        },
+        {
+          "type": "board",
+          "fen": "8/ppp5/8/PPP5/8/8/8/8 w - - 0 1",
+          "highlights": ["b6"],
+          "orientation": "white",
+          "caption": "Pawn breakthrough! White plays 1.b6! If ...axb6 then 2.c6! bxc6 3.a6! and the a-pawn promotes. Two pawns are sacrificed so the third can break through. This is how pawn majorities win endgames.",
+          "size": 300
+        },
+        {
+          "type": "text",
+          "html": "<h3>The Outside Passed Pawn</h3><p>A passed pawn far from the main action is decisive. Your opponent's king must chase it, leaving your king free to devour pawns on the other side.</p>"
+        }
+      ]
+    },
+    {
+      "id": "5.5",
+      "title": "5.5 Pawn Endgames — King + Pawn(s) vs. King",
+      "blocks": [
+        {
+          "type": "text",
+          "html": "<h3>Key Squares</h3><p>For a White pawn on e5, the key squares are d6, e6, f6. If White's king can occupy any of these, the pawn promotes. For a pawn on e4, key squares are d5, e5, f5.</p><p><strong>The Rule:</strong> If the attacking king can reach a key square, the pawn promotes and wins. If the defending king prevents this, it's a draw.</p><h3>The Trebuchet (Mutual Zugzwang)</h3><p>A position where whoever moves LOSES. Recognize these — they're common in pawn endgames.</p>"
+        },
+        {
+          "type": "board",
+          "fen": "8/3k4/8/3PK3/8/8/8/8 w - - 0 1",
+          "highlights": ["d6", "e6", "f6", "d5", "e5"],
+          "orientation": "white",
+          "caption": "White pawn on e5, king on d5. Key squares: d6, e6, f6. White to move: 1.Kd6! reaches a key square — the pawn will promote. Black to move: 1...Kd8 2.Kd6 Ke8 3.e6 Kd8 4.e7+ Ke8 — and now White must avoid 5.Ke6 stalemate.",
+          "size": 300
+        }
+      ]
+    },
+    {
+      "id": "5.6",
+      "title": "5.6 Rook Endgames — The Most Common Endgame",
+      "blocks": [
+        {
+          "type": "text",
+          "html": "<h3>The Lucena Position (Winning)</h3><p>When your king is on the promotion square and pawn on the 7th rank, use \"building a bridge\" — the rook shields the king from checks so the pawn can promote.</p><h3>The Philidor Position (Defending)</h3><p>The defender's rook stays on the 3rd rank, preventing the enemy king from advancing. Once the pawn reaches the 6th rank, the rook drops back for endless checks.</p><p><strong>Key Rule:</strong> In rook endgames, the rook belongs BEHIND the passed pawn — yours or your opponent's.</p>"
+        }
+      ]
+    },
+    {
+      "id": "5.7",
+      "title": "5.7 Practical Endgame Advice",
+      "blocks": [
+        {
+          "type": "text",
+          "html": "<h3>When Winning</h3><ol><li><strong>Trade pieces, not pawns.</strong> Fewer pieces = simpler = less chance to blunder.</li><li><strong>Don't rush.</strong> Time is on your side.</li><li><strong>Beware stalemate.</strong> When opponent has only a king, every move must give them a legal move.</li><li><strong>Centralize your king.</strong> In the endgame, a centralized king is worth more than a rook.</li></ol><h3>When Losing</h3><ol><li><strong>Don't trade pawns.</strong> Fewer pawns = fewer chances for counterplay.</li><li><strong>Keep pieces on.</strong> More complexity = more chances they blunder.</li><li><strong>Look for stalemate tricks.</strong></li><li><strong>Create a passed pawn.</strong> Your only chance for counterplay.</li></ol><h3>The 50-Move Rule</h3><p>If 50 moves pass without a pawn move or capture, either player can claim a draw. Practice K+Q vs K and K+R vs K so you win within 50 moves!</p>"
+        }
+      ]
+    }
+  ],
+  "checkpoint": "Can you checkmate with K+Q vs K and K+R vs K without thinking? Do you understand opposition and the square rule? Can you win a won endgame instead of drawing it? If yes, proceed to Chapter 6.",
+  "summary": "<table><tr><th>Endgame Skill</th><th>Benchmark</th></tr><tr><td>K+Q vs K</td><td>Win in under 20 seconds</td></tr><tr><td>K+R vs K</td><td>Win in under 30 seconds</td></tr><tr><td>Opposition</td><td>Escort a pawn to promotion</td></tr><tr><td>Square Rule</td><td>Know instantly if king catches pawn</td></tr><tr><td>Passed Pawns</td><td>Create them, push them, win</td></tr><tr><td>Simplify</td><td>Trade pieces (not pawns) when ahead</td></tr></table>"
+}

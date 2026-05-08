@@ -1,0 +1,475 @@
+{
+  "schemaVersion": "2.0.0",
+  "bookId": "survival-chess",
+  "chapterId": "06-basic-queen-rook-checkmates",
+  "title": "Basic Checkmates With Queen And Rook",
+  "subtitle": "Turn a winning position into checkmate.",
+  "eloRange": "300-700",
+  "requiredTier": "free",
+  "estimatedMinutes": 28,
+  "learningObjectives": [
+    "Use the queen or rook to cut off the king.",
+    "Bring your king close enough to support mate.",
+    "Deliver a final checking move."
+  ],
+  "sections": [
+    {
+      "id": "mate-conversion",
+      "title": "Win The Won Game",
+      "blocks": [
+        {
+          "id": "b02-c06-p01",
+          "type": "prose",
+          "body_md": "A big material advantage is not enough. You still need checkmate. Queen and rook mates work by making a box, bringing the king closer, and giving the final check."
+        },
+        {
+          "id": "b02-c06-d01",
+          "type": "board_diagram",
+          "title": "The queen builds a box",
+          "fen": "6k1/8/6K1/8/8/8/8/5Q2 w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "f1",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "g6",
+              "colorRole": "safe"
+            },
+            {
+              "square": "g8",
+              "colorRole": "target"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "f1",
+              "to": "f8",
+              "colorRole": "candidate"
+            }
+          ],
+          "caption_md": "The queen can cut files and ranks while the king gives support.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "f1",
+              "piece": "white_queen"
+            },
+            {
+              "type": "piece_on",
+              "square": "g6",
+              "piece": "white_king"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "g8"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "f1",
+              "to": "f8"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c06-d01-queen-box.png",
+            "hash": "5fa0ea668449a8c1ffc35c691ed08473dcfe7c19667cf977be3d1a5c37dbe9c4"
+          }
+        },
+        {
+          "id": "b02-c06-d02",
+          "type": "board_diagram",
+          "title": "The rook checks along a rank",
+          "fen": "6k1/8/6K1/8/8/8/8/R7 w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "a1",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "a8",
+              "colorRole": "check"
+            },
+            {
+              "square": "g8",
+              "colorRole": "check"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "a1",
+              "to": "a8",
+              "colorRole": "check"
+            }
+          ],
+          "caption_md": "The rook can travel to a8 and check across the 8th rank.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "a1",
+              "piece": "white_rook"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "a8"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "a1",
+              "to": "a8"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c06-d02-rook-rank.png",
+            "hash": "a4197a464e49a7f52a959fc17aaaae477d716cc0d262653704f8074dc67159ab"
+          }
+        },
+        {
+          "id": "b02-c06-d03",
+          "type": "board_diagram",
+          "title": "The king takes escape squares",
+          "fen": "6k1/8/6K1/8/8/8/8/R7 w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "g6",
+              "colorRole": "safe"
+            },
+            {
+              "square": "g7",
+              "colorRole": "target"
+            },
+            {
+              "square": "h7",
+              "colorRole": "target"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "g6",
+              "to": "g7",
+              "colorRole": "safe"
+            },
+            {
+              "from": "g6",
+              "to": "h7",
+              "colorRole": "safe"
+            }
+          ],
+          "caption_md": "The king on g6 controls g7 and h7, so the enemy king has fewer exits.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "g6",
+              "piece": "white_king"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "g7"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "h7"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c06-d03-king-support.png",
+            "hash": "fce4636d80512806e0dd83cda5c2c161a9c34ab0305c6a9553eb9c863a3da3eb"
+          }
+        },
+        {
+          "id": "b02-c06-d04",
+          "type": "board_diagram",
+          "title": "Final rook mate pattern",
+          "fen": "6k1/8/6K1/8/8/8/8/R7 w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "a1",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "a8",
+              "colorRole": "best"
+            },
+            {
+              "square": "g8",
+              "colorRole": "check"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "a1",
+              "to": "a8",
+              "colorRole": "best"
+            }
+          ],
+          "caption_md": "Rook to a8 is the final checking move in this pattern.",
+          "assertions": [
+            {
+              "type": "highlight_exists",
+              "square": "a8"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "g8"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "a1",
+              "to": "a8"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c06-d04-final-rook-mate.png",
+            "hash": "f17c414335ee645337f196c5ee24e51eea32ab7da684572d2a9776505457b47e"
+          }
+        },
+        {
+          "id": "b02-c06-d05",
+          "type": "board_diagram",
+          "title": "Queen mate uses the same idea",
+          "fen": "7k/8/6K1/8/8/8/8/5Q2 w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "f1",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "f8",
+              "colorRole": "best"
+            },
+            {
+              "square": "h8",
+              "colorRole": "check"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "f1",
+              "to": "f8",
+              "colorRole": "best"
+            }
+          ],
+          "caption_md": "The queen should cut the king while your own king guards escape.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "f1",
+              "piece": "white_queen"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "f8"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "f1",
+              "to": "f8"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c06-d05-queen-final-line.png",
+            "hash": "e503619902f3452ba36d6c3892d75c7d9dc03953a9932df693f08b3e159da9cc"
+          }
+        },
+        {
+          "id": "b02-c06-g01",
+          "type": "guided_move",
+          "title": "Deliver rook mate",
+          "fen": "6k1/8/6K1/8/8/8/8/R7 w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "a1",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "a8",
+              "colorRole": "best"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "a1",
+              "to": "a8",
+              "colorRole": "best"
+            }
+          ],
+          "caption_md": "",
+          "assertions": [
+            {
+              "type": "legal_move",
+              "move": "a1a8"
+            },
+            {
+              "type": "piece_on",
+              "square": "a1",
+              "piece": "white_rook"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "a8"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "a1",
+              "to": "a8"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c06-g01-rook-a8.png",
+            "hash": "6df86f814dc15522f8d02a6f658057cc8a36b83f6c49ff20b85260cb25326726"
+          },
+          "prompt_md": "Move the rook from a1 to a8.",
+          "acceptedMoves": [
+            "a1a8"
+          ],
+          "successMessage": "Correct. You found the safe survival move.",
+          "failureMessage": "Pause and scan checks, captures, and threats again."
+        },
+        {
+          "id": "b02-c06-m01",
+          "type": "mistake_refutation",
+          "title": "Common mistake: check without a box",
+          "fen": "6k1/8/8/8/8/8/8/R5K1 w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "a1",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "g1",
+              "colorRole": "safe"
+            },
+            {
+              "square": "g8",
+              "colorRole": "target"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "a1",
+              "to": "a8",
+              "colorRole": "check"
+            }
+          ],
+          "caption_md": "The rook checks, but the white king is too far to control escape squares.",
+          "assertions": [
+            {
+              "type": "highlight_exists",
+              "square": "g8"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "a1",
+              "to": "a8"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c06-m01-checking-too-soon.png",
+            "hash": "895cc5b7efedff7aed20800fe65c3513c1b87aef5a632fef706b457cb83961de"
+          },
+          "body_md": "Random checks let the king run. First make a box and bring support."
+        }
+      ]
+    }
+  ],
+  "checkpoint": {
+    "id": "b02-c06-checkpoint",
+    "title": "Chapter Checkpoint",
+    "summary_md": "Answer without guessing. The goal is a repeatable survival habit, not a lucky move.",
+    "blocks": [
+      {
+        "id": "b02-c06-q01",
+        "type": "quiz",
+        "title": "Queen and rook mates usually need:",
+        "question_md": "Queen and rook mates usually need:",
+        "options": [
+          {
+            "id": "a",
+            "label": "A box and king support",
+            "isCorrect": true
+          },
+          {
+            "id": "b",
+            "label": "Only random checks",
+            "isCorrect": false
+          },
+          {
+            "id": "c",
+            "label": "No king",
+            "isCorrect": false
+          }
+        ]
+      },
+      {
+        "id": "b02-c06-q02",
+        "type": "quiz",
+        "title": "The final mating move must give:",
+        "question_md": "The final mating move must give:",
+        "options": [
+          {
+            "id": "a",
+            "label": "Check",
+            "isCorrect": true
+          },
+          {
+            "id": "b",
+            "label": "A draw offer",
+            "isCorrect": false
+          },
+          {
+            "id": "c",
+            "label": "A pawn value",
+            "isCorrect": false
+          }
+        ]
+      },
+      {
+        "id": "b02-c06-q03",
+        "type": "quiz",
+        "title": "Your king helps mate by:",
+        "question_md": "Your king helps mate by:",
+        "options": [
+          {
+            "id": "a",
+            "label": "Controlling escape squares",
+            "isCorrect": true
+          },
+          {
+            "id": "b",
+            "label": "Standing far away forever",
+            "isCorrect": false
+          },
+          {
+            "id": "c",
+            "label": "Leaving the board",
+            "isCorrect": false
+          }
+        ]
+      }
+    ]
+  },
+  "reviewAssertions": [
+    {
+      "type": "minimum_board_diagrams",
+      "value": 5
+    },
+    {
+      "type": "minimum_guided_moves",
+      "value": 1
+    },
+    {
+      "type": "minimum_quizzes",
+      "value": 3
+    },
+    {
+      "type": "tier_allowed",
+      "value": "free"
+    }
+  ]
+}

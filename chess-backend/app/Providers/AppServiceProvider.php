@@ -14,7 +14,14 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\RateLimiter;
 use App\Models\Game;
+use App\Models\TacticalPuzzleAttempt;
+use App\Models\User;
 use App\Observers\GameObserver;
+use App\Observers\TacticalPuzzleAttemptObserver;
+use App\Observers\UserReferralObserver;
+use App\Events\GameEndedEvent;
+use App\Listeners\RecordReferralActivityOnGameEnd;
+use Illuminate\Support\Facades\Event;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -86,6 +93,12 @@ class AppServiceProvider extends ServiceProvider
 
         // Register model observers
         Game::observe(GameObserver::class);
+
+        // Ambassador-program observers + listeners — fire activity milestones
+        // (₹2 / ₹3 / ₹5) for referred users.
+        User::observe(UserReferralObserver::class);
+        TacticalPuzzleAttempt::observe(TacticalPuzzleAttemptObserver::class);
+        Event::listen(GameEndedEvent::class, RecordReferralActivityOnGameEnd::class);
 
         // Register custom validation rules
         $this->registerCustomValidationRules();

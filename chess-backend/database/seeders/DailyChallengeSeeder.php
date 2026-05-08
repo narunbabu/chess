@@ -31,16 +31,22 @@ class DailyChallengeSeeder extends Seeder
         foreach ($puzzles as $i => $puzzle) {
             $date = $startDate->copy()->addDays($i)->toDateString();
 
-            // Skip if challenge already exists for this date
-            if (DailyChallenge::where('date', $date)->exists()) {
+            // Seed the base free track; paid tracks are generated from this puzzle pool.
+            if (DailyChallenge::where('date', $date)->where('track_slug', DailyChallenge::DEFAULT_TRACK)->exists()) {
                 $skipped++;
                 continue;
             }
 
+            $track = DailyChallenge::track(DailyChallenge::DEFAULT_TRACK);
+
             DailyChallenge::create([
                 'date' => $date,
+                'track_slug' => $track['slug'],
+                'required_tier' => $track['required_tier'],
                 'challenge_type' => $puzzle['type'],
                 'skill_tier' => $puzzle['tier'],
+                'skill_band' => DailyChallenge::defaultSkillBandForTier($puzzle['tier']),
+                'track_label' => $track['label'],
                 'challenge_data' => [
                     'fen' => $puzzle['fen'],
                     'solution' => $puzzle['solution'],

@@ -1,0 +1,473 @@
+{
+  "schemaVersion": "2.0.0",
+  "bookId": "beginner-board-rules",
+  "chapterId": "08-check-and-escape",
+  "title": "Check And Escaping Check",
+  "subtitle": "When the king is attacked, the next move must answer it.",
+  "eloRange": "0-300",
+  "requiredTier": "free",
+  "estimatedMinutes": 28,
+  "learningObjectives": [
+    "Recognize when a king is in check.",
+    "Escape check by moving the king.",
+    "Escape check by blocking the attack.",
+    "Escape check by capturing the checking piece.",
+    "Reject moves that ignore check."
+  ],
+  "sections": [
+    {
+      "id": "what-is-check",
+      "title": "A Direct Attack On The King",
+      "blocks": [
+        {
+          "id": "b01-c08-p01",
+          "type": "prose",
+          "body_md": "Check means the king is under attack. When your king is in check, you do not get to play any move you like. Your move must make the king safe."
+        },
+        {
+          "id": "b01-c08-d01",
+          "type": "board_diagram",
+          "title": "The rook gives check",
+          "fen": "4r2k/8/8/8/8/8/8/4K3 w - - 0 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "e8",
+              "to": "e1",
+              "colorRole": "check"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "e1",
+              "colorRole": "check"
+            }
+          ],
+          "caption_md": "The rook on e8 attacks the king on e1 along the open e-file.",
+          "assertions": [
+            {
+              "type": "side_to_move",
+              "value": "white"
+            },
+            {
+              "type": "piece_on",
+              "square": "e1",
+              "piece": "white_king"
+            },
+            {
+              "type": "piece_on",
+              "square": "e8",
+              "piece": "black_rook"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "e8",
+              "to": "e1"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c08-d01-rook-check-e-file.png",
+            "hash": "b90ded14f9846bc0acc59adff5a1b36fe05de7c1fd9a5c875b27279b5aaa03ed"
+          }
+        },
+        {
+          "id": "b01-c08-d02",
+          "type": "board_diagram",
+          "title": "Escape by moving the king",
+          "fen": "4r2k/8/8/8/8/8/8/4K3 w - - 0 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "e1",
+              "to": "f1",
+              "colorRole": "best"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "f1",
+              "colorRole": "best"
+            },
+            {
+              "square": "e1",
+              "colorRole": "check"
+            }
+          ],
+          "caption_md": "White can move the king from e1 to f1 to leave the rook line.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "e1",
+              "piece": "white_king"
+            },
+            {
+              "type": "legal_move",
+              "move": "e1f1"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "e1",
+              "to": "f1"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c08-d02-escape-king-move.png",
+            "hash": "ae58b0c2b2ed62fe7002e2a3d9840af9ba77dfeb12421895ddbcef5ad434bf4b"
+          }
+        }
+      ]
+    },
+    {
+      "id": "three-escapes",
+      "title": "Three Ways To Escape",
+      "blocks": [
+        {
+          "id": "b01-c08-p02",
+          "type": "prose",
+          "body_md": "There are three normal ways to answer check: move the king, block the line, or capture the checking piece. Some checks allow only one of these."
+        },
+        {
+          "id": "b01-c08-d03",
+          "type": "board_diagram",
+          "title": "Escape by blocking",
+          "fen": "4r2k/8/8/8/8/3B4/8/4K3 w - - 0 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "d3",
+              "to": "e2",
+              "colorRole": "best"
+            },
+            {
+              "from": "e8",
+              "to": "e1",
+              "colorRole": "check"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "e2",
+              "colorRole": "best"
+            },
+            {
+              "square": "e1",
+              "colorRole": "check"
+            }
+          ],
+          "caption_md": "The bishop can move to e2 and block the rook line.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "e1",
+              "piece": "white_king"
+            },
+            {
+              "type": "piece_on",
+              "square": "d3",
+              "piece": "white_bishop"
+            },
+            {
+              "type": "legal_move",
+              "move": "d3e2"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c08-d03-escape-by-blocking.png",
+            "hash": "97bc5144bb5b465a5f6ee49cb0e308d34ade2ab16f0357992a2aeff084af3f6c"
+          }
+        },
+        {
+          "id": "b01-c08-d04",
+          "type": "board_diagram",
+          "title": "Escape by capturing",
+          "fen": "7k/8/8/8/8/8/4r3/4K3 w - - 0 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "e1",
+              "to": "e2",
+              "colorRole": "capture"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "e2",
+              "colorRole": "capture"
+            }
+          ],
+          "caption_md": "If the checking rook is unprotected, the king can capture it on e2.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "e1",
+              "piece": "white_king"
+            },
+            {
+              "type": "piece_on",
+              "square": "e2",
+              "piece": "black_rook"
+            },
+            {
+              "type": "legal_move",
+              "move": "e1e2"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c08-d04-escape-by-capture.png",
+            "hash": "8fa7a64b11a77b76ddf7bfdcffc950333e060efd41c011c25775e0875959bf6b"
+          }
+        },
+        {
+          "id": "b01-c08-d05",
+          "type": "board_diagram",
+          "title": "You may not ignore check",
+          "fen": "4r2k/8/8/8/8/8/P7/4K3 w - - 0 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "a2",
+              "to": "a3",
+              "colorRole": "wrong"
+            },
+            {
+              "from": "e8",
+              "to": "e1",
+              "colorRole": "check"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "e1",
+              "colorRole": "check"
+            },
+            {
+              "square": "a3",
+              "colorRole": "wrong"
+            }
+          ],
+          "caption_md": "The move a2 to a3 does not answer the check, so it is illegal here.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "e1",
+              "piece": "white_king"
+            },
+            {
+              "type": "piece_on",
+              "square": "a2",
+              "piece": "white_pawn"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "e8",
+              "to": "e1"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c08-d05-cannot-ignore-check.png",
+            "hash": "56a44ffad60f227450dafbfbc9fd1bff61d4a0c34ca4aaf4399a4b604ea02466"
+          }
+        },
+        {
+          "id": "b01-c08-g01",
+          "type": "guided_move",
+          "title": "Move out of check",
+          "fen": "4r2k/8/8/8/8/8/8/4K3 w - - 0 1",
+          "orientation": "white",
+          "prompt_md": "White is in check from the rook on e8. Move the king from e1 to f1.",
+          "acceptedMoves": [
+            "e1f1"
+          ],
+          "successMessage": "Correct. The king moved out of the rook line.",
+          "failureMessage": "The king must leave the e-file. Move e1 to f1.",
+          "arrows": [
+            {
+              "from": "e1",
+              "to": "f1",
+              "colorRole": "best"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "e1",
+              "colorRole": "check"
+            },
+            {
+              "square": "f1",
+              "colorRole": "best"
+            }
+          ],
+          "assertions": [
+            {
+              "type": "legal_move",
+              "move": "e1f1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "check-mistake",
+      "title": "Common Mistake",
+      "blocks": [
+        {
+          "id": "b01-c08-m01",
+          "type": "mistake_refutation",
+          "title": "Common mistake: playing a normal move in check",
+          "fen": "4r2k/8/8/8/8/8/P7/4K3 w - - 0 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "a2",
+              "to": "a3",
+              "colorRole": "wrong"
+            },
+            {
+              "from": "e8",
+              "to": "e1",
+              "colorRole": "check"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "e1",
+              "colorRole": "check"
+            },
+            {
+              "square": "a3",
+              "colorRole": "wrong"
+            }
+          ],
+          "body_md": "The pawn move a2 to a3 may be legal in a quiet position, but not while the king on e1 is in check. Check must be answered immediately.",
+          "caption_md": "A move that ignores check is not legal.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "e1",
+              "piece": "white_king"
+            },
+            {
+              "type": "piece_on",
+              "square": "e8",
+              "piece": "black_rook"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "a2",
+              "to": "a3"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c08-m01-ignore-check.png",
+            "hash": "56a44ffad60f227450dafbfbc9fd1bff61d4a0c34ca4aaf4399a4b604ea02466"
+          }
+        }
+      ]
+    }
+  ],
+  "checkpoint": {
+    "id": "b01-c08-checkpoint",
+    "type": "checkpoint",
+    "title": "Chapter Checkpoint",
+    "requiredScore": 3,
+    "summary_md": "Pass this chapter when you can identify check and choose a legal escape.",
+    "blocks": [
+      {
+        "id": "b01-c08-q01",
+        "type": "quiz",
+        "title": "What is check?",
+        "question_md": "Check means:",
+        "options": [
+          {
+            "id": "a",
+            "label": "The king is attacked",
+            "isCorrect": true,
+            "feedback": "Correct."
+          },
+          {
+            "id": "b",
+            "label": "A queen was captured",
+            "isCorrect": false,
+            "feedback": "Check is about the king."
+          },
+          {
+            "id": "c",
+            "label": "A pawn promoted",
+            "isCorrect": false,
+            "feedback": "Promotion is a different rule."
+          }
+        ]
+      },
+      {
+        "id": "b01-c08-q02",
+        "type": "quiz",
+        "title": "What must you do in check?",
+        "question_md": "When your king is in check, your next move must:",
+        "options": [
+          {
+            "id": "a",
+            "label": "Make the king safe",
+            "isCorrect": true,
+            "feedback": "Correct."
+          },
+          {
+            "id": "b",
+            "label": "Capture any piece",
+            "isCorrect": false,
+            "feedback": "Only moves that answer the check are allowed."
+          },
+          {
+            "id": "c",
+            "label": "Move a pawn",
+            "isCorrect": false,
+            "feedback": "Only if the pawn move answers check."
+          }
+        ]
+      },
+      {
+        "id": "b01-c08-q03",
+        "type": "quiz",
+        "title": "Which is not a normal escape from check?",
+        "question_md": "Which answer does not normally escape check?",
+        "options": [
+          {
+            "id": "a",
+            "label": "Ignore it and attack elsewhere",
+            "isCorrect": true,
+            "feedback": "Correct."
+          },
+          {
+            "id": "b",
+            "label": "Move the king",
+            "isCorrect": false,
+            "feedback": "That can escape check."
+          },
+          {
+            "id": "c",
+            "label": "Block the line",
+            "isCorrect": false,
+            "feedback": "That can escape line-piece checks."
+          }
+        ]
+      }
+    ]
+  },
+  "reviewAssertions": [
+    {
+      "type": "minimum_board_diagrams",
+      "value": 5
+    },
+    {
+      "type": "minimum_guided_moves",
+      "value": 1
+    },
+    {
+      "type": "minimum_quizzes",
+      "value": 3
+    },
+    {
+      "type": "tier_allowed",
+      "value": "free"
+    }
+  ]
+}

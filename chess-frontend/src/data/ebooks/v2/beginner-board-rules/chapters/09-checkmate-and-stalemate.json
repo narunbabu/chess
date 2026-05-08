@@ -1,0 +1,474 @@
+{
+  "schemaVersion": "2.0.0",
+  "bookId": "beginner-board-rules",
+  "chapterId": "09-checkmate-and-stalemate",
+  "title": "Checkmate And Stalemate",
+  "subtitle": "Winning requires mate, not just trapping the king.",
+  "eloRange": "0-300",
+  "requiredTier": "free",
+  "estimatedMinutes": 30,
+  "learningObjectives": [
+    "Define checkmate as check with no legal escape.",
+    "Recognize stalemate as no legal move but no check.",
+    "Avoid stalemating a winning position.",
+    "Deliver a simple queen-assisted mate."
+  ],
+  "sections": [
+    {
+      "id": "mate-meaning",
+      "title": "Check Plus No Escape",
+      "blocks": [
+        {
+          "id": "b01-c09-p01",
+          "type": "prose",
+          "body_md": "Checkmate means the king is in check and there is no legal escape. If the king is not in check, the position is not checkmate."
+        },
+        {
+          "id": "b01-c09-d01",
+          "type": "board_diagram",
+          "title": "Queen-supported checkmate",
+          "fen": "7k/6Q1/6K1/8/8/8/8/8 b - - 0 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "g7",
+              "to": "h8",
+              "colorRole": "check"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "h8",
+              "colorRole": "check"
+            },
+            {
+              "square": "g7",
+              "colorRole": "best"
+            },
+            {
+              "square": "g6",
+              "colorRole": "safe"
+            }
+          ],
+          "caption_md": "The queen checks h8, and the king on g6 supports the queen. Black has no escape.",
+          "assertions": [
+            {
+              "type": "side_to_move",
+              "value": "black"
+            },
+            {
+              "type": "piece_on",
+              "square": "h8",
+              "piece": "black_king"
+            },
+            {
+              "type": "piece_on",
+              "square": "g7",
+              "piece": "white_queen"
+            },
+            {
+              "type": "piece_on",
+              "square": "g6",
+              "piece": "white_king"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c09-d01-queen-supported-mate.png",
+            "hash": "21430e4d20a7b424bad8a538c63b2bfa43fc97856dab24ff5f550bda220cbefb"
+          }
+        },
+        {
+          "id": "b01-c09-d02",
+          "type": "board_diagram",
+          "title": "Check but not mate",
+          "fen": "7k/6Q1/8/8/8/8/8/6K1 b - - 0 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "g7",
+              "to": "h8",
+              "colorRole": "check"
+            },
+            {
+              "from": "h8",
+              "to": "g7",
+              "colorRole": "capture"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "h8",
+              "colorRole": "check"
+            },
+            {
+              "square": "g7",
+              "colorRole": "capture"
+            }
+          ],
+          "caption_md": "This is check, but the queen is not protected. Black can capture it.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "h8",
+              "piece": "black_king"
+            },
+            {
+              "type": "piece_on",
+              "square": "g7",
+              "piece": "white_queen"
+            },
+            {
+              "type": "legal_move",
+              "move": "h8g7"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c09-d02-check-not-mate.png",
+            "hash": "5c8b9324e67c3cd10445a0f43087a57a0a190c72a96392d3134032dcf982265b"
+          }
+        }
+      ]
+    },
+    {
+      "id": "stalemate",
+      "title": "Stalemate Is Not A Win",
+      "blocks": [
+        {
+          "id": "b01-c09-p02",
+          "type": "prose",
+          "body_md": "Stalemate happens when the player to move is not in check but has no legal move. Stalemate is a draw. Beginners lose many winning positions by forgetting this difference."
+        },
+        {
+          "id": "b01-c09-d03",
+          "type": "board_diagram",
+          "title": "Stalemate pattern",
+          "fen": "7k/5Q2/6K1/8/8/8/8/8 b - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "h8",
+              "colorRole": "safe"
+            },
+            {
+              "square": "g8",
+              "colorRole": "wrong"
+            },
+            {
+              "square": "h7",
+              "colorRole": "wrong"
+            }
+          ],
+          "caption_md": "Black is not in check, but every black king move is controlled. This is stalemate, not checkmate.",
+          "assertions": [
+            {
+              "type": "side_to_move",
+              "value": "black"
+            },
+            {
+              "type": "piece_on",
+              "square": "h8",
+              "piece": "black_king"
+            },
+            {
+              "type": "piece_on",
+              "square": "f7",
+              "piece": "white_queen"
+            },
+            {
+              "type": "piece_on",
+              "square": "g6",
+              "piece": "white_king"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c09-d03-stalemate-pattern.png",
+            "hash": "db56ce6b07951cd5a11b7b07cdc16827efb239f76095c4b78ded856e6ceb7997"
+          }
+        },
+        {
+          "id": "b01-c09-d04",
+          "type": "board_diagram",
+          "title": "The missing check",
+          "fen": "7k/5Q2/6K1/8/8/8/8/8 b - - 0 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "f7",
+              "to": "h7",
+              "colorRole": "target"
+            },
+            {
+              "from": "f7",
+              "to": "g8",
+              "colorRole": "target"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "h8",
+              "colorRole": "safe"
+            }
+          ],
+          "caption_md": "The queen controls escape squares, but she does not attack h8. No check means no checkmate.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "h8",
+              "piece": "black_king"
+            },
+            {
+              "type": "piece_on",
+              "square": "f7",
+              "piece": "white_queen"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "f7",
+              "to": "g8"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c09-d04-stalemate-missing-check.png",
+            "hash": "cffe0aa3737e0dc769ee863a6220ee375f8f744fb839cb293e88684cbaa0173e"
+          }
+        },
+        {
+          "id": "b01-c09-d05",
+          "type": "board_diagram",
+          "title": "Mate move available",
+          "fen": "7k/8/6K1/8/8/8/8/Q7 w - - 0 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "a1",
+              "to": "g7",
+              "colorRole": "best"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "a1",
+              "colorRole": "lastMove"
+            },
+            {
+              "square": "g7",
+              "colorRole": "best"
+            }
+          ],
+          "caption_md": "White can play Qa1 to g7, giving a protected queen checkmate.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "a1",
+              "piece": "white_queen"
+            },
+            {
+              "type": "piece_on",
+              "square": "g6",
+              "piece": "white_king"
+            },
+            {
+              "type": "legal_move",
+              "move": "a1g7"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c09-d05-mate-move-available.png",
+            "hash": "0a9d0d259821bc567a2466848d24109fe66ed4d1f4d1644dd3548be49f7b5987"
+          }
+        },
+        {
+          "id": "b01-c09-g01",
+          "type": "guided_move",
+          "title": "Deliver queen-supported mate",
+          "fen": "7k/8/6K1/8/8/8/8/Q7 w - - 0 1",
+          "orientation": "white",
+          "prompt_md": "Move the queen from a1 to g7 to give checkmate.",
+          "acceptedMoves": [
+            "a1g7"
+          ],
+          "successMessage": "Correct. The queen gives check and the king supports her.",
+          "failureMessage": "Use the queen on a1 and move along the diagonal to g7.",
+          "arrows": [
+            {
+              "from": "a1",
+              "to": "g7",
+              "colorRole": "best"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "a1",
+              "colorRole": "lastMove"
+            },
+            {
+              "square": "g7",
+              "colorRole": "best"
+            }
+          ],
+          "assertions": [
+            {
+              "type": "legal_move",
+              "move": "a1g7"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mate-mistake",
+      "title": "Common Mistake",
+      "blocks": [
+        {
+          "id": "b01-c09-m01",
+          "type": "mistake_refutation",
+          "title": "Common mistake: stalemate instead of mate",
+          "fen": "7k/5Q2/6K1/8/8/8/8/8 b - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "h8",
+              "colorRole": "safe"
+            },
+            {
+              "square": "g8",
+              "colorRole": "wrong"
+            },
+            {
+              "square": "h7",
+              "colorRole": "wrong"
+            }
+          ],
+          "body_md": "This looks winning because the king is trapped, but the black king is not in check. Trapped without check is stalemate, so the game is drawn.",
+          "caption_md": "No check on h8 means this is stalemate, not mate.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "h8",
+              "piece": "black_king"
+            },
+            {
+              "type": "piece_on",
+              "square": "f7",
+              "piece": "white_queen"
+            },
+            {
+              "type": "piece_on",
+              "square": "g6",
+              "piece": "white_king"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c09-m01-stalemate-not-mate.png",
+            "hash": "db56ce6b07951cd5a11b7b07cdc16827efb239f76095c4b78ded856e6ceb7997"
+          }
+        }
+      ]
+    }
+  ],
+  "checkpoint": {
+    "id": "b01-c09-checkpoint",
+    "type": "checkpoint",
+    "title": "Chapter Checkpoint",
+    "requiredScore": 3,
+    "summary_md": "Pass this chapter when you can explain the difference between checkmate and stalemate.",
+    "blocks": [
+      {
+        "id": "b01-c09-q01",
+        "type": "quiz",
+        "title": "What is checkmate?",
+        "question_md": "Checkmate means:",
+        "options": [
+          {
+            "id": "a",
+            "label": "The king is in check with no legal escape",
+            "isCorrect": true,
+            "feedback": "Correct."
+          },
+          {
+            "id": "b",
+            "label": "The king has no legal move but is not checked",
+            "isCorrect": false,
+            "feedback": "That is stalemate."
+          },
+          {
+            "id": "c",
+            "label": "The queen was captured",
+            "isCorrect": false,
+            "feedback": "Mate is about the king."
+          }
+        ]
+      },
+      {
+        "id": "b01-c09-q02",
+        "type": "quiz",
+        "title": "What is stalemate?",
+        "question_md": "Stalemate means:",
+        "options": [
+          {
+            "id": "a",
+            "label": "No legal move and no check",
+            "isCorrect": true,
+            "feedback": "Correct."
+          },
+          {
+            "id": "b",
+            "label": "Check with no escape",
+            "isCorrect": false,
+            "feedback": "That is checkmate."
+          },
+          {
+            "id": "c",
+            "label": "Both players have queens",
+            "isCorrect": false,
+            "feedback": "Material does not define stalemate."
+          }
+        ]
+      },
+      {
+        "id": "b01-c09-q03",
+        "type": "quiz",
+        "title": "Is stalemate a win?",
+        "question_md": "Stalemate is:",
+        "options": [
+          {
+            "id": "a",
+            "label": "A draw",
+            "isCorrect": true,
+            "feedback": "Correct."
+          },
+          {
+            "id": "b",
+            "label": "A win for the player with more pieces",
+            "isCorrect": false,
+            "feedback": "Stalemate is a draw."
+          },
+          {
+            "id": "c",
+            "label": "A checkmate",
+            "isCorrect": false,
+            "feedback": "The king is not in check."
+          }
+        ]
+      }
+    ]
+  },
+  "reviewAssertions": [
+    {
+      "type": "minimum_board_diagrams",
+      "value": 5
+    },
+    {
+      "type": "minimum_guided_moves",
+      "value": 1
+    },
+    {
+      "type": "minimum_quizzes",
+      "value": 3
+    },
+    {
+      "type": "tier_allowed",
+      "value": "free"
+    }
+  ]
+}

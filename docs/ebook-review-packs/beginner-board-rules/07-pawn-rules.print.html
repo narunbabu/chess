@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The First Chessboard: Pawn Moves, Captures, And Promotion</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+
+    body { font-family: Arial, sans-serif; color: #172018; font-size: 17px; margin: 0; background: #f7f7f2; line-height: 1.62; }
+    main { max-width: 900px; margin: 0 auto; padding: 40px 34px 60px; background: #fff; }
+    h1, h2, h3 { line-height: 1.2; color: #172018; }
+    h1 { font-size: 36px; margin: 0 0 8px; }
+    h2 { font-size: 25px; margin: 38px 0 16px; border-top: 1px solid #d8ddcf; padding-top: 24px; }
+    h3 { font-size: 20px; margin: 0 0 10px; }
+    p { margin: 0 0 16px; }
+    .meta { color: #536257; margin-bottom: 24px; }
+    .objectives { background: #eef4e7; border-left: 4px solid #81b64c; padding: 14px 18px; }
+    .block { break-inside: avoid; margin: 24px 0; }
+    .block + .block { margin-top: 30px; }
+    .diagram { width: min(100%, 560px); display: block; margin: 14px auto; border: 1px solid #d4dcc8; }
+    .caption { color: #536257; font-size: 15px; margin-top: 8px; }
+    .quiz-options { margin-top: 10px; }
+    .quiz-option { margin: 7px 0; }
+    @media print {
+      body { background: #fff; }
+      main { max-width: none; padding: 0; }
+      .block { page-break-inside: avoid; }
+    }
+  
+</style>
+</head>
+<body>
+<main>
+<h1>Pawn Moves, Captures, And Promotion</h1>
+<div class="meta">The First Chessboard | 0-300 | free</div>
+<p>Pawns are small pieces with the most special rules.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Move pawns one square forward.</li>
+<li>Use the two-square first move.</li>
+<li>Capture diagonally with pawns.</li>
+<li>Reject backward pawn moves.</li>
+<li>Understand promotion on the last rank.</li>
+</ul>
+</section>
+<h2>Forward Movement</h2>
+<section class="block" id="b01-c07-p01">
+<p>Pawns move forward, but they capture diagonally. White pawns move toward rank 8. Black pawns move toward rank 1.</p>
+</section>
+<section class="block" id="b01-c07-d01">
+<h3>White pawn one step</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c07-d01-pawn-one-step-e3.png" alt="White pawn one step">
+<div class="caption"><p>The white e-pawn can move one square from e2 to e3.</p></div>
+</section>
+<section class="block" id="b01-c07-d02">
+<h3>Two-square first move</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c07-d02-pawn-two-step-e4.png" alt="Two-square first move">
+<div class="caption"><p>From its starting square, the e-pawn can move two squares to e4 if the path is clear.</p></div>
+</section>
+<h2>Captures And Promotion</h2>
+<section class="block" id="b01-c07-p02">
+<p>A pawn does not capture straight ahead. It captures one square diagonally forward. If a pawn reaches the last rank, it promotes, usually to a queen.</p>
+</section>
+<section class="block" id="b01-c07-d03">
+<h3>Pawn captures diagonally</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c07-d03-pawn-diagonal-captures.png" alt="Pawn captures diagonally">
+<div class="caption"><p>The pawn on e3 can capture the enemy pawns on d4 or f4.</p></div>
+</section>
+<section class="block" id="b01-c07-d04">
+<h3>Pawns do not capture forward</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c07-d04-pawn-cannot-capture-forward.png" alt="Pawns do not capture forward">
+<div class="caption"><p>The pawn on e3 cannot capture the enemy pawn directly in front of it on e4.</p></div>
+</section>
+<section class="block" id="b01-c07-d05">
+<h3>Promotion square</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c07-d05-pawn-promotion-e8.png" alt="Promotion square">
+<div class="caption"><p>When the pawn moves from e7 to e8, it promotes. The usual choice is a queen.</p></div>
+</section>
+<section class="block" id="b01-c07-g01">
+<h3>Play the two-square pawn move</h3>
+<p>Move the White e-pawn from e2 to e4.</p>
+</section>
+<h2>Common Mistake</h2>
+<section class="block" id="b01-c07-m01">
+<h3>Common mistake: moving backward</h3>
+<p>A white pawn on e4 cannot move backward to e3. Pawns only move forward unless they are promoting or capturing diagonally forward.</p>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c07-m01-pawn-backward-move.png" alt="Common mistake: moving backward">
+<div class="caption"><p>Backward pawn moves are not legal.</p></div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b01-c07-q01">
+<h3>How does a white pawn move?</h3>
+<p>A white pawn normally moves:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Toward higher ranks</div>
+<div class="quiz-option">b. Backward toward rank 1</div>
+<div class="quiz-option">c. Sideways</div>
+</div>
+</section>
+<section class="block" id="b01-c07-q02">
+<h3>How does a pawn capture?</h3>
+<p>A pawn captures:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. One square diagonally forward</div>
+<div class="quiz-option">b. Straight forward</div>
+<div class="quiz-option">c. Like a knight</div>
+</div>
+</section>
+<section class="block" id="b01-c07-q03">
+<h3>What happens on the last rank?</h3>
+<p>A pawn that reaches the last rank:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Promotes</div>
+<div class="quiz-option">b. Disappears</div>
+<div class="quiz-option">c. Must become a king</div>
+</div>
+</section>
+</main>
+</body>
+</html>

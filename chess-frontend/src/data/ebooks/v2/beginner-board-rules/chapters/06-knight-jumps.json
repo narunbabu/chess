@@ -1,0 +1,510 @@
+{
+  "schemaVersion": "2.0.0",
+  "bookId": "beginner-board-rules",
+  "chapterId": "06-knight-jumps",
+  "title": "The Knight And Jumps",
+  "subtitle": "The knight is the only piece that jumps over blockers.",
+  "eloRange": "0-300",
+  "requiredTier": "free",
+  "estimatedMinutes": 24,
+  "learningObjectives": [
+    "Move a knight in an L shape.",
+    "List the knight moves from a center square.",
+    "Understand that knights jump over pieces but cannot land on friendly pieces.",
+    "Recognize that edge knights have fewer moves."
+  ],
+  "sections": [
+    {
+      "id": "knight-shape",
+      "title": "The L Shape",
+      "blocks": [
+        {
+          "id": "b01-c06-p01",
+          "type": "prose",
+          "body_md": "The knight moves in an L shape: two squares in one direction and one square sideways. It is the only piece that can jump over pieces."
+        },
+        {
+          "id": "b01-c06-d01",
+          "type": "board_diagram",
+          "title": "Knight moves from e4",
+          "fen": "k7/8/8/8/4N3/8/8/7K w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "c3",
+              "colorRole": "target"
+            },
+            {
+              "square": "c5",
+              "colorRole": "target"
+            },
+            {
+              "square": "d2",
+              "colorRole": "target"
+            },
+            {
+              "square": "d6",
+              "colorRole": "target"
+            },
+            {
+              "square": "f2",
+              "colorRole": "target"
+            },
+            {
+              "square": "f6",
+              "colorRole": "target"
+            },
+            {
+              "square": "g3",
+              "colorRole": "target"
+            },
+            {
+              "square": "g5",
+              "colorRole": "target"
+            }
+          ],
+          "caption_md": "A knight on e4 has up to eight landing squares.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "e4",
+              "piece": "white_knight"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "f6"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "c3"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c06-d01-knight-e4-eight-moves.png",
+            "hash": "8201066c7dbcd67e791d35651131fe9a64d0a3914de324b70afc4727aa053dee"
+          }
+        },
+        {
+          "id": "b01-c06-d02",
+          "type": "board_diagram",
+          "title": "The knight jumps over blockers",
+          "fen": "k7/8/3P1P2/2P1P1P1/3PNP2/2P1P1P1/3P1P2/7K w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "c3",
+              "colorRole": "safe"
+            },
+            {
+              "square": "c5",
+              "colorRole": "safe"
+            },
+            {
+              "square": "d2",
+              "colorRole": "safe"
+            },
+            {
+              "square": "d6",
+              "colorRole": "safe"
+            },
+            {
+              "square": "f2",
+              "colorRole": "safe"
+            },
+            {
+              "square": "f6",
+              "colorRole": "safe"
+            },
+            {
+              "square": "g3",
+              "colorRole": "safe"
+            },
+            {
+              "square": "g5",
+              "colorRole": "safe"
+            }
+          ],
+          "caption_md": "Even when surrounded, the knight on e4 can jump to its L-shaped landing squares.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "e4",
+              "piece": "white_knight"
+            },
+            {
+              "type": "piece_on",
+              "square": "e5",
+              "piece": "white_pawn"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "g5"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c06-d02-knight-jumps-blockers.png",
+            "hash": "80cc62bbb139c2962a2592c058e12d654bfa95a0369de0109ba08800e5594eb4"
+          }
+        }
+      ]
+    },
+    {
+      "id": "knight-starts",
+      "title": "Knights From The Starting Position",
+      "blocks": [
+        {
+          "id": "b01-c06-p02",
+          "type": "prose",
+          "body_md": "From the starting position, the knight is the first piece that can move without a pawn moving first. The knight jumps over the pawns."
+        },
+        {
+          "id": "b01-c06-d03",
+          "type": "board_diagram",
+          "title": "The b1 knight can jump",
+          "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "b1",
+              "to": "a3",
+              "colorRole": "candidate"
+            },
+            {
+              "from": "b1",
+              "to": "c3",
+              "colorRole": "best"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "b1",
+              "colorRole": "lastMove"
+            },
+            {
+              "square": "a3",
+              "colorRole": "safe"
+            },
+            {
+              "square": "c3",
+              "colorRole": "best"
+            }
+          ],
+          "caption_md": "The knight on b1 can jump to a3 or c3 at the start.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "b1",
+              "piece": "white_knight"
+            },
+            {
+              "type": "legal_move",
+              "move": "b1c3"
+            },
+            {
+              "type": "legal_move",
+              "move": "b1a3"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c06-d03-b1-knight-start.png",
+            "hash": "c641d9bf6c6f560e1bc460aaaa3642e7a1a8f9307ff9f1cd3441e0c7123cb331"
+          }
+        },
+        {
+          "id": "b01-c06-d04",
+          "type": "board_diagram",
+          "title": "A knight fork pattern",
+          "fen": "3k3r/5N2/8/8/8/8/8/7K w - - 0 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "f7",
+              "to": "d8",
+              "colorRole": "check"
+            },
+            {
+              "from": "f7",
+              "to": "h8",
+              "colorRole": "capture"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "d8",
+              "colorRole": "check"
+            },
+            {
+              "square": "h8",
+              "colorRole": "target"
+            }
+          ],
+          "caption_md": "A knight on f7 attacks the king on d8 and the rook on h8 at the same time.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "f7",
+              "piece": "white_knight"
+            },
+            {
+              "type": "piece_on",
+              "square": "d8",
+              "piece": "black_king"
+            },
+            {
+              "type": "piece_on",
+              "square": "h8",
+              "piece": "black_rook"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c06-d04-knight-fork-pattern.png",
+            "hash": "af412a2a6ae0d4fff8cb512407f0719e80c8533756a2bd2a7d1dbb4256652b49"
+          }
+        },
+        {
+          "id": "b01-c06-d05",
+          "type": "board_diagram",
+          "title": "Edge knights have fewer moves",
+          "fen": "k7/8/8/8/N7/8/8/7K w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "b6",
+              "colorRole": "target"
+            },
+            {
+              "square": "c5",
+              "colorRole": "target"
+            },
+            {
+              "square": "c3",
+              "colorRole": "target"
+            },
+            {
+              "square": "b2",
+              "colorRole": "target"
+            }
+          ],
+          "caption_md": "A knight on a4 has only four legal landing squares instead of eight.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "a4",
+              "piece": "white_knight"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "b6"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "c3"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c06-d05-edge-knight-fewer-moves.png",
+            "hash": "1f579288432c91df1bb098502e96b93a7389be3b7f4a4a97346bdb7831efb8d6"
+          }
+        },
+        {
+          "id": "b01-c06-g01",
+          "type": "guided_move",
+          "title": "Develop the knight to f3",
+          "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          "orientation": "white",
+          "prompt_md": "Move the knight from g1 to f3.",
+          "acceptedMoves": [
+            "g1f3"
+          ],
+          "successMessage": "Correct. The knight jumped over the pawns.",
+          "failureMessage": "Use the knight on g1 and land on f3.",
+          "arrows": [
+            {
+              "from": "g1",
+              "to": "f3",
+              "colorRole": "best"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "g1",
+              "colorRole": "lastMove"
+            },
+            {
+              "square": "f3",
+              "colorRole": "best"
+            }
+          ],
+          "assertions": [
+            {
+              "type": "legal_move",
+              "move": "g1f3"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "knight-mistake",
+      "title": "Common Mistake",
+      "blocks": [
+        {
+          "id": "b01-c06-m01",
+          "type": "mistake_refutation",
+          "title": "Common mistake: sliding the knight",
+          "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "g1",
+              "to": "g3",
+              "colorRole": "wrong"
+            },
+            {
+              "from": "g1",
+              "to": "f3",
+              "colorRole": "best"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "g3",
+              "colorRole": "wrong"
+            },
+            {
+              "square": "f3",
+              "colorRole": "best"
+            }
+          ],
+          "body_md": "A knight on g1 cannot slide to g3. Knights do not move straight; they move in an L shape.",
+          "caption_md": "g1 to f3 is a knight move. g1 to g3 is not.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "g1",
+              "piece": "white_knight"
+            },
+            {
+              "type": "legal_move",
+              "move": "g1f3"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "g1",
+              "to": "g3"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c06-m01-knight-sliding-mistake.png",
+            "hash": "00e6633829b9df274777ac33243470bbecee46ecd08213f7a79c2aa13da4fb52"
+          }
+        }
+      ]
+    }
+  ],
+  "checkpoint": {
+    "id": "b01-c06-checkpoint",
+    "type": "checkpoint",
+    "title": "Chapter Checkpoint",
+    "requiredScore": 3,
+    "summary_md": "Pass this chapter when you can name the knight L shape and find its legal landing squares.",
+    "blocks": [
+      {
+        "id": "b01-c06-q01",
+        "type": "quiz",
+        "title": "What shape is a knight move?",
+        "question_md": "A knight moves:",
+        "options": [
+          {
+            "id": "a",
+            "label": "In an L shape",
+            "isCorrect": true,
+            "feedback": "Correct."
+          },
+          {
+            "id": "b",
+            "label": "Only diagonally",
+            "isCorrect": false,
+            "feedback": "That is a bishop."
+          },
+          {
+            "id": "c",
+            "label": "Only one square",
+            "isCorrect": false,
+            "feedback": "That is the king."
+          }
+        ]
+      },
+      {
+        "id": "b01-c06-q02",
+        "type": "quiz",
+        "title": "Can knights jump?",
+        "question_md": "A knight can jump over pieces:",
+        "options": [
+          {
+            "id": "a",
+            "label": "Yes",
+            "isCorrect": true,
+            "feedback": "Correct."
+          },
+          {
+            "id": "b",
+            "label": "No",
+            "isCorrect": false,
+            "feedback": "The knight is the jumping piece."
+          },
+          {
+            "id": "c",
+            "label": "Only over pawns",
+            "isCorrect": false,
+            "feedback": "Knights can jump over any pieces."
+          }
+        ]
+      },
+      {
+        "id": "b01-c06-q03",
+        "type": "quiz",
+        "title": "Where can the g1 knight move at the start?",
+        "question_md": "From the starting position, the knight on g1 can move to:",
+        "options": [
+          {
+            "id": "a",
+            "label": "f3",
+            "isCorrect": true,
+            "feedback": "Correct."
+          },
+          {
+            "id": "b",
+            "label": "g3",
+            "isCorrect": false,
+            "feedback": "That is a straight move."
+          },
+          {
+            "id": "c",
+            "label": "g2",
+            "isCorrect": false,
+            "feedback": "That square is occupied by a pawn and is not a knight move."
+          }
+        ]
+      }
+    ]
+  },
+  "reviewAssertions": [
+    {
+      "type": "minimum_board_diagrams",
+      "value": 5
+    },
+    {
+      "type": "minimum_guided_moves",
+      "value": 1
+    },
+    {
+      "type": "minimum_quizzes",
+      "value": 3
+    },
+    {
+      "type": "tier_allowed",
+      "value": "free"
+    }
+  ]
+}

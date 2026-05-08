@@ -3,10 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import { getExercise } from '../utils/trainingExercises';
+import { useSubscription } from '../contexts/SubscriptionContext';
+import { canAccessTier, getSkillBand, getSubscriptionLabel } from '../constants/learningCurriculum';
+import api from '../services/api';
 
 const TrainingExercise = () => {
   const { level, id } = useParams();
   const navigate = useNavigate();
+  const { currentTier } = useSubscription();
   
   const [game, setGame] = useState(null);
   const [exercise, setExercise] = useState(null);
@@ -18,20 +22,46 @@ const TrainingExercise = () => {
 
   // Initialize the exercise
   useEffect(() => {
-    const exerciseData = getExercise(level, Number(id));
-    if (!exerciseData) {
-      navigate('/training');
-      return;
-    }
-    
-    setExercise(exerciseData);
-    const newGame = new Chess(exerciseData.position);
-    setGame(newGame);
-    setMessage('');
-    setMessageType('');
-    setMoveFrom('');
-    setOptionSquares({});
-    setRightClickedSquares({});
+    let cancelled = false;
+
+    const loadExercise = async () => {
+      let exerciseData = null;
+
+      try {
+        const response = await api.get(`/training/drills/${id}`);
+        exerciseData = normalizeServerExercise(response.data?.data);
+      } catch (error) {
+        if (error.response?.status === 403) {
+          navigate('/pricing');
+          return;
+        }
+        exerciseData = getExercise(level, id);
+      }
+
+      if (cancelled) {
+        return;
+      }
+
+      if (!exerciseData) {
+        navigate('/training');
+        return;
+      }
+
+      setExercise(exerciseData);
+      const newGame = new Chess(exerciseData.position || exerciseData.position_fen);
+      setGame(newGame);
+      setMessage('');
+      setMessageType('');
+      setMoveFrom('');
+      setOptionSquares({});
+      setRightClickedSquares({});
+    };
+
+    loadExercise();
+
+    return () => {
+      cancelled = true;
+    };
   }, [level, id, navigate]);
 
   // Function to get possible moves for a piece
@@ -87,7 +117,14 @@ const TrainingExercise = () => {
       // Compare using both coordinate format (e.g., "g7g8") and with promotion (e.g., "g7g8=Q")
       const moveString = sourceSquare + targetSquare;
       const moveWithPromotion = move.promotion ? `${moveString}=${move.promotion.toUpperCase()}` : moveString;
-      if (exercise.solution.includes(moveString) || exercise.solution.includes(moveWithPromotion)) {
+      const solution = exercise.solution || [];
+      const isCorrect = solution.includes(moveString) || solution.includes(moveWithPromotion);
+
+      if (exercise.source === 'server') {
+        submitAttempt(exercise.id, [moveString], isCorrect);
+      }
+
+      if (isCorrect) {
         setMessage(exercise.successMessage);
         setMessageType('success');
       } else {
@@ -157,7 +194,7 @@ const TrainingExercise = () => {
   const resetExercise = () => {
     if (!exercise) return;
 
-    const newGame = new Chess(exercise.position);
+    const newGame = new Chess(exercise.position || exercise.position_fen);
     setGame(newGame);
     setMessage('');
     setMessageType('');
@@ -198,38 +235,149 @@ const TrainingExercise = () => {
     return <div className="p-6 min-h-screen text-white flex items-center justify-center">Loading exercise...</div>;
   }
 
-  return (
-    <div className="chess-game p-6 min-h-screen text-white flex flex-col items-center">
-      <h2 className="text-3xl font-bold mb-2 text-white">{exercise.title}</h2>
-      
-      <div className="exercise-instructions bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-4 mb-6 max-w-2xl text-center">
-        <p>{exercise.description}</p>
-      </div>
-      
-      <div className="board-container w-full max-w-lg mx-auto mb-6">
-        <Chessboard
-          position={game.fen()}
-          onPieceDrop={onDrop}
-          onSquareClick={onSquareClick}
-          onSquareRightClick={onSquareRightClick}
-          customSquareStyles={customSquareStyles}
-          boardOrientation="white"
-        />
-      </div>
-      
-      {message && (
-        <div className={`message-box ${messageType === 'success' ? 'bg-success' : messageType === 'error' ? 'bg-error' : 'bg-info'} p-3 rounded-lg max-w-2xl text-center mb-6 text-white`}>
-          {message}
+  const isLocked = !canAccessTier(currentTier, exercise.requiredTier);
+  const skillBand = getSkillBand(exercise.skillBand || exercise.skill_band);
+
+  if (isLocked) {
+    return (
+      <div className="p-6 min-h-screen text-white flex items-center justify-center" style={{ background: '#262421' }}>
+        <div className="max-w-lg w-full bg-[#312e2b] border border-[#3d3a37] rounded-lg p-6 text-center">
+          <div className="text-xs uppercase tracking-wider text-[#e8a93e] font-bold mb-3">
+            {getSubscriptionLabel(exercise.requiredTier)} drill
+          </div>
+          <h1 className="text-2xl font-bold text-white mb-3">{exercise.title}</h1>
+          <p className="text-[#bababa] mb-5">{exercise.description}</p>
+          <div className="flex gap-3 justify-center">
+            <button onClick={goBack} className="bg-[#3d3a37] text-[#bababa] font-bold py-2 px-4 rounded-lg">
+              Back
+            </button>
+            <button onClick={() => navigate('/pricing')} className="bg-[#e8a93e] text-[#1f1f1d] font-bold py-2 px-4 rounded-lg">
+              View plans
+            </button>
+          </div>
         </div>
-      )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="chess-game p-6 min-h-screen text-white flex flex-col items-center" style={{ background: '#262421' }}>
+      <div className="max-w-5xl w-full grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
+        <div className="flex flex-col items-center">
+          <div className="text-center mb-4">
+            <div className="flex justify-center gap-2 flex-wrap mb-3">
+              <span className="text-xs font-bold px-2 py-1 rounded bg-[#312e2b] border border-[#3d3a37] text-[#bababa]">
+                {skillBand?.label || level}
+              </span>
+              <span className="text-xs font-bold px-2 py-1 rounded bg-[#312e2b] border border-[#3d3a37] text-[#81b64c]">
+                {exercise.theme}
+              </span>
+              <span className="text-xs font-bold px-2 py-1 rounded bg-[#312e2b] border border-[#3d3a37] text-[#e8a93e]">
+                {getSubscriptionLabel(exercise.requiredTier)}
+              </span>
+            </div>
+            <h2 className="text-3xl font-bold mb-2 text-white">{exercise.title}</h2>
+          </div>
       
-      <div className="game-controls flex gap-4">
-        <button onClick={resetExercise} className="control-button bg-accent hover:bg-accent-600 text-white font-bold py-2 px-4 rounded-lg">Reset</button>
-        <button onClick={revealSolution} className="control-button bg-primary hover:bg-primary-600 text-white font-bold py-2 px-4 rounded-lg">Solution</button>
-        <button onClick={goBack} className="control-button bg-secondary hover:bg-secondary-600 text-white font-bold py-2 px-4 rounded-lg">Back to Hub</button>
+          <div className="exercise-instructions bg-[#312e2b] border border-[#3d3a37] rounded-lg p-4 mb-6 max-w-2xl text-center">
+            <p className="text-[#bababa] m-0">{exercise.description}</p>
+          </div>
+      
+          <div className="board-container w-full max-w-lg mx-auto mb-6">
+            <Chessboard
+              position={game.fen()}
+              onPieceDrop={onDrop}
+              onSquareClick={onSquareClick}
+              onSquareRightClick={onSquareRightClick}
+              customSquareStyles={customSquareStyles}
+              boardOrientation="white"
+            />
+          </div>
+      
+          {message && (
+            <div className={`message-box ${messageType === 'success' ? 'bg-success' : messageType === 'error' ? 'bg-error' : 'bg-info'} p-3 rounded-lg max-w-2xl text-center mb-6 text-white`}>
+              {message}
+            </div>
+          )}
+      
+          <div className="game-controls flex gap-4 flex-wrap justify-center">
+            <button onClick={resetExercise} className="control-button bg-accent hover:bg-accent-600 text-white font-bold py-2 px-4 rounded-lg">Reset</button>
+            <button onClick={revealSolution} className="control-button bg-primary hover:bg-primary-600 text-white font-bold py-2 px-4 rounded-lg">Solution</button>
+            <button onClick={goBack} className="control-button bg-secondary hover:bg-secondary-600 text-white font-bold py-2 px-4 rounded-lg">Back to Hub</button>
+          </div>
+        </div>
+
+        <aside className="bg-[#312e2b] border border-[#3d3a37] rounded-lg p-5 h-fit">
+          <h3 className="text-lg font-bold text-white mb-2">Drill focus</h3>
+          <p className="text-[#bababa] text-sm mb-4">{exercise.objective}</p>
+
+          {exercise.thinkingSteps?.length > 0 && (
+            <div className="mb-5">
+              <div className="text-xs uppercase tracking-wider text-[#8b8987] font-bold mb-2">Thinking steps</div>
+              <ol className="space-y-2 text-sm text-[#bababa] pl-5 list-decimal">
+                {exercise.thinkingSteps.map((step) => (
+                  <li key={step}>{step}</li>
+                ))}
+              </ol>
+            </div>
+          )}
+
+          {exercise.hints?.length > 0 && (
+            <div>
+              <div className="text-xs uppercase tracking-wider text-[#8b8987] font-bold mb-2">Hints</div>
+              <div className="space-y-2">
+                {exercise.hints.map((hint) => (
+                  <div key={hint} className="text-sm text-[#bababa] bg-[#262421] border border-[#3d3a37] rounded p-2">
+                    {hint}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </aside>
       </div>
     </div>
   );
 };
 
 export default TrainingExercise;
+
+const normalizeServerExercise = (drill) => {
+  if (!drill) {
+    return null;
+  }
+
+  return {
+    id: drill.slug,
+    title: drill.title,
+    description: drill.description,
+    position: drill.position_fen,
+    solution: [
+      ...(drill.solution || []),
+      ...((drill.accepted_alternatives || []).flat ? (drill.accepted_alternatives || []).flat() : []),
+    ],
+    successMessage: drill.explanation || 'Correct. Nice work.',
+    skillBand: drill.skill_band,
+    requiredTier: drill.required_tier,
+    type: drill.drill_type,
+    theme: drill.theme,
+    objective: drill.subtheme || drill.explanation || 'Build reliable chess habits through deliberate repetition.',
+    hints: drill.hints || [],
+    thinkingSteps: drill.thinking_steps || [],
+    source: 'server',
+  };
+};
+
+const submitAttempt = async (slug, solution, isCorrect) => {
+  try {
+    await api.post(`/training/drills/${slug}/attempt`, {
+      solution,
+      time_spent_seconds: 0,
+      hints_used: 0,
+    });
+  } catch (error) {
+    if (isCorrect) {
+      console.warn('[TrainingExercise] Drill solved locally, but backend progress was not saved.', error);
+    }
+  }
+};

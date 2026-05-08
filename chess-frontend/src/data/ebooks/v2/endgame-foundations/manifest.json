@@ -1,0 +1,137 @@
+{
+  "schemaVersion": "2.0.0",
+  "bookId": "endgame-foundations",
+  "title": "Endgame Foundations",
+  "subtitle": "King activity, pawn races, rook activity, and conversion technique.",
+  "seriesPosition": 8,
+  "eloStart": 1500,
+  "eloEnd": 1900,
+  "requiredTier": "silver",
+  "status": "complete-draft",
+  "purpose": "Teach practical endgames needed to convert real advantages.",
+  "audience": [
+    "Club players",
+    "Players who fail to convert winning endings",
+    "Silver endgame trainees"
+  ],
+  "howToRead": [
+    "Study each diagram before reading the explanation.",
+    "Write or say the candidate idea before playing the guided move.",
+    "Review the common mistake before attempting the checkpoint.",
+    "Do not advance until the checkpoint is passed without hints."
+  ],
+  "prerequisites": [
+    "Earlier books in the Chess99 ladder"
+  ],
+  "outcomes": [
+    "Recognize the core patterns in Endgame Foundations.",
+    "Use generated board diagrams as calculation anchors.",
+    "Play the guided moves with a reason, not guesswork.",
+    "Pass chapter checkpoints and retain the habit in real games."
+  ],
+  "visualLanguage": {
+    "boardTheme": "instruction-classic",
+    "lightSquare": "#eeeed2",
+    "darkSquare": "#769656",
+    "colorRoles": {
+      "best": "#81b64c",
+      "candidate": "#7b61a6",
+      "check": "#ef4444",
+      "capture": "#5b8dd9",
+      "threat": "#c9882a",
+      "target": "#f59e0b",
+      "lastMove": "rgba(255,221,0,0.35)",
+      "wrong": "rgba(220,60,60,0.35)",
+      "safe": "rgba(129,182,76,0.25)"
+    }
+  },
+  "assetPolicy": {
+    "authoritativeDiagrams": "Generate from FEN, arrows, highlights, and board theme only.",
+    "generativeImages": "Allowed for cover and concept art only, never for exact chess positions.",
+    "diagramOutputRoot": "assets/diagrams",
+    "illustrationOutputRoot": "assets/illustrations"
+  },
+  "chapterOrder": [
+    {
+      "chapterId": "01-king-activity",
+      "path": "chapters/01-king-activity.json",
+      "title": "King Activity",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    },
+    {
+      "chapterId": "02-opposition",
+      "path": "chapters/02-opposition.json",
+      "title": "Opposition",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    },
+    {
+      "chapterId": "03-key-squares",
+      "path": "chapters/03-key-squares.json",
+      "title": "Key Squares",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    },
+    {
+      "chapterId": "04-king-and-pawn-vs-king",
+      "path": "chapters/04-king-and-pawn-vs-king.json",
+      "title": "King And Pawn Vs King",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    },
+    {
+      "chapterId": "05-passed-pawns-and-the-square-rule",
+      "path": "chapters/05-passed-pawns-and-the-square-rule.json",
+      "title": "Passed Pawns And The Square Rule",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    },
+    {
+      "chapterId": "06-rook-activity",
+      "path": "chapters/06-rook-activity.json",
+      "title": "Rook Activity",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    },
+    {
+      "chapterId": "07-lucena-basics",
+      "path": "chapters/07-lucena-basics.json",
+      "title": "Lucena Basics",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    },
+    {
+      "chapterId": "08-philidor-basics",
+      "path": "chapters/08-philidor-basics.json",
+      "title": "Philidor Basics",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    },
+    {
+      "chapterId": "09-minor-piece-endings",
+      "path": "chapters/09-minor-piece-endings.json",
+      "title": "Minor-Piece Endings",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    },
+    {
+      "chapterId": "10-conversion-checkpoint",
+      "path": "chapters/10-conversion-checkpoint.json",
+      "title": "Conversion Checkpoint",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    }
+  ],
+  "assessment": {
+    "checkpointRequiredScore": 3,
+    "unlockRule": "Complete the guided move and answer all checkpoint questions correctly."
+  },
+  "reviewStatus": {
+    "schema": "draft",
+    "chessLogic": "draft",
+    "diagramGeneration": "draft",
+    "textImageConsistency": "draft",
+    "humanChessReview": "pending"
+  }
+}

@@ -8,6 +8,7 @@ import {
   getPreferredTimeControl,
   getPreferredColor,
 } from '../../utils/gamePreferences';
+import { getStoredLearningHelpLimit, pickBeginnerSyntheticPlayer } from '../../utils/syntheticMatchPlayers';
 import '../../styles/UnifiedCards.css';
 
 const SEARCH_DURATION = 10;
@@ -44,6 +45,34 @@ const PlayOnlineButton = ({ variant = 'primary', onSearchStart, onSearchEnd }) =
       return;
     }
 
+    const preferredTime = getPreferredTimeControl();
+    const prefs = {
+      time_control_minutes: preferredTime.minutes,
+      increment_seconds: preferredTime.increment,
+      game_mode: getPreferredGameMode(),
+      preferred_color: getPreferredColor(),
+      learning_help_limit: getStoredLearningHelpLimit(),
+    };
+
+    if (prefs.game_mode === 'learning') {
+      const syntheticOpponent = pickBeginnerSyntheticPlayer();
+      setStatus('matched');
+      setMatchResult({
+        match_type: 'synthetic',
+        opponent: syntheticOpponent,
+        game_id: null,
+      });
+      setError(null);
+      onSearchStart?.();
+      onSearchEnd?.();
+      setTimeout(() => navigateToGame({
+        match_type: 'synthetic',
+        opponent: syntheticOpponent,
+        game_id: null,
+      }, prefs), 900);
+      return;
+    }
+
     const controller = new AbortController();
     abortRef.current = controller;
     setStatus('searching');
@@ -57,13 +86,6 @@ const PlayOnlineButton = ({ variant = 'primary', onSearchStart, onSearchEnd }) =
       const remaining = Math.max(0, SEARCH_DURATION - elapsed);
       setSecondsLeft(remaining);
     }, 250);
-
-    const prefs = {
-      time_control_minutes: getPreferredTimeControl().minutes,
-      increment_seconds: getPreferredTimeControl().increment,
-      game_mode: getPreferredGameMode(),
-      preferred_color: getPreferredColor(),
-    };
 
     try {
       const response = await api.post('/v1/matchmaking/quick-match', prefs, {
@@ -119,6 +141,7 @@ const PlayOnlineButton = ({ variant = 'primary', onSearchStart, onSearchEnd }) =
           ratedMode: prefs.game_mode,
           timeControl: prefs.time_control_minutes,
           increment: prefs.increment_seconds,
+          learningHelpLimit: prefs.game_mode === 'learning' ? prefs.learning_help_limit : null,
         },
       });
     } else {
@@ -144,7 +167,13 @@ const PlayOnlineButton = ({ variant = 'primary', onSearchStart, onSearchEnd }) =
     setStatus('idle');
     setError(null);
     onSearchEnd?.();
-    navigate('/play');
+    navigate('/play', {
+      state: {
+        guestMode: true,
+        ratedMode: 'casual',
+        computerDepth: 3,
+      },
+    });
   };
 
   const handleLoginPlay = () => {

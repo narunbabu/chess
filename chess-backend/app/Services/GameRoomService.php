@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Enums\SubscriptionTier;
 use App\Events\GameConnectionEvent;
 use App\Events\GameEndedEvent;
 use App\Models\Game;
@@ -18,8 +17,10 @@ class GameRoomService
 {
     protected $chessRules;
 
-    public function __construct(ChessRulesService $chessRules)
-    {
+    public function __construct(
+        ChessRulesService $chessRules,
+        protected EntitlementService $entitlements
+    ) {
         $this->chessRules = $chessRules;
     }
     /**
@@ -419,13 +420,9 @@ class GameRoomService
             throw new \Exception('User not authorized to create new game from this game');
         }
 
-        // Enforce daily game limit for free-tier users (5 online games/day)
-        if (!$user->hasSubscriptionTier(SubscriptionTier::SILVER)) {
-            $dailyLimit = 5;
-            $todayCount = Game::dailyOnlineGameCountForUser($userId);
-            if ($todayCount >= $dailyLimit) {
-                throw new \Exception("Free plan allows {$dailyLimit} online games per day. Upgrade to Silver for unlimited games.");
-            }
+        $quota = $this->entitlements->onlineGameQuota($user);
+        if (!$quota['unlimited'] && $quota['remaining'] <= 0) {
+            throw new \Exception("Free plan allows {$quota['daily_limit']} online games per day. Upgrade to Silver for unlimited games.");
         }
 
         // Determine color assignments based on preference

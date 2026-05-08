@@ -10,7 +10,10 @@ class ReferralEarning extends Model
         'referral_code_id',
         'referrer_user_id',
         'referred_user_id',
+        'event_type',
+        'event_ref_id',
         'subscription_payment_id',
+        'subscription_year',
         'payment_amount',
         'commission_rate',
         'earning_amount',
@@ -23,6 +26,8 @@ class ReferralEarning extends Model
         'payment_amount' => 'decimal:2',
         'commission_rate' => 'decimal:4',
         'earning_amount' => 'decimal:2',
+        'subscription_year' => 'integer',
+        'event_ref_id' => 'integer',
     ];
 
     // Relationships

@@ -1,0 +1,139 @@
+{
+  "schemaVersion": "2.0.0",
+  "bookId": "survival-chess",
+  "title": "Survival Chess",
+  "subtitle": "Checks, captures, threats, loose pieces, safe kings, and the habits that stop beginner losses.",
+  "seriesPosition": 2,
+  "eloStart": 300,
+  "eloEnd": 700,
+  "requiredTier": "free",
+  "status": "complete-draft",
+  "purpose": "Stop the first wave of beginner losses: hanging pieces, missed checks, unsafe kings, careless trades, and stalemating won games.",
+  "audience": [
+    "Players who know the rules but lose material for free",
+    "School learners moving beyond legal moves",
+    "Chess99 users starting daily tactical practice"
+  ],
+  "howToRead": [
+    "Solve each diagram before reading the caption.",
+    "Say checks, captures, threats before every guided move.",
+    "Do the checkpoint without hints before moving to the next chapter."
+  ],
+  "prerequisites": [
+    "The First Chessboard"
+  ],
+  "outcomes": [
+    "Use a checks-captures-threats scan before moving.",
+    "Recognize hanging pieces and defended pieces.",
+    "Answer one-move attacks with simple defenses.",
+    "Escape check using safe king squares.",
+    "Compare basic trades before capturing.",
+    "Convert queen and rook mates without stalemate.",
+    "Perform a final blunder-check before every move."
+  ],
+  "visualLanguage": {
+    "boardTheme": "instruction-classic",
+    "lightSquare": "#eeeed2",
+    "darkSquare": "#769656",
+    "colorRoles": {
+      "best": "#81b64c",
+      "candidate": "#7b61a6",
+      "check": "#ef4444",
+      "capture": "#5b8dd9",
+      "threat": "#c9882a",
+      "target": "#f59e0b",
+      "lastMove": "rgba(255,221,0,0.35)",
+      "wrong": "rgba(220,60,60,0.35)",
+      "safe": "rgba(129,182,76,0.25)"
+    }
+  },
+  "assetPolicy": {
+    "authoritativeDiagrams": "Generate from FEN, arrows, highlights, and board theme only.",
+    "generativeImages": "Allowed for cover and concept art only, never for exact chess positions.",
+    "diagramOutputRoot": "assets/diagrams",
+    "illustrationOutputRoot": "assets/illustrations"
+  },
+  "chapterOrder": [
+    {
+      "chapterId": "01-checks-captures-threats",
+      "path": "chapters/01-checks-captures-threats.json",
+      "title": "The Three Questions: Checks, Captures, Threats",
+      "estimatedMinutes": 24,
+      "requiredTier": "free"
+    },
+    {
+      "chapterId": "02-hanging-pieces",
+      "path": "chapters/02-hanging-pieces.json",
+      "title": "What Is A Hanging Piece?",
+      "estimatedMinutes": 24,
+      "requiredTier": "free"
+    },
+    {
+      "chapterId": "03-one-move-attacks-defenses",
+      "path": "chapters/03-one-move-attacks-defenses.json",
+      "title": "One-Move Attacks And One-Move Defenses",
+      "estimatedMinutes": 25,
+      "requiredTier": "free"
+    },
+    {
+      "chapterId": "04-safe-king-squares",
+      "path": "chapters/04-safe-king-squares.json",
+      "title": "Safe Squares For The King",
+      "estimatedMinutes": 25,
+      "requiredTier": "free"
+    },
+    {
+      "chapterId": "05-good-trades-bad-trades",
+      "path": "chapters/05-good-trades-bad-trades.json",
+      "title": "Capturing Wisely: Good Trades And Bad Trades",
+      "estimatedMinutes": 26,
+      "requiredTier": "free"
+    },
+    {
+      "chapterId": "06-basic-queen-rook-checkmates",
+      "path": "chapters/06-basic-queen-rook-checkmates.json",
+      "title": "Basic Checkmates With Queen And Rook",
+      "estimatedMinutes": 28,
+      "requiredTier": "free"
+    },
+    {
+      "chapterId": "07-avoiding-stalemate",
+      "path": "chapters/07-avoiding-stalemate.json",
+      "title": "Avoiding Stalemate",
+      "estimatedMinutes": 26,
+      "requiredTier": "free"
+    },
+    {
+      "chapterId": "08-opening-safety",
+      "path": "chapters/08-opening-safety.json",
+      "title": "Opening Safety: Stop Moving The Same Piece",
+      "estimatedMinutes": 24,
+      "requiredTier": "free"
+    },
+    {
+      "chapterId": "09-blunder-check",
+      "path": "chapters/09-blunder-check.json",
+      "title": "Blunder-Check Before Every Move",
+      "estimatedMinutes": 24,
+      "requiredTier": "free"
+    },
+    {
+      "chapterId": "10-survival-games",
+      "path": "chapters/10-survival-games.json",
+      "title": "Ten Survival Games: Find The Safe Move",
+      "estimatedMinutes": 30,
+      "requiredTier": "free"
+    }
+  ],
+  "assessment": {
+    "checkpointRequiredScore": 3,
+    "unlockRule": "Complete the guided survival move and answer all checkpoint questions correctly."
+  },
+  "reviewStatus": {
+    "schema": "draft",
+    "chessLogic": "draft",
+    "diagramGeneration": "draft",
+    "textImageConsistency": "draft",
+    "humanChessReview": "pending"
+  }
+}

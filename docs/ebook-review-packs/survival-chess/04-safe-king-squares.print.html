@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Survival Chess: Safe Squares For The King</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+
+    body { font-family: Arial, sans-serif; color: #172018; font-size: 17px; margin: 0; background: #f7f7f2; line-height: 1.62; }
+    main { max-width: 900px; margin: 0 auto; padding: 40px 34px 60px; background: #fff; }
+    h1, h2, h3 { line-height: 1.2; color: #172018; }
+    h1 { font-size: 36px; margin: 0 0 8px; }
+    h2 { font-size: 25px; margin: 38px 0 16px; border-top: 1px solid #d8ddcf; padding-top: 24px; }
+    h3 { font-size: 20px; margin: 0 0 10px; }
+    p { margin: 0 0 16px; }
+    .meta { color: #536257; margin-bottom: 24px; }
+    .objectives { background: #eef4e7; border-left: 4px solid #81b64c; padding: 14px 18px; }
+    .block { break-inside: avoid; margin: 24px 0; }
+    .block + .block { margin-top: 30px; }
+    .diagram { width: min(100%, 560px); display: block; margin: 14px auto; border: 1px solid #d4dcc8; }
+    .caption { color: #536257; font-size: 15px; margin-top: 8px; }
+    .quiz-options { margin-top: 10px; }
+    .quiz-option { margin: 7px 0; }
+    @media print {
+      body { background: #fff; }
+      main { max-width: none; padding: 0; }
+      .block { page-break-inside: avoid; }
+    }
+  
+</style>
+</head>
+<body>
+<main>
+<h1>Safe Squares For The King</h1>
+<div class="meta">Survival Chess | 300-700 | free</div>
+<p>Escape check without walking into another one.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Identify the line of check.</li>
+<li>Choose king moves that leave danger behind.</li>
+<li>Compare moving, blocking, and capturing the checking piece.</li>
+</ul>
+</section>
+<h2>The King Needs Legal Air</h2>
+<section class="block" id="b02-c04-p01">
+<p>When your king is in check, normal plans stop. You must get out of check by moving the king, blocking the line, or capturing the checking piece.</p>
+</section>
+<section class="block" id="b02-c04-d01">
+<h3>The e-file check</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c04-d01-rook-check.png" alt="The e-file check">
+<div class="caption"><p>The rook checks down the e-file. The king on e2 must leave the line.</p></div>
+</section>
+<section class="block" id="b02-c04-d02">
+<h3>The e-file is still unsafe</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c04-d02-unsafe-file.png" alt="The e-file is still unsafe">
+<div class="caption"><p>Moving along the same file can remain dangerous. Look for a square off the line.</p></div>
+</section>
+<section class="block" id="b02-c04-d03">
+<h3>Step to d2</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c04-d03-safe-left.png" alt="Step to d2">
+<div class="caption"><p>The square d2 is not on the rook line.</p></div>
+</section>
+<section class="block" id="b02-c04-d04">
+<h3>Sometimes capture the checker</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c04-d04-capture-checker.png" alt="Sometimes capture the checker">
+<div class="caption"><p>If the checking piece is close and undefended, the king may capture it.</p></div>
+</section>
+<section class="block" id="b02-c04-d05">
+<h3>A block can also work</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c04-d05-block-line.png" alt="A block can also work">
+<div class="caption"><p>A bishop can block the rook line on e2 only if the square and piece movement allow it.</p></div>
+</section>
+<section class="block" id="b02-c04-g01">
+<h3>Escape the rook check</h3>
+<p>Move the king from e2 to d2.</p>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c04-g01-king-d2.png" alt="Escape the rook check">
+</section>
+<section class="block" id="b02-c04-m01">
+<h3>Common mistake: stay on the checking line</h3>
+<p>If the rook controls the e-file, the king should not stay on that file.</p>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/survival-chess/assets/diagrams/b02-c04-m01-walk-line.png" alt="Common mistake: stay on the checking line">
+<div class="caption"><p>The unsafe square e3 is still on the rook line.</p></div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b02-c04-q01">
+<h3>When in check, you may:</h3>
+<p>When in check, you may:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Ignore it</div>
+<div class="quiz-option">b. Move, block, or capture the checker</div>
+<div class="quiz-option">c. Only move a pawn</div>
+</div>
+</section>
+<section class="block" id="b02-c04-q02">
+<h3>A safe king square must be:</h3>
+<p>A safe king square must be:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Not controlled by enemy pieces</div>
+<div class="quiz-option">b. On the same line as a rook check</div>
+<div class="quiz-option">c. Chosen quickly</div>
+</div>
+</section>
+<section class="block" id="b02-c04-q03">
+<h3>The first priority in check is:</h3>
+<p>The first priority in check is:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Win material</div>
+<div class="quiz-option">b. Get legally out of check</div>
+<div class="quiz-option">c. Castle later</div>
+</div>
+</section>
+</main>
+</body>
+</html>

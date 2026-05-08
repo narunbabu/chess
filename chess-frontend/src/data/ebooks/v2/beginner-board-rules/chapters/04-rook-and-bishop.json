@@ -1,0 +1,542 @@
+{
+  "schemaVersion": "2.0.0",
+  "bookId": "beginner-board-rules",
+  "chapterId": "04-rook-and-bishop",
+  "title": "Rooks And Bishops",
+  "subtitle": "Straight lines and diagonals are the first long-range patterns.",
+  "eloRange": "0-300",
+  "requiredTier": "free",
+  "estimatedMinutes": 26,
+  "learningObjectives": [
+    "Move a rook along ranks and files.",
+    "Move a bishop along diagonals.",
+    "Notice when friendly pieces block long-range pieces.",
+    "Explain why bishops stay on one color complex."
+  ],
+  "sections": [
+    {
+      "id": "rook-lines",
+      "title": "Rooks Use Files And Ranks",
+      "blocks": [
+        {
+          "id": "b01-c04-p01",
+          "type": "prose",
+          "body_md": "The rook is the straight-line piece. It moves up, down, left, or right as far as the path is clear. It cannot jump over pieces."
+        },
+        {
+          "id": "b01-c04-d01",
+          "type": "board_diagram",
+          "title": "Rook lines from e4",
+          "fen": "k7/8/8/8/4R3/8/8/7K w - - 0 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "e4",
+              "to": "e8",
+              "colorRole": "best"
+            },
+            {
+              "from": "e4",
+              "to": "e1",
+              "colorRole": "candidate"
+            },
+            {
+              "from": "e4",
+              "to": "a4",
+              "colorRole": "capture"
+            },
+            {
+              "from": "e4",
+              "to": "h4",
+              "colorRole": "capture"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "e4",
+              "colorRole": "lastMove"
+            },
+            {
+              "square": "e8",
+              "colorRole": "safe"
+            },
+            {
+              "square": "e1",
+              "colorRole": "safe"
+            },
+            {
+              "square": "a4",
+              "colorRole": "safe"
+            },
+            {
+              "square": "h4",
+              "colorRole": "safe"
+            }
+          ],
+          "caption_md": "From e4, a rook moves along the e-file or across the 4th rank.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "e4",
+              "piece": "white_rook"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "e4",
+              "to": "e8"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "e4",
+              "to": "h4"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c04-d01-rook-lines-e4.png",
+            "hash": "bd9ed5bd98bd15af72557d656945c72eff9b325f3f020e46212b1c80c4e0c38f"
+          }
+        },
+        {
+          "id": "b01-c04-d02",
+          "type": "board_diagram",
+          "title": "Own pieces block rooks",
+          "fen": "k7/8/8/8/4R3/4P3/8/7K w - - 0 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "e4",
+              "to": "e3",
+              "colorRole": "wrong"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "e3",
+              "colorRole": "wrong"
+            },
+            {
+              "square": "e4",
+              "colorRole": "lastMove"
+            }
+          ],
+          "caption_md": "The white pawn on e3 blocks the rook. The rook cannot move through its own pawn.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "e4",
+              "piece": "white_rook"
+            },
+            {
+              "type": "piece_on",
+              "square": "e3",
+              "piece": "white_pawn"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "e3"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c04-d02-rook-blocked-by-pawn.png",
+            "hash": "28255826b99a70a1cd182356da094f1dcfbf1a84f833cc90d2c42e98e695e8d9"
+          }
+        }
+      ]
+    },
+    {
+      "id": "bishop-lines",
+      "title": "Bishops Use Diagonals",
+      "blocks": [
+        {
+          "id": "b01-c04-p02",
+          "type": "prose",
+          "body_md": "The bishop is the diagonal long-range piece. Because every diagonal keeps the same square color, a bishop that starts on a light square always stays on light squares."
+        },
+        {
+          "id": "b01-c04-d03",
+          "type": "board_diagram",
+          "title": "Bishop diagonals from d4",
+          "fen": "k7/8/8/8/3B4/8/8/7K w - - 0 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "d4",
+              "to": "a7",
+              "colorRole": "best"
+            },
+            {
+              "from": "d4",
+              "to": "h8",
+              "colorRole": "candidate"
+            },
+            {
+              "from": "d4",
+              "to": "a1",
+              "colorRole": "capture"
+            },
+            {
+              "from": "d4",
+              "to": "g1",
+              "colorRole": "capture"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "d4",
+              "colorRole": "lastMove"
+            },
+            {
+              "square": "a7",
+              "colorRole": "safe"
+            },
+            {
+              "square": "h8",
+              "colorRole": "safe"
+            },
+            {
+              "square": "a1",
+              "colorRole": "safe"
+            },
+            {
+              "square": "g1",
+              "colorRole": "safe"
+            }
+          ],
+          "caption_md": "A bishop on d4 moves only on diagonals.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "d4",
+              "piece": "white_bishop"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "d4",
+              "to": "a7"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "d4",
+              "to": "g1"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c04-d03-bishop-diagonals-d4.png",
+            "hash": "eaa9a470d3a23ad4185f7e9ba691e679c9134780bb4988b935e3f2c40c6f896a"
+          }
+        },
+        {
+          "id": "b01-c04-d04",
+          "type": "board_diagram",
+          "title": "The bishop stays on one color",
+          "fen": "k7/8/8/8/3B4/8/8/7K w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "a1",
+              "colorRole": "target"
+            },
+            {
+              "square": "b2",
+              "colorRole": "target"
+            },
+            {
+              "square": "c3",
+              "colorRole": "target"
+            },
+            {
+              "square": "d4",
+              "colorRole": "target"
+            },
+            {
+              "square": "e5",
+              "colorRole": "target"
+            },
+            {
+              "square": "f6",
+              "colorRole": "target"
+            },
+            {
+              "square": "g7",
+              "colorRole": "target"
+            },
+            {
+              "square": "h8",
+              "colorRole": "target"
+            }
+          ],
+          "caption_md": "This bishop is on a dark-square diagonal. It will never land on a light square.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "d4",
+              "piece": "white_bishop"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "d4"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "h8"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c04-d04-bishop-color-complex.png",
+            "hash": "245135cc0dc9aa68a5b0be8e503e75ac9dd6f487f0d54fa29ee1ba747f865eb9"
+          }
+        },
+        {
+          "id": "b01-c04-d05",
+          "type": "board_diagram",
+          "title": "Rook and bishop side by side",
+          "fen": "k7/8/8/8/3BR3/8/8/7K w - - 0 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "e4",
+              "to": "e8",
+              "colorRole": "best"
+            },
+            {
+              "from": "d4",
+              "to": "h8",
+              "colorRole": "candidate"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "e4",
+              "colorRole": "best"
+            },
+            {
+              "square": "d4",
+              "colorRole": "candidate"
+            }
+          ],
+          "caption_md": "The rook on e4 uses straight lines. The bishop on d4 uses diagonals.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "e4",
+              "piece": "white_rook"
+            },
+            {
+              "type": "piece_on",
+              "square": "d4",
+              "piece": "white_bishop"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "e4",
+              "to": "e8"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c04-d05-rook-bishop-patterns.png",
+            "hash": "6a2cdf9ff770bf21927ce96bb5f2de9d2d36998d0603e9f6b314b804ac4d8c63"
+          }
+        },
+        {
+          "id": "b01-c04-g01",
+          "type": "guided_move",
+          "title": "Move the rook to e8",
+          "fen": "k7/8/8/8/4R3/8/8/7K w - - 0 1",
+          "orientation": "white",
+          "prompt_md": "Move the rook from e4 to e8 along the e-file.",
+          "acceptedMoves": [
+            "e4e8"
+          ],
+          "successMessage": "Correct. Rooks move straight along files and ranks.",
+          "failureMessage": "Use the rook on e4 and move it straight up to e8.",
+          "arrows": [
+            {
+              "from": "e4",
+              "to": "e8",
+              "colorRole": "best"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "e4",
+              "colorRole": "lastMove"
+            },
+            {
+              "square": "e8",
+              "colorRole": "best"
+            }
+          ],
+          "assertions": [
+            {
+              "type": "legal_move",
+              "move": "e4e8"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bishop-mistake",
+      "title": "Common Mistake",
+      "blocks": [
+        {
+          "id": "b01-c04-m01",
+          "type": "mistake_refutation",
+          "title": "Common mistake: moving a bishop straight",
+          "fen": "k7/8/8/8/3B4/8/8/7K w - - 0 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "d4",
+              "to": "d6",
+              "colorRole": "wrong"
+            },
+            {
+              "from": "d4",
+              "to": "f6",
+              "colorRole": "best"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "d6",
+              "colorRole": "wrong"
+            },
+            {
+              "square": "f6",
+              "colorRole": "best"
+            }
+          ],
+          "body_md": "A bishop on d4 cannot move to d6. That is a straight-file move, and bishops only use diagonals.",
+          "caption_md": "d4 to d6 is wrong. d4 to f6 is diagonal and legal if the path is clear.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "d4",
+              "piece": "white_bishop"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "d4",
+              "to": "d6"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "d4",
+              "to": "f6"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c04-m01-bishop-straight-move.png",
+            "hash": "bfe21459487a60d9ace4b03bcdfa076bb8084e23cc983fa2279cb288624ff1d5"
+          }
+        }
+      ]
+    }
+  ],
+  "checkpoint": {
+    "id": "b01-c04-checkpoint",
+    "type": "checkpoint",
+    "title": "Chapter Checkpoint",
+    "requiredScore": 3,
+    "summary_md": "Pass this chapter when you can separate straight rook moves from diagonal bishop moves.",
+    "blocks": [
+      {
+        "id": "b01-c04-q01",
+        "type": "quiz",
+        "title": "Which lines does a rook use?",
+        "question_md": "A rook moves along:",
+        "options": [
+          {
+            "id": "a",
+            "label": "Files and ranks",
+            "isCorrect": true,
+            "feedback": "Correct."
+          },
+          {
+            "id": "b",
+            "label": "Only diagonals",
+            "isCorrect": false,
+            "feedback": "That is the bishop."
+          },
+          {
+            "id": "c",
+            "label": "Knight jumps",
+            "isCorrect": false,
+            "feedback": "Rooks do not jump."
+          }
+        ]
+      },
+      {
+        "id": "b01-c04-q02",
+        "type": "quiz",
+        "title": "Can a bishop change color?",
+        "question_md": "A bishop that starts on a dark square can later land on a light square:",
+        "options": [
+          {
+            "id": "a",
+            "label": "No",
+            "isCorrect": true,
+            "feedback": "Correct. Diagonals keep the same color."
+          },
+          {
+            "id": "b",
+            "label": "Yes, after a capture",
+            "isCorrect": false,
+            "feedback": "Captures still follow diagonal movement."
+          },
+          {
+            "id": "c",
+            "label": "Only near the edge",
+            "isCorrect": false,
+            "feedback": "The rule is the same everywhere."
+          }
+        ]
+      },
+      {
+        "id": "b01-c04-q03",
+        "type": "quiz",
+        "title": "What blocks a rook?",
+        "question_md": "A rook is blocked by:",
+        "options": [
+          {
+            "id": "a",
+            "label": "Any piece on its path",
+            "isCorrect": true,
+            "feedback": "Correct. Rooks cannot jump."
+          },
+          {
+            "id": "b",
+            "label": "Only enemy pieces",
+            "isCorrect": false,
+            "feedback": "Friendly pieces block too."
+          },
+          {
+            "id": "c",
+            "label": "Only the king",
+            "isCorrect": false,
+            "feedback": "Any piece blocks a rook line."
+          }
+        ]
+      }
+    ]
+  },
+  "reviewAssertions": [
+    {
+      "type": "minimum_board_diagrams",
+      "value": 5
+    },
+    {
+      "type": "minimum_guided_moves",
+      "value": 1
+    },
+    {
+      "type": "minimum_quizzes",
+      "value": 3
+    },
+    {
+      "type": "tier_allowed",
+      "value": "free"
+    }
+  ]
+}

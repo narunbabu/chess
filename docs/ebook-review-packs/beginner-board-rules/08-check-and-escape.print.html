@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The First Chessboard: Check And Escaping Check</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+
+    body { font-family: Arial, sans-serif; color: #172018; font-size: 17px; margin: 0; background: #f7f7f2; line-height: 1.62; }
+    main { max-width: 900px; margin: 0 auto; padding: 40px 34px 60px; background: #fff; }
+    h1, h2, h3 { line-height: 1.2; color: #172018; }
+    h1 { font-size: 36px; margin: 0 0 8px; }
+    h2 { font-size: 25px; margin: 38px 0 16px; border-top: 1px solid #d8ddcf; padding-top: 24px; }
+    h3 { font-size: 20px; margin: 0 0 10px; }
+    p { margin: 0 0 16px; }
+    .meta { color: #536257; margin-bottom: 24px; }
+    .objectives { background: #eef4e7; border-left: 4px solid #81b64c; padding: 14px 18px; }
+    .block { break-inside: avoid; margin: 24px 0; }
+    .block + .block { margin-top: 30px; }
+    .diagram { width: min(100%, 560px); display: block; margin: 14px auto; border: 1px solid #d4dcc8; }
+    .caption { color: #536257; font-size: 15px; margin-top: 8px; }
+    .quiz-options { margin-top: 10px; }
+    .quiz-option { margin: 7px 0; }
+    @media print {
+      body { background: #fff; }
+      main { max-width: none; padding: 0; }
+      .block { page-break-inside: avoid; }
+    }
+  
+</style>
+</head>
+<body>
+<main>
+<h1>Check And Escaping Check</h1>
+<div class="meta">The First Chessboard | 0-300 | free</div>
+<p>When the king is attacked, the next move must answer it.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Recognize when a king is in check.</li>
+<li>Escape check by moving the king.</li>
+<li>Escape check by blocking the attack.</li>
+<li>Escape check by capturing the checking piece.</li>
+<li>Reject moves that ignore check.</li>
+</ul>
+</section>
+<h2>A Direct Attack On The King</h2>
+<section class="block" id="b01-c08-p01">
+<p>Check means the king is under attack. When your king is in check, you do not get to play any move you like. Your move must make the king safe.</p>
+</section>
+<section class="block" id="b01-c08-d01">
+<h3>The rook gives check</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c08-d01-rook-check-e-file.png" alt="The rook gives check">
+<div class="caption"><p>The rook on e8 attacks the king on e1 along the open e-file.</p></div>
+</section>
+<section class="block" id="b01-c08-d02">
+<h3>Escape by moving the king</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c08-d02-escape-king-move.png" alt="Escape by moving the king">
+<div class="caption"><p>White can move the king from e1 to f1 to leave the rook line.</p></div>
+</section>
+<h2>Three Ways To Escape</h2>
+<section class="block" id="b01-c08-p02">
+<p>There are three normal ways to answer check: move the king, block the line, or capture the checking piece. Some checks allow only one of these.</p>
+</section>
+<section class="block" id="b01-c08-d03">
+<h3>Escape by blocking</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c08-d03-escape-by-blocking.png" alt="Escape by blocking">
+<div class="caption"><p>The bishop can move to e2 and block the rook line.</p></div>
+</section>
+<section class="block" id="b01-c08-d04">
+<h3>Escape by capturing</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c08-d04-escape-by-capture.png" alt="Escape by capturing">
+<div class="caption"><p>If the checking rook is unprotected, the king can capture it on e2.</p></div>
+</section>
+<section class="block" id="b01-c08-d05">
+<h3>You may not ignore check</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c08-d05-cannot-ignore-check.png" alt="You may not ignore check">
+<div class="caption"><p>The move a2 to a3 does not answer the check, so it is illegal here.</p></div>
+</section>
+<section class="block" id="b01-c08-g01">
+<h3>Move out of check</h3>
+<p>White is in check from the rook on e8. Move the king from e1 to f1.</p>
+</section>
+<h2>Common Mistake</h2>
+<section class="block" id="b01-c08-m01">
+<h3>Common mistake: playing a normal move in check</h3>
+<p>The pawn move a2 to a3 may be legal in a quiet position, but not while the king on e1 is in check. Check must be answered immediately.</p>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c08-m01-ignore-check.png" alt="Common mistake: playing a normal move in check">
+<div class="caption"><p>A move that ignores check is not legal.</p></div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b01-c08-q01">
+<h3>What is check?</h3>
+<p>Check means:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. The king is attacked</div>
+<div class="quiz-option">b. A queen was captured</div>
+<div class="quiz-option">c. A pawn promoted</div>
+</div>
+</section>
+<section class="block" id="b01-c08-q02">
+<h3>What must you do in check?</h3>
+<p>When your king is in check, your next move must:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Make the king safe</div>
+<div class="quiz-option">b. Capture any piece</div>
+<div class="quiz-option">c. Move a pawn</div>
+</div>
+</section>
+<section class="block" id="b01-c08-q03">
+<h3>Which is not a normal escape from check?</h3>
+<p>Which answer does not normally escape check?</p>
+<div class="quiz-options">
+<div class="quiz-option">a. Ignore it and attack elsewhere</div>
+<div class="quiz-option">b. Move the king</div>
+<div class="quiz-option">c. Block the line</div>
+</div>
+</section>
+</main>
+</body>
+</html>

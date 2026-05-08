@@ -1,0 +1,460 @@
+{
+  "schemaVersion": "2.0.0",
+  "bookId": "survival-chess",
+  "chapterId": "05-good-trades-bad-trades",
+  "title": "Capturing Wisely: Good Trades And Bad Trades",
+  "subtitle": "Use value and safety before every capture.",
+  "eloRange": "300-700",
+  "requiredTier": "free",
+  "estimatedMinutes": 26,
+  "learningObjectives": [
+    "Compare simple material values.",
+    "Separate winning material from equal trades.",
+    "Notice recaptures before taking."
+  ],
+  "sections": [
+    {
+      "id": "trade-sense",
+      "title": "A Capture Is A Decision",
+      "blocks": [
+        {
+          "id": "b02-c05-p01",
+          "type": "prose",
+          "body_md": "Captures feel satisfying, but not every capture is good. Ask: what do I win, what can recapture me, and what is the value exchange?"
+        },
+        {
+          "id": "b02-c05-d01",
+          "type": "board_diagram",
+          "title": "A simple pawn capture",
+          "fen": "4k3/8/8/3p4/4P3/8/8/4K3 w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "e4",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "d5",
+              "colorRole": "capture"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "e4",
+              "to": "d5",
+              "colorRole": "capture"
+            }
+          ],
+          "caption_md": "The e4 pawn can capture d5. Pawns often trade evenly.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "e4",
+              "piece": "white_pawn"
+            },
+            {
+              "type": "piece_on",
+              "square": "d5",
+              "piece": "black_pawn"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "d5"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "e4",
+              "to": "d5"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c05-d01-pawn-capture.png",
+            "hash": "0dafec3d3955a1cf02fea322c880eb7686177ebd5a0f796bb74be5867df9b88f"
+          }
+        },
+        {
+          "id": "b02-c05-d02",
+          "type": "board_diagram",
+          "title": "Do not risk a queen for a pawn",
+          "fen": "4k3/8/8/3p4/8/8/8/3QK3 w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "d1",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "d5",
+              "colorRole": "wrong"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "d1",
+              "to": "d5",
+              "colorRole": "wrong"
+            }
+          ],
+          "caption_md": "The pawn on d5 is small. A queen move to d5 must be checked for danger.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "d1",
+              "piece": "white_queen"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "d5"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "d1",
+              "to": "d5"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c05-d02-queen-for-pawn.png",
+            "hash": "f05ced13b0a69afa2e9727c50f4c523b1748b69fa953e8c5ae3a1d59af25aa5d"
+          }
+        },
+        {
+          "id": "b02-c05-d03",
+          "type": "board_diagram",
+          "title": "A bishop can win a rook",
+          "fen": "4k3/5r2/8/8/2B5/8/8/4K3 w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "c4",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "f7",
+              "colorRole": "capture"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "c4",
+              "to": "f7",
+              "colorRole": "capture"
+            }
+          ],
+          "caption_md": "The bishop on c4 can capture the rook on f7.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "c4",
+              "piece": "white_bishop"
+            },
+            {
+              "type": "piece_on",
+              "square": "f7",
+              "piece": "black_rook"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "f7"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "c4",
+              "to": "f7"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c05-d03-bishop-wins-rook.png",
+            "hash": "6c3f1aa1351b46f2a79de2c5dcde3392e6af96c2b9e78dc48d8dc41c90a1c1e2"
+          }
+        },
+        {
+          "id": "b02-c05-d04",
+          "type": "board_diagram",
+          "title": "Count value before capture",
+          "fen": "4k3/5r2/8/8/2B5/8/8/4K3 w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "c4",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "f7",
+              "colorRole": "best"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "c4",
+              "to": "f7",
+              "colorRole": "best"
+            }
+          ],
+          "caption_md": "Bishop for rook is usually profitable because rook value is higher.",
+          "assertions": [
+            {
+              "type": "highlight_exists",
+              "square": "f7"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "c4",
+              "to": "f7"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c05-d04-count-value.png",
+            "hash": "7550d1df7ab430c456e0a6f377c57abe4c104c9fc5024420d3aa03900d641a6d"
+          }
+        },
+        {
+          "id": "b02-c05-d05",
+          "type": "board_diagram",
+          "title": "Look for the recapture",
+          "fen": "4k3/8/2p5/3p4/4P3/8/8/4K3 w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "e4",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "d5",
+              "colorRole": "capture"
+            },
+            {
+              "square": "c6",
+              "colorRole": "threat"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "e4",
+              "to": "d5",
+              "colorRole": "capture"
+            },
+            {
+              "from": "c6",
+              "to": "d5",
+              "colorRole": "threat"
+            }
+          ],
+          "caption_md": "After e4xd5, the c6 pawn may recapture. Notice the second move.",
+          "assertions": [
+            {
+              "type": "highlight_exists",
+              "square": "d5"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "c6"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "c6",
+              "to": "d5"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c05-d05-recapture-warning.png",
+            "hash": "3c68630c9fbbe34e123e55201b04d1ceccef3164c9a977f0a73a086550b26993"
+          }
+        },
+        {
+          "id": "b02-c05-g01",
+          "type": "guided_move",
+          "title": "Make the equal pawn capture",
+          "fen": "4k3/8/8/3p4/4P3/8/8/4K3 w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "e4",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "d5",
+              "colorRole": "capture"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "e4",
+              "to": "d5",
+              "colorRole": "capture"
+            }
+          ],
+          "caption_md": "",
+          "assertions": [
+            {
+              "type": "legal_move",
+              "move": "e4d5"
+            },
+            {
+              "type": "piece_on",
+              "square": "e4",
+              "piece": "white_pawn"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "d5"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "e4",
+              "to": "d5"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c05-g01-exd5.png",
+            "hash": "0dafec3d3955a1cf02fea322c880eb7686177ebd5a0f796bb74be5867df9b88f"
+          },
+          "prompt_md": "Capture from e4 to d5.",
+          "acceptedMoves": [
+            "e4d5"
+          ],
+          "successMessage": "Correct. You found the safe survival move.",
+          "failureMessage": "Pause and scan checks, captures, and threats again."
+        },
+        {
+          "id": "b02-c05-m01",
+          "type": "mistake_refutation",
+          "title": "Common mistake: forget the recapture",
+          "fen": "4k3/8/2p5/3p4/4P3/8/8/4K3 w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "c6",
+              "colorRole": "threat"
+            },
+            {
+              "square": "d5",
+              "colorRole": "target"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "c6",
+              "to": "d5",
+              "colorRole": "threat"
+            }
+          ],
+          "caption_md": "The c6 pawn points back to d5.",
+          "assertions": [
+            {
+              "type": "highlight_exists",
+              "square": "c6"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "d5"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "c6",
+              "to": "d5"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c05-m01-forget-recapture.png",
+            "hash": "38cdc367bd0101688ac41a488ab68eaa5d32e21520b380c8506441b891d59379"
+          },
+          "body_md": "If another pawn can recapture, the first capture may only be a trade."
+        }
+      ]
+    }
+  ],
+  "checkpoint": {
+    "id": "b02-c05-checkpoint",
+    "title": "Chapter Checkpoint",
+    "summary_md": "Answer without guessing. The goal is a repeatable survival habit, not a lucky move.",
+    "blocks": [
+      {
+        "id": "b02-c05-q01",
+        "type": "quiz",
+        "title": "Before a capture, ask what can:",
+        "question_md": "Before a capture, ask what can:",
+        "options": [
+          {
+            "id": "a",
+            "label": "Recapture",
+            "isCorrect": true
+          },
+          {
+            "id": "b",
+            "label": "Rename the board",
+            "isCorrect": false
+          },
+          {
+            "id": "c",
+            "label": "Change the clock color",
+            "isCorrect": false
+          }
+        ]
+      },
+      {
+        "id": "b02-c05-q02",
+        "type": "quiz",
+        "title": "Winning a rook for a bishop is usually:",
+        "question_md": "Winning a rook for a bishop is usually:",
+        "options": [
+          {
+            "id": "a",
+            "label": "Good",
+            "isCorrect": true
+          },
+          {
+            "id": "b",
+            "label": "Always illegal",
+            "isCorrect": false
+          },
+          {
+            "id": "c",
+            "label": "The same as losing a queen",
+            "isCorrect": false
+          }
+        ]
+      },
+      {
+        "id": "b02-c05-q03",
+        "type": "quiz",
+        "title": "A pawn capture may simply be:",
+        "question_md": "A pawn capture may simply be:",
+        "options": [
+          {
+            "id": "a",
+            "label": "An equal trade",
+            "isCorrect": true
+          },
+          {
+            "id": "b",
+            "label": "Always checkmate",
+            "isCorrect": false
+          },
+          {
+            "id": "c",
+            "label": "Always a blunder",
+            "isCorrect": false
+          }
+        ]
+      }
+    ]
+  },
+  "reviewAssertions": [
+    {
+      "type": "minimum_board_diagrams",
+      "value": 5
+    },
+    {
+      "type": "minimum_guided_moves",
+      "value": 1
+    },
+    {
+      "type": "minimum_quizzes",
+      "value": 3
+    },
+    {
+      "type": "tier_allowed",
+      "value": "free"
+    }
+  ]
+}

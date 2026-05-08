@@ -80,6 +80,14 @@ return Application::configure(basePath: dirname(__DIR__))
             ->withoutOverlapping()
             ->runInBackground()
             ->description('Expire stale subscriptions and downgrade to free');
+
+        // Promote subscription referral earnings older than 7 days
+        // (refund window) from pending → approved daily at 03:00 UTC.
+        $schedule->command('referrals:release-held')
+            ->dailyAt('03:00')
+            ->withoutOverlapping()
+            ->runInBackground()
+            ->description('Release ambassador subscription earnings past the 7-day refund hold');
     })
     ->withMiddleware(function (Middleware $middleware) {
         // CORS is handled by \Fruitcake\Cors\HandleCors in Kernel.php (global middleware)

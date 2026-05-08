@@ -1,6 +1,48 @@
 // File: src/utils/gameHistoryStringUtils.js
 import { Chess } from "chess.js";
 
+export function normalizeLearningHelpMarkers(raw) {
+  if (!raw) return [];
+
+  if (typeof raw === 'string') {
+    return raw
+      .split('+')
+      .map(item => item.trim())
+      .filter(Boolean)
+      .map(type => ({ type: decodeURIComponent(type) }));
+  }
+
+  if (Array.isArray(raw)) {
+    return raw
+      .map(item => {
+        if (!item) return null;
+        if (typeof item === 'string') return { type: item };
+        if (typeof item === 'object') {
+          const type = item.type || item.kind || item.name;
+          return type ? { ...item, type } : null;
+        }
+        return null;
+      })
+      .filter(Boolean);
+  }
+
+  if (typeof raw === 'object') {
+    return normalizeLearningHelpMarkers(raw.learningHelp || raw.lifelines || raw.learning_help || raw.helpUsed);
+  }
+
+  return [];
+}
+
+const encodeLearningHelpToken = (entry) => {
+  const markers = normalizeLearningHelpMarkers(entry);
+  if (!markers.length) return '';
+  return markers
+    .map(marker => marker.type)
+    .filter(Boolean)
+    .map(type => encodeURIComponent(type))
+    .join('+');
+};
+
 /**
  * Encodes a game history (array of move entries) into a concise string.
  * The format is a semicolon-separated list of moves:
@@ -25,19 +67,29 @@ export function encodeGameHistory(gameHistory) {
     // Format 2: Computer game format { move: { san }, timeSpent, evaluation? }
     else if (entry.move && entry.move.san && entry.timeSpent !== undefined) {
       let part = entry.move.san + "," + entry.timeSpent.toFixed(2);
+      const learningHelpToken = encodeLearningHelpToken(entry);
       if (entry.evaluation && entry.evaluation.total != null) {
         part += "," + entry.evaluation.total.toFixed(1) + "," + (entry.evaluation.moveClassification || '');
+      } else if (learningHelpToken) {
+        part += ",,";
       }
+      if (learningHelpToken) part += "," + learningHelpToken;
       parts.push(part);
     }
     // Format 3: Server/multiplayer format { san, move_time_ms }
     else if (entry.san && entry.move_time_ms !== undefined) {
       const timeInSeconds = entry.move_time_ms / 1000;
-      parts.push(entry.san + "," + timeInSeconds.toFixed(2));
+      let part = entry.san + "," + timeInSeconds.toFixed(2);
+      const learningHelpToken = encodeLearningHelpToken(entry);
+      if (learningHelpToken) part += ",,," + learningHelpToken;
+      parts.push(part);
     }
     // Format 4: Fallback - has san but no time data
     else if (entry.san) {
-      parts.push(entry.san + ",0.00");
+      let part = entry.san + ",0.00";
+      const learningHelpToken = encodeLearningHelpToken(entry);
+      if (learningHelpToken) part += ",,," + learningHelpToken;
+      parts.push(part);
       console.warn(`Move ${index + 1}: Missing time data for ${entry.san}, defaulting to 0.00s`);
     }
     // Format 5: Unknown format - log error
@@ -64,6 +116,9 @@ export function decodeGameHistory(gameString) {
       if (fields.length > 2 && fields[2] !== '') {
         entry.evalTotal = parseFloat(fields[2]);
         entry.moveClassification = fields[3] || null;
+      }
+      if (fields.length > 4 && fields[4] !== '') {
+        entry.learningHelp = normalizeLearningHelpMarkers(fields[4]);
       }
       moves.push(entry);
     }
@@ -137,6 +192,7 @@ export function reconstructGameFromHistory(gameString) {
         total: moveData.evalTotal,
         moveClassification: moveData.moveClassification,
       } : null,
+      learningHelp: moveData.learningHelp || [],
     });
   });
 

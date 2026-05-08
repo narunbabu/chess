@@ -20,7 +20,7 @@ import { pieces3dLanding } from "../../assets/pieces/pieces3d"; // 3D piece rend
 import { useGameTimer } from "../../utils/timerUtils"; // Adjust path if needed
 import { makeComputerMove, waitForPerceivedThinkTime } from "../../utils/computerMoveUtils"; // Adjust path if needed
 import { updateGameStatus, evaluateMove } from "../../utils/gameStateUtils"; // Adjust paths if needed (ensure evaluateMove exists)
-import { encodeGameHistory, reconstructGameFromHistory } from "../../utils/gameHistoryStringUtils"; // Adjust paths if needed
+import { encodeGameHistory, normalizeLearningHelpMarkers, reconstructGameFromHistory } from "../../utils/gameHistoryStringUtils"; // Adjust paths if needed
 import { createResultFromComputerGame } from "../../utils/resultStandardization"; // Standardized result format
 import { getRatingFromLevel } from "../../utils/eloUtils"; // Level-to-rating mapping
 import { getOpponentResponse, shouldAutoRespond, resolveQuickMessageTrigger } from "../../utils/syntheticChatUtils";
@@ -292,9 +292,25 @@ const PlayComputer = () => {
   const gameHistoryRef = useRef(gameHistory);
   const playerScoreRef = useRef(playerScore);
   const computerScoreRef = useRef(computerScore);
+  const pendingLearningHelpRef = useRef([]);
   useEffect(() => { gameHistoryRef.current = gameHistory; }, [gameHistory]);
   useEffect(() => { playerScoreRef.current = playerScore; }, [playerScore]);
   useEffect(() => { computerScoreRef.current = computerScore; }, [computerScore]);
+
+  const recordPendingLearningHelp = useCallback((kind = 'help') => {
+    if (ratedMode !== 'learning') return;
+
+    const type = kind === 'best-move' ? 'best-move' : kind;
+    pendingLearningHelpRef.current = [
+      ...pendingLearningHelpRef.current,
+      {
+        type,
+        usedBeforePly: gameHistoryRef.current.length,
+        fen: game?.fen?.() || null,
+        usedAt: new Date().toISOString(),
+      },
+    ];
+  }, [game, ratedMode]);
 
   const handleTimerFlag = useCallback((who) => {
     // 'who' is 'player' or 'computer'
@@ -593,9 +609,18 @@ const PlayComputer = () => {
             // Capture final FEN from the current chess.js game instance
             let finalFen = null;
             try { finalFen = game.fen(); } catch (_) {}
-            // Encode moves as compact JSON array of SAN strings
+            // Encode moves as SAN strings, adding lifeline metadata only when used.
+            const hasLearningHelpMarkers = Array.isArray(finalHistory)
+              ? finalHistory.some(h => normalizeLearningHelpMarkers(h).length > 0)
+              : false;
             const moveSans = Array.isArray(finalHistory)
-              ? finalHistory.map(h => h?.move?.san || h?.san || h).filter(Boolean)
+              ? finalHistory.map(h => {
+                  const san = h?.move?.san || h?.san || (typeof h === 'string' ? h : null);
+                  if (!san) return null;
+                  if (!hasLearningHelpMarkers) return san;
+                  const lifelines = normalizeLearningHelpMarkers(h);
+                  return lifelines.length ? { san, lifelines } : { san };
+                }).filter(Boolean)
               : [];
             const isLearningGame = ratedMode === 'learning';
             const learningHelpUsed = isLearningGame
@@ -1796,6 +1821,11 @@ const PlayComputer = () => {
             timeSpent: moveTimeInSeconds,
             evaluation: evaluationResult, // Store evaluation result
         };
+        const learningHelpMarkers = normalizeLearningHelpMarkers(pendingLearningHelpRef.current);
+        if (learningHelpMarkers.length > 0) {
+            newHistoryEntry.learningHelp = learningHelpMarkers;
+            pendingLearningHelpRef.current = [];
+        }
         // Use functional update for history state if issues arise, otherwise direct update is fine
         const updatedHistory = [...gameHistory, newHistoryEntry];
         setGameHistory(updatedHistory);
@@ -2472,6 +2502,7 @@ const PlayComputer = () => {
             // Decrement undo chances
             const newUndoChances = Math.max(0, undoChancesRemaining - 1);
             setUndoChancesRemaining(newUndoChances);
+            recordPendingLearningHelp('undo');
             console.log(`[PlayComputer] 📉 Undo chances remaining: ${newUndoChances}`);
 
             const remainingLabel = ratedMode === 'learning'
@@ -2495,7 +2526,7 @@ const PlayComputer = () => {
         setActiveTimer, setIsTimerRunning, startTimerInterval, setGame,
         setGameHistory, setMoveCount, setMoveCompleted, setGameStatus,
         setLastMoveEvaluation, setLastComputerEvaluation, setPlayerScore,
-        setComputerScore, setCanUndo, setUndoChancesRemaining, playSound
+        setComputerScore, setCanUndo, setUndoChancesRemaining, recordPendingLearningHelp, playSound
     ]);
 
     // --- Replay Controls ---
@@ -2700,9 +2731,11 @@ const PlayComputer = () => {
         if (nextRemaining <= 0) {
             setCanUndo(false);
         }
-        setGameStatus(`Best move helpline used. ${nextRemaining} helpline${nextRemaining !== 1 ? 's' : ''} remaining.`);
+        recordPendingLearningHelp(kind);
+        const helpLabel = kind === 'best-move' ? 'Best move' : 'Learning';
+        setGameStatus(`${helpLabel} helpline used. ${nextRemaining} helpline${nextRemaining !== 1 ? 's' : ''} remaining.`);
         return true;
-    }, [ratedMode, undoChancesRemaining, setGameStatus, setUndoChancesRemaining, setCanUndo]);
+    }, [ratedMode, undoChancesRemaining, recordPendingLearningHelp, setGameStatus, setUndoChancesRemaining, setCanUndo]);
 
    // --- Draw Handlers (Placeholder for future implementation) ---
    const handleDrawOffer = useCallback(() => {

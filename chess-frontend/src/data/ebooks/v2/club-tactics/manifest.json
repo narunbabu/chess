@@ -1,0 +1,137 @@
+{
+  "schemaVersion": "2.0.0",
+  "bookId": "club-tactics",
+  "title": "Club Tactics",
+  "subtitle": "Move from named motifs to multi-move combinations.",
+  "seriesPosition": 6,
+  "eloStart": 1300,
+  "eloEnd": 1600,
+  "requiredTier": "silver",
+  "status": "complete-draft",
+  "purpose": "Teach combinations that connect several tactical signals.",
+  "audience": [
+    "Club players",
+    "Tactical improvers",
+    "Players preparing for tournaments"
+  ],
+  "howToRead": [
+    "Study each diagram before reading the explanation.",
+    "Write or say the candidate idea before playing the guided move.",
+    "Review the common mistake before attempting the checkpoint.",
+    "Do not advance until the checkpoint is passed without hints."
+  ],
+  "prerequisites": [
+    "Earlier books in the Chess99 ladder"
+  ],
+  "outcomes": [
+    "Recognize the core patterns in Club Tactics.",
+    "Use generated board diagrams as calculation anchors.",
+    "Play the guided moves with a reason, not guesswork.",
+    "Pass chapter checkpoints and retain the habit in real games."
+  ],
+  "visualLanguage": {
+    "boardTheme": "instruction-classic",
+    "lightSquare": "#eeeed2",
+    "darkSquare": "#769656",
+    "colorRoles": {
+      "best": "#81b64c",
+      "candidate": "#7b61a6",
+      "check": "#ef4444",
+      "capture": "#5b8dd9",
+      "threat": "#c9882a",
+      "target": "#f59e0b",
+      "lastMove": "rgba(255,221,0,0.35)",
+      "wrong": "rgba(220,60,60,0.35)",
+      "safe": "rgba(129,182,76,0.25)"
+    }
+  },
+  "assetPolicy": {
+    "authoritativeDiagrams": "Generate from FEN, arrows, highlights, and board theme only.",
+    "generativeImages": "Allowed for cover and concept art only, never for exact chess positions.",
+    "diagramOutputRoot": "assets/diagrams",
+    "illustrationOutputRoot": "assets/illustrations"
+  },
+  "chapterOrder": [
+    {
+      "chapterId": "01-double-attacks",
+      "path": "chapters/01-double-attacks.json",
+      "title": "Double Attacks",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    },
+    {
+      "chapterId": "02-overloaded-defenders",
+      "path": "chapters/02-overloaded-defenders.json",
+      "title": "Overloaded Defenders",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    },
+    {
+      "chapterId": "03-zwischenzug",
+      "path": "chapters/03-zwischenzug.json",
+      "title": "Zwischenzug",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    },
+    {
+      "chapterId": "04-attraction-and-decoy",
+      "path": "chapters/04-attraction-and-decoy.json",
+      "title": "Attraction And Decoy",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    },
+    {
+      "chapterId": "05-clearance",
+      "path": "chapters/05-clearance.json",
+      "title": "Clearance",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    },
+    {
+      "chapterId": "06-interference",
+      "path": "chapters/06-interference.json",
+      "title": "Interference",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    },
+    {
+      "chapterId": "07-sacrifices-on-f7-and-h7",
+      "path": "chapters/07-sacrifices-on-f7-and-h7.json",
+      "title": "Sacrifices On f7 And h7",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    },
+    {
+      "chapterId": "08-king-in-the-center-tactics",
+      "path": "chapters/08-king-in-the-center-tactics.json",
+      "title": "King In The Center Tactics",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    },
+    {
+      "chapterId": "09-defensive-tactics",
+      "path": "chapters/09-defensive-tactics.json",
+      "title": "Defensive Tactics",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    },
+    {
+      "chapterId": "10-mixed-club-tactics-test",
+      "path": "chapters/10-mixed-club-tactics-test.json",
+      "title": "Mixed Club Tactics Test",
+      "estimatedMinutes": 28,
+      "requiredTier": "silver"
+    }
+  ],
+  "assessment": {
+    "checkpointRequiredScore": 3,
+    "unlockRule": "Complete the guided move and answer all checkpoint questions correctly."
+  },
+  "reviewStatus": {
+    "schema": "draft",
+    "chessLogic": "draft",
+    "diagramGeneration": "draft",
+    "textImageConsistency": "draft",
+    "humanChessReview": "pending"
+  }
+}

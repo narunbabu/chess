@@ -12,8 +12,12 @@ class DailyChallenge extends Model
 
     protected $fillable = [
         'date',
+        'track_slug',
+        'required_tier',
         'challenge_type',
         'skill_tier',
+        'skill_band',
+        'track_label',
         'challenge_data',
         'xp_reward',
     ];
@@ -24,12 +28,110 @@ class DailyChallenge extends Model
         'date' => 'date',
     ];
 
+    public const DEFAULT_TRACK = 'daily-starter';
+
+    public const TRACKS = [
+        'daily-starter' => [
+            'slug' => 'daily-starter',
+            'label' => 'Daily Starter',
+            'required_tier' => 'free',
+            'challenge_type' => 'puzzle',
+            'skill_tier' => 'beginner',
+            'skill_bands' => ['newcomer', 'beginner'],
+            'xp_reward' => 20,
+            'focus' => 'One clear tactic or mate pattern for a reliable daily habit.',
+        ],
+        'daily-improvement' => [
+            'slug' => 'daily-improvement',
+            'label' => 'Daily Improvement',
+            'required_tier' => 'silver',
+            'challenge_type' => 'puzzle',
+            'skill_tier' => 'intermediate',
+            'skill_bands' => ['beginner', 'improving-beginner', 'club-player'],
+            'xp_reward' => 30,
+            'focus' => 'Calculation practice for players building club strength.',
+        ],
+        'daily-endgame' => [
+            'slug' => 'daily-endgame',
+            'label' => 'Daily Endgame',
+            'required_tier' => 'silver',
+            'challenge_type' => 'endgame',
+            'skill_tier' => 'intermediate',
+            'skill_bands' => ['improving-beginner', 'club-player', 'advanced'],
+            'xp_reward' => 35,
+            'focus' => 'Practical conversion or saving technique.',
+        ],
+        'daily-master' => [
+            'slug' => 'daily-master',
+            'label' => 'Daily Master',
+            'required_tier' => 'gold',
+            'challenge_type' => 'puzzle',
+            'skill_tier' => 'advanced',
+            'skill_bands' => ['advanced', 'competitive'],
+            'xp_reward' => 50,
+            'focus' => 'Deeper calculation and professional preparation habits.',
+        ],
+    ];
+
     /**
      * Get user completions for this challenge
      */
     public function userCompletions(): HasMany
     {
         return $this->hasMany(UserDailyChallengeCompletion::class, 'challenge_id');
+    }
+
+    public static function normalizeTrackSlug(?string $trackSlug): string
+    {
+        return array_key_exists((string) $trackSlug, self::TRACKS)
+            ? (string) $trackSlug
+            : self::DEFAULT_TRACK;
+    }
+
+    public static function track(string $trackSlug): array
+    {
+        $slug = self::normalizeTrackSlug($trackSlug);
+
+        return self::TRACKS[$slug];
+    }
+
+    public static function tracks(): array
+    {
+        return array_values(self::TRACKS);
+    }
+
+    public static function defaultSkillBandForTier(?string $tier): string
+    {
+        return match ($tier) {
+            'intermediate' => 'club-player',
+            'advanced' => 'advanced',
+            default => 'beginner',
+        };
+    }
+
+    public static function resolveSkillBandForTrack(array $track, ?string $requestedSkillBand, ?string $legacyTier): string
+    {
+        if ($requestedSkillBand && in_array($requestedSkillBand, $track['skill_bands'], true)) {
+            return $requestedSkillBand;
+        }
+
+        $legacyBand = self::defaultSkillBandForTier($legacyTier ?? $track['skill_tier']);
+        if (in_array($legacyBand, $track['skill_bands'], true)) {
+            return $legacyBand;
+        }
+
+        return $track['skill_bands'][0];
+    }
+
+    public function getTrackMetadataAttribute(): array
+    {
+        $track = self::track($this->track_slug ?? self::DEFAULT_TRACK);
+
+        return array_merge($track, [
+            'slug' => $this->track_slug ?? $track['slug'],
+            'label' => $this->track_label ?? $track['label'],
+            'required_tier' => $this->required_tier ?? $track['required_tier'],
+        ]);
     }
 
     /**
@@ -166,6 +268,14 @@ class DailyChallenge extends Model
     }
 
     /**
+     * Scope to get challenges by daily track
+     */
+    public function scopeByTrack($query, $trackSlug)
+    {
+        return $query->where('track_slug', self::normalizeTrackSlug($trackSlug));
+    }
+
+    /**
      * Scope to get current challenge
      */
     public function scopeCurrent($query)
@@ -184,19 +294,28 @@ class DailyChallenge extends Model
     /**
      * Get or create today's challenge
      */
-    public static function getOrCreateToday($type = null, $tier = null): self
+    public static function getOrCreateToday($type = null, $tier = null, ?string $trackSlug = null, ?string $skillBand = null): self
     {
         $date = now()->format('Y-m-d');
+        $track = self::track($trackSlug ?? self::DEFAULT_TRACK);
+        $resolvedTrackSlug = $track['slug'];
+        $resolvedType = $track['challenge_type'];
+        $resolvedTier = $track['skill_tier'];
+        $resolvedSkillBand = self::resolveSkillBandForTrack($track, $skillBand, $resolvedTier);
 
-        // First try to find existing challenge for today with multiple approaches
-        $challenge = static::whereDate('date', $date)->first();
+        // First try to find today's challenge for the requested track.
+        $challenge = static::whereDate('date', $date)
+            ->where('track_slug', $resolvedTrackSlug)
+            ->first();
 
         if ($challenge) {
             return $challenge;
         }
 
         // Try alternative query method
-        $challenge = static::where('date', $date)->first();
+        $challenge = static::where('date', $date)
+            ->where('track_slug', $resolvedTrackSlug)
+            ->first();
         if ($challenge) {
             return $challenge;
         }
@@ -205,19 +324,27 @@ class DailyChallenge extends Model
         try {
             return static::create([
                 'date' => $date,
-                'challenge_type' => $type ?? 'puzzle',
-                'skill_tier' => $tier ?? 'beginner',
-                'challenge_data' => static::generateChallengeData($type ?? 'puzzle', $tier ?? 'beginner'),
-                'xp_reward' => 25,
+                'track_slug' => $resolvedTrackSlug,
+                'required_tier' => $track['required_tier'],
+                'challenge_type' => $resolvedType,
+                'skill_tier' => $resolvedTier,
+                'skill_band' => $resolvedSkillBand,
+                'track_label' => $track['label'],
+                'challenge_data' => static::generateChallengeData($resolvedType, $resolvedTier),
+                'xp_reward' => $track['xp_reward'],
             ]);
         } catch (\Illuminate\Database\QueryException $e) {
             // Handle UNIQUE constraint violation - race condition or data inconsistency
             if ($e->getCode() === 23000 || str_contains($e->getMessage(), 'UNIQUE constraint failed')) {
                 // Another process created the challenge or there's a data inconsistency
                 // Try multiple approaches to find the existing challenge
-                $existing = static::whereDate('date', $date)->first();
+                $existing = static::whereDate('date', $date)
+                    ->where('track_slug', $resolvedTrackSlug)
+                    ->first();
                 if (!$existing) {
-                    $existing = static::where('date', $date)->first();
+                    $existing = static::where('date', $date)
+                        ->where('track_slug', $resolvedTrackSlug)
+                        ->first();
                 }
 
                 if ($existing) {
@@ -225,11 +352,17 @@ class DailyChallenge extends Model
                 }
 
                 // If we still can't find it, there's a data integrity issue
-                // For now, return the first challenge of today as fallback
-                return static::orderBy('id', 'desc')->first();
+                // For now, return the first challenge for this track as fallback
+                $fallback = static::where('track_slug', $resolvedTrackSlug)
+                    ->orderBy('id', 'desc')
+                    ->first();
+
+                if ($fallback) {
+                    return $fallback;
+                }
             }
 
-            // Re-throw if it's a different error
+            // Re-throw if it's a different error or the fallback was not found.
             throw $e;
         }
     }
@@ -243,8 +376,17 @@ class DailyChallenge extends Model
         // Pick a random puzzle from future-dated challenges that haven't been used yet.
         // If the seeder has pre-populated dates, grab from the nearest unused one.
         $unused = static::where('date', '>', now()->format('Y-m-d'))
+            ->where('challenge_type', $type)
+            ->where('skill_tier', $tier)
             ->inRandomOrder()
             ->first();
+
+        if (!$unused) {
+            $unused = static::where('date', '>', now()->format('Y-m-d'))
+                ->where('skill_tier', $tier)
+                ->inRandomOrder()
+                ->first();
+        }
 
         if ($unused) {
             return $unused->challenge_data;

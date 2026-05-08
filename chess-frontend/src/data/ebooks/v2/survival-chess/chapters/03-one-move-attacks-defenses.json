@@ -1,0 +1,503 @@
+{
+  "schemaVersion": "2.0.0",
+  "bookId": "survival-chess",
+  "chapterId": "03-one-move-attacks-defenses",
+  "title": "One-Move Attacks And One-Move Defenses",
+  "subtitle": "See the opponent threat and answer it simply.",
+  "eloRange": "300-700",
+  "requiredTier": "free",
+  "estimatedMinutes": 25,
+  "learningObjectives": [
+    "Notice direct one-move attacks.",
+    "Choose a simple defense.",
+    "Find moves that attack and defend at the same time."
+  ],
+  "sections": [
+    {
+      "id": "one-move-threats",
+      "title": "One Move Is Enough",
+      "blocks": [
+        {
+          "id": "b02-c03-p01",
+          "type": "prose",
+          "body_md": "A beginner blunder often has a one-move story: one piece attacks, one piece is attacked, and nobody answered. Your job is to notice the story before it becomes material loss."
+        },
+        {
+          "id": "b02-c03-d01",
+          "type": "board_diagram",
+          "title": "The e4 pawn is attacked",
+          "fen": "rnbqkb1r/pppppppp/5n2/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 2",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "f6",
+              "colorRole": "threat"
+            },
+            {
+              "square": "e4",
+              "colorRole": "target"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "f6",
+              "to": "e4",
+              "colorRole": "threat"
+            }
+          ],
+          "caption_md": "The knight on f6 points at e4. White should notice the attack.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "f6",
+              "piece": "black_knight"
+            },
+            {
+              "type": "piece_on",
+              "square": "e4",
+              "piece": "white_pawn"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "e4"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "f6",
+              "to": "e4"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c03-d01-e4-attacked.png",
+            "hash": "bd2cc68f3ec8ddf5fc4f9f8a5f53d28d029f8b538011f56ed358f7c37e33f888"
+          }
+        },
+        {
+          "id": "b02-c03-d02",
+          "type": "board_diagram",
+          "title": "Defend with b1-c3",
+          "fen": "rnbqkb1r/pppppppp/5n2/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 2",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "b1",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "c3",
+              "colorRole": "best"
+            },
+            {
+              "square": "e4",
+              "colorRole": "safe"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "b1",
+              "to": "c3",
+              "colorRole": "best"
+            },
+            {
+              "from": "c3",
+              "to": "e4",
+              "colorRole": "safe"
+            }
+          ],
+          "caption_md": "The move b1-c3 adds a defender to e4 while developing a knight.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "b1",
+              "piece": "white_knight"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "c3"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "b1",
+              "to": "c3"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c03-d02-defend-nc3.png",
+            "hash": "4c0e4fdf8fd12f7c11c13cec0cac92632e8ebe775e30af1c14288714e8417d0a"
+          }
+        },
+        {
+          "id": "b02-c03-d03",
+          "type": "board_diagram",
+          "title": "A loose queen can be attacked",
+          "fen": "4k3/8/8/8/3q4/5N2/8/4K3 w - - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "f3",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "d4",
+              "colorRole": "capture"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "f3",
+              "to": "d4",
+              "colorRole": "capture"
+            }
+          ],
+          "caption_md": "The knight on f3 attacks d4. Big targets count too.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "f3",
+              "piece": "white_knight"
+            },
+            {
+              "type": "piece_on",
+              "square": "d4",
+              "piece": "black_queen"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "d4"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "f3",
+              "to": "d4"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c03-d03-queen-target.png",
+            "hash": "2295e6f115a35b53c98d9856db51dd592588f14c1b39e638969a9b304adb4c30"
+          }
+        },
+        {
+          "id": "b02-c03-d04",
+          "type": "board_diagram",
+          "title": "Moving away is a defense",
+          "fen": "4k3/8/8/8/8/8/4q3/4K2R w K - 0 1",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "h1",
+              "colorRole": "target"
+            },
+            {
+              "square": "h2",
+              "colorRole": "safe"
+            },
+            {
+              "square": "e2",
+              "colorRole": "threat"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "e2",
+              "to": "h2",
+              "colorRole": "threat"
+            },
+            {
+              "from": "h1",
+              "to": "h2",
+              "colorRole": "safe"
+            }
+          ],
+          "caption_md": "If the rook is attacked, one answer is to move it to a safe square.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "h1",
+              "piece": "white_rook"
+            },
+            {
+              "type": "piece_on",
+              "square": "e2",
+              "piece": "black_queen"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "h2"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "h1",
+              "to": "h2"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c03-d04-move-attacked-piece.png",
+            "hash": "64705bed7409fc90384082ab04c017e0a4b529c8100f974c4f4aaf23155b0144"
+          }
+        },
+        {
+          "id": "b02-c03-d05",
+          "type": "board_diagram",
+          "title": "Attack and defend together",
+          "fen": "rnbqkb1r/pppppppp/5n2/8/4P3/2N5/PPPP1PPP/R1BQKBNR b KQkq - 2 2",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "c3",
+              "colorRole": "best"
+            },
+            {
+              "square": "e4",
+              "colorRole": "safe"
+            },
+            {
+              "square": "d5",
+              "colorRole": "target"
+            },
+            {
+              "square": "b5",
+              "colorRole": "target"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "c3",
+              "to": "e4",
+              "colorRole": "safe"
+            },
+            {
+              "from": "c3",
+              "to": "d5",
+              "colorRole": "candidate"
+            },
+            {
+              "from": "c3",
+              "to": "b5",
+              "colorRole": "candidate"
+            }
+          ],
+          "caption_md": "The knight on c3 defends e4 and also looks toward d5 and b5.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "c3",
+              "piece": "white_knight"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "e4"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "c3",
+              "to": "e4"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c03-d05-attack-and-defend.png",
+            "hash": "55adc140894aceb41298331f5b5903e2fdec212d15ee6d8341f596aecc5b36eb"
+          }
+        },
+        {
+          "id": "b02-c03-g01",
+          "type": "guided_move",
+          "title": "Defend the attacked pawn",
+          "fen": "rnbqkb1r/pppppppp/5n2/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 2",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "b1",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "c3",
+              "colorRole": "best"
+            },
+            {
+              "square": "e4",
+              "colorRole": "safe"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "b1",
+              "to": "c3",
+              "colorRole": "best"
+            },
+            {
+              "from": "c3",
+              "to": "e4",
+              "colorRole": "safe"
+            }
+          ],
+          "caption_md": "",
+          "assertions": [
+            {
+              "type": "legal_move",
+              "move": "b1c3"
+            },
+            {
+              "type": "piece_on",
+              "square": "b1",
+              "piece": "white_knight"
+            },
+            {
+              "type": "highlight_exists",
+              "square": "c3"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "b1",
+              "to": "c3"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c03-g01-play-nc3.png",
+            "hash": "4c0e4fdf8fd12f7c11c13cec0cac92632e8ebe775e30af1c14288714e8417d0a"
+          },
+          "prompt_md": "The pawn on e4 is attacked. Develop the knight from b1 to c3.",
+          "acceptedMoves": [
+            "b1c3"
+          ],
+          "successMessage": "Correct. You found the safe survival move.",
+          "failureMessage": "Pause and scan checks, captures, and threats again."
+        },
+        {
+          "id": "b02-c03-m01",
+          "type": "mistake_refutation",
+          "title": "Common mistake: ignore the direct attack",
+          "fen": "rnbqkb1r/pppppppp/5n2/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 2",
+          "orientation": "white",
+          "highlights": [
+            {
+              "square": "f6",
+              "colorRole": "threat"
+            },
+            {
+              "square": "e4",
+              "colorRole": "wrong"
+            }
+          ],
+          "arrows": [
+            {
+              "from": "f6",
+              "to": "e4",
+              "colorRole": "threat"
+            }
+          ],
+          "caption_md": "The arrow from f6 to e4 is the warning.",
+          "assertions": [
+            {
+              "type": "highlight_exists",
+              "square": "e4"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "f6",
+              "to": "e4"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b02-c03-m01-ignore-threat.png",
+            "hash": "3e4c2b340760f5233e83b4b2e98ab83392d95a3e0c879c7fc27d4ad1ea12f0d5"
+          },
+          "body_md": "If White plays a random move, Black can take e4. One-move threats must be answered."
+        }
+      ]
+    }
+  ],
+  "checkpoint": {
+    "id": "b02-c03-checkpoint",
+    "title": "Chapter Checkpoint",
+    "summary_md": "Answer without guessing. The goal is a repeatable survival habit, not a lucky move.",
+    "blocks": [
+      {
+        "id": "b02-c03-q01",
+        "type": "quiz",
+        "title": "A simple defense can be:",
+        "question_md": "A simple defense can be:",
+        "options": [
+          {
+            "id": "a",
+            "label": "Move the attacked piece",
+            "isCorrect": true
+          },
+          {
+            "id": "b",
+            "label": "Pretend there is no threat",
+            "isCorrect": false
+          },
+          {
+            "id": "c",
+            "label": "Always move the queen",
+            "isCorrect": false
+          }
+        ]
+      },
+      {
+        "id": "b02-c03-q02",
+        "type": "quiz",
+        "title": "A developing move is especially good when it also:",
+        "question_md": "A developing move is especially good when it also:",
+        "options": [
+          {
+            "id": "a",
+            "label": "Defends something important",
+            "isCorrect": true
+          },
+          {
+            "id": "b",
+            "label": "Loses a rook",
+            "isCorrect": false
+          },
+          {
+            "id": "c",
+            "label": "Blocks your king forever",
+            "isCorrect": false
+          }
+        ]
+      },
+      {
+        "id": "b02-c03-q03",
+        "type": "quiz",
+        "title": "If your opponent attacks a pawn, you should:",
+        "question_md": "If your opponent attacks a pawn, you should:",
+        "options": [
+          {
+            "id": "a",
+            "label": "Scan ways to defend or move it",
+            "isCorrect": true
+          },
+          {
+            "id": "b",
+            "label": "Always resign",
+            "isCorrect": false
+          },
+          {
+            "id": "c",
+            "label": "Move instantly",
+            "isCorrect": false
+          }
+        ]
+      }
+    ]
+  },
+  "reviewAssertions": [
+    {
+      "type": "minimum_board_diagrams",
+      "value": 5
+    },
+    {
+      "type": "minimum_guided_moves",
+      "value": 1
+    },
+    {
+      "type": "minimum_quizzes",
+      "value": 3
+    },
+    {
+      "type": "tier_allowed",
+      "value": "free"
+    }
+  ]
+}

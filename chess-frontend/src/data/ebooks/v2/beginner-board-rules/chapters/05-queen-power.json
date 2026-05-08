@@ -1,0 +1,499 @@
+{
+  "schemaVersion": "2.0.0",
+  "bookId": "beginner-board-rules",
+  "chapterId": "05-queen-power",
+  "title": "The Queen And Long-Range Power",
+  "subtitle": "The queen combines rook lines and bishop diagonals.",
+  "eloRange": "0-300",
+  "requiredTier": "free",
+  "estimatedMinutes": 24,
+  "learningObjectives": [
+    "Move the queen along ranks, files, and diagonals.",
+    "Recognize that the queen cannot jump.",
+    "Use the queen to target weak squares.",
+    "Avoid bringing the queen into easy attack too early."
+  ],
+  "sections": [
+    {
+      "id": "queen-lines",
+      "title": "The Queen Combines Two Pieces",
+      "blocks": [
+        {
+          "id": "b01-c05-p01",
+          "type": "prose",
+          "body_md": "The queen is the strongest attacking piece because she moves like a rook and a bishop together. She can use files, ranks, and diagonals, but she still cannot jump."
+        },
+        {
+          "id": "b01-c05-d01",
+          "type": "board_diagram",
+          "title": "Queen lines from d4",
+          "fen": "k7/8/8/8/3Q4/8/8/7K w - - 0 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "d4",
+              "to": "d8",
+              "colorRole": "best"
+            },
+            {
+              "from": "d4",
+              "to": "h4",
+              "colorRole": "capture"
+            },
+            {
+              "from": "d4",
+              "to": "h8",
+              "colorRole": "candidate"
+            },
+            {
+              "from": "d4",
+              "to": "a1",
+              "colorRole": "candidate"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "d4",
+              "colorRole": "lastMove"
+            },
+            {
+              "square": "d8",
+              "colorRole": "safe"
+            },
+            {
+              "square": "h4",
+              "colorRole": "safe"
+            },
+            {
+              "square": "h8",
+              "colorRole": "safe"
+            }
+          ],
+          "caption_md": "The queen can move vertically, horizontally, and diagonally from d4.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "d4",
+              "piece": "white_queen"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "d4",
+              "to": "d8"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "d4",
+              "to": "h8"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c05-d01-queen-lines-d4.png",
+            "hash": "4005c40955249aa00e2bd56645e2af250b6ef18e48e6c1f9c6d5a563309f813f"
+          }
+        },
+        {
+          "id": "b01-c05-d02",
+          "type": "board_diagram",
+          "title": "Queen as rook plus bishop",
+          "fen": "k7/8/8/8/2RQB3/8/8/7K w - - 0 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "d4",
+              "to": "d8",
+              "colorRole": "best"
+            },
+            {
+              "from": "d4",
+              "to": "h8",
+              "colorRole": "candidate"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "c4",
+              "colorRole": "candidate"
+            },
+            {
+              "square": "d4",
+              "colorRole": "best"
+            },
+            {
+              "square": "e4",
+              "colorRole": "capture"
+            }
+          ],
+          "caption_md": "The queen on d4 shares the straight-line idea of the rook and the diagonal idea of the bishop.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "d4",
+              "piece": "white_queen"
+            },
+            {
+              "type": "piece_on",
+              "square": "c4",
+              "piece": "white_rook"
+            },
+            {
+              "type": "piece_on",
+              "square": "e4",
+              "piece": "white_bishop"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c05-d02-queen-rook-bishop.png",
+            "hash": "d4e325287cd597aa80378f71fcabdbc640145dc0086c398ab707eb2476d6e45f"
+          }
+        }
+      ]
+    },
+    {
+      "id": "queen-targets",
+      "title": "Targets And Blocks",
+      "blocks": [
+        {
+          "id": "b01-c05-p02",
+          "type": "prose",
+          "body_md": "A queen becomes powerful when she attacks a clear target. But if a piece sits on the path, the queen must stop before it or capture it if it is an enemy piece."
+        },
+        {
+          "id": "b01-c05-d03",
+          "type": "board_diagram",
+          "title": "The queen targets h8",
+          "fen": "k6r/8/8/8/3Q4/8/8/7K w - - 0 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "d4",
+              "to": "h8",
+              "colorRole": "capture"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "h8",
+              "colorRole": "target"
+            },
+            {
+              "square": "d4",
+              "colorRole": "lastMove"
+            }
+          ],
+          "caption_md": "The queen on d4 attacks the rook on h8 along the diagonal.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "d4",
+              "piece": "white_queen"
+            },
+            {
+              "type": "piece_on",
+              "square": "h8",
+              "piece": "black_rook"
+            },
+            {
+              "type": "arrow_exists",
+              "from": "d4",
+              "to": "h8"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c05-d03-queen-target-h8.png",
+            "hash": "2caf2305dc6b2fbf079c187bd17c27f432b66df96e2cad23b942df8125a2fef7"
+          }
+        },
+        {
+          "id": "b01-c05-d04",
+          "type": "board_diagram",
+          "title": "A blocked queen line",
+          "fen": "k6r/8/5P2/8/3Q4/8/8/7K w - - 0 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "d4",
+              "to": "f6",
+              "colorRole": "wrong"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "f6",
+              "colorRole": "wrong"
+            },
+            {
+              "square": "h8",
+              "colorRole": "target"
+            }
+          ],
+          "caption_md": "The white pawn on f6 blocks the diagonal, so the queen no longer attacks h8.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "d4",
+              "piece": "white_queen"
+            },
+            {
+              "type": "piece_on",
+              "square": "f6",
+              "piece": "white_pawn"
+            },
+            {
+              "type": "piece_on",
+              "square": "h8",
+              "piece": "black_rook"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c05-d04-queen-line-blocked.png",
+            "hash": "dd805014d5c51213bef3e4327c892fb4ed2454a466fc61440f315b34a9d79cb7"
+          }
+        },
+        {
+          "id": "b01-c05-d05",
+          "type": "board_diagram",
+          "title": "Early queen move",
+          "fen": "rnbqkbnr/pppppppp/8/7Q/4P3/8/PPPP1PPP/RNB1KBNR b KQkq - 1 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "g8",
+              "to": "f6",
+              "colorRole": "threat"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "h5",
+              "colorRole": "target"
+            },
+            {
+              "square": "f6",
+              "colorRole": "threat"
+            }
+          ],
+          "caption_md": "A queen on h5 can be useful, but Black can gain time by attacking her with Ng8 to f6.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "h5",
+              "piece": "white_queen"
+            },
+            {
+              "type": "piece_on",
+              "square": "g8",
+              "piece": "black_knight"
+            },
+            {
+              "type": "legal_move",
+              "move": "g8f6"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c05-d05-queen-out-early.png",
+            "hash": "a9583e2357a555b2ea83ebb074e9fc67aad2e9e6525e88ac594e861763816c5c"
+          }
+        },
+        {
+          "id": "b01-c05-g01",
+          "type": "guided_move",
+          "title": "Move the queen to h5",
+          "fen": "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 1",
+          "orientation": "white",
+          "prompt_md": "Move the queen from d1 to h5 along the diagonal.",
+          "acceptedMoves": [
+            "d1h5"
+          ],
+          "successMessage": "Correct. The queen used a clear diagonal.",
+          "failureMessage": "The queen starts on d1 and travels diagonally to h5.",
+          "arrows": [
+            {
+              "from": "d1",
+              "to": "h5",
+              "colorRole": "best"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "d1",
+              "colorRole": "lastMove"
+            },
+            {
+              "square": "h5",
+              "colorRole": "best"
+            }
+          ],
+          "assertions": [
+            {
+              "type": "legal_move",
+              "move": "d1h5"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "queen-mistake",
+      "title": "Common Mistake",
+      "blocks": [
+        {
+          "id": "b01-c05-m01",
+          "type": "mistake_refutation",
+          "title": "Common mistake: ignoring attacks on the queen",
+          "fen": "rnbqkbnr/pppppppp/8/7Q/4P3/8/PPPP1PPP/RNB1KBNR b KQkq - 1 1",
+          "orientation": "white",
+          "arrows": [
+            {
+              "from": "g8",
+              "to": "f6",
+              "colorRole": "threat"
+            },
+            {
+              "from": "f6",
+              "to": "h5",
+              "colorRole": "target"
+            }
+          ],
+          "highlights": [
+            {
+              "square": "h5",
+              "colorRole": "target"
+            },
+            {
+              "square": "f6",
+              "colorRole": "threat"
+            }
+          ],
+          "body_md": "Beginners often bring the queen out and forget that the opponent can attack it. Here Black can play Ng8 to f6 and make the queen move again.",
+          "caption_md": "The knight move attacks the queen. A queen move that loses time needs a clear reason.",
+          "assertions": [
+            {
+              "type": "piece_on",
+              "square": "h5",
+              "piece": "white_queen"
+            },
+            {
+              "type": "piece_on",
+              "square": "g8",
+              "piece": "black_knight"
+            },
+            {
+              "type": "legal_move",
+              "move": "g8f6"
+            }
+          ],
+          "exports": {
+            "png": "assets/diagrams/b01-c05-m01-queen-attacked-by-knight.png",
+            "hash": "2b71a8a4a29e58aa46349d7007bc4bd0cee28e9bc9045254677baaa3e5349cbd"
+          }
+        }
+      ]
+    }
+  ],
+  "checkpoint": {
+    "id": "b01-c05-checkpoint",
+    "type": "checkpoint",
+    "title": "Chapter Checkpoint",
+    "requiredScore": 3,
+    "summary_md": "Pass this chapter when you can trace queen lines and explain why blocked paths or attacks matter.",
+    "blocks": [
+      {
+        "id": "b01-c05-q01",
+        "type": "quiz",
+        "title": "How does the queen move?",
+        "question_md": "The queen moves like:",
+        "options": [
+          {
+            "id": "a",
+            "label": "A rook and bishop combined",
+            "isCorrect": true,
+            "feedback": "Correct."
+          },
+          {
+            "id": "b",
+            "label": "A knight and pawn combined",
+            "isCorrect": false,
+            "feedback": "The queen does not jump like a knight."
+          },
+          {
+            "id": "c",
+            "label": "Only one square",
+            "isCorrect": false,
+            "feedback": "That is the king."
+          }
+        ]
+      },
+      {
+        "id": "b01-c05-q02",
+        "type": "quiz",
+        "title": "Can a queen jump?",
+        "question_md": "A queen can jump over pieces:",
+        "options": [
+          {
+            "id": "a",
+            "label": "No",
+            "isCorrect": true,
+            "feedback": "Correct."
+          },
+          {
+            "id": "b",
+            "label": "Yes, if she captures",
+            "isCorrect": false,
+            "feedback": "Captures still require a clear path."
+          },
+          {
+            "id": "c",
+            "label": "Only diagonally",
+            "isCorrect": false,
+            "feedback": "The queen never jumps."
+          }
+        ]
+      },
+      {
+        "id": "b01-c05-q03",
+        "type": "quiz",
+        "title": "Why can early queen moves be risky?",
+        "question_md": "Early queen moves can be risky because:",
+        "options": [
+          {
+            "id": "a",
+            "label": "The queen may get attacked and lose time",
+            "isCorrect": true,
+            "feedback": "Correct."
+          },
+          {
+            "id": "b",
+            "label": "The queen cannot capture",
+            "isCorrect": false,
+            "feedback": "The queen can capture."
+          },
+          {
+            "id": "c",
+            "label": "The queen is worth only one point",
+            "isCorrect": false,
+            "feedback": "The queen is usually counted as 9 points."
+          }
+        ]
+      }
+    ]
+  },
+  "reviewAssertions": [
+    {
+      "type": "minimum_board_diagrams",
+      "value": 5
+    },
+    {
+      "type": "minimum_guided_moves",
+      "value": 1
+    },
+    {
+      "type": "minimum_quizzes",
+      "value": 3
+    },
+    {
+      "type": "tier_allowed",
+      "value": "free"
+    }
+  ]
+}

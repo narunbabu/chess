@@ -369,7 +369,7 @@ const AdminDashboard = () => {
           {/* ==================== AMBASSADORS TAB ==================== */}
           {activeTab === 'ambassadors' && data.meta?.is_platform_admin && (
             <>
-              <TierManager />
+              <AmbassadorApplicationsQueue onApprove={fetchData} />
               <AmbassadorManager ambassadors={data.ambassador_stats || []} onRefresh={fetchData} />
             </>
           )}
@@ -657,6 +657,187 @@ const RatingDistribution = ({ distribution }) => {
 
 /* ─── Ambassador Management ─── */
 
+const AmbassadorApplicationsQueue = ({ onApprove }) => {
+  const [applications, setApplications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState('pending');
+  const [actionMsg, setActionMsg] = useState('');
+  const [expandedId, setExpandedId] = useState(null);
+  const [declineReason, setDeclineReason] = useState('');
+
+  const fetchApplications = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${BACKEND_URL}/admin/ambassadors/applications?status=${statusFilter}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}`, Accept: 'application/json' },
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setApplications(d.applications || []);
+      }
+    } catch {}
+    setLoading(false);
+  }, [statusFilter]);
+
+  useEffect(() => { fetchApplications(); }, [fetchApplications]);
+
+  const approve = async (id) => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/admin/ambassadors/applications/${id}/approve`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}`, Accept: 'application/json' },
+      });
+      const d = await res.json();
+      setActionMsg(d.message || 'Approved');
+      setTimeout(() => setActionMsg(''), 3000);
+      fetchApplications();
+      onApprove && onApprove();
+    } catch (err) { setActionMsg('Error: ' + err.message); }
+  };
+
+  const reject = async (id) => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/admin/ambassadors/applications/${id}/reject`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ decline_reason: declineReason || null }),
+      });
+      const d = await res.json();
+      setActionMsg(d.message || 'Rejected');
+      setDeclineReason('');
+      setExpandedId(null);
+      setTimeout(() => setActionMsg(''), 3000);
+      fetchApplications();
+    } catch (err) { setActionMsg('Error: ' + err.message); }
+  };
+
+  return (
+    <div className="bg-[#312e2b] rounded-lg p-4 mb-6">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold text-white">
+          Ambassador Applications ({applications.length})
+        </h2>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="px-3 py-2 rounded bg-[#262421] text-[#bababa] border border-[#464340] text-sm"
+        >
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+          <option value="all">All</option>
+        </select>
+      </div>
+      {actionMsg && <p className="text-xs text-[#81b64c] mb-3">{actionMsg}</p>}
+
+      {loading ? (
+        <p className="text-[#9b9895] text-sm">Loading…</p>
+      ) : applications.length === 0 ? (
+        <p className="text-[#9b9895] text-sm">No {statusFilter !== 'all' ? statusFilter : ''} applications.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-[#9b9895] border-b border-[#464340]">
+                <th className="py-2 pr-3">Name</th>
+                <th className="py-2 pr-3 hidden md:table-cell">Email</th>
+                <th className="py-2 pr-3">Mobile</th>
+                <th className="py-2 pr-3 hidden sm:table-cell">UPI</th>
+                <th className="py-2 pr-3">Submitted</th>
+                <th className="py-2 pr-3">Status</th>
+                <th className="py-2 w-32"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {applications.map(app => (
+                <React.Fragment key={app.id}>
+                  <tr className="border-b border-[#3d3a36] hover:bg-[#3d3a36]">
+                    <td className="py-2 pr-3 text-white">{app.name}</td>
+                    <td className="py-2 pr-3 hidden md:table-cell text-[#9b9895]">{app.user?.email}</td>
+                    <td className="py-2 pr-3 font-mono text-xs">{app.mobile}</td>
+                    <td className="py-2 pr-3 hidden sm:table-cell font-mono text-xs">{app.upi_id}</td>
+                    <td className="py-2 pr-3 text-xs text-[#9b9895]">{new Date(app.created_at).toLocaleDateString()}</td>
+                    <td className="py-2 pr-3 text-xs">
+                      <span className={
+                        app.status === 'pending' ? 'text-yellow-400' :
+                        app.status === 'approved' ? 'text-[#81b64c]' :
+                        'text-red-400'
+                      }>{app.status}</span>
+                    </td>
+                    <td className="py-2 text-right">
+                      {app.status === 'pending' && (
+                        <div className="flex gap-1 justify-end">
+                          <button
+                            onClick={() => approve(app.id)}
+                            className="text-xs px-2 py-1 rounded bg-[#81b64c] text-white hover:bg-[#6da03d]"
+                          >Approve</button>
+                          <button
+                            onClick={() => setExpandedId(expandedId === app.id ? null : app.id)}
+                            className="text-xs px-2 py-1 rounded bg-red-900/30 text-red-400 hover:bg-red-900/50"
+                          >Reject</button>
+                        </div>
+                      )}
+                      {(app.status !== 'pending' && app.reason) && (
+                        <button
+                          onClick={() => setExpandedId(expandedId === app.id ? null : app.id)}
+                          className="text-xs px-2 py-1 rounded bg-[#262421] text-[#9b9895] hover:bg-[#3d3a36]"
+                        >View</button>
+                      )}
+                    </td>
+                  </tr>
+                  {expandedId === app.id && (
+                    <tr>
+                      <td colSpan={7} className="py-3 px-4 bg-[#262421]">
+                        {app.reason && (
+                          <div className="mb-3">
+                            <div className="text-xs text-[#9b9895] mb-1">Why they want to be an ambassador:</div>
+                            <div className="text-sm text-white whitespace-pre-wrap">{app.reason}</div>
+                          </div>
+                        )}
+                        {app.decline_reason && (
+                          <div className="mb-3">
+                            <div className="text-xs text-[#9b9895] mb-1">Decline reason:</div>
+                            <div className="text-sm text-red-300 whitespace-pre-wrap">{app.decline_reason}</div>
+                          </div>
+                        )}
+                        {app.status === 'pending' && (
+                          <div>
+                            <div className="text-xs text-[#9b9895] mb-1">Decline reason (optional, shown to applicant):</div>
+                            <textarea
+                              value={declineReason}
+                              onChange={(e) => setDeclineReason(e.target.value)}
+                              rows={2}
+                              className="w-full bg-[#312e2b] border border-[#464340] rounded px-2 py-1 text-sm text-white"
+                            />
+                            <div className="flex gap-2 mt-2">
+                              <button
+                                onClick={() => reject(app.id)}
+                                className="text-xs px-3 py-1 rounded bg-red-900/40 text-red-300 hover:bg-red-900/60"
+                              >Confirm Reject</button>
+                              <button
+                                onClick={() => { setExpandedId(null); setDeclineReason(''); }}
+                                className="text-xs px-3 py-1 rounded bg-[#3d3a36] text-[#bababa] hover:bg-[#464340]"
+                              >Cancel</button>
+                            </div>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const AmbassadorManager = ({ ambassadors, onRefresh }) => {
   const [searchQ, setSearchQ] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -756,8 +937,6 @@ const AmbassadorManager = ({ ambassadors, onRefresh }) => {
                 <th className="py-2 pr-3 hidden md:table-cell">Email</th>
                 <th className="py-2 pr-3 text-right">Referred</th>
                 <th className="py-2 pr-3 text-right">Paid Subs</th>
-                <th className="py-2 pr-3 text-right">Tier</th>
-                <th className="py-2 pr-3 text-right">Rate</th>
                 <th className="py-2 pr-3 text-right">This Month</th>
                 <th className="py-2 pr-3 text-right hidden sm:table-cell">Total</th>
                 <th className="py-2 w-16"></th>
@@ -774,10 +953,6 @@ const AmbassadorManager = ({ ambassadors, onRefresh }) => {
                     <td className="py-2 pr-3 hidden md:table-cell text-[#9b9895]">{a.email}</td>
                     <td className="py-2 pr-3 text-right font-mono">{a.referred_count}</td>
                     <td className="py-2 pr-3 text-right font-mono">{a.subscribed_paid}</td>
-                    <td className="py-2 pr-3 text-right">
-                      <span className="text-xs px-2 py-0.5 rounded bg-[#262421]">{a.tier_name || 'Starter'}</span>
-                    </td>
-                    <td className="py-2 pr-3 text-right font-mono text-[#e8a93e]">{a.commission_rate || '10%'}</td>
                     <td className="py-2 pr-3 text-right font-mono text-[#81b64c]">{'\u20B9'}{a.earnings_this_month}</td>
                     <td className="py-2 pr-3 text-right font-mono hidden sm:table-cell">{'\u20B9'}{a.total_earnings}</td>
                     <td className="py-2">
@@ -790,7 +965,7 @@ const AmbassadorManager = ({ ambassadors, onRefresh }) => {
                   </tr>
                   {expandedId === a.id && (
                     <tr>
-                      <td colSpan={9} className="py-3 px-4 bg-[#262421]">
+                      <td colSpan={7} className="py-3 px-4 bg-[#262421]">
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                           <div><span className="text-[#9b9895]">Referral Code:</span> <span className="text-[#81b64c] font-mono">{a.referral_code}</span></div>
                           <div><span className="text-[#9b9895]">Active (7d):</span> <span className="text-white">{a.active_this_week}</span></div>
@@ -896,151 +1071,5 @@ const InstituteBreakdown = ({ institutes }) => {
   );
 };
 
-/* ─── Tier Manager ─── */
-
-const TierManager = () => {
-  const [tiers, setTiers] = useState(null);
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState([]);
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState('');
-
-  useEffect(() => {
-    fetch(`${BACKEND_URL}/admin/ambassador-tiers`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem('auth_token')}`, Accept: 'application/json' },
-    })
-      .then(r => r.json())
-      .then(d => { setTiers(d.tiers); setDraft(d.tiers.map(t => ({ ...t }))); })
-      .catch(() => {});
-  }, []);
-
-  const updateDraft = (idx, field, value) => {
-    setDraft(prev => {
-      const next = [...prev];
-      next[idx] = { ...next[idx], [field]: value };
-      return next;
-    });
-  };
-
-  const addTier = () => {
-    const maxReq = Math.max(...draft.map(t => t.min_paid_referrals), 0);
-    const maxRate = Math.max(...draft.map(t => t.commission_rate), 0.10);
-    setDraft(prev => [...prev, { name: '', min_paid_referrals: maxReq + 100, commission_rate: Math.min(maxRate + 0.02, 0.50) }]);
-  };
-
-  const removeTier = (idx) => {
-    if (draft.length <= 1) return;
-    setDraft(prev => prev.filter((_, i) => i !== idx));
-  };
-
-  const saveTiers = async () => {
-    setSaving(true);
-    setMsg('');
-    try {
-      const res = await fetch(`${BACKEND_URL}/admin/ambassador-tiers`, {
-        method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          tiers: draft.map(t => ({
-            name: t.name,
-            min_paid_referrals: parseInt(t.min_paid_referrals, 10),
-            commission_rate: parseFloat(t.commission_rate),
-          })),
-        }),
-      });
-      const d = await res.json();
-      if (!res.ok) { setMsg(d.error || 'Save failed'); return; }
-      setTiers(d.tiers);
-      setDraft(d.tiers.map(t => ({ ...t })));
-      setEditing(false);
-      setMsg('Saved!');
-      setTimeout(() => setMsg(''), 2000);
-    } catch (err) {
-      setMsg(err.message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (!tiers) return null;
-
-  return (
-    <div className="bg-[#312e2b] rounded-lg p-4 mb-6">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-semibold text-white">Ambassador Commission Tiers</h2>
-        <div className="flex gap-2 items-center">
-          {msg && <span className={`text-xs ${msg === 'Saved!' ? 'text-[#81b64c]' : 'text-red-400'}`}>{msg}</span>}
-          {!editing ? (
-            <button onClick={() => setEditing(true)} className="px-3 py-1 rounded bg-[#464340] text-white text-sm hover:bg-[#555]">Edit</button>
-          ) : (
-            <>
-              <button onClick={() => { setDraft(tiers.map(t => ({ ...t }))); setEditing(false); }} className="px-3 py-1 rounded bg-[#464340] text-[#bababa] text-sm hover:bg-[#555]">Cancel</button>
-              <button onClick={saveTiers} disabled={saving} className="px-3 py-1 rounded bg-[#81b64c] text-white text-sm hover:bg-[#6da03d] disabled:opacity-50">{saving ? 'Saving...' : 'Save'}</button>
-            </>
-          )}
-        </div>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-[#9b9895] border-b border-[#464340]">
-              <th className="py-2 pr-3">Tier Name</th>
-              <th className="py-2 pr-3 text-right">Min Paid Subscribers</th>
-              <th className="py-2 pr-3 text-right">Commission %</th>
-              {editing && <th className="py-2 w-10"></th>}
-            </tr>
-          </thead>
-          <tbody>
-            {(editing ? draft : tiers).map((t, i) => (
-              <tr key={editing ? i : t.id} className="border-b border-[#3d3a36]">
-                <td className="py-2 pr-3">
-                  {editing ? (
-                    <input value={t.name} onChange={e => updateDraft(i, 'name', e.target.value)}
-                      className="bg-[#262421] text-white px-2 py-1 rounded border border-[#464340] text-sm w-28" />
-                  ) : (
-                    <span className="text-white font-medium">{t.name}</span>
-                  )}
-                </td>
-                <td className="py-2 pr-3 text-right">
-                  {editing ? (
-                    <input type="number" min="0" value={t.min_paid_referrals} onChange={e => updateDraft(i, 'min_paid_referrals', e.target.value)}
-                      className="bg-[#262421] text-white px-2 py-1 rounded border border-[#464340] text-sm w-24 text-right" />
-                  ) : (
-                    <span className="font-mono">{t.min_paid_referrals}</span>
-                  )}
-                </td>
-                <td className="py-2 pr-3 text-right">
-                  {editing ? (
-                    <div className="flex items-center justify-end gap-1">
-                      <input type="number" step="0.01" min="0.01" max="1" value={t.commission_rate} onChange={e => updateDraft(i, 'commission_rate', e.target.value)}
-                        className="bg-[#262421] text-white px-2 py-1 rounded border border-[#464340] text-sm w-20 text-right" />
-                      <span className="text-[#9b9895] text-xs">({Math.round(parseFloat(t.commission_rate || 0) * 100)}%)</span>
-                    </div>
-                  ) : (
-                    <span className="font-mono text-[#e8a93e]">{Math.round(t.commission_rate * 100)}%</span>
-                  )}
-                </td>
-                {editing && (
-                  <td className="py-2">
-                    {draft.length > 1 && (
-                      <button onClick={() => removeTier(i)} className="text-red-400 hover:text-red-300 text-xs">&#10005;</button>
-                    )}
-                  </td>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {editing && (
-        <button onClick={addTier} className="mt-3 text-[#81b64c] text-sm hover:underline">+ Add tier</button>
-      )}
-    </div>
-  );
-};
 
 export default AdminDashboard;

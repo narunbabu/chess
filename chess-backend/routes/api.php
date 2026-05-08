@@ -23,6 +23,8 @@ use App\Http\Controllers\SharedResultController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\ReferralController;
 use App\Http\Controllers\TutorialController;
+use App\Http\Controllers\TrainingDrillController;
+use App\Http\Controllers\EntitlementController;
 use App\Http\Controllers\LobbyController;
 use App\Http\Controllers\MatchmakingController;
 use App\Http\Controllers\LeaderboardController;
@@ -63,6 +65,7 @@ Route::get('/public/games/{id}', [GameController::class, 'publicShow']);
 // Protected routes for authenticated users (use a middleware like auth:sanctum or auth:api)
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [UserController::class, 'me']);
+    Route::get('/entitlements/me', [EntitlementController::class, 'me']);
 
     // Profile routes
     Route::post('/profile', [UserController::class, 'updateProfile']);
@@ -195,6 +198,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/lessons/{id}/hint', [TutorialController::class, 'getInteractiveHint']);
         Route::post('/lessons/{id}/reset-stage', [TutorialController::class, 'resetInteractiveStage']);
         Route::get('/lessons/{id}/interactive-progress', [TutorialController::class, 'getInteractiveProgress']);
+    });
+
+    // Training Drill routes
+    Route::prefix('training')->group(function () {
+        Route::get('/drills', [TrainingDrillController::class, 'index']);
+        Route::get('/drills/recommended', [TrainingDrillController::class, 'recommended']);
+        Route::get('/drills/{slug}', [TrainingDrillController::class, 'show']);
+        Route::post('/drills/{slug}/attempt', [TrainingDrillController::class, 'attempt']);
     });
 
         // WebSocket API routes for real-time game connections
@@ -369,6 +380,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('ambassador')->group(function () {
         Route::get('/dashboard', [\App\Http\Controllers\AmbassadorController::class, 'dashboard']);
         Route::post('/self-assign', [\App\Http\Controllers\AmbassadorController::class, 'selfAssign']);
+        Route::post('/apply', [\App\Http\Controllers\AmbassadorController::class, 'apply']);
+        Route::get('/application', [\App\Http\Controllers\AmbassadorController::class, 'myApplication']);
     });
 
     // Admin ambassador management routes
@@ -377,13 +390,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/search-users', [\App\Http\Controllers\AmbassadorController::class, 'searchUsers']);
         Route::post('/{userId}/assign', [\App\Http\Controllers\AmbassadorController::class, 'assign']);
         Route::delete('/{userId}/remove', [\App\Http\Controllers\AmbassadorController::class, 'remove']);
+        Route::get('/applications', [\App\Http\Controllers\AmbassadorController::class, 'adminApplications']);
+        Route::post('/applications/{id}/approve', [\App\Http\Controllers\AmbassadorController::class, 'approveApplication']);
+        Route::post('/applications/{id}/reject', [\App\Http\Controllers\AmbassadorController::class, 'rejectApplication']);
     });
-
-    // Admin ambassador tier management
-    Route::prefix('admin/ambassador-tiers')->middleware(['admin.dashboard'])->group(function () {
-        Route::get('/', [\App\Http\Controllers\AmbassadorController::class, 'getTiers']);
-        Route::put('/', [\App\Http\Controllers\AmbassadorController::class, 'updateTiers']);
-    });
+    // (admin/ambassador-tiers routes were removed — cumulative tier model retired,
+    // see ReferralService::SUBSCRIPTION_RATE_BY_YEAR for the current commission model.)
 
     // Lobby routes
     Route::get('/lobby/players', [LobbyController::class, 'players']);
@@ -481,6 +493,7 @@ Route::middleware('auth:sanctum')->prefix('admin/referrals')->group(function () 
     Route::post('/calculate-payouts', [ReferralController::class, 'calculatePayouts']);
     Route::post('/payouts/{id}/mark-paid', [ReferralController::class, 'markPaid']);
     Route::get('/payouts', [ReferralController::class, 'adminPayouts']);
+    Route::get('/payouts/export', [ReferralController::class, 'payoutsCsv']);
 });
 
 // WebSocket broadcasting auth routes — MUST be outside auth:sanctum.

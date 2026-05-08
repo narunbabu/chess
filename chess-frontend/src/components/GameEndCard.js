@@ -1004,6 +1004,26 @@ const handleShare = async () => {
               </span>
               <span className="text-2xl font-extrabold text-white" style={{ textShadow: '0 1px 6px rgba(0,0,0,0.3)' }}>{ratingUpdate.newRating}</span>
             </div>
+            {isLearnerRating && ratingUpdate.helpLimit != null && (
+              <div
+                style={{
+                  margin: '8px auto 0',
+                  padding: '6px 10px',
+                  borderRadius: '8px',
+                  backgroundColor: 'rgba(63, 185, 143, 0.16)',
+                  border: '1px solid rgba(63, 185, 143, 0.35)',
+                  color: '#d8f7ea',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  display: 'inline-flex',
+                  gap: '6px',
+                  alignItems: 'center',
+                }}
+              >
+                <span>Lifelines used</span>
+                <span style={{ color: '#fff' }}>{ratingUpdate.helpUsed || 0}/{ratingUpdate.helpLimit}</span>
+              </div>
+            )}
           </div>
         )}
 

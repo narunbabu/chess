@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The First Chessboard: Checkmate And Stalemate</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+
+    body { font-family: Arial, sans-serif; color: #172018; font-size: 17px; margin: 0; background: #f7f7f2; line-height: 1.62; }
+    main { max-width: 900px; margin: 0 auto; padding: 40px 34px 60px; background: #fff; }
+    h1, h2, h3 { line-height: 1.2; color: #172018; }
+    h1 { font-size: 36px; margin: 0 0 8px; }
+    h2 { font-size: 25px; margin: 38px 0 16px; border-top: 1px solid #d8ddcf; padding-top: 24px; }
+    h3 { font-size: 20px; margin: 0 0 10px; }
+    p { margin: 0 0 16px; }
+    .meta { color: #536257; margin-bottom: 24px; }
+    .objectives { background: #eef4e7; border-left: 4px solid #81b64c; padding: 14px 18px; }
+    .block { break-inside: avoid; margin: 24px 0; }
+    .block + .block { margin-top: 30px; }
+    .diagram { width: min(100%, 560px); display: block; margin: 14px auto; border: 1px solid #d4dcc8; }
+    .caption { color: #536257; font-size: 15px; margin-top: 8px; }
+    .quiz-options { margin-top: 10px; }
+    .quiz-option { margin: 7px 0; }
+    @media print {
+      body { background: #fff; }
+      main { max-width: none; padding: 0; }
+      .block { page-break-inside: avoid; }
+    }
+  
+</style>
+</head>
+<body>
+<main>
+<h1>Checkmate And Stalemate</h1>
+<div class="meta">The First Chessboard | 0-300 | free</div>
+<p>Winning requires mate, not just trapping the king.</p>
+<section class="objectives">
+<strong>Learning objectives</strong>
+<ul>
+<li>Define checkmate as check with no legal escape.</li>
+<li>Recognize stalemate as no legal move but no check.</li>
+<li>Avoid stalemating a winning position.</li>
+<li>Deliver a simple queen-assisted mate.</li>
+</ul>
+</section>
+<h2>Check Plus No Escape</h2>
+<section class="block" id="b01-c09-p01">
+<p>Checkmate means the king is in check and there is no legal escape. If the king is not in check, the position is not checkmate.</p>
+</section>
+<section class="block" id="b01-c09-d01">
+<h3>Queen-supported checkmate</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c09-d01-queen-supported-mate.png" alt="Queen-supported checkmate">
+<div class="caption"><p>The queen checks h8, and the king on g6 supports the queen. Black has no escape.</p></div>
+</section>
+<section class="block" id="b01-c09-d02">
+<h3>Check but not mate</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c09-d02-check-not-mate.png" alt="Check but not mate">
+<div class="caption"><p>This is check, but the queen is not protected. Black can capture it.</p></div>
+</section>
+<h2>Stalemate Is Not A Win</h2>
+<section class="block" id="b01-c09-p02">
+<p>Stalemate happens when the player to move is not in check but has no legal move. Stalemate is a draw. Beginners lose many winning positions by forgetting this difference.</p>
+</section>
+<section class="block" id="b01-c09-d03">
+<h3>Stalemate pattern</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c09-d03-stalemate-pattern.png" alt="Stalemate pattern">
+<div class="caption"><p>Black is not in check, but every black king move is controlled. This is stalemate, not checkmate.</p></div>
+</section>
+<section class="block" id="b01-c09-d04">
+<h3>The missing check</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c09-d04-stalemate-missing-check.png" alt="The missing check">
+<div class="caption"><p>The queen controls escape squares, but she does not attack h8. No check means no checkmate.</p></div>
+</section>
+<section class="block" id="b01-c09-d05">
+<h3>Mate move available</h3>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c09-d05-mate-move-available.png" alt="Mate move available">
+<div class="caption"><p>White can play Qa1 to g7, giving a protected queen checkmate.</p></div>
+</section>
+<section class="block" id="b01-c09-g01">
+<h3>Deliver queen-supported mate</h3>
+<p>Move the queen from a1 to g7 to give checkmate.</p>
+</section>
+<h2>Common Mistake</h2>
+<section class="block" id="b01-c09-m01">
+<h3>Common mistake: stalemate instead of mate</h3>
+<p>This looks winning because the king is trapped, but the black king is not in check. Trapped without check is stalemate, so the game is drawn.</p>
+<img class="diagram" src="../../../chess-frontend/src/data/ebooks/v2/beginner-board-rules/assets/diagrams/b01-c09-m01-stalemate-not-mate.png" alt="Common mistake: stalemate instead of mate">
+<div class="caption"><p>No check on h8 means this is stalemate, not mate.</p></div>
+</section>
+<h2>Chapter Checkpoint</h2>
+<section class="block" id="b01-c09-q01">
+<h3>What is checkmate?</h3>
+<p>Checkmate means:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. The king is in check with no legal escape</div>
+<div class="quiz-option">b. The king has no legal move but is not checked</div>
+<div class="quiz-option">c. The queen was captured</div>
+</div>
+</section>
+<section class="block" id="b01-c09-q02">
+<h3>What is stalemate?</h3>
+<p>Stalemate means:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. No legal move and no check</div>
+<div class="quiz-option">b. Check with no escape</div>
+<div class="quiz-option">c. Both players have queens</div>
+</div>
+</section>
+<section class="block" id="b01-c09-q03">
+<h3>Is stalemate a win?</h3>
+<p>Stalemate is:</p>
+<div class="quiz-options">
+<div class="quiz-option">a. A draw</div>
+<div class="quiz-option">b. A win for the player with more pieces</div>
+<div class="quiz-option">c. A checkmate</div>
+</div>
+</section>
+</main>
+</body>
+</html>
