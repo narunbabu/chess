@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { getPreferredGameMode } from '../../utils/gamePreferences';
 
 const SentCountdown = ({ invitedPlayer }) => {
@@ -19,7 +19,7 @@ const SentCountdown = ({ invitedPlayer }) => {
 
   return (
     <>
-      <h2>⏳ Waiting for {invitedPlayer?.name}...</h2>
+      <h2>Waiting for {invitedPlayer?.name}...</h2>
       <p>Challenge sent. Waiting for response...</p>
       <p style={{
         fontSize: '28px',
@@ -77,49 +77,57 @@ const TIME_PRESETS = [
 
 const LEARNING_HELP_OPTIONS = [3, 5, 7];
 
-/**
- * ChallengeModal - Displays modals for challenge/invitation interactions
- * Pure UI component with no business logic
- *
- * Handles 3 modal types:
- * 1. Color Choice Modal (when sending challenge)
- * 2. Response Modal (when accepting invitation)
- * 3. Status Modal (showing sending/sent/error status)
- */
+const MODE_DETAILS = {
+  casual: 'Undo and pause are available. No rating changes.',
+  learning: 'Undo and Best share a limited helpline pool. CCT stays unlimited. Results affect Learner Elo only.',
+  rated: 'No undo, no pause, and leaving counts as a loss. Results affect rating.',
+};
+
+const MODE_OPTIONS = [
+  { value: 'casual', label: 'Casual', accent: '#81b64c' },
+  { value: 'learning', label: 'Learning', accent: '#3fb98f' },
+  { value: 'rated', label: 'Rated', accent: '#e8a93e' },
+];
+
+const COLOR_OPTIONS = [
+  { value: 'white', label: 'White' },
+  { value: 'black', label: 'Black' },
+  { value: 'random', label: 'Random' },
+];
+
 const ChallengeModal = ({
-  // Color Choice Modal props
   showColorModal,
   selectedPlayer,
   onColorChoice,
   onCancelColorChoice,
-
-  // Response Modal props
   showResponseModal,
   selectedInvitation,
   processingInvitations,
   onAcceptWithColor,
   onCancelResponse,
   onDeclineInvitation,
-
-  // Status Modal props
   inviteStatus,
   invitedPlayer,
 }) => {
-  const [gameMode, setGameMode] = React.useState(() => getPreferredGameMode());
-  const [learningHelpLimit, setLearningHelpLimit] = React.useState(5);
-  const [timeControl, setTimeControl] = React.useState(10);
-  const [increment, setIncrement] = React.useState(5);
+  const [gameMode, setGameMode] = useState(() => getPreferredGameMode());
+  const [learningHelpLimit, setLearningHelpLimit] = useState(5);
+  const [timeControl, setTimeControl] = useState(10);
+  const [increment, setIncrement] = useState(5);
+  const [preferredColor, setPreferredColor] = useState('random');
 
-  // Color Choice Modal (when sending challenge)
   if (showColorModal && selectedPlayer) {
     const categories = [...new Set(TIME_PRESETS.map(p => p.category))];
     const isSyntheticChallenge = selectedPlayer.type === 'synthetic';
-    const displayGameMode = isSyntheticChallenge
+    const visibleModes = isSyntheticChallenge
+      ? MODE_OPTIONS
+      : MODE_OPTIONS.filter(option => option.value !== 'learning');
+    const displayGameMode = visibleModes.some(option => option.value === gameMode)
       ? gameMode
-      : (gameMode === 'rated' ? 'rated' : 'casual');
-    const submitColorChoice = (colorChoice) => {
+      : 'casual';
+
+    const submitChallenge = () => {
       onColorChoice(
-        colorChoice,
+        preferredColor,
         displayGameMode,
         timeControl,
         increment,
@@ -129,117 +137,83 @@ const ChallengeModal = ({
 
     return (
       <div className="invitation-modal">
-        <div className="modal-content">
-          <h2>⚡ Challenge {selectedPlayer.name}</h2>
+        <div className="modal-content" style={{ maxWidth: '520px' }}>
+          <h2 style={{ marginBottom: '14px' }}>Challenge {selectedPlayer.name}</h2>
 
-          {/* Game Mode Selection */}
-          <div style={{ marginBottom: '20px', textAlign: 'left' }}>
-            <p style={{ marginBottom: '10px', fontWeight: 'bold', color: '#bababa' }}>Game Mode:</p>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <label style={{
-                flex: 1,
-                padding: '12px',
-                border: `2px solid ${displayGameMode === 'casual' ? '#81b64c' : '#4a4744'}`,
-                borderRadius: '8px',
-                cursor: 'pointer',
-                backgroundColor: displayGameMode === 'casual' ? 'rgba(129, 182, 76, 0.15)' : 'transparent'
-              }}>
-                <input
-                  type="radio"
-                  value="casual"
-                  checked={displayGameMode === 'casual'}
-                  onChange={(e) => setGameMode(e.target.value)}
-                  style={{ marginRight: '8px' }}
-                />
-                <strong style={{ color: '#ffffff' }}>Casual</strong>
-                <div style={{ fontSize: '12px', color: '#8b8987', marginTop: '4px' }}>
-                  Undo allowed • Can pause • No rating changes
-                </div>
-              </label>
-              <label style={{
-                flex: 1,
-                padding: '12px',
-                border: `2px solid ${displayGameMode === 'rated' ? '#e8a93e' : '#4a4744'}`,
-                borderRadius: '8px',
-                cursor: 'pointer',
-                backgroundColor: displayGameMode === 'rated' ? 'rgba(232, 169, 62, 0.15)' : 'transparent'
-              }}>
-                <input
-                  type="radio"
-                  value="rated"
-                  checked={displayGameMode === 'rated'}
-                  onChange={(e) => setGameMode(e.target.value)}
-                  style={{ marginRight: '8px' }}
-                />
-                <strong style={{ color: '#ffffff' }}>Rated</strong>
-                <div style={{ fontSize: '12px', color: '#8b8987', marginTop: '4px' }}>
-                  No undo • No pause • Rating changes
-                </div>
-              </label>
+          <div style={{ marginBottom: '18px', textAlign: 'left' }}>
+            <p style={{ marginBottom: '8px', fontWeight: 'bold', color: '#bababa' }}>Game Mode:</p>
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${visibleModes.length}, minmax(0, 1fr))`, gap: '8px' }}>
+              {visibleModes.map(option => {
+                const selected = displayGameMode === option.value;
+                return (
+                  <label
+                    key={option.value}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      minHeight: '44px',
+                      padding: '8px 6px',
+                      border: `2px solid ${selected ? option.accent : '#4a4744'}`,
+                      borderRadius: '8px',
+                      backgroundColor: selected ? `${option.accent}26` : 'transparent',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      fontWeight: 700,
+                      fontSize: '15px',
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="challenge-game-mode"
+                      value={option.value}
+                      checked={selected}
+                      onChange={(event) => setGameMode(event.target.value)}
+                    />
+                    {option.label}
+                  </label>
+                );
+              })}
+            </div>
+            <div style={{ marginTop: '8px', color: '#bababa', fontSize: '13px', lineHeight: 1.35 }}>
+              {MODE_DETAILS[displayGameMode]}
             </div>
           </div>
 
-          {isSyntheticChallenge && (
-            <div style={{ marginBottom: '20px', textAlign: 'left' }}>
-              <button
-                type="button"
-                onClick={() => setGameMode('learning')}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  borderRadius: '8px',
-                  border: `2px solid ${displayGameMode === 'learning' ? '#3fb98f' : '#4a4744'}`,
-                  backgroundColor: displayGameMode === 'learning' ? 'rgba(63, 185, 143, 0.18)' : 'transparent',
-                  color: '#ffffff',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                }}
-              >
-                <strong>Learning</strong>
-                <div style={{ fontSize: '12px', color: '#8b8987', marginTop: '4px' }}>
-                  Limited helplines - Learner Elo only
-                </div>
-              </button>
-
-              {displayGameMode === 'learning' && (
-                <div style={{ marginTop: '12px' }}>
-                  <p style={{ marginBottom: '8px', fontWeight: 'bold', color: '#bababa' }}>Learning Helplines:</p>
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
-                    {LEARNING_HELP_OPTIONS.map(limit => {
-                      const selected = learningHelpLimit === limit;
-                      return (
-                        <button
-                          key={limit}
-                          type="button"
-                          onClick={() => setLearningHelpLimit(limit)}
-                          style={{
-                            minWidth: '54px',
-                            padding: '8px 14px',
-                            borderRadius: '18px',
-                            border: `2px solid ${selected ? '#3fb98f' : '#4a4744'}`,
-                            backgroundColor: selected ? 'rgba(63, 185, 143, 0.22)' : 'transparent',
-                            color: selected ? '#9ce5ca' : '#bababa',
-                            cursor: 'pointer',
-                            fontSize: '14px',
-                            fontWeight: selected ? 'bold' : 'normal',
-                          }}
-                        >
-                          {limit}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#8b8987', lineHeight: 1.35 }}>
-                    Undo and Best each spend one helpline. CCT view stays unlimited.
-                  </div>
-                </div>
-              )}
+          {isSyntheticChallenge && displayGameMode === 'learning' && (
+            <div style={{ marginBottom: '18px', textAlign: 'left' }}>
+              <p style={{ marginBottom: '8px', fontWeight: 'bold', color: '#bababa' }}>Learning Helplines:</p>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {LEARNING_HELP_OPTIONS.map(limit => {
+                  const selected = learningHelpLimit === limit;
+                  return (
+                    <button
+                      key={limit}
+                      type="button"
+                      onClick={() => setLearningHelpLimit(limit)}
+                      style={{
+                        minWidth: '52px',
+                        padding: '8px 14px',
+                        borderRadius: '18px',
+                        border: `2px solid ${selected ? '#3fb98f' : '#4a4744'}`,
+                        backgroundColor: selected ? 'rgba(63, 185, 143, 0.22)' : 'transparent',
+                        color: selected ? '#9ce5ca' : '#bababa',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        fontWeight: selected ? 'bold' : 'normal',
+                      }}
+                    >
+                      {limit}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
 
-          {/* Time Control Selection */}
-          <div style={{ marginBottom: '20px', textAlign: 'left' }}>
-            <p style={{ marginBottom: '10px', fontWeight: 'bold', color: '#bababa' }}>Time Control:</p>
+          <div style={{ marginBottom: '18px', textAlign: 'left' }}>
+            <p style={{ marginBottom: '8px', fontWeight: 'bold', color: '#bababa' }}>Time Control:</p>
             {categories.map(cat => (
               <div key={cat} style={{ marginBottom: '8px' }}>
                 <p style={{ fontSize: '11px', color: '#8b8987', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{cat}</p>
@@ -249,6 +223,7 @@ const ChallengeModal = ({
                     return (
                       <button
                         key={`${preset.minutes}-${preset.increment}`}
+                        type="button"
                         onClick={() => { setTimeControl(preset.minutes); setIncrement(preset.increment); }}
                         style={{
                           padding: '6px 14px',
@@ -259,7 +234,6 @@ const ChallengeModal = ({
                           cursor: 'pointer',
                           fontSize: '13px',
                           fontWeight: isSelected ? 'bold' : 'normal',
-                          transition: 'all 0.15s ease',
                         }}
                       >
                         {preset.label}
@@ -271,56 +245,83 @@ const ChallengeModal = ({
             ))}
           </div>
 
-          <p>Choose your preferred color:</p>
-          <div className="color-choices">
+          <div style={{ marginBottom: '18px', textAlign: 'left' }}>
+            <p style={{ marginBottom: '8px', fontWeight: 'bold', color: '#bababa' }}>Color:</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '8px' }}>
+              {COLOR_OPTIONS.map(option => {
+                const selected = preferredColor === option.value;
+                return (
+                  <label
+                    key={option.value}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      minHeight: '38px',
+                      padding: '7px 6px',
+                      borderRadius: '8px',
+                      border: `2px solid ${selected ? '#81b64c' : '#4a4744'}`,
+                      backgroundColor: selected ? 'rgba(129, 182, 76, 0.18)' : 'transparent',
+                      color: selected ? '#fff' : '#bababa',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: selected ? 700 : 600,
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="challenge-color"
+                      value={option.value}
+                      checked={selected}
+                      onChange={(event) => setPreferredColor(event.target.value)}
+                    />
+                    {option.label}
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             <button
-              className="color-choice white"
-              onClick={() => submitColorChoice('white')}
+              type="button"
+              onClick={onCancelColorChoice}
               style={{
-                backgroundColor: '#e0e0e0',
-                border: '2px solid #4a4744',
-                color: '#1a1a18'
+                padding: '11px 18px',
+                borderRadius: '8px',
+                border: '2px solid #e74c3c',
+                backgroundColor: 'rgba(231, 76, 60, 0.14)',
+                color: '#ff7b72',
+                cursor: 'pointer',
+                fontSize: '15px',
+                fontWeight: 800,
               }}
             >
-              <div style={{ fontSize: '24px', marginBottom: '4px' }}>♔ White</div>
-
-
+              Cancel
             </button>
             <button
-              className="color-choice black"
-              onClick={() => submitColorChoice('black')}
+              type="button"
+              onClick={submitChallenge}
               style={{
-                backgroundColor: '#1a1a18',
-                border: '2px solid #4a4744',
-                color: '#bababa'
-              }}
-            >
-              <div style={{ fontSize: '24px', marginBottom: '4px' }}>♚ Black</div>
-
-            </button>
-            <button
-              className="color-choice random"
-              onClick={() => submitColorChoice('random')}
-              style={{
+                padding: '11px 18px',
+                borderRadius: '8px',
+                border: '2px solid #81b64c',
                 backgroundColor: '#81b64c',
-                border: '2px solid #769656',
-                color: '#ffffff'
+                color: '#fff',
+                cursor: 'pointer',
+                fontSize: '15px',
+                fontWeight: 800,
               }}
             >
-              <div style={{ fontSize: '24px', marginBottom: '4px' }}>🎲 Random</div>
-
-
+              Play
             </button>
           </div>
-          <button className="cancel-btn" onClick={onCancelColorChoice}>
-            Cancel
-          </button>
         </div>
       </div>
     );
   }
 
-  // Response Modal (when accepting invitation)
   if (showResponseModal && selectedInvitation) {
     const isProcessing = processingInvitations.has(selectedInvitation.id);
     const inviterColor = selectedInvitation.inviter_preferred_color;
@@ -328,10 +329,10 @@ const ChallengeModal = ({
     return (
       <div className="invitation-modal">
         <div className="modal-content">
-          <h2>🎯 Accept Challenge from {selectedInvitation.inviter.name}</h2>
+          <h2>Accept Challenge from {selectedInvitation.inviter.name}</h2>
           <p>
             {selectedInvitation.inviter.name} wants to play as{' '}
-            {inviterColor === 'white' ? '♔ White' : '♚ Black'}
+            {inviterColor === 'white' ? 'White' : 'Black'}
           </p>
           <p>Choose your response:</p>
           <div className="color-choices">
@@ -343,11 +344,11 @@ const ChallengeModal = ({
               }}
               disabled={isProcessing}
             >
-              {isProcessing ? '⏳ Accepting...' : '✅ Accept their choice'}
+              {isProcessing ? 'Accepting...' : 'Accept their choice'}
               {!isProcessing && (
                 <small>
                   (You'll play as{' '}
-                  {inviterColor === 'white' ? '♚ Black' : '♔ White'})
+                  {inviterColor === 'white' ? 'Black' : 'White'})
                 </small>
               )}
             </button>
@@ -357,8 +358,8 @@ const ChallengeModal = ({
               disabled={isProcessing}
             >
               {isProcessing
-                ? '⏳ Accepting...'
-                : `🔄 Play as ${inviterColor === 'white' ? '♔ White' : '♚ Black'}`}
+                ? 'Accepting...'
+                : `Play as ${inviterColor === 'white' ? 'White' : 'Black'}`}
               {!isProcessing && <small>(swap colors)</small>}
             </button>
           </div>
@@ -378,7 +379,6 @@ const ChallengeModal = ({
     );
   }
 
-  // Status Modal (showing sending/sent/error status)
   if (inviteStatus && invitedPlayer) {
     return (
       <div className="invitation-modal">
@@ -395,7 +395,7 @@ const ChallengeModal = ({
           )}
           {inviteStatus === 'error' && (
             <>
-              <h2>❌ Error</h2>
+              <h2>Error</h2>
               <p>
                 Failed to send invitation to {invitedPlayer.name}. Please try
                 again.

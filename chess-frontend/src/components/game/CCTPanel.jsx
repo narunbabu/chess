@@ -1,7 +1,7 @@
 // src/components/game/CCTPanel.jsx
 // Live learning panel: Checks, Captures, Threats scanner + Stockfish best moves.
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Chess } from 'chess.js';
 import { analyzeCCT, cctToArrows, classifyMoveAgainstCCT } from '../../utils/cctAnalysis';
 import { getStockfishTopMoves, mapDepthToMoveTime } from '../../utils/computerMoveUtils';
@@ -125,7 +125,15 @@ function bestMovesToLabels(moves) {
  *   onArrowsChange {Function} ({from,to,color}[]) → board arrows
  *   onLabelsChange {Function} ({square,label,color}[]) → numbered board labels
  */
-const CCTPanel = ({ game, isActive, isRated = false, onArrowsChange, onLabelsChange, bestMoveBudget = null }) => {
+const CCTPanel = ({
+  game,
+  isActive,
+  isRated = false,
+  onArrowsChange,
+  onLabelsChange,
+  bestMoveBudget = null,
+  bestMoveRequestId = 0,
+}) => {
   const [perspective, setPerspective] = useState('mine');
   // 0=off  1=CCT arrows  2=Best moves
   // Default to 1 so CCT is active as soon as the tab is opened
@@ -141,6 +149,7 @@ const CCTPanel = ({ game, isActive, isRated = false, onArrowsChange, onLabelsCha
 
   const fenRef  = useRef(null);
   const sfAbort = useRef(null);
+  const lastBestMoveRequestRef = useRef(0);
 
   // ── recompute CCT whenever game position or perspective changes ────────────
   useEffect(() => {
@@ -226,6 +235,42 @@ const CCTPanel = ({ game, isActive, isRated = false, onArrowsChange, onLabelsCha
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const fen = game?.fen?.() || '';
+  const bestMoveBudgetEnabled = Boolean(bestMoveBudget?.enabled);
+  const bestMoveRemaining = bestMoveBudgetEnabled
+    ? Math.max(0, Number(bestMoveBudget?.remaining || 0))
+    : null;
+  const bestMoveLocked = bestMoveBudgetEnabled && bestMoveRemaining <= 0 && hintLevel !== 2 && bestRevealFen !== fen;
+  const bestMoveButtonTitle = bestMoveLocked
+    ? 'No best-move helplines remaining'
+    : hintLevel === 2
+      ? 'Click to turn off Best moves'
+      : bestMoveBudgetEnabled
+        ? `Show top 3 moves (${bestMoveRemaining} helplines left)`
+        : 'Show top 3 moves on board';
+
+  const handleBestToggle = useCallback((forceOn = false) => {
+    if (!game || !isActive || isRated) return;
+    if (hintLevel === 2 && !forceOn) {
+      setHintLevel(0);
+      return;
+    }
+
+    if (bestMoveBudgetEnabled && bestRevealFen !== fen) {
+      const accepted = bestMoveBudget?.onConsume?.('best-move');
+      if (!accepted) return;
+    }
+
+    setBestRevealFen(fen);
+    setHintLevel(2);
+  }, [bestMoveBudget, bestMoveBudgetEnabled, bestRevealFen, fen, game, hintLevel, isActive, isRated]);
+
+  useEffect(() => {
+    if (!bestMoveRequestId || bestMoveRequestId === lastBestMoveRequestRef.current) return;
+    lastBestMoveRequestRef.current = bestMoveRequestId;
+    handleBestToggle(true);
+  }, [bestMoveRequestId, handleBestToggle]);
+
   // ── rated gate ─────────────────────────────────────────────────────────────
   if (isRated) {
     return (
@@ -250,35 +295,7 @@ const CCTPanel = ({ game, isActive, isRated = false, onArrowsChange, onLabelsCha
     );
   }
 
-  const fen     = game?.fen?.() || '';
   const warning = hintLevel >= 1 ? getWarningInfo(opponentCct, fen) : null;
-  const bestMoveBudgetEnabled = Boolean(bestMoveBudget?.enabled);
-  const bestMoveRemaining = bestMoveBudgetEnabled
-    ? Math.max(0, Number(bestMoveBudget?.remaining || 0))
-    : null;
-  const bestMoveLocked = bestMoveBudgetEnabled && bestMoveRemaining <= 0 && hintLevel !== 2 && bestRevealFen !== fen;
-  const bestMoveButtonTitle = bestMoveLocked
-    ? 'No best-move helplines remaining'
-    : hintLevel === 2
-      ? 'Click to turn off Best moves'
-      : bestMoveBudgetEnabled
-        ? `Show top 3 moves (${bestMoveRemaining} helplines left)`
-        : 'Show top 3 moves on board';
-
-  const handleBestToggle = () => {
-    if (hintLevel === 2) {
-      setHintLevel(0);
-      return;
-    }
-
-    if (bestMoveBudgetEnabled && bestRevealFen !== fen) {
-      const accepted = bestMoveBudget?.onConsume?.('best-move');
-      if (!accepted) return;
-    }
-
-    setBestRevealFen(fen);
-    setHintLevel(2);
-  };
 
   // ── main render ────────────────────────────────────────────────────────────
   return (
@@ -297,7 +314,7 @@ const CCTPanel = ({ game, isActive, isRated = false, onArrowsChange, onLabelsCha
         <button
           data-tour="action-cct-best"
           className={`cct-mode-btn cct-mode-best ${hintLevel === 2 ? 'active' : ''} ${bestMoveLocked ? 'disabled' : ''}`}
-          onClick={handleBestToggle}
+          onClick={() => handleBestToggle()}
           disabled={bestMoveLocked}
           title={bestMoveButtonTitle}
         >

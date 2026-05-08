@@ -61,6 +61,7 @@ const GameContainer = ({
   const [showRatedRules, setShowRatedRules] = useState(false);
   const [mobileRightPanelOpen, setMobileRightPanelOpen] = useState(false);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(null);
+  const [bestMoveRequestId, setBestMoveRequestId] = useState(0);
   const moveListRef = useRef(null);
 
   // Extract timer data
@@ -101,6 +102,25 @@ const GameContainer = ({
   const undoTitle = isLearningMode
     ? (canUndo ? `Undo - ${undoChancesRemaining} helplines left` : 'Cannot undo')
     : (canUndo ? `Undo (${undoChancesRemaining} left)` : 'Cannot undo');
+  const bestMoveBudget = cctData?.bestMoveBudget;
+  const bestMoveBudgetEnabled = Boolean(bestMoveBudget?.enabled);
+  const bestMoveRemaining = bestMoveBudgetEnabled
+    ? Math.max(0, Number(bestMoveBudget?.remaining || 0))
+    : null;
+  const bestMoveDisabled = gameOver || (bestMoveBudgetEnabled && bestMoveRemaining <= 0);
+  const bestMoveTitle = bestMoveBudgetEnabled
+    ? (bestMoveRemaining > 0 ? `Show Best (${bestMoveRemaining} helplines left)` : 'No best-move helplines remaining')
+    : 'Show Best moves';
+
+  const requestBestMove = () => {
+    if (!cctData || bestMoveDisabled) return;
+    setMobileMoreOpen(null);
+    setRightTab('learn');
+    if (window.innerWidth <= 768) {
+      setMobileRightPanelOpen(true);
+    }
+    setBestMoveRequestId(id => id + 1);
+  };
 
   const openMobilePanel = (tab = rightTab) => {
     setMobileMoreOpen(null);
@@ -197,7 +217,7 @@ const GameContainer = ({
 
   const renderMobileQuickActionButtons = (placement = 'portrait') => (
     <>
-      {!isRated && (
+      {!isRated && !isLearningMode && (
         <button
           className="gc-mobile-action-btn gc-mobile-action-icon gc-action-neutral"
           onClick={() => isTimerRunning ? pauseTimer?.() : handleTimer?.()}
@@ -235,10 +255,14 @@ const GameContainer = ({
       {cctData && (
         <button
           data-tour="tab-cct"
-          className="gc-mobile-action-btn gc-action-primary"
-          onClick={() => openMobilePanel('learn')}
+          className={`gc-mobile-action-btn gc-action-primary ${isLearningMode && bestMoveDisabled ? 'gc-action-disabled' : ''}`}
+          onClick={isLearningMode ? requestBestMove : () => openMobilePanel('learn')}
+          disabled={isLearningMode && bestMoveDisabled}
+          title={isLearningMode ? bestMoveTitle : 'Open CCT'}
         >
-          CCT
+          {isLearningMode
+            ? `Best${bestMoveBudgetEnabled ? ` ${bestMoveRemaining}` : ''}`
+            : 'CCT'}
         </button>
       )}
       {allowCompanion && (
@@ -318,7 +342,7 @@ const GameContainer = ({
         </div>
         <div className="gc-desktop-action-group">
         {/* Pause/Resume — casual only */}
-        {!isRated && (
+        {!isRated && !isLearningMode && (
           <button
             className="gc-action-btn gc-action-neutral"
             onClick={() => isTimerRunning ? pauseTimer?.() : handleTimer?.()}
@@ -351,8 +375,18 @@ const GameContainer = ({
             ❓ Help
           </button>
         )}
+        {!gameOver && isLearningMode && cctData && (
+          <button
+            className={`gc-action-btn gc-action-warning ${bestMoveDisabled ? 'gc-action-disabled' : ''}`}
+            onClick={requestBestMove}
+            disabled={bestMoveDisabled}
+            title={bestMoveTitle}
+          >
+            Best{bestMoveBudgetEnabled ? ` (${bestMoveRemaining})` : ''}
+          </button>
+        )}
         {/* Moves toggle — opens/closes right panel on mobile */}
-        {!gameOver && (
+        {!gameOver && !isLearningMode && (
           <button
             className="gc-action-btn gc-action-neutral gc-mobile-moves-toggle"
             onClick={() => {
@@ -658,6 +692,7 @@ const GameContainer = ({
         onArrowsChange={cctData.onArrowsChange}
         onLabelsChange={cctData.onLabelsChange}
         bestMoveBudget={cctData.bestMoveBudget}
+        bestMoveRequestId={bestMoveRequestId}
       />
     );
   };
