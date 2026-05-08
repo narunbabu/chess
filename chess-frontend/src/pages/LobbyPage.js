@@ -447,7 +447,7 @@ const LobbyPage = () => {
     setShowColorModal(true);
   };
 
-  const sendInvitation = async (colorChoice, gameMode = 'casual', timeControl = 10, increment = 0) => {
+  const sendInvitation = async (colorChoice, gameMode = 'casual', timeControl = 10, increment = 0, learningHelpLimit = null) => {
     setShowColorModal(false);
 
     // Validate selectedPlayer before proceeding
@@ -481,6 +481,7 @@ const LobbyPage = () => {
               syntheticPlayer: player,
               preferredColor: resolvedColor,
               ratedMode: gameMode, // Pass rated/casual selection from ChallengeModal
+              learningHelpLimit: gameMode === 'learning' ? learningHelpLimit : null,
               timeControl, // minutes (e.g. 3, 5, 10, 30)
               increment, // seconds per move (e.g. 0, 2, 3, 5)
             },
@@ -494,7 +495,7 @@ const LobbyPage = () => {
       const response = await api.post('/invitations/send', {
         invited_user_id: selectedPlayer.id,
         preferred_color: colorChoice,
-        game_mode: gameMode,
+        game_mode: gameMode === 'rated' ? 'rated' : 'casual',
         time_control_minutes: timeControl,
         increment_seconds: increment,
       });

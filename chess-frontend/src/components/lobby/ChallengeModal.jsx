@@ -75,6 +75,8 @@ const TIME_PRESETS = [
   { minutes: 30, increment: 0, label: '30 min', category: 'Classical' },
 ];
 
+const LEARNING_HELP_OPTIONS = [3, 5, 7];
+
 /**
  * ChallengeModal - Displays modals for challenge/invitation interactions
  * Pure UI component with no business logic
@@ -104,12 +106,26 @@ const ChallengeModal = ({
   invitedPlayer,
 }) => {
   const [gameMode, setGameMode] = React.useState(() => getPreferredGameMode());
+  const [learningHelpLimit, setLearningHelpLimit] = React.useState(5);
   const [timeControl, setTimeControl] = React.useState(10);
   const [increment, setIncrement] = React.useState(5);
 
   // Color Choice Modal (when sending challenge)
   if (showColorModal && selectedPlayer) {
     const categories = [...new Set(TIME_PRESETS.map(p => p.category))];
+    const isSyntheticChallenge = selectedPlayer.type === 'synthetic';
+    const displayGameMode = isSyntheticChallenge
+      ? gameMode
+      : (gameMode === 'rated' ? 'rated' : 'casual');
+    const submitColorChoice = (colorChoice) => {
+      onColorChoice(
+        colorChoice,
+        displayGameMode,
+        timeControl,
+        increment,
+        displayGameMode === 'learning' ? learningHelpLimit : null
+      );
+    };
 
     return (
       <div className="invitation-modal">
@@ -123,15 +139,15 @@ const ChallengeModal = ({
               <label style={{
                 flex: 1,
                 padding: '12px',
-                border: `2px solid ${gameMode === 'casual' ? '#81b64c' : '#4a4744'}`,
+                border: `2px solid ${displayGameMode === 'casual' ? '#81b64c' : '#4a4744'}`,
                 borderRadius: '8px',
                 cursor: 'pointer',
-                backgroundColor: gameMode === 'casual' ? 'rgba(129, 182, 76, 0.15)' : 'transparent'
+                backgroundColor: displayGameMode === 'casual' ? 'rgba(129, 182, 76, 0.15)' : 'transparent'
               }}>
                 <input
                   type="radio"
                   value="casual"
-                  checked={gameMode === 'casual'}
+                  checked={displayGameMode === 'casual'}
                   onChange={(e) => setGameMode(e.target.value)}
                   style={{ marginRight: '8px' }}
                 />
@@ -143,15 +159,15 @@ const ChallengeModal = ({
               <label style={{
                 flex: 1,
                 padding: '12px',
-                border: `2px solid ${gameMode === 'rated' ? '#e8a93e' : '#4a4744'}`,
+                border: `2px solid ${displayGameMode === 'rated' ? '#e8a93e' : '#4a4744'}`,
                 borderRadius: '8px',
                 cursor: 'pointer',
-                backgroundColor: gameMode === 'rated' ? 'rgba(232, 169, 62, 0.15)' : 'transparent'
+                backgroundColor: displayGameMode === 'rated' ? 'rgba(232, 169, 62, 0.15)' : 'transparent'
               }}>
                 <input
                   type="radio"
                   value="rated"
-                  checked={gameMode === 'rated'}
+                  checked={displayGameMode === 'rated'}
                   onChange={(e) => setGameMode(e.target.value)}
                   style={{ marginRight: '8px' }}
                 />
@@ -162,6 +178,64 @@ const ChallengeModal = ({
               </label>
             </div>
           </div>
+
+          {isSyntheticChallenge && (
+            <div style={{ marginBottom: '20px', textAlign: 'left' }}>
+              <button
+                type="button"
+                onClick={() => setGameMode('learning')}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  border: `2px solid ${displayGameMode === 'learning' ? '#3fb98f' : '#4a4744'}`,
+                  backgroundColor: displayGameMode === 'learning' ? 'rgba(63, 185, 143, 0.18)' : 'transparent',
+                  color: '#ffffff',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                <strong>Learning</strong>
+                <div style={{ fontSize: '12px', color: '#8b8987', marginTop: '4px' }}>
+                  Limited helplines - Learner Elo only
+                </div>
+              </button>
+
+              {displayGameMode === 'learning' && (
+                <div style={{ marginTop: '12px' }}>
+                  <p style={{ marginBottom: '8px', fontWeight: 'bold', color: '#bababa' }}>Learning Helplines:</p>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                    {LEARNING_HELP_OPTIONS.map(limit => {
+                      const selected = learningHelpLimit === limit;
+                      return (
+                        <button
+                          key={limit}
+                          type="button"
+                          onClick={() => setLearningHelpLimit(limit)}
+                          style={{
+                            minWidth: '54px',
+                            padding: '8px 14px',
+                            borderRadius: '18px',
+                            border: `2px solid ${selected ? '#3fb98f' : '#4a4744'}`,
+                            backgroundColor: selected ? 'rgba(63, 185, 143, 0.22)' : 'transparent',
+                            color: selected ? '#9ce5ca' : '#bababa',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            fontWeight: selected ? 'bold' : 'normal',
+                          }}
+                        >
+                          {limit}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#8b8987', lineHeight: 1.35 }}>
+                    Undo and Best each spend one helpline. CCT view stays unlimited.
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Time Control Selection */}
           <div style={{ marginBottom: '20px', textAlign: 'left' }}>
@@ -201,7 +275,7 @@ const ChallengeModal = ({
           <div className="color-choices">
             <button
               className="color-choice white"
-              onClick={() => onColorChoice('white', gameMode, timeControl, increment)}
+              onClick={() => submitColorChoice('white')}
               style={{
                 backgroundColor: '#e0e0e0',
                 border: '2px solid #4a4744',
@@ -214,7 +288,7 @@ const ChallengeModal = ({
             </button>
             <button
               className="color-choice black"
-              onClick={() => onColorChoice('black', gameMode, timeControl, increment)}
+              onClick={() => submitColorChoice('black')}
               style={{
                 backgroundColor: '#1a1a18',
                 border: '2px solid #4a4744',
@@ -226,7 +300,7 @@ const ChallengeModal = ({
             </button>
             <button
               className="color-choice random"
-              onClick={() => onColorChoice('random', gameMode, timeControl, increment)}
+              onClick={() => submitColorChoice('random')}
               style={{
                 backgroundColor: '#81b64c',
                 border: '2px solid #769656',
