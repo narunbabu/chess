@@ -4500,7 +4500,7 @@ const PlayMultiplayer = () => {
       is_threefold_repetition: gameCopy.isThreefoldRepetition(),
       // Add evaluation metrics
       move_time_ms: moveTime * 1000,
-      player_rating: user?.rating || 1200,
+      player_rating: user?.rating || 400,
       // Send BOTH players' cumulative scores to preserve scoring across moves
       white_player_score: white_player_score,
       black_player_score: black_player_score,

@@ -13,10 +13,13 @@ import { getPlayerAvatar } from "../utils/playerDisplayUtils";
 import { isWin, getResultDisplayText } from "../utils/resultStandardization";
 import { getUnfinishedGame, getUnfinishedGames, deleteUnfinishedGame } from "../services/unfinishedGameService";
 import { isPlatformAdmin, isOrganizationAdmin, canCreateChampionship } from "../utils/permissionHelpers";
+import matchmakingService from "../services/matchmakingService";
 import MatchmakingQueue from "./lobby/MatchmakingQueue";
+import PlayersList from "./lobby/PlayersList";
 import PlayOnlineButton from "./play/PlayOnlineButton";
 import AdBanner from "./common/AdBanner";
 import DailyChallengeCard from "./daily/DailyChallengeCard";
+import { getDefaultRatingWindow, toRatingWindowParams } from "../utils/ratingWindow";
 import "./Dashboard.css";
 import "../styles/UnifiedCards.css"; // Import unified card styles
 
@@ -53,10 +56,14 @@ const Dashboard = () => {
   const [dailyQuota, setDailyQuota] = useState(null);
   const [visibleActiveGames, setVisibleActiveGames] = useState(3);
   const [visibleRecentGames, setVisibleRecentGames] = useState(3);
+  const [nearbyPlayers, setNearbyPlayers] = useState([]);
+  const [nearbyRefreshing, setNearbyRefreshing] = useState(false);
+  const [ratingWindow, setRatingWindow] = useState(() => getDefaultRatingWindow());
   const { user } = useAuth();
   const { currentTier } = useSubscription();
   const { getGameHistory } = useAppData();
   const navigate = useNavigate();
+  const ratingWindowRef = useRef(ratingWindow);
 
   // Performance guards: Prevent duplicate API calls across multiple mounts
   // Note: Dashboard may mount 2-3 times in development due to:
@@ -92,6 +99,66 @@ const Dashboard = () => {
 
     return activeGamesRequestRef.current;
   }, []);
+
+  const fetchNearbyPlayers = useCallback(async (ratingWindowOverride = null) => {
+    if (!user?.id) return;
+
+    const activeRatingWindow = ratingWindowOverride || ratingWindowRef.current;
+    setNearbyRefreshing(true);
+
+    try {
+      const lobbyData = await matchmakingService.getLobbyPlayers(toRatingWindowParams(activeRatingWindow));
+      const realPlayers = (lobbyData.real_players || []).filter(p => p.id !== user.id);
+      const bots = lobbyData.synthetic_players || [];
+      setNearbyPlayers([...realPlayers, ...bots]);
+    } catch (error) {
+      console.error('[Dashboard] Failed to fetch nearby opponents:', error);
+    } finally {
+      setNearbyRefreshing(false);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    ratingWindowRef.current = ratingWindow;
+  }, [ratingWindow]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const nextWindow = getDefaultRatingWindow(user.rating);
+    ratingWindowRef.current = nextWindow;
+    setRatingWindow(nextWindow);
+    fetchNearbyPlayers(nextWindow);
+  }, [fetchNearbyPlayers, user?.id, user?.rating]);
+
+  const handleNearbyReset = useCallback(() => {
+    const nextWindow = getDefaultRatingWindow(user?.rating);
+    ratingWindowRef.current = nextWindow;
+    setRatingWindow(nextWindow);
+    fetchNearbyPlayers(nextWindow);
+  }, [fetchNearbyPlayers, user?.rating]);
+
+  const handleNearbyChallenge = useCallback((player) => {
+    if (player.type === 'synthetic') {
+      navigate('/play', {
+        state: {
+          gameMode: 'synthetic',
+          syntheticPlayer: player,
+          preferredColor: Math.random() < 0.5 ? 'white' : 'black',
+          ratedMode: 'casual',
+          timeControl: 10,
+          increment: 0,
+        },
+      });
+      return;
+    }
+
+    navigate('/lobby', {
+      state: {
+        message: `Challenge ${player.name} from the selected rating range.`,
+      },
+    });
+  }, [navigate]);
 
   useEffect(() => {
     // Component mount logging
@@ -414,7 +481,7 @@ const Dashboard = () => {
   };
 
   // Check if user should be prompted to set their rating
-  const shouldShowRatingPrompt = user && user.rating === 800 && (user.games_played === 0 || !user.games_played);
+  const shouldShowRatingPrompt = user && user.rating === 400 && (user.games_played === 0 || !user.games_played);
 
   // Memoize stats calculations to prevent repetitive computation
   const stats = useMemo(() => {
@@ -522,6 +589,7 @@ const Dashboard = () => {
       <MatchmakingQueue
         isOpen={showMatchmaking}
         onClose={() => setShowMatchmaking(false)}
+        ratingWindow={ratingWindow}
       />
 
       <div className="dashboard-container">
@@ -558,7 +626,7 @@ const Dashboard = () => {
             {shouldShowRatingPrompt && (
               <div className="rating-prompt-banner">
                 <p className="rating-prompt-text">
-                  ⭐ You're using the beginner default rating (800). Take a quick skill assessment to get a personalized rating!
+                  You're using the beginner default rating (400). Take a quick skill assessment to get a personalized rating!
                 </p>
                 <button
                   className="rating-prompt-btn"
@@ -578,7 +646,7 @@ const Dashboard = () => {
           <h2 className="unified-section-header">⚡ Quick Actions</h2>
 
           {/* Primary CTA: Play Online — single-button quick match */}
-          <PlayOnlineButton variant="hero" />
+          <PlayOnlineButton variant="hero" ratingWindow={ratingWindow} />
 
           {/* Secondary CTAs */}
           <div className="unified-card-grid cols-2" style={{ marginBottom: '12px' }}>
@@ -628,6 +696,17 @@ const Dashboard = () => {
             </button>
           </div>
         </section>
+
+        <PlayersList
+          title="Nearby Opponents"
+          players={nearbyPlayers}
+          onChallenge={handleNearbyChallenge}
+          ratingWindow={ratingWindow}
+          onRatingWindowChange={setRatingWindow}
+          onApplyRatingWindow={() => fetchNearbyPlayers()}
+          onResetRatingWindow={handleNearbyReset}
+          isRefreshing={nearbyRefreshing}
+        />
 
         {/* Admin Section — visible only for admins/organizers */}
         {canCreateChampionship(user) && (
@@ -1002,7 +1081,7 @@ const Dashboard = () => {
               <div className="unified-card centered">
                 <div className="unified-card-content">
                   <h3 className="unified-card-title title-large title-info">
-                    {user?.rating || 800}
+                    {user?.rating || 400}
                   </h3>
                   <p className="unified-card-subtitle">Rating</p>
                 </div>

@@ -47,7 +47,7 @@ const DetailedStatsModal = ({ isOpen, onClose, gameHistories, user }) => {
             <div className="summary-label">Draws</div>
           </div>
           <div className="summary-card info">
-            <div className="summary-value">{user?.rating || 1200}</div>
+            <div className="summary-value">{user?.rating || 400}</div>
             <div className="summary-label">Current Rating</div>
           </div>
         </div>
@@ -217,7 +217,7 @@ const DetailedStatsModal = ({ isOpen, onClose, gameHistories, user }) => {
                           {opponentName}
                           {game.game_mode === 'computer'
                             ? ` (Level ${game.computer_level || 1})`
-                            : ` (${game.opponent_rating || 1200})`
+                            : ` (${game.opponent_rating || 400})`
                           }
                         </span>
                       </div>

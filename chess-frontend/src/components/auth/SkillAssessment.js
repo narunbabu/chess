@@ -8,8 +8,8 @@ const SKILL_QUESTIONS = [
     id: 'experience',
     question: "How would you describe your chess experience?",
     options: [
-      { label: "Complete beginner - Learning the rules", value: 800 },
-      { label: "Casual player - Know basic tactics", value: 1100 },
+      { label: "Complete beginner - Learning the rules", value: 400 },
+      { label: "Casual player - Know basic tactics", value: 800 },
       { label: "Club player - Study openings & tactics", value: 1500 },
       { label: "Tournament player - Serious study", value: 1800 },
       { label: "Expert/Master level", value: 2200 }
@@ -63,7 +63,7 @@ const SkillAssessment = ({ onComplete, onSkip }) => {
 
   const calculateInitialRating = (answers) => {
     // Base rating from experience level (Q1)
-    const baseRating = answers.experience || 1200;
+    const baseRating = answers.experience || 400;
 
     // Bonuses from other questions
     const ratedBonus = answers.rated_experience || 0;
@@ -72,13 +72,13 @@ const SkillAssessment = ({ onComplete, onSkip }) => {
     // Calculate total
     const totalRating = baseRating + ratedBonus + knownRatingBonus;
 
-    // Clamp between 600 and 2600
-    return Math.max(600, Math.min(2600, totalRating));
+    // Clamp between 200 and 2600
+    return Math.max(200, Math.min(2600, totalRating));
   };
 
   const handleSkip = () => {
-    // Default to 1200 if user skips
-    onSkip(1200);
+    // Default to 400 if user skips
+    onSkip(400);
   };
 
   const currentQ = SKILL_QUESTIONS[currentQuestion];
@@ -138,7 +138,7 @@ const SkillAssessment = ({ onComplete, onSkip }) => {
 
         <div className="assessment-footer">
           <button className="skip-button" onClick={handleSkip}>
-            Skip (Start at 1200)
+            Skip (Start at 400)
           </button>
         </div>
       </div>

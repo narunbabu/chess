@@ -133,6 +133,7 @@ describe('VisualAidsOverlay', () => {
   it('renders arrow heads correctly', () => {
     const { container } = render(<VisualAidsOverlay {...defaultProps} />);
 
+    // eslint-disable-next-line testing-library/no-container, testing-library/no-node-access
     const markers = container.querySelectorAll('marker');
     expect(markers).toHaveLength(2);
     markers.forEach(marker => {

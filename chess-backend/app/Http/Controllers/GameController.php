@@ -819,7 +819,7 @@ class GameController extends Controller
             if ($humanResult === 'win')  $ratingChange = max(1,  $ratingChange);
             if ($humanResult === 'loss') $ratingChange = min(-1, $ratingChange);
 
-            $newRating = max(400, min(3200, $oldRating + $ratingChange));
+            $newRating = max(User::MIN_RATING, min(User::MAX_RATING, $oldRating + $ratingChange));
 
             $user->rating              = $newRating;
             $user->games_played        = $gamesPlayed + 1;
@@ -989,7 +989,7 @@ class GameController extends Controller
                     return null;
                 }
 
-                $oldRating = (int) ($freshUser->learner_rating ?? $freshUser->rating ?? 800);
+                $oldRating = (int) ($freshUser->learner_rating ?? $freshUser->rating ?? User::DEFAULT_RATING);
                 $gamesPlayed = (int) ($freshUser->learner_games_played ?? 0);
                 $opponentRating = $this->learningOpponentRating($game);
                 $humanResult = $this->humanResultForGame($game, $result, $freshUser);
@@ -1011,9 +1011,9 @@ class GameController extends Controller
                     $ratingChange = min(-1, $ratingChange);
                 }
 
-                $newRating = max(400, min(3200, $oldRating + $ratingChange));
+                $newRating = max(User::MIN_RATING, min(User::MAX_RATING, $oldRating + $ratingChange));
                 $newGamesPlayed = $gamesPlayed + 1;
-                $newPeakRating = max((int) ($freshUser->learner_peak_rating ?? 800), $newRating);
+                $newPeakRating = max((int) ($freshUser->learner_peak_rating ?? User::DEFAULT_RATING), $newRating);
                 $helpRatio = $helpLimit > 0 ? $helpUsed / $helpLimit : 0;
                 $now = now();
 

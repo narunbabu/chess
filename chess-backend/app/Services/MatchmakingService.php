@@ -21,6 +21,8 @@ use Illuminate\Support\Str;
 
 class MatchmakingService
 {
+    private const DEFAULT_SEARCH_RANGE = 200;
+
     /**
      * Add a user to the matchmaking queue.
      */
@@ -54,11 +56,13 @@ class MatchmakingService
             ->update(['status' => 'cancelled']);
 
         $now = now();
+        $userRating = $user->rating ?? User::DEFAULT_RATING;
+        [$queueRating, $queueRange] = $this->queueRatingData($userRating, $preferences);
 
         return MatchmakingEntry::create([
             'user_id' => $user->id,
-            'rating' => $user->rating ?? 800,
-            'rating_range' => 200,
+            'rating' => $queueRating,
+            'rating_range' => $queueRange,
             'status' => 'searching',
             'queued_at' => $now,
             'expires_at' => $now->copy()->addSeconds(15),
@@ -171,7 +175,10 @@ class MatchmakingService
             'rating' => $entry->rating,
         ]);
 
-        $bot = SyntheticPlayer::findClosestToRating($entry->rating);
+        $minRating = $entry->rating - $entry->rating_range;
+        $maxRating = $entry->rating + $entry->rating_range;
+        $bot = SyntheticPlayer::findClosestToRating($entry->rating, $minRating, $maxRating)
+            ?: SyntheticPlayer::findClosestToRating($entry->rating);
 
         if (!$bot) {
             // No bots available — mark expired
@@ -301,13 +308,14 @@ class MatchmakingService
      */
     public function quickMatch(User $user, array $preferences = []): array
     {
-        $userRating = $user->rating ?? 800;
+        $userRating = $user->rating ?? User::DEFAULT_RATING;
+        [$minRating, $maxRating, $hasExplicitWindow] = $this->ratingBoundsFromPreferences($preferences, $userRating);
         $timeControl = $preferences['time_control_minutes'] ?? 10;
         $increment = $preferences['increment_seconds'] ?? 0;
         $gameMode = $preferences['game_mode'] ?? 'rated';
 
         // 1. Try to find an online human opponent within ±200 ELO
-        $opponent = $this->findOnlineOpponent($user->id, $userRating);
+        $opponent = $this->findOnlineOpponent($user->id, $userRating, $minRating, $maxRating);
 
         if ($opponent) {
             $game = $this->createMultiplayerGame(
@@ -332,7 +340,7 @@ class MatchmakingService
                 'opponent' => [
                     'id' => $opponent->id,
                     'name' => $opponent->name,
-                    'rating' => $opponent->rating ?? 800,
+                    'rating' => $opponent->rating ?? User::DEFAULT_RATING,
                     'avatar' => $opponent->google_avatar ?? $opponent->avatar,
                 ],
                 'time_control_minutes' => $timeControl,
@@ -342,7 +350,11 @@ class MatchmakingService
         }
 
         // 2. Try synthetic player closest to user rating
-        $bot = SyntheticPlayer::findClosestToRating($userRating);
+        $bot = SyntheticPlayer::findClosestToRating($userRating, $minRating, $maxRating);
+
+        if (!$bot && !$hasExplicitWindow) {
+            $bot = SyntheticPlayer::findClosestToRating($userRating);
+        }
 
         if ($bot) {
             $computerPlayer = $bot->getComputerPlayer();
@@ -410,7 +422,7 @@ class MatchmakingService
     /**
      * Find an online human opponent within ±200 ELO of the given rating.
      */
-    private function findOnlineOpponent(int $userId, int $rating): ?User
+    private function findOnlineOpponent(int $userId, int $rating, ?int $minRating = null, ?int $maxRating = null): ?User
     {
         $activeStatusId = GameStatus::where('code', 'active')->value('id');
         $fiveMinAgo = now()->subMinutes(5);
@@ -457,7 +469,10 @@ class MatchmakingService
         return User::where('id', '!=', $userId)
             ->whereIn('id', $candidatePool)
             ->whereNotIn('id', $busyIds)
-            ->whereBetween('rating', [$rating - 200, $rating + 200])
+            ->whereBetween('rating', [
+                $minRating ?? ($rating - self::DEFAULT_SEARCH_RANGE),
+                $maxRating ?? ($rating + self::DEFAULT_SEARCH_RANGE),
+            ])
             ->inRandomOrder()
             ->first();
     }
@@ -498,7 +513,8 @@ class MatchmakingService
             ->where('status', 'searching')
             ->update(['status' => 'cancelled']);
 
-        $userRating = $user->rating ?? 800;
+        $userRating = $user->rating ?? User::DEFAULT_RATING;
+        [$minRating, $maxRating, $hasExplicitWindow] = $this->ratingBoundsFromPreferences($prefs, $userRating);
 
         // IDs of users currently in an active human-vs-human game with recent activity.
         // Excludes computer games (players should be available for matchmaking while playing bots)
@@ -574,14 +590,14 @@ class MatchmakingService
         // Find suitable online players: within rating range, not in active game
         $candidates = User::where('id', '!=', $user->id)
             ->whereIn('id', $activeUserIds)
-            ->whereBetween('rating', [$userRating - 200, $userRating + 200])
+            ->whereBetween('rating', [$minRating, $maxRating])
             ->whereNotIn('id', $busyUserIds)
             ->inRandomOrder()
             ->limit(3)
             ->get();
 
         // If fewer than 3 candidates with ±200, expand to ±400
-        if ($candidates->count() < 3) {
+        if (!$hasExplicitWindow && $candidates->count() < 3) {
             $existingIds = $candidates->pluck('id')->toArray();
 
             $extraCandidates = User::where('id', '!=', $user->id)
@@ -597,7 +613,7 @@ class MatchmakingService
 
         // Final fallback: if still no candidates, match any active online player regardless of rating.
         // This prevents dead lobbies when few players are online with large rating gaps.
-        if ($candidates->isEmpty()) {
+        if (!$hasExplicitWindow && $candidates->isEmpty()) {
             $candidates = User::where('id', '!=', $user->id)
                 ->whereIn('id', $activeUserIds)
                 ->whereNotIn('id', $busyUserIds)
@@ -646,6 +662,48 @@ class MatchmakingService
         }
 
         return $matchRequest->load('targets');
+    }
+
+    private function queueRatingData(int $userRating, array $preferences): array
+    {
+        [$minRating, $maxRating, $hasExplicitWindow] = $this->ratingBoundsFromPreferences($preferences, $userRating);
+
+        if (!$hasExplicitWindow) {
+            return [$userRating, self::DEFAULT_SEARCH_RANGE];
+        }
+
+        $midpoint = (int) round(($minRating + $maxRating) / 2);
+        $range = max(abs($midpoint - $minRating), abs($maxRating - $midpoint));
+
+        return [$midpoint, $range];
+    }
+
+    private function ratingBoundsFromPreferences(array $preferences, int $userRating): array
+    {
+        $minRating = array_key_exists('min_rating', $preferences) && $preferences['min_rating'] !== null
+            ? (int) $preferences['min_rating']
+            : null;
+        $maxRating = array_key_exists('max_rating', $preferences) && $preferences['max_rating'] !== null
+            ? (int) $preferences['max_rating']
+            : null;
+        $hasExplicitWindow = $minRating !== null || $maxRating !== null;
+
+        if (!$hasExplicitWindow) {
+            return [
+                $userRating - self::DEFAULT_SEARCH_RANGE,
+                $userRating + self::DEFAULT_SEARCH_RANGE,
+                false,
+            ];
+        }
+
+        $minRating ??= 0;
+        $maxRating ??= User::MAX_RATING;
+
+        if ($minRating > $maxRating) {
+            [$minRating, $maxRating] = [$maxRating, $minRating];
+        }
+
+        return [$minRating, $maxRating, true];
     }
 
     /**

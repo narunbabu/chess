@@ -7,7 +7,6 @@ use App\Models\GameStatus;
 use App\Models\SyntheticPlayer;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class LobbyController extends Controller
 {
@@ -19,12 +18,14 @@ class LobbyController extends Controller
     public function players(Request $request)
     {
         $user = $request->user();
+        [$minRating, $maxRating, $hasRatingWindow] = $this->ratingWindowFromRequest($request);
+        $userRating = (int) ($user->rating ?? User::DEFAULT_RATING);
 
         // Get real online users (users active within last 5 minutes)
         $onlineThreshold = now()->subMinutes(5);
 
-        // Find users currently in active MULTIPLAYER games (busy — should show "Playing" status)
-        // Exclude synthetic/computer games — those are single-player and shouldn't mark the user as busy
+        // Find users currently in active multiplayer games. Synthetic/computer games
+        // are single-player and should not mark a user as busy in the lobby.
         $activeStatusId = GameStatus::where('code', 'active')->value('id');
         $busyUserIds = [];
         if ($activeStatusId) {
@@ -50,18 +51,28 @@ class LobbyController extends Controller
             $busyUserIds = $whiteIds->merge($blackIds)->unique()->toArray();
         }
 
-        $realPlayers = User::where('id', '!=', $user->id)
+        $realPlayersQuery = User::where('id', '!=', $user->id)
             ->where('last_activity_at', '>=', $onlineThreshold)
-            ->orderBy('rating', 'desc')
+            ->when($minRating !== null, fn ($query) => $query->where('rating', '>=', $minRating))
+            ->when($maxRating !== null, fn ($query) => $query->where('rating', '<=', $maxRating));
+
+        if ($hasRatingWindow) {
+            $realPlayersQuery->orderByRaw('ABS(rating - ?) ASC', [$userRating])->orderBy('rating');
+        } else {
+            $realPlayersQuery->orderBy('rating', 'desc');
+        }
+
+        $realPlayers = $realPlayersQuery
             ->limit(50)
             ->get(['id', 'name', 'email', 'avatar_url', 'rating'])
             ->map(function ($player) use ($busyUserIds) {
                 $inGame = in_array($player->id, $busyUserIds);
+
                 return [
                     'id' => $player->id,
                     'name' => $player->name,
                     'email' => $player->email,
-                    'rating' => $player->rating ?? 1200,
+                    'rating' => $player->rating ?? User::DEFAULT_RATING,
                     'avatar_url' => $player->avatar_url,
                     'type' => 'human',
                     'is_online' => true,
@@ -70,8 +81,11 @@ class LobbyController extends Controller
                 ];
             });
 
-        // Get randomized synthetic players (fresh each request — no cache)
-        $syntheticPlayers = SyntheticPlayer::getRandomizedForLobby()->map(function ($bot) {
+        $syntheticQuery = $hasRatingWindow
+            ? SyntheticPlayer::getForLobby(40, $minRating, $maxRating)
+            : SyntheticPlayer::getRandomizedForLobby();
+
+        $syntheticPlayers = $syntheticQuery->map(function ($bot) {
             return [
                 'id' => $bot->id,
                 'name' => $bot->name,
@@ -89,6 +103,10 @@ class LobbyController extends Controller
         return response()->json([
             'real_players' => $realPlayers,
             'synthetic_players' => $syntheticPlayers,
+            'rating_window' => [
+                'min' => $minRating,
+                'max' => $maxRating,
+            ],
         ]);
     }
 
@@ -99,7 +117,9 @@ class LobbyController extends Controller
      */
     public function syntheticPlayers(Request $request)
     {
-        $companions = SyntheticPlayer::getForLobby(40)->map(function ($bot) {
+        [$minRating, $maxRating] = $this->ratingWindowFromRequest($request);
+
+        $companions = SyntheticPlayer::getForLobby(40, $minRating, $maxRating)->map(function ($bot) {
             return [
                 'id' => $bot->id,
                 'name' => $bot->name,
@@ -117,5 +137,26 @@ class LobbyController extends Controller
         return response()->json([
             'data' => $companions,
         ]);
+    }
+
+    private function ratingWindowFromRequest(Request $request): array
+    {
+        $validated = $request->validate([
+            'min_rating' => 'nullable|integer|min:0|max:' . User::MAX_RATING,
+            'max_rating' => 'nullable|integer|min:0|max:' . User::MAX_RATING,
+        ]);
+
+        $minRating = array_key_exists('min_rating', $validated) && $validated['min_rating'] !== null
+            ? (int) $validated['min_rating']
+            : null;
+        $maxRating = array_key_exists('max_rating', $validated) && $validated['max_rating'] !== null
+            ? (int) $validated['max_rating']
+            : null;
+
+        if ($minRating !== null && $maxRating !== null && $minRating > $maxRating) {
+            [$minRating, $maxRating] = [$maxRating, $minRating];
+        }
+
+        return [$minRating, $maxRating, $minRating !== null || $maxRating !== null];
     }
 }

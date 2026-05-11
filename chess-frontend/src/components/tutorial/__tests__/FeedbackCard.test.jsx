@@ -89,22 +89,22 @@ describe('FeedbackCard', () => {
   });
 
   it('applies correct CSS classes for success feedback', () => {
-    const { container } = render(
+    render(
       <FeedbackCard feedback={mockSuccessFeedback} onDismiss={mockOnDismiss} />
     );
 
-    expect(container.firstChild).toHaveClass('bg-[#4e7837]/20');
-    expect(container.firstChild).toHaveClass('border-[#81b64c]');
+    expect(screen.getByRole('status')).toHaveClass('bg-[#4e7837]/20');
+    expect(screen.getByRole('status')).toHaveClass('border-[#81b64c]');
     expect(screen.getByText('Excellent!')).toHaveClass('text-[#a3d160]');
   });
 
   it('applies correct CSS classes for error feedback', () => {
-    const { container } = render(
+    render(
       <FeedbackCard feedback={mockErrorFeedback} onDismiss={mockOnDismiss} />
     );
 
-    expect(container.firstChild).toHaveClass('bg-[#e74c3c]/15');
-    expect(container.firstChild).toHaveClass('border-[#e74c3c]');
+    expect(screen.getByRole('status')).toHaveClass('bg-[#e74c3c]/15');
+    expect(screen.getByRole('status')).toHaveClass('border-[#e74c3c]');
     expect(screen.getByText('Try Again')).toHaveClass('text-[#fa6a5b]');
   });
 
@@ -123,7 +123,7 @@ describe('FeedbackCard', () => {
     const { container } = render(<FeedbackCard feedback={null} onDismiss={mockOnDismiss} />);
 
     // Should render empty container when feedback is null
-    expect(container.firstChild).toBeNull();
+    expect(container).toBeEmptyDOMElement();
   });
 
   it('handles unknown feedback type gracefully', () => {

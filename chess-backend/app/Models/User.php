@@ -17,6 +17,10 @@ class User extends Authenticatable implements MustVerifyEmail
 {
     use HasApiTokens, HasFactory, Notifiable;
 
+    public const DEFAULT_RATING = 400;
+    public const MIN_RATING = 200;
+    public const MAX_RATING = 3200;
+
     protected $fillable = [
         'name',
         'email',
@@ -106,6 +110,24 @@ class User extends Authenticatable implements MustVerifyEmail
         'birthday' => 'date',
         'class_of_study' => 'string',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (User $user) {
+            if ($user->rating === null) {
+                $user->rating = self::DEFAULT_RATING;
+            }
+            if ($user->peak_rating === null) {
+                $user->peak_rating = $user->rating;
+            }
+            if ($user->learner_rating === null) {
+                $user->learner_rating = self::DEFAULT_RATING;
+            }
+            if ($user->learner_peak_rating === null) {
+                $user->learner_peak_rating = $user->learner_rating;
+            }
+        });
+    }
 
     public function hasTournamentContactInfo(): bool
     {
@@ -212,7 +234,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
         // Update rating
         $oldRating = $this->rating;
-        $newRating = round($oldRating + $ratingChange);
+        $newRating = max(self::MIN_RATING, min(self::MAX_RATING, round($oldRating + $ratingChange)));
 
         // Update peak rating if new high
         $newPeakRating = max($this->peak_rating, $newRating);

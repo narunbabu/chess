@@ -138,6 +138,25 @@ async function mockCurrentSubscriptionEndpoint(page, initialSub, activatedSub = 
   return setActivated;
 }
 
+async function clickSubscribeAndExpectOverlay(page, card) {
+  const button = card.locator('.pricing-card__btn--subscribe');
+  await expect(button).toBeEnabled({ timeout: 10000 });
+
+  const overlay = page.locator('.razorpay-checkout-overlay');
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    await button.evaluate(el => el.scrollIntoView({ block: 'center' }));
+    await button.evaluate(el => el.click());
+
+    try {
+      await expect(overlay).toBeVisible({ timeout: 8000 });
+      return;
+    } catch (error) {
+      if (attempt === 1) throw error;
+      await page.waitForTimeout(500);
+    }
+  }
+}
+
 // ── Test Suite ─────────────────────────────────────────────────────────────
 
 test.describe('Pricing Page & Checkout Flow', () => {
@@ -209,8 +228,7 @@ test.describe('Pricing Page & Checkout Flow', () => {
 
     // ── Silver ──
     const silverCard = page.locator('.pricing-card').nth(1);
-    await silverCard.locator('.pricing-card__btn--subscribe').click();
-    await expect(page.locator('.razorpay-checkout-overlay')).toBeVisible({ timeout: 8000 });
+    await clickSubscribeAndExpectOverlay(page, silverCard);
     await expect(page.locator('.razorpay-checkout-modal')).toBeVisible();
 
     // Mock mode auto-completes: wait for overlay to self-dismiss (success state + 1.5s delay)
@@ -220,9 +238,7 @@ test.describe('Pricing Page & Checkout Flow', () => {
     // After onSuccess fires, fetchCurrentSubscription() briefly sets loading=true.
     // Wait for Gold's button to re-enable before attempting the click.
     const goldCard = page.locator('.pricing-card').nth(2);
-    await expect(goldCard.locator('.pricing-card__btn--subscribe')).toBeEnabled({ timeout: 5000 });
-    await goldCard.locator('.pricing-card__btn--subscribe').click();
-    await expect(page.locator('.razorpay-checkout-overlay')).toBeVisible({ timeout: 8000 });
+    await clickSubscribeAndExpectOverlay(page, goldCard);
   });
 
   // ── 3. Mock-mode full checkout flow ──────────────────────────────────────

@@ -61,11 +61,28 @@ class SyntheticPlayer extends Model
     }
 
     /**
+     * Scope to a rating window when bounds are supplied.
+     */
+    public function scopeWithinRatingWindow($query, ?int $minRating = null, ?int $maxRating = null)
+    {
+        if ($minRating !== null) {
+            $query->where('rating', '>=', $minRating);
+        }
+
+        if ($maxRating !== null) {
+            $query->where('rating', '<=', $maxRating);
+        }
+
+        return $query;
+    }
+
+    /**
      * Find the closest-rated synthetic player for matchmaking fallback
      */
-    public static function findClosestToRating(int $rating): ?self
+    public static function findClosestToRating(int $rating, ?int $minRating = null, ?int $maxRating = null): ?self
     {
         return self::active()
+            ->withinRatingWindow($minRating, $maxRating)
             ->orderByRaw('ABS(rating - ?) ASC', [$rating])
             ->first();
     }
@@ -73,9 +90,10 @@ class SyntheticPlayer extends Model
     /**
      * Get synthetic players for lobby display (legacy — sorted by rating)
      */
-    public static function getForLobby(int $limit = 40): \Illuminate\Database\Eloquent\Collection
+    public static function getForLobby(int $limit = 40, ?int $minRating = null, ?int $maxRating = null): \Illuminate\Database\Eloquent\Collection
     {
         return self::active()
+            ->withinRatingWindow($minRating, $maxRating)
             ->orderBy('rating')
             ->limit($limit)
             ->get();
@@ -85,11 +103,12 @@ class SyntheticPlayer extends Model
      * Get a subset of synthetic players for lobby display.
      * Returns 8-20 players using their permanent DB names and avatar seeds.
      */
-    public static function getRandomizedForLobby(): \Illuminate\Database\Eloquent\Collection
+    public static function getRandomizedForLobby(?int $minRating = null, ?int $maxRating = null): \Illuminate\Database\Eloquent\Collection
     {
         $count = rand(8, 20);
 
         return self::active()
+            ->withinRatingWindow($minRating, $maxRating)
             ->inRandomOrder()
             ->limit($count)
             ->get();

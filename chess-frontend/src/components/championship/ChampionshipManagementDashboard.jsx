@@ -137,7 +137,7 @@ const ChampionshipManagementDashboard = () => {
 
   // Remove participant
   const removeParticipant = async (participantId) => {
-    if (!confirm('Are you sure you want to remove this participant?')) return;
+    if (!window.confirm('Are you sure you want to remove this participant?')) return;
 
     try {
       const token = localStorage.getItem('auth_token');

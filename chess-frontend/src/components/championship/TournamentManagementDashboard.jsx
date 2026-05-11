@@ -209,7 +209,8 @@ const TournamentManagementDashboard = ({ championship, onClose, onRefresh }) => 
     };
   };
 
-  const stats = getTournamentStats();
+  const tournamentStats = getTournamentStats();
+  const invitations = matches.flatMap(match => match.invitations || []);
 
   const renderOverview = () => (
     <div className="tournament-overview">
@@ -217,7 +218,7 @@ const TournamentManagementDashboard = ({ championship, onClose, onRefresh }) => 
         <div className="stat-card">
           <div className="stat-icon">👥</div>
           <div className="stat-info">
-            <div className="stat-value">{stats.totalParticipants}</div>
+            <div className="stat-value">{tournamentStats.totalParticipants}</div>
             <div className="stat-label">Total Participants</div>
           </div>
         </div>
@@ -225,7 +226,7 @@ const TournamentManagementDashboard = ({ championship, onClose, onRefresh }) => 
         <div className="stat-card">
           <div className="stat-icon">🎮</div>
           <div className="stat-info">
-            <div className="stat-value">{stats.totalMatches}</div>
+            <div className="stat-value">{tournamentStats.totalMatches}</div>
             <div className="stat-label">Total Matches</div>
           </div>
         </div>
@@ -233,7 +234,7 @@ const TournamentManagementDashboard = ({ championship, onClose, onRefresh }) => 
         <div className="stat-card">
           <div className="stat-icon">✅</div>
           <div className="stat-info">
-            <div className="stat-value">{stats.completedMatches}</div>
+            <div className="stat-value">{tournamentStats.completedMatches}</div>
             <div className="stat-label">Completed Matches</div>
           </div>
         </div>
@@ -241,7 +242,7 @@ const TournamentManagementDashboard = ({ championship, onClose, onRefresh }) => 
         <div className="stat-card">
           <div className="stat-icon">⏳</div>
           <div className="stat-info">
-            <div className="stat-value">{stats.activeMatches}</div>
+            <div className="stat-value">{tournamentStats.activeMatches}</div>
             <div className="stat-label">Active Matches</div>
           </div>
         </div>
@@ -249,7 +250,7 @@ const TournamentManagementDashboard = ({ championship, onClose, onRefresh }) => 
         <div className="stat-card">
           <div className="stat-icon">🏆</div>
           <div className="stat-info">
-            <div className="stat-value">Round {stats.currentRound}/{stats.totalRounds}</div>
+            <div className="stat-value">Round {tournamentStats.currentRound}/{tournamentStats.totalRounds}</div>
             <div className="stat-label">Current Round</div>
           </div>
         </div>
@@ -269,7 +270,7 @@ const TournamentManagementDashboard = ({ championship, onClose, onRefresh }) => 
           <button
             className="btn btn-primary"
             onClick={() => handlePreviewPairings()}
-            disabled={pairingsLoading || loading || stats.currentRound >= stats.totalRounds}
+          disabled={pairingsLoading || loading || tournamentStats.currentRound >= tournamentStats.totalRounds}
           >
             {pairingsLoading ? '🔄 Loading...' : '👁️ Preview Next Round'}
           </button>
@@ -277,7 +278,7 @@ const TournamentManagementDashboard = ({ championship, onClose, onRefresh }) => 
           <button
             className="btn btn-success"
             onClick={() => handleGenerateRound(false)}
-            disabled={loading || stats.currentRound >= stats.totalRounds}
+          disabled={loading || tournamentStats.currentRound >= tournamentStats.totalRounds}
           >
             {loading ? '⏳ Generating...' : '⚡ Generate Round'}
           </button>
@@ -285,7 +286,7 @@ const TournamentManagementDashboard = ({ championship, onClose, onRefresh }) => 
           <button
             className="btn btn-warning"
             onClick={() => {
-              if (confirm('Are you sure you want to force generate the next round? This bypasses all safety checks.')) {
+              if (window.confirm('Are you sure you want to force generate the next round? This bypasses all safety checks.')) {
                 handleGenerateRound(true);
               }
             }}
@@ -311,12 +312,14 @@ const TournamentManagementDashboard = ({ championship, onClose, onRefresh }) => 
       </div>
     </div>
   );
+
+  const renderLegacyOverview = () => (
     <div className="tournament-overview">
       <div className="stats-grid">
         <div className="stat-card">
           <div className="stat-icon">👥</div>
           <div className="stat-info">
-            <div className="stat-value">{stats.paidParticipants}/{stats.totalParticipants}</div>
+            <div className="stat-value">{tournamentStats.paidParticipants}/{tournamentStats.totalParticipants}</div>
             <div className="stat-label">Participants (Paid/Total)</div>
           </div>
         </div>
@@ -324,7 +327,7 @@ const TournamentManagementDashboard = ({ championship, onClose, onRefresh }) => 
         <div className="stat-card">
           <div className="stat-icon">🎯</div>
           <div className="stat-info">
-            <div className="stat-value">{stats.completedMatches}/{stats.totalMatches}</div>
+            <div className="stat-value">{tournamentStats.completedMatches}/{tournamentStats.totalMatches}</div>
             <div className="stat-label">Matches (Completed/Total)</div>
           </div>
         </div>
@@ -332,7 +335,7 @@ const TournamentManagementDashboard = ({ championship, onClose, onRefresh }) => 
         <div className="stat-card">
           <div className="stat-icon">📨</div>
           <div className="stat-info">
-            <div className="stat-value">{stats.pendingInvitations}</div>
+            <div className="stat-value">{tournamentStats.pendingInvitations}</div>
             <div className="stat-label">Pending Invitations</div>
           </div>
         </div>
@@ -340,7 +343,7 @@ const TournamentManagementDashboard = ({ championship, onClose, onRefresh }) => 
         <div className="stat-card">
           <div className="stat-icon">🏆</div>
           <div className="stat-info">
-            <div className="stat-value">Round {stats.currentRound}/{stats.totalRounds}</div>
+            <div className="stat-value">Round {tournamentStats.currentRound}/{tournamentStats.totalRounds}</div>
             <div className="stat-label">Current Round</div>
           </div>
         </div>
@@ -352,7 +355,7 @@ const TournamentManagementDashboard = ({ championship, onClose, onRefresh }) => 
           <button
             className="btn btn-primary"
             onClick={handleGenerateNextRound}
-            disabled={generatingRound || stats.currentRound >= stats.totalRounds}
+          disabled={generatingRound || tournamentStats.currentRound >= tournamentStats.totalRounds}
           >
             {generatingRound ? '⏳ Generating...' : '🎯 Generate Next Round'}
           </button>
@@ -444,9 +447,9 @@ const TournamentManagementDashboard = ({ championship, onClose, onRefresh }) => 
             onChange={(e) => setSelectedRound(parseInt(e.target.value))}
             className="filter-select"
           >
-            {[...Array(stats.totalRounds)].map((_, i) => (
+        {[...Array(tournamentStats.totalRounds)].map((_, i) => (
               <option key={i + 1} value={i + 1}>
-                Round {i + 1} {i + 1 === stats.currentRound && '(Current)'}
+            Round {i + 1} {i + 1 === tournamentStats.currentRound && '(Current)'}
               </option>
             ))}
           </select>
@@ -530,8 +533,8 @@ const TournamentManagementDashboard = ({ championship, onClose, onRefresh }) => 
         <h3>Tournament Participants</h3>
         <div className="participant-counts">
           <span>Total: {participants.length}</span>
-          <span>• Paid: {stats.paidParticipants}</span>
-          <span>• Unpaid: {participants.length - stats.paidParticipants}</span>
+              <span>• Paid: {tournamentStats.paidParticipants}</span>
+              <span>• Unpaid: {participants.length - tournamentStats.paidParticipants}</span>
         </div>
       </div>
 
@@ -566,7 +569,7 @@ const TournamentManagementDashboard = ({ championship, onClose, onRefresh }) => 
       <div className="invitations-header">
         <h3>Championship Invitations</h3>
         <div className="invitation-counts">
-          <span>Pending: {stats.pendingInvitations}</span>
+              <span>Pending: {tournamentStats.pendingInvitations}</span>
           <span>• Total: {invitations.length}</span>
         </div>
       </div>
@@ -641,7 +644,7 @@ const TournamentManagementDashboard = ({ championship, onClose, onRefresh }) => 
           <label>Current Round</label>
           <input
             type="number"
-            value={stats.currentRound}
+            value={tournamentStats.currentRound}
             className="form-input"
             readOnly
           />

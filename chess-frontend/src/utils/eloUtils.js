@@ -58,7 +58,7 @@ export const calculateNewRating = (currentRating, opponentRating, result, gamesP
   if (result === 'win')  ratingChange = Math.max(1,  ratingChange);
   if (result === 'loss') ratingChange = Math.min(-1, ratingChange);
 
-  const newRating = Math.max(400, Math.min(3200, currentRating + ratingChange)); // Match backend bounds
+  const newRating = Math.max(200, Math.min(3200, currentRating + ratingChange)); // Match backend bounds
 
   return {
     newRating,

@@ -1833,14 +1833,12 @@ function CCTPanel({
 function PuzzleListModal({
   isOpen,
   onClose,
-  puzzles,
+  puzzles = [],
   currentPuzzleIndex,
-  completedPuzzleIds,
+  completedPuzzleIds = [],
   onJumpToPuzzle,
   puzzleScores = {},
 }) {
-  if (!isOpen) return null;
-
   // Filter and search state
   const [searchQuery, setSearchQuery] = React.useState('');
   const [filterStatus, setFilterStatus] = React.useState('all'); // 'all', 'completed', 'pending', 'unlocked'
@@ -1881,6 +1879,8 @@ function PuzzleListModal({
     onJumpToPuzzle(index);
     onClose();
   };
+
+  if (!isOpen) return null;
 
   return (
     <div

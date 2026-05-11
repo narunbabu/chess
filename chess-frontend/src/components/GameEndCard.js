@@ -178,7 +178,7 @@ const GameEndCard = React.forwardRef(({
       id: playerIsWhite ? result.user_id : null,
       name: playerIsWhite ? effectiveUserName : (isComputerGame ? computerOpponentName : (result.opponent_name || 'Opponent')),
       email: playerIsWhite ? (user?.email || null) : null,
-      rating: playerIsWhite ? (user?.rating || 1200) : (isComputerGame ? computerOpponentRating : 1200),
+      rating: playerIsWhite ? (user?.rating || 400) : (isComputerGame ? computerOpponentRating : 400),
       is_provisional: playerIsWhite ? (user?.is_provisional || false) : false,
       // Check multiple avatar field names from backend
       avatar_url: playerIsWhite ? (user?.avatar_url || user?.avatar) : (isComputerGame ? (computerOpponentAvatar || '🤖') : null),
@@ -194,7 +194,7 @@ const GameEndCard = React.forwardRef(({
       id: !playerIsWhite ? result.user_id : null,
       name: !playerIsWhite ? effectiveUserName : (isComputerGame ? computerOpponentName : (result.opponent_name || 'Opponent')),
       email: !playerIsWhite ? (user?.email || null) : null,
-      rating: !playerIsWhite ? (user?.rating || 1200) : (isComputerGame ? computerOpponentRating : 1200),
+      rating: !playerIsWhite ? (user?.rating || 400) : (isComputerGame ? computerOpponentRating : 400),
       is_provisional: !playerIsWhite ? (user?.is_provisional || false) : false,
       // Check multiple avatar field names from backend
       avatar_url: !playerIsWhite ? (user?.avatar_url || user?.avatar) : (isComputerGame ? (computerOpponentAvatar || '🤖') : null),

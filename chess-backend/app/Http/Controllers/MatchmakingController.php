@@ -29,6 +29,8 @@ class MatchmakingController extends Controller
             'time_control_minutes' => 'nullable|integer|in:3,5,10,15,30',
             'increment_seconds' => 'nullable|integer|in:0,1,2,3,5,10',
             'game_mode' => 'nullable|in:casual,rated,companion',
+            'min_rating' => 'nullable|integer|min:0|max:3200',
+            'max_rating' => 'nullable|integer|min:0|max:3200',
         ]);
 
         $user = Auth::user();
@@ -100,6 +102,8 @@ class MatchmakingController extends Controller
             'increment_seconds' => 'nullable|integer|in:0,1,2,3,5,10',
             'game_mode' => 'nullable|in:casual,rated,companion',
             'preferred_color' => 'nullable|in:white,black,random',
+            'min_rating' => 'nullable|integer|min:0|max:3200',
+            'max_rating' => 'nullable|integer|min:0|max:3200',
         ]);
 
         $user = Auth::user();
@@ -138,6 +142,8 @@ class MatchmakingController extends Controller
             'time_control_minutes' => 'nullable|integer|in:3,5,10,15,30',
             'increment_seconds' => 'nullable|integer|in:0,1,2,3,5,10',
             'game_mode' => 'nullable|in:casual,rated,companion',
+            'min_rating' => 'nullable|integer|min:0|max:3200',
+            'max_rating' => 'nullable|integer|min:0|max:3200',
         ]);
 
         $user = Auth::user();
@@ -234,7 +240,7 @@ class MatchmakingController extends Controller
                 $data['opponent'] = $entry->matchedUser ? [
                     'id' => $entry->matchedUser->id,
                     'name' => $entry->matchedUser->name,
-                    'rating' => $entry->matchedUser->rating ?? 1200,
+                    'rating' => $entry->matchedUser->rating ?? \App\Models\User::DEFAULT_RATING,
                     'avatar' => $entry->matchedUser->google_avatar ?? $entry->matchedUser->avatar,
                 ] : null;
             } elseif ($entry->matched_with_synthetic_id) {

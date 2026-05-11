@@ -9,7 +9,7 @@ import './Championship.css';
 const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { isUserOnline, isInitialized } = useUserStatus();
+  const { isUserOnline, isInitialized, batchCheckStatus } = useUserStatus();
 
   // Separate loading states for different actions
   const [proposingSchedule, setProposingSchedule] = useState(false);
@@ -298,7 +298,7 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
   };
 
   const handlePlayImmediate = async () => {
-    if (!confirm('Start the game now? Both players must be online to play immediately.')) {
+    if (!window.confirm('Start the game now? Both players must be online to play immediately.')) {
       return;
     }
 

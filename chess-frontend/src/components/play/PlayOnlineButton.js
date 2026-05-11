@@ -8,12 +8,13 @@ import {
   getPreferredTimeControl,
   getPreferredColor,
 } from '../../utils/gamePreferences';
+import { toRatingWindowParams } from '../../utils/ratingWindow';
 import { getStoredLearningHelpLimit, pickBeginnerSyntheticPlayer } from '../../utils/syntheticMatchPlayers';
 import '../../styles/UnifiedCards.css';
 
 const SEARCH_DURATION = 10;
 
-const PlayOnlineButton = ({ variant = 'primary', onSearchStart, onSearchEnd }) => {
+const PlayOnlineButton = ({ variant = 'primary', onSearchStart, onSearchEnd, ratingWindow }) => {
   const navigate = useNavigate();
   const { isAuthenticated, loading } = useAuth();
   const [status, setStatus] = useState('idle');
@@ -52,10 +53,11 @@ const PlayOnlineButton = ({ variant = 'primary', onSearchStart, onSearchEnd }) =
       game_mode: getPreferredGameMode(),
       preferred_color: getPreferredColor(),
       learning_help_limit: getStoredLearningHelpLimit(),
+      ...toRatingWindowParams(ratingWindow),
     };
 
     if (prefs.game_mode === 'learning') {
-      const syntheticOpponent = pickBeginnerSyntheticPlayer();
+      const syntheticOpponent = pickBeginnerSyntheticPlayer(ratingWindow);
       setStatus('matched');
       setMatchResult({
         match_type: 'synthetic',
@@ -120,7 +122,7 @@ const PlayOnlineButton = ({ variant = 'primary', onSearchStart, onSearchEnd }) =
       setStatus('error');
       onSearchEnd?.();
     }
-  }, [cleanup, isAuthenticated, loading, navigate, onSearchEnd, onSearchStart]);
+  }, [cleanup, isAuthenticated, loading, navigate, onSearchEnd, onSearchStart, ratingWindow]);
 
   const navigateToGame = (data, prefs) => {
     if (data.match_type === 'human' && data.game_id) {

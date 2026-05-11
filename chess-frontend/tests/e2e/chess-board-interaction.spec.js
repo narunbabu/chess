@@ -37,6 +37,7 @@ test.describe('Chess Board Interaction', () => {
 
     // Check for chess pieces (assuming they're represented by text or images)
     const pieces = page.locator('[data-piece], .piece, .chess-piece, [data-testid="chess-board"] img, [data-testid="chess-board"] svg');
+    await expect.poll(async () => pieces.count(), { timeout: 10000 }).toBeGreaterThan(0);
     const pieceCount = await pieces.count();
 
     // Should have some pieces on the board (standard chess has 32 pieces)

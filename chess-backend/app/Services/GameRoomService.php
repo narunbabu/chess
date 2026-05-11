@@ -9,6 +9,7 @@ use App\Models\GameConnection;
 use App\Models\GameHistory;
 use App\Models\User;
 use App\Services\ChessRulesService;
+use Chess\Variant\Classical\FenToBoardFactory;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -514,15 +515,13 @@ class GameRoomService
             throw new \Exception('Not a computer game');
         }
 
-        $newFen = $move['next_fen'] ?? $game->fen;
+        [$newFen, $newTurn] = $this->validateAndApplyMove($game, $move);
 
         $optimizedMove = $move;
         unset($optimizedMove['prev_fen'], $optimizedMove['next_fen']);
 
         $moves = $game->moves ?? [];
         $moves[] = array_merge($optimizedMove, ['user_id' => 'synthetic']);
-
-        $newTurn = $game->turn === 'white' ? 'black' : 'white';
 
         $game->update([
             'fen'          => $newFen,
@@ -593,17 +592,10 @@ class GameRoomService
             throw new \Exception('Not your turn');
         }
 
-        // FEN fields removed for optimization - server validates move legality internally
-        // Position synchronization is now handled by chess.js validation in the frontend
-
-        // FEN fields removed - use server's current FEN and let client handle turn logic
-        // Since FEN optimization is enabled, client doesn't send FEN fields
+        [$newFen, $newTurn] = $this->validateAndApplyMove($game, $move);
 
         // Update game state
         $moves = $game->moves ?? [];
-
-        // Extract next FEN from move before optimization (client provides new FEN)
-        $newFen = $move['next_fen'] ?? $game->fen;
 
         // FEN optimization - remove FEN fields from move data before storing
         $optimizedMove = $move;
@@ -612,12 +604,10 @@ class GameRoomService
         $moveWithUser = array_merge($optimizedMove, ['user_id' => $userId]);
         $moves[] = $moveWithUser;
 
-        // Prepare base update data - use new FEN from client
-        $newTurn = $game->turn === 'white' ? 'black' : 'white';
-
+        // Prepare base update data from the server-validated move.
         $updateData = [
-            'fen' => $newFen, // Use updated FEN from client move
-            'turn' => $newTurn, // Switch turn
+            'fen' => $newFen,
+            'turn' => $newTurn,
             'moves' => $moves,
             'move_count' => count($moves),
             'last_move_at' => now()
@@ -1127,7 +1117,7 @@ class GameRoomService
         if ($result === 'win')  $ratingChange = max(1,  $ratingChange);
         if ($result === 'loss') $ratingChange = min(-1, $ratingChange);
 
-        $newRating = max(400, min(3200, $oldRating + $ratingChange));
+        $newRating = max(User::MIN_RATING, min(User::MAX_RATING, $oldRating + $ratingChange));
 
         $player->rating              = $newRating;
         $player->games_played        = $gamesPlayed + 1;
@@ -2867,5 +2857,187 @@ class GameRoomService
             'success' => true,
             'message' => 'Undo request declined'
         ];
+    }
+
+    /**
+     * Validate a submitted LAN/UCI move against the server's current FEN and
+     * return the authoritative next FEN plus turn.
+     */
+    private function validateAndApplyMove(Game $game, array $move): array
+    {
+        $from = strtolower(trim((string)($move['from'] ?? '')));
+        $to = strtolower(trim((string)($move['to'] ?? '')));
+
+        if (!preg_match('/^[a-h][1-8]$/', $from) || !preg_match('/^[a-h][1-8]$/', $to)) {
+            throw new \Exception('Invalid move coordinates');
+        }
+
+        $promotion = strtolower(trim((string)($move['promotion'] ?? '')));
+        if ($promotion !== '' && !in_array($promotion, ['q', 'r', 'b', 'n'], true)) {
+            throw new \Exception('Invalid promotion piece');
+        }
+
+        $color = $this->roleToChessColor($game->turn);
+        $lan = $from . $to . $promotion;
+
+        try {
+            $board = FenToBoardFactory::create($game->fen);
+        } catch (\Throwable $e) {
+            Log::error('Server move validation failed: invalid stored FEN', [
+                'game_id' => $game->id,
+                'fen' => $game->fen,
+                'error' => $e->getMessage(),
+            ]);
+
+            throw new \Exception('Invalid game position');
+        }
+
+        if ($board->turn !== $color) {
+            Log::warning('Server move validation found turn mismatch', [
+                'game_id' => $game->id,
+                'db_turn' => $game->turn,
+                'fen_turn' => $board->turn,
+                'fen' => $game->fen,
+            ]);
+
+            throw new \Exception('Game turn is out of sync');
+        }
+
+        if (!$board->playLan($color, $lan)) {
+            Log::warning('Illegal move rejected by server validation', [
+                'game_id' => $game->id,
+                'turn' => $game->turn,
+                'fen' => $game->fen,
+                'move' => [
+                    'from' => $from,
+                    'to' => $to,
+                    'promotion' => $promotion ?: null,
+                    'san' => $move['san'] ?? null,
+                    'uci' => $move['uci'] ?? null,
+                ],
+            ]);
+
+            throw new \Exception('Illegal move');
+        }
+
+        $serverFen = $this->normalizeCastlingRightsAfterMove(
+            $game->fen,
+            $board->toFen(),
+            $from,
+            $to
+        );
+        $clientFen = $move['next_fen'] ?? null;
+
+        if (is_string($clientFen) && $clientFen !== $serverFen) {
+            Log::warning('Client next_fen ignored after server move validation mismatch', [
+                'game_id' => $game->id,
+                'client_fen' => $clientFen,
+                'server_fen' => $serverFen,
+                'uci' => $move['uci'] ?? $lan,
+            ]);
+        }
+
+        return [$serverFen, $this->chessColorToRole($board->turn)];
+    }
+
+    private function normalizeCastlingRightsAfterMove(string $beforeFen, string $afterFen, string $from, string $to): string
+    {
+        $beforeParts = explode(' ', $beforeFen);
+        $afterParts = explode(' ', $afterFen);
+
+        if (count($beforeParts) < 3 || count($afterParts) < 6) {
+            return $afterFen;
+        }
+
+        $rights = $beforeParts[2] === '-' ? '' : $beforeParts[2];
+
+        $removeBySquare = [
+            'e1' => ['K', 'Q'],
+            'h1' => ['K'],
+            'a1' => ['Q'],
+            'e8' => ['k', 'q'],
+            'h8' => ['k'],
+            'a8' => ['q'],
+        ];
+
+        foreach ([$from, $to] as $square) {
+            if (isset($removeBySquare[$square])) {
+                $rights = str_replace($removeBySquare[$square], '', $rights);
+            }
+        }
+
+        $placement = $afterParts[0];
+        if ($this->pieceAt($placement, 'e1') !== 'K') {
+            $rights = str_replace(['K', 'Q'], '', $rights);
+        }
+        if ($this->pieceAt($placement, 'h1') !== 'R') {
+            $rights = str_replace('K', '', $rights);
+        }
+        if ($this->pieceAt($placement, 'a1') !== 'R') {
+            $rights = str_replace('Q', '', $rights);
+        }
+        if ($this->pieceAt($placement, 'e8') !== 'k') {
+            $rights = str_replace(['k', 'q'], '', $rights);
+        }
+        if ($this->pieceAt($placement, 'h8') !== 'r') {
+            $rights = str_replace('k', '', $rights);
+        }
+        if ($this->pieceAt($placement, 'a8') !== 'r') {
+            $rights = str_replace('q', '', $rights);
+        }
+
+        $afterParts[2] = $this->formatCastlingRights($rights);
+
+        return implode(' ', $afterParts);
+    }
+
+    private function pieceAt(string $placement, string $square): ?string
+    {
+        $targetFile = ord($square[0]) - ord('a');
+        $targetRank = (int)$square[1];
+        $ranks = explode('/', $placement);
+        $rankIndex = 8 - $targetRank;
+
+        if (!isset($ranks[$rankIndex])) {
+            return null;
+        }
+
+        $file = 0;
+        foreach (str_split($ranks[$rankIndex]) as $char) {
+            if (ctype_digit($char)) {
+                $file += (int)$char;
+                continue;
+            }
+
+            if ($file === $targetFile) {
+                return $char;
+            }
+
+            $file++;
+        }
+
+        return null;
+    }
+
+    private function formatCastlingRights(string $rights): string
+    {
+        $formatted = '';
+        foreach (['K', 'Q', 'k', 'q'] as $right) {
+            if (str_contains($rights, $right)) {
+                $formatted .= $right;
+            }
+        }
+
+        return $formatted !== '' ? $formatted : '-';
+    }
+
+    private function roleToChessColor(string $turn): string
+    {
+        return $turn === 'white' ? 'w' : 'b';
+    }
+
+    private function chessColorToRole(string $color): string
+    {
+        return $color === 'w' ? 'white' : 'black';
     }
 }

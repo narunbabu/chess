@@ -14,6 +14,10 @@ async function jsClick(locator) {
   await locator.evaluate(el => el.click());
 }
 
+async function isMobileViewport(page) {
+  return page.evaluate(() => window.innerWidth <= 768);
+}
+
 async function login(page) {
   await page.goto('/login', { waitUntil: 'domcontentloaded', timeout: 15000 });
   await page.waitForTimeout(2000);
@@ -59,7 +63,20 @@ async function startGame(page) {
   await jsClick(playButton);
   // Countdown is 3s; allow extra time for board init.
   await page.waitForSelector('.gc-board-wrapper', { timeout: 15000 });
-  await page.waitForSelector('.gc-tabs', { timeout: 10000 });
+  if (await isMobileViewport(page)) {
+    await page.waitForSelector('.gc-mobile-action-grid', { timeout: 10000 });
+  } else {
+    await page.waitForSelector('.gc-tabs', { timeout: 10000 });
+  }
+}
+
+async function openCompanionPanel(page) {
+  if (await isMobileViewport(page)) {
+    await jsClick(page.locator('.gc-mobile-action-grid [data-tour="tab-companion"]').first());
+    await page.waitForSelector('.gc-right-panel.mobile-open .gc-tab-content', { timeout: 10000 });
+  } else {
+    await jsClick(page.locator('.gc-tabs [data-tour="tab-companion"]').first());
+  }
 }
 
 test.describe('Companion Mode', () => {
@@ -92,7 +109,9 @@ test.describe('Companion Mode', () => {
     await openComputerSetup(page, 'Casual');
     await startGame(page);
 
-    const companionTab = page.locator('.gc-tabs button', { hasText: '🤝' });
+    const companionTab = await isMobileViewport(page)
+      ? page.locator('.gc-mobile-action-grid [data-tour="tab-companion"]').first()
+      : page.locator('.gc-tabs [data-tour="tab-companion"]').first();
     await expect(companionTab).toBeVisible();
   });
 
@@ -100,7 +119,7 @@ test.describe('Companion Mode', () => {
     await openComputerSetup(page, 'Casual');
     await startGame(page);
 
-    await jsClick(page.locator('.gc-tabs button', { hasText: '🤝' }));
+    await openCompanionPanel(page);
 
     // Picker is a <select> inside the companion tab content.
     const picker = page.locator('.gc-tab-content select');
@@ -112,7 +131,7 @@ test.describe('Companion Mode', () => {
     await openComputerSetup(page, 'Casual');
     await startGame(page);
 
-    await jsClick(page.locator('.gc-tabs button', { hasText: '🤝' }));
+    await openCompanionPanel(page);
 
     const picker = page.locator('.gc-tab-content select');
     await expect(picker).toBeVisible();

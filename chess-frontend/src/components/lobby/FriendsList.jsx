@@ -53,7 +53,7 @@ const FriendsList = ({ friends = [], loading = false, onChallenge }) => {
       <div className="unified-card-content">
         <h3 className="unified-card-title">{friend.name}</h3>
         <p className="unified-card-info">
-          Rating: {friend.rating || 1200}
+          Rating: {friend.rating || 400}
         </p>
         <span className={`unified-card-status ${isOnline ? 'online' : 'offline'}`}>
           {isOnline ? 'Online' : friend.last_seen ? `Last seen ${friend.last_seen}` : 'Offline'}

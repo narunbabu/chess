@@ -14,8 +14,8 @@ const SkillAssessmentModal = ({ isOpen, onComplete, onSkip, userId }) => {
       id: 1,
       question: "How would you describe your chess experience?",
       options: [
-        { text: "Complete beginner - I just learned the rules", value: 800 },
-        { text: "Casual player - I play occasionally for fun", value: 1200 },
+        { text: "Complete beginner - I just learned the rules", value: 400 },
+        { text: "Casual player - I play occasionally for fun", value: 800 },
         { text: "Club player - I play regularly and know basic strategies", value: 1600 },
         { text: "Tournament player - I compete in rated tournaments", value: 2000 },
         { text: "Expert player - I have significant competitive experience", value: 2400 }
@@ -25,8 +25,8 @@ const SkillAssessmentModal = ({ isOpen, onComplete, onSkip, userId }) => {
       id: 2,
       question: "How familiar are you with chess openings and tactics?",
       options: [
-        { text: "Not familiar - I play by intuition only", value: 800 },
-        { text: "Basic knowledge - I know a few common openings", value: 1200 },
+        { text: "Not familiar - I play by intuition only", value: 400 },
+        { text: "Basic knowledge - I know a few common openings", value: 800 },
         { text: "Moderate knowledge - I study openings and practice tactics", value: 1600 },
         { text: "Advanced knowledge - I regularly study chess theory", value: 2000 },
         { text: "Expert knowledge - I deeply analyze games and theory", value: 2400 }
@@ -36,8 +36,8 @@ const SkillAssessmentModal = ({ isOpen, onComplete, onSkip, userId }) => {
       id: 3,
       question: "What is your typical performance against chess engines or bots?",
       options: [
-        { text: "I lose to beginner bots (Level 1-3)", value: 800 },
-        { text: "I can beat beginner bots but struggle with intermediate (Level 4-6)", value: 1200 },
+        { text: "I lose to starter bots (Level 1-3)", value: 400 },
+        { text: "I can beat starter bots but struggle with intermediate (Level 4-6)", value: 800 },
         { text: "I can beat intermediate bots (Level 7-10)", value: 1600 },
         { text: "I can beat advanced bots (Level 11-14)", value: 2000 },
         { text: "I can beat expert-level bots (Level 15+)", value: 2400 }
@@ -155,7 +155,7 @@ const SkillAssessmentModal = ({ isOpen, onComplete, onSkip, userId }) => {
             onClick={handleSkip}
             disabled={isSubmitting}
           >
-            Skip (Use 1200)
+            Skip (Use 400)
           </button>
         </div>
 

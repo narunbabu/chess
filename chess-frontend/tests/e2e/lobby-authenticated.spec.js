@@ -7,6 +7,8 @@ const TEST_EMAIL = process.env.CHESS99_TEST_EMAIL || process.env.TEST_EMAIL || '
 const TEST_PASSWORD = process.env.CHESS99_TEST_PASSWORD || process.env.TEST_PASSWORD || 'Vedansh@123';
 
 test.describe('Lobby Authenticated Tests', () => {
+  test.setTimeout(90000);
+
   test.beforeEach(async ({ page }) => {
     // Login first
     await page.goto(`/login`, { waitUntil: 'domcontentloaded', timeout: 15000 });

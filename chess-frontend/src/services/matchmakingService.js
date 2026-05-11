@@ -4,8 +4,8 @@ const matchmakingService = {
   /**
    * Get lobby players (real online + synthetic)
    */
-  getLobbyPlayers: async () => {
-    const response = await api.get('/lobby/players');
+  getLobbyPlayers: async (params = {}) => {
+    const response = await api.get('/lobby/players', { params });
     return response.data;
   },
 

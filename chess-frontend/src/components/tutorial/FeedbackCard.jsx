@@ -1,21 +1,21 @@
 import React from 'react';
 
 const FeedbackCard = ({ feedback, onDismiss, autoDismiss = true }) => {
-  if (!feedback) {
-    return null;
-  }
-
-  const { type, message, scoreChange, subtext } = feedback;
+  const { type, message, scoreChange, subtext } = feedback || {};
 
   React.useEffect(() => {
-    if (autoDismiss) {
+    if (feedback && autoDismiss) {
       const timer = setTimeout(() => {
         onDismiss && onDismiss();
       }, 3000); // Auto-dismiss after 3 seconds
 
       return () => clearTimeout(timer);
     }
-  }, [autoDismiss, onDismiss]);
+  }, [autoDismiss, feedback, onDismiss]);
+
+  if (!feedback) {
+    return null;
+  }
 
   const getStyles = () => {
     switch (type) {

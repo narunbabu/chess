@@ -9,6 +9,7 @@ import WebSocketGameService from '../services/WebSocketGameService';
 import { getEcho } from '../services/echoSingleton';
 import presenceService from '../services/presenceService';
 import { BACKEND_URL, BASE_URL } from '../config';
+import { getDefaultRatingWindow, isRatingInWindow, toRatingWindowParams } from '../utils/ratingWindow';
 import './LobbyPage.css';
 
 // Lobby components
@@ -71,6 +72,7 @@ const LobbyPage = () => {
   const [webSocketService, setWebSocketService] = useState(null);
   const [activeTab, setActiveTab] = useState('players');
   const [isRefreshing, setIsRefreshing] = useState(false); // Manual refresh state
+  const [ratingWindow, setRatingWindow] = useState(() => getDefaultRatingWindow(user?.rating));
   const [showMatchmaking, setShowMatchmaking] = useState(false); // Matchmaking modal
   const [matchmakingGuide, setMatchmakingGuide] = useState(null);
   const [showTour, setShowTour] = useState(false);
@@ -81,6 +83,18 @@ const LobbyPage = () => {
   // Online player count for Play Online button badge
   const [onlineCount, setOnlineCount] = useState(null);
   const tourStorageKey = user?.id ? `chess99:onboardingTour:v1:${user.id}` : 'chess99:onboardingTour:v1:guest';
+  const ratingWindowRef = useRef(ratingWindow);
+
+  useEffect(() => {
+    ratingWindowRef.current = ratingWindow;
+  }, [ratingWindow]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const nextWindow = getDefaultRatingWindow(user.rating);
+    ratingWindowRef.current = nextWindow;
+    setRatingWindow(nextWindow);
+  }, [user?.id, user?.rating]);
 
   useEffect(() => {
     if (!user?.id || loading) return;
@@ -227,16 +241,20 @@ const LobbyPage = () => {
       const presenceChannel = echo.join('presence.online');
 
       // When someone comes online, add them to players list
-      presenceChannel.joining((user) => {
-        console.log('[Lobby] User came online:', user.name);
+      presenceChannel.joining((joiningUser) => {
+        console.log('[Lobby] User came online:', joiningUser.name);
         setPlayers(prevPlayers => {
+          if (!isRatingInWindow(joiningUser.rating, ratingWindowRef.current)) {
+            return prevPlayers;
+          }
+
           // Check if player already exists
-          const exists = prevPlayers.some(p => p.id === user.id);
+          const exists = prevPlayers.some(p => p.id === joiningUser.id);
           if (exists) {
             return prevPlayers; // Don't add duplicates
           }
           // Add new online player
-          return [...prevPlayers, user];
+          return [...prevPlayers, joiningUser];
         });
       });
 
@@ -296,7 +314,7 @@ const LobbyPage = () => {
   // NOTE: Real-time invitations and resume requests are now handled globally by GlobalInvitationContext
   console.log('[Lobby] Using global invitation system via GlobalInvitationContext');
 
-  const fetchData = async (skipDebounce = false) => {
+  const fetchData = async (skipDebounce = false, ratingWindowOverride = null) => {
     // Global in-flight protection
     if (inFlightRef.current) {
       console.log('[Lobby] Fetch already in progress, skipping duplicate call');
@@ -306,9 +324,10 @@ const LobbyPage = () => {
     try {
       inFlightRef.current = true;
       console.log('[Lobby] Fetching lobby data for user:', user?.id);
+      const activeRatingWindow = ratingWindowOverride || ratingWindowRef.current;
 
       // Fetch lobby players from new endpoint (real + synthetic)
-      const lobbyPromise = matchmakingService.getLobbyPlayers().catch(err => {
+      const lobbyPromise = matchmakingService.getLobbyPlayers(toRatingWindowParams(activeRatingWindow)).catch(err => {
         console.error('[Lobby] Failed to fetch lobby players, falling back to /users:', err);
         return null;
       });
@@ -346,6 +365,23 @@ const LobbyPage = () => {
       console.error('[Lobby] Failed to fetch data:', error);
     } finally {
       inFlightRef.current = false;
+    }
+  };
+
+  const handleResetRatingWindow = async () => {
+    if (isRefreshing) return;
+
+    const nextWindow = getDefaultRatingWindow(user?.rating);
+    ratingWindowRef.current = nextWindow;
+    setRatingWindow(nextWindow);
+    setIsRefreshing(true);
+
+    try {
+      await fetchData(false, nextWindow);
+    } catch (error) {
+      console.error('[Lobby] Rating window reset failed:', error);
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -773,7 +809,7 @@ const LobbyPage = () => {
         {/* Hero Section — Play Online + Play Friends */}
         <div className="lobby-hero" data-tour="quick-play">
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <PlayOnlineButton variant="hero" />
+            <PlayOnlineButton variant="hero" ratingWindow={ratingWindow} />
             <button
               className="lobby-hero-btn"
               onClick={() => setShowFriendSearch(prev => !prev)}
@@ -846,6 +882,11 @@ const LobbyPage = () => {
             <PlayersList
               players={players}
               onChallenge={handleInvite}
+              ratingWindow={ratingWindow}
+              onRatingWindowChange={setRatingWindow}
+              onApplyRatingWindow={handleRefresh}
+              onResetRatingWindow={handleResetRatingWindow}
+              isRefreshing={isRefreshing}
             />
           )}
 
@@ -924,6 +965,7 @@ const LobbyPage = () => {
         }}
         initialGameMode={matchmakingGuide?.gameMode}
         guideHint={matchmakingGuide?.guideHint}
+        ratingWindow={ratingWindow}
       />
 
       <GuidedTour

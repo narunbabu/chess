@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Validator;
 use App\Models\RatingHistory;
 use App\Models\Game;
 use App\Models\SyntheticPlayer;
+use App\Models\User;
 
 class RatingController extends Controller
 {
@@ -20,7 +21,7 @@ class RatingController extends Controller
     public function setInitialRating(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'rating' => 'required|integer|min:400|max:3200', // Match full rating range
+            'rating' => 'required|integer|min:' . User::MIN_RATING . '|max:' . User::MAX_RATING,
         ]);
 
         if ($validator->fails()) {
@@ -66,7 +67,7 @@ class RatingController extends Controller
     public function updateRating(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'opponent_rating' => 'required|integer|min:400|max:3200', // Support full range of computer levels (1-16)
+            'opponent_rating' => 'required|integer|min:' . User::MIN_RATING . '|max:' . User::MAX_RATING,
             'result' => 'required|in:win,draw,loss',
             'game_type' => 'nullable|in:computer,multiplayer',
             'opponent_id' => 'nullable|integer|exists:users,id',
@@ -158,7 +159,7 @@ class RatingController extends Controller
         ]);
 
         // Ensure rating stays within reasonable bounds (match computer level range)
-        $newRating = max(400, min(3200, $newRating));
+        $newRating = max(User::MIN_RATING, min(User::MAX_RATING, $newRating));
 
         // Update user rating
         $user->rating = $newRating;
@@ -193,7 +194,7 @@ class RatingController extends Controller
                     $botExpected = 1 / (1 + pow(10, ($oldRating - $botOldRating) / 400));
                     $botK = 16; // Conservative K-factor for bots
                     $botRatingChange = round($botK * ($botActualScore - $botExpected));
-                    $syntheticPlayer->rating = max(400, min(3200, $botOldRating + $botRatingChange));
+                    $syntheticPlayer->rating = max(User::MIN_RATING, min(User::MAX_RATING, $botOldRating + $botRatingChange));
                     if ($result === 'loss') {
                         $syntheticPlayer->wins_count = ($syntheticPlayer->wins_count ?? 0) + 1;
                     }

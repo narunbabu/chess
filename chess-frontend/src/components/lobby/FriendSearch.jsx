@@ -64,7 +64,7 @@ const FriendSearch = ({ onChallenge }) => {
               />
               <div className="unified-card-content">
                 <h3 className="unified-card-title">{player.name}</h3>
-                <p className="unified-card-info">Rating: {player.rating || 1200}</p>
+                <p className="unified-card-info">Rating: {player.rating || 400}</p>
               </div>
               <div className="unified-card-actions">
                 <button

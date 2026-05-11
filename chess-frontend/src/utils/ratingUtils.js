@@ -36,7 +36,7 @@ export const calculateKFactor = (user) => {
     return 64;
   }
 
-  const rating = user.rating || 800;
+  const rating = user.rating || 400;
 
   // Established players: based on rating level
   if (rating >= 2400) {

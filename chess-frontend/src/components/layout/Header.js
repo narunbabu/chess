@@ -650,8 +650,8 @@ const Header = () => {
                 <div className="nav-user-details">
                   <h3>{user?.name}</h3>
                   <p className="nav-user-email">{user?.email}</p>
-                  <p>Rating: {user?.rating || 1200}</p>
-                  <p>Learner Elo: {user?.learner_rating || 800}</p>
+                  <p>Rating: {user?.rating || 400}</p>
+                  <p>Learner Elo: {user?.learner_rating || 400}</p>
                   <div className="nav-quick-actions">
                     <button
                       className="nav-quick-action-btn"
