@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Championship;
 use App\Jobs\GenerateNextRoundJob;
+use App\Enums\ChampionshipFormat as ChampionshipFormatEnum;
 use App\Enums\ChampionshipStatus as ChampionshipStatusEnum;
 use App\Enums\PaymentStatus;
 use Illuminate\Console\Command;
@@ -32,27 +33,32 @@ class AutoGenerateRoundsCommand extends Command
         $skippedCount = 0;
 
         try {
+            $swissOnlyId = ChampionshipFormatEnum::SWISS_ONLY->getId();
+            $hybridId = ChampionshipFormatEnum::SWISS_ELIMINATION->getId();
+            $eliminationOnlyId = ChampionshipFormatEnum::ELIMINATION_ONLY->getId();
+
             // Find championships that need next round generated.
-            // 'status' is a virtual accessor, so queries must use status_id.
+            // 'status' and 'format' are virtual accessors, so queries must
+            // use their real FK columns.
             $readyChampionships = Championship::where('status_id', ChampionshipStatusEnum::IN_PROGRESS->getId())
                 ->whereHas('matches', function ($query) {
                     // Must have at least one round completed
                     $query->completed(); // Use model scope instead of direct status query
                 })
-                ->where(function ($query) {
-                    $query->where(function ($subQuery) {
+                ->where(function ($query) use ($swissOnlyId, $hybridId, $eliminationOnlyId) {
+                    $query->where(function ($subQuery) use ($swissOnlyId) {
                         // Swiss format with remaining rounds
-                        $subQuery->where('format', 'swiss_only')
+                        $subQuery->where('format_id', $swissOnlyId)
                                 ->whereRaw('(SELECT COALESCE(MAX(round_number), 0) FROM championship_matches WHERE championship_id = championships.id) < swiss_rounds');
                     })
-                    ->orWhere(function ($subQuery) {
+                    ->orWhere(function ($subQuery) use ($hybridId) {
                         // Hybrid format in Swiss phase
-                        $subQuery->where('format', 'hybrid')
+                        $subQuery->where('format_id', $hybridId)
                                 ->whereRaw('(SELECT COALESCE(MAX(round_number), 0) FROM championship_matches WHERE championship_id = championships.id) < swiss_rounds');
                     })
-                    ->orWhere(function ($subQuery) {
+                    ->orWhere(function ($subQuery) use ($eliminationOnlyId, $hybridId) {
                         // Elimination format without winner
-                        $subQuery->whereIn('format', ['elimination_only', 'hybrid'])
+                        $subQuery->whereIn('format_id', [$eliminationOnlyId, $hybridId])
                                 ->whereRaw('(SELECT COUNT(*) FROM championship_participants WHERE championship_id = championships.id AND payment_status_id = ?) > 1',
                                         [PaymentStatus::COMPLETED->getId()]);
                     });
@@ -159,14 +165,14 @@ class AutoGenerateRoundsCommand extends Command
         $currentRound = $this->getCurrentRoundNumber($championship);
 
         switch ($format->value) {
-            case 'swiss_only':
+            case ChampionshipFormatEnum::SWISS_ONLY->value:
                 return $currentRound < $championship->swiss_rounds;
 
-            case 'elimination_only':
+            case ChampionshipFormatEnum::ELIMINATION_ONLY->value:
                 // Continue until we have a winner
                 return !$this->hasEliminationWinner($championship);
 
-            case 'hybrid':
+            case ChampionshipFormatEnum::SWISS_ELIMINATION->value:
                 $totalSwissRounds = $championship->swiss_rounds;
 
                 if ($currentRound < $totalSwissRounds) {
