@@ -4,6 +4,8 @@ namespace App\Console\Commands;
 
 use App\Models\Championship;
 use App\Jobs\GenerateNextRoundJob;
+use App\Enums\ChampionshipStatus as ChampionshipStatusEnum;
+use App\Enums\PaymentStatus;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
@@ -30,8 +32,9 @@ class AutoGenerateRoundsCommand extends Command
         $skippedCount = 0;
 
         try {
-            // Find championships that need next round generated
-            $readyChampionships = Championship::where('status', 'in_progress')
+            // Find championships that need next round generated.
+            // 'status' is a virtual accessor, so queries must use status_id.
+            $readyChampionships = Championship::where('status_id', ChampionshipStatusEnum::IN_PROGRESS->getId())
                 ->whereHas('matches', function ($query) {
                     // Must have at least one round completed
                     $query->completed(); // Use model scope instead of direct status query
@@ -51,7 +54,7 @@ class AutoGenerateRoundsCommand extends Command
                         // Elimination format without winner
                         $subQuery->whereIn('format', ['elimination_only', 'hybrid'])
                                 ->whereRaw('(SELECT COUNT(*) FROM championship_participants WHERE championship_id = championships.id AND payment_status_id = ?) > 1',
-                                        [\App\Enums\PaymentStatus::COMPLETED->getId()]);
+                                        [PaymentStatus::COMPLETED->getId()]);
                     });
                 })
                 ->get();
@@ -183,7 +186,7 @@ class AutoGenerateRoundsCommand extends Command
     private function hasEliminationWinner(Championship $championship): bool
     {
         $activeParticipants = $championship->participants()
-            ->where('payment_status_id', \App\Enums\PaymentStatus::COMPLETED->getId())
+            ->where('payment_status_id', PaymentStatus::COMPLETED->getId())
             ->count();
 
         return $activeParticipants <= 1;
