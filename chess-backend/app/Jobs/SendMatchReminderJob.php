@@ -95,7 +95,7 @@ class SendMatchReminderJob implements ShouldQueue
      */
     private function getPendingMatches(): \Illuminate\Database\Eloquent\Collection
     {
-        return ChampionshipMatch::where('status', ChampionshipMatchStatus::PENDING->value)
+        return ChampionshipMatch::where('status_id', ChampionshipMatchStatus::PENDING->getId())
             ->where('deadline', '>', now())
             ->where('scheduled_at', '<=', now())
             ->with(['championship', 'player1', 'player2'])
@@ -331,7 +331,7 @@ class SendMatchReminderJob implements ShouldQueue
      */
     private function getUpcomingMatchesForOrganizers(): \Illuminate\Database\Eloquent\Collection
     {
-        return ChampionshipMatch::where('status', ChampionshipMatchStatus::PENDING->value)
+        return ChampionshipMatch::where('status_id', ChampionshipMatchStatus::PENDING->getId())
             ->where('deadline', '>', now())
             ->where('deadline', '<=', now()->addHours(24))
             ->with(['championship', 'player1', 'player2'])
@@ -372,16 +372,16 @@ class SendMatchReminderJob implements ShouldQueue
      */
     public function getReminderStats(): array
     {
-        $pendingMatches = ChampionshipMatch::where('status', ChampionshipMatchStatus::PENDING->value)
+        $pendingMatches = ChampionshipMatch::where('status_id', ChampionshipMatchStatus::PENDING->getId())
             ->where('deadline', '>', now())
             ->count();
 
-        $urgentMatches = ChampionshipMatch::where('status', ChampionshipMatchStatus::PENDING->value)
+        $urgentMatches = ChampionshipMatch::where('status_id', ChampionshipMatchStatus::PENDING->getId())
             ->where('deadline', '>', now())
             ->where('deadline', '<=', now()->addHours(4))
             ->count();
 
-        $criticalMatches = ChampionshipMatch::where('status', ChampionshipMatchStatus::PENDING->value)
+        $criticalMatches = ChampionshipMatch::where('status_id', ChampionshipMatchStatus::PENDING->getId())
             ->where('deadline', '>', now())
             ->where('deadline', '<=', now()->addHour())
             ->count();

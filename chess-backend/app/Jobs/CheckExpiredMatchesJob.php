@@ -6,6 +6,7 @@ use App\Models\ChampionshipMatch;
 use App\Models\Championship;
 use App\Models\ChampionshipStanding;
 use App\Enums\ChampionshipMatchStatus;
+use App\Enums\ChampionshipStatus as ChampionshipStatusEnum;
 use App\Enums\ChampionshipResultType;
 use App\Services\MatchSchedulerService;
 use App\Services\StandingsCalculatorService;
@@ -405,7 +406,7 @@ class CheckExpiredMatchesJob implements ShouldQueue
      */
     private function checkAndScheduleNextRounds(): void
     {
-        $activeChampionships = Championship::where('status', \App\Enums\ChampionshipStatus::IN_PROGRESS->value)
+        $activeChampionships = Championship::where('status_id', ChampionshipStatusEnum::IN_PROGRESS->getId())
             ->get();
 
         $scheduler = new MatchSchedulerService();

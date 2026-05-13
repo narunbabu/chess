@@ -39,7 +39,7 @@ class ChampionshipRoundProgressionService
     {
         $results = [];
 
-        $activeChampionships = Championship::where('status', ChampionshipStatusEnum::IN_PROGRESS->value)
+        $activeChampionships = Championship::where('status_id', ChampionshipStatusEnum::IN_PROGRESS->getId())
             ->where('start_date', '<=', now())
             ->with(['participants', 'matches'])
             ->get();
