@@ -2,9 +2,13 @@
 
 import { Chess } from 'chess.js';
 import { COMPUTER_LEVEL_RATINGS } from './eloUtils';
+import {
+  getSub1300StockfishConfig,
+  selectSub1300StockfishMove,
+} from './sub1300Stockfish';
 
 const MAX_DEPTH_FOR_DIFFICULTY = 16;
-const NUM_TOP_MOVES_TO_REQUEST = 10;
+const NUM_TOP_MOVES_TO_REQUEST = 25;
 
 // Keep time mapping - more time allows Stockfish to rank the top N moves better
 export const mapDepthToMoveTime = (depth) => {
@@ -40,8 +44,9 @@ export const mapDepthToMoveTime = (depth) => {
  * @returns {Promise<Array<{move: string, cp: number}>>} Resolves with ranked moves and their
  *   centipawn scores (from the side-to-move's perspective, best first). Rejects on error/timeout.
  */
-export const getStockfishTopMoves = async (fen, numMoves, moveTimeMs) => {
+export const getStockfishTopMoves = async (fen, numMoves, moveTimeMs, searchOptions = {}) => {
   const workerId = `stockfish_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const requestedMoves = Math.max(1, Math.floor(Number(numMoves) || 1));
 
   try {
     const stockfish = new Worker('/workers/stockfish.js', { name: workerId });
@@ -49,11 +54,11 @@ export const getStockfishTopMoves = async (fen, numMoves, moveTimeMs) => {
     return new Promise((resolve, reject) => {
       let bestMoveFromEngine = null;
       // Each slot: {move: string, cp: number} or null
-      const topMoves = new Array(numMoves).fill(null);
+      const topMoves = new Array(requestedMoves).fill(null);
 
       let safetyTimer = null;
       const safetyMargin = 2000;
-      const timeoutDuration = moveTimeMs + safetyMargin;
+      const timeoutDuration = searchOptions.timeoutMs || (moveTimeMs + safetyMargin);
 
       const cleanup = () => {
         clearTimeout(safetyTimer);
@@ -101,7 +106,7 @@ export const getStockfishTopMoves = async (fen, numMoves, moveTimeMs) => {
               cp = n > 0 ? 9999 - n : -9999 - n;
             }
 
-            if (move && rank > 0 && rank <= numMoves) {
+            if (move && rank > 0 && rank <= requestedMoves) {
               // Always overwrite — the last info line for each multipv rank is the
               // deepest/most accurate evaluation from the search.
               topMoves[rank - 1] = { move, cp };
@@ -120,7 +125,11 @@ export const getStockfishTopMoves = async (fen, numMoves, moveTimeMs) => {
         if (message === 'readyok') {
           stockfish.onmessage = mainMessageHandler;
           stockfish.postMessage(`position fen ${fen}`);
-          stockfish.postMessage(`go movetime ${moveTimeMs}`);
+          const depth = Number(searchOptions.depth);
+          const goCommand = Number.isFinite(depth) && depth > 0
+            ? `go depth ${Math.floor(depth)}`
+            : `go movetime ${moveTimeMs}`;
+          stockfish.postMessage(goCommand);
           startTimeoutTimer();
         } else if (message.startsWith('bestmove')) {
           console.warn("Received 'bestmove' before 'readyok'. Processing...");
@@ -145,7 +154,7 @@ export const getStockfishTopMoves = async (fen, numMoves, moveTimeMs) => {
       setTimeout(() => {
         stockfish.postMessage('ucinewgame');
         setTimeout(() => {
-          stockfish.postMessage(`setoption name MultiPV value ${numMoves}`);
+          stockfish.postMessage(`setoption name MultiPV value ${requestedMoves}`);
           stockfish.postMessage('isready');
         }, 50);
       }, 50);
@@ -364,7 +373,12 @@ export const makeComputerMove = async (
     : (COMPUTER_LEVEL_RATINGS[depth] ?? 1500);
 
   const halfMoveCount = game.history().length;
-  const allocatedTimeMs = mapDepthToMoveTime(depth);
+  const sub1300Config = getSub1300StockfishConfig(game, targetElo);
+  const allocatedTimeMs = sub1300Config?.moveTimeMs || mapDepthToMoveTime(depth);
+  const requestedMoveCount = sub1300Config?.multipv || NUM_TOP_MOVES_TO_REQUEST;
+  const searchOptions = sub1300Config
+    ? { depth: sub1300Config.depth, timeoutMs: sub1300Config.timeoutMs }
+    : {};
 
   setTimerButtonColor('yellow');
   const fen = game.fen();
@@ -375,14 +389,16 @@ export const makeComputerMove = async (
 
   try {
     console.log('🔍 Calling getStockfishTopMoves...');
-    movesWithEval = await getStockfishTopMoves(fen, NUM_TOP_MOVES_TO_REQUEST, allocatedTimeMs);
+    movesWithEval = await getStockfishTopMoves(fen, requestedMoveCount, allocatedTimeMs, searchOptions);
     actualThinkingTime = Date.now() - thinkingStartTime;
     console.log('✅ Stockfish response:', { movesCount: movesWithEval?.length, thinkingTime: actualThinkingTime, targetElo });
 
-    chosenMoveUci = selectMoveWithCpBudget(movesWithEval, targetElo, halfMoveCount);
+    chosenMoveUci = sub1300Config
+      ? selectSub1300StockfishMove(game, movesWithEval, targetElo, { profile: sub1300Config.profile })
+      : selectMoveWithCpBudget(movesWithEval, targetElo, halfMoveCount);
 
     if (!chosenMoveUci) {
-      throw new Error('selectMoveWithCpBudget returned null.');
+      throw new Error('computer move selector returned null.');
     }
 
   } catch (error) {
