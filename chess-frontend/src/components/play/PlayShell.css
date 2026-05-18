@@ -988,8 +988,8 @@
 
   .gc-mobile-action-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 5px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
     width: 100%;
   }
 
@@ -998,9 +998,10 @@
   }
 
   .gc-mobile-action-btn {
-    min-height: 36px;
-    padding: 6px 5px;
-    font-size: 11px;
+    min-height: 32px;
+    padding: 5px 3px;
+    font-size: 10px;
+    letter-spacing: 0;
   }
 
   .gc-mobile-last-moves-center {
@@ -1136,9 +1137,21 @@
   }
 
   .gc-mobile-action-btn {
-    min-height: 34px;
-    padding: 5px 4px;
-    font-size: 10px;
+    min-height: 30px;
+    padding: 4px 2px;
+    font-size: 9.5px;
+  }
+
+  .gc-mobile-review-label {
+    min-height: 30px;
+    padding: 4px 2px;
+    font-size: 9.5px;
+    gap: 3px;
+  }
+
+  .gc-mobile-review-label input[type="checkbox"] {
+    width: 11px;
+    height: 11px;
   }
 
   /* Keep resign/rules layout on very small screens */
@@ -1607,13 +1620,16 @@
 .gc-mobile-review-label {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
-  padding: 6px 10px;
+  min-width: 0;
+  min-height: 32px;
+  padding: 5px 4px;
   border-radius: 8px;
   border: 1px solid rgba(99, 179, 237, 0.4);
   background: rgba(99, 179, 237, 0.08);
   color: #93c5fd;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
@@ -1621,8 +1637,8 @@
 }
 .gc-mobile-review-label input[type="checkbox"] {
   accent-color: #60a5fa;
-  width: 13px;
-  height: 13px;
+  width: 12px;
+  height: 12px;
   cursor: pointer;
 }
 
@@ -1649,32 +1665,32 @@
   background: rgba(30, 30, 50, 0.92);
   border: 1px solid rgba(99, 179, 237, 0.25);
   border-radius: 10px;
-  padding: 10px 14px;
-  font-size: 13px;
+  padding: 6px 8px;
+  font-size: 12px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
 }
 .gc-review-bar-loading {
   color: #8b8987;
   font-style: italic;
   text-align: center;
-}
-.gc-review-bar-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-  flex-wrap: wrap;
-  gap: 4px;
+  display: block;
 }
 .gc-review-bar-label {
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.03em;
   color: #8b8987;
   font-weight: 600;
+  white-space: nowrap;
 }
 .gc-review-bar-rank {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
+  justify-self: start;
+  white-space: nowrap;
 }
 .gc-review-rank-best  { color: #FFD700; }
 .gc-review-rank-good  { color: #34D399; }
@@ -1682,35 +1698,56 @@
 
 .gc-review-bar-list {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.gc-review-bar-list::-webkit-scrollbar {
+  display: none;
 }
 .gc-review-bar-item {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  border-radius: 6px;
+  gap: 4px;
+  min-width: max-content;
+  padding: 3px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.04);
   transition: background 0.15s;
 }
 .gc-review-bar-user {
-  background: rgba(99, 179, 237, 0.12);
+  background: rgba(99, 179, 237, 0.16);
+  border-color: rgba(96, 165, 250, 0.75) !important;
 }
 .gc-review-bar-move-rank {
   font-weight: 700;
-  min-width: 18px;
-  font-size: 13px;
+  font-size: 12px;
 }
 .gc-review-bar-move-san {
   font-weight: 600;
   color: #e5e5e5;
 }
 .gc-review-bar-you-tag {
-  margin-left: auto;
   font-size: 11px;
   color: #60a5fa;
   font-weight: 600;
+}
+.gc-review-bar-replay {
+  border: 1px solid rgba(96, 165, 250, 0.45);
+  border-radius: 999px;
+  background: rgba(96, 165, 250, 0.10);
+  color: #93c5fd;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 8px;
+  white-space: nowrap;
+}
+.gc-review-bar-replay:hover {
+  background: rgba(96, 165, 250, 0.18);
 }
 
 @media (max-width: 900px) {
@@ -1720,5 +1757,12 @@
     border-left: none;
     border-right: none;
     margin: 4px 0 0;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .gc-review-bar-label {
+    display: none;
+  }
+  .gc-review-bar-rank {
+    grid-column: 1 / -1;
   }
 }

@@ -277,6 +277,7 @@ const ChessBoard = ({
 
     const arrowDefs = validArrows.map((a, i) => {
       const color = a.color || 'rgba(255,0,0,0.7)';
+      const opacity = a.opacity ?? 0.75;
       return (
         <marker
           key={`m-${i}`}
@@ -287,7 +288,7 @@ const ChessBoard = ({
           refY="1.25"
           orient="auto"
         >
-          <polygon points="0.3 0, 2 1.25, 0.3 2.5" fill={color} />
+          <polygon points="0.3 0, 2 1.25, 0.3 2.5" fill={color} opacity={opacity} />
         </marker>
       );
     });
@@ -315,7 +316,7 @@ const ChessBoard = ({
             x2={end.x}  y2={end.y}
             stroke={a.color || 'rgba(255,0,0,0.7)'}
             strokeWidth={strokeWidth}
-            opacity="0.75"
+            opacity={a.opacity ?? 0.75}
             markerEnd={`url(#cct-arrowhead-${i})`}
           />
         );

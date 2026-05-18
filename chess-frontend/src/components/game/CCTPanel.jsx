@@ -139,8 +139,6 @@ const CCTPanel = ({
   bestMoveRequestId = 0,
   topMoveLimit = 5,
   reviewEnabled = false,
-  reviewLoading = false,
-  reviewResult = null,
   onReviewEnabledChange,
   onBestButtonUse,
   onBestMovesReady,
@@ -303,10 +301,6 @@ const CCTPanel = ({
     </label>
   );
 
-  const renderReviewResult = () => (
-    <ReviewResult result={reviewResult} loading={reviewLoading} topMoveLimit={topMoveLimit} />
-  );
-
   // ── rated gate ─────────────────────────────────────────────────────────────
   if (isRated) {
     return (
@@ -319,7 +313,6 @@ const CCTPanel = ({
           </p>
         </div>
         {renderReviewToggle()}
-        {renderReviewResult()}
         {cct && <CctCounts cct={cct} />}
       </div>
     );
@@ -362,7 +355,6 @@ const CCTPanel = ({
 
       {/* ── Warning notification ─────────────────────────────────────────── */}
       {renderReviewToggle()}
-      {renderReviewResult()}
 
       {warning && (
         <div className={`cct-warning cct-warning-${warning.severity}`}>
@@ -449,52 +441,6 @@ const CCTPanel = ({
 };
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
-
-function ReviewResult({ result, loading, topMoveLimit }) {
-  if (loading) {
-    return (
-      <div className="cct-review-result cct-review-loading">
-        <div className="cct-spinner" />
-        Reviewing move...
-      </div>
-    );
-  }
-
-  if (!result) return null;
-
-  const rankText = result.userMoveRank
-    ? `Your move ranked #${result.userMoveRank}`
-    : result.isOutsideTopMoves
-      ? `Your move was outside the top ${topMoveLimit}`
-      : 'Your move was not ranked';
-
-  return (
-    <div className="cct-review-result">
-      <div className="cct-review-title">
-        <span>Move Review</span>
-        <strong>{rankText}</strong>
-      </div>
-      <div className="cct-best-list cct-review-list">
-        {(result.topMoves || []).map((move, index) => {
-          const isUserMove = move.rank === result.userMoveRank;
-          return (
-            <div
-              key={`${move.rank}-${move.move}`}
-              className={`cct-best-item ${isUserMove ? 'cct-review-user-move' : ''}`}
-              style={{ borderLeft: `3px solid ${getBestColor(index)}` }}
-            >
-              <span className="cct-best-rank" style={{ color: getBestColor(index) }}>
-                {move.rank}.
-              </span>
-              <span className="cct-best-san">{move.san || move.move}</span>
-              {isUserMove && <span className="cct-review-user-tag">Your move</span>}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 function CctCounts({ cct }) {
   return (

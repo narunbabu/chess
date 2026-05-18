@@ -1,7 +1,7 @@
 // src/components/play/GameContainer.js
 // Premium 3-column game layout: Left Panel | Center Board (hero) | Right Panel
 
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import ActivePlayerBar from './ActivePlayerBar';
 import SoundToggle from './SoundToggle';
 import BoardCustomizer from './BoardCustomizer';
@@ -28,6 +28,56 @@ const normalizeChessColor = (color) => {
   if (color === 'white') return 'w';
   if (color === 'black') return 'b';
   return color === 'b' ? 'b' : 'w';
+};
+
+const REVIEW_RANK_COLORS = ['#FFD700', '#C0C0C0', '#CD7F32', '#60A5FA', '#34D399'];
+const REVIEW_ARROW_FAINT_COLORS = [
+  'rgba(255, 215, 0, 0.28)',
+  'rgba(192, 192, 192, 0.26)',
+  'rgba(205, 127, 50, 0.26)',
+  'rgba(96, 165, 250, 0.24)',
+  'rgba(52, 211, 153, 0.24)',
+];
+const REVIEW_USER_ARROW_COLOR = 'rgba(96, 165, 250, 0.96)';
+
+const getMoveUci = (move) => (move?.uci || move?.move || move || '').toString().toLowerCase();
+const uciToArrow = (uci, color, opacity = 0.75) => {
+  if (!/^[a-h][1-8][a-h][1-8][qrbn]?$/.test(uci || '')) return null;
+  return {
+    from: uci.slice(0, 2),
+    to: uci.slice(2, 4),
+    color,
+    opacity,
+  };
+};
+
+const buildReviewArrows = (result, topMoveLimit = 5) => {
+  if (!result) return [];
+
+  const userMove = getMoveUci(result.userMove);
+  const topMoves = (result.topMoves || []).slice(0, topMoveLimit);
+  const arrows = [];
+  const seen = new Set();
+
+  topMoves.forEach((move, index) => {
+    const uci = getMoveUci(move);
+    const isUserMove = userMove && uci === userMove;
+    const arrow = uciToArrow(
+      uci,
+      isUserMove ? REVIEW_USER_ARROW_COLOR : REVIEW_ARROW_FAINT_COLORS[index] || 'rgba(147, 197, 253, 0.22)',
+      isUserMove ? 0.95 : 0.45
+    );
+    if (!arrow) return;
+    seen.add(uci);
+    arrows.push(arrow);
+  });
+
+  if (userMove && !seen.has(userMove)) {
+    const userArrow = uciToArrow(userMove, REVIEW_USER_ARROW_COLOR, 0.95);
+    if (userArrow) arrows.push(userArrow);
+  }
+
+  return arrows;
 };
 
 /**
@@ -115,6 +165,18 @@ const GameContainer = ({
     : 'Show Best moves';
   const reviewState = cctData?.review || {};
   const reviewEnabled = Boolean(reviewState.enabled);
+  const reviewLoading = Boolean(reviewState.loading);
+  const latestReviewResult = reviewState.latestResult;
+  const onShowReviewArrows = reviewState.onShowArrows;
+  const showReviewArrows = useCallback((result = latestReviewResult) => {
+    if (!result || !onShowReviewArrows) return;
+    onShowReviewArrows(buildReviewArrows(result, cctData?.topMoveLimit || 5));
+  }, [cctData?.topMoveLimit, latestReviewResult, onShowReviewArrows]);
+
+  useEffect(() => {
+    if (!latestReviewResult || reviewLoading || !onShowReviewArrows) return;
+    showReviewArrows(latestReviewResult);
+  }, [latestReviewResult, reviewLoading, onShowReviewArrows, showReviewArrows]);
 
   const requestBestMove = () => {
     if (!cctData || bestMoveDisabled) return;
@@ -231,17 +293,16 @@ const GameContainer = ({
 
   const renderMobileQuickActionButtons = (placement = 'portrait') => (
     <>
-      {/* Best — primary action, casual + learning */}
-      {cctData && (isCasualMode || isLearningMode) && !gameOver && (
-        <button
-          data-tour="action-cct-best"
-          className={`gc-mobile-action-btn gc-action-warning ${isBestOn ? 'gc-mobile-action-active' : ''} ${bestMoveDisabled ? 'gc-action-disabled' : ''}`}
-          onClick={requestBestMove}
-          disabled={bestMoveDisabled}
-          title={isBestOn ? 'Best moves showing — tap to hide' : bestMoveTitle}
-        >
-          {isBestOn ? 'Best ✓' : `Best${isLearningMode && bestMoveBudgetEnabled ? ` ${bestMoveRemaining}` : ''}`}
-        </button>
+      {/* Review checkbox */}
+      {cctData && !gameOver && (
+        <label className="gc-mobile-review-label" title={reviewEnabled ? 'Turn Review off' : 'Show best move alternatives after each move'}>
+          <input
+            type="checkbox"
+            checked={reviewEnabled}
+            onChange={(e) => reviewState.onChange?.(e.target.checked)}
+          />
+          Review
+        </label>
       )}
       {/* Undo */}
       {handleUndo && !isRated && (
@@ -255,16 +316,17 @@ const GameContainer = ({
           Undo{undoChancesRemaining > 0 ? ` ${undoChancesRemaining}` : ''}
         </button>
       )}
-      {/* Review checkbox */}
-      {cctData && !gameOver && (
-        <label className="gc-mobile-review-label" title={reviewEnabled ? 'Turn Review off' : 'Show best move alternatives after each move'}>
-          <input
-            type="checkbox"
-            checked={reviewEnabled}
-            onChange={(e) => reviewState.onChange?.(e.target.checked)}
-          />
-          Review
-        </label>
+      {/* Best — primary action, casual + learning */}
+      {cctData && (isCasualMode || isLearningMode) && !gameOver && (
+        <button
+          data-tour="action-cct-best"
+          className={`gc-mobile-action-btn gc-action-warning ${isBestOn ? 'gc-mobile-action-active' : ''} ${bestMoveDisabled ? 'gc-action-disabled' : ''}`}
+          onClick={requestBestMove}
+          disabled={bestMoveDisabled}
+          title={isBestOn ? 'Best moves showing — tap to hide' : bestMoveTitle}
+        >
+          {isBestOn ? 'Best' : `Best${isLearningMode && bestMoveBudgetEnabled ? ` ${bestMoveRemaining}` : ''}`}
+        </button>
       )}
       {/* More menu — Pause, Chat, CCT, Companion, Help, Moves, Draw, Resign */}
       <div className="gc-mobile-action-menu-wrap">
@@ -981,11 +1043,12 @@ const GameContainer = ({
         {renderReplayBar()}
 
         {/* Post-move review result — visible in game area when Review is enabled */}
-        {cctData && (reviewState.latestResult || reviewState.loading) && (
+        {cctData && (latestReviewResult || reviewLoading) && (
           <ReviewResultInline
-            result={reviewState.latestResult}
-            loading={Boolean(reviewState.loading)}
+            result={latestReviewResult}
+            loading={reviewLoading}
             topMoveLimit={cctData.topMoveLimit || 5}
+            onShowArrows={showReviewArrows}
           />
         )}
       </div>
@@ -1009,13 +1072,11 @@ const GameContainer = ({
 
 // ─── Inline review result — shown below the board in the game area ────────────
 
-const RANK_COLORS = ['#FFD700', '#C0C0C0', '#CD7F32', '#60A5FA', '#34D399'];
-
-function ReviewResultInline({ result, loading, topMoveLimit = 5 }) {
+function ReviewResultInline({ result, loading, topMoveLimit = 5, onShowArrows }) {
   if (loading) {
     return (
       <div className="gc-review-bar gc-review-bar-loading">
-        Reviewing move…
+        Reviewing move...
       </div>
     );
   }
@@ -1027,12 +1088,10 @@ function ReviewResultInline({ result, loading, topMoveLimit = 5 }) {
 
   return (
     <div className="gc-review-bar">
-      <div className="gc-review-bar-header">
-        <span className="gc-review-bar-label">Move Review</span>
-        <span className={`gc-review-bar-rank ${result.userMoveRank === 1 ? 'gc-review-rank-best' : result.userMoveRank <= 2 ? 'gc-review-rank-good' : 'gc-review-rank-ok'}`}>
-          {rankText}
-        </span>
-      </div>
+      <span className="gc-review-bar-label">Review</span>
+      <span className={`gc-review-bar-rank ${result.userMoveRank === 1 ? 'gc-review-rank-best' : result.userMoveRank && result.userMoveRank <= 2 ? 'gc-review-rank-good' : 'gc-review-rank-ok'}`}>
+        {rankText}
+      </span>
       <div className="gc-review-bar-list">
         {(result.topMoves || []).map((move, index) => {
           const isUserMove = move.rank === result.userMoveRank;
@@ -1040,17 +1099,32 @@ function ReviewResultInline({ result, loading, topMoveLimit = 5 }) {
             <div
               key={`${move.rank}-${move.move}`}
               className={`gc-review-bar-item ${isUserMove ? 'gc-review-bar-user' : ''}`}
-              style={{ borderLeft: `3px solid ${RANK_COLORS[index] || '#93c5fd'}` }}
+              style={{ borderColor: REVIEW_RANK_COLORS[index] || '#93c5fd' }}
             >
-              <span className="gc-review-bar-move-rank" style={{ color: RANK_COLORS[index] || '#93c5fd' }}>
+              <span className="gc-review-bar-move-rank" style={{ color: REVIEW_RANK_COLORS[index] || '#93c5fd' }}>
                 {move.rank}.
               </span>
               <span className="gc-review-bar-move-san">{move.san || move.move}</span>
-              {isUserMove && <span className="gc-review-bar-you-tag">← You</span>}
+              {isUserMove && <span className="gc-review-bar-you-tag">You</span>}
             </div>
           );
         })}
+        {result.isOutsideTopMoves && (
+          <div className="gc-review-bar-item gc-review-bar-user gc-review-bar-outside">
+            <span className="gc-review-bar-move-rank">You</span>
+            <span className="gc-review-bar-move-san">{result.san || result.userMove}</span>
+            <span className="gc-review-bar-you-tag">outside top {topMoveLimit}</span>
+          </div>
+        )}
       </div>
+      <button
+        type="button"
+        className="gc-review-bar-replay"
+        onClick={() => onShowArrows?.(result)}
+        title="Show review arrows for 2 seconds"
+      >
+        Arrows
+      </button>
     </div>
   );
 }

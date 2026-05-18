@@ -251,6 +251,7 @@ const PlayComputer = () => {
   const companionChoiceTouchedRef = useRef(false);
   const [companions, setCompanions] = useState([]); // Available companions list (fetched once)
   const [cctArrows,  setCctArrows]  = useState([]); // CCT board arrows from learning panel
+  const [reviewArrows, setReviewArrows] = useState([]);
   const [boardLabels, setBoardLabels] = useState([]); // Numbered square labels from Best mode
   const [reviewEnabled, setReviewEnabled] = useState(false);
   const [reviewLoading, setReviewLoading] = useState(false);
@@ -310,12 +311,35 @@ const PlayComputer = () => {
   const moveReviewRecordsRef = useRef(moveReviewRecords);
   const bestButtonUsesRef = useRef(bestButtonUses);
   const lastBestRevealRef = useRef(null);
+  const reviewArrowTimerRef = useRef(null);
   useEffect(() => { gameHistoryRef.current = gameHistory; }, [gameHistory]);
   useEffect(() => { playerScoreRef.current = playerScore; }, [playerScore]);
   useEffect(() => { computerScoreRef.current = computerScore; }, [computerScore]);
   useEffect(() => { reviewEnabledRef.current = reviewEnabled; }, [reviewEnabled]);
   useEffect(() => { moveReviewRecordsRef.current = moveReviewRecords; }, [moveReviewRecords]);
   useEffect(() => { bestButtonUsesRef.current = bestButtonUses; }, [bestButtonUses]);
+
+  useEffect(() => () => {
+    if (reviewArrowTimerRef.current) {
+      clearTimeout(reviewArrowTimerRef.current);
+    }
+  }, []);
+
+  const showReviewArrows = useCallback((arrows = []) => {
+    if (reviewArrowTimerRef.current) {
+      clearTimeout(reviewArrowTimerRef.current);
+    }
+    setReviewArrows(Array.isArray(arrows) ? arrows : []);
+    reviewArrowTimerRef.current = setTimeout(() => {
+      setReviewArrows([]);
+      reviewArrowTimerRef.current = null;
+    }, 2000);
+  }, []);
+
+  const boardArrows = useMemo(() => [
+    ...cctArrows,
+    ...reviewArrows,
+  ], [cctArrows, reviewArrows]);
 
   const recordPendingLearningHelp = useCallback((kind = 'help') => {
     if (ratedMode !== 'learning') return;
@@ -361,6 +385,11 @@ const PlayComputer = () => {
     setLatestReviewResult(null);
     setMoveReviewRecords([]);
     setBestButtonUses(0);
+    setReviewArrows([]);
+    if (reviewArrowTimerRef.current) {
+      clearTimeout(reviewArrowTimerRef.current);
+      reviewArrowTimerRef.current = null;
+    }
   }, []);
 
   const handleReviewEnabledChange = useCallback((enabled) => {
@@ -3182,6 +3211,7 @@ const PlayComputer = () => {
           loading: reviewLoading,
           latestResult: latestReviewResult,
           onChange: handleReviewEnabledChange,
+          onShowArrows: showReviewArrows,
         },
         onBestButtonUse: handleBestButtonUse,
         onBestMovesReady: handleBestMovesReady,
@@ -3238,7 +3268,7 @@ const PlayComputer = () => {
         isReplayMode={isReplayMode}
         boardTheme={boardTheme}
         customPieces={pieceStyle === '3d' ? pieces3dLanding : undefined}
-        lessonArrows={cctArrows}
+        lessonArrows={boardArrows}
         lessonLabels={boardLabels}
       />
     </GameContainer>

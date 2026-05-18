@@ -221,6 +221,7 @@ const PlayMultiplayer = () => {
   const [chatUnread, setChatUnread] = useState(0);
   const chatTabOpenRef = useRef(false);
   const [cctArrows, setCctArrows] = useState([]); // CCT board arrows from learning panel
+  const [reviewArrows, setReviewArrows] = useState([]);
   const [reviewEnabled, setReviewEnabled] = useState(false);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [latestReviewResult, setLatestReviewResult] = useState(null);
@@ -232,6 +233,7 @@ const PlayMultiplayer = () => {
   const bestButtonUsesRef = useRef(0);
   const lastBestRevealRef = useRef(null);
   const pendingReviewPromisesRef = useRef([]);
+  const reviewArrowTimerRef = useRef(null);
 
   // Nudge opponent state (30s cooldown)
   const [nudgeCooldown, setNudgeCooldown] = useState(false);
@@ -259,6 +261,28 @@ const PlayMultiplayer = () => {
   useEffect(() => { reviewEnabledRef.current = reviewEnabled; }, [reviewEnabled]);
   useEffect(() => { moveReviewRecordsRef.current = moveReviewRecords; }, [moveReviewRecords]);
   useEffect(() => { bestButtonUsesRef.current = bestButtonUses; }, [bestButtonUses]);
+
+  useEffect(() => () => {
+    if (reviewArrowTimerRef.current) {
+      clearTimeout(reviewArrowTimerRef.current);
+    }
+  }, []);
+
+  const showReviewArrows = useCallback((arrows = []) => {
+    if (reviewArrowTimerRef.current) {
+      clearTimeout(reviewArrowTimerRef.current);
+    }
+    setReviewArrows(Array.isArray(arrows) ? arrows : []);
+    reviewArrowTimerRef.current = setTimeout(() => {
+      setReviewArrows([]);
+      reviewArrowTimerRef.current = null;
+    }, 2000);
+  }, []);
+
+  const boardArrows = useMemo(() => [
+    ...cctArrows,
+    ...reviewArrows,
+  ], [cctArrows, reviewArrows]);
 
   const buildCurrentReviewReport = useCallback((records = moveReviewRecordsRef.current) => {
     return createMoveReviewReport({
@@ -290,6 +314,11 @@ const PlayMultiplayer = () => {
     setLatestReviewResult(null);
     setMoveReviewRecords([]);
     setBestButtonUses(0);
+    setReviewArrows([]);
+    if (reviewArrowTimerRef.current) {
+      clearTimeout(reviewArrowTimerRef.current);
+      reviewArrowTimerRef.current = null;
+    }
   }, []);
 
   const handleReviewEnabledChange = useCallback((enabled) => {
@@ -5132,6 +5161,7 @@ const PlayMultiplayer = () => {
           loading: reviewLoading,
           latestResult: latestReviewResult,
           onChange: handleReviewEnabledChange,
+          onShowArrows: showReviewArrows,
         },
         onBestButtonUse: handleBestButtonUse,
         onBestMovesReady: handleBestMovesReady,
@@ -5310,7 +5340,7 @@ const PlayMultiplayer = () => {
           animationDuration={200}
           arePiecesDraggable={!gameComplete && gameInfo.status === 'active' && gameInfo.turn === gameInfo.playerColor}
           areArrowsAllowed={false}
-          customArrows={cctArrows.map(a => [a.from, a.to, a.color])}
+          customArrows={boardArrows.map(a => [a.from, a.to, a.color])}
           customDarkSquareStyle={{ backgroundColor: getTheme(boardTheme).dark }}
           customLightSquareStyle={{ backgroundColor: getTheme(boardTheme).light }}
           {...(pieceStyle === '3d' ? { customPieces: pieces3dLanding } : {})}
