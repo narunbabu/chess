@@ -13,6 +13,8 @@ import { pieces3dLanding } from '../assets/pieces/pieces3d';
 import { getTheme } from '../config/boardThemes';
 import { detectOpening } from '../utils/openingDetection';
 import { normalizeLearningHelpMarkers } from '../utils/gameHistoryStringUtils';
+import MoveReviewReportModal from './game/MoveReviewReportModal';
+import { hasMoveReviewData } from '../utils/moveReviewReport';
 
 // ═══ Image helpers (kept verbatim — battle-tested for share capture) ═══
 
@@ -251,6 +253,7 @@ const GameReview = () => {
   const [shareImageUrl, setShareImageUrl] = useState(null);
   const [shareBlob, setShareBlob] = useState(null);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [showReviewReport, setShowReviewReport] = useState(false);
 
   // Board customization
   const [boardTheme, setBoardTheme] = useState(() => getBoardTheme(user));
@@ -276,6 +279,16 @@ const GameReview = () => {
   // ═══ Computed values ═══
 
   const totalMoves = gameHistory.moves ? Math.max(0, gameHistory.moves.length - 1) : 0;
+  const reviewReport = useMemo(() => {
+    if (!gameHistory?.review_report && !gameHistory?.review_summary) return null;
+    return {
+      ...(gameHistory.review_report || {}),
+      summary: gameHistory.review_summary || gameHistory.review_report?.summary || {},
+      bestButtonUses: gameHistory.best_button_uses ?? gameHistory.review_report?.bestButtonUses ?? 0,
+      reviewEnabledUsed: gameHistory.review_enabled_used ?? gameHistory.review_report?.reviewEnabledUsed ?? false,
+    };
+  }, [gameHistory]);
+  const canShowReviewReport = hasMoveReviewData(reviewReport);
 
   const openingName = useMemo(() => {
     if (!gameHistory.moves || gameHistory.moves.length < 2) return null;
@@ -1287,8 +1300,24 @@ const GameReview = () => {
           Back
         </button>
         <h1 className="text-white font-semibold text-base flex-1 text-center">Game Review</h1>
-        <div className="w-12" /> {/* Spacer for centering */}
+        {canShowReviewReport ? (
+          <button
+            type="button"
+            onClick={() => setShowReviewReport(true)}
+            className="px-3 py-1.5 bg-[#3f6212] hover:bg-[#4d7c0f] text-white rounded-lg text-sm font-semibold transition-colors"
+          >
+            Report
+          </button>
+        ) : (
+          <div className="w-12" />
+        )}
       </div>
+
+      <MoveReviewReportModal
+        open={showReviewReport}
+        onClose={() => setShowReviewReport(false)}
+        report={reviewReport}
+      />
 
       {/* ─── Main Content: Two-column on lg+, stacked on mobile ─── */}
       <div className="max-w-7xl mx-auto px-3 py-4 lg:px-6">

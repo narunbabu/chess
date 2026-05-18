@@ -10,6 +10,8 @@ import { shareGameWithFriends, shareGameReplay, shareGameVideo } from "../utils/
 import { encodeGameHistory } from "../utils/gameHistoryStringUtils"; // Import for encoding moves
 import { getBoardTheme } from "./play/BoardCustomizer";
 import GameEndCard from "./GameEndCard";
+import MoveReviewReportModal from "./game/MoveReviewReportModal";
+import { hasMoveReviewData } from "../utils/moveReviewReport";
 import "./GameCompletionAnimation.css";
 
 // Note: Image utility functions have been moved to utils/imageUtils.js
@@ -33,7 +35,8 @@ const GameCompletionAnimation = ({
   gameId = null, // Game ID for history tracking
   ratedMode = 'rated', // 'rated' or 'casual' — only update rating for rated games
   championshipData = null, // Championship info: { tournamentName, round, matchId, standing, points }
-  isPreview = false // Flag to indicate if this is preview mode
+  isPreview = false, // Flag to indicate if this is preview mode
+  reviewReport = null
 }) => {
   const [isVisible, setIsVisible] = useState(false); // Controls card visibility for animation
   // const [selectedColor, setSelectedColor] = useState('random'); // Color preference for new game challenge - UNUSED
@@ -60,6 +63,7 @@ const GameCompletionAnimation = ({
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
   const [videoProgress, setVideoProgress] = useState(0);
   const [showFormatPicker, setShowFormatPicker] = useState(false);
+  const [showReviewReport, setShowReviewReport] = useState(false);
   const { isAuthenticated, user, updateUser } = useAuth();
   const navigate = useNavigate();
   const gameEndCardRef = useRef(null); // Ref for wrapper (used for layout)
@@ -69,6 +73,7 @@ const GameCompletionAnimation = ({
   const isMediaGenerating = isGeneratingGif || isGeneratingVideo;
   const mediaProgress = isGeneratingVideo ? videoProgress : gifProgress;
   const mediaLabel = isGeneratingVideo ? 'Generating Video' : 'Generating GIF';
+  const canShowReviewReport = hasMoveReviewData(reviewReport);
 
   // Effective board theme — respects guest localStorage selection
   const effectiveBoardTheme = getBoardTheme(user);
@@ -394,6 +399,10 @@ const GameCompletionAnimation = ({
           opponentScore,
           playerColor,
           timestamp: new Date().toISOString(),
+          review_report: reviewReport,
+          review_summary: reviewReport?.summary || null,
+          best_button_uses: reviewReport?.bestButtonUses || 0,
+          review_enabled_used: Boolean(reviewReport?.reviewEnabledUsed),
         });
       } catch (error) {
         console.error("Failed to save game history:", error);
@@ -436,7 +445,11 @@ const GameCompletionAnimation = ({
       opponentRating,
       opponentId,
       championshipData,
-      isMultiplayer
+      isMultiplayer,
+      review_report: reviewReport,
+      review_summary: reviewReport?.summary || null,
+      best_button_uses: reviewReport?.bestButtonUses || 0,
+      review_enabled_used: Boolean(reviewReport?.reviewEnabledUsed)
     };
 
     storePendingGame(gameDataToStore);
@@ -587,6 +600,12 @@ const GameCompletionAnimation = ({
         </button>
       )}
 
+      <MoveReviewReportModal
+        open={showReviewReport}
+        onClose={() => setShowReviewReport(false)}
+        report={reviewReport}
+      />
+
       {/* Progress bar during media generation */}
       {isMediaGenerating && (
         <div style={{
@@ -681,6 +700,17 @@ const GameCompletionAnimation = ({
                   {isGeneratingVideo ? `${videoProgress}%` : '📹 Vid'}
                 </button>
               )}
+              {canShowReviewReport && (
+                <button onClick={() => setShowReviewReport(true)} disabled={isMediaGenerating} style={{
+                  backgroundColor: '#2f4f2b', color: '#d9f99d', padding: '8px 14px', borderRadius: '8px',
+                  border: '1px solid #5f8f3a', fontSize: '0.8rem', fontWeight: '700',
+                  cursor: isMediaGenerating ? 'not-allowed' : 'pointer',
+                  flex: '1 1 auto', whiteSpace: 'nowrap', transition: 'all 0.2s ease',
+                  opacity: isMediaGenerating ? 0.6 : 1
+                }}>
+                  Report
+                </button>
+              )}
               <button onClick={handleViewInHistory} disabled={isMediaGenerating} style={{
                 backgroundColor: '#3d3a37', color: '#bababa', padding: '8px 14px', borderRadius: '8px',
                 border: '1px solid #4a4744', fontSize: '0.8rem', fontWeight: '600',
@@ -702,6 +732,17 @@ const GameCompletionAnimation = ({
             </>
           ) : (
             <>
+              {canShowReviewReport && (
+                <button onClick={() => setShowReviewReport(true)} disabled={isMediaGenerating} style={{
+                  backgroundColor: '#2f4f2b', color: '#d9f99d', padding: '8px 14px', borderRadius: '8px',
+                  border: '1px solid #5f8f3a', fontSize: '0.8rem', fontWeight: '700',
+                  cursor: isMediaGenerating ? 'not-allowed' : 'pointer',
+                  flex: '1 1 auto', whiteSpace: 'nowrap', transition: 'all 0.2s ease',
+                  opacity: isMediaGenerating ? 0.6 : 1
+                }}>
+                  Report
+                </button>
+              )}
               <button onClick={handleLoginRedirect} disabled={isMediaGenerating} style={{
                 backgroundColor: isMediaGenerating ? '#555' : '#81b64c', color: 'white', padding: '8px 14px', borderRadius: '8px',
                 border: 'none', fontSize: '0.8rem', fontWeight: '600',
@@ -999,6 +1040,33 @@ const GameCompletionAnimation = ({
               }}
             >
               🎮 New
+            </button>
+          )}
+          {canShowReviewReport && (
+            <button
+              onClick={() => setShowReviewReport(true)}
+              disabled={isMediaGenerating}
+              style={{
+                background: isMediaGenerating ? '#555' : 'linear-gradient(135deg, #65A30D 0%, #3F6212 100%)',
+                color: 'white',
+                padding: '10px 16px',
+                borderRadius: '12px',
+                border: 'none',
+                fontSize: '0.82rem',
+                fontWeight: '700',
+                cursor: isMediaGenerating ? 'not-allowed' : 'pointer',
+                transition: 'all 0.2s ease',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                opacity: isMediaGenerating ? 0.6 : 1,
+                flex: '1 1 auto',
+                justifyContent: 'center',
+                whiteSpace: 'nowrap',
+                boxShadow: '0 3px 10px rgba(101, 163, 13, 0.3)'
+              }}
+            >
+              Report
             </button>
           )}
           {onPreview && (

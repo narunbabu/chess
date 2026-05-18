@@ -8,7 +8,7 @@ import {
   getPreferredTimeControl,
   getPreferredColor,
 } from '../../utils/gamePreferences';
-import { toRatingWindowParams } from '../../utils/ratingWindow';
+import { rememberOpponentRatingForMode, toRatingWindowParams } from '../../utils/ratingWindow';
 import { getStoredLearningHelpLimit, pickBeginnerSyntheticPlayer } from '../../utils/syntheticMatchPlayers';
 import '../../styles/UnifiedCards.css';
 
@@ -58,6 +58,7 @@ const PlayOnlineButton = ({ variant = 'primary', onSearchStart, onSearchEnd, rat
 
     if (prefs.game_mode === 'learning') {
       const syntheticOpponent = pickBeginnerSyntheticPlayer(ratingWindow);
+      rememberOpponentRatingForMode(prefs.game_mode, syntheticOpponent.rating);
       setStatus('matched');
       setMatchResult({
         match_type: 'synthetic',
@@ -98,6 +99,7 @@ const PlayOnlineButton = ({ variant = 'primary', onSearchStart, onSearchEnd, rat
 
       const data = response.data?.data || response.data;
       const matchType = data.match_type;
+      rememberOpponentRatingForMode(prefs.game_mode, data.opponent?.rating);
 
       setStatus('matched');
       setMatchResult({ ...data, match_type: matchType });

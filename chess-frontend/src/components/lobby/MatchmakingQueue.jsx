@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import matchmakingService from '../../services/matchmakingService';
@@ -12,7 +12,12 @@ import {
   normalizeLearningHelpLimit,
   pickBeginnerSyntheticPlayer,
 } from '../../utils/syntheticMatchPlayers';
-import { toRatingWindowParams } from '../../utils/ratingWindow';
+import {
+  getOpponentCenteredRatingWindow,
+  getStoredOpponentRatingForMode,
+  rememberOpponentRatingForMode,
+  toRatingWindowParams,
+} from '../../utils/ratingWindow';
 import { BASE_URL } from '../../config';
 import '../../styles/UnifiedCards.css';
 import '../../pages/LobbyPage.css'; // Matchmaking overlay/modal styles
@@ -99,6 +104,12 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false, initialGameMode,
     return saved === 'companion' ? 'casual' : saved;
   });
   const [learningHelpLimit, setLearningHelpLimit] = useState(() => getStoredLearningHelpLimit());
+  const activeRatingWindow = useMemo(() => {
+    const storedOpponentRating = getStoredOpponentRatingForMode(gameMode);
+    return storedOpponentRating !== null
+      ? getOpponentCenteredRatingWindow(storedOpponentRating)
+      : ratingWindow;
+  }, [gameMode, ratingWindow]);
 
   useEffect(() => {
     if (!isOpen || !initialGameMode) return;
@@ -124,7 +135,8 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false, initialGameMode,
       console.log('[Matchmaking] Countdown reached 0, creating synthetic game');
       cleanup();
       setStatus('matched');
-      const randomSynthetic = pickBeginnerSyntheticPlayer(ratingWindow);
+      const randomSynthetic = pickBeginnerSyntheticPlayer(activeRatingWindow);
+      rememberOpponentRatingForMode(gameMode, randomSynthetic.rating);
       setMatchResult({
         match_type: 'synthetic',
         opponent: randomSynthetic,
@@ -148,7 +160,7 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false, initialGameMode,
         });
       }, 1500);
     }
-  }, [secondsLeft, status, cleanup, navigate, onClose, preferredColor, gameMode, learningHelpLimit, timeControl, increment, ratingWindow]);
+  }, [secondsLeft, status, cleanup, navigate, onClose, preferredColor, gameMode, learningHelpLimit, timeControl, increment, activeRatingWindow]);
 
   // Reset when modal closes
   useEffect(() => {
@@ -183,7 +195,7 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false, initialGameMode,
         time_control_minutes: timeControl,
         increment_seconds: increment,
         game_mode: gameMode,
-        ...toRatingWindowParams(ratingWindow),
+        ...toRatingWindowParams(activeRatingWindow),
       });
       const id = data.entry.id;
       setEntryId(id);
@@ -201,6 +213,7 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false, initialGameMode,
             cleanup();
             setStatus('matched');
             setMatchResult(entry);
+            rememberOpponentRatingForMode(gameMode, entry.opponent?.rating);
 
             // Navigate after brief celebration — close modal first to prevent overlay persisting
             setTimeout(() => {
@@ -231,7 +244,8 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false, initialGameMode,
             // No match found — create synthetic game as fallback
             cleanup();
             setStatus('matched');
-            const randomSynthetic = pickBeginnerSyntheticPlayer(ratingWindow);
+            const randomSynthetic = pickBeginnerSyntheticPlayer(activeRatingWindow);
+            rememberOpponentRatingForMode(gameMode, randomSynthetic.rating);
             setMatchResult({
               match_type: 'synthetic',
               opponent: randomSynthetic,
@@ -266,7 +280,8 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false, initialGameMode,
         console.log('[Matchmaking] Rate limited, creating synthetic game directly');
         cleanup();
         setStatus('matched');
-        const randomSynthetic = pickBeginnerSyntheticPlayer(ratingWindow);
+        const randomSynthetic = pickBeginnerSyntheticPlayer(activeRatingWindow);
+        rememberOpponentRatingForMode(gameMode, randomSynthetic.rating);
         setMatchResult({
           match_type: 'synthetic',
           opponent: randomSynthetic,
@@ -293,14 +308,15 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false, initialGameMode,
         setStatus('error');
       }
     }
-  }, [preferredColor, timeControl, increment, gameMode, learningHelpLimit, cleanup, navigate, onClose, ratingWindow]);
+  }, [preferredColor, timeControl, increment, gameMode, learningHelpLimit, cleanup, navigate, onClose, activeRatingWindow]);
 
   // Start smart matchmaking: try findPlayers first, then fall back
   const startSearch = useCallback(async () => {
     if (gameMode === 'learning') {
       cleanup();
       setStatus('matched');
-      const randomSynthetic = pickBeginnerSyntheticPlayer(ratingWindow);
+      const randomSynthetic = pickBeginnerSyntheticPlayer(activeRatingWindow);
+      rememberOpponentRatingForMode(gameMode, randomSynthetic.rating);
       setMatchResult({
         match_type: 'synthetic',
         opponent: randomSynthetic,
@@ -343,7 +359,7 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false, initialGameMode,
         time_control_minutes: timeControl,
         increment_seconds: increment,
         game_mode: gameMode,
-        ...toRatingWindowParams(ratingWindow),
+        ...toRatingWindowParams(activeRatingWindow),
       });
 
       const targetsCount = data.match_request?.targets_count || 0;
@@ -384,7 +400,8 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false, initialGameMode,
         // Create synthetic game directly
         cleanup();
         setStatus('matched');
-        const randomSynthetic = pickBeginnerSyntheticPlayer(ratingWindow);
+        const randomSynthetic = pickBeginnerSyntheticPlayer(activeRatingWindow);
+        rememberOpponentRatingForMode(gameMode, randomSynthetic.rating);
         setMatchResult({
           match_type: 'synthetic',
           opponent: randomSynthetic,
@@ -423,7 +440,7 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false, initialGameMode,
         }, 1500);
       }
     }
-  }, [preferredColor, timeControl, increment, gameMode, learningHelpLimit, cleanup, fallbackToQueue, navigate, onClose, ratingWindow]);
+  }, [preferredColor, timeControl, increment, gameMode, learningHelpLimit, cleanup, fallbackToQueue, navigate, onClose, activeRatingWindow]);
 
   // Listen for matchRequestAccepted DOM event (from GlobalInvitationContext)
   useEffect(() => {
@@ -432,6 +449,7 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false, initialGameMode,
       if (statusRef.current === 'findingPlayers' && gameId) {
         cleanup();
         setStatus('matched');
+        rememberOpponentRatingForMode(gameMode, event.detail.acceptedBy?.rating);
         setMatchResult({
           match_type: 'human',
           game_id: gameId,
@@ -471,7 +489,7 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false, initialGameMode,
       window.removeEventListener('matchRequestAccepted', handleMatchAccepted);
       window.removeEventListener('matchRequestDeclined', handleMatchDeclined);
     };
-  }, [cleanup, navigate, fallbackToQueue, onClose]);
+  }, [cleanup, navigate, fallbackToQueue, onClose, gameMode]);
 
   const handleCancel = async () => {
     cleanup();

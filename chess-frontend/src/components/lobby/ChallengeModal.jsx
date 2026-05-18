@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getPreferredGameMode } from '../../utils/gamePreferences';
+import { getPreferredGameMode, setPreferredGameMode } from '../../utils/gamePreferences';
 
 const SentCountdown = ({ invitedPlayer }) => {
   const [secondsLeft, setSecondsLeft] = useState(10);
@@ -166,6 +166,7 @@ const ChallengeModal = ({
       : 'casual';
 
     const submitChallenge = () => {
+      setPreferredGameMode(displayGameMode);
       onColorChoice(
         preferredColor,
         displayGameMode,

@@ -1,6 +1,6 @@
 // src/components/play/PlayComputer.js
 
-import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from "react";
 import { Chess } from "chess.js";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { Helmet } from 'react-helmet-async';
@@ -18,7 +18,7 @@ import { pieces3dLanding } from "../../assets/pieces/pieces3d"; // 3D piece rend
 
 // Import Utils & Hooks
 import { useGameTimer } from "../../utils/timerUtils"; // Adjust path if needed
-import { makeComputerMove, waitForPerceivedThinkTime } from "../../utils/computerMoveUtils"; // Adjust path if needed
+import { getStockfishTopMoves, makeComputerMove, mapDepthToMoveTime, waitForPerceivedThinkTime } from "../../utils/computerMoveUtils"; // Adjust path if needed
 import { updateGameStatus, evaluateMove } from "../../utils/gameStateUtils"; // Adjust paths if needed (ensure evaluateMove exists)
 import { encodeGameHistory, normalizeLearningHelpMarkers, reconstructGameFromHistory } from "../../utils/gameHistoryStringUtils"; // Adjust paths if needed
 import { createResultFromComputerGame } from "../../utils/resultStandardization"; // Standardized result format
@@ -26,6 +26,13 @@ import { getRatingFromLevel } from "../../utils/eloUtils"; // Level-to-rating ma
 import { getOpponentResponse, shouldAutoRespond, resolveQuickMessageTrigger } from "../../utils/syntheticChatUtils";
 import { monitorPerformance } from "../../utils/devLogger";
 import { getMovePath, createPathHighlights, mergeHighlights } from "../../utils/movePathUtils"; // Move path utilities
+import { setPreferredGameMode } from "../../utils/gamePreferences";
+import { rememberOpponentRatingForMode } from "../../utils/ratingWindow";
+import {
+  buildMoveReviewRecord,
+  createMoveReviewReport,
+  DEFAULT_REVIEW_TOP_MOVES,
+} from "../../utils/moveReviewReport";
 
 // Import Services
 import { saveGameHistory, getGameHistories } from "../../services/gameHistoryService"; // Adjust paths if needed
@@ -245,6 +252,11 @@ const PlayComputer = () => {
   const [companions, setCompanions] = useState([]); // Available companions list (fetched once)
   const [cctArrows,  setCctArrows]  = useState([]); // CCT board arrows from learning panel
   const [boardLabels, setBoardLabels] = useState([]); // Numbered square labels from Best mode
+  const [reviewEnabled, setReviewEnabled] = useState(false);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [latestReviewResult, setLatestReviewResult] = useState(null);
+  const [moveReviewRecords, setMoveReviewRecords] = useState([]);
+  const [bestButtonUses, setBestButtonUses] = useState(0);
 
   // Time control from lobby (minutes + increment seconds)
   const [timeControlMin, setTimeControlMin] = useState(() => {
@@ -293,9 +305,17 @@ const PlayComputer = () => {
   const playerScoreRef = useRef(playerScore);
   const computerScoreRef = useRef(computerScore);
   const pendingLearningHelpRef = useRef([]);
+  const reviewEnabledRef = useRef(reviewEnabled);
+  const reviewEnabledUsedRef = useRef(false);
+  const moveReviewRecordsRef = useRef(moveReviewRecords);
+  const bestButtonUsesRef = useRef(bestButtonUses);
+  const lastBestRevealRef = useRef(null);
   useEffect(() => { gameHistoryRef.current = gameHistory; }, [gameHistory]);
   useEffect(() => { playerScoreRef.current = playerScore; }, [playerScore]);
   useEffect(() => { computerScoreRef.current = computerScore; }, [computerScore]);
+  useEffect(() => { reviewEnabledRef.current = reviewEnabled; }, [reviewEnabled]);
+  useEffect(() => { moveReviewRecordsRef.current = moveReviewRecords; }, [moveReviewRecords]);
+  useEffect(() => { bestButtonUsesRef.current = bestButtonUses; }, [bestButtonUses]);
 
   const recordPendingLearningHelp = useCallback((kind = 'help') => {
     if (ratedMode !== 'learning') return;
@@ -311,6 +331,105 @@ const PlayComputer = () => {
       },
     ];
   }, [game, ratedMode]);
+
+  const buildCurrentReviewReport = useCallback((records = moveReviewRecordsRef.current) => {
+    return createMoveReviewReport({
+      moves: records,
+      bestButtonUses: bestButtonUsesRef.current,
+      reviewEnabledUsed: reviewEnabledUsedRef.current,
+      gameMode: 'computer',
+      topMoveLimit: DEFAULT_REVIEW_TOP_MOVES,
+    });
+  }, []);
+
+  const liveReviewReport = useMemo(() => createMoveReviewReport({
+    moves: moveReviewRecords,
+    bestButtonUses,
+    reviewEnabledUsed: reviewEnabledUsedRef.current,
+    gameMode: 'computer',
+    topMoveLimit: DEFAULT_REVIEW_TOP_MOVES,
+  }), [moveReviewRecords, bestButtonUses, reviewEnabled]);
+
+  const resetMoveReviewTracking = useCallback(() => {
+    reviewEnabledRef.current = false;
+    reviewEnabledUsedRef.current = false;
+    moveReviewRecordsRef.current = [];
+    bestButtonUsesRef.current = 0;
+    lastBestRevealRef.current = null;
+    setReviewEnabled(false);
+    setReviewLoading(false);
+    setLatestReviewResult(null);
+    setMoveReviewRecords([]);
+    setBestButtonUses(0);
+  }, []);
+
+  const handleReviewEnabledChange = useCallback((enabled) => {
+    reviewEnabledRef.current = Boolean(enabled);
+    if (enabled) {
+      reviewEnabledUsedRef.current = true;
+    }
+    setReviewEnabled(Boolean(enabled));
+  }, []);
+
+  const handleBestButtonUse = useCallback(() => {
+    if (ratedMode !== 'casual') return;
+    setBestButtonUses((current) => {
+      const next = current + 1;
+      bestButtonUsesRef.current = next;
+      return next;
+    });
+  }, [ratedMode]);
+
+  const handleBestMovesReady = useCallback(({ fen, topMoves, source }) => {
+    lastBestRevealRef.current = { fen, topMoves, source };
+  }, []);
+
+  const appendMoveReviewRecord = useCallback((record) => {
+    const next = [...moveReviewRecordsRef.current, record];
+    moveReviewRecordsRef.current = next;
+    setMoveReviewRecords(next);
+  }, []);
+
+  const analyzePlayerMoveForReview = useCallback(async ({ fenBefore, userMove, ply, moveNumber, color }) => {
+    const cachedBest = lastBestRevealRef.current?.fen === fenBefore
+      ? lastBestRevealRef.current
+      : null;
+    const shouldAutoReview = reviewEnabledRef.current;
+
+    if (!shouldAutoReview && !cachedBest) return;
+    if (cachedBest) {
+      lastBestRevealRef.current = null;
+    }
+    if (shouldAutoReview) {
+      setReviewLoading(true);
+    }
+
+    try {
+      const topMoves = cachedBest?.topMoves
+        || await getStockfishTopMoves(fenBefore, DEFAULT_REVIEW_TOP_MOVES, mapDepthToMoveTime(12));
+      const record = buildMoveReviewRecord({
+        fenBefore,
+        userMove,
+        topMoves,
+        ply,
+        moveNumber,
+        color,
+        source: shouldAutoReview ? 'review' : 'best',
+        topMoveLimit: DEFAULT_REVIEW_TOP_MOVES,
+      });
+
+      appendMoveReviewRecord(record);
+      if (shouldAutoReview) {
+        setLatestReviewResult(record);
+      }
+    } catch (error) {
+      console.warn('[PlayComputer] Move review analysis failed:', error);
+    } finally {
+      if (shouldAutoReview) {
+        setReviewLoading(false);
+      }
+    }
+  }, [appendMoveReviewRecord]);
 
   const handleTimerFlag = useCallback((who) => {
     // 'who' is 'player' or 'computer'
@@ -713,6 +832,7 @@ const PlayComputer = () => {
         }
 
         // Save game history (handles both local and online save)
+        const reviewReport = buildCurrentReviewReport();
         const gameHistoryData = {
             id: `local_${Date.now()}`,
             date: now.toISOString(),
@@ -728,6 +848,10 @@ const PlayComputer = () => {
             opponent_name: currentSyntheticOpponent?.name || null,
             opponent_avatar_url: currentSyntheticOpponent?.avatar_url || null,
             opponent_rating: currentSyntheticOpponent?.rating || null,
+            review_report: reviewReport,
+            review_summary: reviewReport.summary,
+            best_button_uses: reviewReport.bestButtonUses,
+            review_enabled_used: reviewReport.reviewEnabledUsed,
         };
 
         // Save completed game to the correct storage location
@@ -804,7 +928,7 @@ const PlayComputer = () => {
      setActiveTimer, setIsTimerRunning, // State setters (stable)
      playSound, // Stable callback
      timerRef, // Timer ref
-     invalidateGameHistory, // Query invalidation
+     invalidateGameHistory, buildCurrentReviewReport, // Query invalidation
      // Note: gameEndSoundEffect are constants/imports, typically stable
    ]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1169,6 +1293,8 @@ const PlayComputer = () => {
       const normalizedMode = lobbyRatedMode === 'companion' ? 'casual' : lobbyRatedMode;
       setRatedMode(normalizedMode);
       localStorage.setItem('gameRatedMode', normalizedMode);
+      setPreferredGameMode(normalizedMode);
+      rememberOpponentRatingForMode(normalizedMode, bot.rating);
       setLearningHelpLimit(lobbyLearningHelpLimit);
 
       // Set difficulty to the bot's level
@@ -1830,6 +1956,13 @@ const PlayComputer = () => {
         const updatedHistory = [...gameHistory, newHistoryEntry];
         setGameHistory(updatedHistory);
         setMoveCount((prev) => prev + 1); // Increment move count
+        const reviewAnalysisPromise = analyzePlayerMoveForReview({
+            fenBefore: previousState.fen(),
+            userMove: moveResult,
+            ply: updatedHistory.length,
+            moveNumber: newHistoryEntry.moveNumber,
+            color: playerColorChess,
+        });
 
         // Update undo availability - don't enable until after computer responds
         // This prevents confusing UX where button is enabled but undo fails
@@ -1915,7 +2048,10 @@ const PlayComputer = () => {
             // Note: setPlayerScore was called in evaluateMove, but state updates are async
             // So we need to calculate the final score here to ensure accuracy
             const finalPlayerScore = playerScore + (evaluationResult?.total || 0);
-            handleGameComplete(updatedHistory, status, finalPlayerScore, computerScore); // Pass the *final* history and current scores
+            setGameOver(true);
+            Promise.resolve(reviewAnalysisPromise).finally(() => {
+                handleGameComplete(updatedHistory, status, finalPlayerScore, computerScore); // Pass the *final* history and current scores
+            });
         } else {
             // Game continues, prepare for computer's turn (or wait for 'Done' button)
             setMoveCompleted(true); // Mark player's move as completed for this turn
@@ -1937,7 +2073,7 @@ const PlayComputer = () => {
         playSound, handleGameComplete, switchTimer, startTimerInterval, // Stable callbacks/timer fns
         setIsTimerRunning, setLastMoveEvaluation, setPlayerScore, setGameHistory, // Stable setters
         setMoveCount, setGame, setMoveFrom, setMoveSquares, setGameStatus, setMoveCompleted, // Stable setters
-        saveUnfinishedGame, user, // Auto-save dependencies
+        saveUnfinishedGame, user, analyzePlayerMoveForReview, // Auto-save dependencies
         timerRef // Ref accessed
         // Note: updateGameStatus, evaluateMove, DEFAULT_RATING are imports/constants (stable)
     ]);
@@ -1995,6 +2131,7 @@ const PlayComputer = () => {
         setMoveSquares({});
         setLastMoveHighlights({});
         setComputerMoveInProgress(false);
+        resetMoveReviewTracking();
 
         // Start the game immediately — don't wait for backend API
         setGameStarted(true);
@@ -2097,7 +2234,7 @@ const PlayComputer = () => {
         setGameStarted, setCountdownActive, setGameHistory, setMoveCount, setGameOver, // Stable setters
         setPlayerScore, setLastMoveEvaluation, setGame, setMoveCompleted, setGameStatus, // Stable setters
         setCurrentGameId, setBackendGame, setUndoChancesRemaining, setSearchParams, // Stable setters
-        setSyntheticOpponent // Stable setter (used for pending opponent)
+        setSyntheticOpponent, resetMoveReviewTracking // Stable setter (used for pending opponent)
     ]);
 
     const resetGame = useCallback(() => {
@@ -2135,8 +2272,9 @@ const PlayComputer = () => {
         setUndoChancesRemaining(0); // Reset undo chances
         setSyntheticOpponent(null); // Reset so next game gets a fresh opponent name
         setChatMessages([]); // Clear chat on reset
+        resetMoveReviewTracking();
         // Note: Does not reset playerColor, computerDepth, or ratedMode, keeping user selections
-    }, [resetTimer, timerRef, replayTimerRef]); // Dependencies: stable hook fn and refs accessed
+    }, [resetTimer, timerRef, replayTimerRef, resetMoveReviewTracking]); // Dependencies: stable hook fn and refs accessed
 
     // --- Chat handlers for synthetic opponent ---
     const addChatMessage = useCallback((sender, message, isPlayer, type = 'message') => {
@@ -3038,6 +3176,15 @@ const PlayComputer = () => {
           limit: learningHelpLimit,
           onConsume: consumeLearningHelp,
         },
+        topMoveLimit: DEFAULT_REVIEW_TOP_MOVES,
+        review: {
+          enabled: reviewEnabled,
+          loading: reviewLoading,
+          latestResult: latestReviewResult,
+          onChange: handleReviewEnabledChange,
+        },
+        onBestButtonUse: handleBestButtonUse,
+        onBestMovesReady: handleBestMovesReady,
       }}
       controlsData={{
         gameStarted,
@@ -3463,6 +3610,7 @@ const PlayComputer = () => {
             isMultiplayer={false} // This is computer mode
             gameId={backendGame?.id || null} // Link rating update to this game (idempotency)
             ratedMode={ratedMode} // Only update rating for rated games
+            reviewReport={liveReviewReport}
             onClose={() => {
               setShowGameCompletion(false);
 

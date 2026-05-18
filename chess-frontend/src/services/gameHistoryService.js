@@ -73,7 +73,11 @@ export const saveGameHistory = async (gameData) => {
     opponent_name: gameData.opponent_name || null,
     opponent_avatar_url: gameData.opponent_avatar_url || null,
     opponent_rating: gameData.opponent_rating || null,
-    game_mode: gameData.game_mode || 'computer'
+    game_mode: gameData.game_mode || 'computer',
+    review_report: gameData.review_report || gameData.reviewReport || null,
+    review_summary: gameData.review_summary || gameData.reviewSummary || gameData.review_report?.summary || gameData.reviewReport?.summary || null,
+    best_button_uses: gameData.best_button_uses ?? gameData.bestButtonUses ?? gameData.review_report?.bestButtonUses ?? gameData.reviewReport?.bestButtonUses ?? 0,
+    review_enabled_used: gameData.review_enabled_used ?? gameData.reviewEnabledUsed ?? gameData.review_report?.reviewEnabledUsed ?? gameData.reviewReport?.reviewEnabledUsed ?? false,
   };
 
   // Debug logging to verify data structure before sending

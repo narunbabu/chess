@@ -57,12 +57,38 @@ class GameHistoryController extends Controller
         return ['white_score' => $whiteScore, 'black_score' => $blackScore];
     }
 
+    private function reviewReportValidationRules(): array
+    {
+        return [
+            'review_report'       => 'nullable|array',
+            'review_summary'      => 'nullable|array',
+            'best_button_uses'    => 'nullable|integer|min:0',
+            'review_enabled_used' => 'nullable|boolean',
+        ];
+    }
+
+    private function applyReviewReportFields(GameHistory $game, array $validated): void
+    {
+        if (array_key_exists('review_report', $validated)) {
+            $game->review_report = $validated['review_report'];
+        }
+        if (array_key_exists('review_summary', $validated)) {
+            $game->review_summary = $validated['review_summary'];
+        }
+        if (array_key_exists('best_button_uses', $validated)) {
+            $game->best_button_uses = (int) $validated['best_button_uses'];
+        }
+        if (array_key_exists('review_enabled_used', $validated)) {
+            $game->review_enabled_used = (bool) $validated['review_enabled_used'];
+        }
+    }
+
     // Save a new game history record (authenticated users)
     public function store(Request $request)
     {
         $user = $request->user();
 
-        $validated = $request->validate([
+        $validated = $request->validate(array_merge([
             'played_at'           => 'required|date_format:Y-m-d H:i:s',
             'player_color'        => 'required|in:w,b',
             'computer_level'      => 'nullable|integer',
@@ -75,7 +101,7 @@ class GameHistoryController extends Controller
             'opponent_avatar_url' => 'nullable|string|max:500',
             'opponent_rating'     => 'nullable|integer',
             'game_mode'           => 'nullable|in:computer,multiplayer',
-        ]);
+        ], $this->reviewReportValidationRules()));
 
         Log::info('Validated game data for user:', $validated);
 
@@ -102,6 +128,10 @@ class GameHistoryController extends Controller
                         $existing->opponent_name = $validated['opponent_name'] ?? $existing->opponent_name;
                         $existing->opponent_avatar_url = $validated['opponent_avatar_url'] ?? $existing->opponent_avatar_url;
                         $existing->opponent_rating = $validated['opponent_rating'] ?? $existing->opponent_rating;
+                    }
+
+                    $this->applyReviewReportFields($existing, $validated);
+                    if ($existing->isDirty()) {
                         $existing->save();
                     }
 
@@ -152,6 +182,7 @@ class GameHistoryController extends Controller
             $game->opponent_avatar_url = $validated['opponent_avatar_url'] ?? null;
             $game->opponent_rating = $validated['opponent_rating'] ?? null;
             $game->game_mode = $validated['game_mode'] ?? 'computer';
+            $this->applyReviewReportFields($game, $validated);
             $game->save();
 
             return response()->json(['success' => true, 'data' => $game], 201);
@@ -304,6 +335,10 @@ class GameHistoryController extends Controller
             'game_histories.opponent_name',
             'game_histories.opponent_avatar_url',
             'game_histories.opponent_rating',
+            'game_histories.review_report',
+            'game_histories.review_summary',
+            'game_histories.best_button_uses',
+            'game_histories.review_enabled_used',
             'games.white_player_id',
             'games.black_player_id',
             'games.winner_user_id',

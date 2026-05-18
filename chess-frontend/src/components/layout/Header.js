@@ -13,6 +13,8 @@ import { MdDashboard } from 'react-icons/md';
 import { IoGameController, IoSchool, IoTrophy, IoPlay, IoStatsChart } from 'react-icons/io5';
 import presenceService from '../../services/presenceService';
 import { getEcho } from '../../services/echoSingleton';
+import { getPreferredGameMode } from '../../utils/gamePreferences';
+import { getModeAwareDefaultRatingWindow } from '../../utils/ratingWindow';
 import MatchmakingQueue from '../lobby/MatchmakingQueue';
 import AvatarQuickEdit from '../common/AvatarQuickEdit';
 import NameQuickEdit from '../common/NameQuickEdit';
@@ -47,6 +49,7 @@ const Header = () => {
   const hideTimeoutRef = useRef(null);
   const lastStatsRef = useRef(null); // Cache last stats to prevent redundant updates
   const pollIntervalRef = useRef(null);
+  const matchmakingRatingWindow = getModeAwareDefaultRatingWindow(user?.rating, getPreferredGameMode());
 
   // Track WebSocket (Echo/Reverb) connection state
   useEffect(() => {
@@ -853,6 +856,7 @@ const Header = () => {
         <MatchmakingQueue
           isOpen={showMatchmaking}
           onClose={() => setShowMatchmaking(false)}
+          ratingWindow={matchmakingRatingWindow}
         />
       )}
 

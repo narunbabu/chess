@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from 'react';
 import { Chess } from 'chess.js';
 import PresenceConfirmationDialogSimple from './PresenceConfirmationDialogSimple';
 import NetworkErrorDialog from './NetworkErrorDialog';
@@ -17,7 +17,7 @@ import WebSocketGameService from '../../services/WebSocketGameService';
 import globalWebSocketManager from '../../services/GlobalWebSocketManager';
 import { getEcho } from '../../services/echoSingleton';
 import { evaluateMove, getClaimableDrawStatus, getAutoDrawStatus, getFenKey } from '../../utils/gameStateUtils';
-import { makeComputerMove } from '../../utils/computerMoveUtils';
+import { getStockfishTopMoves, makeComputerMove, mapDepthToMoveTime } from '../../utils/computerMoveUtils';
 import { encodeGameHistory } from '../../utils/gameHistoryStringUtils';
 import { saveGameHistory } from '../../services/gameHistoryService';
 import { createResultFromMultiplayerGame } from '../../utils/resultStandardization';
@@ -26,7 +26,13 @@ import { calculateRemainingTime } from '../../utils/timerCalculator';
 import { saveUnfinishedGame } from '../../services/unfinishedGameService';
 import { getMovePath, createPathHighlights, mergeHighlights } from '../../utils/movePathUtils'; // Move path utilities
 import { getPreferredGameMode, setPreferredGameMode } from '../../utils/gamePreferences'; // Game preferences
+import { rememberOpponentRatingForMode } from '../../utils/ratingWindow';
 import { markGameEnded, isGameEnded } from '../../utils/endedGamesTracker';
+import {
+  buildMoveReviewRecord,
+  createMoveReviewReport,
+  DEFAULT_REVIEW_TOP_MOVES,
+} from '../../utils/moveReviewReport';
 import { getTheme } from '../../config/boardThemes';
 import { getBoardTheme, getPieceStyle } from './BoardCustomizer';
 import { pieces3dLanding } from '../../assets/pieces/pieces3d';
@@ -215,6 +221,17 @@ const PlayMultiplayer = () => {
   const [chatUnread, setChatUnread] = useState(0);
   const chatTabOpenRef = useRef(false);
   const [cctArrows, setCctArrows] = useState([]); // CCT board arrows from learning panel
+  const [reviewEnabled, setReviewEnabled] = useState(false);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [latestReviewResult, setLatestReviewResult] = useState(null);
+  const [moveReviewRecords, setMoveReviewRecords] = useState([]);
+  const [bestButtonUses, setBestButtonUses] = useState(0);
+  const reviewEnabledRef = useRef(false);
+  const reviewEnabledUsedRef = useRef(false);
+  const moveReviewRecordsRef = useRef([]);
+  const bestButtonUsesRef = useRef(0);
+  const lastBestRevealRef = useRef(null);
+  const pendingReviewPromisesRef = useRef([]);
 
   // Nudge opponent state (30s cooldown)
   const [nudgeCooldown, setNudgeCooldown] = useState(false);
@@ -238,6 +255,110 @@ const PlayMultiplayer = () => {
   const [opponentInactiveSec, setOpponentInactiveSec] = useState(0);
   const opponentLastMoveTimeRef = useRef(Date.now());
   const inactivityTimerRef = useRef(null);
+
+  useEffect(() => { reviewEnabledRef.current = reviewEnabled; }, [reviewEnabled]);
+  useEffect(() => { moveReviewRecordsRef.current = moveReviewRecords; }, [moveReviewRecords]);
+  useEffect(() => { bestButtonUsesRef.current = bestButtonUses; }, [bestButtonUses]);
+
+  const buildCurrentReviewReport = useCallback((records = moveReviewRecordsRef.current) => {
+    return createMoveReviewReport({
+      moves: records,
+      bestButtonUses: bestButtonUsesRef.current,
+      reviewEnabledUsed: reviewEnabledUsedRef.current,
+      gameMode: 'multiplayer',
+      topMoveLimit: DEFAULT_REVIEW_TOP_MOVES,
+    });
+  }, []);
+
+  const liveReviewReport = useMemo(() => createMoveReviewReport({
+    moves: moveReviewRecords,
+    bestButtonUses,
+    reviewEnabledUsed: reviewEnabledUsedRef.current,
+    gameMode: 'multiplayer',
+    topMoveLimit: DEFAULT_REVIEW_TOP_MOVES,
+  }), [moveReviewRecords, bestButtonUses, reviewEnabled]);
+
+  const resetMoveReviewTracking = useCallback(() => {
+    reviewEnabledRef.current = false;
+    reviewEnabledUsedRef.current = false;
+    moveReviewRecordsRef.current = [];
+    bestButtonUsesRef.current = 0;
+    lastBestRevealRef.current = null;
+    pendingReviewPromisesRef.current = [];
+    setReviewEnabled(false);
+    setReviewLoading(false);
+    setLatestReviewResult(null);
+    setMoveReviewRecords([]);
+    setBestButtonUses(0);
+  }, []);
+
+  const handleReviewEnabledChange = useCallback((enabled) => {
+    reviewEnabledRef.current = Boolean(enabled);
+    if (enabled) {
+      reviewEnabledUsedRef.current = true;
+    }
+    setReviewEnabled(Boolean(enabled));
+  }, []);
+
+  const handleBestButtonUse = useCallback(() => {
+    if (ratedMode !== 'casual') return;
+    setBestButtonUses((current) => {
+      const next = current + 1;
+      bestButtonUsesRef.current = next;
+      return next;
+    });
+  }, [ratedMode]);
+
+  const handleBestMovesReady = useCallback(({ fen, topMoves, source }) => {
+    lastBestRevealRef.current = { fen, topMoves, source };
+  }, []);
+
+  const appendMoveReviewRecord = useCallback((record) => {
+    const next = [...moveReviewRecordsRef.current, record];
+    moveReviewRecordsRef.current = next;
+    setMoveReviewRecords(next);
+  }, []);
+
+  const analyzePlayerMoveForReview = useCallback(async ({ fenBefore, userMove, ply, moveNumber, color }) => {
+    const cachedBest = lastBestRevealRef.current?.fen === fenBefore
+      ? lastBestRevealRef.current
+      : null;
+    const shouldAutoReview = reviewEnabledRef.current;
+
+    if (!shouldAutoReview && !cachedBest) return;
+    if (cachedBest) {
+      lastBestRevealRef.current = null;
+    }
+    if (shouldAutoReview) {
+      setReviewLoading(true);
+    }
+
+    try {
+      const topMoves = cachedBest?.topMoves
+        || await getStockfishTopMoves(fenBefore, DEFAULT_REVIEW_TOP_MOVES, mapDepthToMoveTime(12));
+      const record = buildMoveReviewRecord({
+        fenBefore,
+        userMove,
+        topMoves,
+        ply,
+        moveNumber,
+        color,
+        source: shouldAutoReview ? 'review' : 'best',
+        topMoveLimit: DEFAULT_REVIEW_TOP_MOVES,
+      });
+
+      appendMoveReviewRecord(record);
+      if (shouldAutoReview) {
+        setLatestReviewResult(record);
+      }
+    } catch (analysisError) {
+      console.warn('[PlayMultiplayer] Move review analysis failed:', analysisError);
+    } finally {
+      if (shouldAutoReview) {
+        setReviewLoading(false);
+      }
+    }
+  }, [appendMoveReviewRecord]);
 
   const handleSendChat = useCallback(async (message) => {
     if (!wsService.current) return;
@@ -616,6 +737,7 @@ const PlayMultiplayer = () => {
     // flash when starting a new game with the same opponent.
     setGameComplete(false);
     setGameResult(null);
+    resetMoveReviewTracking();
 
     try {
       setLoading(true);
@@ -650,6 +772,7 @@ const PlayMultiplayer = () => {
 
       // Detect if this is a synthetic (AI opponent) game
       const synGame = !!(data.computer_player_id);
+      let syntheticOpponentRating = null;
       setIsSyntheticGame(synGame);
       if (synGame) {
         setSyntheticLevel(data.computer_level || 5);
@@ -658,6 +781,7 @@ const PlayMultiplayer = () => {
         const botIsBlack = data.player_color === 'white';
         const botPlayer = botIsBlack ? data.black_player : data.white_player;
         const botRating = botPlayer?.rating || null;
+        syntheticOpponentRating = botRating;
         setSyntheticRating(botRating);
         console.log('🤖 Synthetic game detected, level:', data.computer_level || 5, 'rating:', botRating);
       }
@@ -665,6 +789,15 @@ const PlayMultiplayer = () => {
       // Detect game mode (rated or casual)
       const gameMode = data.game_mode || 'casual';
       setRatedMode(gameMode);
+      const currentUserId = Number(user?.id);
+      const opponentRatingForPreference = synGame
+        ? syntheticOpponentRating
+        : currentUserId === Number(data.white_player_id)
+          ? data.black_player?.rating
+          : currentUserId === Number(data.black_player_id)
+            ? data.white_player?.rating
+            : null;
+      rememberOpponentRatingForMode(gameMode, opponentRatingForPreference);
       console.log('🎮 Game Mode:', gameMode);
 
       // Rated game — auto-confirm (rules shown via info button during gameplay)
@@ -1211,7 +1344,7 @@ const PlayMultiplayer = () => {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameId, user, ratedGameConfirmed]);
+  }, [gameId, user, ratedGameConfirmed, resetMoveReviewTracking]);
   // Note: Event handlers (handleRemoteMove, handleGameEnd, etc.) and navigate are intentionally excluded
   // to prevent circular dependencies. Event listeners are set up once and handlers are stable useCallback refs.
   // ratedGameConfirmed is included to re-trigger initialization after user confirms rated game
@@ -2071,6 +2204,8 @@ const PlayMultiplayer = () => {
         ? (serverGameData?.black_player?.name || serverGameData?.blackPlayer?.name || gameInfo.opponentName)
         : (serverGameData?.white_player?.name || serverGameData?.whitePlayer?.name || gameInfo.opponentName);
 
+      await Promise.allSettled(pendingReviewPromisesRef.current);
+      const reviewReport = buildCurrentReviewReport();
       const gameHistoryData = {
         id: `multiplayer_${gameId}_${Date.now()}`,
         game_id: gameId,
@@ -2090,7 +2225,11 @@ const PlayMultiplayer = () => {
         // Add timer persistence (Phase 2)
         white_time_remaining_ms: whiteTimeRemaining,
         black_time_remaining_ms: blackTimeRemaining,
-        last_move_time: Date.now()
+        last_move_time: Date.now(),
+        review_report: reviewReport,
+        review_summary: reviewReport.summary,
+        best_button_uses: reviewReport.bestButtonUses,
+        review_enabled_used: reviewReport.reviewEnabledUsed,
       };
 
       console.log('💾 Saving multiplayer game to history:', {
@@ -2138,7 +2277,7 @@ const PlayMultiplayer = () => {
     }
 
     console.log('✅ Game completion processed, showing result modal');
-  }, [user?.id, gameId, gameHistory, gameInfo, myMs, oppMs, invalidateGameHistory, unregisterActiveGame]);
+  }, [user?.id, gameId, gameHistory, gameInfo, myMs, oppMs, invalidateGameHistory, unregisterActiveGame, buildCurrentReviewReport]);
 
   // Handle resign
   const handleResign = useCallback(async () => {
@@ -4514,6 +4653,17 @@ const PlayMultiplayer = () => {
     // Add player's move to history in compact format: "move,time" (e.g., "e4,3.45")
     const compactMove = `${move.san},${moveTime.toFixed(2)}`;
     setGameHistory(prev => [...prev, compactMove]);
+    const reviewAnalysisPromise = Promise.resolve(analyzePlayerMoveForReview({
+      fenBefore: prevFen,
+      userMove: move,
+      ply: gameHistory.length + 1,
+      moveNumber: Math.floor(gameHistory.length / 2) + 1,
+      color: myColor,
+    }));
+    pendingReviewPromisesRef.current = [...pendingReviewPromisesRef.current, reviewAnalysisPromise];
+    reviewAnalysisPromise.finally(() => {
+      pendingReviewPromisesRef.current = pendingReviewPromisesRef.current.filter(promise => promise !== reviewAnalysisPromise);
+    });
 
     // Update the local game state immediately
     setGame(gameCopy);
@@ -4976,6 +5126,15 @@ const PlayMultiplayer = () => {
         isActive: gameInfo.status === 'active',
         isRated: ratedMode === 'rated',
         onArrowsChange: setCctArrows,
+        topMoveLimit: DEFAULT_REVIEW_TOP_MOVES,
+        review: {
+          enabled: reviewEnabled,
+          loading: reviewLoading,
+          latestResult: latestReviewResult,
+          onChange: handleReviewEnabledChange,
+        },
+        onBestButtonUse: handleBestButtonUse,
+        onBestMovesReady: handleBestMovesReady,
       }}
       drawClaimInfo={{
         available: drawClaimAvailable,
@@ -5011,6 +5170,14 @@ const PlayMultiplayer = () => {
               )}
 
               {/* Draw button: only show for human vs human games — AI opponents cannot respond */}
+              <button
+                onClick={() => handleReviewEnabledChange(!reviewEnabled)}
+                className={`gc-action-btn gc-action-primary ${reviewEnabled ? 'gc-mobile-action-active' : ''}`}
+                title={reviewEnabled ? 'Turn Review off' : 'Turn Review on'}
+              >
+                Review
+              </button>
+
               {!isSyntheticGame && (
                 <button
                   onClick={handleOfferDraw}
@@ -5407,6 +5574,7 @@ const PlayMultiplayer = () => {
               : gameResult.white_player?.id
           }
           gameId={gameId}
+          reviewReport={liveReviewReport}
           championshipData={championshipContext ? {
             tournamentName: championshipContext.championship?.name || 'Championship',
             round: championshipContext.round_number,
@@ -5825,6 +5993,7 @@ const PlayMultiplayer = () => {
               : gameResult.white_player?.id
           }
           gameId={gameId}
+          reviewReport={liveReviewReport}
           championshipData={championshipContext ? {
             tournamentName: championshipContext.championship?.name || 'Championship',
             round: championshipContext.round_number,

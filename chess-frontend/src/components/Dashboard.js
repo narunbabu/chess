@@ -19,7 +19,14 @@ import PlayersList from "./lobby/PlayersList";
 import PlayOnlineButton from "./play/PlayOnlineButton";
 import AdBanner from "./common/AdBanner";
 import DailyChallengeCard from "./daily/DailyChallengeCard";
-import { getDefaultRatingWindow, toRatingWindowParams } from "../utils/ratingWindow";
+import { getPreferredGameMode } from "../utils/gamePreferences";
+import {
+  getDefaultRatingWindow,
+  getModeAwareDefaultRatingWindow,
+  rememberOpponentRatingForMode,
+  rememberRatingWindowForMode,
+  toRatingWindowParams,
+} from "../utils/ratingWindow";
 import "./Dashboard.css";
 import "../styles/UnifiedCards.css"; // Import unified card styles
 
@@ -58,7 +65,7 @@ const Dashboard = () => {
   const [visibleRecentGames, setVisibleRecentGames] = useState(3);
   const [nearbyPlayers, setNearbyPlayers] = useState([]);
   const [nearbyRefreshing, setNearbyRefreshing] = useState(false);
-  const [ratingWindow, setRatingWindow] = useState(() => getDefaultRatingWindow());
+  const [ratingWindow, setRatingWindow] = useState(() => getModeAwareDefaultRatingWindow(undefined, getPreferredGameMode()));
   const { user } = useAuth();
   const { currentTier } = useSubscription();
   const { getGameHistory } = useAppData();
@@ -125,11 +132,16 @@ const Dashboard = () => {
   useEffect(() => {
     if (!user?.id) return;
 
-    const nextWindow = getDefaultRatingWindow(user.rating);
+    const nextWindow = getModeAwareDefaultRatingWindow(user.rating, getPreferredGameMode());
     ratingWindowRef.current = nextWindow;
     setRatingWindow(nextWindow);
     fetchNearbyPlayers(nextWindow);
   }, [fetchNearbyPlayers, user?.id, user?.rating]);
+
+  const handleNearbyApply = useCallback(() => {
+    rememberRatingWindowForMode(getPreferredGameMode(), ratingWindowRef.current);
+    fetchNearbyPlayers();
+  }, [fetchNearbyPlayers]);
 
   const handleNearbyReset = useCallback(() => {
     const nextWindow = getDefaultRatingWindow(user?.rating);
@@ -139,6 +151,16 @@ const Dashboard = () => {
   }, [fetchNearbyPlayers, user?.rating]);
 
   const handleNearbyChallenge = useCallback((player) => {
+    const nextWindow = rememberOpponentRatingForMode(
+      player.type === 'synthetic' ? 'casual' : getPreferredGameMode(),
+      player.rating
+    );
+
+    if (nextWindow) {
+      ratingWindowRef.current = nextWindow;
+      setRatingWindow(nextWindow);
+    }
+
     if (player.type === 'synthetic') {
       navigate('/play', {
         state: {
@@ -703,7 +725,7 @@ const Dashboard = () => {
           onChallenge={handleNearbyChallenge}
           ratingWindow={ratingWindow}
           onRatingWindowChange={setRatingWindow}
-          onApplyRatingWindow={() => fetchNearbyPlayers()}
+          onApplyRatingWindow={handleNearbyApply}
           onResetRatingWindow={handleNearbyReset}
           isRefreshing={nearbyRefreshing}
         />

@@ -98,6 +98,7 @@ const GameContainer = ({
 
   const isRated = ratedMode === 'rated';
   const isLearningMode = ratedMode === 'learning';
+  const isCasualMode = ratedMode === 'casual' || (!isRated && !isLearningMode);
   const allowCompanion = Boolean(companionData) && !isRated && !isLearningMode;
   const undoTitle = isLearningMode
     ? (canUndo ? `Undo - ${undoChancesRemaining} helplines left` : 'Cannot undo')
@@ -111,6 +112,8 @@ const GameContainer = ({
   const bestMoveTitle = bestMoveBudgetEnabled
     ? (bestMoveRemaining > 0 ? `Show Best (${bestMoveRemaining} helplines left)` : 'No best-move helplines remaining')
     : 'Show Best moves';
+  const reviewState = cctData?.review || {};
+  const reviewEnabled = Boolean(reviewState.enabled);
 
   const requestBestMove = () => {
     if (!cctData || bestMoveDisabled) return;
@@ -120,6 +123,16 @@ const GameContainer = ({
       setMobileRightPanelOpen(true);
     }
     setBestMoveRequestId(id => id + 1);
+  };
+
+  const toggleReviewMode = () => {
+    if (!cctData || gameOver) return;
+    const nextEnabled = !reviewEnabled;
+    reviewState.onChange?.(nextEnabled);
+    setRightTab('learn');
+    if (window.innerWidth <= 768) {
+      setMobileRightPanelOpen(true);
+    }
   };
 
   const openMobilePanel = (tab = rightTab) => {
@@ -252,6 +265,26 @@ const GameContainer = ({
           Undo{undoChancesRemaining > 0 ? ` ${undoChancesRemaining}` : ''}
         </button>
       )}
+      {cctData && isCasualMode && !gameOver && (
+        <button
+          data-tour="action-cct-best"
+          className={`gc-mobile-action-btn gc-action-warning ${bestMoveDisabled ? 'gc-action-disabled' : ''}`}
+          onClick={requestBestMove}
+          disabled={bestMoveDisabled}
+          title={bestMoveTitle}
+        >
+          Best
+        </button>
+      )}
+      {cctData && !gameOver && (
+        <button
+          className={`gc-mobile-action-btn gc-action-primary ${reviewEnabled ? 'gc-mobile-action-active' : ''}`}
+          onClick={toggleReviewMode}
+          title={reviewEnabled ? 'Turn Review off' : 'Turn Review on'}
+        >
+          Review
+        </button>
+      )}
       {cctData && (
         <button
           data-tour="tab-cct"
@@ -373,6 +406,26 @@ const GameContainer = ({
             style={{ fontSize: '14px' }}
           >
             ❓ Help
+          </button>
+        )}
+        {!gameOver && isCasualMode && cctData && (
+          <button
+            data-tour="action-cct-best"
+            className={`gc-action-btn gc-action-warning ${bestMoveDisabled ? 'gc-action-disabled' : ''}`}
+            onClick={requestBestMove}
+            disabled={bestMoveDisabled}
+            title={bestMoveTitle}
+          >
+            Best
+          </button>
+        )}
+        {!gameOver && cctData && (
+          <button
+            className={`gc-action-btn gc-action-primary ${reviewEnabled ? 'gc-mobile-action-active' : ''}`}
+            onClick={toggleReviewMode}
+            title={reviewEnabled ? 'Turn Review off' : 'Turn Review on'}
+          >
+            Review
           </button>
         )}
         {!gameOver && isLearningMode && cctData && (
@@ -693,6 +746,13 @@ const GameContainer = ({
         onLabelsChange={cctData.onLabelsChange}
         bestMoveBudget={cctData.bestMoveBudget}
         bestMoveRequestId={bestMoveRequestId}
+        topMoveLimit={cctData.topMoveLimit}
+        reviewEnabled={reviewEnabled}
+        reviewLoading={Boolean(reviewState.loading)}
+        reviewResult={reviewState.latestResult}
+        onReviewEnabledChange={reviewState.onChange}
+        onBestButtonUse={cctData.onBestButtonUse}
+        onBestMovesReady={cctData.onBestMovesReady}
       />
     );
   };

@@ -2,7 +2,7 @@
 // Run: npx playwright test tests/e2e/lobby-smoke.spec.js --headed
 const { test, expect } = require('@playwright/test');
 
-const BASE_URL = 'https://chess99.com';
+const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 
 test.describe('Lobby Page Smoke Tests', () => {
   test('lobby page loads and shows tabs without Games tab', async ({ page }) => {

@@ -80,9 +80,13 @@ const TAG_CLASSES = {
   'Positional':    'cct-tag-positional',
 };
 
-// Rank colours: gold, silver, bronze
+// Rank colours: gold, silver, bronze, then calm secondary colours for ranks 4-5.
 const BEST_COLORS       = ['rgba(255,215,0,0.9)',  'rgba(192,192,192,0.9)',  'rgba(205,127,50,0.9)'];
-const BEST_COLORS_SOLID = ['#FFD700',              '#C0C0C0',                '#CD7F32'];
+const BEST_COLORS_SOLID = ['#FFD700',              '#C0C0C0',                '#CD7F32', '#60A5FA', '#34D399'];
+
+function getBestColor(index) {
+  return BEST_COLORS_SOLID[index] || '#93c5fd';
+}
 
 function uciToMoveObj(uciStr, fen) {
   try {
@@ -133,6 +137,13 @@ const CCTPanel = ({
   onLabelsChange,
   bestMoveBudget = null,
   bestMoveRequestId = 0,
+  topMoveLimit = 5,
+  reviewEnabled = false,
+  reviewLoading = false,
+  reviewResult = null,
+  onReviewEnabledChange,
+  onBestButtonUse,
+  onBestMovesReady,
 }) => {
   const [perspective, setPerspective] = useState('mine');
   // 0=off  1=CCT arrows  2=Best moves
@@ -170,7 +181,7 @@ const CCTPanel = ({
     setOpponentCct(analyzeCCT(game, 'opponent')); // always for warnings
     setBestMoves(null);
     setBestRevealFen(null);
-    if (bestMoveBudget?.enabled && hintLevel === 2) {
+    if (hintLevel === 2) {
       setHintLevel(0);
     }
     sfAbort.current = Date.now(); // cancel any in-flight Stockfish call
@@ -213,19 +224,22 @@ const CCTPanel = ({
     setLoadingBest(true);
     setBestMoves(null);
 
-    getStockfishTopMoves(fen, 3, mapDepthToMoveTime(12))
+    getStockfishTopMoves(fen, topMoveLimit, mapDepthToMoveTime(12))
       .then(moves => {
         if (sfAbort.current !== callId) return;
-        const classified = moves.map(({ move, cp }) => ({
+        const classified = moves.map(({ move, cp }, index) => ({
+          rank: index + 1,
           ...uciToMoveObj(move, fen),
+          move,
           cp,
           tag: classifyMoveAgainstCCT(move, cct),
         }));
         setBestMoves(classified);
+        onBestMovesReady?.({ fen, topMoves: classified, source: 'best' });
       })
       .catch(() => { if (sfAbort.current === callId) setBestMoves([]); })
       .finally(() => { if (sfAbort.current === callId) setLoadingBest(false); });
-  }, [hintLevel, cct, bestRevealFen]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [hintLevel, cct, bestRevealFen, topMoveLimit, onBestMovesReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Clean up board overlays on unmount
   useEffect(() => {
@@ -246,8 +260,8 @@ const CCTPanel = ({
     : hintLevel === 2
       ? 'Click to turn off Best moves'
       : bestMoveBudgetEnabled
-        ? `Show top 3 moves (${bestMoveRemaining} helplines left)`
-        : 'Show top 3 moves on board';
+        ? `Show top ${topMoveLimit} moves (${bestMoveRemaining} helplines left)`
+        : `Show top ${topMoveLimit} moves on board`;
 
   const handleBestToggle = useCallback((forceOn = false) => {
     if (!game || !isActive || isRated) return;
@@ -263,13 +277,29 @@ const CCTPanel = ({
 
     setBestRevealFen(fen);
     setHintLevel(2);
-  }, [bestMoveBudget, bestMoveBudgetEnabled, bestRevealFen, fen, game, hintLevel, isActive, isRated]);
+    onBestButtonUse?.({ fen, source: 'best' });
+  }, [bestMoveBudget, bestMoveBudgetEnabled, bestRevealFen, fen, game, hintLevel, isActive, isRated, onBestButtonUse]);
 
   useEffect(() => {
     if (!bestMoveRequestId || bestMoveRequestId === lastBestMoveRequestRef.current) return;
     lastBestMoveRequestRef.current = bestMoveRequestId;
     handleBestToggle(true);
   }, [bestMoveRequestId, handleBestToggle]);
+
+  const renderReviewToggle = () => (
+    <label className="cct-review-toggle">
+      <input
+        type="checkbox"
+        checked={Boolean(reviewEnabled)}
+        onChange={(event) => onReviewEnabledChange?.(event.target.checked)}
+      />
+      <span>Review</span>
+    </label>
+  );
+
+  const renderReviewResult = () => (
+    <ReviewResult result={reviewResult} loading={reviewLoading} topMoveLimit={topMoveLimit} />
+  );
 
   // ── rated gate ─────────────────────────────────────────────────────────────
   if (isRated) {
@@ -282,6 +312,8 @@ const CCTPanel = ({
             CCT counts are visible but move hints and best moves are disabled.
           </p>
         </div>
+        {renderReviewToggle()}
+        {renderReviewResult()}
         {cct && <CctCounts cct={cct} />}
       </div>
     );
@@ -323,6 +355,9 @@ const CCTPanel = ({
       </div>
 
       {/* ── Warning notification ─────────────────────────────────────────── */}
+      {renderReviewToggle()}
+      {renderReviewResult()}
+
       {warning && (
         <div className={`cct-warning cct-warning-${warning.severity}`}>
           {warning.msg}
@@ -373,7 +408,7 @@ const CCTPanel = ({
       {/* ── Best moves list ──────────────────────────────────────────────── */}
       {hintLevel === 2 && (
         <>
-          <div className="cct-best-header">Top 3 Moves</div>
+          <div className="cct-best-header">Top {topMoveLimit} Moves</div>
           {loadingBest && (
             <div className="cct-loading">
               <div className="cct-spinner" />
@@ -387,9 +422,9 @@ const CCTPanel = ({
                 <div
                   key={i}
                   className="cct-best-item"
-                  style={{ borderLeft: `3px solid ${BEST_COLORS_SOLID[i]}` }}
+                  style={{ borderLeft: `3px solid ${getBestColor(i)}` }}
                 >
-                  <span className="cct-best-rank" style={{ color: BEST_COLORS_SOLID[i] }}>
+                  <span className="cct-best-rank" style={{ color: getBestColor(i) }}>
                     {i + 1}.
                   </span>
                   <span className="cct-best-san">{m.san}</span>
@@ -408,6 +443,52 @@ const CCTPanel = ({
 };
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
+
+function ReviewResult({ result, loading, topMoveLimit }) {
+  if (loading) {
+    return (
+      <div className="cct-review-result cct-review-loading">
+        <div className="cct-spinner" />
+        Reviewing move...
+      </div>
+    );
+  }
+
+  if (!result) return null;
+
+  const rankText = result.userMoveRank
+    ? `Your move ranked #${result.userMoveRank}`
+    : result.isOutsideTopMoves
+      ? `Your move was outside the top ${topMoveLimit}`
+      : 'Your move was not ranked';
+
+  return (
+    <div className="cct-review-result">
+      <div className="cct-review-title">
+        <span>Move Review</span>
+        <strong>{rankText}</strong>
+      </div>
+      <div className="cct-best-list cct-review-list">
+        {(result.topMoves || []).map((move, index) => {
+          const isUserMove = move.rank === result.userMoveRank;
+          return (
+            <div
+              key={`${move.rank}-${move.move}`}
+              className={`cct-best-item ${isUserMove ? 'cct-review-user-move' : ''}`}
+              style={{ borderLeft: `3px solid ${getBestColor(index)}` }}
+            >
+              <span className="cct-best-rank" style={{ color: getBestColor(index) }}>
+                {move.rank}.
+              </span>
+              <span className="cct-best-san">{move.san || move.move}</span>
+              {isUserMove && <span className="cct-review-user-tag">Your move</span>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function CctCounts({ cct }) {
   return (

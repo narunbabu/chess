@@ -1,0 +1,105 @@
+import {
+  buildMoveReviewRecord,
+  createMoveReviewReport,
+  summarizeMoveReviewReport,
+} from '../moveReviewReport';
+
+const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+
+describe('moveReviewReport', () => {
+  test('detects the played move rank from ranked engine moves', () => {
+    const record = buildMoveReviewRecord({
+      fenBefore: START_FEN,
+      userMove: { from: 'e2', to: 'e4', san: 'e4' },
+      topMoves: [
+        { move: 'd2d4', cp: 34 },
+        { move: 'e2e4', cp: 29 },
+        { move: 'g1f3', cp: 22 },
+      ],
+      ply: 1,
+      moveNumber: 1,
+      color: 'w',
+    });
+
+    expect(record.userMoveRank).toBe(2);
+    expect(record.isOutsideTopMoves).toBe(false);
+    expect(record.topMoves[1]).toMatchObject({ rank: 2, san: 'e4', move: 'e2e4' });
+  });
+
+  test('marks a played move outside the requested top moves', () => {
+    const record = buildMoveReviewRecord({
+      fenBefore: START_FEN,
+      userMove: 'b1c3',
+      topMoves: [
+        { move: 'd2d4', cp: 34 },
+        { move: 'e2e4', cp: 29 },
+      ],
+      ply: 1,
+      moveNumber: 1,
+      color: 'w',
+      topMoveLimit: 2,
+    });
+
+    expect(record.userMoveRank).toBeNull();
+    expect(record.isOutsideTopMoves).toBe(true);
+  });
+
+  test('summarizes rank and assistance usage', () => {
+    const moves = [
+      buildMoveReviewRecord({
+        fenBefore: START_FEN,
+        userMove: 'd2d4',
+        topMoves: [{ move: 'd2d4', cp: 34 }],
+        ply: 1,
+      }),
+      buildMoveReviewRecord({
+        fenBefore: START_FEN,
+        userMove: 'b1c3',
+        topMoves: [{ move: 'd2d4', cp: 34 }],
+        ply: 1,
+      }),
+    ];
+
+    expect(summarizeMoveReviewReport({
+      moves,
+      bestButtonUses: 3,
+      reviewEnabledUsed: true,
+    })).toMatchObject({
+      analyzed_moves: 2,
+      best_move_count: 1,
+      average_rank: 1,
+      outside_top_moves_count: 1,
+      best_button_uses: 3,
+      review_enabled_used: true,
+    });
+  });
+
+  test('creates the persisted report shape with summary', () => {
+    const moves = [
+      buildMoveReviewRecord({
+        fenBefore: START_FEN,
+        userMove: 'd2d4',
+        topMoves: [{ move: 'd2d4', cp: 34 }],
+        ply: 1,
+      }),
+    ];
+
+    const report = createMoveReviewReport({
+      moves,
+      bestButtonUses: 1,
+      reviewEnabledUsed: true,
+      gameMode: 'computer',
+    });
+
+    expect(report).toMatchObject({
+      version: 1,
+      gameMode: 'computer',
+      bestButtonUses: 1,
+      reviewEnabledUsed: true,
+      summary: {
+        analyzed_moves: 1,
+        best_button_uses: 1,
+      },
+    });
+  });
+});

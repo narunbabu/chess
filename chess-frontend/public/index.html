@@ -31,6 +31,44 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
     <title>Chess99 – India's #1 Online Chess Academy for Kids | Learn & Play Chess Safely</title>
+
+    <meta name="build-id" content="%REACT_APP_BUILD_ID%" />
+    <script>
+      // Cache-buster: if the build id stored on this device differs from the one
+      // baked into this index.html, the user is on a stale shell (typical on mobile
+      // where the JS bundle reference doesn't update). Clear SW + Cache Storage
+      // and hard-reload so the new hashed bundle is fetched.
+      (function () {
+        try {
+          var meta = document.querySelector('meta[name="build-id"]');
+          var buildId = meta && meta.getAttribute('content');
+          if (!buildId || buildId.indexOf('%') === 0) return; // placeholder not substituted
+          var stored = localStorage.getItem('chess99_build_id');
+          if (stored === buildId) return;
+          var first = !stored;
+          localStorage.setItem('chess99_build_id', buildId);
+          if (first) return; // first ever visit on this device — nothing to evict
+          var done = function () {
+            // hard reload, bypassing http cache
+            window.location.reload(true);
+          };
+          var tasks = [];
+          if ('serviceWorker' in navigator) {
+            tasks.push(navigator.serviceWorker.getRegistrations().then(function (regs) {
+              return Promise.all(regs.map(function (r) { return r.unregister(); }));
+            }).catch(function () {}));
+          }
+          if (typeof caches !== 'undefined' && caches.keys) {
+            tasks.push(caches.keys().then(function (keys) {
+              return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+            }).catch(function () {}));
+          }
+          Promise.all(tasks).then(done, done);
+          // safety: reload even if a task hangs
+          setTimeout(done, 1500);
+        } catch (e) { /* never block app load on cache-buster errors */ }
+      })();
+    </script>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>

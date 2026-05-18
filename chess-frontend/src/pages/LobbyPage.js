@@ -9,7 +9,15 @@ import WebSocketGameService from '../services/WebSocketGameService';
 import { getEcho } from '../services/echoSingleton';
 import presenceService from '../services/presenceService';
 import { BACKEND_URL, BASE_URL } from '../config';
-import { getDefaultRatingWindow, isRatingInWindow, toRatingWindowParams } from '../utils/ratingWindow';
+import { getPreferredGameMode } from '../utils/gamePreferences';
+import {
+  getDefaultRatingWindow,
+  getModeAwareDefaultRatingWindow,
+  isRatingInWindow,
+  rememberOpponentRatingForMode,
+  rememberRatingWindowForMode,
+  toRatingWindowParams,
+} from '../utils/ratingWindow';
 import './LobbyPage.css';
 
 // Lobby components
@@ -72,7 +80,7 @@ const LobbyPage = () => {
   const [webSocketService, setWebSocketService] = useState(null);
   const [activeTab, setActiveTab] = useState('players');
   const [isRefreshing, setIsRefreshing] = useState(false); // Manual refresh state
-  const [ratingWindow, setRatingWindow] = useState(() => getDefaultRatingWindow(user?.rating));
+  const [ratingWindow, setRatingWindow] = useState(() => getModeAwareDefaultRatingWindow(user?.rating, getPreferredGameMode()));
   const [showMatchmaking, setShowMatchmaking] = useState(false); // Matchmaking modal
   const [matchmakingGuide, setMatchmakingGuide] = useState(null);
   const [showTour, setShowTour] = useState(false);
@@ -91,7 +99,7 @@ const LobbyPage = () => {
 
   useEffect(() => {
     if (!user?.id) return;
-    const nextWindow = getDefaultRatingWindow(user.rating);
+    const nextWindow = getModeAwareDefaultRatingWindow(user.rating, getPreferredGameMode());
     ratingWindowRef.current = nextWindow;
     setRatingWindow(nextWindow);
   }, [user?.id, user?.rating]);
@@ -311,6 +319,13 @@ const LobbyPage = () => {
     }
   };
 
+  const handleApplyRatingWindow = async () => {
+    if (isRefreshing) return;
+
+    rememberRatingWindowForMode(getPreferredGameMode(), ratingWindowRef.current);
+    await handleRefresh();
+  };
+
   // NOTE: Real-time invitations and resume requests are now handled globally by GlobalInvitationContext
   console.log('[Lobby] Using global invitation system via GlobalInvitationContext');
 
@@ -491,6 +506,12 @@ const LobbyPage = () => {
       console.error('Cannot send invitation: selectedPlayer is invalid', selectedPlayer);
       alert('Error: No player selected. Please try again.');
       return;
+    }
+
+    const nextRatingWindow = rememberOpponentRatingForMode(gameMode, selectedPlayer.rating);
+    if (nextRatingWindow) {
+      ratingWindowRef.current = nextRatingWindow;
+      setRatingWindow(nextRatingWindow);
     }
 
     setInvitedPlayer(selectedPlayer);
@@ -884,7 +905,7 @@ const LobbyPage = () => {
               onChallenge={handleInvite}
               ratingWindow={ratingWindow}
               onRatingWindowChange={setRatingWindow}
-              onApplyRatingWindow={handleRefresh}
+              onApplyRatingWindow={handleApplyRatingWindow}
               onResetRatingWindow={handleResetRatingWindow}
               isRefreshing={isRefreshing}
             />

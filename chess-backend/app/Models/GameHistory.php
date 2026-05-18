@@ -20,6 +20,17 @@ class GameHistory extends Model
         'opponent_avatar_url',
         'opponent_rating',
         'game_mode',
+        'review_report',
+        'review_summary',
+        'best_button_uses',
+        'review_enabled_used',
+    ];
+
+    protected $casts = [
+        'review_report' => 'array',
+        'review_summary' => 'array',
+        'best_button_uses' => 'integer',
+        'review_enabled_used' => 'boolean',
     ];
 
     // You might add a relationship to the User model
