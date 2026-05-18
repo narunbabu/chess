@@ -1572,3 +1572,144 @@
 .gc-move-list::-webkit-scrollbar-thumb:hover {
   background: #444;
 }
+
+/* ================================================================
+   REVIEW CHECKBOX — action bar inline toggle
+   ================================================================ */
+.gc-action-review-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(99, 179, 237, 0.4);
+  background: rgba(99, 179, 237, 0.08);
+  color: #93c5fd;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+  user-select: none;
+}
+.gc-action-review-label:hover {
+  background: rgba(99, 179, 237, 0.16);
+  border-color: rgba(99, 179, 237, 0.7);
+}
+.gc-action-review-label input[type="checkbox"] {
+  accent-color: #60a5fa;
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
+/* Mobile variant */
+.gc-mobile-review-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(99, 179, 237, 0.4);
+  background: rgba(99, 179, 237, 0.08);
+  color: #93c5fd;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+}
+.gc-mobile-review-label input[type="checkbox"] {
+  accent-color: #60a5fa;
+  width: 13px;
+  height: 13px;
+  cursor: pointer;
+}
+
+/* Active Best button highlight */
+.gc-action-btn-active {
+  box-shadow: 0 0 0 2px #fbbf24, inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+}
+
+/* ================================================================
+   REVIEW RESULT BAR — post-move analysis shown below the board
+   ================================================================ */
+.gc-review-bar {
+  width: var(--board-available-desktop);
+  margin: 6px auto 0;
+  background: rgba(30, 30, 50, 0.92);
+  border: 1px solid rgba(99, 179, 237, 0.25);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+}
+.gc-review-bar-loading {
+  color: #8b8987;
+  font-style: italic;
+  text-align: center;
+}
+.gc-review-bar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.gc-review-bar-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #8b8987;
+  font-weight: 600;
+}
+.gc-review-bar-rank {
+  font-size: 13px;
+  font-weight: 700;
+}
+.gc-review-rank-best  { color: #FFD700; }
+.gc-review-rank-good  { color: #34D399; }
+.gc-review-rank-ok    { color: #fdba74; }
+
+.gc-review-bar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.gc-review-bar-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  transition: background 0.15s;
+}
+.gc-review-bar-user {
+  background: rgba(99, 179, 237, 0.12);
+}
+.gc-review-bar-move-rank {
+  font-weight: 700;
+  min-width: 18px;
+  font-size: 13px;
+}
+.gc-review-bar-move-san {
+  font-weight: 600;
+  color: #e5e5e5;
+}
+.gc-review-bar-you-tag {
+  margin-left: auto;
+  font-size: 11px;
+  color: #60a5fa;
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .gc-review-bar {
+    width: 100%;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    margin: 4px 0 0;
+  }
+}

@@ -62,6 +62,7 @@ const GameContainer = ({
   const [mobileRightPanelOpen, setMobileRightPanelOpen] = useState(false);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(null);
   const [bestMoveRequestId, setBestMoveRequestId] = useState(0);
+  const [isBestOn, setIsBestOn] = useState(false);
   const moveListRef = useRef(null);
 
   // Extract timer data
@@ -268,22 +269,23 @@ const GameContainer = ({
       {cctData && isCasualMode && !gameOver && (
         <button
           data-tour="action-cct-best"
-          className={`gc-mobile-action-btn gc-action-warning ${bestMoveDisabled ? 'gc-action-disabled' : ''}`}
+          className={`gc-mobile-action-btn gc-action-warning ${isBestOn ? 'gc-mobile-action-active' : ''} ${bestMoveDisabled ? 'gc-action-disabled' : ''}`}
           onClick={requestBestMove}
           disabled={bestMoveDisabled}
-          title={bestMoveTitle}
+          title={isBestOn ? 'Best moves showing — tap to hide' : bestMoveTitle}
         >
-          Best
+          {isBestOn ? 'Best ✓' : 'Best'}
         </button>
       )}
       {cctData && !gameOver && (
-        <button
-          className={`gc-mobile-action-btn gc-action-primary ${reviewEnabled ? 'gc-mobile-action-active' : ''}`}
-          onClick={toggleReviewMode}
-          title={reviewEnabled ? 'Turn Review off' : 'Turn Review on'}
-        >
+        <label className="gc-mobile-review-label" title={reviewEnabled ? 'Turn Review off' : 'Turn Review on'}>
+          <input
+            type="checkbox"
+            checked={reviewEnabled}
+            onChange={(e) => reviewState.onChange?.(e.target.checked)}
+          />
           Review
-        </button>
+        </label>
       )}
       {cctData && (
         <button
@@ -411,22 +413,23 @@ const GameContainer = ({
         {!gameOver && isCasualMode && cctData && (
           <button
             data-tour="action-cct-best"
-            className={`gc-action-btn gc-action-warning ${bestMoveDisabled ? 'gc-action-disabled' : ''}`}
+            className={`gc-action-btn gc-action-warning ${isBestOn ? 'gc-mobile-action-active gc-action-btn-active' : ''} ${bestMoveDisabled ? 'gc-action-disabled' : ''}`}
             onClick={requestBestMove}
             disabled={bestMoveDisabled}
-            title={bestMoveTitle}
+            title={isBestOn ? 'Best moves showing — click to hide' : bestMoveTitle}
           >
-            Best
+            {isBestOn ? '⭐ Best ✓' : 'Best'}
           </button>
         )}
         {!gameOver && cctData && (
-          <button
-            className={`gc-action-btn gc-action-primary ${reviewEnabled ? 'gc-mobile-action-active' : ''}`}
-            onClick={toggleReviewMode}
-            title={reviewEnabled ? 'Turn Review off' : 'Turn Review on'}
-          >
+          <label className="gc-action-review-label" title={reviewEnabled ? 'Turn Review off' : 'Turn Review on — shows best moves after each move you make'}>
+            <input
+              type="checkbox"
+              checked={reviewEnabled}
+              onChange={(e) => reviewState.onChange?.(e.target.checked)}
+            />
             Review
-          </button>
+          </label>
         )}
         {!gameOver && isLearningMode && cctData && (
           <button
@@ -753,6 +756,7 @@ const GameContainer = ({
         onReviewEnabledChange={reviewState.onChange}
         onBestButtonUse={cctData.onBestButtonUse}
         onBestMovesReady={cctData.onBestMovesReady}
+        onBestStateChange={setIsBestOn}
       />
     );
   };
@@ -1003,6 +1007,15 @@ const GameContainer = ({
         {/* Action bar / Replay bar — custom actionBar prop takes priority */}
         {actionBar || renderActionBar()}
         {renderReplayBar()}
+
+        {/* Post-move review result — visible in game area when Review is enabled */}
+        {cctData && (reviewState.latestResult || reviewState.loading) && (
+          <ReviewResultInline
+            result={reviewState.latestResult}
+            loading={Boolean(reviewState.loading)}
+            topMoveLimit={cctData.topMoveLimit || 5}
+          />
+        )}
       </div>
 
       {renderMobileRail()}
@@ -1021,5 +1034,53 @@ const GameContainer = ({
     </div>
   );
 };
+
+// ─── Inline review result — shown below the board in the game area ────────────
+
+const RANK_COLORS = ['#FFD700', '#C0C0C0', '#CD7F32', '#60A5FA', '#34D399'];
+
+function ReviewResultInline({ result, loading, topMoveLimit = 5 }) {
+  if (loading) {
+    return (
+      <div className="gc-review-bar gc-review-bar-loading">
+        Reviewing move…
+      </div>
+    );
+  }
+  if (!result) return null;
+
+  const rankText = result.userMoveRank
+    ? `Your move ranked #${result.userMoveRank} of ${topMoveLimit}`
+    : `Your move was outside the top ${topMoveLimit}`;
+
+  return (
+    <div className="gc-review-bar">
+      <div className="gc-review-bar-header">
+        <span className="gc-review-bar-label">Move Review</span>
+        <span className={`gc-review-bar-rank ${result.userMoveRank === 1 ? 'gc-review-rank-best' : result.userMoveRank <= 2 ? 'gc-review-rank-good' : 'gc-review-rank-ok'}`}>
+          {rankText}
+        </span>
+      </div>
+      <div className="gc-review-bar-list">
+        {(result.topMoves || []).map((move, index) => {
+          const isUserMove = move.rank === result.userMoveRank;
+          return (
+            <div
+              key={`${move.rank}-${move.move}`}
+              className={`gc-review-bar-item ${isUserMove ? 'gc-review-bar-user' : ''}`}
+              style={{ borderLeft: `3px solid ${RANK_COLORS[index] || '#93c5fd'}` }}
+            >
+              <span className="gc-review-bar-move-rank" style={{ color: RANK_COLORS[index] || '#93c5fd' }}>
+                {move.rank}.
+              </span>
+              <span className="gc-review-bar-move-san">{move.san || move.move}</span>
+              {isUserMove && <span className="gc-review-bar-you-tag">← You</span>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export default GameContainer;

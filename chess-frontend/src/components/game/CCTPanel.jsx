@@ -144,6 +144,7 @@ const CCTPanel = ({
   onReviewEnabledChange,
   onBestButtonUse,
   onBestMovesReady,
+  onBestStateChange,
 }) => {
   const [perspective, setPerspective] = useState('mine');
   // 0=off  1=CCT arrows  2=Best moves
@@ -161,6 +162,11 @@ const CCTPanel = ({
   const fenRef  = useRef(null);
   const sfAbort = useRef(null);
   const lastBestMoveRequestRef = useRef(0);
+
+  // Notify parent when Best mode turns on or off
+  useEffect(() => {
+    onBestStateChange?.(hintLevel === 2);
+  }, [hintLevel, onBestStateChange]);
 
   // ── recompute CCT whenever game position or perspective changes ────────────
   useEffect(() => {
