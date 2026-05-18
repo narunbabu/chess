@@ -231,30 +231,19 @@ const GameContainer = ({
 
   const renderMobileQuickActionButtons = (placement = 'portrait') => (
     <>
-      {!isRated && !isLearningMode && (
+      {/* Best — primary action, casual + learning */}
+      {cctData && (isCasualMode || isLearningMode) && !gameOver && (
         <button
-          className="gc-mobile-action-btn gc-mobile-action-icon gc-action-neutral"
-          onClick={() => isTimerRunning ? pauseTimer?.() : handleTimer?.()}
-          disabled={gameOver}
-          aria-label={isTimerRunning ? 'Pause game' : 'Resume game'}
-          title={isTimerRunning ? 'Pause' : 'Resume'}
+          data-tour="action-cct-best"
+          className={`gc-mobile-action-btn gc-action-warning ${isBestOn ? 'gc-mobile-action-active' : ''} ${bestMoveDisabled ? 'gc-action-disabled' : ''}`}
+          onClick={requestBestMove}
+          disabled={bestMoveDisabled}
+          title={isBestOn ? 'Best moves showing — tap to hide' : bestMoveTitle}
         >
-          {isTimerRunning ? '||' : '>'}
+          {isBestOn ? 'Best ✓' : `Best${isLearningMode && bestMoveBudgetEnabled ? ` ${bestMoveRemaining}` : ''}`}
         </button>
       )}
-      {chatData && !gameOver && (
-        <button
-          className="gc-mobile-action-btn gc-mobile-action-icon gc-action-neutral"
-          onClick={() => openMobilePanel('chat')}
-          aria-label="Open chat"
-          title="Chat"
-        >
-          ...
-          {chatData.unreadCount > 0 && (
-            <span className="gc-mobile-action-badge">{chatData.unreadCount}</span>
-          )}
-        </button>
-      )}
+      {/* Undo */}
       {handleUndo && !isRated && (
         <button
           data-tour="action-undo"
@@ -266,19 +255,9 @@ const GameContainer = ({
           Undo{undoChancesRemaining > 0 ? ` ${undoChancesRemaining}` : ''}
         </button>
       )}
-      {cctData && isCasualMode && !gameOver && (
-        <button
-          data-tour="action-cct-best"
-          className={`gc-mobile-action-btn gc-action-warning ${isBestOn ? 'gc-mobile-action-active' : ''} ${bestMoveDisabled ? 'gc-action-disabled' : ''}`}
-          onClick={requestBestMove}
-          disabled={bestMoveDisabled}
-          title={isBestOn ? 'Best moves showing — tap to hide' : bestMoveTitle}
-        >
-          {isBestOn ? 'Best ✓' : 'Best'}
-        </button>
-      )}
+      {/* Review checkbox */}
       {cctData && !gameOver && (
-        <label className="gc-mobile-review-label" title={reviewEnabled ? 'Turn Review off' : 'Turn Review on'}>
+        <label className="gc-mobile-review-label" title={reviewEnabled ? 'Turn Review off' : 'Show best move alternatives after each move'}>
           <input
             type="checkbox"
             checked={reviewEnabled}
@@ -287,28 +266,7 @@ const GameContainer = ({
           Review
         </label>
       )}
-      {cctData && (
-        <button
-          data-tour="tab-cct"
-          className={`gc-mobile-action-btn gc-action-primary ${isLearningMode && bestMoveDisabled ? 'gc-action-disabled' : ''}`}
-          onClick={isLearningMode ? requestBestMove : () => openMobilePanel('learn')}
-          disabled={isLearningMode && bestMoveDisabled}
-          title={isLearningMode ? bestMoveTitle : 'Open CCT'}
-        >
-          {isLearningMode
-            ? `Best${bestMoveBudgetEnabled ? ` ${bestMoveRemaining}` : ''}`
-            : 'CCT'}
-        </button>
-      )}
-      {allowCompanion && (
-        <button
-          data-tour="tab-companion"
-          className={`gc-mobile-action-btn gc-action-primary ${companionData?.companion ? 'gc-mobile-action-active' : ''}`}
-          onClick={() => openMobilePanel('companion')}
-        >
-          Comp
-        </button>
-      )}
+      {/* More menu — Pause, Chat, CCT, Companion, Help, Moves, Draw, Resign */}
       <div className="gc-mobile-action-menu-wrap">
         <button
           type="button"
@@ -321,44 +279,61 @@ const GameContainer = ({
         </button>
         {mobileMoreOpen === placement && (
           <div className="gc-mobile-action-menu" role="menu">
-            <button type="button" role="menuitem" onClick={() => openMobilePanel('moves')}>Moves</button>
-            <button type="button" role="menuitem" onClick={() => openMobilePanel('info')}>Info</button>
             {!isRated && !isLearningMode && !gameOver && (
-              <button
-                type="button"
-                role="menuitem"
-                data-tour="action-help"
-                onClick={() => {
-                  setMobileMoreOpen(null);
-                  onTourOpen(true);
-                }}
+              <button type="button" role="menuitem"
+                onClick={() => { setMobileMoreOpen(null); isTimerRunning ? pauseTimer?.() : handleTimer?.(); }}
               >
-                Help
+                {isTimerRunning ? '⏸ Pause' : '▶ Resume'}
+              </button>
+            )}
+            {chatData && !gameOver && (
+              <button type="button" role="menuitem"
+                onClick={() => { setMobileMoreOpen(null); openMobilePanel('chat'); }}
+              >
+                Chat{chatData.unreadCount > 0 ? ` (${chatData.unreadCount})` : ''}
+              </button>
+            )}
+            {cctData && (
+              <button type="button" role="menuitem"
+                onClick={() => { setMobileMoreOpen(null); openMobilePanel('learn'); }}
+                data-tour="tab-cct"
+              >
+                💡 CCT panel
+              </button>
+            )}
+            {allowCompanion && (
+              <button type="button" role="menuitem"
+                data-tour="tab-companion"
+                onClick={() => { setMobileMoreOpen(null); openMobilePanel('companion'); }}
+              >
+                🤝 Companion{companionData?.companion ? ' ✓' : ''}
+              </button>
+            )}
+            <button type="button" role="menuitem" onClick={() => { setMobileMoreOpen(null); openMobilePanel('moves'); }}>
+              📋 Moves
+            </button>
+            <button type="button" role="menuitem" onClick={() => { setMobileMoreOpen(null); openMobilePanel('info'); }}>
+              Info
+            </button>
+            {!isRated && !isLearningMode && !gameOver && (
+              <button type="button" role="menuitem" data-tour="action-help"
+                onClick={() => { setMobileMoreOpen(null); onTourOpen(true); }}
+              >
+                ❓ Help
               </button>
             )}
             {handleDrawOffer && !gameOver && (
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setMobileMoreOpen(null);
-                  handleDrawOffer();
-                }}
+              <button type="button" role="menuitem"
+                onClick={() => { setMobileMoreOpen(null); handleDrawOffer(); }}
               >
-                Draw
+                ½ Draw
               </button>
             )}
             {handleResign && !gameOver && (
-              <button
-                type="button"
-                role="menuitem"
-                className="gc-mobile-action-menu-danger"
-                onClick={() => {
-                  setMobileMoreOpen(null);
-                  handleResign();
-                }}
+              <button type="button" role="menuitem" className="gc-mobile-action-menu-danger"
+                onClick={() => { setMobileMoreOpen(null); handleResign(); }}
               >
-                Resign
+                ⚑ Resign
               </button>
             )}
           </div>
@@ -376,142 +351,139 @@ const GameContainer = ({
           {renderMobileQuickActionButtons('portrait')}
         </div>
         <div className="gc-desktop-action-group">
-        {/* Pause/Resume — casual only */}
-        {!isRated && !isLearningMode && (
-          <button
-            className="gc-action-btn gc-action-neutral"
-            onClick={() => isTimerRunning ? pauseTimer?.() : handleTimer?.()}
-            disabled={gameOver}
-          >
-            {isTimerRunning ? '⏸ Pause' : '▶ Resume'}
-          </button>
-        )}
-        {/* Undo — casual only */}
-        {handleUndo && !isRated && (
-          <button
-            data-tour="action-undo"
-            className={`gc-action-btn gc-action-info ${(!canUndo || gameOver) ? 'gc-action-disabled' : ''}`}
-            onClick={handleUndo}
-            disabled={!canUndo || gameOver}
-            title={undoTitle}
-          >
-            ↩ Undo{undoChancesRemaining > 0 ? ` (${undoChancesRemaining})` : ''}
-          </button>
-        )}
-        {/* Help button — casual only, triggers tour */}
-        {!isRated && !isLearningMode && !gameOver && (
-          <button
-            data-tour="action-help"
-            className="gc-action-btn gc-action-neutral"
-            onClick={() => onTourOpen(true)}
-            title="Help & Tour"
-            style={{ fontSize: '14px' }}
-          >
-            ❓ Help
-          </button>
-        )}
-        {!gameOver && isCasualMode && cctData && (
-          <button
-            data-tour="action-cct-best"
-            className={`gc-action-btn gc-action-warning ${isBestOn ? 'gc-mobile-action-active gc-action-btn-active' : ''} ${bestMoveDisabled ? 'gc-action-disabled' : ''}`}
-            onClick={requestBestMove}
-            disabled={bestMoveDisabled}
-            title={isBestOn ? 'Best moves showing — click to hide' : bestMoveTitle}
-          >
-            {isBestOn ? '⭐ Best ✓' : 'Best'}
-          </button>
-        )}
-        {!gameOver && cctData && (
-          <label className="gc-action-review-label" title={reviewEnabled ? 'Turn Review off' : 'Turn Review on — shows best moves after each move you make'}>
-            <input
-              type="checkbox"
-              checked={reviewEnabled}
-              onChange={(e) => reviewState.onChange?.(e.target.checked)}
-            />
-            Review
-          </label>
-        )}
-        {!gameOver && isLearningMode && cctData && (
-          <button
-            className={`gc-action-btn gc-action-warning ${bestMoveDisabled ? 'gc-action-disabled' : ''}`}
-            onClick={requestBestMove}
-            disabled={bestMoveDisabled}
-            title={bestMoveTitle}
-          >
-            Best{bestMoveBudgetEnabled ? ` (${bestMoveRemaining})` : ''}
-          </button>
-        )}
-        {/* Moves toggle — opens/closes right panel on mobile */}
-        {!gameOver && !isLearningMode && (
-          <button
-            className="gc-action-btn gc-action-neutral gc-mobile-moves-toggle"
-            onClick={() => {
-              setRightTab('moves');
-              setMobileRightPanelOpen(prev => !prev);
-            }}
-            title="Toggle Moves Panel"
-          >
-            📋 Moves
-          </button>
-        )}
-        {/* Rated Rules Info */}
-        {isRated && !gameOver && (
-          <div className="gc-action-rules-wrap" style={{ position: 'relative' }}>
-            <button
-              className="gc-action-btn gc-action-neutral gc-action-rules"
-              onClick={() => setShowRatedRules(prev => !prev)}
-              title="Rated game rules"
-            >
-              ℹ Rules
+        {gameOver ? (
+          /* ── Game over ── */
+          resetGame && (
+            <button className="gc-action-btn gc-action-primary" onClick={resetGame}>
+              ♟ New Game
             </button>
-            {showRatedRules && (
-              <div style={{
-                position: 'absolute', bottom: '110%', left: '50%', transform: 'translateX(-50%)',
-                backgroundColor: '#1a1a2e', border: '1px solid #fca5a5', borderRadius: '10px',
-                padding: '14px 16px', width: '240px', zIndex: 100, boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-                fontSize: '13px', color: '#e5e5e5', lineHeight: 1.5
-              }}>
-                <div style={{ fontWeight: 700, color: '#fca5a5', marginBottom: '8px', fontSize: '14px' }}>⚠️ Rated Game Rules</div>
-                <div>🚫 No pausing</div>
-                <div>↶ No undo</div>
-                <div>🏳️ Leaving = forfeit</div>
-                <div>📊 Affects your rating</div>
-                <div style={{ marginTop: '8px', textAlign: 'right' }}>
-                  <button onClick={() => setShowRatedRules(false)} style={{
-                    background: 'none', border: 'none', color: '#93c5fd', cursor: 'pointer', fontSize: '12px'
-                  }}>Got it</button>
-                </div>
+          )
+        ) : (
+          <>
+            {/* Pause/Resume — casual only */}
+            {!isRated && !isLearningMode && (
+              <button
+                className="gc-action-btn gc-action-neutral"
+                onClick={() => isTimerRunning ? pauseTimer?.() : handleTimer?.()}
+              >
+                {isTimerRunning ? '⏸ Pause' : '▶ Resume'}
+              </button>
+            )}
+
+            {/* Best — primary, casual + learning */}
+            {cctData && (isCasualMode || isLearningMode) && (
+              <button
+                data-tour="action-cct-best"
+                className={`gc-action-btn gc-action-warning ${isBestOn ? 'gc-mobile-action-active gc-action-btn-active' : ''} ${bestMoveDisabled ? 'gc-action-disabled' : ''}`}
+                onClick={requestBestMove}
+                disabled={bestMoveDisabled}
+                title={isBestOn ? 'Best moves showing — click to hide' : bestMoveTitle}
+              >
+                {isBestOn
+                  ? '⭐ Best ✓'
+                  : `⭐ Best${isLearningMode && bestMoveBudgetEnabled ? ` (${bestMoveRemaining})` : ''}`}
+              </button>
+            )}
+
+            {/* Undo */}
+            {handleUndo && !isRated && (
+              <button
+                data-tour="action-undo"
+                className={`gc-action-btn gc-action-info ${(!canUndo) ? 'gc-action-disabled' : ''}`}
+                onClick={handleUndo}
+                disabled={!canUndo}
+                title={undoTitle}
+              >
+                ↩ Undo{undoChancesRemaining > 0 ? ` (${undoChancesRemaining})` : ''}
+              </button>
+            )}
+
+            {/* Review checkbox */}
+            {cctData && (
+              <label className="gc-action-review-label" title={reviewEnabled ? 'Turn Review off' : 'Show best move alternatives after each move you make'}>
+                <input
+                  type="checkbox"
+                  checked={reviewEnabled}
+                  onChange={(e) => reviewState.onChange?.(e.target.checked)}
+                />
+                Review
+              </label>
+            )}
+
+            {/* Draw */}
+            {handleDrawOffer && (
+              <button className="gc-action-btn gc-action-warning" onClick={handleDrawOffer}>
+                ½ Draw
+              </button>
+            )}
+
+            {/* Rated Rules */}
+            {isRated && (
+              <div className="gc-action-rules-wrap" style={{ position: 'relative' }}>
+                <button
+                  className="gc-action-btn gc-action-neutral gc-action-rules"
+                  onClick={() => setShowRatedRules(prev => !prev)}
+                  title="Rated game rules"
+                >
+                  ℹ Rules
+                </button>
+                {showRatedRules && (
+                  <div style={{
+                    position: 'absolute', bottom: '110%', left: '50%', transform: 'translateX(-50%)',
+                    backgroundColor: '#1a1a2e', border: '1px solid #fca5a5', borderRadius: '10px',
+                    padding: '14px 16px', width: '240px', zIndex: 100, boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+                    fontSize: '13px', color: '#e5e5e5', lineHeight: 1.5
+                  }}>
+                    <div style={{ fontWeight: 700, color: '#fca5a5', marginBottom: '8px', fontSize: '14px' }}>⚠️ Rated Game Rules</div>
+                    <div>🚫 No pausing</div>
+                    <div>↶ No undo</div>
+                    <div>🏳️ Leaving = forfeit</div>
+                    <div>📊 Affects your rating</div>
+                    <div style={{ marginTop: '8px', textAlign: 'right' }}>
+                      <button onClick={() => setShowRatedRules(false)} style={{
+                        background: 'none', border: 'none', color: '#93c5fd', cursor: 'pointer', fontSize: '12px'
+                      }}>Got it</button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
-          </div>
-        )}
-        {/* Draw */}
-        {handleDrawOffer && !gameOver && (
-          <button
-            className="gc-action-btn gc-action-warning"
-            onClick={handleDrawOffer}
-            disabled={gameOver}
-          >
-            ½ Draw
-          </button>
-        )}
-        {/* Resign */}
-        {handleResign && !gameOver && (
-          <button
-            className="gc-action-btn gc-action-danger"
-            onClick={handleResign}
-          >
-            ⚑ Resign
-          </button>
-        )}
-        {/* New Game — shown when game is over */}
-        {gameOver && resetGame && (
-          <button
-            className="gc-action-btn gc-action-primary"
-            onClick={resetGame}
-          >
-            ♟ New Game
-          </button>
+
+            {/* More — Help, Moves, Resign */}
+            <div className="gc-action-rules-wrap" style={{ position: 'relative' }}>
+              <button
+                type="button"
+                className={`gc-action-btn gc-action-neutral ${mobileMoreOpen === 'desktop' ? 'gc-mobile-action-active' : ''}`}
+                onClick={() => setMobileMoreOpen(open => open === 'desktop' ? null : 'desktop')}
+                title="More options"
+              >
+                More ▾
+              </button>
+              {mobileMoreOpen === 'desktop' && (
+                <div className="gc-mobile-action-menu gc-desktop-more-menu" role="menu">
+                  {!isRated && !isLearningMode && (
+                    <button type="button" role="menuitem" data-tour="action-help"
+                      onClick={() => { setMobileMoreOpen(null); onTourOpen(true); }}
+                    >
+                      ❓ Help
+                    </button>
+                  )}
+                  <button type="button" role="menuitem"
+                    onClick={() => { setMobileMoreOpen(null); setRightTab('moves'); setMobileRightPanelOpen(true); }}
+                  >
+                    📋 Moves
+                  </button>
+                  {handleResign && (
+                    <button type="button" role="menuitem" className="gc-mobile-action-menu-danger"
+                      onClick={() => { setMobileMoreOpen(null); handleResign(); }}
+                    >
+                      ⚑ Resign
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </>
         )}
         </div>
       </div>

@@ -1631,6 +1631,15 @@
   box-shadow: 0 0 0 2px #fbbf24, inset 0 0 0 1px rgba(255, 255, 255, 0.15);
 }
 
+/* Desktop More dropdown — opens upward above the action bar */
+.gc-desktop-more-menu {
+  bottom: calc(100% + 6px);
+  top: auto;
+  left: auto;
+  right: 0;
+  min-width: 140px;
+}
+
 /* ================================================================
    REVIEW RESULT BAR — post-move analysis shown below the board
    ================================================================ */
