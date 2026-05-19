@@ -1661,16 +1661,22 @@
    ================================================================ */
 .gc-review-bar {
   width: var(--board-available-desktop);
-  margin: 6px auto 0;
+  margin: 10px auto 0;
   background: rgba(30, 30, 50, 0.92);
   border: 1px solid rgba(99, 179, 237, 0.25);
   border-radius: 10px;
-  padding: 6px 8px;
+  padding: 8px 10px;
   font-size: 12px;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "label rank replay"
+    "list list list";
   align-items: center;
-  gap: 8px;
+  column-gap: 8px;
+  row-gap: 7px;
+  position: relative;
+  z-index: 0;
 }
 .gc-review-bar-loading {
   color: #8b8987;
@@ -1679,6 +1685,7 @@
   display: block;
 }
 .gc-review-bar-label {
+  grid-area: label;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.03em;
@@ -1687,21 +1694,28 @@
   white-space: nowrap;
 }
 .gc-review-bar-rank {
+  grid-area: rank;
+  min-width: 0;
   font-size: 12px;
   font-weight: 700;
   justify-self: start;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .gc-review-rank-best  { color: #FFD700; }
 .gc-review-rank-good  { color: #34D399; }
 .gc-review-rank-ok    { color: #fdba74; }
 
 .gc-review-bar-list {
+  grid-area: list;
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 5px;
   min-width: 0;
-  overflow-x: auto;
+  max-height: 76px;
+  overflow-y: auto;
+  overflow-x: hidden;
   scrollbar-width: none;
 }
 .gc-review-bar-list::-webkit-scrollbar {
@@ -1711,7 +1725,8 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  min-width: max-content;
+  min-width: 0;
+  max-width: 100%;
   padding: 3px 7px;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -1729,13 +1744,19 @@
 .gc-review-bar-move-san {
   font-weight: 600;
   color: #e5e5e5;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .gc-review-bar-you-tag {
   font-size: 11px;
   color: #60a5fa;
   font-weight: 600;
+  white-space: nowrap;
 }
 .gc-review-bar-replay {
+  grid-area: replay;
   border: 1px solid rgba(96, 165, 250, 0.45);
   border-radius: 999px;
   background: rgba(96, 165, 250, 0.10);
@@ -1758,11 +1779,23 @@
     border-right: none;
     margin: 4px 0 0;
     grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "rank replay"
+      "list list";
   }
   .gc-review-bar-label {
     display: none;
   }
   .gc-review-bar-rank {
-    grid-column: 1 / -1;
+    grid-area: rank;
+  }
+  .gc-review-bar-list {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    max-height: none;
+  }
+  .gc-review-bar-item {
+    min-width: max-content;
   }
 }
