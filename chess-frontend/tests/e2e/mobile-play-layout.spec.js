@@ -25,16 +25,23 @@ test.describe('Mobile play layout', () => {
 
     await expect(page.locator('.gc-right-panel')).toBeHidden();
     await expect(page.locator('.gc-mobile-action-grid-portrait')).toBeVisible();
-    await expect(page.locator('.gc-mobile-action-grid-portrait button[aria-label="Pause game"], .gc-mobile-action-grid-portrait button[aria-label="Resume game"]')).toBeVisible();
-    await expect(page.locator('.gc-mobile-action-grid-portrait button[aria-label="Open chat"]')).toBeVisible();
+    await expect(page.locator('.gc-mobile-action-grid-portrait label:has-text("Review")')).toBeVisible();
     await expect(page.locator('.gc-mobile-action-grid-portrait button:has-text("Undo")')).toBeVisible();
-    await expect(page.locator('.gc-mobile-action-grid-portrait button:has-text("CCT")')).toBeVisible();
-    await expect(page.locator('.gc-mobile-action-grid-portrait button:has-text("Comp")')).toBeVisible();
-    await expect(page.locator('.gc-mobile-action-grid-portrait button[aria-label="More play actions"]')).toBeVisible();
+    await expect(page.locator('.gc-mobile-action-grid-portrait button:has-text("Best")')).toBeVisible();
+    const portraitMoreButton = page.locator('.gc-mobile-action-grid-portrait button[aria-label="More play actions"]');
+    await expect(portraitMoreButton).toBeVisible();
     await expect(page.locator('.gc-mobile-action-grid-portrait button:has-text("Moves")')).toBeHidden();
     await expect(page.locator('.gc-mobile-last-moves-center')).toBeVisible();
 
-    await page.locator('.gc-mobile-action-grid-portrait button:has-text("Comp")').click();
+    await portraitMoreButton.click();
+    const portraitMenu = page.locator('.gc-mobile-action-menu');
+    await expect(portraitMenu).toBeVisible();
+    await expect(portraitMenu.locator('button').filter({ hasText: /Pause|Resume/ })).toBeVisible();
+    await expect(portraitMenu.locator('button:has-text("CCT panel")')).toBeVisible();
+    await expect(portraitMenu.locator('button:has-text("Companion")')).toBeVisible();
+    await expect(portraitMenu.locator('button:has-text("Moves")')).toBeVisible();
+
+    await portraitMenu.locator('button:has-text("Companion")').click();
     await expect(page.locator('.gc-right-panel.mobile-open')).toBeVisible();
     await expect(page.locator('.gc-right-panel.mobile-open')).toContainText(/Coach|Companion/);
     await expect(page.locator('.gc-right-panel.mobile-open .gc-tabs')).toBeHidden();
@@ -44,7 +51,7 @@ test.describe('Mobile play layout', () => {
     await expect(page.locator('.gc-right-panel.mobile-open select')).toHaveValue(/.+/);
 
     await page.locator('.gc-mobile-panel-heading button').click();
-    await page.locator('.gc-mobile-action-grid-portrait button[aria-label="More play actions"]').click();
+    await portraitMoreButton.click();
     await page.locator('.gc-mobile-action-menu button:has-text("Moves")').click();
     await expect(page.locator('.gc-right-panel.mobile-open')).toBeVisible();
 
@@ -60,12 +67,11 @@ test.describe('Mobile play layout', () => {
     await startCasualComputerGame(page);
 
     await expect(page.locator('.gc-mobile-rail')).toBeVisible();
-    await expect(page.locator('.gc-mobile-rail button[aria-label="Pause game"], .gc-mobile-rail button[aria-label="Resume game"]')).toBeVisible();
-    await expect(page.locator('.gc-mobile-rail button[aria-label="Open chat"]')).toBeVisible();
+    await expect(page.locator('.gc-mobile-rail label:has-text("Review")')).toBeVisible();
     await expect(page.locator('.gc-mobile-rail button:has-text("Undo")')).toBeVisible();
-    await expect(page.locator('.gc-mobile-rail button:has-text("CCT")')).toBeVisible();
-    await expect(page.locator('.gc-mobile-rail button:has-text("Comp")')).toBeVisible();
-    await expect(page.locator('.gc-mobile-rail button[aria-label="More play actions"]')).toBeVisible();
+    await expect(page.locator('.gc-mobile-rail button:has-text("Best")')).toBeVisible();
+    const railMoreButton = page.locator('.gc-mobile-rail button[aria-label="More play actions"]');
+    await expect(railMoreButton).toBeVisible();
     await expect(page.locator('.gc-mobile-last-moves-rail')).toBeVisible();
 
     const boardBox = await page.locator('.gc-board-wrapper').boundingBox();
@@ -75,7 +81,14 @@ test.describe('Mobile play layout', () => {
     const railBox = await page.locator('.gc-mobile-rail').boundingBox();
     expect(railBox.x).toBeGreaterThan(boardBox.x + boardBox.width - 1);
 
-    await page.locator('.gc-mobile-rail button:has-text("CCT")').click();
+    await railMoreButton.click();
+    const railMenu = page.locator('.gc-mobile-action-menu');
+    await expect(railMenu).toBeVisible();
+    await expect(railMenu.locator('button').filter({ hasText: /Pause|Resume/ })).toBeVisible();
+    await expect(railMenu.locator('button:has-text("CCT panel")')).toBeVisible();
+    await expect(railMenu.locator('button:has-text("Companion")')).toBeVisible();
+
+    await railMenu.locator('button:has-text("CCT panel")').click();
     await expect(page.locator('.gc-right-panel.mobile-open')).toBeVisible();
     await expect(page.locator('.gc-mobile-panel-heading')).toContainText('CCT');
     await expect(page.locator('.gc-right-panel.mobile-open .gc-tabs')).toBeHidden();
