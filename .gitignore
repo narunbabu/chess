@@ -70,3 +70,6 @@ images/
 .DS_Store
 ehthumbs.db
 Desktop.ini
+
+# Claude Code local state
+.claude/
