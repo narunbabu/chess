@@ -151,6 +151,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // List summary (exclude moves) for dashboard or game list
     Route::get('/game-history', [GameHistoryController::class, 'index']);
+    Route::get('/game-history/review-stats', [GameHistoryController::class, 'reviewStats']);
     // Get full game details (including moves) when user clicks on a game
     Route::get('/game-history/{id}', [GameHistoryController::class, 'show']);
     Route::get('/rankings', [GameHistoryController::class, 'rankings']);

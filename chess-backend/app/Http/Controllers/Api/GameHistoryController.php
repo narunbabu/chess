@@ -5,6 +5,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\GameHistory;
 use App\Services\OpeningDetectionService;
+use App\Services\UserMoveReviewStatsService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
@@ -83,8 +84,21 @@ class GameHistoryController extends Controller
         }
     }
 
+    public function reviewStats(Request $request, UserMoveReviewStatsService $statsService)
+    {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $statsService->payloadForUser($user->id),
+        ]);
+    }
+
     // Save a new game history record (authenticated users)
-    public function store(Request $request)
+    public function store(Request $request, UserMoveReviewStatsService $statsService)
     {
         $user = $request->user();
 
@@ -134,6 +148,7 @@ class GameHistoryController extends Controller
                     if ($existing->isDirty()) {
                         $existing->save();
                     }
+                    $statsService->recalculateForUser($userId);
 
                     Log::info('Game history already exists (server-side), returning existing record', [
                         'game_history_id' => $existing->id,
@@ -184,6 +199,9 @@ class GameHistoryController extends Controller
             $game->game_mode = $validated['game_mode'] ?? 'computer';
             $this->applyReviewReportFields($game, $validated);
             $game->save();
+            if ($userId) {
+                $statsService->recalculateForUser($userId);
+            }
 
             return response()->json(['success' => true, 'data' => $game], 201);
         } catch (\Exception $e) {
@@ -208,7 +226,7 @@ class GameHistoryController extends Controller
         Log::info("Content-Type: " . $request->header('Content-Type'));
 
         try {
-            $validated = $request->validate([
+            $validated = $request->validate(array_merge([
                 'played_at'           => 'nullable|date_format:Y-m-d H:i:s',
                 'player_color'        => 'required|in:w,b',
                 'computer_level'      => 'nullable|integer',
@@ -221,7 +239,7 @@ class GameHistoryController extends Controller
                 'opponent_avatar_url' => 'nullable|string|max:500',
                 'opponent_rating'     => 'nullable|integer',
                 'game_mode'           => 'nullable|in:computer,multiplayer',
-            ]);
+            ], $this->reviewReportValidationRules()));
 
             Log::info('Validated public game data:', $validated);
 
@@ -272,6 +290,7 @@ class GameHistoryController extends Controller
             $game->opponent_avatar_url = $validated['opponent_avatar_url'] ?? null;
             $game->opponent_rating = $validated['opponent_rating'] ?? null;
             $game->game_mode = $validated['game_mode'] ?? 'computer';
+            $this->applyReviewReportFields($game, $validated);
             $game->save();
 
             Log::info("Game saved successfully: ", $game->toArray());

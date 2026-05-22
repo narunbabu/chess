@@ -168,6 +168,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // ── Game History ──────────────────────────────────────────────────────
     Route::get('/game-history', [GameHistoryController::class, 'index']);
+    Route::get('/game-history/review-stats', [GameHistoryController::class, 'reviewStats']);
     Route::get('/game-history/{id}', [GameHistoryController::class, 'show']);
     Route::get('/rankings', [GameHistoryController::class, 'rankings']);
     Route::post('/game-history', [GameHistoryController::class, 'store']);
