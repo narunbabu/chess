@@ -105,6 +105,10 @@ const MatchmakingQueue = ({ isOpen, onClose, autoStart = false, initialGameMode,
   });
   const [learningHelpLimit, setLearningHelpLimit] = useState(() => getStoredLearningHelpLimit());
   const activeRatingWindow = useMemo(() => {
+    if (ratingWindow) {
+      return ratingWindow;
+    }
+
     const storedOpponentRating = getStoredOpponentRatingForMode(gameMode);
     return storedOpponentRating !== null
       ? getOpponentCenteredRatingWindow(storedOpponentRating)

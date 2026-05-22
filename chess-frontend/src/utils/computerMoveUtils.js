@@ -1,7 +1,7 @@
 // src/utils/computerMoveUtils.js
 
 import { Chess } from 'chess.js';
-import { COMPUTER_LEVEL_RATINGS } from './eloUtils';
+import { COMPUTER_LEVEL_RATINGS, getLevelFromRating } from './eloUtils';
 import {
   getSub1300StockfishConfig,
   selectSub1300StockfishMove,
@@ -32,6 +32,20 @@ export const mapDepthToMoveTime = (depth) => {
         case 16: return 2500;
         default: return 600;
     }
+};
+
+export const getEffectiveDepthForRating = (depth, rating = null) => {
+  const parsedDepth = Number.parseInt(depth, 10);
+  const normalizedDepth = Number.isFinite(parsedDepth)
+    ? Math.max(1, Math.min(parsedDepth, MAX_DEPTH_FOR_DIFFICULTY))
+    : 1;
+  const parsedRating = Number.parseInt(rating, 10);
+
+  if (!Number.isFinite(parsedRating) || parsedRating <= 0) {
+    return normalizedDepth;
+  }
+
+  return Math.max(normalizedDepth, getLevelFromRating(parsedRating));
 };
 
 
@@ -226,7 +240,7 @@ export const calculatePerceivedThinkTime = (fen, moveNumber, move, depth, person
     } catch (_) {}
   }
 
-  const clampedDepth = Math.max(1, Math.min(depth, 16));
+  const clampedDepth = getEffectiveDepthForRating(depth, rating);
   time *= 0.7 + (clampedDepth / 16) * 0.6;
 
   let jitterHalf;
@@ -373,8 +387,9 @@ export const makeComputerMove = async (
     : (COMPUTER_LEVEL_RATINGS[depth] ?? 1500);
 
   const halfMoveCount = game.history().length;
+  const effectiveDepth = getEffectiveDepthForRating(depth, rating);
   const sub1300Config = getSub1300StockfishConfig(game, targetElo);
-  const allocatedTimeMs = sub1300Config?.moveTimeMs || mapDepthToMoveTime(depth);
+  const allocatedTimeMs = sub1300Config?.moveTimeMs || mapDepthToMoveTime(effectiveDepth);
   const requestedMoveCount = sub1300Config?.multipv || NUM_TOP_MOVES_TO_REQUEST;
   const searchOptions = sub1300Config
     ? { depth: sub1300Config.depth, timeoutMs: sub1300Config.timeoutMs }
@@ -403,7 +418,7 @@ export const makeComputerMove = async (
 
   } catch (error) {
     actualThinkingTime = Date.now() - thinkingStartTime;
-    console.error(`Error getting/selecting Stockfish move (level ${depth}, budget ${allocatedTimeMs}ms):`, error);
+    console.error(`Error getting/selecting Stockfish move (level ${effectiveDepth}, budget ${allocatedTimeMs}ms):`, error);
     console.warn('Falling back to random move.');
 
     const possibleMoves = game.moves({ verbose: true });

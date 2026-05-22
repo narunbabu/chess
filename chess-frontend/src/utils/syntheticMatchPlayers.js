@@ -1,4 +1,5 @@
-import { isRatingInWindow } from './ratingWindow';
+import { getRatingWindowMidpoint, isRatingInWindow } from './ratingWindow';
+import { getLevelFromRating } from './eloUtils';
 
 const BEGINNER_SYNTHETIC_PLAYERS = [
   { id: 'local-200-1', name: 'Riya First Moves', avatar_seed: 'riya-first-moves', computer_level: 1, rating: 200 },
@@ -16,14 +17,50 @@ const BEGINNER_SYNTHETIC_PLAYERS = [
 ];
 
 const VALID_LEARNING_HELP_LIMITS = [1, 3, 5, 7];
+const FALLBACK_FIRST_NAMES = [
+  'Aarav', 'Ananya', 'Arjun', 'Deepa', 'Dev', 'Isha', 'Kabir', 'Kavya',
+  'Kiran', 'Maya', 'Meera', 'Nikhil', 'Pranav', 'Rohan', 'Tara', 'Vivaan',
+];
+const FALLBACK_LAST_NAMES = [
+  'Agarwal', 'Bhat', 'Das', 'Gupta', 'Joshi', 'Khan', 'Kumar', 'Menon',
+  'Mishra', 'Nair', 'Patel', 'Rao', 'Reddy', 'Shah', 'Sharma', 'Singh',
+];
+
+const randomFrom = (items) => items[Math.floor(Math.random() * items.length)];
+
+const createRatingAwareSyntheticPlayer = (ratingWindow) => {
+  const rating = getRatingWindowMidpoint(ratingWindow);
+  const level = getLevelFromRating(rating);
+  const firstName = randomFrom(FALLBACK_FIRST_NAMES);
+  const lastName = randomFrom(FALLBACK_LAST_NAMES);
+  const slug = `${firstName}-${lastName}-${rating}`.toLowerCase();
+
+  return {
+    id: `local-${rating}-${level}`,
+    name: `${firstName} ${lastName}`,
+    avatar_seed: slug,
+    avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${slug}`,
+    computer_level: level,
+    rating,
+    personality: null,
+    type: 'synthetic',
+  };
+};
 
 export const pickBeginnerSyntheticPlayer = (ratingWindow) => {
   const candidates = ratingWindow
     ? BEGINNER_SYNTHETIC_PLAYERS.filter(player => isRatingInWindow(player.rating, ratingWindow))
     : BEGINNER_SYNTHETIC_PLAYERS;
-  const pool = candidates.length > 0 ? candidates : BEGINNER_SYNTHETIC_PLAYERS;
 
-  return pool[Math.floor(Math.random() * pool.length)];
+  if (candidates.length > 0) {
+    return candidates[Math.floor(Math.random() * candidates.length)];
+  }
+
+  if (ratingWindow) {
+    return createRatingAwareSyntheticPlayer(ratingWindow);
+  }
+
+  return BEGINNER_SYNTHETIC_PLAYERS[Math.floor(Math.random() * BEGINNER_SYNTHETIC_PLAYERS.length)];
 };
 
 export const normalizeLearningHelpLimit = (value) => {
