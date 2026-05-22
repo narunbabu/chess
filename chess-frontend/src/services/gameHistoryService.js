@@ -278,6 +278,16 @@ export const getGameHistoriesPaginated = async (params = {}) => {
   }
 };
 
+export const getMoveReviewStats = async () => {
+  try {
+    const res = await api.get('/game-history/review-stats');
+    return res.data?.data || null;
+  } catch (error) {
+    console.error('[gameHistoryService] Review stats fetch failed:', error);
+    return null;
+  }
+};
+
 export const getGameHistoryById = async (id) => {
   try {
     const token = localStorage.getItem("auth_token");

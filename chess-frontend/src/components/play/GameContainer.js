@@ -168,6 +168,7 @@ const GameContainer = ({
   const reviewLoading = Boolean(reviewState.loading);
   const latestReviewResult = reviewState.latestResult;
   const onShowReviewArrows = reviewState.onShowArrows;
+  const bestUseNudge = cctData?.bestUseNudge;
   const showReviewArrows = useCallback((result = latestReviewResult) => {
     if (!result || !onShowReviewArrows) return;
     onShowReviewArrows(buildReviewArrows(result, cctData?.topMoveLimit || 5));
@@ -294,7 +295,7 @@ const GameContainer = ({
   const renderMobileQuickActionButtons = (placement = 'portrait') => (
     <>
       {/* Review checkbox */}
-      {cctData && !gameOver && (
+      {cctData && !isRated && !gameOver && (
         <label className="gc-mobile-review-label" title={reviewEnabled ? 'Turn Review off' : 'Show best move alternatives after each move'}>
           <input
             type="checkbox"
@@ -355,7 +356,7 @@ const GameContainer = ({
                 Chat{chatData.unreadCount > 0 ? ` (${chatData.unreadCount})` : ''}
               </button>
             )}
-            {cctData && (
+            {cctData && !isRated && (
               <button type="button" role="menuitem"
                 onClick={() => { setMobileMoreOpen(null); openMobilePanel('learn'); }}
                 data-tour="tab-cct"
@@ -1041,6 +1042,12 @@ const GameContainer = ({
         {/* Action bar / Replay bar — custom actionBar prop takes priority */}
         {actionBar || renderActionBar()}
         {renderReplayBar()}
+
+        {bestUseNudge && !gameOver && (
+          <div className="gc-best-use-nudge" role="status">
+            {bestUseNudge}
+          </div>
+        )}
 
         {/* Post-move review result — visible in game area when Review is enabled */}
         {cctData && (latestReviewResult || reviewLoading) && (

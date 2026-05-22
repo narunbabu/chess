@@ -29,9 +29,12 @@ import { getPreferredGameMode, setPreferredGameMode } from '../../utils/gamePref
 import { rememberOpponentRatingForMode } from '../../utils/ratingWindow';
 import { markGameEnded, isGameEnded } from '../../utils/endedGamesTracker';
 import {
+  BEST_USE_NUDGE_MESSAGE,
   buildMoveReviewRecord,
   createMoveReviewReport,
   DEFAULT_REVIEW_TOP_MOVES,
+  getDefaultReviewEnabled,
+  shouldShowBestUseNudge,
 } from '../../utils/moveReviewReport';
 import { getTheme } from '../../config/boardThemes';
 import { getBoardTheme, getPieceStyle } from './BoardCustomizer';
@@ -222,11 +225,12 @@ const PlayMultiplayer = () => {
   const chatTabOpenRef = useRef(false);
   const [cctArrows, setCctArrows] = useState([]); // CCT board arrows from learning panel
   const [reviewArrows, setReviewArrows] = useState([]);
-  const [reviewEnabled, setReviewEnabled] = useState(false);
+  const [reviewEnabled, setReviewEnabled] = useState(() => getDefaultReviewEnabled(getPreferredGameMode()));
   const [reviewLoading, setReviewLoading] = useState(false);
   const [latestReviewResult, setLatestReviewResult] = useState(null);
   const [moveReviewRecords, setMoveReviewRecords] = useState([]);
   const [bestButtonUses, setBestButtonUses] = useState(0);
+  const [bestUseNudge, setBestUseNudge] = useState(null);
   const reviewEnabledRef = useRef(false);
   const reviewEnabledUsedRef = useRef(false);
   const moveReviewRecordsRef = useRef([]);
@@ -234,6 +238,7 @@ const PlayMultiplayer = () => {
   const lastBestRevealRef = useRef(null);
   const pendingReviewPromisesRef = useRef([]);
   const reviewArrowTimerRef = useRef(null);
+  const bestUseNudgeTimerRef = useRef(null);
 
   // Nudge opponent state (30s cooldown)
   const [nudgeCooldown, setNudgeCooldown] = useState(false);
@@ -266,6 +271,20 @@ const PlayMultiplayer = () => {
     if (reviewArrowTimerRef.current) {
       clearTimeout(reviewArrowTimerRef.current);
     }
+    if (bestUseNudgeTimerRef.current) {
+      clearTimeout(bestUseNudgeTimerRef.current);
+    }
+  }, []);
+
+  const showBestUseNudge = useCallback(() => {
+    if (bestUseNudgeTimerRef.current) {
+      clearTimeout(bestUseNudgeTimerRef.current);
+    }
+    setBestUseNudge(BEST_USE_NUDGE_MESSAGE);
+    bestUseNudgeTimerRef.current = setTimeout(() => {
+      setBestUseNudge(null);
+      bestUseNudgeTimerRef.current = null;
+    }, 6000);
   }, []);
 
   const showReviewArrows = useCallback((arrows = []) => {
@@ -302,45 +321,65 @@ const PlayMultiplayer = () => {
     topMoveLimit: DEFAULT_REVIEW_TOP_MOVES,
   }), [moveReviewRecords, bestButtonUses, reviewEnabled]);
 
-  const resetMoveReviewTracking = useCallback(() => {
-    reviewEnabledRef.current = false;
-    reviewEnabledUsedRef.current = false;
+  const resetMoveReviewTracking = useCallback((mode = ratedMode) => {
+    const defaultReviewEnabled = getDefaultReviewEnabled(mode);
+    reviewEnabledRef.current = defaultReviewEnabled;
+    reviewEnabledUsedRef.current = defaultReviewEnabled;
     moveReviewRecordsRef.current = [];
     bestButtonUsesRef.current = 0;
     lastBestRevealRef.current = null;
     pendingReviewPromisesRef.current = [];
-    setReviewEnabled(false);
+    setReviewEnabled(defaultReviewEnabled);
     setReviewLoading(false);
     setLatestReviewResult(null);
     setMoveReviewRecords([]);
     setBestButtonUses(0);
+    setBestUseNudge(null);
     setReviewArrows([]);
     if (reviewArrowTimerRef.current) {
       clearTimeout(reviewArrowTimerRef.current);
       reviewArrowTimerRef.current = null;
     }
-  }, []);
+    if (bestUseNudgeTimerRef.current) {
+      clearTimeout(bestUseNudgeTimerRef.current);
+      bestUseNudgeTimerRef.current = null;
+    }
+  }, [ratedMode]);
 
   const handleReviewEnabledChange = useCallback((enabled) => {
+    if (ratedMode === 'rated' && enabled) return;
     reviewEnabledRef.current = Boolean(enabled);
     if (enabled) {
       reviewEnabledUsedRef.current = true;
     }
     setReviewEnabled(Boolean(enabled));
-  }, []);
+  }, [ratedMode]);
 
   const handleBestButtonUse = useCallback(() => {
     if (ratedMode !== 'casual') return;
     setBestButtonUses((current) => {
       const next = current + 1;
       bestButtonUsesRef.current = next;
+      if (shouldShowBestUseNudge(next)) {
+        showBestUseNudge();
+      }
       return next;
     });
-  }, [ratedMode]);
+  }, [ratedMode, showBestUseNudge]);
 
   const handleBestMovesReady = useCallback(({ fen, topMoves, source }) => {
     lastBestRevealRef.current = { fen, topMoves, source };
   }, []);
+
+  useEffect(() => {
+    if (ratedMode !== 'rated' || !reviewEnabled) return;
+    reviewEnabledRef.current = false;
+    reviewEnabledUsedRef.current = false;
+    setReviewEnabled(false);
+    setReviewLoading(false);
+    setLatestReviewResult(null);
+    setReviewArrows([]);
+  }, [ratedMode, reviewEnabled]);
 
   const appendMoveReviewRecord = useCallback((record) => {
     const next = [...moveReviewRecordsRef.current, record];
@@ -818,6 +857,7 @@ const PlayMultiplayer = () => {
       // Detect game mode (rated or casual)
       const gameMode = data.game_mode || 'casual';
       setRatedMode(gameMode);
+      resetMoveReviewTracking(gameMode);
       const currentUserId = Number(user?.id);
       const opponentRatingForPreference = synGame
         ? syntheticOpponentRating
@@ -5163,6 +5203,7 @@ const PlayMultiplayer = () => {
           onChange: handleReviewEnabledChange,
           onShowArrows: showReviewArrows,
         },
+        bestUseNudge,
         onBestButtonUse: handleBestButtonUse,
         onBestMovesReady: handleBestMovesReady,
       }}
@@ -5199,14 +5240,17 @@ const PlayMultiplayer = () => {
                 </button>
               )}
 
-              {/* Draw button: only show for human vs human games — AI opponents cannot respond */}
-              <button
-                onClick={() => handleReviewEnabledChange(!reviewEnabled)}
-                className={`gc-action-btn gc-action-primary ${reviewEnabled ? 'gc-mobile-action-active' : ''}`}
-                title={reviewEnabled ? 'Turn Review off' : 'Turn Review on'}
-              >
-                Review
-              </button>
+              {/* Review is intentionally unavailable for rated games. */}
+              {ratedMode !== 'rated' && (
+                <label className="gc-action-review-label" title={reviewEnabled ? 'Turn Review off' : 'Show best move alternatives after each move you make'}>
+                  <input
+                    type="checkbox"
+                    checked={reviewEnabled}
+                    onChange={(event) => handleReviewEnabledChange(event.target.checked)}
+                  />
+                  Review
+                </label>
+              )}
 
               {!isSyntheticGame && (
                 <button

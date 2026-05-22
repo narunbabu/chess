@@ -83,6 +83,17 @@
   font-size: 20px;
 }
 
+.mrr-note {
+  margin: 10px 20px 0;
+  border: 1px solid rgba(251, 191, 36, 0.36);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: rgba(251, 191, 36, 0.1);
+  color: #facc15;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
 .mrr-move-list {
   display: flex;
   flex-direction: column;

@@ -1,6 +1,8 @@
 import {
   buildMoveReviewRecord,
   createMoveReviewReport,
+  getDefaultReviewEnabled,
+  shouldShowBestUseNudge,
   summarizeMoveReviewReport,
 } from '../moveReviewReport';
 
@@ -54,9 +56,28 @@ describe('moveReviewReport', () => {
       }),
       buildMoveReviewRecord({
         fenBefore: START_FEN,
+        userMove: 'e2e4',
+        topMoves: [
+          { move: 'd2d4', cp: 34 },
+          { move: 'e2e4', cp: 29 },
+        ],
+        ply: 2,
+      }),
+      buildMoveReviewRecord({
+        fenBefore: START_FEN,
+        userMove: 'g1f3',
+        topMoves: [
+          { move: 'd2d4', cp: 34 },
+          { move: 'e2e4', cp: 29 },
+          { move: 'g1f3', cp: 22 },
+        ],
+        ply: 3,
+      }),
+      buildMoveReviewRecord({
+        fenBefore: START_FEN,
         userMove: 'b1c3',
         topMoves: [{ move: 'd2d4', cp: 34 }],
-        ply: 1,
+        ply: 4,
       }),
     ];
 
@@ -65,13 +86,32 @@ describe('moveReviewReport', () => {
       bestButtonUses: 3,
       reviewEnabledUsed: true,
     })).toMatchObject({
-      analyzed_moves: 2,
+      analyzed_moves: 4,
       best_move_count: 1,
-      average_rank: 1,
+      top_1_count: 1,
+      top_2_count: 1,
+      top_3_count: 1,
+      average_rank: 2,
+      ranked_moves_count: 3,
+      rank_sum: 6,
       outside_top_moves_count: 1,
+      outside_top_5_count: 1,
+      coins_earned: 6,
       best_button_uses: 3,
       review_enabled_used: true,
     });
+  });
+
+  test('defaults review on for non-rated modes only', () => {
+    expect(getDefaultReviewEnabled('casual')).toBe(true);
+    expect(getDefaultReviewEnabled('learning')).toBe(true);
+    expect(getDefaultReviewEnabled(undefined)).toBe(true);
+    expect(getDefaultReviewEnabled('rated')).toBe(false);
+  });
+
+  test('shows the casual Best-use nudge after the fifth use', () => {
+    expect(shouldShowBestUseNudge(5)).toBe(false);
+    expect(shouldShowBestUseNudge(6)).toBe(true);
   });
 
   test('creates the persisted report shape with summary', () => {

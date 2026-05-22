@@ -29,9 +29,12 @@ import { getMovePath, createPathHighlights, mergeHighlights } from "../../utils/
 import { setPreferredGameMode } from "../../utils/gamePreferences";
 import { rememberOpponentRatingForMode } from "../../utils/ratingWindow";
 import {
+  BEST_USE_NUDGE_MESSAGE,
   buildMoveReviewRecord,
   createMoveReviewReport,
   DEFAULT_REVIEW_TOP_MOVES,
+  getDefaultReviewEnabled,
+  shouldShowBestUseNudge,
 } from "../../utils/moveReviewReport";
 
 // Import Services
@@ -253,11 +256,12 @@ const PlayComputer = () => {
   const [cctArrows,  setCctArrows]  = useState([]); // CCT board arrows from learning panel
   const [reviewArrows, setReviewArrows] = useState([]);
   const [boardLabels, setBoardLabels] = useState([]); // Numbered square labels from Best mode
-  const [reviewEnabled, setReviewEnabled] = useState(false);
+  const [reviewEnabled, setReviewEnabled] = useState(() => getDefaultReviewEnabled(location.state?.ratedMode || 'casual'));
   const [reviewLoading, setReviewLoading] = useState(false);
   const [latestReviewResult, setLatestReviewResult] = useState(null);
   const [moveReviewRecords, setMoveReviewRecords] = useState([]);
   const [bestButtonUses, setBestButtonUses] = useState(0);
+  const [bestUseNudge, setBestUseNudge] = useState(null);
 
   // Time control from lobby (minutes + increment seconds)
   const [timeControlMin, setTimeControlMin] = useState(() => {
@@ -312,6 +316,7 @@ const PlayComputer = () => {
   const bestButtonUsesRef = useRef(bestButtonUses);
   const lastBestRevealRef = useRef(null);
   const reviewArrowTimerRef = useRef(null);
+  const bestUseNudgeTimerRef = useRef(null);
   useEffect(() => { gameHistoryRef.current = gameHistory; }, [gameHistory]);
   useEffect(() => { playerScoreRef.current = playerScore; }, [playerScore]);
   useEffect(() => { computerScoreRef.current = computerScore; }, [computerScore]);
@@ -323,6 +328,20 @@ const PlayComputer = () => {
     if (reviewArrowTimerRef.current) {
       clearTimeout(reviewArrowTimerRef.current);
     }
+    if (bestUseNudgeTimerRef.current) {
+      clearTimeout(bestUseNudgeTimerRef.current);
+    }
+  }, []);
+
+  const showBestUseNudge = useCallback(() => {
+    if (bestUseNudgeTimerRef.current) {
+      clearTimeout(bestUseNudgeTimerRef.current);
+    }
+    setBestUseNudge(BEST_USE_NUDGE_MESSAGE);
+    bestUseNudgeTimerRef.current = setTimeout(() => {
+      setBestUseNudge(null);
+      bestUseNudgeTimerRef.current = null;
+    }, 6000);
   }, []);
 
   const showReviewArrows = useCallback((arrows = []) => {
@@ -374,44 +393,64 @@ const PlayComputer = () => {
     topMoveLimit: DEFAULT_REVIEW_TOP_MOVES,
   }), [moveReviewRecords, bestButtonUses, reviewEnabled]);
 
-  const resetMoveReviewTracking = useCallback(() => {
-    reviewEnabledRef.current = false;
-    reviewEnabledUsedRef.current = false;
+  const resetMoveReviewTracking = useCallback((mode = ratedMode) => {
+    const defaultReviewEnabled = getDefaultReviewEnabled(mode);
+    reviewEnabledRef.current = defaultReviewEnabled;
+    reviewEnabledUsedRef.current = defaultReviewEnabled;
     moveReviewRecordsRef.current = [];
     bestButtonUsesRef.current = 0;
     lastBestRevealRef.current = null;
-    setReviewEnabled(false);
+    setReviewEnabled(defaultReviewEnabled);
     setReviewLoading(false);
     setLatestReviewResult(null);
     setMoveReviewRecords([]);
     setBestButtonUses(0);
+    setBestUseNudge(null);
     setReviewArrows([]);
     if (reviewArrowTimerRef.current) {
       clearTimeout(reviewArrowTimerRef.current);
       reviewArrowTimerRef.current = null;
     }
-  }, []);
+    if (bestUseNudgeTimerRef.current) {
+      clearTimeout(bestUseNudgeTimerRef.current);
+      bestUseNudgeTimerRef.current = null;
+    }
+  }, [ratedMode]);
 
   const handleReviewEnabledChange = useCallback((enabled) => {
+    if (ratedMode === 'rated' && enabled) return;
     reviewEnabledRef.current = Boolean(enabled);
     if (enabled) {
       reviewEnabledUsedRef.current = true;
     }
     setReviewEnabled(Boolean(enabled));
-  }, []);
+  }, [ratedMode]);
 
   const handleBestButtonUse = useCallback(() => {
     if (ratedMode !== 'casual') return;
     setBestButtonUses((current) => {
       const next = current + 1;
       bestButtonUsesRef.current = next;
+      if (shouldShowBestUseNudge(next)) {
+        showBestUseNudge();
+      }
       return next;
     });
-  }, [ratedMode]);
+  }, [ratedMode, showBestUseNudge]);
 
   const handleBestMovesReady = useCallback(({ fen, topMoves, source }) => {
     lastBestRevealRef.current = { fen, topMoves, source };
   }, []);
+
+  useEffect(() => {
+    if (ratedMode !== 'rated' || !reviewEnabled) return;
+    reviewEnabledRef.current = false;
+    reviewEnabledUsedRef.current = false;
+    setReviewEnabled(false);
+    setReviewLoading(false);
+    setLatestReviewResult(null);
+    setReviewArrows([]);
+  }, [ratedMode, reviewEnabled]);
 
   const appendMoveReviewRecord = useCallback((record) => {
     const next = [...moveReviewRecordsRef.current, record];
@@ -2160,7 +2199,7 @@ const PlayComputer = () => {
         setMoveSquares({});
         setLastMoveHighlights({});
         setComputerMoveInProgress(false);
-        resetMoveReviewTracking();
+        resetMoveReviewTracking(effectiveRatedMode);
 
         // Start the game immediately — don't wait for backend API
         setGameStarted(true);
@@ -2301,9 +2340,9 @@ const PlayComputer = () => {
         setUndoChancesRemaining(0); // Reset undo chances
         setSyntheticOpponent(null); // Reset so next game gets a fresh opponent name
         setChatMessages([]); // Clear chat on reset
-        resetMoveReviewTracking();
+        resetMoveReviewTracking(ratedMode);
         // Note: Does not reset playerColor, computerDepth, or ratedMode, keeping user selections
-    }, [resetTimer, timerRef, replayTimerRef, resetMoveReviewTracking]); // Dependencies: stable hook fn and refs accessed
+    }, [resetTimer, timerRef, replayTimerRef, resetMoveReviewTracking, ratedMode]); // Dependencies: stable hook fn and refs accessed
 
     // --- Chat handlers for synthetic opponent ---
     const addChatMessage = useCallback((sender, message, isPlayer, type = 'message') => {
@@ -2810,13 +2849,16 @@ const PlayComputer = () => {
         console.log(`[PlayComputer] 🎮 Game mode changed to: ${mode}`);
         setRatedMode(mode);
         localStorage.setItem('gameRatedMode', mode);
+        if (!gameStarted && !countdownActive) {
+            resetMoveReviewTracking(mode);
+        }
         companionChoiceTouchedRef.current = mode === 'learning';
         // Companions are not allowed in rated games — clear any active companion
         if (mode === 'rated' || mode === 'learning') {
             companionChoiceTouchedRef.current = false;
             setSelectedCompanion(null);
         }
-    }, []);
+    }, [countdownActive, gameStarted, resetMoveReviewTracking]);
 
    const handleCompanionSelect = useCallback((companion) => {
         console.log(`[PlayComputer] 🤝 Companion selected: ${companion.name}`);
@@ -3213,6 +3255,7 @@ const PlayComputer = () => {
           onChange: handleReviewEnabledChange,
           onShowArrows: showReviewArrows,
         },
+        bestUseNudge,
         onBestButtonUse: handleBestButtonUse,
         onBestMovesReady: handleBestMovesReady,
       }}

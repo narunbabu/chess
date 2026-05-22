@@ -2,6 +2,14 @@ import { Chess } from 'chess.js';
 
 export const REVIEW_REPORT_VERSION = 1;
 export const DEFAULT_REVIEW_TOP_MOVES = 5;
+export const BEST_USE_NUDGE_THRESHOLD = 5;
+export const BEST_USE_NUDGE_MESSAGE = 'Try calculating first. Best moves are helpful, but using them too often will slow your improvement.';
+
+export const getDefaultReviewEnabled = (ratedMode) => ratedMode !== 'rated';
+
+export const shouldShowBestUseNudge = (bestButtonUses, threshold = BEST_USE_NUDGE_THRESHOLD) => (
+  Number(bestButtonUses) > threshold
+);
 
 export const normalizeMoveToUci = (move) => {
   if (!move) return '';
@@ -89,6 +97,14 @@ export const buildMoveReviewRecord = ({
 
 const roundToTwo = (value) => Math.round(value * 100) / 100;
 
+export const getMoveRankCoinValue = (rank) => {
+  const numericRank = Number(rank);
+  if (numericRank === 1) return 3;
+  if (numericRank === 2) return 2;
+  if (numericRank === 3) return 1;
+  return 0;
+};
+
 export const summarizeMoveReviewReport = ({
   moves = [],
   bestButtonUses = 0,
@@ -102,12 +118,24 @@ export const summarizeMoveReviewReport = ({
     && Number.isFinite(Number(move.userMoveRank))
   ));
   const rankTotal = rankedMoves.reduce((sum, move) => sum + Number(move.userMoveRank), 0);
+  const top1Count = rankedMoves.filter(move => Number(move.userMoveRank) === 1).length;
+  const top2Count = rankedMoves.filter(move => Number(move.userMoveRank) === 2).length;
+  const top3Count = rankedMoves.filter(move => Number(move.userMoveRank) === 3).length;
+  const outsideTopMovesCount = analyzedMoves.filter(move => move.isOutsideTopMoves).length;
+  const coinsEarned = rankedMoves.reduce((sum, move) => sum + getMoveRankCoinValue(move.userMoveRank), 0);
 
   return {
     analyzed_moves: analyzedMoves.length,
-    best_move_count: rankedMoves.filter(move => Number(move.userMoveRank) === 1).length,
+    best_move_count: top1Count,
+    top_1_count: top1Count,
+    top_2_count: top2Count,
+    top_3_count: top3Count,
     average_rank: rankedMoves.length > 0 ? roundToTwo(rankTotal / rankedMoves.length) : null,
-    outside_top_moves_count: analyzedMoves.filter(move => move.isOutsideTopMoves).length,
+    ranked_moves_count: rankedMoves.length,
+    rank_sum: rankTotal,
+    outside_top_moves_count: outsideTopMovesCount,
+    outside_top_5_count: outsideTopMovesCount,
+    coins_earned: coinsEarned,
     best_button_uses: Math.max(0, Number(bestButtonUses) || 0),
     review_enabled_used: Boolean(reviewEnabledUsed),
     top_move_limit: topMoveLimit,

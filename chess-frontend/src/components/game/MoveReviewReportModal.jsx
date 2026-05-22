@@ -19,6 +19,8 @@ const readBestUses = (report, summary) => {
   ) || 0;
 };
 
+const readNumber = (summary, key, fallback = 0) => Number(summary?.[key] ?? fallback) || 0;
+
 const formatRank = (move, topMoveLimit) => {
   if (move?.userMoveRank) return `#${move.userMoveRank}`;
   if (move?.isOutsideTopMoves) return `Outside top ${topMoveLimit}`;
@@ -33,6 +35,11 @@ const MoveReviewReportModal = ({ open, onClose, report }) => {
   const topMoveLimit = report?.topMoveLimit || report?.top_move_limit || summary?.top_move_limit || 5;
   const bestUses = readBestUses(report, summary);
   const hasData = hasMoveReviewData(report) || moves.length > 0 || bestUses > 0;
+  const top1Count = readNumber(summary, 'top_1_count', summary.best_move_count);
+  const top2Count = readNumber(summary, 'top_2_count');
+  const top3Count = readNumber(summary, 'top_3_count');
+  const outsideTop5Count = readNumber(summary, 'outside_top_5_count', summary.outside_top_moves_count);
+  const coinsEarned = readNumber(summary, 'coins_earned');
 
   return (
     <div className="mrr-backdrop" role="presentation" onClick={onClose}>
@@ -51,10 +58,20 @@ const MoveReviewReportModal = ({ open, onClose, report }) => {
           <>
             <div className="mrr-stats">
               <div><span>Analyzed</span><strong>{summary.analyzed_moves || moves.length}</strong></div>
-              <div><span>Best moves</span><strong>{summary.best_move_count || 0}</strong></div>
+              <div><span>Top 1</span><strong>{top1Count}</strong></div>
+              <div><span>Top 2</span><strong>{top2Count}</strong></div>
+              <div><span>Top 3</span><strong>{top3Count}</strong></div>
               <div><span>Avg rank</span><strong>{summary.average_rank ?? '-'}</strong></div>
+              <div><span>Outside top 5</span><strong>{outsideTop5Count}</strong></div>
               <div><span>Best used</span><strong>{bestUses}</strong></div>
+              <div><span>Coins</span><strong>{coinsEarned}</strong></div>
             </div>
+
+            {bestUses > 5 && (
+              <div className="mrr-note">
+                Best was used frequently in this game. Try calculating first before checking engine suggestions.
+              </div>
+            )}
 
             <div className="mrr-move-list">
               {moves.length === 0 ? (

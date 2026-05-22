@@ -273,6 +273,7 @@ const CCTPanel = ({
       setHintLevel(0);
       return;
     }
+    const shouldCountBestUse = hintLevel !== 2;
 
     if (bestMoveBudgetEnabled && bestRevealFen !== fen) {
       const accepted = bestMoveBudget?.onConsume?.('best-move');
@@ -281,7 +282,9 @@ const CCTPanel = ({
 
     setBestRevealFen(fen);
     setHintLevel(2);
-    onBestButtonUse?.({ fen, source: 'best' });
+    if (shouldCountBestUse) {
+      onBestButtonUse?.({ fen, source: 'best' });
+    }
   }, [bestMoveBudget, bestMoveBudgetEnabled, bestRevealFen, fen, game, hintLevel, isActive, isRated, onBestButtonUse]);
 
   useEffect(() => {
@@ -312,7 +315,6 @@ const CCTPanel = ({
             CCT counts are visible but move hints and best moves are disabled.
           </p>
         </div>
-        {renderReviewToggle()}
         {cct && <CctCounts cct={cct} />}
       </div>
     );

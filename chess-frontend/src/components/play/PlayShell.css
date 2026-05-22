@@ -1659,6 +1659,22 @@
 /* ================================================================
    REVIEW RESULT BAR — post-move analysis shown below the board
    ================================================================ */
+.gc-best-use-nudge {
+  width: var(--board-available-desktop);
+  margin: 8px auto 0;
+  border: 1px solid rgba(251, 191, 36, 0.34);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: rgba(251, 191, 36, 0.1);
+  color: #facc15;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  position: relative;
+  z-index: 0;
+}
+
 .gc-review-bar {
   width: var(--board-available-desktop);
   margin: 10px auto 0;
@@ -1772,6 +1788,14 @@
 }
 
 @media (max-width: 900px) {
+  .gc-best-use-nudge {
+    width: 100%;
+    margin: 4px 0 0;
+    border-left: none;
+    border-right: none;
+    border-radius: 0;
+  }
+
   .gc-review-bar {
     width: 100%;
     border-radius: 0;
