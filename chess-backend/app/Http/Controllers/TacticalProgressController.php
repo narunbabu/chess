@@ -63,6 +63,7 @@ class TacticalProgressController extends Controller
             'cct_my_total' => ['nullable', 'integer', 'min:0', 'max:255'],
             'cct_opp_found' => ['nullable', 'integer', 'min:0', 'max:255'],
             'cct_opp_total' => ['nullable', 'integer', 'min:0', 'max:255'],
+            'cct_unavailable' => ['nullable', 'boolean'],
             'time_spent_ms' => ['nullable', 'integer', 'min:0'],
             'stage_total_puzzles' => ['nullable', 'integer', 'min:1'],
         ]);
@@ -81,13 +82,15 @@ class TacticalProgressController extends Controller
         $myFound = min($myFound, $myTotal);
         $oppFound = min($oppFound, $oppTotal);
 
-        $cctAttempted = $myTotal > 0 || $oppTotal > 0;
+        $cctUnavailable = (bool) ($data['cct_unavailable'] ?? false) && ($myTotal + $oppTotal === 0);
+        $cctAttempted = $myTotal > 0 || $oppTotal > 0 || $cctUnavailable;
         $puzzleScore = $this->computePuzzleScore(
             $wrongCount,
             $myFound,
             $myTotal,
             $oppFound,
             $oppTotal,
+            $cctUnavailable,
             $solutionShown
         );
 
@@ -653,11 +656,17 @@ class TacticalProgressController extends Controller
         int $myTotal,
         int $oppFound,
         int $oppTotal,
+        bool $cctUnavailable,
         bool $solutionShown
     ): array {
-        $cctAttempted = $myTotal > 0 || $oppTotal > 0;
+        $cctTotal = $myTotal + $oppTotal;
+        $noCCTsAvailable = $cctUnavailable && $cctTotal === 0;
+        $cctAttempted = $cctTotal > 0 || $noCCTsAvailable;
 
-        if (!$cctAttempted) {
+        if ($noCCTsAvailable) {
+            $cctScore = 100;
+            $cctQuality = 1.0;
+        } elseif (!$cctAttempted) {
             $cctScore = null;
             $cctQuality = 0.0;
         } else {
@@ -686,6 +695,7 @@ class TacticalProgressController extends Controller
             'myTotal' => $myTotal,
             'oppFound' => $oppFound,
             'oppTotal' => $oppTotal,
+            'cctUnavailable' => $noCCTsAvailable,
             'solutionShown' => $solutionShown,
         ];
     }

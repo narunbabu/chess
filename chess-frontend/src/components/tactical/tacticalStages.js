@@ -107,12 +107,18 @@ export function computePuzzleScore({
   wrongCount = 0,
   cctMyFound  = 0, cctMyTotal  = 0,
   cctOppFound = 0, cctOppTotal = 0,
+  cctUnavailable = false,
   solutionShown = false,
 }) {
-  const cctAttempted = cctMyTotal > 0 || cctOppTotal > 0;
+  const cctTotal = cctMyTotal + cctOppTotal;
+  const noCCTsAvailable = cctUnavailable && cctTotal === 0;
+  const cctAttempted = cctTotal > 0 || noCCTsAvailable;
 
   let cctScore, cctQuality;
-  if (!cctAttempted) {
+  if (noCCTsAvailable) {
+    cctScore = 100;
+    cctQuality = 1.0;
+  } else if (!cctAttempted) {
     cctScore = null;
     cctQuality = 0;
   } else {
@@ -135,6 +141,7 @@ export function computePuzzleScore({
     cctAttempted,
     myFound: cctMyFound, myTotal: cctMyTotal,
     oppFound: cctOppFound, oppTotal: cctOppTotal,
+    cctUnavailable: noCCTsAvailable,
     solutionShown,
   };
 }

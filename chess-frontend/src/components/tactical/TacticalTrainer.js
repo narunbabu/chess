@@ -175,12 +175,13 @@ export default function TacticalTrainer() {
     const {
       myFound = 0, myTotal = 0,
       oppFound = 0, oppTotal = 0,
+      cctUnavailable = false,
       solutionShown = false,
     } = cctMeta;
 
     const puzzleScore = computePuzzleScore({
       wrongCount, cctMyFound: myFound, cctMyTotal: myTotal,
-      cctOppFound: oppFound, cctOppTotal: oppTotal, solutionShown,
+      cctOppFound: oppFound, cctOppTotal: oppTotal, cctUnavailable, solutionShown,
     });
     setLastPuzzleScore(puzzleScore);
 
@@ -252,6 +253,7 @@ export default function TacticalTrainer() {
           cct_my_total: myTotal,
           cct_opp_found: oppFound,
           cct_opp_total: oppTotal,
+          cct_unavailable: puzzleScore.cctUnavailable,
           time_spent_ms: cctMeta.timeSpentMs,
           stage_total_puzzles: stagePuzzles.length,
         };

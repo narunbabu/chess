@@ -34,6 +34,15 @@ function hintArrow(uci) {
   return [[from, to, 'rgba(129,182,76,0.85)']];
 }
 
+function countCCTGroup(group = {}) {
+  return (group.checks?.length || 0) + (group.captures?.length || 0) + (group.threats?.length || 0);
+}
+
+function countCCTs(ccts) {
+  if (!ccts) return 0;
+  return countCCTGroup(ccts.my) + countCCTGroup(ccts.opponent);
+}
+
 // Arrow color per CCT type
 const CCT_COLORS = {
   check:   '#ef4444',
@@ -104,6 +113,15 @@ export default function TacticalPuzzleBoard({
   const solutionRevealedRef = useRef(false); // tracks if we already penalised for reveal
   const executionPassedRef  = useRef(false); // tracks if puzzle moves were already solved correctly
 
+  // ── CCT state ───────────────────────────────────────────────────────────────
+  const [computedCCTs, setComputedCCTs] = useState(null); // { my, opponent }
+  const [cctMode,      setCctMode]      = useState('check'); // 'check'|'capture'|'threat'
+  const [selectedSq,   setSelectedSq]   = useState(null);
+  const [legalTargets, setLegalTargets] = useState([]);
+  const [cctEntries,   setCctEntries]   = useState([]);    // user-marked CCTs
+  const [cctRevealed,  setCctRevealed]  = useState(false); // after clicking "I'm Done"
+  const [cctFeedback,  setCctFeedback]  = useState(null);
+
   // ── CCT score tracking (persists across both CCT phases) ─────────────────────
   const CCT_THRESHOLD = 0.5; // must find ≥50% of CCTs to unlock Solve
   const cctResultRef  = useRef({ myFound: 0, myTotal: 0, oppFound: 0, oppTotal: 0 });
@@ -114,18 +132,10 @@ export default function TacticalPuzzleBoard({
     onComplete(success, wrongs, {
       myFound: r.myFound, myTotal: r.myTotal,
       oppFound: r.oppFound, oppTotal: r.oppTotal,
+      cctUnavailable: !!computedCCTs && countCCTs(computedCCTs) === 0,
       solutionShown,
     });
-  }, [onComplete]);
-
-  // ── CCT state ───────────────────────────────────────────────────────────────
-  const [computedCCTs, setComputedCCTs] = useState(null); // { my, opponent }
-  const [cctMode,      setCctMode]      = useState('check'); // 'check'|'capture'|'threat'
-  const [selectedSq,   setSelectedSq]   = useState(null);
-  const [legalTargets, setLegalTargets] = useState([]);
-  const [cctEntries,   setCctEntries]   = useState([]);    // user-marked CCTs
-  const [cctRevealed,  setCctRevealed]  = useState(false); // after clicking "I'm Done"
-  const [cctFeedback,  setCctFeedback]  = useState(null);
+  }, [onComplete, computedCCTs]);
 
   // ── PLAYING mode state (for click-click moves) ───────────────────────────────
   const [playingSelectedSq, setPlayingSelectedSq] = useState(null);
@@ -709,8 +719,8 @@ export default function TacticalPuzzleBoard({
   // Threshold gate: user must find ≥CCT_THRESHOLD of total CCTs (my + opp) to unlock Solve
   const cctTotals = computedCCTs
     ? {
-        myTotal:  computedCCTs.my.checks.length  + computedCCTs.my.captures.length  + computedCCTs.my.threats.length,
-        oppTotal: computedCCTs.opponent.checks.length + computedCCTs.opponent.captures.length + computedCCTs.opponent.threats.length,
+        myTotal:  countCCTGroup(computedCCTs.my),
+        oppTotal: countCCTGroup(computedCCTs.opponent),
       }
     : { myTotal: 0, oppTotal: 0 };
   const cctGrandTotal = cctTotals.myTotal + cctTotals.oppTotal;
@@ -1256,6 +1266,7 @@ export default function TacticalPuzzleBoard({
                     cctRevealed={cctRevealed}
                     missedCCTs={missedCCTs}
                     cctScore={cctScore}
+                    availableCount={allComputedFlat.length}
                     onDone={handleCCTDone}
                     onNext={handleCCTNext}
                     nextLabel="Check Opponent CCTs →"
@@ -1293,6 +1304,7 @@ export default function TacticalPuzzleBoard({
                     cctRevealed={cctRevealed}
                     missedCCTs={missedCCTs}
                     cctScore={cctScore}
+                    availableCount={allComputedFlat.length}
                     onDone={handleCCTDone}
                     onNext={handleCCTNext}
                     onGoBack={() => setCctRevealed(false)}
@@ -1655,6 +1667,7 @@ function CCTPanel({
   cctRevealed,
   missedCCTs,
   cctScore,
+  availableCount = 0,
   onDone, onNext, onGoBack,
   nextLabel, nextColor,
   thresholdMet = true,
@@ -1662,6 +1675,8 @@ function CCTPanel({
   totalCount = 0,
   thresholdPct = 0.5,
 }) {
+  const hasAvailableCCTs = availableCount > 0;
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -1673,12 +1688,14 @@ function CCTPanel({
         <p className="text-xs mt-1" style={{ color: '#8b8987' }}>
           {cctRevealed
             ? 'See what you found and what you missed.'
+            : !hasAvailableCCTs
+              ? 'No checks, captures, or forcing threats are available for this side.'
             : CCT_INSTRUCTIONS[cctMode]}
         </p>
       </div>
 
       {/* Mode toggle */}
-      {!cctRevealed && (
+      {!cctRevealed && hasAvailableCCTs && (
         <div className="flex gap-2">
           {['check', 'capture', 'threat'].map(mode => (
             <button
@@ -1713,7 +1730,13 @@ function CCTPanel({
 
       {/* Entries list */}
       <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-        {cctEntries.length === 0 && !cctRevealed && (
+        {!hasAvailableCCTs && !cctRevealed && (
+          <div className="text-xs text-center py-4" style={{ color: '#8b8987' }}>
+            No CCTs available. Continue to the next step.
+          </div>
+        )}
+
+        {hasAvailableCCTs && cctEntries.length === 0 && !cctRevealed && (
           <div className="text-xs text-center py-4" style={{ color: '#4a4744' }}>
             No CCTs marked yet
           </div>
@@ -1762,26 +1785,34 @@ function CCTPanel({
       {/* Score (after reveal) */}
       {cctRevealed && cctScore && (
         <div className="px-4 py-3 rounded-xl" style={{ backgroundColor: '#1a1916', border: '1px solid #3a3734' }}>
-          <div className="font-bold text-white text-sm mb-2">
-            Found {cctScore.found}/{cctScore.total} CCTs
-            {cctScore.found === cctScore.total && cctScore.total > 0 && (
-              <span className="ml-2 text-green-400">🎯 Perfect!</span>
-            )}
-          </div>
-          <div className="grid grid-cols-3 gap-2 text-xs" style={{ color: '#8b8987' }}>
-            <div>
-              <span style={{ color: CCT_COLORS.check }}>✚ </span>
-              {cctScore.checks.found}/{cctScore.checks.total}
+          {cctScore.total === 0 ? (
+            <div className="text-sm font-semibold" style={{ color: '#81b64c' }}>
+              No CCTs available for this side. Phase complete.
             </div>
-            <div>
-              <span style={{ color: CCT_COLORS.capture }}>× </span>
-              {cctScore.captures.found}/{cctScore.captures.total}
-            </div>
-            <div>
-              <span style={{ color: CCT_COLORS.threat }}>→ </span>
-              {cctScore.threats.found}/{cctScore.threats.total}
-            </div>
-          </div>
+          ) : (
+            <>
+              <div className="font-bold text-white text-sm mb-2">
+                Found {cctScore.found}/{cctScore.total} CCTs
+                {cctScore.found === cctScore.total && cctScore.total > 0 && (
+                  <span className="ml-2 text-green-400">🎯 Perfect!</span>
+                )}
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-xs" style={{ color: '#8b8987' }}>
+                <div>
+                  <span style={{ color: CCT_COLORS.check }}>✚ </span>
+                  {cctScore.checks.found}/{cctScore.checks.total}
+                </div>
+                <div>
+                  <span style={{ color: CCT_COLORS.capture }}>× </span>
+                  {cctScore.captures.found}/{cctScore.captures.total}
+                </div>
+                <div>
+                  <span style={{ color: CCT_COLORS.threat }}>→ </span>
+                  {cctScore.threats.found}/{cctScore.threats.total}
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -1794,7 +1825,7 @@ function CCTPanel({
           onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
           onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
         >
-          {cctEntries.length === 0 ? 'Skip →' : "I'm Done →"}
+          {!hasAvailableCCTs ? 'Continue →' : cctEntries.length === 0 ? 'Skip →' : "I'm Done →"}
         </button>
       ) : !thresholdMet && totalCount > 0 ? (
         <div>
