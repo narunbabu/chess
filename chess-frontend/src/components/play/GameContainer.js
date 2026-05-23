@@ -34,7 +34,7 @@ const REVIEW_RANK_COLORS = ['#FFD700', '#C0C0C0', '#CD7F32', '#60A5FA', '#34D399
 const REVIEW_USER_ARROW_COLOR = '#60A5FA';
 
 const getMoveUci = (move) => (move?.uci || move?.move || move || '').toString().toLowerCase();
-const uciToArrow = (uci, color, { opacity = 0.85, dashed = false } = {}) => {
+const uciToArrow = (uci, color, { opacity = 0.85, dashed = false, strokeWidthScale = null } = {}) => {
   if (!/^[a-h][1-8][a-h][1-8][qrbn]?$/.test(uci || '')) return null;
   return {
     from: uci.slice(0, 2),
@@ -42,6 +42,7 @@ const uciToArrow = (uci, color, { opacity = 0.85, dashed = false } = {}) => {
     color,
     opacity,
     dashed,
+    strokeWidthScale,
   };
 };
 
@@ -59,7 +60,7 @@ const buildReviewArrows = (result, topMoveLimit = 5) => {
     if (!uci) return;
     const isUserMove = userMove && uci === userMove;
     const color = REVIEW_RANK_COLORS[index] || '#93c5fd';
-    const arrow = uciToArrow(uci, color, { opacity: 0.9, dashed: true });
+    const arrow = uciToArrow(uci, color, { opacity: 0.72, dashed: true, strokeWidthScale: 0.55 });
     if (!arrow) return;
     seen.add(uci);
     arrows.push(arrow);
@@ -124,6 +125,7 @@ const GameContainer = ({
   const [bestMoveRequestId, setBestMoveRequestId] = useState(0);
   const [isBestOn, setIsBestOn] = useState(false);
   const [inlineBestMoves, setInlineBestMoves] = useState(null); // {topMoves, fen} for inline strip
+  const onBestMovesReadyRef = useRef(null);
   const moveListRef = useRef(null);
 
   // Extract timer data
@@ -208,11 +210,15 @@ const GameContainer = ({
     setBestMoveRequestId(id => id + 1);
   };
 
+  useEffect(() => {
+    onBestMovesReadyRef.current = cctData?.onBestMovesReady || null;
+  }, [cctData?.onBestMovesReady]);
+
   // Capture Best top moves emitted by CCTPanel so we can render them inline.
   const handleInlineBestMoves = useCallback((payload) => {
     setInlineBestMoves(payload || null);
-    cctData?.onBestMovesReady?.(payload);
-  }, [cctData]);
+    onBestMovesReadyRef.current?.(payload);
+  }, []);
 
   // Clear inline strip when Best is toggled off or game ends.
   useEffect(() => {

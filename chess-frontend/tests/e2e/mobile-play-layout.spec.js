@@ -14,7 +14,84 @@ async function startCasualComputerGame(page) {
   await expect(page.locator('.gc-board-wrapper')).toBeVisible();
 }
 
+async function installFakeStockfish(page) {
+  await page.addInitScript(() => {
+    const NativeWorker = window.Worker;
+
+    class FakeStockfishWorker {
+      constructor(url) {
+        this.url = String(url);
+        this.onmessage = null;
+        this.onerror = null;
+        this.terminated = false;
+      }
+
+      postMessage(message) {
+        if (this.terminated) return;
+
+        const send = (data, delay = 0) => {
+          setTimeout(() => {
+            if (!this.terminated && this.onmessage) {
+              this.onmessage({ data });
+            }
+          }, delay);
+        };
+
+        if (message === 'isready') {
+          send('readyok');
+          return;
+        }
+
+        if (typeof message === 'string' && message.startsWith('go ')) {
+          send('info depth 1 multipv 1 score cp 35 pv e2e4', 5);
+          send('info depth 1 multipv 2 score cp 20 pv d2d4', 5);
+          send('info depth 1 multipv 3 score cp 10 pv g1f3', 5);
+          send('info depth 1 multipv 4 score cp 5 pv c2c4', 5);
+          send('info depth 1 multipv 5 score cp 0 pv e2e3', 5);
+          send('bestmove e2e4', 10);
+        }
+      }
+
+      terminate() {
+        this.terminated = true;
+      }
+
+      addEventListener() {}
+      removeEventListener() {}
+      dispatchEvent() { return true; }
+    }
+
+    window.Worker = function Worker(url, options) {
+      const workerUrl = String(url);
+      if (workerUrl.includes('/workers/stockfish.js')) {
+        return new FakeStockfishWorker(workerUrl);
+      }
+      return new NativeWorker(url, options);
+    };
+  });
+}
+
 test.describe('Mobile play layout', () => {
+  test('Best shows future arrows and inline strip without opening the mobile drawer', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await installFakeStockfish(page);
+    await startCasualComputerGame(page);
+
+    const bestButton = page.locator('.gc-mobile-action-grid-portrait button:has-text("Best")');
+    await bestButton.click();
+
+    await expect(page.locator('.gc-right-panel')).toBeHidden();
+    await expect(page.locator('.gc-inline-best-strip')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('.gc-inline-best-strip')).toContainText('e4');
+    await expect(page.locator('[data-testid="chess-board"] svg line')).toHaveCount(3, { timeout: 5000 });
+
+    await bestButton.click();
+
+    await expect(page.locator('.gc-inline-best-strip')).toBeHidden();
+    await expect(page.locator('[data-testid="chess-board"] svg line')).toHaveCount(0);
+    await expect(page.locator('.gc-mobile-action-grid-portrait label:has-text("Review")')).toBeVisible();
+  });
+
   test('portrait keeps the board dominant and moves hidden until opened', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await startCasualComputerGame(page);
@@ -28,6 +105,7 @@ test.describe('Mobile play layout', () => {
     await expect(page.locator('.gc-mobile-action-grid-portrait label:has-text("Review")')).toBeVisible();
     await expect(page.locator('.gc-mobile-action-grid-portrait button:has-text("Undo")')).toBeVisible();
     await expect(page.locator('.gc-mobile-action-grid-portrait button:has-text("Best")')).toBeVisible();
+    await expect(page.locator('.gc-mobile-action-grid-portrait button[aria-label="Pause"], .gc-mobile-action-grid-portrait button[aria-label="Resume"]')).toBeVisible();
     const portraitMoreButton = page.locator('.gc-mobile-action-grid-portrait button[aria-label="More play actions"]');
     await expect(portraitMoreButton).toBeVisible();
     await expect(page.locator('.gc-mobile-action-grid-portrait button:has-text("Moves")')).toBeHidden();
@@ -36,7 +114,6 @@ test.describe('Mobile play layout', () => {
     await portraitMoreButton.click();
     const portraitMenu = page.locator('.gc-mobile-action-menu');
     await expect(portraitMenu).toBeVisible();
-    await expect(portraitMenu.locator('button').filter({ hasText: /Pause|Resume/ })).toBeVisible();
     await expect(portraitMenu.locator('button:has-text("CCT panel")')).toBeVisible();
     await expect(portraitMenu.locator('button:has-text("Companion")')).toBeVisible();
     await expect(portraitMenu.locator('button:has-text("Moves")')).toBeVisible();
@@ -70,6 +147,7 @@ test.describe('Mobile play layout', () => {
     await expect(page.locator('.gc-mobile-rail label:has-text("Review")')).toBeVisible();
     await expect(page.locator('.gc-mobile-rail button:has-text("Undo")')).toBeVisible();
     await expect(page.locator('.gc-mobile-rail button:has-text("Best")')).toBeVisible();
+    await expect(page.locator('.gc-mobile-rail button[aria-label="Pause"], .gc-mobile-rail button[aria-label="Resume"]')).toBeVisible();
     const railMoreButton = page.locator('.gc-mobile-rail button[aria-label="More play actions"]');
     await expect(railMoreButton).toBeVisible();
     await expect(page.locator('.gc-mobile-last-moves-rail')).toBeVisible();
@@ -84,7 +162,6 @@ test.describe('Mobile play layout', () => {
     await railMoreButton.click();
     const railMenu = page.locator('.gc-mobile-action-menu');
     await expect(railMenu).toBeVisible();
-    await expect(railMenu.locator('button').filter({ hasText: /Pause|Resume/ })).toBeVisible();
     await expect(railMenu.locator('button:has-text("CCT panel")')).toBeVisible();
     await expect(railMenu.locator('button:has-text("Companion")')).toBeVisible();
 

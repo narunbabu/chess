@@ -309,8 +309,9 @@ const ChessBoard = ({
           y: from.y + (dy * (r - REDUCER)) / r,
         };
 
+        const arrowStrokeWidth = strokeWidth * (a.strokeWidthScale || 1);
         const dashArray = a.dashed
-          ? `${strokeWidth * 1.6} ${strokeWidth * 0.9}`
+          ? `${arrowStrokeWidth * 1.6} ${arrowStrokeWidth * 0.9}`
           : undefined;
         return (
           <line
@@ -318,7 +319,7 @@ const ChessBoard = ({
             x1={from.x} y1={from.y}
             x2={end.x}  y2={end.y}
             stroke={a.color || 'rgba(255,0,0,0.7)'}
-            strokeWidth={strokeWidth}
+            strokeWidth={arrowStrokeWidth}
             strokeLinecap={a.dashed ? 'round' : undefined}
             strokeDasharray={dashArray}
             opacity={a.opacity ?? 0.75}

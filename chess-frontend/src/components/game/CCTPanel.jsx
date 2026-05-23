@@ -290,7 +290,7 @@ const CCTPanel = ({
   useEffect(() => {
     if (!bestMoveRequestId || bestMoveRequestId === lastBestMoveRequestRef.current) return;
     lastBestMoveRequestRef.current = bestMoveRequestId;
-    handleBestToggle(true);
+    handleBestToggle(false);
   }, [bestMoveRequestId, handleBestToggle]);
 
   const renderReviewToggle = () => (
