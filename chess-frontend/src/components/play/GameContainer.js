@@ -193,18 +193,18 @@ const GameContainer = ({
     showReviewArrows(latestReviewResult);
   }, [latestReviewResult, reviewLoading, onShowReviewArrows, showReviewArrows]);
 
-  const isMobileViewport = () => typeof window !== 'undefined' && window.innerWidth <= 768;
-
   const requestBestMove = () => {
     if (!cctData || bestMoveDisabled) return;
     setMobileMoreOpen(null);
-    // On mobile the CCT panel would cover the Review row and the action bar,
-    // so we keep the panel closed and render the Top-5 inline below the
-    // action bar instead. On desktop we still surface the CCT panel for
-    // continuity with the existing experience.
-    if (!isMobileViewport()) {
-      setRightTab('learn');
-    }
+    // CCTPanel is the component that listens to bestMoveRequestId, runs
+    // Stockfish, paints the Best arrows on the board, and emits the Top-5
+    // payload consumed by the inline strip. It only mounts while the
+    // 'learn' tab is the active right-panel tab, so we must switch tabs
+    // even on mobile — otherwise the request goes nowhere and neither
+    // the arrows nor the strip appear. We deliberately leave the mobile
+    // drawer closed so the board + action bar stay visible; the panel
+    // mounts off-screen and feeds the inline strip via onBestMovesReady.
+    setRightTab('learn');
     setBestMoveRequestId(id => id + 1);
   };
 
