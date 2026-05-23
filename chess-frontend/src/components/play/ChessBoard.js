@@ -309,6 +309,9 @@ const ChessBoard = ({
           y: from.y + (dy * (r - REDUCER)) / r,
         };
 
+        const dashArray = a.dashed
+          ? `${strokeWidth * 1.6} ${strokeWidth * 0.9}`
+          : undefined;
         return (
           <line
             key={`cct-arrow-${i}`}
@@ -316,6 +319,8 @@ const ChessBoard = ({
             x2={end.x}  y2={end.y}
             stroke={a.color || 'rgba(255,0,0,0.7)'}
             strokeWidth={strokeWidth}
+            strokeLinecap={a.dashed ? 'round' : undefined}
+            strokeDasharray={dashArray}
             opacity={a.opacity ?? 0.75}
             markerEnd={`url(#cct-arrowhead-${i})`}
           />

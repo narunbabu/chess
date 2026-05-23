@@ -295,8 +295,12 @@ const PlayMultiplayer = () => {
     reviewArrowTimerRef.current = setTimeout(() => {
       setReviewArrows([]);
       reviewArrowTimerRef.current = null;
-    }, 2000);
+    }, 2500);
   }, []);
+  // PlayMultiplayer uses react-chessboard directly (no SVG overlay), so
+  // review labels can't be rendered. Accept the callback to keep the API
+  // symmetric with PlayComputer.
+  const showReviewLabels = useCallback(() => {}, []);
 
   const boardArrows = useMemo(() => [
     ...cctArrows,
@@ -5202,6 +5206,7 @@ const PlayMultiplayer = () => {
           latestResult: latestReviewResult,
           onChange: handleReviewEnabledChange,
           onShowArrows: showReviewArrows,
+          onShowLabels: showReviewLabels,
         },
         bestUseNudge,
         onBestButtonUse: handleBestButtonUse,

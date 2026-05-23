@@ -334,7 +334,7 @@ const CCTPanel = ({
   return (
     <div className="cct-panel">
 
-      {/* ── Mode toggle buttons ─────────────────────────────────────────── */}
+      {/* ── Mode toggle (CCT only — Best lives in the main action bar) ──── */}
       <div className="cct-mode-row">
         <button
           data-tour="action-cct"
@@ -343,15 +343,6 @@ const CCTPanel = ({
           title={hintLevel === 1 ? 'Click to turn off CCT arrows' : 'Show CCT arrows on board'}
         >
           💡 CCT
-        </button>
-        <button
-          data-tour="action-cct-best"
-          className={`cct-mode-btn cct-mode-best ${hintLevel === 2 ? 'active' : ''} ${bestMoveLocked ? 'disabled' : ''}`}
-          onClick={() => handleBestToggle()}
-          disabled={bestMoveLocked}
-          title={bestMoveButtonTitle}
-        >
-          ⭐ Best{bestMoveBudgetEnabled ? ` (${bestMoveRemaining})` : ''}
         </button>
       </div>
 
@@ -405,37 +396,15 @@ const CCTPanel = ({
         <p className="cct-empty">Calculating…</p>
       ) : null}
 
-      {/* ── Best moves list ──────────────────────────────────────────────── */}
-      {hintLevel === 2 && (
-        <>
-          <div className="cct-best-header">Top {topMoveLimit} Moves</div>
-          {loadingBest && (
-            <div className="cct-loading">
-              <div className="cct-spinner" />
-              Analysing position…
-            </div>
-          )}
-          {!loadingBest && bestMoves && (
-            <div className="cct-best-list">
-              {bestMoves.length === 0 && <p className="cct-empty">No moves found.</p>}
-              {bestMoves.map((m, i) => (
-                <div
-                  key={i}
-                  className="cct-best-item"
-                  style={{ borderLeft: `3px solid ${getBestColor(i)}` }}
-                >
-                  <span className="cct-best-rank" style={{ color: getBestColor(i) }}>
-                    {i + 1}.
-                  </span>
-                  <span className="cct-best-san">{m.san}</span>
-                  <span className={`cct-best-tag ${TAG_CLASSES[m.tag] || 'cct-tag-positional'}`}>
-                    {m.tag}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </>
+      {/* Best mode moves the Top-N list into the main action bar (inline
+          strip in GameContainer); the panel only keeps CCT content. The
+          board arrows are still driven by the hintLevel === 2 effects
+          above so the on-board overlay continues to work. */}
+      {hintLevel === 2 && loadingBest && (
+        <div className="cct-loading">
+          <div className="cct-spinner" />
+          Analysing position…
+        </div>
       )}
 
     </div>

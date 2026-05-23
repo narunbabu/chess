@@ -31,53 +31,63 @@ const normalizeChessColor = (color) => {
 };
 
 const REVIEW_RANK_COLORS = ['#FFD700', '#C0C0C0', '#CD7F32', '#60A5FA', '#34D399'];
-const REVIEW_ARROW_FAINT_COLORS = [
-  'rgba(255, 215, 0, 0.28)',
-  'rgba(192, 192, 192, 0.26)',
-  'rgba(205, 127, 50, 0.26)',
-  'rgba(96, 165, 250, 0.24)',
-  'rgba(52, 211, 153, 0.24)',
-];
-const REVIEW_USER_ARROW_COLOR = 'rgba(96, 165, 250, 0.96)';
+const REVIEW_USER_ARROW_COLOR = '#60A5FA';
 
 const getMoveUci = (move) => (move?.uci || move?.move || move || '').toString().toLowerCase();
-const uciToArrow = (uci, color, opacity = 0.75) => {
+const uciToArrow = (uci, color, { opacity = 0.85, dashed = false } = {}) => {
   if (!/^[a-h][1-8][a-h][1-8][qrbn]?$/.test(uci || '')) return null;
   return {
     from: uci.slice(0, 2),
     to: uci.slice(2, 4),
     color,
     opacity,
+    dashed,
   };
 };
 
 const buildReviewArrows = (result, topMoveLimit = 5) => {
-  if (!result) return [];
+  if (!result) return { arrows: [], labels: [] };
 
   const userMove = getMoveUci(result.userMove);
   const topMoves = (result.topMoves || []).slice(0, topMoveLimit);
   const arrows = [];
+  const labels = [];
   const seen = new Set();
 
   topMoves.forEach((move, index) => {
     const uci = getMoveUci(move);
+    if (!uci) return;
     const isUserMove = userMove && uci === userMove;
-    const arrow = uciToArrow(
-      uci,
-      isUserMove ? REVIEW_USER_ARROW_COLOR : REVIEW_ARROW_FAINT_COLORS[index] || 'rgba(147, 197, 253, 0.22)',
-      isUserMove ? 0.95 : 0.45
-    );
+    const color = REVIEW_RANK_COLORS[index] || '#93c5fd';
+    const arrow = uciToArrow(uci, color, { opacity: 0.9, dashed: true });
     if (!arrow) return;
     seen.add(uci);
     arrows.push(arrow);
+    labels.push({
+      square: uci.slice(0, 2),
+      label: String(index + 1),
+      color,
+    });
+    // Tag user's actual move with a checkmark badge stacked on the rank label.
+    if (isUserMove) {
+      arrow.userPicked = true;
+    }
   });
 
   if (userMove && !seen.has(userMove)) {
-    const userArrow = uciToArrow(userMove, REVIEW_USER_ARROW_COLOR, 0.95);
-    if (userArrow) arrows.push(userArrow);
+    const userArrow = uciToArrow(userMove, REVIEW_USER_ARROW_COLOR, { opacity: 0.9, dashed: true });
+    if (userArrow) {
+      userArrow.userPicked = true;
+      arrows.push(userArrow);
+      labels.push({
+        square: userMove.slice(0, 2),
+        label: '✓',
+        color: REVIEW_USER_ARROW_COLOR,
+      });
+    }
   }
 
-  return arrows;
+  return { arrows, labels };
 };
 
 /**
@@ -113,6 +123,7 @@ const GameContainer = ({
   const [mobileMoreOpen, setMobileMoreOpen] = useState(null);
   const [bestMoveRequestId, setBestMoveRequestId] = useState(0);
   const [isBestOn, setIsBestOn] = useState(false);
+  const [inlineBestMoves, setInlineBestMoves] = useState(null); // {topMoves, fen} for inline strip
   const moveListRef = useRef(null);
 
   // Extract timer data
@@ -168,26 +179,45 @@ const GameContainer = ({
   const reviewLoading = Boolean(reviewState.loading);
   const latestReviewResult = reviewState.latestResult;
   const onShowReviewArrows = reviewState.onShowArrows;
+  const onShowReviewLabels = reviewState.onShowLabels;
   const bestUseNudge = cctData?.bestUseNudge;
   const showReviewArrows = useCallback((result = latestReviewResult) => {
     if (!result || !onShowReviewArrows) return;
-    onShowReviewArrows(buildReviewArrows(result, cctData?.topMoveLimit || 5));
-  }, [cctData?.topMoveLimit, latestReviewResult, onShowReviewArrows]);
+    const { arrows, labels } = buildReviewArrows(result, cctData?.topMoveLimit || 5);
+    onShowReviewArrows(arrows);
+    onShowReviewLabels?.(labels);
+  }, [cctData?.topMoveLimit, latestReviewResult, onShowReviewArrows, onShowReviewLabels]);
 
   useEffect(() => {
     if (!latestReviewResult || reviewLoading || !onShowReviewArrows) return;
     showReviewArrows(latestReviewResult);
   }, [latestReviewResult, reviewLoading, onShowReviewArrows, showReviewArrows]);
 
+  const isMobileViewport = () => typeof window !== 'undefined' && window.innerWidth <= 768;
+
   const requestBestMove = () => {
     if (!cctData || bestMoveDisabled) return;
     setMobileMoreOpen(null);
-    setRightTab('learn');
-    if (window.innerWidth <= 768) {
-      setMobileRightPanelOpen(true);
+    // On mobile the CCT panel would cover the Review row and the action bar,
+    // so we keep the panel closed and render the Top-5 inline below the
+    // action bar instead. On desktop we still surface the CCT panel for
+    // continuity with the existing experience.
+    if (!isMobileViewport()) {
+      setRightTab('learn');
     }
     setBestMoveRequestId(id => id + 1);
   };
+
+  // Capture Best top moves emitted by CCTPanel so we can render them inline.
+  const handleInlineBestMoves = useCallback((payload) => {
+    setInlineBestMoves(payload || null);
+    cctData?.onBestMovesReady?.(payload);
+  }, [cctData]);
+
+  // Clear inline strip when Best is toggled off or game ends.
+  useEffect(() => {
+    if (!isBestOn) setInlineBestMoves(null);
+  }, [isBestOn]);
 
   const toggleReviewMode = () => {
     if (!cctData || gameOver) return;
@@ -294,8 +324,20 @@ const GameContainer = ({
 
   const renderMobileQuickActionButtons = (placement = 'portrait') => (
     <>
-      {/* Review checkbox */}
-      {cctData && !isRated && !gameOver && (
+      {/* Pause/Resume — promoted to front of mobile row (casual only) */}
+      {!isRated && !isLearningMode && !gameOver && (
+        <button
+          type="button"
+          className="gc-mobile-action-btn gc-action-neutral gc-mobile-action-icon"
+          onClick={() => (isTimerRunning ? pauseTimer?.() : handleTimer?.())}
+          title={isTimerRunning ? 'Pause' : 'Resume'}
+          aria-label={isTimerRunning ? 'Pause' : 'Resume'}
+        >
+          {isTimerRunning ? '⏸' : '▶'}
+        </button>
+      )}
+      {/* Review checkbox — hidden while Best is on; the inline strip replaces it */}
+      {cctData && !isRated && !gameOver && !isBestOn && (
         <label className="gc-mobile-review-label" title={reviewEnabled ? 'Turn Review off' : 'Show best move alternatives after each move'}>
           <input
             type="checkbox"
@@ -329,26 +371,21 @@ const GameContainer = ({
           {isBestOn ? 'Best' : `Best${isLearningMode && bestMoveBudgetEnabled ? ` ${bestMoveRemaining}` : ''}`}
         </button>
       )}
-      {/* More menu — Pause, Chat, CCT, Companion, Help, Moves, Draw, Resign */}
+      {/* More menu — now a vertical 3-dots icon to save row space.
+          Pause/Resume promoted out of this menu (see icon button above). */}
       <div className="gc-mobile-action-menu-wrap">
         <button
           type="button"
-          className={`gc-mobile-action-btn gc-action-neutral ${mobileMoreOpen === placement ? 'gc-mobile-action-active' : ''}`}
+          className={`gc-mobile-action-btn gc-action-neutral gc-mobile-action-icon ${mobileMoreOpen === placement ? 'gc-mobile-action-active' : ''}`}
           onClick={() => setMobileMoreOpen(open => open === placement ? null : placement)}
           aria-label="More play actions"
           aria-expanded={mobileMoreOpen === placement}
+          title="More"
         >
-          More
+          ⋮
         </button>
         {mobileMoreOpen === placement && (
           <div className="gc-mobile-action-menu" role="menu">
-            {!isRated && !isLearningMode && !gameOver && (
-              <button type="button" role="menuitem"
-                onClick={() => { setMobileMoreOpen(null); isTimerRunning ? pauseTimer?.() : handleTimer?.(); }}
-              >
-                {isTimerRunning ? '⏸ Pause' : '▶ Resume'}
-              </button>
-            )}
             {chatData && !gameOver && (
               <button type="button" role="menuitem"
                 onClick={() => { setMobileMoreOpen(null); openMobilePanel('chat'); }}
@@ -405,6 +442,29 @@ const GameContainer = ({
     </>
   );
 
+  // Inline Best Top-5 strip — replaces the Review row while Best is on so
+  // the player keeps both the board and the action bar visible.
+  const renderInlineBestStrip = () => {
+    if (!isBestOn || !inlineBestMoves || !Array.isArray(inlineBestMoves.topMoves) || inlineBestMoves.topMoves.length === 0) return null;
+    return (
+      <div className="gc-inline-best-strip" aria-label="Top best moves">
+        <span className="gc-inline-best-label">⭐ Best</span>
+        {inlineBestMoves.topMoves.slice(0, 5).map((m, i) => (
+          <span
+            key={`${m.uci || m.move || i}-${i}`}
+            className="gc-inline-best-item"
+            style={{ borderLeftColor: REVIEW_RANK_COLORS[i] || '#93c5fd' }}
+          >
+            <span className="gc-inline-best-rank" style={{ color: REVIEW_RANK_COLORS[i] || '#93c5fd' }}>
+              {i + 1}
+            </span>
+            <span className="gc-inline-best-san">{m.san || m.move}</span>
+          </span>
+        ))}
+      </div>
+    );
+  };
+
   // ----- ACTION BAR -----
   const renderActionBar = () => {
     if (!gameStarted || isReplayMode) return null;
@@ -413,6 +473,7 @@ const GameContainer = ({
         <div className="gc-mobile-action-grid gc-mobile-action-grid-portrait">
           {renderMobileQuickActionButtons('portrait')}
         </div>
+        {renderInlineBestStrip()}
         <div className="gc-desktop-action-group">
         {gameOver ? (
           /* ── Game over ── */
@@ -461,8 +522,8 @@ const GameContainer = ({
               </button>
             )}
 
-            {/* Review checkbox */}
-            {cctData && (
+            {/* Review checkbox — hidden while Best is on (inline Best strip takes its place) */}
+            {cctData && !isBestOn && (
               <label className="gc-action-review-label" title={reviewEnabled ? 'Turn Review off' : 'Show best move alternatives after each move you make'}>
                 <input
                   type="checkbox"
@@ -790,7 +851,7 @@ const GameContainer = ({
         reviewResult={reviewState.latestResult}
         onReviewEnabledChange={reviewState.onChange}
         onBestButtonUse={cctData.onBestButtonUse}
-        onBestMovesReady={cctData.onBestMovesReady}
+        onBestMovesReady={handleInlineBestMoves}
         onBestStateChange={setIsBestOn}
       />
     );

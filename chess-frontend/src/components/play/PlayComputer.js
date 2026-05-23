@@ -255,7 +255,8 @@ const PlayComputer = () => {
   const [companions, setCompanions] = useState([]); // Available companions list (fetched once)
   const [cctArrows,  setCctArrows]  = useState([]); // CCT board arrows from learning panel
   const [reviewArrows, setReviewArrows] = useState([]);
-  const [boardLabels, setBoardLabels] = useState([]); // Numbered square labels from Best mode
+  const [reviewLabels, setReviewLabels] = useState([]); // Numbered review labels at origin squares
+  const [cctLabels, setCctLabels] = useState([]); // Numbered square labels from Best mode (in-play)
   const [reviewEnabled, setReviewEnabled] = useState(() => getDefaultReviewEnabled(location.state?.ratedMode || 'casual'));
   const [reviewLoading, setReviewLoading] = useState(false);
   const [latestReviewResult, setLatestReviewResult] = useState(null);
@@ -351,14 +352,24 @@ const PlayComputer = () => {
     setReviewArrows(Array.isArray(arrows) ? arrows : []);
     reviewArrowTimerRef.current = setTimeout(() => {
       setReviewArrows([]);
+      setReviewLabels([]);
       reviewArrowTimerRef.current = null;
-    }, 2000);
+    }, 2500);
+  }, []);
+
+  const showReviewLabels = useCallback((labels = []) => {
+    setReviewLabels(Array.isArray(labels) ? labels : []);
   }, []);
 
   const boardArrows = useMemo(() => [
     ...cctArrows,
     ...reviewArrows,
   ], [cctArrows, reviewArrows]);
+
+  const boardLabels = useMemo(() => [
+    ...cctLabels,
+    ...reviewLabels,
+  ], [cctLabels, reviewLabels]);
 
   const recordPendingLearningHelp = useCallback((kind = 'help') => {
     if (ratedMode !== 'learning') return;
@@ -407,6 +418,7 @@ const PlayComputer = () => {
     setBestButtonUses(0);
     setBestUseNudge(null);
     setReviewArrows([]);
+    setReviewLabels([]);
     if (reviewArrowTimerRef.current) {
       clearTimeout(reviewArrowTimerRef.current);
       reviewArrowTimerRef.current = null;
@@ -450,6 +462,7 @@ const PlayComputer = () => {
     setReviewLoading(false);
     setLatestReviewResult(null);
     setReviewArrows([]);
+    setReviewLabels([]);
   }, [ratedMode, reviewEnabled]);
 
   const appendMoveReviewRecord = useCallback((record) => {
@@ -3240,7 +3253,7 @@ const PlayComputer = () => {
         isActive: gameStarted && !gameOver,
         isRated: ratedMode === 'rated',
         onArrowsChange: setCctArrows,
-        onLabelsChange: setBoardLabels,
+        onLabelsChange: setCctLabels,
         bestMoveBudget: {
           enabled: ratedMode === 'learning',
           remaining: undoChancesRemaining,
@@ -3254,6 +3267,7 @@ const PlayComputer = () => {
           latestResult: latestReviewResult,
           onChange: handleReviewEnabledChange,
           onShowArrows: showReviewArrows,
+          onShowLabels: showReviewLabels,
         },
         bestUseNudge,
         onBestButtonUse: handleBestButtonUse,
