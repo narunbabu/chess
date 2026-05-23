@@ -102,6 +102,34 @@ describe('moveReviewReport', () => {
     });
   });
 
+  test('excludes Best-assisted moves from achievement counters', () => {
+    const ownMove = buildMoveReviewRecord({
+      fenBefore: START_FEN,
+      userMove: 'd2d4',
+      topMoves: [{ move: 'd2d4', cp: 34 }],
+      ply: 1,
+      source: 'review',
+    });
+    const bestAssistedTop1 = buildMoveReviewRecord({
+      fenBefore: START_FEN,
+      userMove: 'd2d4',
+      topMoves: [{ move: 'd2d4', cp: 34 }],
+      ply: 2,
+      source: 'best',
+    });
+
+    const summary = summarizeMoveReviewReport({
+      moves: [ownMove, bestAssistedTop1],
+      bestButtonUses: 1,
+    });
+
+    expect(summary.analyzed_moves).toBe(1);
+    expect(summary.ranked_moves_count).toBe(1);
+    expect(summary.top_1_count).toBe(1);
+    expect(summary.coins_earned).toBe(3);
+    expect(summary.best_button_uses).toBe(1);
+  });
+
   test('defaults review on for non-rated modes only', () => {
     expect(getDefaultReviewEnabled('casual')).toBe(true);
     expect(getDefaultReviewEnabled('learning')).toBe(true);

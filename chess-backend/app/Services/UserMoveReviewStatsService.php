@@ -122,44 +122,55 @@ class UserMoveReviewStatsService
         return max(0, (int) ($summary[$key] ?? $fallback));
     }
 
+    /**
+     * Best-assisted moves (source === 'best') are excluded from achievement
+     * counters — the user saw the engine's top moves before playing, so the
+     * rank reflects the engine's help, not skill. Use itself is still tracked
+     * via best_button_uses.
+     */
+    private function ownMoves(array $moves): \Illuminate\Support\Collection
+    {
+        return collect($moves)->filter(fn ($move) => ($move['source'] ?? null) !== 'best');
+    }
+
     private function countAnalyzedMoves(array $moves): int
     {
-        return collect($moves)
+        return $this->ownMoves($moves)
             ->filter(fn ($move) => is_array($move['topMoves'] ?? null) && count($move['topMoves']) > 0)
             ->count();
     }
 
     private function countRankedMoves(array $moves): int
     {
-        return collect($moves)
+        return $this->ownMoves($moves)
             ->filter(fn ($move) => isset($move['userMoveRank']) && is_numeric($move['userMoveRank']))
             ->count();
     }
 
     private function sumRanks(array $moves): int
     {
-        return collect($moves)
+        return $this->ownMoves($moves)
             ->filter(fn ($move) => isset($move['userMoveRank']) && is_numeric($move['userMoveRank']))
             ->sum(fn ($move) => (int) $move['userMoveRank']);
     }
 
     private function countExactRank(array $moves, int $rank): int
     {
-        return collect($moves)
+        return $this->ownMoves($moves)
             ->filter(fn ($move) => (int) ($move['userMoveRank'] ?? 0) === $rank)
             ->count();
     }
 
     private function countOutsideTopMoves(array $moves): int
     {
-        return collect($moves)
+        return $this->ownMoves($moves)
             ->filter(fn ($move) => (bool) ($move['isOutsideTopMoves'] ?? false))
             ->count();
     }
 
     private function sumCoins(array $moves): int
     {
-        return collect($moves)->sum(fn ($move) => match ((int) ($move['userMoveRank'] ?? 0)) {
+        return $this->ownMoves($moves)->sum(fn ($move) => match ((int) ($move['userMoveRank'] ?? 0)) {
             1 => 3,
             2 => 2,
             3 => 1,

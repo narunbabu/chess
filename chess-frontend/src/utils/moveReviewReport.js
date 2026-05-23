@@ -111,7 +111,12 @@ export const summarizeMoveReviewReport = ({
   reviewEnabledUsed = false,
   topMoveLimit = DEFAULT_REVIEW_TOP_MOVES,
 } = {}) => {
-  const analyzedMoves = moves.filter(move => Array.isArray(move.topMoves) && move.topMoves.length > 0);
+  // Best-assisted moves are excluded from achievement counters: the user saw
+  // the engine's top moves before playing, so the resulting rank reflects the
+  // engine's help, not the player's skill. The use itself is still tracked
+  // via best_button_uses.
+  const ownMoves = moves.filter(move => move?.source !== 'best');
+  const analyzedMoves = ownMoves.filter(move => Array.isArray(move.topMoves) && move.topMoves.length > 0);
   const rankedMoves = analyzedMoves.filter(move => (
     move.userMoveRank !== null
     && move.userMoveRank !== undefined
