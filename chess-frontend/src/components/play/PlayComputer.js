@@ -88,19 +88,19 @@ const FALLBACK_COMPANIONS = [
 // --- Utility Functions ---
 /**
  * Calculate undo chances based on computer difficulty level
- * Easy (1-4): 5 undos
- * Medium (5-8): 3 undos
- * Hard (9-12): 2 undos
- * Expert (13-16): 1 undo
+ * Easy (1-4): 15 undos
+ * Medium (5-8): 9 undos
+ * Hard (9-12): 6 undos
+ * Expert (13-16): 3 undos
  * Rated mode: 0 undos (always)
  */
 const calculateUndoChances = (depth, isRated) => {
   if (isRated) return 0; // No undos in rated mode
 
-  if (depth <= 4) return 5; // Easy
-  if (depth <= 8) return 3; // Medium
-  if (depth <= 12) return 2; // Hard
-  return 1; // Expert
+  if (depth <= 4) return 15; // Easy
+  if (depth <= 8) return 9; // Medium
+  if (depth <= 12) return 6; // Hard
+  return 3; // Expert
 };
 
 const normalizeLearningHelpLimit = (value) => {
@@ -262,6 +262,7 @@ const PlayComputer = () => {
   const [latestReviewResult, setLatestReviewResult] = useState(null);
   const [moveReviewRecords, setMoveReviewRecords] = useState([]);
   const [bestButtonUses, setBestButtonUses] = useState(0);
+  const [undoButtonUses, setUndoButtonUses] = useState(0);
   const [bestUseNudge, setBestUseNudge] = useState(null);
 
   // Time control from lobby (minutes + increment seconds)
@@ -315,6 +316,7 @@ const PlayComputer = () => {
   const reviewEnabledUsedRef = useRef(false);
   const moveReviewRecordsRef = useRef(moveReviewRecords);
   const bestButtonUsesRef = useRef(bestButtonUses);
+  const undoButtonUsesRef = useRef(undoButtonUses);
   const lastBestRevealRef = useRef(null);
   const reviewArrowTimerRef = useRef(null);
   const bestUseNudgeTimerRef = useRef(null);
@@ -324,6 +326,7 @@ const PlayComputer = () => {
   useEffect(() => { reviewEnabledRef.current = reviewEnabled; }, [reviewEnabled]);
   useEffect(() => { moveReviewRecordsRef.current = moveReviewRecords; }, [moveReviewRecords]);
   useEffect(() => { bestButtonUsesRef.current = bestButtonUses; }, [bestButtonUses]);
+  useEffect(() => { undoButtonUsesRef.current = undoButtonUses; }, [undoButtonUses]);
 
   useEffect(() => () => {
     if (reviewArrowTimerRef.current) {
@@ -390,6 +393,7 @@ const PlayComputer = () => {
     return createMoveReviewReport({
       moves: records,
       bestButtonUses: bestButtonUsesRef.current,
+      undoButtonUses: undoButtonUsesRef.current,
       reviewEnabledUsed: reviewEnabledUsedRef.current,
       gameMode: 'computer',
       topMoveLimit: DEFAULT_REVIEW_TOP_MOVES,
@@ -399,10 +403,11 @@ const PlayComputer = () => {
   const liveReviewReport = useMemo(() => createMoveReviewReport({
     moves: moveReviewRecords,
     bestButtonUses,
+    undoButtonUses,
     reviewEnabledUsed: reviewEnabledUsedRef.current,
     gameMode: 'computer',
     topMoveLimit: DEFAULT_REVIEW_TOP_MOVES,
-  }), [moveReviewRecords, bestButtonUses, reviewEnabled]);
+  }), [moveReviewRecords, bestButtonUses, undoButtonUses, reviewEnabled]);
 
   const resetMoveReviewTracking = useCallback((mode = ratedMode) => {
     const defaultReviewEnabled = getDefaultReviewEnabled(mode);
@@ -410,12 +415,14 @@ const PlayComputer = () => {
     reviewEnabledUsedRef.current = defaultReviewEnabled;
     moveReviewRecordsRef.current = [];
     bestButtonUsesRef.current = 0;
+    undoButtonUsesRef.current = 0;
     lastBestRevealRef.current = null;
     setReviewEnabled(defaultReviewEnabled);
     setReviewLoading(false);
     setLatestReviewResult(null);
     setMoveReviewRecords([]);
     setBestButtonUses(0);
+    setUndoButtonUses(0);
     setBestUseNudge(null);
     setReviewArrows([]);
     setReviewLabels([]);
@@ -449,6 +456,15 @@ const PlayComputer = () => {
       return next;
     });
   }, [ratedMode, showBestUseNudge]);
+
+  const recordUndoButtonUse = useCallback(() => {
+    if (ratedMode !== 'casual') return;
+    setUndoButtonUses((current) => {
+      const next = current + 1;
+      undoButtonUsesRef.current = next;
+      return next;
+    });
+  }, [ratedMode]);
 
   const handleBestMovesReady = useCallback(({ fen, topMoves, source }) => {
     lastBestRevealRef.current = { fen, topMoves, source };
@@ -2721,6 +2737,7 @@ const PlayComputer = () => {
             // Decrement undo chances
             const newUndoChances = Math.max(0, undoChancesRemaining - 1);
             setUndoChancesRemaining(newUndoChances);
+            recordUndoButtonUse();
             recordPendingLearningHelp('undo');
             console.log(`[PlayComputer] 📉 Undo chances remaining: ${newUndoChances}`);
 
@@ -2745,7 +2762,7 @@ const PlayComputer = () => {
         setActiveTimer, setIsTimerRunning, startTimerInterval, setGame,
         setGameHistory, setMoveCount, setMoveCompleted, setGameStatus,
         setLastMoveEvaluation, setLastComputerEvaluation, setPlayerScore,
-        setComputerScore, setCanUndo, setUndoChancesRemaining, recordPendingLearningHelp, playSound
+        setComputerScore, setCanUndo, setUndoChancesRemaining, recordUndoButtonUse, recordPendingLearningHelp, playSound
     ]);
 
     // --- Replay Controls ---

@@ -285,6 +285,10 @@ const GameReview = () => {
       ...(gameHistory.review_report || {}),
       summary: gameHistory.review_summary || gameHistory.review_report?.summary || {},
       bestButtonUses: gameHistory.best_button_uses ?? gameHistory.review_report?.bestButtonUses ?? 0,
+      undoButtonUses: gameHistory.review_report?.undoButtonUses
+        ?? gameHistory.review_report?.undo_button_uses
+        ?? gameHistory.review_summary?.undo_button_uses
+        ?? 0,
       reviewEnabledUsed: gameHistory.review_enabled_used ?? gameHistory.review_report?.reviewEnabledUsed ?? false,
     };
   }, [gameHistory]);
@@ -1650,6 +1654,7 @@ const GameReview = () => {
             computerLevel={gameHistory.computer_level}
             hideShareButton={true}
             gameId={gameId || gameHistory.id || gameHistory.game_id}
+            reviewReport={reviewReport}
           />
         </div>
       )}

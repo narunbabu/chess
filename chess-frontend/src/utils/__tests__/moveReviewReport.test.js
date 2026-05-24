@@ -84,6 +84,7 @@ describe('moveReviewReport', () => {
     expect(summarizeMoveReviewReport({
       moves,
       bestButtonUses: 3,
+      undoButtonUses: 2,
       reviewEnabledUsed: true,
     })).toMatchObject({
       analyzed_moves: 4,
@@ -98,6 +99,7 @@ describe('moveReviewReport', () => {
       outside_top_5_count: 1,
       coins_earned: 6,
       best_button_uses: 3,
+      undo_button_uses: 2,
       review_enabled_used: true,
     });
   });
@@ -128,6 +130,7 @@ describe('moveReviewReport', () => {
     expect(summary.top_1_count).toBe(1);
     expect(summary.coins_earned).toBe(3);
     expect(summary.best_button_uses).toBe(1);
+    expect(summary.undo_button_uses).toBe(0);
   });
 
   test('defaults review on for non-rated modes only', () => {
@@ -155,6 +158,7 @@ describe('moveReviewReport', () => {
     const report = createMoveReviewReport({
       moves,
       bestButtonUses: 1,
+      undoButtonUses: 1,
       reviewEnabledUsed: true,
       gameMode: 'computer',
     });
@@ -163,10 +167,12 @@ describe('moveReviewReport', () => {
       version: 1,
       gameMode: 'computer',
       bestButtonUses: 1,
+      undoButtonUses: 1,
       reviewEnabledUsed: true,
       summary: {
         analyzed_moves: 1,
         best_button_uses: 1,
+        undo_button_uses: 1,
       },
     });
   });

@@ -55,10 +55,15 @@ class GameController extends Controller
 
         // Randomly assign colors
         $isUserWhite = rand(0, 1) === 1;
+        $gameMode = 'casual';
+        $initialUndoChances = Game::initialUndoChancesForMode($gameMode);
 
         $game = Game::create([
             'white_player_id' => $isUserWhite ? $user->id : $opponent->id,
             'black_player_id' => $isUserWhite ? $opponent->id : $user->id,
+            'game_mode' => $gameMode,
+            'undo_white_remaining' => $initialUndoChances,
+            'undo_black_remaining' => $initialUndoChances,
             'status' => 'active',
             'result' => 'ongoing',
             'turn' => 'white',
@@ -102,6 +107,8 @@ class GameController extends Controller
         $timeControl = $request->time_control ?? 10; // Default 10 minutes
         $increment = $request->increment ?? 0; // Default no increment
         $isLearningMode = $request->boolean('learning_mode');
+        $gameMode = $request->game_mode ?? 'casual';
+        $initialUndoChances = Game::initialUndoChancesForMode($gameMode);
         $learningHelpLimit = $isLearningMode
             ? $this->normalizeLearningHelpLimit($request->input('learning_help_limit'))
             : null;
@@ -141,10 +148,12 @@ class GameController extends Controller
             'computer_level' => $computerLevel,
             'synthetic_player_id' => $syntheticPlayer?->id,
             'player_color' => $playerColor,
-            'game_mode' => $request->game_mode ?? 'casual',
+            'game_mode' => $gameMode,
             'learning_mode' => $isLearningMode,
             'learning_help_limit' => $learningHelpLimit,
             'learning_help_used' => 0,
+            'undo_white_remaining' => $initialUndoChances,
+            'undo_black_remaining' => $initialUndoChances,
             'status' => 'active',
             'result' => 'ongoing',
             'turn' => 'white', // White always starts

@@ -371,6 +371,7 @@ class InvitationController extends Controller
 
             // Get game mode and time control from invitation metadata
             $gameMode = $invitation->metadata['game_mode'] ?? 'casual';
+            $initialUndoChances = Game::initialUndoChancesForMode($gameMode);
             $timeControl = $invitation->metadata['time_control_minutes'] ?? 10;
             $increment = $invitation->metadata['increment_seconds'] ?? 0;
 
@@ -392,6 +393,8 @@ class InvitationController extends Controller
                 'status'          => 'waiting',
                 'result'          => 'ongoing',
                 'game_mode'       => $gameMode,
+                'undo_white_remaining' => $initialUndoChances,
+                'undo_black_remaining' => $initialUndoChances,
                 'time_control_minutes' => $timeControl,
                 'increment_seconds'    => $increment,
             ]);

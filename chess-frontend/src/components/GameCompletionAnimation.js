@@ -557,6 +557,8 @@ const GameCompletionAnimation = ({
             computerLevel={computerLevel}
             isAuthenticated={isAuthenticated}
             championshipData={championshipData}
+            reviewReport={reviewReport}
+            ratedMode={ratedMode}
             className={`${isVisible ? "visible" : ""}`}
           />
         )}

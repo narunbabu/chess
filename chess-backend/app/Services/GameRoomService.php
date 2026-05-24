@@ -454,10 +454,16 @@ class GameRoomService
             }
         }
 
+        $gameMode = $originalGame->game_mode ?? 'casual';
+        $initialUndoChances = Game::initialUndoChancesForMode($gameMode);
+
         // Create new game with specified colors
         $newGame = Game::create([
             'white_player_id' => $whitePlayerId,
             'black_player_id' => $blackPlayerId,
+            'game_mode' => $gameMode,
+            'undo_white_remaining' => $initialUndoChances,
+            'undo_black_remaining' => $initialUndoChances,
             'fen' => 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', // Starting position
             'status' => 'waiting',
             'turn' => 'white', // Use database format

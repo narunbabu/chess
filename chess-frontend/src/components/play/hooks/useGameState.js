@@ -68,7 +68,7 @@ export const useGameState = ({ user }) => {
   // Undo functionality state (for casual mode)
   const [canUndo, setCanUndo] = useState(false);
   const [undoChancesRemaining, setUndoChancesRemaining] = useState(0);
-  const [maxUndoChances] = useState(3);
+  const [maxUndoChances] = useState(9);
   const [undoRequestPending, setUndoRequestPending] = useState(false);
   const [undoRequestFrom, setUndoRequestFrom] = useState(null);
 

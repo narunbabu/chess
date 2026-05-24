@@ -230,11 +230,15 @@ const PlayMultiplayer = () => {
   const [latestReviewResult, setLatestReviewResult] = useState(null);
   const [moveReviewRecords, setMoveReviewRecords] = useState([]);
   const [bestButtonUses, setBestButtonUses] = useState(0);
+  const [undoButtonUses, setUndoButtonUses] = useState(0);
   const [bestUseNudge, setBestUseNudge] = useState(null);
   const reviewEnabledRef = useRef(false);
   const reviewEnabledUsedRef = useRef(false);
   const moveReviewRecordsRef = useRef([]);
   const bestButtonUsesRef = useRef(0);
+  const undoButtonUsesRef = useRef(0);
+  const ratedModeRef = useRef(ratedMode);
+  const userIdRef = useRef(user?.id);
   const lastBestRevealRef = useRef(null);
   const pendingReviewPromisesRef = useRef([]);
   const reviewArrowTimerRef = useRef(null);
@@ -266,6 +270,9 @@ const PlayMultiplayer = () => {
   useEffect(() => { reviewEnabledRef.current = reviewEnabled; }, [reviewEnabled]);
   useEffect(() => { moveReviewRecordsRef.current = moveReviewRecords; }, [moveReviewRecords]);
   useEffect(() => { bestButtonUsesRef.current = bestButtonUses; }, [bestButtonUses]);
+  useEffect(() => { undoButtonUsesRef.current = undoButtonUses; }, [undoButtonUses]);
+  useEffect(() => { ratedModeRef.current = ratedMode; }, [ratedMode]);
+  useEffect(() => { userIdRef.current = user?.id; }, [user?.id]);
 
   useEffect(() => () => {
     if (reviewArrowTimerRef.current) {
@@ -311,6 +318,7 @@ const PlayMultiplayer = () => {
     return createMoveReviewReport({
       moves: records,
       bestButtonUses: bestButtonUsesRef.current,
+      undoButtonUses: undoButtonUsesRef.current,
       reviewEnabledUsed: reviewEnabledUsedRef.current,
       gameMode: 'multiplayer',
       topMoveLimit: DEFAULT_REVIEW_TOP_MOVES,
@@ -320,10 +328,11 @@ const PlayMultiplayer = () => {
   const liveReviewReport = useMemo(() => createMoveReviewReport({
     moves: moveReviewRecords,
     bestButtonUses,
+    undoButtonUses,
     reviewEnabledUsed: reviewEnabledUsedRef.current,
     gameMode: 'multiplayer',
     topMoveLimit: DEFAULT_REVIEW_TOP_MOVES,
-  }), [moveReviewRecords, bestButtonUses, reviewEnabled]);
+  }), [moveReviewRecords, bestButtonUses, undoButtonUses, reviewEnabled]);
 
   const resetMoveReviewTracking = useCallback((mode = ratedMode) => {
     const defaultReviewEnabled = getDefaultReviewEnabled(mode);
@@ -331,6 +340,7 @@ const PlayMultiplayer = () => {
     reviewEnabledUsedRef.current = defaultReviewEnabled;
     moveReviewRecordsRef.current = [];
     bestButtonUsesRef.current = 0;
+    undoButtonUsesRef.current = 0;
     lastBestRevealRef.current = null;
     pendingReviewPromisesRef.current = [];
     setReviewEnabled(defaultReviewEnabled);
@@ -338,6 +348,7 @@ const PlayMultiplayer = () => {
     setLatestReviewResult(null);
     setMoveReviewRecords([]);
     setBestButtonUses(0);
+    setUndoButtonUses(0);
     setBestUseNudge(null);
     setReviewArrows([]);
     if (reviewArrowTimerRef.current) {
@@ -370,6 +381,15 @@ const PlayMultiplayer = () => {
       return next;
     });
   }, [ratedMode, showBestUseNudge]);
+
+  const recordUndoButtonUse = useCallback(() => {
+    if (ratedModeRef.current !== 'casual') return;
+    setUndoButtonUses((current) => {
+      const next = current + 1;
+      undoButtonUsesRef.current = next;
+      return next;
+    });
+  }, []);
 
   const handleBestMovesReady = useCallback(({ fen, topMoves, source }) => {
     lastBestRevealRef.current = { fen, topMoves, source };
@@ -879,8 +899,17 @@ const PlayMultiplayer = () => {
         hasReinitializedAfterRatedConfirm.current = true; // Skip re-init effect — already initializing
       }
 
-      // Initialize undo chances based on game mode
-      const undoChances = gameMode === 'rated' ? 0 : maxUndoChances;
+      // Initialize undo chances based on authoritative server state when present.
+      const playerUndoRemaining = data.player_color === 'white'
+        ? data.undo_white_remaining
+        : data.player_color === 'black'
+          ? data.undo_black_remaining
+          : null;
+      const undoChances = gameMode === 'rated'
+        ? 0
+        : playerUndoRemaining !== null && playerUndoRemaining !== undefined
+          ? Math.max(0, Number(playerUndoRemaining) || 0)
+          : maxUndoChances;
       setUndoChancesRemaining(undoChances);
       setCanUndo(false); // Will be enabled after first complete turn
       console.log(`[Undo] Initialized with ${undoChances} undo chances for ${gameMode} mode`);
@@ -890,7 +919,7 @@ const PlayMultiplayer = () => {
 
       // Only register active/in-progress games with navigation guard — skip finished games
       gameRegisteredRef.current = false;
-      const isRated = ratedMode === 'rated';
+      const isRated = gameMode === 'rated';
       if (!isGameFinished) {
         registerActiveGame(data.id, data.status, isRated);
         gameRegisteredRef.current = true;
@@ -1637,8 +1666,32 @@ const PlayMultiplayer = () => {
     // Clear pending state
     setUndoRequestPending(false);
 
-    // Decrement undo chances
-    setUndoChancesRemaining(prev => Math.max(0, prev - 1));
+    const hasAcceptedByUser = event?.accepted_by_user_id != null;
+    const acceptedByMe = hasAcceptedByUser
+      && userIdRef.current != null
+      && String(event.accepted_by_user_id) === String(userIdRef.current);
+
+    if (hasAcceptedByUser && !acceptedByMe) {
+      recordUndoButtonUse();
+    }
+
+    const playerColor = playerColorRef.current === 'white' || playerColorRef.current === 'w'
+      ? 'white'
+      : playerColorRef.current === 'black' || playerColorRef.current === 'b'
+        ? 'black'
+        : null;
+    const serverUndoRemaining = playerColor === 'white'
+      ? event?.undo_white_remaining
+      : playerColor === 'black'
+        ? event?.undo_black_remaining
+        : null;
+
+    // Sync to the server count when present so only the requester loses an undo.
+    setUndoChancesRemaining((prev) => (
+      serverUndoRemaining !== null && serverUndoRemaining !== undefined
+        ? Math.max(0, Number(serverUndoRemaining) || 0)
+        : Math.max(0, prev - 1)
+    ));
 
     // Rollback game state - remove last two moves (our move and opponent's response)
     if (event.fen && event.history) {
@@ -1671,7 +1724,7 @@ const PlayMultiplayer = () => {
     }
 
     console.log('[Undo] ✅ Move undone successfully');
-  }, []);
+  }, [recordUndoButtonUse, setUndoChancesRemaining]);
 
   // Handle undo declined by opponent
   const handleUndoDeclined = useCallback((event) => {

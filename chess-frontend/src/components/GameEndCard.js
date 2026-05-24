@@ -16,6 +16,36 @@ const SHARE_URLS = {
   linkedin: (text) => `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent('https://chess99.com')}`
 };
 
+const normalizeUsageCount = (value) => Math.max(0, Math.floor(Number(value) || 0));
+
+const readUsageSummary = (reviewReport, result) => (
+  reviewReport?.summary
+  || reviewReport?.review_summary
+  || reviewReport?.review_report?.summary
+  || result?.review_summary
+  || result?.review_report?.summary
+  || {}
+);
+
+const readUsageCount = (reviewReport, result, camelKey, snakeKey) => {
+  const summary = readUsageSummary(reviewReport, result);
+
+  return normalizeUsageCount(
+    reviewReport?.[camelKey]
+    ?? reviewReport?.[snakeKey]
+    ?? reviewReport?.review_report?.[camelKey]
+    ?? reviewReport?.review_report?.[snakeKey]
+    ?? result?.[camelKey]
+    ?? result?.[snakeKey]
+    ?? result?.review_report?.[camelKey]
+    ?? result?.review_report?.[snakeKey]
+    ?? summary?.[camelKey]
+    ?? summary?.[snakeKey]
+    ?? 0
+  );
+};
+
+const formatUsageTimes = (count) => `${count} ${count === 1 ? 'time' : 'times'}`;
 
 const GameEndCard = React.forwardRef(({
   result,
@@ -33,6 +63,8 @@ const GameEndCard = React.forwardRef(({
   sharePlayerName = null, // Custom player name for sharing (guest users)
   hideShareButton = false, // Hide share button when card is used for capturing only
   gameId = null, // Game ID for generating replay link
+  reviewReport = null,
+  ratedMode = null,
 }, forwardedRef) => {
   const internalRef = useRef(null);
   const cardRef = forwardedRef || internalRef;
@@ -45,6 +77,19 @@ const GameEndCard = React.forwardRef(({
   const effectiveGameId = gameId || result?.id || result?.game_id;
   const replayLink = effectiveGameId ? `${window.location.origin}/games/${effectiveGameId}/replay` : null;
   const isLearnerRating = ratingUpdate?.ratingType === 'learner';
+  const bestUsageCount = readUsageCount(reviewReport, result, 'bestButtonUses', 'best_button_uses');
+  const undoUsageCount = readUsageCount(reviewReport, result, 'undoButtonUses', 'undo_button_uses');
+  const hasUsageData = Boolean(
+    reviewReport
+    || result?.review_report
+    || result?.review_summary
+    || bestUsageCount > 0
+    || undoUsageCount > 0
+  );
+  const shouldShowUsage = hasUsageData && (ratedMode ? ratedMode === 'casual' : true);
+  const assistanceUsageText = shouldShowUsage
+    ? `Usage: Best ${formatUsageTimes(bestUsageCount)} and Undo ${formatUsageTimes(undoUsageCount)}`
+    : null;
 
   const handleCopyReplayLink = async () => {
     if (!replayLink) return;
@@ -898,6 +943,11 @@ const handleShare = async () => {
           <p className="text-xs max-w-xs mx-auto" style={{ color: cardTheme.sub }}>
             {resultText}
           </p>
+          {assistanceUsageText && (
+            <p className="text-[11px] font-semibold mt-1 max-w-xs mx-auto" style={{ color: cardTheme.sub }}>
+              {assistanceUsageText}
+            </p>
+          )}
         </div>
 
         {/* Players section */}

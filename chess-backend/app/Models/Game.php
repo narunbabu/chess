@@ -11,6 +11,28 @@ class Game extends Model
 {
     use HasFactory;
 
+    public const CASUAL_UNDO_CHANCES = 9;
+
+    public static function initialUndoChancesForMode(?string $gameMode): int
+    {
+        return $gameMode === 'rated' ? 0 : self::CASUAL_UNDO_CHANCES;
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (Game $game): void {
+            $initialUndoChances = self::initialUndoChancesForMode($game->game_mode);
+
+            if ($game->undo_white_remaining === null) {
+                $game->undo_white_remaining = $initialUndoChances;
+            }
+
+            if ($game->undo_black_remaining === null) {
+                $game->undo_black_remaining = $initialUndoChances;
+            }
+        });
+    }
+
     protected $fillable = [
         'white_player_id',
         'black_player_id',

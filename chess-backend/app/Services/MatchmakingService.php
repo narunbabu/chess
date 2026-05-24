@@ -200,6 +200,8 @@ class MatchmakingService
         // Create a computer game using the bot's level
         $user = $entry->user;
         $computerPlayer = $bot->getComputerPlayer();
+        $gameMode = 'casual';
+        $initialUndoChances = Game::initialUndoChancesForMode($gameMode);
 
         // Color assignment from user preference
         $colorPref = $entry->preferred_color ?? 'random';
@@ -216,7 +218,9 @@ class MatchmakingService
             'computer_level' => $bot->computer_level,
             'synthetic_player_id' => $bot->id,
             'player_color' => $isUserWhite ? 'white' : 'black',
-            'game_mode' => 'casual', // AI games never affect leaderboard
+            'game_mode' => $gameMode, // AI games never affect leaderboard
+            'undo_white_remaining' => $initialUndoChances,
+            'undo_black_remaining' => $initialUndoChances,
             'status' => 'active',
             'result' => 'ongoing',
             'turn' => 'white',
@@ -272,6 +276,8 @@ class MatchmakingService
             $blackId = $isUser1White ? $userId2 : $userId1;
         }
 
+        $initialUndoChances = Game::initialUndoChancesForMode($gameMode);
+
         return Game::create([
             'white_player_id' => $whiteId,
             'black_player_id' => $blackId,
@@ -283,6 +289,8 @@ class MatchmakingService
             'time_control_minutes' => $timeControl,
             'increment_seconds' => $increment,
             'game_mode' => $gameMode,
+            'undo_white_remaining' => $initialUndoChances,
+            'undo_black_remaining' => $initialUndoChances,
         ]);
     }
 
@@ -358,6 +366,8 @@ class MatchmakingService
 
         if ($bot) {
             $computerPlayer = $bot->getComputerPlayer();
+            $gameMode = 'casual';
+            $initialUndoChances = Game::initialUndoChancesForMode($gameMode);
             $colorPref = $preferences['preferred_color'] ?? 'random';
             $isUserWhite = $colorPref === 'random' ? (rand(0, 1) === 1) : ($colorPref === 'white');
 
@@ -368,7 +378,9 @@ class MatchmakingService
                 'computer_level' => $bot->computer_level,
                 'synthetic_player_id' => $bot->id,
                 'player_color' => $isUserWhite ? 'white' : 'black',
-                'game_mode' => 'casual',
+                'game_mode' => $gameMode,
+                'undo_white_remaining' => $initialUndoChances,
+                'undo_black_remaining' => $initialUndoChances,
                 'status' => 'active',
                 'result' => 'ongoing',
                 'turn' => 'white',

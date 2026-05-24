@@ -108,6 +108,7 @@ export const getMoveRankCoinValue = (rank) => {
 export const summarizeMoveReviewReport = ({
   moves = [],
   bestButtonUses = 0,
+  undoButtonUses = 0,
   reviewEnabledUsed = false,
   topMoveLimit = DEFAULT_REVIEW_TOP_MOVES,
 } = {}) => {
@@ -142,6 +143,7 @@ export const summarizeMoveReviewReport = ({
     outside_top_5_count: outsideTopMovesCount,
     coins_earned: coinsEarned,
     best_button_uses: Math.max(0, Number(bestButtonUses) || 0),
+    undo_button_uses: Math.max(0, Number(undoButtonUses) || 0),
     review_enabled_used: Boolean(reviewEnabledUsed),
     top_move_limit: topMoveLimit,
   };
@@ -150,6 +152,7 @@ export const summarizeMoveReviewReport = ({
 export const createMoveReviewReport = ({
   moves = [],
   bestButtonUses = 0,
+  undoButtonUses = 0,
   reviewEnabledUsed = false,
   gameMode = null,
   topMoveLimit = DEFAULT_REVIEW_TOP_MOVES,
@@ -157,6 +160,7 @@ export const createMoveReviewReport = ({
   const summary = summarizeMoveReviewReport({
     moves,
     bestButtonUses,
+    undoButtonUses,
     reviewEnabledUsed,
     topMoveLimit,
   });
@@ -167,6 +171,7 @@ export const createMoveReviewReport = ({
     topMoveLimit,
     moves,
     bestButtonUses: summary.best_button_uses,
+    undoButtonUses: summary.undo_button_uses,
     reviewEnabledUsed: summary.review_enabled_used,
     summary,
     generatedAt: new Date().toISOString(),
@@ -177,5 +182,6 @@ export const hasMoveReviewData = (report) => {
   if (!report) return false;
   const moves = Array.isArray(report.moves) ? report.moves : [];
   const bestUses = Number(report.bestButtonUses ?? report.best_button_uses ?? report.summary?.best_button_uses ?? 0);
-  return moves.length > 0 || bestUses > 0 || Boolean(report.reviewEnabledUsed ?? report.review_enabled_used);
+  const undoUses = Number(report.undoButtonUses ?? report.undo_button_uses ?? report.summary?.undo_button_uses ?? 0);
+  return moves.length > 0 || bestUses > 0 || undoUses > 0 || Boolean(report.reviewEnabledUsed ?? report.review_enabled_used);
 };
