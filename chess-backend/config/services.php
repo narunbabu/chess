@@ -22,7 +22,7 @@ return [
     'facebook' => [
         'client_id' => env('FACEBOOK_CLIENT_ID'),
         'client_secret' => env('FACEBOOK_CLIENT_SECRET'),
-        'redirect' => env('FACEBOOK_REDIRECT_URI', env('APP_ENV') === 'production' ? 'https://api.chess99.com/api/auth/facebook/callback' : 'http://localhost:8000/api/auth/facebook/callback'),
+        'redirect' => env('FACEBOOK_REDIRECT_URI', env('APP_ENV') === 'production' ? 'https://api.chess99.com/auth/facebook/callback' : 'http://localhost:8000/auth/facebook/callback'),
     ],
 
     'postmark' => [

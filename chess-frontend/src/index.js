@@ -6,6 +6,10 @@ import * as Sentry from '@sentry/react';
 import { HelmetProvider } from 'react-helmet-async';
 import './index.css';
 import App from './App';
+import { initAnalytics } from './utils/initAnalytics';
+
+// Bootstrap analytics (GA4 / Meta Pixel / Clarity) — no-op when no IDs configured.
+initAnalytics();
 
 // Disable service worker to prevent cache errors
 if ('serviceWorker' in navigator) {

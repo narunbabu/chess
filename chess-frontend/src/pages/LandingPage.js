@@ -2,10 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { useAuth } from '../contexts/AuthContext';
-import { trackUI } from '../utils/analytics';
+import { trackUI, trackConversion } from '../utils/analytics';
 import AuthGateModal from '../components/layout/AuthGateModal';
 import PlayModeGuide from '../components/onboarding/PlayModeGuide';
-import IntroVideo from '../components/onboarding/IntroVideo';
+import HeroBoard from '../components/onboarding/HeroBoard';
 import { ONBOARDING_GUIDE_GROUPS } from '../data/onboardingPlayModes';
 import logo from '../assets/images/logo.png';
 import chessPlayingKids from '../assets/images/chess-playing-kids-crop.jpeg';
@@ -18,6 +18,11 @@ const LandingPage = () => {
   const [pricingInterval, setPricingInterval] = useState('monthly');
   const navigate = useNavigate();
 
+  // Funnel entry point: a visitor (likely from an ad) landed on the marketing page.
+  useEffect(() => {
+    trackConversion('landing_view', { referrer: document.referrer || 'direct' }, 'ViewContent');
+  }, []);
+
   // Auto-redirect authenticated users to lobby
   useEffect(() => {
     if (!loading && isAuthenticated) {
@@ -27,6 +32,7 @@ const LandingPage = () => {
 
   const handlePlayClick = useCallback(() => {
     trackUI('cta_button', 'click', { button: 'play_now', location: 'landing_hero' });
+    trackConversion('play_click', { authenticated: isAuthenticated });
     if (!isAuthenticated) {
       setShowPlayChoice(true);
       setShowMobileMenu(false);
@@ -76,18 +82,18 @@ const LandingPage = () => {
   return (
     <div data-page="landing" className="bg-[#1a1a18] w-full min-h-screen overflow-x-hidden flex flex-col">
       <Helmet>
-        <title>Chess99 — Play Chess Online | Free Multiplayer Chess Platform</title>
-        <meta name="description" content="Play chess online for free on Chess99. Challenge players worldwide, solve tactical puzzles, learn with interactive tutorials, and compete in tournaments. India's premier chess platform." />
-        <meta property="og:title" content="Chess99 — Play Chess Online" />
-        <meta property="og:description" content="Free online chess platform with multiplayer games, puzzles, tutorials, and tournaments. Play now!" />
-        <meta property="og:image" content="https://chess99.com/og-image.png" />
+        <title>Chess99 — Safe Online Chess Academy for Kids & Teens (Ages 5–18)</title>
+        <meta name="description" content="Learn chess the fun way on Chess99 — a safe online academy for kids and teens (ages 5–18). Guided lessons, fun puzzles, and friendly online games against players at your level." />
+        <meta property="og:title" content="Chess99 — Safe Online Chess Academy for Kids & Teens" />
+        <meta property="og:description" content="Learn chess the fun way. Guided lessons, puzzles, and friendly online games for ages 5–18." />
+        <meta property="og:image" content="https://chess99.com/chess-playing-kids-crop.jpeg" />
         <meta property="og:url" content="https://chess99.com/" />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Chess99" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="Chess99 — Play Chess Online" />
-        <meta name="twitter:description" content="Free online chess platform with multiplayer games, puzzles, tutorials, and tournaments." />
-        <meta name="twitter:image" content="https://chess99.com/og-image.png" />
+        <meta name="twitter:title" content="Chess99 — Safe Online Chess Academy for Kids & Teens" />
+        <meta name="twitter:description" content="Learn chess the fun way. Guided lessons, puzzles, and friendly online games for ages 5–18." />
+        <meta name="twitter:image" content="https://chess99.com/chess-playing-kids-crop.jpeg" />
         <link rel="canonical" href="https://chess99.com/" />
       </Helmet>
       {/* Minimal Header */}
@@ -251,39 +257,40 @@ const LandingPage = () => {
             <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] items-center gap-7 lg:gap-12">
               <div className="text-center lg:text-left max-w-2xl mx-auto lg:mx-0">
                 <p className="text-[#e8a93e] text-xs sm:text-sm font-extrabold uppercase tracking-[0.18em] mb-3">
-                  New to Chess99?
+                  Safe online chess academy · Ages 5–18
                 </p>
                 <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold text-white mb-3 sm:mb-4 leading-tight">
-                  Watch the journey,<br />
-                  then <span className="text-[#81b64c]">start playing</span>
+                  Learn chess the<br />
+                  <span className="text-[#81b64c]">fun way</span> 🏆
                 </h1>
                 <p className="text-[#d8d4cf] text-base sm:text-lg lg:text-xl mb-6 sm:mb-7 leading-relaxed">
-                  See how login, profile setup, casual games, rated games, CCT,
-                  Best Moves, Companion, Tactical Progression, Training Drills,
-                  and Lessons fit together before you make your first move.
+                  A safe, friendly place for kids and teens to learn and play chess —
+                  guided lessons, fun puzzles, and real games against players their level.
+                  Try a move on the board right now. 👉
                 </p>
 
-                <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
+                <div className="flex flex-col gap-3 max-w-sm mx-auto lg:mx-0">
                   <button
-                    onClick={handlePlayClick}
-                    className="bg-[#81b64c] text-white px-8 py-3 rounded-lg text-lg font-bold hover:bg-[#a3d160] transition-all shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]"
+                    onClick={handleLoginPlay}
+                    className="bg-[#81b64c] text-white px-8 py-4 rounded-lg text-xl font-bold hover:bg-[#a3d160] transition-all shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    Login and Play
+                  </button>
+                  <button
+                    onClick={handleGuestPlay}
+                    className="bg-[#312e2b] text-white px-8 py-3 rounded-lg text-base font-semibold border border-[#4a4744] hover:bg-[#3d3a37] transition-all"
                   >
                     Play Now
                   </button>
                 </div>
 
                 <p className="text-[#bababa] text-sm mt-4">
-                  Join <span className="text-[#81b64c] font-semibold">1,000+ players</span> with beginner-friendly 800 ELO starts, online matchmaking, and guided learning.
+                  Join <span className="text-[#81b64c] font-semibold">1,000+ young players</span> · beginner-friendly · no pressure
                 </p>
               </div>
 
               <div className="w-full">
-                <IntroVideo
-                  variant="hero"
-                  showCopy={false}
-                  onLogin={() => navigate('/login')}
-                  onPlay={handlePlayClick}
-                />
+                <HeroBoard onFirstMove={() => trackConversion('hero_board_move', { location: 'landing_hero' })} />
               </div>
             </div>
           </div>

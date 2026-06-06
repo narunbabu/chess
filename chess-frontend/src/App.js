@@ -9,6 +9,7 @@ import {
 } from "react-router-dom";
 import * as Sentry from "@sentry/react";
 import { createLazyComponent } from "./utils/lazyLoad";
+import { trackPageView } from "./utils/analytics";
 
 // Critical imports - loaded immediately (providers, layout, utilities)
 import { AuthProvider } from "./contexts/AuthContext";
@@ -146,6 +147,9 @@ const AppContent = () => {
       message: location.pathname + location.search,
       level: "info",
     });
+    // SPA page_view for GA4 / Meta Pixel (they don't auto-track client-side route
+    // changes). Captures every screen in the acquisition funnel, not just the first.
+    trackPageView(location.pathname, { search: location.search });
   }, [location]);
 
   return (

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMe
 import { Chess } from "chess.js";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { Helmet } from 'react-helmet-async';
+import { trackConversion } from "../../utils/analytics";
 
 // Import Components
 import ChessBoard from "./ChessBoard";
@@ -597,6 +598,8 @@ const PlayComputer = () => {
     setRatedMode('casual');
     setComputerDepth(3);
     localStorage.setItem('computerDepth', '3');
+    // Funnel: a non-authenticated visitor actually started playing.
+    trackConversion('guest_game_start', { mode: 'casual', depth: 3 }, 'StartTrial');
   }, [isGuestCasualMode]);
 
   // --- Restore active game from localStorage on mount (refresh persistence) ---

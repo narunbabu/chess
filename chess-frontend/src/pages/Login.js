@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams, useLocation, Link } from 'react-router-do
 import { useAuth } from '../contexts/AuthContext';
 import { BASE_URL } from '../config';
 import api from '../services/api';
+import { trackConversion } from '../utils/analytics';
 import ReCAPTCHA from 'react-google-recaptcha';
 import MailIcon from "../assets/icons/MailIcon";
 import LockIcon from "../assets/icons/LockIcon";
@@ -135,12 +136,14 @@ const LoginPage = () => {
           setIsLoading(false);
           return;
         }
+        trackConversion('signup_start', { method: 'email' });
         const response = await api.post('/auth/register', {
           name, email, password, password_confirmation: confirmPassword,
           captcha_token: captchaToken,
           ...(referralCode ? { referral_code: referralCode } : {}),
         });
         if (response.data.requires_verification) {
+          trackConversion('signup_complete', { method: 'email', requires_verification: true }, 'CompleteRegistration');
           setRegistrationSuccess(true);
           setRegisteredEmail(email);
           if (referrerName) {
@@ -151,6 +154,7 @@ const LoginPage = () => {
           return;
         }
         if (response.data.status === 'success' && response.data.token) {
+          trackConversion('signup_complete', { method: 'email', requires_verification: false }, 'CompleteRegistration');
           if (referrerName) {
             localStorage.setItem('chess99_enrolled_under', referrerName);
           }
@@ -315,6 +319,7 @@ const LoginPage = () => {
                 <a
                   href={`${BASE_URL}/auth/google/redirect${referralCode ? `?ref=${referralCode}` : ''}`}
                   onClick={() => {
+                    trackConversion('signup_start', { method: 'google' });
                     // Save redirect path so AuthCallback can return user to the right page
                     const redirectPath = getRedirectPath();
                     if (redirectPath !== '/lobby') {
@@ -330,6 +335,23 @@ const LoginPage = () => {
                     <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571l6.19,5.238C42.012,35.84,44,30.138,44,24C44,22.659,43.862,21.35,43.611,20.083z"/>
                   </svg>
                   Continue with Google
+                </a>
+
+                <a
+                  href={`${BASE_URL}/auth/facebook/redirect${referralCode ? `?ref=${referralCode}` : ''}`}
+                  onClick={() => {
+                    trackConversion('signup_start', { method: 'facebook' });
+                    const redirectPath = getRedirectPath();
+                    if (redirectPath !== '/lobby') {
+                      localStorage.setItem('pending_login_redirect', redirectPath);
+                    }
+                  }}
+                  className="w-full flex items-center justify-center px-4 py-3.5 rounded-lg text-base font-semibold text-white bg-[#3d3a37] border border-[#4a4744] hover:bg-[#4a4744] transition-colors"
+                >
+                  <svg className="w-5 h-5 mr-3 flex-shrink-0" viewBox="0 0 24 24" fill="#1877F2" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M24 12.073C24 5.404 18.627 0 12 0S0 5.404 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"/>
+                  </svg>
+                  Continue with Facebook
                 </a>
 
                 <button

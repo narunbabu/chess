@@ -28,6 +28,12 @@ export const track = (event, payload = {}) => {
       window.gtag('event', event, payload);
     }
 
+    // Meta Pixel: forward as a custom event so ad campaigns can build audiences
+    // and optimize delivery. Standard funnel events use trackConversion() below.
+    if (typeof window !== 'undefined' && window.fbq) {
+      window.fbq('trackCustom', event, payload);
+    }
+
     // Development Console Logging
     if (process.env.NODE_ENV === 'development') {
       console.log('[Analytics]', event, payload);
@@ -41,6 +47,34 @@ export const track = (event, payload = {}) => {
     // Silent fail - analytics should never break the app
     if (process.env.NODE_ENV === 'development') {
       console.error('[Analytics] Error tracking event:', error);
+    }
+  }
+};
+
+/**
+ * Track a conversion / acquisition funnel step.
+ *
+ * Sends one named GA4 event (so the funnel is queryable in GA4 exploration) and,
+ * when provided, maps it to a Meta Pixel standard event so the ad platform can
+ * optimize delivery toward it. This is the backbone of acquisition measurement.
+ *
+ * Funnel: landing_view → play_click → guest_game_start → signup_start
+ *         → signup_complete → first_rated_game
+ *
+ * @param {string} step - Funnel step name (snake_case)
+ * @param {object} payload - Additional context
+ * @param {string} [metaStandardEvent] - Meta Pixel standard event (e.g. 'Lead',
+ *        'CompleteRegistration', 'StartTrial') to fire alongside the custom event.
+ */
+export const trackConversion = (step, payload = {}, metaStandardEvent = null) => {
+  track(step, payload);
+  try {
+    if (metaStandardEvent && typeof window !== 'undefined' && window.fbq) {
+      window.fbq('track', metaStandardEvent, payload);
+    }
+  } catch (error) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[Analytics] Meta standard event failed:', error);
     }
   }
 };
@@ -158,6 +192,7 @@ export const trackUI = (element, action, metadata = {}) => {
 
 const analytics = {
   track,
+  trackConversion,
   trackPageView,
   trackAuth,
   trackNavigation,
