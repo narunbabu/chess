@@ -41,6 +41,26 @@ class ChampionshipPolicy
     }
 
     /**
+     * Determine if the user can participate in the championship — i.e. play
+     * matches and report their own results.
+     *
+     * NOTE: this ability was referenced by ChampionshipMatchController
+     * (reportResult / createGame) but never defined, which made those endpoints
+     * deny everyone (AuthorizationException). The match-level check — that the
+     * user is actually a player in the specific match — is enforced in the
+     * controller via ChampionshipMatch::hasPlayer(); this gate only requires an
+     * authenticated user who can see the championship.
+     */
+    public function participate(?User $user, Championship $championship): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        return $this->view($user, $championship);
+    }
+
+    /**
      * Determine if the user can create championships
      */
     public function create(User $user): bool

@@ -397,13 +397,32 @@ const ChampionshipMatches = ({
   const handleReportResult = async (matchId, result) => {
     setReportingMatch(matchId);
     try {
-      // TODO: Implement result reporting API call
-      console.log('Report result for match:', matchId, result);
-      // await reportMatchResult(matchId, result);
-      // await loadMatches(); // Refresh matches
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        throw new Error('No auth token found');
+      }
+
+      // Backend (ChampionshipMatchController@reportResult) accepts win|draw|loss
+      // and derives the winner server-side.
+      await axios.post(
+        `${BACKEND_URL}/championships/${championshipId}/matches/${matchId}/result`,
+        { result: result.result_type },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      await loadMatches(); // Refresh matches
     } catch (error) {
       console.error('Failed to report result:', error);
-      setError('Failed to report result');
+      setError(
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        'Failed to report result'
+      );
     } finally {
       setReportingMatch(null);
     }
@@ -828,8 +847,8 @@ const ChampionshipMatches = ({
                   <option value="win">I Won</option>
                   <option value="loss">I Lost</option>
                   <option value="draw">Draw</option>
-                  <option value="forfeit_win">Won by Forfeit</option>
-                  <option value="forfeit_loss">Lost by Forfeit</option>
+                  {/* Forfeit options removed: backend reportResult accepts only
+                      win|draw|loss. Re-add when forfeit handling is implemented. */}
                 </select>
               </div>
 

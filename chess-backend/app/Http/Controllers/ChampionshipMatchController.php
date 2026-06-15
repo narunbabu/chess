@@ -222,16 +222,12 @@ class ChampionshipMatchController extends Controller
                 default => null,
             };
 
-            $resultType = match ($result) {
-                'win' => ($match->player1_id === $user->id)
-                    ? ChampionshipResultType::NORMAL_WIN_PLAYER1
-                    : ChampionshipResultType::NORMAL_WIN_PLAYER2,
-                'draw' => ChampionshipResultType::DRAW,
-                'loss' => ($match->player1_id === $user->id)
-                    ? ChampionshipResultType::NORMAL_WIN_PLAYER2
-                    : ChampionshipResultType::NORMAL_WIN_PLAYER1,
-                default => null,
-            };
+            // COMPLETED covers both win and loss — winner_id (set above) identifies
+            // the victor. There are no NORMAL_WIN_PLAYER* enum cases; referencing
+            // them previously fataled this endpoint on every win/loss report.
+            $resultType = $result === 'draw'
+                ? ChampionshipResultType::DRAW
+                : ChampionshipResultType::COMPLETED;
 
             DB::transaction(function () use ($match, $winnerId, $resultType) {
                 $match->update([
