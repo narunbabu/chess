@@ -10,39 +10,32 @@ Route::get('/', function () {
     return view('welcome'); // Change this to your desired homepage view
 });
 
-// Serve storage files (needed for php artisan serve development server)
+// Serve storage files (needed for php artisan serve development server).
+// SECURITY (2026-06-12): hardened against path traversal — the resolved path
+// must stay inside storage/app/public, and the route is disabled in production
+// (nginx serves /storage there).
 Route::get('/storage/{path}', function ($path) {
-    try {
-        \Log::info('Storage route hit', ['path' => $path]);
-
-        // Convert forward slashes to proper directory separators
-        $path = str_replace('/', DIRECTORY_SEPARATOR, $path);
-        $filePath = storage_path('app' . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . $path);
-
-        \Log::info('Resolved file path', ['filePath' => $filePath, 'exists' => file_exists($filePath)]);
-
-        if (!file_exists($filePath)) {
-            \Log::error('File not found', ['filePath' => $filePath]);
-            abort(404, 'File not found');
-        }
-
-        \Log::info('Serving file', ['filePath' => $filePath, 'size' => filesize($filePath)]);
-
-        // Get the file's MIME type
-        $mimeType = mime_content_type($filePath);
-
-        return response()->file($filePath, [
-            'Content-Type' => $mimeType,
-            'Cache-Control' => 'public, max-age=3600'
-        ]);
-    } catch (\Exception $e) {
-        \Log::error('Storage route error', [
-            'path' => $path,
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString()
-        ]);
-        abort(500, $e->getMessage());
+    if (app()->environment('production')) {
+        abort(404);
     }
+
+    $publicRoot = realpath(storage_path('app' . DIRECTORY_SEPARATOR . 'public'));
+    $filePath = realpath($publicRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $path));
+
+    // Reject traversal: resolved path must exist and remain under the public root
+    if (
+        $publicRoot === false
+        || $filePath === false
+        || !is_file($filePath)
+        || !str_starts_with($filePath, $publicRoot . DIRECTORY_SEPARATOR)
+    ) {
+        abort(404, 'File not found');
+    }
+
+    return response()->file($filePath, [
+        'Content-Type' => mime_content_type($filePath),
+        'Cache-Control' => 'public, max-age=3600',
+    ]);
 })->where('path', '.*')->name('storage.local');
 
 // Shared result page with Open Graph meta tags for social media

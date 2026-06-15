@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
+import DOMPurify from 'dompurify';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
@@ -462,7 +463,7 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
             <h5 className="font-medium text-[#81b64c] mb-1">Scheduling Rules:</h5>
             <div
               className="text-sm text-[#bababa] prose prose-sm max-w-none"
-              dangerouslySetInnerHTML={{ __html: championshipInstructions.scheduling_instructions }}
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(championshipInstructions.scheduling_instructions) }}
             />
           </div>
 
@@ -470,7 +471,7 @@ const MatchSchedulingCard = ({ match, championship, onMatchUpdate }) => {
             <h5 className="font-medium text-[#81b64c] mb-1">Play Rules:</h5>
             <div
               className="text-sm text-[#bababa] prose prose-sm max-w-none"
-              dangerouslySetInnerHTML={{ __html: championshipInstructions.play_instructions }}
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(championshipInstructions.play_instructions) }}
             />
           </div>
 

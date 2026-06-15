@@ -21,7 +21,10 @@ class SubscriptionService
      */
     public function isMockMode(): bool
     {
-        return config('services.razorpay.mock_mode', true);
+        // SECURITY: default false and never allow mock mode in production —
+        // it bypasses payment signature verification entirely.
+        return config('services.razorpay.mock_mode', false)
+            && !app()->environment('production');
     }
 
     /**
@@ -183,6 +186,13 @@ class SubscriptionService
         // Verify HMAC signature in production
         if (!$this->isMockMode()) {
             $keySecret = config('services.razorpay.key_secret');
+
+            // SECURITY: fail closed — an empty secret would make the HMAC forgeable
+            if (empty($keySecret)) {
+                Log::error('Razorpay key secret not configured; rejecting payment verification');
+                throw new \RuntimeException('Payment verification unavailable: gateway not configured.');
+            }
+
             $expected  = hash_hmac('sha256', "{$orderId}|{$paymentId}", $keySecret);
             if (!hash_equals($expected, $signature)) {
                 Log::warning('Razorpay signature mismatch', [

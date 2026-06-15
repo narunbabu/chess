@@ -18,11 +18,20 @@ class RazorpayService
         // Enable mock mode for testing (check if we're in testing environment or mock is enabled)
         $this->mockMode = config('services.razorpay.mock_mode', false) || app()->environment('testing');
 
+        // SECURITY: mock mode bypasses all signature verification — never allow in production
+        if ($this->mockMode && app()->environment('production')) {
+            throw new \RuntimeException('Razorpay mock mode must not be enabled in production.');
+        }
+
         if (!$this->mockMode) {
-            $this->api = new Api(
-                config('services.razorpay.key_id'),
-                config('services.razorpay.key_secret')
-            );
+            $keyId = config('services.razorpay.key_id');
+            $keySecret = config('services.razorpay.key_secret');
+
+            if (empty($keyId) || empty($keySecret)) {
+                throw new \RuntimeException('Razorpay credentials are not configured (RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET).');
+            }
+
+            $this->api = new Api($keyId, $keySecret);
         }
     }
 
@@ -107,8 +116,10 @@ class RazorpayService
     public function verifyPaymentSignature(array $attributes): bool
     {
         try {
-            // Mock mode - always verify successfully for mock orders
-            if ($this->mockMode || str_starts_with($attributes['razorpay_order_id'] ?? '', 'order_mock_')) {
+            // Mock mode - always verify successfully (mock mode is blocked in production).
+            // SECURITY: previously 'order_mock_*' ids bypassed verification even with
+            // mock mode off — that allowed real-payment signature bypass. Mock-mode only now.
+            if ($this->mockMode) {
                 Log::info('Mock payment signature verification', [
                     'order_id' => $attributes['razorpay_order_id'] ?? null,
                     'mock_mode' => true,
@@ -141,8 +152,9 @@ class RazorpayService
         string $razorpaySignature
     ): void {
         try {
-            // Mock mode for testing
-            if ($this->mockMode || str_starts_with($razorpayPaymentId, 'pay_mock_')) {
+            // Mock mode for testing. SECURITY: 'pay_mock_*' prefix no longer bypasses
+            // real verification when mock mode is off.
+            if ($this->mockMode) {
                 // Update participant record
                 $participant->markAsPaid($razorpayPaymentId, $razorpaySignature);
 
@@ -273,6 +285,12 @@ class RazorpayService
     {
         try {
             $webhookSecret = config('services.razorpay.webhook_secret');
+
+            // SECURITY: fail closed — an empty secret would make the HMAC forgeable
+            if (empty($webhookSecret)) {
+                Log::error('Razorpay webhook secret not configured; rejecting webhook');
+                return false;
+            }
 
             $expectedSignature = hash_hmac('sha256', $body, $webhookSecret);
 

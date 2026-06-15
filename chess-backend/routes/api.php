@@ -503,58 +503,9 @@ Route::middleware('auth:sanctum')->prefix('admin/referrals')->group(function () 
 Route::post('/websocket/broadcasting/auth', [WebSocketController::class, 'authenticate']);
 Route::post('/broadcasting/auth', [WebSocketController::class, 'authenticate']);
 
-Route::get('/public-test', function () {
-    Log::info('=== PUBLIC TEST ENDPOINT HIT ===');
-    return response()->json([
-        'status' => 'success',
-        'message' => 'Public test endpoint works!',
-    ]);
-});
-
-Route::get('/debug/oauth-config', function () {
-    return response()->json([
-        'google_client_id' => config('services.google.client_id'),
-        'google_redirect' => config('services.google.redirect'),
-        'frontend_url' => config('app.frontend_url'),
-        'env_google_redirect' => env('GOOGLE_REDIRECT_URL'),
-        'env_frontend_url' => env('FRONTEND_URL'),
-    ]);
-});
-
-// Debug endpoint for avatar storage diagnostics
-Route::get('/debug/avatar-storage', function () {
-    $avatarDir = storage_path('app/public/avatars');
-    $files = [];
-
-    if (is_dir($avatarDir)) {
-        $items = array_diff(scandir($avatarDir), ['.', '..']);
-        foreach ($items as $item) {
-            $path = $avatarDir . '/' . $item;
-            $files[] = [
-                'filename' => $item,
-                'size' => filesize($path),
-                'readable' => is_readable($path),
-                'permissions' => substr(sprintf('%o', fileperms($path)), -4),
-                'modified' => date('Y-m-d H:i:s', filemtime($path))
-            ];
-        }
-    }
-
-    return response()->json([
-        'storage_path' => storage_path(),
-        'app_public_path' => storage_path('app/public'),
-        'avatars_directory' => $avatarDir,
-        'directory_exists' => is_dir($avatarDir),
-        'directory_readable' => is_dir($avatarDir) ? is_readable($avatarDir) : false,
-        'directory_writable' => is_dir($avatarDir) ? is_writable($avatarDir) : false,
-        'directory_permissions' => is_dir($avatarDir) ? substr(sprintf('%o', fileperms($avatarDir)), -4) : 'N/A',
-        'file_count' => count($files),
-        'files' => $files,
-        'php_user' => posix_getpwuid(posix_geteuid()),
-        'app_url' => config('app.url'),
-        'environment' => config('app.env')
-    ]);
-});
+// SECURITY: debug/test endpoints (/public-test, /debug/oauth-config,
+// /debug/avatar-storage) removed 2026-06-12 — they leaked OAuth config,
+// storage paths, and server OS user to unauthenticated callers.
 
 // Serve avatar files
 Route::get('/avatars/{filename}', function ($filename) {
@@ -639,18 +590,8 @@ Route::get('/avatars/{filename}', function ($filename) {
     }
 })->where('filename', '.*');
 
-Route::post('/debug-test', function (Illuminate\Http\Request $request) {
-    Log::info('=== DEBUG TEST ENDPOINT HIT ===');
-    Log::info('Method: ' . $request->method());
-    Log::info('Headers: ', $request->headers->all());
-    Log::info('Body: ' . $request->getContent());
-
-    return response()->json([
-        'status' => 'success',
-        'message' => 'Debug test endpoint works!',
-        'received_data' => $request->all()
-    ]);
-});
+// SECURITY: /debug-test endpoint removed 2026-06-12 — it logged and echoed
+// arbitrary request headers/bodies for unauthenticated callers.
 
 // Add logging middleware to all routes
 Route::middleware('web')->group(function () {
