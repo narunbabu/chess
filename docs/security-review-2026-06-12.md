@@ -4,6 +4,22 @@ Scope: `chess-backend` (Laravel 12), `chess-frontend` (React 18), `chess99-andro
 
 ---
 
+## Remediation status (updated 2026-06-15)
+
+| Finding | Status | Where |
+|---------|--------|-------|
+| C1 Razorpay mock bypass | ✅ Fixed | commit `eb75740` |
+| H3 Public debug routes | ✅ Fixed | commit `eb75740` |
+| H4 Storage path traversal | ✅ Fixed | commit `eb75740` |
+| H5 Championship XSS | ✅ Fixed | commit `eb75740` |
+| H2 Move/rating forgery | ✅ Fixed | commit `d1f9df3` (server-authoritative; new `RatingService`; REST move endpoint removed) |
+| H1 Rotate leaked secrets | ⏳ Pending | **manual** — rotate creds + scrub `.env.onserver` |
+| M1–M8, L1–L8 | ⏳ Pending | see below |
+
+Fixes are committed on local `master`, not yet pushed/deployed (deploys route through ServerMigrationAgent).
+
+---
+
 ## Critical
 
 ### C1. Razorpay mock mode defaults ON — full payment bypass in production
@@ -83,8 +99,14 @@ CORS allowlist (no wildcard with credentials), password reset flow (hashed token
 
 ## Top priorities (ranked)
 
-1. **C1** — disable Razorpay mock mode in production; fail closed (revenue loss, live now)
-2. **H1** — rotate all leaked credentials in `.env.onserver`
-3. **H3 + H4** — remove debug routes and fix `/storage/{path}` traversal
-4. **H5** — sanitize championship instructions HTML
-5. **H2** — server-side move + rating validation (largest change; plan separately)
+1. ~~**C1** — disable Razorpay mock mode in production; fail closed~~ ✅ done (`eb75740`)
+2. **H1** — rotate all leaked credentials in `.env.onserver` (manual; still outstanding)
+3. ~~**H3 + H4** — remove debug routes and fix `/storage/{path}` traversal~~ ✅ done (`eb75740`)
+4. ~~**H5** — sanitize championship instructions HTML~~ ✅ done (`eb75740`)
+5. ~~**H2** — server-side move + rating validation~~ ✅ done (`d1f9df3`)
+
+### Remaining after this pass
+- **H1** rotate leaked secrets (manual, highest remaining)
+- Quick code wins: **L2** `SESSION_SECURE_COOKIE`, **L1** `noopener`, **M5** User `$fillable`, **M4** PII logging, **M3** debug files in `public/`
+- **M6** WebSocket relay participation re-check
+- Android: **M7/M8/L4/L5**
