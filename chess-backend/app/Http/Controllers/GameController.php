@@ -492,51 +492,11 @@ class GameController extends Controller
         return response()->json($response);
     }
 
-    public function move(Request $request, $id)
-    {
-        $request->validate([
-            'from' => 'required|string',
-            'to' => 'required|string',
-            'fen' => 'required|string',
-            'move' => 'required|string'
-        ]);
-
-        $game = Game::find($id);
-
-        if (!$game) {
-            return response()->json(['error' => 'Game not found'], 404);
-        }
-
-        $user = Auth::user();
-        $userColor = $game->getPlayerColor($user->id);
-
-        // Check if it's the user's turn
-        if ($game->turn !== $userColor) {
-            return response()->json(['error' => 'Not your turn'], 400);
-        }
-
-        // Update game state
-        $moves = $game->moves ?? [];
-        $moves[] = [
-            'from' => $request->from,
-            'to' => $request->to,
-            'move' => $request->move,
-            'player' => $userColor,
-            'timestamp' => now()
-        ];
-
-        $game->update([
-            'fen' => $request->fen,
-            'moves' => $moves,
-            'turn' => $userColor === 'white' ? 'black' : 'white',
-            'last_move_at' => now()
-        ]);
-
-        return response()->json([
-            'message' => 'Move recorded',
-            'game' => $game->load(['whitePlayer', 'blackPlayer'])
-        ]);
-    }
+    // SECURITY (2026-06-12): the REST POST /games/{id}/move endpoint and its
+    // GameController::move() handler were removed. They persisted client-supplied
+    // FEN/moves with no legality check, allowing forged board states. All real
+    // gameplay goes through the WebSocket path (WebSocketController::broadcastMove
+    // -> GameRoomService), which validates every move server-side via php-chess.
 
     /**
      * Get compact move history for a game (efficient format)
@@ -818,60 +778,25 @@ class GameController extends Controller
                 default                          => 'loss',
             };
 
-            $oldRating     = (int) $user->rating;
-            $opponentRating = (int) $synth->rating;
-            $actualScore   = match ($humanResult) { 'win' => 1.0, 'draw' => 0.5, default => 0.0 };
-            $expectedScore = 1 / (1 + pow(10, ($opponentRating - $oldRating) / 400));
-            $gamesPlayed   = (int) ($user->games_played ?? 0);
-            $kFactor       = $this->syntheticEloKFactor($gamesPlayed, $oldRating);
-            $ratingChange  = (int) round($kFactor * ($actualScore - $expectedScore));
-            if ($humanResult === 'win')  $ratingChange = max(1,  $ratingChange);
-            if ($humanResult === 'loss') $ratingChange = min(-1, $ratingChange);
-
-            $newRating = max(User::MIN_RATING, min(User::MAX_RATING, $oldRating + $ratingChange));
-
-            $user->rating              = $newRating;
-            $user->games_played        = $gamesPlayed + 1;
-            $user->rating_last_updated = now();
-            if ($newRating > ($user->peak_rating ?? 0)) $user->peak_rating = $newRating;
-            if ($user->games_played >= 10) $user->is_provisional = false;
-            $user->save();
-
-            \DB::table('ratings_history')->insert([
-                'user_id'         => $user->id,
-                'old_rating'      => $oldRating,
-                'new_rating'      => $newRating,
-                'rating_change'   => $ratingChange,
-                'opponent_id'     => null,
-                'opponent_rating' => $opponentRating,
-                'computer_level'  => $game->computer_level,
-                'result'          => $humanResult,
-                'game_type'       => 'computer',
-                'k_factor'        => $kFactor,
-                'expected_score'  => round($expectedScore, 4),
-                'actual_score'    => $actualScore,
-                'game_id'         => $game->id,
-                'created_at'      => now(),
-                'updated_at'      => now(),
-            ]);
+            // Shared, idempotent Elo application (single source of truth).
+            $record = app(\App\Services\RatingService::class)->applyForPlayer(
+                $user,
+                (int) $synth->rating,
+                $humanResult,
+                $game->id,
+                null,
+                'computer',
+                $game->computer_level
+            );
 
             \Log::info('[ELO] Rated synthetic game Elo applied', [
                 'game_id' => $game->id, 'user_id' => $user->id,
-                'result' => $humanResult, 'change' => $ratingChange,
-                'old' => $oldRating, 'new' => $newRating,
+                'result' => $humanResult, 'change' => $record->rating_change,
+                'old' => $record->old_rating, 'new' => $record->new_rating,
             ]);
         } catch (\Throwable $e) {
             \Log::error('[ELO] Rated synthetic Elo failed', ['game_id' => $game->id, 'error' => $e->getMessage()]);
         }
-    }
-
-    private function syntheticEloKFactor(int $gamesPlayed, int $rating): int
-    {
-        if ($gamesPlayed < 10) return 40;
-        if ($gamesPlayed < 30) return 32;
-        if ($rating < 1400)    return 32;
-        if ($rating < 2000)    return 24;
-        return 20;
     }
 
     private function normalizeLearningHelpLimit($value): int

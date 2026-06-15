@@ -121,7 +121,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/games/{id}', [GameController::class, 'show']);
     Route::get('/games/{id}/pgn', [GameController::class, 'pgn']);
     Route::get('/games/{id}/moves', [GameController::class, 'moves']);
-    Route::post('/games/{id}/move', [GameController::class, 'move']);
+    // SECURITY: POST /games/{id}/move removed 2026-06-12 — it persisted client FEN
+    // with no legality check. Moves go through the validated WebSocket path.
     Route::post('/games/{id}/resign', [GameController::class, 'resign']);
     Route::post('/games/{id}/complete', [GameController::class, 'completeGame']);
     Route::post('/games/{id}/pause-navigation', [GameController::class, 'pauseNavigation']);

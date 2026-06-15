@@ -30,8 +30,8 @@ interface GameApi {
     @GET("games/{id}/moves")
     suspend fun getGameMoves(@Path("id") id: Int): Response<JsonObject>
 
-    @POST("games/{id}/move")
-    suspend fun makeMove(@Path("id") id: Int, @Body body: JsonObject): Response<JsonObject>
+    // SECURITY: REST POST games/{id}/move removed 2026-06-12 (unvalidated server-side).
+    // Multiplayer moves go through WebSocketApi.sendMove (validated path).
 
     @POST("games/{id}/resign")
     suspend fun resign(@Path("id") id: Int): Response<JsonObject>

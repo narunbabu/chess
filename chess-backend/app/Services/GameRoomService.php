@@ -9,6 +9,7 @@ use App\Models\GameConnection;
 use App\Models\GameHistory;
 use App\Models\User;
 use App\Services\ChessRulesService;
+use App\Services\RatingService;
 use Chess\Variant\Classical\FenToBoardFactory;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -1091,80 +1092,19 @@ class GameRoomService
     }
 
     /**
-     * Apply Elo change for one player. Idempotent: skips if already recorded.
+     * Apply Elo change for one player via the shared RatingService.
+     * Idempotent: the service skips if a record already exists for this player+game.
      */
     private function applyEloForPlayer(User $player, int $opponentRating, string $result, int $gameId, int $opponentId): void
     {
-        // Idempotency: skip if we already have a ratings_history record for this player+game
-        $exists = \DB::table('ratings_history')
-            ->where('user_id', $player->id)
-            ->where('game_id', $gameId)
-            ->exists();
-        if ($exists) {
-            Log::info('[ELO] Already recorded for player, skipping', [
-                'user_id' => $player->id,
-                'game_id' => $gameId,
-            ]);
-            return;
-        }
-
-        $oldRating = $player->rating;
-        $actualScore = match ($result) {
-            'win'  => 1.0,
-            'draw' => 0.5,
-            default => 0.0,
-        };
-        $expectedScore  = 1 / (1 + pow(10, ($opponentRating - $oldRating) / 400));
-        $gamesPlayed    = $player->games_played ?? 0;
-        $kFactor        = $this->calculateEloKFactor($gamesPlayed, $oldRating);
-        $rawChange      = $kFactor * ($actualScore - $expectedScore);
-        $ratingChange   = (int) round($rawChange);
-
-        if ($result === 'win')  $ratingChange = max(1,  $ratingChange);
-        if ($result === 'loss') $ratingChange = min(-1, $ratingChange);
-
-        $newRating = max(User::MIN_RATING, min(User::MAX_RATING, $oldRating + $ratingChange));
-
-        $player->rating              = $newRating;
-        $player->games_played        = $gamesPlayed + 1;
-        $player->rating_last_updated = now();
-        if ($newRating > ($player->peak_rating ?? 0)) {
-            $player->peak_rating = $newRating;
-        }
-        if ($player->games_played >= 10) {
-            $player->is_provisional = false;
-        }
-        $player->save();
-
-        \DB::table('ratings_history')->insert([
-            'user_id'        => $player->id,
-            'old_rating'     => $oldRating,
-            'new_rating'     => $newRating,
-            'rating_change'  => $ratingChange,
-            'opponent_id'    => $opponentId,
-            'opponent_rating'=> $opponentRating,
-            'computer_level' => null,
-            'result'         => $result,
-            'game_type'      => 'multiplayer',
-            'k_factor'       => $kFactor,
-            'expected_score' => round($expectedScore, 4),
-            'actual_score'   => $actualScore,
-            'game_id'        => $gameId,
-            'created_at'     => now(),
-            'updated_at'     => now(),
-        ]);
-    }
-
-    /**
-     * Elo K-factor: mirrors RatingController::calculateKFactor logic.
-     */
-    private function calculateEloKFactor(int $gamesPlayed, int $rating): int
-    {
-        if ($gamesPlayed < 10) return 40;  // Provisional
-        if ($gamesPlayed < 30) return 32;
-        if ($rating < 1400)    return 32;
-        if ($rating < 2000)    return 24;
-        return 20;
+        app(RatingService::class)->applyForPlayer(
+            $player,
+            $opponentRating,
+            $result,
+            $gameId,
+            $opponentId,
+            'multiplayer'
+        );
     }
 
     /**

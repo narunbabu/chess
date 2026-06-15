@@ -43,13 +43,8 @@ export const gameService = {
     return response.data;
   },
 
-  /**
-   * Submit a move
-   */
-  submitMove: async (gameId, move) => {
-    const response = await api.post(`/games/${gameId}/move`, move);
-    return response.data;
-  },
+  // submitMove (POST /games/{id}/move) removed 2026-06-12 — the unsafe REST move
+  // endpoint was deleted server-side; moves go through the WebSocket service.
 
   /**
    * Mark a game as completed (finished)

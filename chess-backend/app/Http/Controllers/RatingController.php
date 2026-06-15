@@ -9,9 +9,14 @@ use App\Models\RatingHistory;
 use App\Models\Game;
 use App\Models\SyntheticPlayer;
 use App\Models\User;
+use App\Services\RatingService;
 
 class RatingController extends Controller
 {
+    public function __construct(private RatingService $ratingService)
+    {
+    }
+
     /**
      * Set initial rating for a user (from skill assessment)
      *
@@ -59,7 +64,17 @@ class RatingController extends Controller
     }
 
     /**
-     * Update rating after a game using Elo rating system
+     * Settle the requesting user's Elo for a finished, rated game.
+     *
+     * SECURITY: this endpoint is a client-driven *fallback* for the
+     * authoritative server-side Elo handlers (GameRoomService::applyRatedGameElo
+     * for multiplayer, GameController::applyRatedSyntheticElo for computer).
+     * It used to trust client-supplied `result` and `opponent_rating`, which
+     * let a caller forge arbitrary rating gains (e.g. result=win,
+     * opponent_rating=3200, no game_id → no idempotency dedup). It now requires
+     * a real game_id and derives EVERYTHING from the persisted game record:
+     * the caller must be a participant, the game must be finished and rated,
+     * and the result/opponent are read from the game, never the request body.
      *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
@@ -67,12 +82,7 @@ class RatingController extends Controller
     public function updateRating(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'opponent_rating' => 'required|integer|min:' . User::MIN_RATING . '|max:' . User::MAX_RATING,
-            'result' => 'required|in:win,draw,loss',
-            'game_type' => 'nullable|in:computer,multiplayer',
-            'opponent_id' => 'nullable|integer|exists:users,id',
-            'computer_level' => 'nullable|integer|min:1|max:16',
-            'game_id' => 'nullable|integer|exists:games,id',
+            'game_id' => 'required|integer|exists:games,id',
         ]);
 
         if ($validator->fails()) {
@@ -83,187 +93,94 @@ class RatingController extends Controller
         }
 
         $user = Auth::user();
-        $gameType = $request->input('game_type', 'multiplayer');
+        $game = Game::find($request->input('game_id'));
 
-        // Idempotency: if this game_id was already processed by the server-side Elo
-        // handler (applyRatedGameElo for multiplayer, applyRatedSyntheticElo for computer),
-        // return the existing record instead of applying Elo a second time.
-        if ($request->input('game_id')) {
-            $existing = \DB::table('ratings_history')
-                ->where('user_id', $user->id)
-                ->where('game_id', $request->input('game_id'))
-                ->first();
-            if ($existing) {
-                return response()->json([
-                    'success' => true,
-                    'data' => [
-                        'old_rating'     => $existing->old_rating,
-                        'new_rating'     => $existing->new_rating,
-                        'rating_change'  => $existing->rating_change,
-                        'games_played'   => $user->games_played,
-                        'is_provisional' => (bool) $user->is_provisional,
-                        'peak_rating'    => $user->peak_rating,
-                        'k_factor'       => $existing->k_factor,
-                        'expected_score' => $existing->expected_score,
-                        'actual_score'   => $existing->actual_score,
-                    ],
-                ]);
-            }
+        // Authorization: only a participant can settle their own rating.
+        if ($game->white_player_id !== $user->id && $game->black_player_id !== $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You are not a participant in this game.',
+            ], 403);
         }
 
-        $oldRating = $user->rating;
-        $opponentRating = $request->opponent_rating;
-        $result = $request->result;
+        // Only finished games count. A decisive/draw result is the reliable signal.
+        $validResults = ['1-0', '0-1', '1/2-1/2'];
+        if (!in_array($game->result, $validResults, true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Game is not finished.',
+            ], 409);
+        }
 
-        // Convert result to actual score
-        $actualScore = match($result) {
-            'win' => 1.0,
-            'draw' => 0.5,
-            'loss' => 0.0,
+        // Casual games never affect rating — return the unchanged rating.
+        if ($game->game_mode !== 'rated') {
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'old_rating'     => $user->rating,
+                    'new_rating'     => $user->rating,
+                    'rating_change'  => 0,
+                    'games_played'   => $user->games_played,
+                    'is_provisional' => (bool) $user->is_provisional,
+                    'peak_rating'    => $user->peak_rating,
+                ],
+            ]);
+        }
+
+        // Derive result + opponent from the game record (never from the client).
+        $userColor = $game->white_player_id === $user->id ? 'white' : 'black';
+        $userResult = match (true) {
+            $game->result === '1/2-1/2'                       => 'draw',
+            $game->result === '1-0' && $userColor === 'white' => 'win',
+            $game->result === '0-1' && $userColor === 'black' => 'win',
+            default                                           => 'loss',
         };
 
-        // Calculate expected score using Elo formula
-        // E = 1 / (1 + 10^((R_opponent - R_player) / 400))
-        $expectedScore = 1 / (1 + pow(10, ($opponentRating - $oldRating) / 400));
-
-        // Determine K-factor based on games played
-        $gamesPlayed = $user->games_played ?? 0;
-        $kFactor = $this->calculateKFactor($gamesPlayed, $oldRating);
-
-        // Calculate new rating
-        // R_new = R_old + K × (S - E)
-        $rawChange = $kFactor * ($actualScore - $expectedScore);
-        $ratingChange = round($rawChange);
-
-        // Enforce minimum ±1 for decisive results so wins always gain and losses always lose.
-        // Pure Elo can round to 0 for large rating mismatches (e.g. 1400 player beats 400-rated
-        // opponent: K×(1−0.984)=0.26 → rounds to 0). That's confusing and unfair.
-        if ($result === 'win')  $ratingChange = max(1,  $ratingChange);
-        if ($result === 'loss') $ratingChange = min(-1, $ratingChange);
-
-        $newRating = $oldRating + $ratingChange;
-
-        // Debug logging
-        \Log::info('Rating calculation debug', [
-            'user_id' => $user->id,
-            'old_rating' => $oldRating,
-            'opponent_rating' => $opponentRating,
-            'result' => $result,
-            'actual_score' => $actualScore,
-            'expected_score' => round($expectedScore, 4),
-            'games_played_before' => $gamesPlayed,
-            'k_factor' => $kFactor,
-            'raw_change' => round($rawChange, 2),
-            'rating_change' => $ratingChange,
-            'new_rating' => $newRating
-        ]);
-
-        // Ensure rating stays within reasonable bounds (match computer level range)
-        $newRating = max(User::MIN_RATING, min(User::MAX_RATING, $newRating));
-
-        // Update user rating
-        $user->rating = $newRating;
-        $user->games_played = $gamesPlayed + 1;
-        $user->rating_last_updated = now();
-
-        // Update peak rating if applicable
-        if ($newRating > $user->peak_rating) {
-            $user->peak_rating = $newRating;
+        if ($game->synthetic_player_id) {
+            $synthetic     = SyntheticPlayer::find($game->synthetic_player_id);
+            $opponentRating = (int) ($synthetic->rating ?? $user->rating);
+            $opponentId     = null;
+            $gameType       = 'computer';
+            $computerLevel  = $game->computer_level;
+        } else {
+            $opponentUserId = $game->white_player_id === $user->id
+                ? $game->black_player_id
+                : $game->white_player_id;
+            $opponent       = $opponentUserId ? User::find($opponentUserId) : null;
+            $opponentRating = (int) ($opponent->rating ?? $user->rating);
+            $opponentId     = $opponentUserId;
+            $gameType       = 'multiplayer';
+            $computerLevel  = null;
         }
 
-        // Remove provisional status after 10 games
-        if ($user->games_played >= 10) {
-            $user->is_provisional = false;
-        }
+        // RatingService is idempotent on (user, game), so this safely returns the
+        // already-applied record when the authoritative path ran first.
+        $record = $this->ratingService->applyForPlayer(
+            $user,
+            $opponentRating,
+            $userResult,
+            $game->id,
+            $opponentId,
+            $gameType,
+            $computerLevel
+        );
 
-        $user->save();
-
-        // Update synthetic player ELO if this game was against one
-        if ($request->input('game_id')) {
-            $game = Game::find($request->input('game_id'));
-            if ($game && $game->synthetic_player_id) {
-                $syntheticPlayer = SyntheticPlayer::find($game->synthetic_player_id);
-                if ($syntheticPlayer) {
-                    $botOldRating = $syntheticPlayer->rating;
-                    // Bot result is opposite of player result
-                    $botActualScore = match($result) {
-                        'win' => 0.0,
-                        'draw' => 0.5,
-                        'loss' => 1.0,
-                    };
-                    $botExpected = 1 / (1 + pow(10, ($oldRating - $botOldRating) / 400));
-                    $botK = 16; // Conservative K-factor for bots
-                    $botRatingChange = round($botK * ($botActualScore - $botExpected));
-                    $syntheticPlayer->rating = max(User::MIN_RATING, min(User::MAX_RATING, $botOldRating + $botRatingChange));
-                    if ($result === 'loss') {
-                        $syntheticPlayer->wins_count = ($syntheticPlayer->wins_count ?? 0) + 1;
-                    }
-                    $syntheticPlayer->save();
-                }
-            }
-        }
-
-        // Create rating history record
-        $historyRecord = RatingHistory::create([
-            'user_id' => $user->id,
-            'old_rating' => $oldRating,
-            'new_rating' => $newRating,
-            'rating_change' => $ratingChange,
-            'opponent_id' => $request->input('opponent_id'),
-            'opponent_rating' => $opponentRating,
-            'computer_level' => $request->input('computer_level'), // Store computer difficulty level
-            'result' => $result,
-            'game_type' => $gameType,
-            'k_factor' => $kFactor,
-            'expected_score' => round($expectedScore, 4),
-            'actual_score' => $actualScore,
-            'game_id' => $request->input('game_id'),
-        ]);
+        $user->refresh();
 
         return response()->json([
             'success' => true,
             'data' => [
-                'old_rating' => $oldRating,
-                'new_rating' => $newRating,
-                'rating_change' => $ratingChange,
-                'games_played' => $user->games_played,
-                'is_provisional' => $user->is_provisional,
-                'peak_rating' => $user->peak_rating,
-                'k_factor' => $kFactor,
-                'expected_score' => round($expectedScore, 4),
-                'actual_score' => $actualScore,
+                'old_rating'     => $record->old_rating,
+                'new_rating'     => $record->new_rating,
+                'rating_change'  => $record->rating_change,
+                'games_played'   => $user->games_played,
+                'is_provisional' => (bool) $user->is_provisional,
+                'peak_rating'    => $user->peak_rating,
+                'k_factor'       => $record->k_factor,
+                'expected_score' => $record->expected_score,
+                'actual_score'   => $record->actual_score,
             ]
         ]);
-    }
-
-    /**
-     * Calculate K-factor based on player experience and rating
-     *
-     * @param int $gamesPlayed
-     * @param int $rating
-     * @return int
-     */
-    private function calculateKFactor($gamesPlayed, $rating)
-    {
-        // High K-factor for new players (fast rating adjustment, FIDE: 40)
-        if ($gamesPlayed < 10) {
-            return 40;
-        }
-
-        // Developing players: still adjusting (FIDE: 20, we use 32 for more responsiveness)
-        if ($gamesPlayed < 30) {
-            return 32;
-        }
-
-        // Elite players: stable rating (FIDE: 10 for >2400, we use 16)
-        if ($rating >= 2400) {
-            return 16;
-        }
-
-        // Standard experienced players: K=24 gives a fair spread:
-        //   Win vs +300-rated: +20 pts | Win vs equal: +12 pts | Win vs -300-rated: +4 pts
-        //   Loss vs -300-rated: -20 pts | Loss vs equal: -12 pts | Loss vs +300-rated: -4 pts
-        return 24;
     }
 
     /**
