@@ -738,7 +738,7 @@ const handleShare = async () => {
   const handleSocialShare = (platform) => {
     const shareText = `${resultText} - Play chess at Chess99.com`;
     const url = SHARE_URLS[platform](shareText);
-    window.open(url, '_blank', 'width=600,height=400');
+    window.open(url, '_blank', 'width=600,height=400,noopener,noreferrer');
   };
 
   const handleNativeShare = async () => {
@@ -787,7 +787,7 @@ const handleShare = async () => {
         const whatsappUrl = `https://wa.me/?text=${encodedText}`;
 
         // Open WhatsApp in new tab
-        window.open(whatsappUrl, '_blank');
+        window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
 
         // Auto-download the image
         const link = document.createElement('a');

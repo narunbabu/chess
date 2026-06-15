@@ -411,7 +411,6 @@ class AuthController extends Controller
 
             Log::info('Facebook profile fetched', [
                 'fb_id' => $facebookId,
-                'name' => $name,
                 'has_email' => !empty($email),
             ]);
 

@@ -150,19 +150,34 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->render(function (Throwable $e, Illuminate\Http\Request $request) {
-            \Illuminate\Support\Facades\Log::error('=== GLOBAL EXCEPTION HANDLER ===');
-            \Illuminate\Support\Facades\Log::error('Exception: ' . $e->getMessage());
-            \Illuminate\Support\Facades\Log::error('File: ' . $e->getFile() . ' Line: ' . $e->getLine());
-            \Illuminate\Support\Facades\Log::error('Stack trace: ' . $e->getTraceAsString());
-            \Illuminate\Support\Facades\Log::error('Request URL: ' . $request->fullUrl());
-            \Illuminate\Support\Facades\Log::error('Request Method: ' . $request->method());
-            \Illuminate\Support\Facades\Log::error('Request Headers: ', $request->headers->all());
+            // Defer framework exceptions to Laravel's default rendering so they keep
+            // their proper status codes. A catch-all that forced everything to 500
+            // turned validation errors (422), aborts/HTTP errors, and missing models
+            // (404) into 500s — breaking API semantics for every client.
+            if (
+                $e instanceof \Illuminate\Validation\ValidationException
+                || $e instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface
+                || $e instanceof \Illuminate\Database\Eloquent\ModelNotFoundException
+                || $e instanceof \Illuminate\Auth\AuthenticationException
+                || $e instanceof \Illuminate\Auth\Access\AuthorizationException
+            ) {
+                return null; // fall through to default handling
+            }
 
+            // SECURITY: log identifiers only — never full request headers (they carry
+            // the Authorization bearer token) or full stack traces at error level.
+            \Illuminate\Support\Facades\Log::error('Unhandled exception', [
+                'exception' => get_class($e),
+                'message'   => $e->getMessage(),
+                'location'  => $e->getFile() . ':' . $e->getLine(),
+                'method'    => $request->method(),
+                'path'      => $request->path(),
+            ]);
+
+            // SECURITY: do not leak file/line (or the raw message in production) to clients.
             return response()->json([
-                'error' => 'Server error',
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine()
+                'error'   => 'Server error',
+                'message' => config('app.debug') ? $e->getMessage() : 'An unexpected error occurred.',
             ], 500);
         });
     })->create();

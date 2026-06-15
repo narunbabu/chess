@@ -61,7 +61,12 @@ class User extends Authenticatable implements MustVerifyEmail
         'birthday',
         'class_of_study',
         'board_theme',
-        'role',
+        // SECURITY (M5): 'role' is intentionally NOT mass-assignable — it has no
+        // legitimate mass-assignment path and must never be settable from request
+        // input (privilege escalation). Set it explicitly: $user->role = ...; save().
+        // Other privileged fields below (subscription_*, razorpay_*, rating, etc.)
+        // are written only by trusted server-side flows; never feed them
+        // $request->all(). Do not introduce update($request->all()) on User.
         'reset_token',
         'reset_token_expires_at',
         'referral_code',

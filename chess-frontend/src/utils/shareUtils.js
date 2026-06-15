@@ -258,7 +258,7 @@ export const shareGameWithFriends = async ({
         ? `whatsapp://send?text=${encodeURIComponent(fullShareMessage)}`
         : `https://wa.me/?text=${encodeURIComponent(fullShareMessage)}`;
 
-      window.open(whatsappUrl, '_blank');
+      window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
       alert(`Share link created!\n\n${shareUrl}\n\nLink copied to clipboard.`);
     } else {
       throw new Error('Failed to upload image');
@@ -381,7 +381,7 @@ export const shareGameNative = async ({
       ? `whatsapp://send?text=${encodeURIComponent(shareMessage)}`
       : `https://wa.me/?text=${encodeURIComponent(shareMessage)}`;
 
-    window.open(whatsappUrl, '_blank');
+    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
   } catch (error) {
     console.error('Error sharing image:', error);
     alert('Failed to share image. Please try again.');
@@ -525,7 +525,7 @@ export const shareGameReplay = async ({
     const whatsappUrl = isMobile
       ? `whatsapp://send?text=${encodeURIComponent(shareMessage)}`
       : `https://wa.me/?text=${encodeURIComponent(shareMessage)}`;
-    window.open(whatsappUrl, '_blank');
+    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
 
   } catch (error) {
     console.error('Error generating game replay:', error);

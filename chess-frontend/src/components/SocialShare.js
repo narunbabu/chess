@@ -94,7 +94,7 @@ const SocialShare = ({
     const windowWidth = platform === 'whatsapp' ? 800 : 600;
     const windowHeight = platform === 'whatsapp' ? 700 : 400;
 
-    window.open(shareUrl, '_blank', `width=${windowWidth},height=${windowHeight}`);
+    window.open(shareUrl, '_blank', `width=${windowWidth},height=${windowHeight},noopener,noreferrer`);
     onShare?.(platform);
   };
 

@@ -314,7 +314,7 @@ const GameCompletionAnimation = ({
     const url = isMobile
       ? `whatsapp://send?text=${encodeURIComponent(shareMenuData.message)}`
       : `https://wa.me/?text=${encodeURIComponent(shareMenuData.message)}`;
-    window.open(url, '_blank');
+    window.open(url, '_blank', 'noopener,noreferrer');
     setShareMenuData(null);
   };
 
@@ -322,7 +322,7 @@ const GameCompletionAnimation = ({
     if (!shareMenuData) return;
     downloadBlob(shareMenuData.blob, shareMenuData.filename);
     const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent('https://chess99.com')}&quote=${encodeURIComponent(shareMenuData.message)}`;
-    window.open(url, '_blank');
+    window.open(url, '_blank', 'noopener,noreferrer');
     setShareMenuData(null);
   };
 

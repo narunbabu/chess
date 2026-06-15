@@ -357,9 +357,10 @@ class RazorpayService
                 ]);
             }
         } catch (\Exception $e) {
+            // SECURITY (M4): don't log the full webhook payload (PII + payment data).
             Log::error('Webhook payment processing failed', [
                 'error' => $e->getMessage(),
-                'payload' => $payload,
+                'event' => $payload['event'] ?? null,
             ]);
 
             throw $e;
@@ -413,9 +414,10 @@ class RazorpayService
                 ]);
             });
         } catch (\Exception $e) {
+            // SECURITY (M4): don't log the full webhook payload (PII + payment data).
             Log::error('Webhook payment failure processing failed', [
                 'error' => $e->getMessage(),
-                'payload' => $payload,
+                'event' => $payload['event'] ?? null,
             ]);
         }
     }

@@ -491,7 +491,7 @@ const LeaderboardPage = () => {
     if (handled) { closeShareModal(); return; }
     // Desktop: download + WhatsApp
     downloadBlob(shareModal.blob, shareModal.filename);
-    window.open(SHARE_URLS.whatsapp(shareModal.text), '_blank');
+    window.open(SHARE_URLS.whatsapp(shareModal.text), '_blank', 'noopener,noreferrer');
   };
 
   const closeShareModal = () => {

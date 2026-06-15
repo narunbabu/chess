@@ -1215,7 +1215,7 @@ const GameReview = () => {
       // Desktop fallback: open WhatsApp + auto-download image
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
       if (!isMobile) {
-        window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank');
+        window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank', 'noopener,noreferrer');
         const link = document.createElement('a');
         link.href = shareImageUrl;
         link.download = 'chess-game-result.jpg';

@@ -188,7 +188,7 @@ const AmbassadorDashboard = () => {
 
   const shareWhatsApp = (templateId) => {
     if (!shareUrl) return;
-    window.open(`https://wa.me/?text=${encodeURIComponent(buildMessage(templateId))}`, '_blank');
+    window.open(`https://wa.me/?text=${encodeURIComponent(buildMessage(templateId))}`, '_blank', 'noopener,noreferrer');
   };
 
   const copyMessage = (templateId) => {
@@ -222,7 +222,7 @@ const AmbassadorDashboard = () => {
 
   const openPoster = () => {
     if (!data?.share?.code) return;
-    window.open(`/ambassador/poster?code=${encodeURIComponent(data.share.code)}`, '_blank');
+    window.open(`/ambassador/poster?code=${encodeURIComponent(data.share.code)}`, '_blank', 'noopener,noreferrer');
   };
 
   // Not an ambassador yet — show enrollment page

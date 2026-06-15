@@ -247,9 +247,10 @@ class SubscriptionController extends Controller
         try {
             $this->subscriptionService->handleWebhook($payload);
         } catch (\Exception $e) {
+            // SECURITY (M4): don't log the full webhook payload (PII + payment data).
             Log::error('Subscription webhook processing failed', [
                 'error' => $e->getMessage(),
-                'payload' => $payload,
+                'event' => $payload['event'] ?? null,
             ]);
         }
 

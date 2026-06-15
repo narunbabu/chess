@@ -84,16 +84,9 @@ class SocialAuthController extends Controller
 
     public function callback($provider)
     {
-        Log::info('=== OAUTH CALLBACK RECEIVED ===');
-        Log::info('Provider: ' . $provider);
-        Log::info('Request URL: ' . request()->fullUrl());
-        Log::info('Request Method: ' . request()->method());
-        Log::info('Request IP: ' . request()->ip());
-        Log::info('User Agent: ' . request()->userAgent());
-
-        // Log all request parameters
-        Log::info('Query Parameters: ', request()->query());
-        Log::info('All Input: ', request()->all());
+        // SECURITY (M4): do not log the full callback URL / query / all-input — the
+        // OAuth callback carries the authorization `code` and `state`. Log provider only.
+        Log::info('OAuth callback received', ['provider' => $provider]);
 
         // Log the callback URL that Google used to reach us
         $currentUrl = request()->url();
@@ -107,19 +100,17 @@ class SocialAuthController extends Controller
         Log::info('Does received URL match configured? ' . ($currentUrl === rtrim($configuredRedirect, '/') ? 'YES' : 'NO'));
 
         try {
-            Log::info('=== ATTEMPTING TO GET USER FROM GOOGLE ===');
             $socialUser = Socialite::driver($provider)->user();
 
-            // Log the data we got from Google
-            Log::info('=== GOOGLE USER DATA ===');
-            Log::info('Name: ' . $socialUser->getName());
-            Log::info('Email: ' . $socialUser->getEmail());
-            Log::info('ID: ' . $socialUser->getId());
-            Log::info('Avatar URL: ' . $socialUser->getAvatar());
-            Log::info('Raw User Data: ', $socialUser->getRaw());
+            // SECURITY (M4): do not log PII (name/email) or the full raw provider
+            // profile. Log non-identifying signals only.
+            Log::info('Social login: provider user fetched', [
+                'provider'   => $provider,
+                'has_email'  => filled($socialUser->getEmail()),
+                'has_avatar' => filled($socialUser->getAvatar()),
+            ]);
 
             $avatarUrl = $socialUser->getAvatar();
-            Log::info('Original avatar URL from provider: ' . ($avatarUrl ?? 'NULL'));
 
             // Find or create user — preserve existing profile data on subsequent logins
             $user = User::where('email', $socialUser->getEmail())->first();
@@ -152,10 +143,8 @@ class SocialAuthController extends Controller
                 }
             }
 
-            Log::info('=== USER CREATED/UPDATED ===');
-            Log::info('User ID: ' . $user->id);
-            Log::info('User Name: ' . $user->name);
-            Log::info('User Email: ' . $user->email);
+            // SECURITY (M4): log identifier only, not name/email.
+            Log::info('Social login: user created/updated', ['user_id' => $user->id]);
 
             // Download and store avatar locally only if user doesn't have one yet
             if ($avatarUrl && !$user->getRawOriginal('avatar_url')) {
@@ -186,10 +175,9 @@ class SocialAuthController extends Controller
             Log::error('Error line: ' . $e->getLine());
             Log::error('Full error: ' . $e->__toString());
 
-            // Log additional context for debugging
+            // Log additional context for debugging.
+            // SECURITY (M4): omit full URL / request params — they carry the OAuth code/state.
             Log::error('Provider: ' . $provider);
-            Log::error('Request URL when error occurred: ' . request()->fullUrl());
-            Log::error('Request parameters when error occurred: ', request()->all());
 
             return redirect(config('app.frontend_url').'/login?error=social_login_failed');
         }

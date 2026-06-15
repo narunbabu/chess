@@ -13,8 +13,14 @@ Scope: `chess-backend` (Laravel 12), `chess-frontend` (React 18), `chess99-andro
 | H4 Storage path traversal | ✅ Fixed | commit `eb75740` |
 | H5 Championship XSS | ✅ Fixed | commit `eb75740` |
 | H2 Move/rating forgery | ✅ Fixed | commit `d1f9df3` (server-authoritative; new `RatingService`; REST move endpoint removed) |
+| M3 Debug files in `public/` | ✅ Fixed | deleted `diagnostic.js`, `test-resume-websocket.html`, `test-unfinished.html` |
+| M4 PII/payload logging | ✅ Fixed | SocialAuth/Auth/Subscription/Razorpay — log identifiers only, drop full payloads/profiles/OAuth-callback input |
+| M5 Broad User `$fillable` | ✅ Fixed | `role` removed from `$fillable` (no legit setter); privileged fields documented |
+| L1 `window.open` noopener | ✅ Fixed | 12 call sites across 7 files now pass `noopener,noreferrer` |
+| L2 `SESSION_SECURE_COOKIE` | ✅ Fixed | defaults to secure in production |
+| (new) Global error handler | ✅ Fixed | `bootstrap/app.php` catch-all forced **all** exceptions to 500 (broke 422/404 semantics), **leaked file/line** in API responses, and **logged the Authorization bearer token** (full request headers). Now defers framework exceptions and logs identifiers only. |
 | H1 Rotate leaked secrets | ⏳ Pending | **manual** — rotate creds + scrub `.env.onserver` |
-| M1–M8, L1–L8 | ⏳ Pending | see below |
+| M1, M2, M6, M7, M8, L3–L8 | ⏳ Pending | see below |
 
 Fixes are committed on local `master`, not yet pushed/deployed (deploys route through ServerMigrationAgent).
 
