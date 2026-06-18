@@ -46,7 +46,11 @@ return [
     |
     */
 
-    'expiration' => env('SANCTUM_TOKEN_EXPIRATION', null), // Mobile tokens: set to 43200 (30 days in minutes) via env
+    // SECURITY (M1): tokens now expire by default instead of living forever.
+    // 43200 minutes = 30 days; mobile clients refresh via the token-refresh
+    // endpoint. Override with SANCTUM_TOKEN_EXPIRATION if a different window is
+    // needed (set to a blank/empty env value is treated as 30 days here).
+    'expiration' => ((int) env('SANCTUM_TOKEN_EXPIRATION')) ?: 43200,
 
     /*
     |--------------------------------------------------------------------------

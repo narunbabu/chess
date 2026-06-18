@@ -540,8 +540,19 @@ class WebSocketController extends Controller
      */
     public function broadcastMove(Request $request, int $gameId): JsonResponse
     {
-        // Check if game is finished before allowing moves
         $game = Game::findOrFail($gameId);
+
+        // SECURITY (M6): only the two players may relay moves for a game. A
+        // spectator (or any other authenticated user) subscribing to the channel
+        // must not be able to inject moves. Mirrors the check in getRoomState().
+        if ($game->white_player_id !== Auth::id() && $game->black_player_id !== Auth::id()) {
+            return response()->json([
+                'error' => 'Forbidden',
+                'message' => 'You are not a player in this game'
+            ], 403);
+        }
+
+        // Check if game is finished before allowing moves
         if ($game->status === 'finished') {
             return response()->json([
                 'error' => 'Game finished',
@@ -549,10 +560,9 @@ class WebSocketController extends Controller
             ], 409);
         }
 
-        // Debug: Log the incoming request
-        \Log::info('broadcastMove request data:', [
+        // Log identifiers only — never the full request payload.
+        \Log::info('broadcastMove', [
             'gameId' => $gameId,
-            'request_data' => $request->all(),
             'user_id' => Auth::id()
         ]);
 

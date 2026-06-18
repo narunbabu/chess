@@ -165,7 +165,12 @@ class SocialAuthController extends Controller
 
             $token = $user->createToken('auth_token')->plainTextToken;
 
-            return redirect(config('app.frontend_url').'/auth/callback?token='.$token);
+            // SECURITY (M1): deliver the token in the URL *fragment* (#), not the
+            // query string. Fragments are never sent to the server, never appear
+            // in access logs, and are not forwarded in the Referer header to
+            // third-party origins. The SPA reads it from location.hash and then
+            // strips it from history.
+            return redirect(config('app.frontend_url').'/auth/callback#token='.$token);
             
         } catch (\Exception $e) {
             Log::error('=== OAUTH CALLBACK ERROR ===');

@@ -13,11 +13,6 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReferralController extends Controller
 {
-    const ADMIN_EMAILS = [
-        'nalamara.arun@gmail.com',
-        'ab@ameyem.com',
-    ];
-
     public function __construct(
         protected ReferralService $referralService
     ) {}
@@ -354,7 +349,10 @@ class ReferralController extends Controller
 
     private function isAdmin(Request $request): bool
     {
+        // SECURITY (L3): role-driven instead of a hardcoded email allowlist.
+        // Mirrors the AdminDashboardAccess middleware (platform_admin role, with
+        // the owner email retained as a bootstrap fallback).
         $user = $request->user();
-        return $user && in_array($user->email, self::ADMIN_EMAILS);
+        return $user && ($user->hasRole('platform_admin') || $user->email === 'ab@ameyem.com');
     }
 }

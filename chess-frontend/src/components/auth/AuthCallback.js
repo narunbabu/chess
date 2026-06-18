@@ -9,9 +9,17 @@ const AuthCallback = () => {
   const { login } = useAuth();
 
   useEffect(() => {
+    // SECURITY (M1): the OAuth token now arrives in the URL fragment (#token=…)
+    // so it never reaches server logs or the Referer header. Fall back to the
+    // query string for backward compatibility during the deploy window.
+    const hashParams = new URLSearchParams(location.hash.replace(/^#/, ""));
     const query = new URLSearchParams(location.search);
-    const token = query.get("token");
+    const token = hashParams.get("token") || query.get("token");
     if (token) {
+      // Strip the token from the address bar / history immediately.
+      if (window.history.replaceState) {
+        window.history.replaceState(null, "", window.location.pathname);
+      }
       // Use the login function from AuthContext to properly set up authentication
       login(token).then((userData) => {
         // Check for pending redirect (e.g. user was on /pricing before login)
