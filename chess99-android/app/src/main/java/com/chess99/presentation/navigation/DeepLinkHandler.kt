@@ -43,11 +43,13 @@ object DeepLinkHandler {
     fun handleDeepLink(uri: Uri?): DeepLinkDestination? {
         if (uri == null) return null
 
-        Timber.d("Handling deep link: $uri")
-
         val scheme = uri.scheme?.lowercase()
         val host = uri.host?.lowercase()
         val pathSegments = uri.pathSegments
+
+        // SECURITY (L4): log scheme/host only — the full URI can carry a
+        // password-reset token in its query/path.
+        Timber.d("Handling deep link: %s://%s", scheme, host)
 
         return when {
             // ── Custom scheme: chess99:// ─────────────────────────
@@ -58,7 +60,7 @@ object DeepLinkHandler {
                 parseWebUrl(pathSegments, uri)
 
             else -> {
-                Timber.w("Unknown deep link scheme/host: $uri")
+                Timber.w("Unknown deep link scheme/host: %s://%s", scheme, host)
                 null
             }
         }

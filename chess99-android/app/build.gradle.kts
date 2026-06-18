@@ -40,6 +40,15 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            // SECURITY (L5): the production Reverb key must NOT be hardcoded. It is
+            // injected at build time from a gradle property (-PWS_KEY_RELEASE=…,
+            // or in ~/.gradle/gradle.properties / local.properties) or the
+            // WS_KEY_RELEASE env var. Without it the release WS_KEY stays empty
+            // and prod WebSockets will (visibly) fail rather than ship a secret.
+            val releaseWsKey = (project.findProperty("WS_KEY_RELEASE") as String?)
+                ?: System.getenv("WS_KEY_RELEASE")
+                ?: ""
+            buildConfigField("String", "WS_KEY", "\"$releaseWsKey\"")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

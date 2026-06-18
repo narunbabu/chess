@@ -27,8 +27,12 @@ object NetworkModule {
             .writeTimeout(30, TimeUnit.SECONDS)
 
         if (BuildConfig.DEBUG) {
+            // SECURITY (M7): log headers only (not BODY) and redact credentials so
+            // bearer tokens / passwords never reach logcat, even in debug builds.
             val loggingInterceptor = HttpLoggingInterceptor().apply {
-                level = HttpLoggingInterceptor.Level.BODY
+                level = HttpLoggingInterceptor.Level.HEADERS
+                redactHeader("Authorization")
+                redactHeader("Cookie")
             }
             builder.addInterceptor(loggingInterceptor)
         }

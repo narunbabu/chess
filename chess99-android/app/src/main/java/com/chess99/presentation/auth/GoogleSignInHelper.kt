@@ -76,7 +76,8 @@ class GoogleSignInHelper @Inject constructor(
             val email = googleIdTokenCredential.id
             val displayName = googleIdTokenCredential.displayName ?: ""
 
-            Timber.d("Google Sign-In success: email=$email, name=$displayName")
+            // SECURITY (L4): do not log the user's email/name (PII).
+            Timber.d("Google Sign-In success")
 
             GoogleSignInResult.Success(
                 idToken = idToken,

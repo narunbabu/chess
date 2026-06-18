@@ -19,8 +19,14 @@ class AuthInterceptor @Inject constructor(
     override fun intercept(chain: Interceptor.Chain): Response {
         val originalRequest = chain.request()
 
-        // Skip auth header for public endpoints
-        val isPublicEndpoint = PUBLIC_PATHS.any { originalRequest.url.encodedPath.contains(it) }
+        // SECURITY (L8): match public endpoints on path-segment boundaries rather
+        // than a loose substring. The old `contains()` matched any URL that
+        // merely included the fragment (e.g. "championships" matched
+        // /championships/{id}/register, wrongly stripping the token → 401).
+        val path = originalRequest.url.encodedPath
+        val isPublicEndpoint =
+            EXACT_PUBLIC_PATHS.any { path == "/$it" || path.endsWith("/$it") } ||
+            PREFIX_PUBLIC_PATHS.any { path.endsWith("/$it") || path.contains("/$it/") }
 
         val request = if (!isPublicEndpoint && tokenManager.isLoggedIn()) {
             originalRequest.newBuilder()
@@ -44,13 +50,20 @@ class AuthInterceptor @Inject constructor(
     }
 
     companion object {
-        private val PUBLIC_PATHS = listOf(
+        // Endpoints that are public only at their exact path. Notably the
+        // championships *listing* is public, but sub-paths such as
+        // /championships/{id}/register require the bearer token.
+        private val EXACT_PUBLIC_PATHS = listOf(
             "auth/login",
             "auth/register",
             "auth/google/mobile",
             "auth/apple/mobile",
             "health",
             "championships",
+        )
+
+        // Endpoints whose sub-paths are also public (e.g. a shared result token).
+        private val PREFIX_PUBLIC_PATHS = listOf(
             "shared-results",
         )
     }
