@@ -454,7 +454,7 @@ class AdminDashboardController extends Controller
             $order = 'desc';
         }
 
-        $usersQuery = User::select('id', 'name', 'email', 'rating', 'games_played', 'last_activity_at', 'created_at', 'organization_id', 'is_active');
+        $usersQuery = User::select('id', 'name', 'email', 'mobile_country_code', 'mobile_number', 'rating', 'games_played', 'last_activity_at', 'last_login_at', 'created_at', 'organization_id', 'is_active');
         if ($orgId) {
             $usersQuery->where('organization_id', $orgId);
         }
@@ -526,6 +526,10 @@ class AdminDashboardController extends Controller
             'games_played'     => $target->games_played,
             'created_at'       => $target->created_at,
             'last_activity_at' => $target->last_activity_at,
+            'last_login_at'    => $target->last_login_at,
+            'mobile_country_code' => $target->mobile_country_code,
+            'mobile_number'    => $target->mobile_number,
+            'mobile_verified_at' => $target->mobile_verified_at,
             'subscription_tier' => $target->subscription_tier ?? 'free',
             'organization_id'  => $target->organization_id,
             'referral_code'    => $target->referral_code,
@@ -888,5 +892,58 @@ class AdminDashboardController extends Controller
             ->get();
 
         return response()->json(['agents' => $agents]);
+    }
+
+    /**
+     * Send a custom one-off email, composed by an admin, to a single user.
+     *
+     * POST /admin/dashboard/user/{id}/email
+     * Body: { subject: string(<=200), body: string(<=5000) }
+     *
+     * Admin-initiated/transactional — sent regardless of marketing email
+     * preferences. Org admins may only email users within their own org.
+     */
+    public function sendEmail(Request $request, $id): JsonResponse
+    {
+        $validated = $request->validate([
+            'subject' => 'required|string|max:200',
+            'body'    => 'required|string|max:5000',
+        ]);
+
+        $target = User::find($id);
+        if (!$target) {
+            return response()->json(['error' => 'User not found'], 404);
+        }
+        if (!$target->email) {
+            return response()->json(['error' => 'User has no email address on file'], 422);
+        }
+
+        // Scope: org admins (non-platform) may only email users in their own org.
+        $actor = $request->user();
+        $isPlatformAdmin = $actor->email === 'ab@ameyem.com' || $actor->hasRole('platform_admin');
+        if (!$isPlatformAdmin && $actor->hasRole('organization_admin')) {
+            if (!$target->organization_id || $target->organization_id !== $actor->organization_id) {
+                return response()->json([
+                    'error' => 'Forbidden',
+                    'message' => 'You can only email users within your organization',
+                ], 403);
+            }
+        }
+
+        \Illuminate\Support\Facades\Mail::to($target->email)->queue(
+            new \App\Mail\AdminCustomMail($target, $validated['subject'], $validated['body'])
+        );
+
+        // Log identifiers only — never the message body or PII (project logging rule).
+        \Illuminate\Support\Facades\Log::info('Admin custom email queued', [
+            'admin_id'     => $actor->id,
+            'recipient_id' => $target->id,
+            'subject_len'  => strlen($validated['subject']),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Email queued for delivery to ' . $target->email,
+        ]);
     }
 }

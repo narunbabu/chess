@@ -316,6 +316,7 @@ const AdminDashboard = () => {
                       <th className="py-2 pr-4 hidden md:table-cell">Email</th>
                       <th className="py-2 pr-4 cursor-pointer hover:text-white text-right" onClick={() => handleSort('rating')}>Rating{sortArrow('rating')}</th>
                       <th className="py-2 pr-4 cursor-pointer hover:text-white text-right" onClick={() => handleSort('games_played')}>Games{sortArrow('games_played')}</th>
+                      <th className="py-2 pr-4 cursor-pointer hover:text-white hidden sm:table-cell" onClick={() => handleSort('created_at')}>Joined{sortArrow('created_at')}</th>
                       <th className="py-2 cursor-pointer hover:text-white hidden sm:table-cell" onClick={() => handleSort('last_activity_at')}>Last Active{sortArrow('last_activity_at')}</th>
                     </tr>
                   </thead>
@@ -330,13 +331,16 @@ const AdminDashboard = () => {
                         <td className="py-2 pr-4 hidden md:table-cell text-[#9b9895]">{u.email}</td>
                         <td className="py-2 pr-4 text-right font-mono">{u.rating ?? '-'}</td>
                         <td className="py-2 pr-4 text-right font-mono">{u.games_played ?? 0}</td>
+                        <td className="py-2 pr-4 hidden sm:table-cell text-[#9b9895]">
+                          {u.created_at ? new Date(u.created_at).toLocaleDateString() : '-'}
+                        </td>
                         <td className="py-2 hidden sm:table-cell text-[#9b9895]">
                           {u.last_activity_at ? new Date(u.last_activity_at).toLocaleDateString() : 'Never'}
                         </td>
                       </tr>
                     ))}
                     {data.users.data.length === 0 && (
-                      <tr><td colSpan={5} className="py-4 text-center text-[#9b9895]">No users found</td></tr>
+                      <tr><td colSpan={6} className="py-4 text-center text-[#9b9895]">No users found</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -399,6 +403,48 @@ const UserDetailPanel = ({ userId, period, onClose }) => {
   const [loading, setLoading] = useState(true);
   const [userPeriod, setUserPeriod] = useState(period);
   const [showCharts, setShowCharts] = useState(false);
+  const [showEmail, setShowEmail] = useState(false);
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailBody, setEmailBody] = useState('');
+  const [emailState, setEmailState] = useState({ status: 'idle', msg: '' }); // idle|sending|sent|error
+
+  // Reset the composer whenever a different user is selected.
+  useEffect(() => {
+    setShowEmail(false);
+    setEmailSubject('');
+    setEmailBody('');
+    setEmailState({ status: 'idle', msg: '' });
+  }, [userId]);
+
+  const sendEmail = async () => {
+    if (!emailSubject.trim() || !emailBody.trim()) {
+      setEmailState({ status: 'error', msg: 'Subject and message are both required.' });
+      return;
+    }
+    setEmailState({ status: 'sending', msg: '' });
+    try {
+      const res = await fetch(`${BACKEND_URL}/admin/dashboard/user/${userId}/email`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ subject: emailSubject, body: emailBody }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = json?.message || json?.error || (res.status === 422 ? 'Validation failed.' : 'Failed to send email.');
+        setEmailState({ status: 'error', msg });
+        return;
+      }
+      setEmailState({ status: 'sent', msg: json?.message || 'Email queued for delivery.' });
+      setEmailSubject('');
+      setEmailBody('');
+    } catch (e) {
+      setEmailState({ status: 'error', msg: 'Network error — please try again.' });
+    }
+  };
 
   useEffect(() => { setUserPeriod(period); }, [period]);
 
@@ -434,15 +480,71 @@ const UserDetailPanel = ({ userId, period, onClose }) => {
         <div>
           <h2 className="text-xl font-bold text-white">{p.name}</h2>
           <p className="text-[#9b9895] text-sm">{p.email}</p>
+          {(p.mobile_number) && (
+            <p className="text-[#9b9895] text-sm mt-0.5">
+              📱 {[p.mobile_country_code, p.mobile_number].filter(Boolean).join(' ')}
+              {p.mobile_verified_at
+                ? <span className="ml-1 text-[#81b64c]" title="Verified">✓ verified</span>
+                : <span className="ml-1 text-[#9b9895]" title="Not verified">(unverified)</span>}
+            </p>
+          )}
           <div className="flex flex-wrap gap-3 mt-2 text-xs">
             <span className="px-2 py-0.5 rounded bg-[#262421] text-[#81b64c]">Rating: {p.rating}</span>
             <span className="px-2 py-0.5 rounded bg-[#262421] text-[#e8a93e]">{p.subscription_tier || 'free'}</span>
             <span className="text-[#9b9895]">Joined {daysSinceJoin}d ago ({new Date(p.created_at).toLocaleDateString()})</span>
-            {p.last_activity_at && <span className="text-[#9b9895]">Last seen: {new Date(p.last_activity_at).toLocaleDateString()}</span>}
+            {p.last_activity_at && <span className="text-[#9b9895]">Last active: {new Date(p.last_activity_at).toLocaleString()}</span>}
+            {p.last_login_at && <span className="text-[#9b9895]">Last login: {new Date(p.last_login_at).toLocaleString()}</span>}
           </div>
         </div>
-        <button onClick={onClose} className="text-[#9b9895] hover:text-white text-xl leading-none">&times;</button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowEmail(v => !v)}
+            className="px-3 py-1.5 rounded bg-[#81b64c] hover:bg-[#6f9f41] text-white text-xs font-semibold whitespace-nowrap"
+          >✉ Email</button>
+          <button onClick={onClose} className="text-[#9b9895] hover:text-white text-xl leading-none">&times;</button>
+        </div>
       </div>
+
+      {/* Custom email composer */}
+      {showEmail && (
+        <div className="bg-[#262421] rounded p-4 mb-4 border border-[#464340]">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-semibold text-white">Send email to {p.name}</h3>
+            <span className="text-xs text-[#9b9895]">{p.email}</span>
+          </div>
+          <input
+            type="text"
+            placeholder="Subject"
+            maxLength={200}
+            value={emailSubject}
+            onChange={(e) => setEmailSubject(e.target.value)}
+            disabled={emailState.status === 'sending'}
+            className="w-full px-3 py-2 mb-2 rounded bg-[#1f1d1b] text-[#e8e6e3] border border-[#464340] text-sm focus:border-[#81b64c] focus:outline-none"
+          />
+          <textarea
+            placeholder="Write your message…"
+            maxLength={5000}
+            rows={6}
+            value={emailBody}
+            onChange={(e) => setEmailBody(e.target.value)}
+            disabled={emailState.status === 'sending'}
+            className="w-full px-3 py-2 mb-2 rounded bg-[#1f1d1b] text-[#e8e6e3] border border-[#464340] text-sm focus:border-[#81b64c] focus:outline-none resize-y"
+          />
+          <div className="flex items-center justify-between gap-3">
+            <span className={`text-xs ${
+              emailState.status === 'error' ? 'text-[#e74c3c]'
+              : emailState.status === 'sent' ? 'text-[#81b64c]' : 'text-[#9b9895]'
+            }`}>
+              {emailState.msg || `${emailBody.length}/5000`}
+            </span>
+            <button
+              onClick={sendEmail}
+              disabled={emailState.status === 'sending'}
+              className="px-4 py-1.5 rounded bg-[#81b64c] hover:bg-[#6f9f41] disabled:opacity-50 text-white text-sm font-semibold whitespace-nowrap"
+            >{emailState.status === 'sending' ? 'Sending…' : 'Send Email'}</button>
+          </div>
+        </div>
+      )}
 
       {/* Period filter for this panel */}
       <div className="flex gap-2 mb-4">

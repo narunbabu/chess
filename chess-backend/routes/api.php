@@ -376,6 +376,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/organizations', [\App\Http\Controllers\AdminDashboardController::class, 'organizations']);
         Route::get('/user/{id}', [\App\Http\Controllers\AdminDashboardController::class, 'userDetail']);
         Route::get('/user/{id}/progress', [\App\Http\Controllers\AdminDashboardController::class, 'userProgress']);
+        Route::post('/user/{id}/email', [\App\Http\Controllers\AdminDashboardController::class, 'sendEmail']);
     });
 
     // Ambassador routes (any authenticated user)
