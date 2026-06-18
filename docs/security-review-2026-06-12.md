@@ -4,7 +4,7 @@ Scope: `chess-backend` (Laravel 12), `chess-frontend` (React 18), `chess99-andro
 
 ---
 
-## Remediation status (updated 2026-06-15)
+## Remediation status (updated 2026-06-18)
 
 | Finding | Status | Where |
 |---------|--------|-------|
@@ -19,10 +19,29 @@ Scope: `chess-backend` (Laravel 12), `chess-frontend` (React 18), `chess99-andro
 | L1 `window.open` noopener | ✅ Fixed | 12 call sites across 7 files now pass `noopener,noreferrer` |
 | L2 `SESSION_SECURE_COOKIE` | ✅ Fixed | defaults to secure in production |
 | (new) Global error handler | ✅ Fixed | `bootstrap/app.php` catch-all forced **all** exceptions to 500 (broke 422/404 semantics), **leaked file/line** in API responses, and **logged the Authorization bearer token** (full request headers). Now defers framework exceptions and logs identifiers only. |
+| M1 OAuth token in URL | ✅ Fixed | token delivered in URL **fragment** (`/auth/callback#token=`) not query; SPA reads `location.hash` then strips it from history; `sanctum.expiration` now defaults to 30d (was non-expiring) |
+| M6 WS relay participation | ✅ Fixed | `WebSocketController::broadcastMove` now 403s non-players (mirrors `getRoomState`); `joinGame` already authorizes via `GameRoomService::canUserJoinGame`. Trimmed full-payload debug log to identifiers |
+| M7 Android BODY logging | ✅ Fixed | `NetworkModule.kt` → `Level.HEADERS` + `redactHeader("Authorization"/"Cookie")` |
+| M8 Android allowBackup | ✅ Fixed | `AndroidManifest.xml` → `allowBackup="false"` |
+| L3 Referral admin allowlist | ✅ Fixed | `ReferralController::isAdmin` now role-based (`platform_admin`, owner-email bootstrap fallback); hardcoded `ADMIN_EMAILS` removed |
+| L4 Android PII logs | ✅ Fixed | `GoogleSignInHelper` (drop email/name), `DeepLinkHandler` (log scheme/host only — full URI carried reset token) |
+| L5 Android release WS_KEY | ✅ Fixed | `build.gradle.kts` release injects `WS_KEY` from `-PWS_KEY_RELEASE`/env (no hardcoded secret; empty fails loudly) |
+| L8 Android path matching | ✅ Fixed | `AuthInterceptor` now segment-boundary matching (EXACT vs PREFIX public paths); fixes token drop on `/championships/{id}/register` |
+| L6 Trainer Gemini key | ✅ Mitigated | `vite.config.ts` build-guard throws on a production build that would inline the key (opt-out `ALLOW_INSECURE_GEMINI_KEY=true`); full server-side proxy still required before any public deploy |
+| L7 react-scripts audit | ✅ Audited + partial fix | **DOMPurify bumped 3.3.0 → 3.4.8** (clears the XSS-bypass advisories that underpin H5); audit 49 → 36 advisories. Remaining axios/react-router highs have no non-breaking fix; CRA→Vite migration deferred. See "L7 audit" below |
+| M2 Token in localStorage | ⤴ Deferred | XSS sinks (H5) already closed. Full httpOnly-cookie + CSRF migration rewrites web+mobile+WS auth — tracked as a separate dedicated effort, not done here |
 | H1 Rotate leaked secrets | ⏳ Pending | **manual** — rotate creds + scrub `.env.onserver` |
-| M1, M2, M6, M7, M8, L3–L8 | ⏳ Pending | see below |
 
 Fixes are committed on local `master`, not yet pushed/deployed (deploys route through ServerMigrationAgent).
+
+### L7 audit (`pnpm audit --prod`, 2026-06-18)
+49 advisories: **16 high, 29 moderate, 4 low**. Most are transitive under `react-scripts@5.0.1` (CRA, unmaintained), but several are direct deps upgradable without a Vite migration:
+- **DOMPurify** `^3.3.0` → **bumped to 3.4.8** ✅ (cleared the XSS-bypass advisories; this underpins the H5 fix). Audit dropped 49 → 36.
+- **axios** `^1.12.2` — multiple high (SSRF/NO_PROXY bypass, proxy-auth credential leak, prototype-pollution, ReDoS). Already at the latest 1.x; **no non-breaking patch available** — revisit when a fixed 1.x or a vetted 2.x ships.
+- **react-router-dom** `^6.30.0` — high (XSS via open redirect). Already latest 6.x; fix only in 7.x (breaking) — defer to the routing-upgrade project.
+- Transitive (`ws`, `socket.io`, `form-data`, `yaml`, `follow-redirects`) — resolve via the above or `pnpm overrides`.
+
+Recommended sequence: (1) bump dompurify, axios, react-router-dom + add `pnpm overrides` for transitive; (2) full E2E; (3) plan CRA→Vite migration as a separate project to clear the remaining react-scripts chain.
 
 ---
 
@@ -111,8 +130,9 @@ CORS allowlist (no wildcard with credentials), password reset flow (hashed token
 4. ~~**H5** — sanitize championship instructions HTML~~ ✅ done (`eb75740`)
 5. ~~**H2** — server-side move + rating validation~~ ✅ done (`d1f9df3`)
 
-### Remaining after this pass
-- **H1** rotate leaked secrets (manual, highest remaining)
-- Quick code wins: **L2** `SESSION_SECURE_COOKIE`, **L1** `noopener`, **M5** User `$fillable`, **M4** PII logging, **M3** debug files in `public/`
-- **M6** WebSocket relay participation re-check
-- Android: **M7/M8/L4/L5**
+### Remaining after the 2026-06-18 pass
+All code findings (M1, M6, M7, M8, L3, L4, L5, L6, L8) are now fixed. Still open:
+- **H1** rotate leaked secrets in `.env.onserver` (manual — highest remaining).
+- **M2** httpOnly-cookie + CSRF auth migration (deferred; tracked separately).
+- **L7** dependency upgrades: bump **DOMPurify ≥3.4.8** first (underpins H5), then axios / react-router-dom; CRA→Vite migration as its own project.
+- **L6** stand up a server-side Gemini proxy before the standalone trainer is ever publicly deployed (build-guard now blocks an inlined-key prod build in the meantime).
