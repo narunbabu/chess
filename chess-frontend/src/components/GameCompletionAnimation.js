@@ -12,6 +12,7 @@ import { getBoardTheme } from "./play/BoardCustomizer";
 import GameEndCard from "./GameEndCard";
 import MoveReviewReportModal from "./game/MoveReviewReportModal";
 import { hasMoveReviewData } from "../utils/moveReviewReport";
+import { trackConversion } from "../utils/analytics";
 import "./GameCompletionAnimation.css";
 
 // Note: Image utility functions have been moved to utils/imageUtils.js
@@ -457,6 +458,18 @@ const GameCompletionAnimation = ({
 
     navigate("/login");
   };
+
+  // Prominent post-game signup CTA for guests (loss-aversion: their result
+  // isn't saved). Reuses handleLoginRedirect so the just-played game is
+  // stored and migrated to the account after sign-up.
+  const handleGuestSignupCta = () => {
+    trackConversion(
+      'guest_signup_prompt_click',
+      { source: 'game_end', result: isPlayerWin ? 'win' : (isDraw ? 'draw' : 'loss') },
+      'Lead'
+    );
+    handleLoginRedirect();
+  };
   const handleViewInHistory = () => {
     onClose?.(); // Close the animation
     navigate("/dashboard");
@@ -650,6 +663,61 @@ const GameCompletionAnimation = ({
         </div>
       )}
 
+      {/* Guest post-game signup CTA — peak-engagement conversion moment */}
+      {!isMultiplayer && !isAuthenticated && (
+        <div style={{
+          position: 'fixed',
+          bottom: window.innerWidth <= 480 ? '60px' : '66px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 1000,
+          maxWidth: window.innerWidth <= 480 ? '95%' : '500px',
+          width: '100%',
+          padding: '0 12px',
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            background: 'linear-gradient(135deg, rgba(129,182,76,0.20), rgba(129,182,76,0.10))',
+            border: '1px solid rgba(129,182,76,0.55)',
+            borderRadius: '12px',
+            padding: '10px 12px',
+            backdropFilter: 'blur(6px)',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.35)',
+          }}>
+            <div style={{ flex: '1 1 auto', minWidth: 0 }}>
+              <div style={{ color: '#fff', fontWeight: 700, fontSize: '0.86rem', lineHeight: 1.2 }}>
+                {isPlayerWin ? 'Nice win — keep this rating!' : (isDraw ? 'Solid draw — save your progress!' : 'Don’t lose this game!')}
+              </div>
+              <div style={{ color: '#cfe6b6', fontSize: '0.72rem', marginTop: '2px' }}>
+                Guest games aren’t saved — create a free account to keep your rating, stats &amp; history.
+              </div>
+            </div>
+            <button
+              onClick={handleGuestSignupCta}
+              disabled={isMediaGenerating}
+              style={{
+                flex: '0 0 auto',
+                background: '#81b64c',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '9px 14px',
+                fontSize: '0.82rem',
+                fontWeight: 800,
+                cursor: isMediaGenerating ? 'not-allowed' : 'pointer',
+                whiteSpace: 'nowrap',
+                boxShadow: '0 3px 10px rgba(129,182,76,0.4)',
+                opacity: isMediaGenerating ? 0.6 : 1,
+              }}
+            >
+              Save my game →
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Action buttons container - single player */}
       {!isMultiplayer && (
         <div style={{
@@ -745,15 +813,6 @@ const GameCompletionAnimation = ({
                   Report
                 </button>
               )}
-              <button onClick={handleLoginRedirect} disabled={isMediaGenerating} style={{
-                backgroundColor: isMediaGenerating ? '#555' : '#81b64c', color: 'white', padding: '8px 14px', borderRadius: '8px',
-                border: 'none', fontSize: '0.8rem', fontWeight: '600',
-                cursor: isMediaGenerating ? 'not-allowed' : 'pointer',
-                flex: '1 1 auto', whiteSpace: 'nowrap', transition: 'all 0.2s ease',
-                opacity: isMediaGenerating ? 0.6 : 1
-              }}>
-                Login to Save
-              </button>
               <button onClick={handlePlayAgain} disabled={isMediaGenerating} style={{
                 backgroundColor: '#3d3a37', color: '#bababa', padding: '8px 14px', borderRadius: '8px',
                 border: '1px solid #4a4744', fontSize: '0.8rem', fontWeight: '600',
