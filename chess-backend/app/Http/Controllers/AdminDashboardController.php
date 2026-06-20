@@ -88,6 +88,20 @@ class AdminDashboardController extends Controller
         }
         $newUsers = $newUsersQuery->count();
 
+        // Sign-ups grouped by calendar day (for the histogram). Org-scoped via
+        // $userQuery; DATE() works on both MySQL (prod) and SQLite (tests).
+        $signupsByDayQuery = (clone $userQuery);
+        if ($periodStart) {
+            $signupsByDayQuery->where('created_at', '>=', $periodStart);
+        }
+        $signupsByDay = $signupsByDayQuery
+            ->selectRaw('DATE(created_at) as date, COUNT(*) as count')
+            ->groupBy('date')
+            ->orderBy('date')
+            ->get()
+            ->map(fn($r) => ['date' => (string) $r->date, 'count' => (int) $r->count])
+            ->values();
+
         $overviewCards = [
             'total_users'  => $totalUsers,
             'active_today' => $activeToday,
@@ -475,6 +489,7 @@ class AdminDashboardController extends Controller
             'rating_distribution'  => $ratingDistribution,
             'tutorial_stats'       => $tutorialStats,
             'joined_this_week'     => $joinedThisWeek,
+            'signups_by_day'       => $signupsByDay,
             'ambassador_stats'     => $ambassadorStats,
             'institute_breakdown'  => $instituteBreakdown,
             'recent_games'         => $recentGames,

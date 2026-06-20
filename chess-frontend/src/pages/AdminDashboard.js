@@ -1,4 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+} from 'recharts';
+import { eachDayOfInterval, parseISO, format, subDays } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
 import { BACKEND_URL } from '../config';
 import { isPlatformAdmin, isOrganizationAdmin } from '../utils/permissionHelpers';
@@ -18,6 +22,71 @@ const TABS = [
   { id: 'ambassadors', label: 'Ambassadors', adminOnly: true },
   { id: 'institutes', label: 'Institutes', adminOnly: true },
 ];
+
+/* ─── Sign-ups histogram (users joined per day) ─── */
+
+const formatSignupX = (dateStr, period) => {
+  if (!dateStr) return '';
+  const d = parseISO(dateStr);
+  if (period === '7d' || period === 'today') return format(d, 'EEE');
+  if (period === '30d') return format(d, 'MMM d');
+  return format(d, "MMM ''yy");
+};
+
+const signupTooltipStyle = {
+  backgroundColor: '#312e2b', border: '1px solid #464340',
+  color: '#bababa', borderRadius: 6, fontSize: 12,
+};
+
+const SignupsHistogram = ({ data, period }) => {
+  // Fill missing days with 0 so the x-axis is continuous across the period.
+  const chartData = useMemo(() => {
+    const sparse = data || [];
+    if (sparse.length === 0) return [];
+    const today = new Date();
+    const start =
+      period === 'today' ? today
+      : period === '7d' ? subDays(today, 6)
+      : period === '30d' ? subDays(today, 29)
+      : parseISO(sparse[0].date);
+    const counts = new Map(sparse.map(d => [d.date, d.count]));
+    return eachDayOfInterval({ start, end: today }).map(day => {
+      const ds = format(day, 'yyyy-MM-dd');
+      return { date: ds, count: counts.get(ds) || 0 };
+    });
+  }, [data, period]);
+
+  const total = chartData.reduce((s, d) => s + d.count, 0);
+
+  return (
+    <div className="bg-[#312e2b] rounded-lg p-4 mb-6">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-lg font-semibold text-white">New sign-ups</h2>
+        <span className="text-sm text-[#9b9895]">{total} joined this period</span>
+      </div>
+      {chartData.length === 0 ? (
+        <div className="text-[#9b9895] text-xs text-center py-8">No sign-ups in this period.</div>
+      ) : (
+        <ResponsiveContainer width="100%" height={200}>
+          <BarChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#464340" />
+            <XAxis
+              dataKey="date"
+              stroke="#9b9895"
+              tick={{ fontSize: 10 }}
+              tickLine={false}
+              minTickGap={20}
+              tickFormatter={(ds) => formatSignupX(ds, period)}
+            />
+            <YAxis stroke="#9b9895" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} allowDecimals={false} />
+            <Tooltip contentStyle={signupTooltipStyle} labelFormatter={(ds) => formatSignupX(ds, period)} />
+            <Bar dataKey="count" fill="#81b64c" name="Joined" radius={[2, 2, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      )}
+    </div>
+  );
+};
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -297,6 +366,8 @@ const AdminDashboard = () => {
 
           {/* ==================== USERS TAB ==================== */}
           {activeTab === 'users' && (
+            <>
+            <SignupsHistogram data={data.signups_by_day} period={period} />
             <div className="bg-[#312e2b] rounded-lg p-4 mb-6">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                 <h2 className="text-lg font-semibold text-white">Users ({data.users.total})</h2>
@@ -363,6 +434,7 @@ const AdminDashboard = () => {
                 </div>
               )}
             </div>
+            </>
           )}
 
           {/* User Detail Panel — shown below users table when a user is selected */}
