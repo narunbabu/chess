@@ -339,7 +339,7 @@ const AuthGateModal = ({ reason = 'this feature', returnTo = '/dashboard', onClo
                 Terms of Service
               </a>{' '}
               and{' '}
-              <a href="/#" className="text-primary-500 hover:underline">
+              <a href="/privacy" className="text-primary-500 hover:underline">
                 Privacy Policy
               </a>
               .
