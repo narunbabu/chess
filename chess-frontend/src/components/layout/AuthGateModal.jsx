@@ -335,7 +335,7 @@ const AuthGateModal = ({ reason = 'this feature', returnTo = '/dashboard', onClo
           <div className="text-center mt-6">
             <p className="text-xs text-gray-400">
               By continuing, you agree to our{' '}
-              <a href="/#" className="text-primary-500 hover:underline">
+              <a href="/terms" className="text-primary-500 hover:underline">
                 Terms of Service
               </a>{' '}
               and{' '}

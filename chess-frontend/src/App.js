@@ -50,6 +50,7 @@ const LobbyPage = createLazyComponent(() => import("./pages/LobbyPage"), { compo
 const GameHistoryPage = createLazyComponent(() => import("./pages/GameHistoryPage"), { componentName: "GameHistoryPage" });
 const ComingSoon = createLazyComponent(() => import("./pages/ComingSoon"), { componentName: "ComingSoon" });
 const PrivacyPolicy = createLazyComponent(() => import("./pages/PrivacyPolicy"), { componentName: "PrivacyPolicy" });
+const TermsOfService = createLazyComponent(() => import("./pages/TermsOfService"), { componentName: "TermsOfService" });
 const SharedResultPage = createLazyComponent(() => import("./pages/SharedResultPage"), { componentName: "SharedResultPage" });
 const GameReplayPage = createLazyComponent(() => import("./pages/GameReplayPage"), { componentName: "GameReplayPage" });
 const Puzzles = createLazyComponent(() => import("./components/Puzzles"), { componentName: "Puzzles" });
@@ -169,6 +170,7 @@ const AppContent = () => {
             <Route path="/learn" element={<Learn />} />
             <Route path="/coming-soon" element={<ComingSoon />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/terms" element={<TermsOfService />} />
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="/join/:code" element={<JoinRedirect />} />
             {/* /r/<code> — short ambassador URL, alias of /join/<code> */}
