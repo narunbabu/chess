@@ -69,4 +69,19 @@ sealed class Screen(val route: String) {
 
     // Dashboard
     data object Dashboard : Screen("dashboard")
+
+    // Daily Challenges
+    data object DailyChallenges : Screen("daily_challenges")
+
+    // Organizations
+    data object Organizations : Screen("organizations")
+
+    // Ambassador program
+    data object AmbassadorDashboard : Screen("ambassador")
+    data object BecomeAmbassador : Screen("become_ambassador")
+
+    // Content & Legal (rendered via WebView for content parity with the website)
+    data object Ebook : Screen("ebook")
+    data object Privacy : Screen("privacy")
+    data object Terms : Screen("terms")
 }

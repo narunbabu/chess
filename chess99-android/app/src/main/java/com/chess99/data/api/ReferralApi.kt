@@ -46,4 +46,16 @@ interface ReferralApi {
     /** Validate a referral code. */
     @GET("referrals/validate/{code}")
     suspend fun validateCode(@Path("code") code: String): Response<JsonObject>
+
+    // ── Ambassador application ──────────────────────────────────────────────
+    //   POST /ambassador/apply       -> AmbassadorController@apply
+    //   GET  /ambassador/application -> AmbassadorController@application
+
+    /** Submit an ambassador application. Body: { name, mobile, upi_id, reason? }. */
+    @POST("ambassador/apply")
+    suspend fun applyAmbassador(@Body request: JsonObject): Response<JsonObject>
+
+    /** Get the current user's ambassador application (status: pending/approved/rejected). */
+    @GET("ambassador/application")
+    suspend fun getAmbassadorApplication(): Response<JsonObject>
 }

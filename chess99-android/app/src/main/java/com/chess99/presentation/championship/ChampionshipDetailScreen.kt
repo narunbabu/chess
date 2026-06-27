@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chess99.data.api.ChampionshipApi
+import com.chess99.data.local.TokenManager
 import com.google.gson.JsonObject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,12 +37,16 @@ import androidx.hilt.navigation.compose.hiltViewModel
 @HiltViewModel
 class ChampionshipDetailViewModel @Inject constructor(
     private val championshipApi: ChampionshipApi,
+    private val tokenManager: TokenManager,
 ) : ViewModel() {
+
+    private var loadedId: Int = -1
 
     private val _uiState = MutableStateFlow(ChampionshipDetailUiState())
     val uiState: StateFlow<ChampionshipDetailUiState> = _uiState.asStateFlow()
 
     fun loadChampionship(id: Int) {
+        loadedId = id
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             try {
@@ -62,10 +67,15 @@ class ChampionshipDetailViewModel @Inject constructor(
             if (response.isSuccessful) {
                 val body = response.body() ?: return
                 val c = body.getAsJsonObject("championship") ?: body
+                val createdBy = c.get("created_by")?.asInt ?: -1
+                val canManage = c.get("can_manage")?.asBoolean
+                    ?: c.get("is_owner")?.asBoolean
+                    ?: (createdBy != -1 && createdBy == tokenManager.getUserId())
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     championship = ChampionshipDetail(
                         id = c.get("id")?.asInt ?: id,
+                        canManage = canManage,
                         name = c.get("name")?.asString ?: "",
                         description = c.get("description")?.asString ?: "",
                         format = c.get("format")?.asString ?: "swiss",
@@ -195,6 +205,43 @@ class ChampionshipDetailViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(selectedTab = tab)
     }
 
+    // ── Organizer management ────────────────────────────────────────────
+
+    fun generatePairings() = manage { championshipApi.generateFullTournament(loadedId, JsonObject()) }
+
+    fun scheduleNextRound() = manage { championshipApi.scheduleNextRound(loadedId, JsonObject()) }
+
+    fun startTournament() = manage { championshipApi.startChampionship(loadedId) }
+
+    private fun manage(block: suspend () -> retrofit2.Response<JsonObject>) {
+        if (loadedId == -1) return
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isManaging = true, manageMessage = null)
+            try {
+                val response = block()
+                if (response.isSuccessful) {
+                    val msg = response.body()?.get("message")?.asString ?: "Done."
+                    _uiState.value = _uiState.value.copy(isManaging = false, manageMessage = msg)
+                    loadChampionship(loadedId)
+                } else {
+                    val msg = when (response.code()) {
+                        403 -> "You don't have permission to manage this tournament."
+                        422 -> "Action not allowed in the current tournament state."
+                        else -> "Action failed (${response.code()})."
+                    }
+                    _uiState.value = _uiState.value.copy(isManaging = false, manageMessage = msg)
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Tournament management action failed")
+                _uiState.value = _uiState.value.copy(isManaging = false, manageMessage = e.message)
+            }
+        }
+    }
+
+    fun clearManageMessage() {
+        _uiState.value = _uiState.value.copy(manageMessage = null)
+    }
+
     fun clearError() {
         _uiState.value = _uiState.value.copy(error = null)
     }
@@ -210,6 +257,8 @@ data class ChampionshipDetailUiState(
     val standings: List<Standing> = emptyList(),
     val matches: List<ChampionshipMatch> = emptyList(),
     val error: String? = null,
+    val isManaging: Boolean = false,
+    val manageMessage: String? = null,
 )
 
 enum class DetailTab { OVERVIEW, PARTICIPANTS, STANDINGS, MATCHES }
@@ -231,6 +280,7 @@ data class ChampionshipDetail(
     val currentRound: Int,
     val creatorName: String,
     val isRegistered: Boolean,
+    val canManage: Boolean = false,
 )
 
 data class Participant(
@@ -275,9 +325,17 @@ fun ChampionshipDetailScreen(
     viewModel: ChampionshipDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(championshipId) {
         viewModel.loadChampionship(championshipId)
+    }
+
+    LaunchedEffect(state.manageMessage) {
+        state.manageMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearManageMessage()
+        }
     }
 
     Scaffold(
@@ -302,6 +360,7 @@ fun ChampionshipDetailScreen(
                 },
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         if (state.isLoading && state.championship == null) {
             Box(
@@ -346,7 +405,13 @@ fun ChampionshipDetailScreen(
 
             // Tab content
             when (state.selectedTab) {
-                DetailTab.OVERVIEW -> OverviewTab(championship = state.championship)
+                DetailTab.OVERVIEW -> OverviewTab(
+                    championship = state.championship,
+                    isManaging = state.isManaging,
+                    onGeneratePairings = { viewModel.generatePairings() },
+                    onScheduleNextRound = { viewModel.scheduleNextRound() },
+                    onStartTournament = { viewModel.startTournament() },
+                )
                 DetailTab.PARTICIPANTS -> ParticipantsTab(participants = state.participants)
                 DetailTab.STANDINGS -> StandingsTab(standings = state.standings)
                 DetailTab.MATCHES -> MatchesTab(
@@ -373,7 +438,13 @@ fun ChampionshipDetailScreen(
 // ── Overview Tab ───────────────────────────────────────────────────────
 
 @Composable
-private fun OverviewTab(championship: ChampionshipDetail?) {
+private fun OverviewTab(
+    championship: ChampionshipDetail?,
+    isManaging: Boolean = false,
+    onGeneratePairings: () -> Unit = {},
+    onScheduleNextRound: () -> Unit = {},
+    onStartTournament: () -> Unit = {},
+) {
     if (championship == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("No data available", color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -465,6 +536,19 @@ private fun OverviewTab(championship: ChampionshipDetail?) {
             }
         }
 
+        // Organizer controls (only shown to the tournament organizer)
+        if (championship.canManage) {
+            item {
+                OrganizerControls(
+                    status = championship.status,
+                    isManaging = isManaging,
+                    onGeneratePairings = onGeneratePairings,
+                    onScheduleNextRound = onScheduleNextRound,
+                    onStartTournament = onStartTournament,
+                )
+            }
+        }
+
         // Registration status
         item {
             if (championship.isRegistered) {
@@ -486,6 +570,64 @@ private fun OverviewTab(championship: ChampionshipDetail?) {
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun OrganizerControls(
+    status: String,
+    isManaging: Boolean,
+    onGeneratePairings: () -> Unit,
+    onScheduleNextRound: () -> Unit,
+    onStartTournament: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+        ),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Settings, null, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Organizer controls", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            }
+            Text(
+                "Manage your tournament. Generate the bracket, schedule rounds, and start play.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            if (isManaging) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
+
+            OutlinedButton(
+                onClick = onGeneratePairings,
+                enabled = !isManaging,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Generate pairings") }
+
+            OutlinedButton(
+                onClick = onScheduleNextRound,
+                enabled = !isManaging,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Schedule next round") }
+
+            if (status.equals("upcoming", ignoreCase = true) ||
+                status.equals("registration", ignoreCase = true)
+            ) {
+                Button(
+                    onClick = onStartTournament,
+                    enabled = !isManaging,
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Start tournament") }
             }
         }
     }

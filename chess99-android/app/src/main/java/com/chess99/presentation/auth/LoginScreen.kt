@@ -30,6 +30,7 @@ fun LoginScreen(
     onNavigateToRegister: () -> Unit,
     onNavigateToForgotPassword: () -> Unit = {},
     onLoginSuccess: () -> Unit,
+    onPlayAsGuest: () -> Unit = {},
     viewModel: AuthViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -198,6 +199,19 @@ fun LoginScreen(
         // Register link
         TextButton(onClick = onNavigateToRegister) {
             Text("Don't have an account? Sign Up")
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // Guest play — mirrors the web's "play vs computer without an account" flow.
+        OutlinedButton(
+            onClick = onPlayAsGuest,
+            enabled = !uiState.isLoading,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp),
+        ) {
+            Text("Play as Guest")
         }
     }
 }

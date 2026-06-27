@@ -69,7 +69,9 @@ interface TutorialApi {
     // ── Daily Challenge ────────────────────────────────────────────────
 
     @GET("tutorial/daily-challenge")
-    suspend fun getDailyChallenge(): Response<JsonObject>
+    suspend fun getDailyChallenge(
+        @Query("track") track: String? = null,
+    ): Response<JsonObject>
 
     @POST("tutorial/daily-challenge/submit")
     suspend fun submitDailyChallenge(@Body body: JsonObject): Response<JsonObject>

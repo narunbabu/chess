@@ -32,6 +32,7 @@ class ReferralViewModel @Inject constructor(
                 launch { loadReferredUsers() }
                 launch { loadEarnings() }
                 launch { loadPayouts() }
+                launch { loadApplication() }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to load referral data")
                 _uiState.value = _uiState.value.copy(isLoading = false)
@@ -125,6 +126,68 @@ class ReferralViewModel @Inject constructor(
         }
     }
 
+    /** Load the user's ambassador application status (null = not applied). */
+    private suspend fun loadApplication() {
+        try {
+            val response = referralApi.getAmbassadorApplication()
+            if (response.isSuccessful) {
+                val body = response.body() ?: return
+                val app = body.getAsJsonObject("application")
+                _uiState.value = _uiState.value.copy(
+                    ambassadorStatus = app?.get("status")?.asString,
+                )
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to load ambassador application")
+        }
+    }
+
+    /** Submit an ambassador application (name, mobile, UPI id, optional reason). */
+    fun applyAmbassador(name: String, mobile: String, upiId: String, reason: String) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isSubmittingApplication = true, applicationError = null)
+            try {
+                val body = JsonObject().apply {
+                    addProperty("name", name.trim())
+                    addProperty("mobile", mobile.trim())
+                    addProperty("upi_id", upiId.trim())
+                    if (reason.isNotBlank()) addProperty("reason", reason.trim())
+                }
+                val response = referralApi.applyAmbassador(body)
+                if (response.isSuccessful) {
+                    val status = response.body()
+                        ?.getAsJsonObject("application")?.get("status")?.asString ?: "pending"
+                    _uiState.value = _uiState.value.copy(
+                        isSubmittingApplication = false,
+                        applicationSubmitted = true,
+                        ambassadorStatus = status,
+                        snackbarMessage = "Application submitted. We'll review and get back to you.",
+                    )
+                } else {
+                    val msg = when (response.code()) {
+                        422 -> "Please check your details and try again."
+                        409 -> "You've already applied."
+                        else -> "Failed to submit application."
+                    }
+                    _uiState.value = _uiState.value.copy(
+                        isSubmittingApplication = false,
+                        applicationError = msg,
+                    )
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Ambassador application error")
+                _uiState.value = _uiState.value.copy(
+                    isSubmittingApplication = false,
+                    applicationError = e.message ?: "Network error.",
+                )
+            }
+        }
+    }
+
+    fun clearApplicationSubmitted() {
+        _uiState.value = _uiState.value.copy(applicationSubmitted = false)
+    }
+
     fun generateCode(label: String?) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isGenerating = true)
@@ -190,6 +253,11 @@ data class ReferralUiState(
     val earnings: List<ReferralEarning> = emptyList(),
     val payouts: List<ReferralPayout> = emptyList(),
     val snackbarMessage: String? = null,
+    // Ambassador application
+    val ambassadorStatus: String? = null,
+    val isSubmittingApplication: Boolean = false,
+    val applicationSubmitted: Boolean = false,
+    val applicationError: String? = null,
 )
 
 data class ReferralStats(

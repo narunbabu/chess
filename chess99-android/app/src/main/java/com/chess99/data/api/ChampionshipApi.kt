@@ -73,6 +73,30 @@ interface ChampionshipApi {
     @GET("championships/{id}/instructions")
     suspend fun getInstructions(@Path("id") id: Int): Response<JsonObject>
 
+    // ── Organizer management (can:manage,championship) ──────────────────
+
+    /** Generate the full pairing structure for the tournament. Body optional: { preset?, config?, force_regenerate? }. */
+    @POST("championships/{id}/generate-full-tournament")
+    suspend fun generateFullTournament(
+        @Path("id") id: Int,
+        @Body body: JsonObject,
+    ): Response<JsonObject>
+
+    /** Schedule the next round of matches. Body optional: { force?, schedule_time? }. */
+    @POST("championships/{id}/matches/schedule-next")
+    suspend fun scheduleNextRound(
+        @Path("id") id: Int,
+        @Body body: JsonObject,
+    ): Response<JsonObject>
+
+    /** Submit a match result. Body: { result: win|draw|loss, opponent_agreed? }. */
+    @POST("championships/{id}/matches/{match}/result")
+    suspend fun submitMatchResult(
+        @Path("id") id: Int,
+        @Path("match") matchId: Int,
+        @Body body: JsonObject,
+    ): Response<JsonObject>
+
     // ── Admin ──────────────────────────────────────────────────────────
 
     @POST("admin/tournaments/{id}/start")

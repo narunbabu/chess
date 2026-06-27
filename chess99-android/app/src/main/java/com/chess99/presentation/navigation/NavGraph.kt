@@ -33,6 +33,11 @@ import com.chess99.presentation.referral.ReferralDashboardScreen
 import com.chess99.presentation.game.PublicGameViewerScreen
 import com.chess99.presentation.history.GameDetailScreen
 import com.chess99.presentation.profile.RatingHistoryScreen
+import com.chess99.presentation.profile.OrganizationsScreen
+import com.chess99.presentation.referral.AmbassadorDashboardScreen
+import com.chess99.presentation.referral.BecomeAmbassadorScreen
+import com.chess99.presentation.daily.DailyChallengesScreen
+import com.chess99.presentation.common.WebViewScreen
 import com.chess99.presentation.social.LeaderboardScreen
 import com.chess99.presentation.social.SharedResultScreen
 
@@ -55,6 +60,7 @@ fun Chess99NavGraph(
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
                 },
+                onPlayAsGuest = { navController.navigate(Screen.PlayComputer.route) },
             )
         }
 
@@ -129,6 +135,9 @@ fun Chess99NavGraph(
                 },
                 onNavigateToGame = { gameId ->
                     navController.navigate(Screen.PlayMultiplayer.createRoute(gameId))
+                },
+                onNavigate = { route ->
+                    navController.navigate(route)
                 },
                 onLogout = {
                     navController.navigate(Screen.Login.route) {
@@ -389,6 +398,59 @@ fun Chess99NavGraph(
                 onNavigateToReferrals = {
                     navController.navigate(Screen.ReferralDashboard.route)
                 },
+            )
+        }
+
+        // ── Daily Challenges ────────────────────────────────────────────────
+        composable(Screen.DailyChallenges.route) {
+            DailyChallengesScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onSolve = { navController.navigate(Screen.Puzzles.route) },
+                onUpgrade = { navController.navigate(Screen.Pricing.route) },
+            )
+        }
+
+        // ── Organizations ───────────────────────────────────────────────────
+        composable(Screen.Organizations.route) {
+            OrganizationsScreen(
+                onNavigateBack = { navController.popBackStack() },
+            )
+        }
+
+        // ── Ambassador ──────────────────────────────────────────────────────
+        composable(Screen.AmbassadorDashboard.route) {
+            AmbassadorDashboardScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToApply = { navController.navigate(Screen.BecomeAmbassador.route) },
+            )
+        }
+
+        composable(Screen.BecomeAmbassador.route) {
+            BecomeAmbassadorScreen(
+                onNavigateBack = { navController.popBackStack() },
+            )
+        }
+
+        // ── Content & Legal (WebView) ───────────────────────────────────────
+        composable(Screen.Ebook.route) {
+            WebViewScreen(
+                url = "https://chess99.com/ebook",
+                title = "E-Book: 0 to 1000",
+                onNavigateBack = { navController.popBackStack() },
+            )
+        }
+        composable(Screen.Privacy.route) {
+            WebViewScreen(
+                url = "https://chess99.com/privacy",
+                title = "Privacy Policy",
+                onNavigateBack = { navController.popBackStack() },
+            )
+        }
+        composable(Screen.Terms.route) {
+            WebViewScreen(
+                url = "https://chess99.com/terms",
+                title = "Terms of Service",
+                onNavigateBack = { navController.popBackStack() },
             )
         }
     }

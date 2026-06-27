@@ -683,7 +683,7 @@ fun ReplayContent(
 // ── Replay Controls ───────────────────────────────────────────────────
 
 @Composable
-private fun ReplayControls(
+internal fun ReplayControls(
     replayState: ReplayState,
     onFirstMove: () -> Unit,
     onPrevMove: () -> Unit,

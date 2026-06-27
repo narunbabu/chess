@@ -38,13 +38,13 @@ import kotlin.math.min
  * - Animated piece sliding (via recomposition)
  * - Haptic feedback on capture
  */
-@Composable
 data class BoardArrow(
     val from: Int,
     val to: Int,
     val color: Long, // ARGB
 )
 
+@Composable
 fun ChessBoardView(
     game: ChessGame,
     boardOrientation: com.chess99.engine.Color = com.chess99.engine.Color.WHITE,

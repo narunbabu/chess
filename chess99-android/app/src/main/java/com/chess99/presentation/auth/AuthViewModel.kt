@@ -113,7 +113,7 @@ class AuthViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            error = error.exception.message ?: "Google sign-in failed",
+                            error = result.exception.message ?: "Google sign-in failed",
                         )
                     }
                 }
@@ -153,7 +153,7 @@ class AuthViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            error = error.exception.message ?: "Facebook sign-in failed",
+                            error = result.exception.message ?: "Facebook sign-in failed",
                         )
                     }
                 }
