@@ -6,6 +6,7 @@ use App\Http\Middleware\WebSocketAuth;
 use App\Models\Game;
 use App\Models\GameChatMessage;
 use App\Events\GameChatMessageSent;
+use App\Services\ChatSafetyService;
 use App\Services\GameRoomService;
 use App\Services\HandshakeProtocol;
 use Illuminate\Http\Request;
@@ -19,7 +20,8 @@ class WebSocketController extends Controller
 {
     public function __construct(
         private GameRoomService $gameRoomService,
-        private HandshakeProtocol $handshakeProtocol
+        private HandshakeProtocol $handshakeProtocol,
+        private ChatSafetyService $chatSafetyService
     ) {
     }
 
@@ -1884,10 +1886,16 @@ class WebSocketController extends Controller
                 'sender_id'   => $m->user_id,
                 'sender_name' => $m->user->name,
                 'message'     => $m->message,
+                'message_type'=> $m->message_type,
+                'filtered'    => (bool) $m->filtered,
+                'safety_action'=> $m->safety_action,
                 'created_at'  => $m->created_at->toISOString(),
             ]);
 
-        return response()->json(['messages' => $messages]);
+        return response()->json([
+            'messages' => $messages,
+            'chat_policy' => $this->chatSafetyService->policyFor($user, $game),
+        ]);
     }
 
     /**
@@ -1916,10 +1924,16 @@ class WebSocketController extends Controller
                 'sender_id'   => $msg->user_id,
                 'sender_name' => $msg->sender_name,
                 'message'     => $msg->message,
+                'message_type'=> $msg->message_type,
+                'filtered'    => (bool) $msg->filtered,
+                'safety_action'=> $msg->safety_action,
                 'created_at'  => $msg->created_at->toISOString(),
             ]);
 
-        return response()->json(['messages' => $messages]);
+        return response()->json([
+            'messages' => $messages,
+            'chat_policy' => $this->chatSafetyService->policyFor($user, $game),
+        ]);
     }
 
     /**
@@ -1938,10 +1952,20 @@ class WebSocketController extends Controller
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
+        $processed = $this->chatSafetyService->processOutgoingMessage(
+            $user,
+            $game,
+            $request->input('message')
+        );
+
         $chatMessage = GameChatMessage::create([
             'game_id' => $gameId,
             'user_id' => $user->id,
-            'message' => $request->input('message'),
+            'message' => $processed['message'],
+            'original_message' => $processed['original_message'],
+            'message_type' => $processed['message_type'],
+            'safety_action' => $processed['safety_action'],
+            'filtered' => $processed['filtered'],
         ]);
 
         broadcast(new GameChatMessageSent($game, $user, $chatMessage))->toOthers();
@@ -1957,6 +1981,10 @@ class WebSocketController extends Controller
             'sender_id'   => $user->id,
             'sender_name' => $user->name,
             'message'     => $chatMessage->message,
+            'message_type'=> $chatMessage->message_type,
+            'filtered'    => (bool) $chatMessage->filtered,
+            'safety_action'=> $chatMessage->safety_action,
+            'chat_policy' => $this->chatSafetyService->policyFor($user, $game),
             'created_at'  => $chatMessage->created_at->toISOString(),
         ], 201);
     }

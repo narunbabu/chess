@@ -27,10 +27,14 @@ class Organization extends Model
         'status',
         'created_by',
         'requested_by',
+        'social_access_disabled',
+        'social_access_disabled_at',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'social_access_disabled' => 'boolean',
+        'social_access_disabled_at' => 'datetime',
     ];
 
     /**

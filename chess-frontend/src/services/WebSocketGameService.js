@@ -1669,7 +1669,10 @@ class WebSocketGameService {
 
     const data = await response.json();
     if (!response.ok) {
-      throw new Error(data.error || 'Failed to send message');
+      const validationMessage = data.errors
+        ? Object.values(data.errors).flat().join(' ')
+        : null;
+      throw new Error(validationMessage || data.message || data.error || 'Failed to send message');
     }
 
     return data;

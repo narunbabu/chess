@@ -89,6 +89,7 @@ const AmbassadorDashboard = createLazyComponent(() => import("./pages/Ambassador
 const AmbassadorPoster = createLazyComponent(() => import("./pages/AmbassadorPoster"), { componentName: "AmbassadorPoster" });
 const BecomeAmbassador = createLazyComponent(() => import("./pages/BecomeAmbassador"), { componentName: "BecomeAmbassador" });
 const OrganizationDashboard = createLazyComponent(() => import("./pages/OrganizationDashboard"), { componentName: "OrganizationDashboard" });
+const MyKidsPage = createLazyComponent(() => import("./pages/MyKidsPage"), { componentName: "MyKidsPage" });
 const FriendsPage = createLazyComponent(() => import("./pages/FriendsPage"), { componentName: "FriendsPage" });
 const LeaderboardPage = createLazyComponent(() => import("./pages/LeaderboardPage"), { componentName: "LeaderboardPage" });
 const SystemStatusPage = createLazyComponent(() => import("./pages/SystemStatusPage"), { componentName: "SystemStatusPage" });
@@ -346,6 +347,15 @@ const AppContent = () => {
               element={
                 <RouteGuard>
                   <OrganizationDashboard />
+                </RouteGuard>
+              }
+            />
+            {/* Parent "My Kids" dashboard - Auth required */}
+            <Route
+              path="/parent"
+              element={
+                <RouteGuard>
+                  <MyKidsPage />
                 </RouteGuard>
               }
             />

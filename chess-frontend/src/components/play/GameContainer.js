@@ -723,6 +723,10 @@ const GameContainer = ({
         onSend={chatData.onSend}
         myUserId={chatData.myUserId}
         disabled={chatData.disabled}
+        policy={chatData.policy}
+        notice={chatData.notice}
+        onReport={chatData.onReport}
+        onBlock={chatData.onBlock}
       />
     );
   };

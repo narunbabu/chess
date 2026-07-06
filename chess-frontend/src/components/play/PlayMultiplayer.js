@@ -222,6 +222,8 @@ const PlayMultiplayer = () => {
   // Chat state
   const [chatMessages, setChatMessages] = useState([]);
   const [chatUnread, setChatUnread] = useState(0);
+  const [chatPolicy, setChatPolicy] = useState(null);
+  const [chatNotice, setChatNotice] = useState('');
   const chatTabOpenRef = useRef(false);
   const [cctArrows, setCctArrows] = useState([]); // CCT board arrows from learning panel
   const [reviewArrows, setReviewArrows] = useState([]);
@@ -454,21 +456,73 @@ const PlayMultiplayer = () => {
 
   const handleSendChat = useCallback(async (message) => {
     if (!wsService.current) return;
-    // Optimistic update
-    const optimistic = {
-      id: `local-${Date.now()}`,
-      sender_id: user?.id,
-      sender_name: user?.name,
-      message,
-      created_at: new Date().toISOString(),
-    };
-    setChatMessages(prev => [...prev, optimistic]);
+    setChatNotice('');
     try {
-      await wsService.current.sendChatMessage(message);
+      const sent = await wsService.current.sendChatMessage(message);
+      if (sent.chat_policy) setChatPolicy(sent.chat_policy);
+      if (sent.filtered) setChatNotice('Message was filtered before sending.');
+      setChatMessages(prev => (
+        prev.some(m => String(m.id) === String(sent.id)) ? prev : [...prev, sent]
+      ));
     } catch (err) {
       console.error('Failed to send chat message:', err);
+      setChatNotice(err.message || 'Failed to send chat message.');
     }
-  }, [user]);
+  }, []);
+
+  const handleReportChatMessage = useCallback(async (message) => {
+    if (!message?.id || String(message.id).startsWith('local-')) return;
+    setChatNotice('');
+    try {
+      const token = localStorage.getItem('auth_token');
+      const reason = chatPolicy?.report_reasons?.[0] || 'unsafe_language';
+      const response = await fetch(`${BACKEND_URL}/websocket/games/${gameId}/chat/${message.id}/report`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({ reason }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.message || data.error || 'Failed to report message.');
+      }
+      setChatNotice('Message reported for review.');
+    } catch (err) {
+      setChatNotice(err.message || 'Failed to report message.');
+    }
+  }, [chatPolicy, gameId]);
+
+  const handleBlockChatUser = useCallback(async (blockedUserId) => {
+    if (!blockedUserId || blockedUserId === user?.id) return;
+    if (!window.confirm('Block chat with this player?')) return;
+    setChatNotice('');
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${BACKEND_URL}/users/${blockedUserId}/block`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.message || data.error || 'Failed to block player.');
+      }
+      setChatPolicy(prev => ({
+        ...(prev || {}),
+        enabled: false,
+        reason: 'blocked',
+      }));
+      setChatNotice('Chat blocked with this player.');
+    } catch (err) {
+      setChatNotice(err.message || 'Failed to block player.');
+    }
+  }, [user?.id]);
 
   // Destructure pause/resume state
   const {
@@ -1263,7 +1317,10 @@ const PlayMultiplayer = () => {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
       })
         .then(r => r.json())
-        .then(d => { if (d.messages) setChatMessages(d.messages); })
+        .then(d => {
+          if (d.messages) setChatMessages(d.messages);
+          if (d.chat_policy) setChatPolicy(d.chat_policy);
+        })
         .catch(() => {}); // silent fail — chat is non-critical
 
       // Initialize WebSocket connection
@@ -1365,6 +1422,12 @@ const PlayMultiplayer = () => {
         console.log('💬 Chat message received:', event);
         // Deduplicate: if this is our own message echoed back, replace the optimistic entry
         setChatMessages(prev => {
+          if (prev.some(m => String(m.id) === String(event.id))) {
+            return prev;
+          }
+          if (event.sender_id === user?.id) {
+            return [...prev, event];
+          }
           if (event.sender_id === user?.id) {
             const optimisticIdx = prev.findIndex(m =>
               m.id?.toString().startsWith('local-') && m.sender_id === event.sender_id
@@ -5214,6 +5277,10 @@ const PlayMultiplayer = () => {
           setChatUnread(0);
         },
         disabled: connectionStatus !== 'connected',
+        policy: chatPolicy,
+        notice: chatNotice,
+        onReport: handleReportChatMessage,
+        onBlock: handleBlockChatUser,
       }}
       timerData={{
         myMs,

@@ -783,6 +783,12 @@ const Header = () => {
                 </button>
                 <button
                   className="nav-item"
+                  onClick={() => handleNavItemClick(() => navigate('/parent'), '/parent')}
+                >
+                  👨‍👩‍👧 My Kids
+                </button>
+                <button
+                  className="nav-item"
                   onClick={() => handleNavItemClick(() => navigate('/profile'), '/profile')}
                 >
                   👤 Profile

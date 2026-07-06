@@ -55,6 +55,7 @@ sealed class Screen(val route: String) {
 
     // Social
     data object ReferralDashboard : Screen("referrals")
+    data object MyKids : Screen("parent")
     data object SharedResult : Screen("shared_result/{uniqueId}") {
         fun createRoute(uniqueId: String) = "shared_result/$uniqueId"
     }

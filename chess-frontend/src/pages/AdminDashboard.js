@@ -19,6 +19,7 @@ const TABS = [
   { id: 'overview', label: 'Overview' },
   { id: 'games', label: 'Games' },
   { id: 'users', label: 'Users' },
+  { id: 'moderation', label: 'Moderation' },
   { id: 'ambassadors', label: 'Ambassadors', adminOnly: true },
   { id: 'institutes', label: 'Institutes', adminOnly: true },
 ];
@@ -442,6 +443,11 @@ const AdminDashboard = () => {
             <UserDetailPanel userId={selectedUserId} period={period} onClose={() => setSelectedUserId(null)} />
           )}
 
+          {/* ==================== MODERATION TAB ==================== */}
+          {activeTab === 'moderation' && (
+            <ModerationQueue />
+          )}
+
           {/* ==================== AMBASSADORS TAB ==================== */}
           {activeTab === 'ambassadors' && data.meta?.is_platform_admin && (
             <>
@@ -469,6 +475,201 @@ const AdminDashboard = () => {
 };
 
 /* ─── User Detail Panel ─── */
+
+const ModerationQueue = () => {
+  const [status, setStatus] = useState('pending');
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [actionId, setActionId] = useState(null);
+
+  const fetchReports = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const params = new URLSearchParams({ status, per_page: 50 });
+      const response = await fetch(`${BACKEND_URL}/admin/dashboard/chat-reports?${params}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+          Accept: 'application/json',
+        },
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(json.message || json.error || `HTTP ${response.status}`);
+      }
+      setReports(json.data || []);
+    } catch (err) {
+      setError(err.message || 'Failed to load reports.');
+    } finally {
+      setLoading(false);
+    }
+  }, [status]);
+
+  useEffect(() => { fetchReports(); }, [fetchReports]);
+
+  const updateReport = async (reportId, nextStatus) => {
+    setActionId(reportId);
+    setError('');
+    try {
+      const response = await fetch(`${BACKEND_URL}/admin/dashboard/chat-reports/${reportId}`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(json.message || json.error || `HTTP ${response.status}`);
+      }
+      await fetchReports();
+    } catch (err) {
+      setError(err.message || 'Failed to update report.');
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const setUserChatAccess = async (userId, disabled) => {
+    setActionId(`user-${userId}`);
+    setError('');
+    try {
+      const response = await fetch(`${BACKEND_URL}/admin/dashboard/users/${userId}/social-access`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ disabled }),
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(json.message || json.error || `HTTP ${response.status}`);
+      }
+      setReports(prev => prev.map(report => (
+        report.reported_user?.id === userId
+          ? {
+              ...report,
+              reported_user: {
+                ...report.reported_user,
+                social_access_disabled: disabled,
+              },
+            }
+          : report
+      )));
+    } catch (err) {
+      setError(err.message || 'Failed to update user chat access.');
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  return (
+    <div className="bg-[#312e2b] rounded-lg p-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+        <h2 className="text-lg font-semibold text-white">Chat Moderation</h2>
+        <select
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+          className="px-3 py-2 rounded bg-[#262421] text-[#bababa] border border-[#464340] text-sm"
+        >
+          <option value="pending">Pending</option>
+          <option value="reviewed">Reviewed</option>
+          <option value="dismissed">Dismissed</option>
+          <option value="actioned">Actioned</option>
+        </select>
+      </div>
+
+      {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
+      {loading ? (
+        <div className="flex justify-center py-10">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#81b64c]" />
+        </div>
+      ) : reports.length === 0 ? (
+        <p className="text-[#9b9895] text-sm py-8 text-center">No reports in this queue.</p>
+      ) : (
+        <div className="space-y-3">
+          {reports.map(report => {
+            const reportedUser = report.reported_user;
+            const busy = actionId === report.id || actionId === `user-${reportedUser?.id}`;
+            return (
+              <div key={report.id} className="bg-[#262421] rounded-lg p-4 border border-[#464340]">
+                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <span className="text-xs px-2 py-0.5 rounded bg-[#e8a93e]/20 text-[#e8a93e]">
+                        {report.reason?.replace(/_/g, ' ') || 'report'}
+                      </span>
+                      <span className="text-xs px-2 py-0.5 rounded bg-[#464340] text-[#bababa]">
+                        {report.status}
+                      </span>
+                      {reportedUser?.social_access_disabled && (
+                        <span className="text-xs px-2 py-0.5 rounded bg-red-900/25 text-red-300">
+                          user chat disabled
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-white text-sm break-words">
+                      "{report.message?.message || ''}"
+                    </p>
+                    <p className="text-[#9b9895] text-xs mt-2">
+                      Reported user: {reportedUser?.name || 'Unknown'} ({reportedUser?.email || 'no email'})
+                    </p>
+                    <p className="text-[#9b9895] text-xs">
+                      Reporter: {report.reporter?.name || 'Unknown'} &middot; {new Date(report.created_at).toLocaleString()}
+                    </p>
+                    {report.note && <p className="text-[#bababa] text-xs mt-2">Note: {report.note}</p>}
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 shrink-0">
+                    <button
+                      disabled={busy}
+                      onClick={() => updateReport(report.id, 'reviewed')}
+                      className="px-3 py-1.5 rounded bg-[#464340] text-[#bababa] text-xs hover:bg-[#3d3a36] disabled:opacity-50"
+                    >
+                      Review
+                    </button>
+                    <button
+                      disabled={busy}
+                      onClick={() => updateReport(report.id, 'dismissed')}
+                      className="px-3 py-1.5 rounded bg-[#464340] text-[#bababa] text-xs hover:bg-[#3d3a36] disabled:opacity-50"
+                    >
+                      Dismiss
+                    </button>
+                    <button
+                      disabled={busy}
+                      onClick={() => updateReport(report.id, 'actioned')}
+                      className="px-3 py-1.5 rounded bg-[#81b64c] text-white text-xs hover:bg-[#6f9f41] disabled:opacity-50"
+                    >
+                      Action
+                    </button>
+                    {reportedUser && (
+                      <button
+                        disabled={busy}
+                        onClick={() => setUserChatAccess(reportedUser.id, !reportedUser.social_access_disabled)}
+                        className={`px-3 py-1.5 rounded text-xs disabled:opacity-50 ${
+                          reportedUser.social_access_disabled
+                            ? 'bg-[#5ba4cf] text-white hover:bg-[#4a91ba]'
+                            : 'bg-red-900/40 text-red-200 hover:bg-red-900/60'
+                        }`}
+                      >
+                        {reportedUser.social_access_disabled ? 'Enable chat' : 'Disable chat'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const UserDetailPanel = ({ userId, period, onClose }) => {
   const [data, setData] = useState(null);

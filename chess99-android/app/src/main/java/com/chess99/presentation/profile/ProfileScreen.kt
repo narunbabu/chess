@@ -47,6 +47,7 @@ fun ProfileScreen(
     onNavigateBack: () -> Unit,
     onNavigateToReferrals: () -> Unit = {},
     onNavigateToRatingHistory: () -> Unit = {},
+    onNavigateToMyKids: () -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     var showAboutDialog by remember { mutableStateOf(false) }
@@ -78,6 +79,9 @@ fun ProfileScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onNavigateToMyKids) {
+                        Icon(Icons.Default.FamilyRestroom, "My Kids")
+                    }
                     IconButton(onClick = onNavigateToReferrals) {
                         Icon(Icons.Default.Share, "Referrals")
                     }

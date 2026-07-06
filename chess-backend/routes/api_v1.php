@@ -22,6 +22,7 @@ use App\Http\Controllers\UserPresenceController;
 use App\Http\Controllers\UserStatusController;
 use App\Http\Controllers\ContextualPresenceController;
 use App\Http\Controllers\WebSocketController;
+use App\Http\Controllers\ChatModerationController;
 use App\Http\Controllers\RatingController;
 use App\Http\Controllers\SharedResultController;
 use App\Http\Controllers\TutorialController;
@@ -36,6 +37,7 @@ use App\Http\Controllers\FriendController;
 use App\Http\Controllers\TacticalProgressController;
 use App\Http\Controllers\TrainingDrillController;
 use App\Http\Controllers\EntitlementController;
+use App\Http\Controllers\ParentDashboardController;
 use Illuminate\Support\Facades\Route;
 
 // ─── Health Check (public) ────────────────────────────────────────────────────
@@ -102,6 +104,23 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/{requesterId}/reject', [FriendController::class, 'reject']);
         Route::delete('/{friendId}', [FriendController::class, 'remove']);
     });
+
+    // ── Parent Dashboard & Report Cards ────────────────────────────────
+    Route::prefix('parent')->group(function () {
+        Route::get('/children', [ParentDashboardController::class, 'index']);
+        Route::post('/children/invitations', [ParentDashboardController::class, 'requestLink'])
+            ->middleware('throttle:game-actions');
+        Route::post('/children/{relationship}/accept', [ParentDashboardController::class, 'accept']);
+        Route::delete('/children/{relationship}', [ParentDashboardController::class, 'revoke']);
+        Route::get('/children/{relationship}', [ParentDashboardController::class, 'show']);
+        Route::post('/children/{relationship}/weekly-report', [ParentDashboardController::class, 'sendWeeklyReport'])
+            ->middleware('throttle:game-actions');
+        Route::patch('/children/{relationship}/profile', [ParentDashboardController::class, 'updateChildProfile']);
+    });
+
+    // User safety controls
+    Route::post('/users/{userId}/block', [ChatModerationController::class, 'blockUser']);
+    Route::delete('/users/{userId}/block', [ChatModerationController::class, 'unblockUser']);
 
     // ── Invitations ───────────────────────────────────────────────────────
     Route::post('/invitations/send', [InvitationController::class, 'send'])->middleware('throttle:game-actions');
@@ -252,6 +271,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/games/{gameId}/championship-context', [WebSocketController::class, 'getChampionshipContext']);
         Route::get('/games/{gameId}/chat', [WebSocketController::class, 'getChatHistory']);
         Route::post('/games/{gameId}/chat', [WebSocketController::class, 'sendChatMessage']);
+        Route::post('/games/{gameId}/chat/{messageId}/report', [ChatModerationController::class, 'reportMessage']);
     });
 
     // ── Tactical Trainer ─────────────────────────────────────────────────

@@ -6,6 +6,7 @@ use App\Events\GameEndedEvent;
 use App\Models\Game;
 use App\Models\GameHistory;
 use App\Models\GameStatus;
+use App\Models\GuardianChildRelationship;
 use App\Models\User;
 use App\Models\ComputerPlayer;
 use App\Models\SyntheticPlayer;
@@ -1755,8 +1756,20 @@ class GameController extends Controller
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
-        if ($game->white_player_id !== $user->id && $game->black_player_id !== $user->id) {
-            return response()->json(['error' => 'Unauthorized'], 403);
+        $isParticipant = $game->white_player_id === $user->id || $game->black_player_id === $user->id;
+        if (!$isParticipant) {
+            // Allow an active guardian of either player to download the PGN
+            // (parent dashboard replay/PGN links).
+            $childIds = array_values(array_filter([$game->white_player_id, $game->black_player_id]));
+            $guardianAccess = !empty($childIds) && GuardianChildRelationship::query()
+                ->where('guardian_id', $user->id)
+                ->whereIn('child_id', $childIds)
+                ->where('status', GuardianChildRelationship::STATUS_ACTIVE)
+                ->exists();
+
+            if (!$guardianAccess) {
+                return response()->json(['error' => 'Unauthorized'], 403);
+            }
         }
 
         // Determine player names

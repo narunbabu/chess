@@ -41,6 +41,9 @@ class GameChatMessageSent implements ShouldBroadcastNow
             'sender_id'    => $this->sender->id,
             'sender_name'  => $this->sender->name,
             'message'      => $this->chatMessage->message,
+            'message_type' => $this->chatMessage->message_type,
+            'filtered'     => (bool) $this->chatMessage->filtered,
+            'safety_action'=> $this->chatMessage->safety_action,
             'created_at'   => $this->chatMessage->created_at->toISOString(),
         ];
     }

@@ -18,6 +18,7 @@ use App\Http\Controllers\UserPresenceController;
 use App\Http\Controllers\UserStatusController;
 use App\Http\Controllers\ContextualPresenceController;
 use App\Http\Controllers\WebSocketController;
+use App\Http\Controllers\ChatModerationController;
 use App\Http\Controllers\RatingController;
 use App\Http\Controllers\SharedResultController;
 use App\Http\Controllers\SubscriptionController;
@@ -28,6 +29,7 @@ use App\Http\Controllers\EntitlementController;
 use App\Http\Controllers\LobbyController;
 use App\Http\Controllers\MatchmakingController;
 use App\Http\Controllers\LeaderboardController;
+use App\Http\Controllers\ParentDashboardController;
 // use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 
@@ -88,6 +90,19 @@ Route::middleware('auth:sanctum')->group(function () {
     // User progress charts
     Route::get('/user/progress', [\App\Http\Controllers\UserProgressController::class, 'progress']);
 
+    // Parent dashboard and report cards
+    Route::prefix('parent')->group(function () {
+        Route::get('/children', [ParentDashboardController::class, 'index']);
+        Route::post('/children/invitations', [ParentDashboardController::class, 'requestLink'])
+            ->middleware('throttle:game-actions');
+        Route::post('/children/{relationship}/accept', [ParentDashboardController::class, 'accept']);
+        Route::delete('/children/{relationship}', [ParentDashboardController::class, 'revoke']);
+        Route::get('/children/{relationship}', [ParentDashboardController::class, 'show']);
+        Route::post('/children/{relationship}/weekly-report', [ParentDashboardController::class, 'sendWeeklyReport'])
+            ->middleware('throttle:game-actions');
+        Route::patch('/children/{relationship}/profile', [ParentDashboardController::class, 'updateChildProfile']);
+    });
+
     // Game routes
     Route::get('/games/daily-quota', [GameController::class, 'dailyQuota']);
     Route::post('/games', [GameController::class, 'create'])->middleware('throttle:game-actions');
@@ -143,6 +158,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/presence/heartbeat', [UserPresenceController::class, 'heartbeat']);
     Route::post('/presence/disconnect', [UserPresenceController::class, 'handleDisconnection']);
     Route::get('/presence/{user}', [UserPresenceController::class, 'getPresence']); // MUST be last - catches everything else
+
+    // User safety controls
+    Route::post('/users/{userId}/block', [ChatModerationController::class, 'blockUser']);
+    Route::delete('/users/{userId}/block', [ChatModerationController::class, 'unblockUser']);
 
     // User Status routes (Database-backed, reliable)
     Route::post('/status/heartbeat', [UserStatusController::class, 'heartbeat']);
@@ -274,6 +293,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Chat messages
         Route::get('/games/{gameId}/chat', [WebSocketController::class, 'getChatMessages']);
         Route::post('/games/{gameId}/chat', [WebSocketController::class, 'sendChatMessage']);
+        Route::post('/games/{gameId}/chat/{messageId}/report', [ChatModerationController::class, 'reportMessage']);
     });
 
     // NOTE: /broadcasting/auth is registered OUTSIDE auth:sanctum below — see end of file.
@@ -377,6 +397,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/user/{id}', [\App\Http\Controllers\AdminDashboardController::class, 'userDetail']);
         Route::get('/user/{id}/progress', [\App\Http\Controllers\AdminDashboardController::class, 'userProgress']);
         Route::post('/user/{id}/email', [\App\Http\Controllers\AdminDashboardController::class, 'sendEmail']);
+        Route::get('/chat-reports', [ChatModerationController::class, 'indexReports']);
+        Route::patch('/chat-reports/{report}', [ChatModerationController::class, 'updateReport']);
+        Route::patch('/users/{user}/social-access', [ChatModerationController::class, 'setUserSocialAccess']);
+        Route::patch('/organizations/{organization}/social-access', [ChatModerationController::class, 'setOrganizationSocialAccess']);
     });
 
     // Ambassador routes (any authenticated user)

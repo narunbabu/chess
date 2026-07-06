@@ -63,6 +63,9 @@ const OrganizationDashboard = () => {
   const [createError, setCreateError] = useState(null);
   const [createSuccess, setCreateSuccess] = useState(null);
   const [removingMemberId, setRemovingMemberId] = useState(null);
+  const [orgSocialSubmitting, setOrgSocialSubmitting] = useState(false);
+  const [orgSocialMessage, setOrgSocialMessage] = useState(null);
+  const [orgSocialError, setOrgSocialError] = useState(false);
 
   // Invite form state
   const [inviteEmail, setInviteEmail] = useState('');
@@ -199,6 +202,36 @@ const OrganizationDashboard = () => {
       alert(err.message);
     } finally {
       setRemovingMemberId(null);
+    }
+  };
+
+  const handleToggleOrgSocialAccess = async () => {
+    if (!selectedOrg?.id) return;
+    const disabled = !selectedOrg.social_access_disabled;
+    setOrgSocialSubmitting(true);
+    setOrgSocialMessage(null);
+    setOrgSocialError(false);
+    try {
+      const res = await fetch(`${BACKEND_URL}/admin/dashboard/organizations/${selectedOrg.id}/social-access`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify({ disabled }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json.message || json.error || `HTTP ${res.status}`);
+      }
+      if (json.organization) {
+        setSelectedOrg(json.organization);
+        setOrganizations(prev => prev.map(org => org.id === json.organization.id ? json.organization : org));
+      }
+      setOrgSocialMessage(disabled ? 'Chat disabled for this organization.' : 'Chat enabled for this organization.');
+      await fetchOrganizations();
+    } catch (err) {
+      setOrgSocialMessage(err.message || 'Failed to update chat access.');
+      setOrgSocialError(true);
+    } finally {
+      setOrgSocialSubmitting(false);
     }
   };
 
@@ -568,6 +601,37 @@ const OrganizationDashboard = () => {
                     </a>
                   )}
                 </div>
+
+                {isOrgAdmin && (
+                  <div className="mt-4 pt-4 border-t border-[#464340] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div>
+                      <p className="text-sm text-white font-medium">Organization Chat</p>
+                      <p className="text-xs text-[#9b9895]">
+                        {selectedOrg.social_access_disabled
+                          ? 'Members can only use non-social game features.'
+                          : 'Members can use game chat with safety filters.'}
+                      </p>
+                      {orgSocialMessage && (
+                        <p className={`text-xs mt-1 ${orgSocialError ? 'text-red-400' : 'text-[#81b64c]'}`}>
+                          {orgSocialMessage}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      onClick={handleToggleOrgSocialAccess}
+                      disabled={orgSocialSubmitting}
+                      className={`px-4 py-2 rounded text-sm font-medium disabled:opacity-50 transition ${
+                        selectedOrg.social_access_disabled
+                          ? 'bg-[#5ba4cf] text-white hover:bg-[#4a91ba]'
+                          : 'bg-red-900/40 text-red-200 hover:bg-red-900/60'
+                      }`}
+                    >
+                      {orgSocialSubmitting
+                        ? 'Saving...'
+                        : selectedOrg.social_access_disabled ? 'Enable chat' : 'Disable chat'}
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Invite Form (org admins only) */}

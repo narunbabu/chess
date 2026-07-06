@@ -108,6 +108,8 @@ class User extends Authenticatable implements MustVerifyEmail
         'subscription_expires_at' => 'datetime',
         'subscription_auto_renew' => 'boolean',
         'profile_completed' => 'boolean',
+        'social_access_disabled' => 'boolean',
+        'social_access_disabled_at' => 'datetime',
         'reset_token_expires_at' => 'datetime',
         'mobile_verified_at' => 'datetime',
         'tournament_contact_consent_at' => 'datetime',
@@ -321,6 +323,26 @@ class User extends Authenticatable implements MustVerifyEmail
     public function organization()
     {
         return $this->belongsTo(Organization::class);
+    }
+
+    public function blockedUsers()
+    {
+        return $this->hasMany(UserBlock::class, 'blocker_id');
+    }
+
+    public function blockedByUsers()
+    {
+        return $this->hasMany(UserBlock::class, 'blocked_user_id');
+    }
+
+    public function chatReportsMade()
+    {
+        return $this->hasMany(ChatMessageReport::class, 'reporter_id');
+    }
+
+    public function chatReportsReceived()
+    {
+        return $this->hasMany(ChatMessageReport::class, 'reported_user_id');
     }
 
     public function locationCountry()
@@ -582,6 +604,20 @@ class User extends Authenticatable implements MustVerifyEmail
     public function referralPayouts()
     {
         return $this->hasMany(ReferralPayout::class, 'referrer_user_id');
+    }
+
+    // -------------------------------------------------------------------------
+    // GUARDIAN / CHILD RELATIONSHIPS
+    // -------------------------------------------------------------------------
+
+    public function guardianChildRelationships()
+    {
+        return $this->hasMany(GuardianChildRelationship::class, 'guardian_id');
+    }
+
+    public function childGuardianRelationships()
+    {
+        return $this->hasMany(GuardianChildRelationship::class, 'child_id');
     }
 
     // -------------------------------------------------------------------------

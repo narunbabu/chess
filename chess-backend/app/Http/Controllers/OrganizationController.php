@@ -145,6 +145,7 @@ class OrganizationController extends Controller
                 'contact_phone' => ['nullable', 'string', 'max:50'],
                 'logo_url' => ['nullable', 'url', 'max:255'],
                 'is_active' => ['nullable', 'boolean'],
+                'social_access_disabled' => ['nullable', 'boolean'],
             ]);
 
             if ($validator->fails()) {
@@ -161,6 +162,9 @@ class OrganizationController extends Controller
                 $data = $validator->validated();
                 $data['created_by'] = Auth::id();
                 $data['is_active'] = $data['is_active'] ?? true;
+                if (array_key_exists('social_access_disabled', $data)) {
+                    $data['social_access_disabled_at'] = $data['social_access_disabled'] ? now() : null;
+                }
 
                 $organization = Organization::create($data);
 
@@ -232,6 +236,7 @@ class OrganizationController extends Controller
                 'contact_phone' => ['sometimes', 'nullable', 'string', 'max:50'],
                 'logo_url' => ['sometimes', 'nullable', 'url', 'max:255'],
                 'is_active' => ['sometimes', 'boolean'],
+                'social_access_disabled' => ['sometimes', 'boolean'],
             ]);
 
             if ($validator->fails()) {
@@ -241,8 +246,10 @@ class OrganizationController extends Controller
                 ], 422);
             }
 
-            // Prevent tampering with created_by
-            $data = $request->except(['created_by']);
+            $data = $validator->validated();
+            if (array_key_exists('social_access_disabled', $data)) {
+                $data['social_access_disabled_at'] = $data['social_access_disabled'] ? now() : null;
+            }
 
             // If name changed, regenerate slug
             if (isset($data['name']) && $data['name'] !== $organization->name) {

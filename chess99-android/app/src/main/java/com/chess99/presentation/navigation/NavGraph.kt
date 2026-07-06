@@ -30,6 +30,7 @@ import com.chess99.presentation.payment.PricingScreen
 import com.chess99.presentation.payment.SubscriptionScreen
 import com.chess99.presentation.profile.ProfileScreen
 import com.chess99.presentation.referral.ReferralDashboardScreen
+import com.chess99.presentation.parent.MyKidsScreen
 import com.chess99.presentation.game.PublicGameViewerScreen
 import com.chess99.presentation.history.GameDetailScreen
 import com.chess99.presentation.profile.RatingHistoryScreen
@@ -237,6 +238,9 @@ fun Chess99NavGraph(
                 onNavigateToRatingHistory = {
                     navController.navigate(Screen.RatingHistory.route)
                 },
+                onNavigateToMyKids = {
+                    navController.navigate(Screen.MyKids.route)
+                },
             )
         }
 
@@ -322,6 +326,16 @@ fun Chess99NavGraph(
         composable(Screen.ReferralDashboard.route) {
             ReferralDashboardScreen(
                 onNavigateBack = { navController.popBackStack() },
+            )
+        }
+
+        // ── Parent "My Kids" dashboard ──────────────────────────────────────
+        composable(Screen.MyKids.route) {
+            MyKidsScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToGame = { gameId ->
+                    navController.navigate(Screen.GameDetail.createRoute(gameId))
+                },
             )
         }
 

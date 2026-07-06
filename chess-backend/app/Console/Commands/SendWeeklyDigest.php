@@ -2,9 +2,12 @@
 
 namespace App\Console\Commands;
 
+use App\Mail\ParentWeeklyReportMail;
 use App\Mail\WeeklyDigestMail;
+use App\Models\GuardianChildRelationship;
 use App\Models\User;
 use App\Services\EmailPreferenceService;
+use App\Services\ParentDashboardService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -17,7 +20,7 @@ class SendWeeklyDigest extends Command
 
     protected $description = 'Send weekly stats digest to active players';
 
-    public function handle(EmailPreferenceService $prefService): int
+    public function handle(EmailPreferenceService $prefService, ParentDashboardService $parentReports): int
     {
         $dryRun = $this->option('dry-run');
         $limit = (int) $this->option('limit');
@@ -79,9 +82,71 @@ class SendWeeklyDigest extends Command
             $sent++;
         }
 
-        $this->info("Done. Sent: {$sent}, Skipped: {$skipped}, Total eligible: {$users->count()}");
+        [$parentSent, $parentSkipped] = $this->sendParentReports(
+            $prefService,
+            $parentReports,
+            $weekAgo,
+            max(0, $limit - $sent),
+            (bool) $dryRun
+        );
+
+        $this->info("Done. Sent: {$sent}, Skipped: {$skipped}, Total eligible: {$users->count()}, Parent reports: {$parentSent} sent / {$parentSkipped} skipped");
 
         return self::SUCCESS;
+    }
+
+    private function sendParentReports(
+        EmailPreferenceService $prefService,
+        ParentDashboardService $parentReports,
+        $since,
+        int $remainingLimit,
+        bool $dryRun
+    ): array {
+        if ($remainingLimit <= 0) {
+            return [0, 0];
+        }
+
+        $relationships = GuardianChildRelationship::with(['guardian', 'child'])
+            ->active()
+            ->whereHas('guardian', function ($query) {
+                $query->whereNotNull('email')
+                    ->where('email_notifications_enabled', true)
+                    ->whereNull('email_unsubscribed_at');
+            })
+            ->latest('updated_at')
+            ->limit($remainingLimit)
+            ->get();
+
+        $sent = 0;
+        $skipped = 0;
+
+        foreach ($relationships as $relationship) {
+            $guardian = $relationship->guardian;
+            $child = $relationship->child;
+
+            if (!$guardian || !$child || !$prefService->wantsEmailType($guardian, 'weekly_digest')) {
+                $skipped++;
+                continue;
+            }
+
+            $report = $parentReports->reportForChild($child, $relationship, $since);
+            if (($report['week']['activity_total'] ?? 0) === 0) {
+                $skipped++;
+                continue;
+            }
+
+            if ($dryRun) {
+                $this->line("  [DRY RUN] Would send parent report to {$guardian->email} for {$child->email}");
+                $sent++;
+                continue;
+            }
+
+            Mail::to($guardian->email)->queue(new ParentWeeklyReportMail($guardian, $child, $report));
+            $prefService->recordEmailSent($guardian);
+            $sent++;
+        }
+
+        return [$sent, $skipped];
     }
 
     private function aggregateStats(User $user, $since): array

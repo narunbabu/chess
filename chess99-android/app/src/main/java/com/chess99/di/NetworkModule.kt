@@ -133,4 +133,10 @@ object NetworkModule {
     fun provideEntitlementApi(retrofit: Retrofit): EntitlementApi {
         return retrofit.create(EntitlementApi::class.java)
     }
+
+    @Provides
+    @Singleton
+    fun provideParentApi(retrofit: Retrofit): ParentApi {
+        return retrofit.create(ParentApi::class.java)
+    }
 }
