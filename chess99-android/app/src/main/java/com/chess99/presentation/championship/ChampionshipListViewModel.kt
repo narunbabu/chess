@@ -3,6 +3,11 @@ package com.chess99.presentation.championship
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chess99.data.api.ChampionshipApi
+import com.chess99.data.api.bool
+import com.chess99.data.api.dbl
+import com.chess99.data.api.int
+import com.chess99.data.api.objOrNull
+import com.chess99.data.api.str
 import com.chess99.presentation.common.friendlyError
 import com.google.gson.JsonObject
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -189,24 +194,32 @@ class ChampionshipListViewModel @Inject constructor(
 
         return dataArray.mapNotNull { el ->
             try {
-                val c = el.asJsonObject
+                // Every field goes through the JsonSafe helpers, which guard
+                // isJsonPrimitive. Laravel serializes some fields with an
+                // unexpected JSON type — time_control as an OBJECT, entry_fee as
+                // a decimal STRING ("0.00") — and a raw .asString/.asInt throws
+                // on those, which previously dropped the entire entry and left
+                // the tournament list permanently empty.
+                val c = el.objOrNull() ?: return@mapNotNull null
                 Championship(
-                    id = c.get("id")?.asInt ?: return@mapNotNull null,
-                    name = c.get("name")?.asString ?: "",
-                    description = c.get("description")?.asString,
-                    format = c.get("format")?.asString ?: "swiss",
-                    status = c.get("status")?.asString ?: "upcoming",
-                    timeControl = c.get("time_control")?.asString ?: "10|0",
-                    maxParticipants = c.get("max_participants")?.asInt ?: 0,
-                    currentParticipants = c.get("current_participants")?.asInt
-                        ?: c.get("participants_count")?.asInt ?: 0,
-                    entryFee = c.get("entry_fee")?.asInt ?: 0,
-                    prizePool = c.get("prize_pool")?.asInt ?: 0,
-                    startDate = c.get("start_date")?.asString,
-                    endDate = c.get("end_date")?.asString,
-                    creatorName = c.get("creator_name")?.asString
-                        ?: c.getAsJsonObject("creator")?.get("name")?.asString,
-                    isRegistered = c.get("is_registered")?.asBoolean ?: false,
+                    id = c.int("id") ?: return@mapNotNull null,
+                    name = c.str("name") ?: c.str("title") ?: "",
+                    description = c.str("description"),
+                    format = c.str("format") ?: "swiss",
+                    status = c.str("status") ?: "upcoming",
+                    timeControl = c.str("time_control")
+                        ?: c.int("time_control_minutes")?.let { "$it min" }
+                        ?: "10|0",
+                    maxParticipants = c.int("max_participants") ?: 0,
+                    currentParticipants = c.int("current_participants")
+                        ?: c.int("participants_count") ?: 0,
+                    entryFee = c.dbl("entry_fee")?.toInt() ?: 0,
+                    prizePool = c.dbl("prize_pool")?.toInt() ?: 0,
+                    startDate = c.str("start_date"),
+                    endDate = c.str("end_date"),
+                    creatorName = c.str("creator_name")
+                        ?: c.get("creator").objOrNull().str("name"),
+                    isRegistered = c.bool("is_registered") ?: false,
                 )
             } catch (e: Exception) {
                 Timber.w(e, "Failed to parse championship entry")

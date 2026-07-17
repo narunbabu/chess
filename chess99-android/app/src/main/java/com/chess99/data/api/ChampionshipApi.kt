@@ -89,6 +89,19 @@ interface ChampionshipApi {
         @Body body: JsonObject,
     ): Response<JsonObject>
 
+    /**
+     * Create (start) the game for a tournament match the current user is a player in.
+     * Body: { time_control: blitz|rapid|classical, color: white|black }.
+     * Response: { message, match: { ..., game_id } }.
+     * 400 if a game already exists for the match.
+     */
+    @POST("championships/{id}/matches/{match}/game")
+    suspend fun createGame(
+        @Path("id") id: Int,
+        @Path("match") matchId: Int,
+        @Body body: JsonObject,
+    ): Response<JsonObject>
+
     /** Submit a match result. Body: { result: win|draw|loss, opponent_agreed? }. */
     @POST("championships/{id}/matches/{match}/result")
     suspend fun submitMatchResult(
