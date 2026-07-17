@@ -54,14 +54,18 @@ class StockfishEngine @Inject constructor(
             else -> DifficultyTier.EXPERT
         }
 
-        /** Number of undo chances per difficulty tier. */
+        /**
+         * Number of undo chances per difficulty tier — matches web
+         * (PlayComputer.js getUndoChancesForDepth): Easy 15, Medium 9, Hard 6,
+         * Expert 3, rated 0.
+         */
         fun undoChances(depth: Int, isRated: Boolean): Int {
             if (isRated) return 0
             return when (difficultyTier(depth)) {
-                DifficultyTier.EASY -> 5
-                DifficultyTier.MEDIUM -> 3
-                DifficultyTier.HARD -> 2
-                DifficultyTier.EXPERT -> 1
+                DifficultyTier.EASY -> 15
+                DifficultyTier.MEDIUM -> 9
+                DifficultyTier.HARD -> 6
+                DifficultyTier.EXPERT -> 3
             }
         }
     }
