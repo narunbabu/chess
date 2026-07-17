@@ -1,0 +1,28 @@
+# Signing secrets — NEVER commit these
+keystore.properties
+*.jks
+*.keystore
+
+# Release artifacts
+*.aab
+*.apk
+
+# Local config
+local.properties
+
+# Stockfish source used to cross-compile app/src/main/jniLibs/*/libstockfish.so
+# (S2 spec). Only the compiled .so outputs are tracked; the cloned sources are not.
+third_party/
+
+# Build artifacts
+.gradle/
+.kotlin/
+build/
+app/build/
+
+# IDE
+.idea/
+*.iml
+
+# On-device review screenshots (transient QA output, not source)
+review-artifacts/
