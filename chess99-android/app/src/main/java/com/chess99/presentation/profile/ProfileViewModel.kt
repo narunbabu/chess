@@ -139,18 +139,24 @@ class ProfileViewModel @Inject constructor(
                 val response = profileApi.getPerformanceStats()
                 if (response.isSuccessful) {
                     val body = response.body()
-                    val statsObj = if (body != null && body.has("stats")) body.getAsJsonObject("stats") else body
+                    // "stats" may be absent or JSON null; guard the cast, and read
+                    // every field null/type-safely — a JsonNull or wrong-typed
+                    // field would otherwise throw on .asInt/.asFloat and fail the
+                    // whole Stats tab (200 response, but parse crash).
+                    val statsObj = body?.get("stats")?.takeIf { it.isJsonObject }?.asJsonObject ?: body
+                    fun statInt(key: String) = statsObj?.get(key)?.takeIf { it.isJsonPrimitive }?.runCatching { asInt }?.getOrNull() ?: 0
+                    fun statFloat(key: String) = statsObj?.get(key)?.takeIf { it.isJsonPrimitive }?.runCatching { asFloat }?.getOrNull() ?: 0f
 
                     _uiState.value = _uiState.value.copy(
                         stats = GameStats(
-                            totalGames = statsObj?.get("total_games")?.asInt ?: 0,
-                            wins = statsObj?.get("wins")?.asInt ?: 0,
-                            losses = statsObj?.get("losses")?.asInt ?: 0,
-                            draws = statsObj?.get("draws")?.asInt ?: 0,
-                            winRate = statsObj?.get("win_rate")?.asFloat ?: 0f,
-                            currentStreak = statsObj?.get("current_streak")?.asInt ?: 0,
-                            bestStreak = statsObj?.get("best_streak")?.asInt ?: 0,
-                            averageGameDuration = statsObj?.get("average_game_duration")?.asInt ?: 0,
+                            totalGames = statInt("total_games"),
+                            wins = statInt("wins"),
+                            losses = statInt("losses"),
+                            draws = statInt("draws"),
+                            winRate = statFloat("win_rate"),
+                            currentStreak = statInt("current_streak"),
+                            bestStreak = statInt("best_streak"),
+                            averageGameDuration = statInt("average_game_duration"),
                         ),
                         isStatsLoading = false,
                     )
