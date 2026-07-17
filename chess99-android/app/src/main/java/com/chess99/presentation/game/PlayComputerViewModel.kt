@@ -287,6 +287,9 @@ class PlayComputerViewModel @Inject constructor(
                 val result = stockfishEngine.getBestMove(
                     fen = game.fen(),
                     depth = _uiState.value.difficulty,
+                    // Persona games play at the bot's ELO; plain difficulty games
+                    // pass null (ELO derived from the difficulty level).
+                    opponentElo = _personaState.value.selectedPersona?.rating,
                 )
 
                 val move = game.moveUci(result.bestMove) ?: run {

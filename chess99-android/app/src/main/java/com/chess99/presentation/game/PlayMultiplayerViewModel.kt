@@ -69,6 +69,8 @@ class PlayMultiplayerViewModel @Inject constructor(
 
     /** Engine level for the synthetic opponent (T3), null for human-vs-human games. */
     private var _syntheticOpponentLevel: Int? = null
+    /** Synthetic opponent's ELO (SyntheticPlayer.rating) — drives ELO-faithful move strength. */
+    private var _syntheticOpponentElo: Int? = null
 
     init {
         myUserId = tokenManager.getUserId()
@@ -238,6 +240,7 @@ class PlayMultiplayerViewModel @Inject constructor(
                 // startContinuousCompanionPlay/companionPlayOneMove.
                 if (isSyntheticGame) {
                     _syntheticOpponentLevel = computerLevel
+                    _syntheticOpponentElo = opponentRating
                     try {
                         stockfishEngine.initialize()
                     } catch (e: Exception) {
@@ -836,7 +839,11 @@ class PlayMultiplayerViewModel @Inject constructor(
             try {
                 val fen = game.fen()
                 val result = stockfishEngine.getBestMove(fen, companion.computerLevel)
-                val uci = result.bestMove
+                // Companion plays on the user's behalf — it should suggest the
+                // engine's BEST move (web parity: getStockfishTopMoves(fen, 1)),
+                // not an ELO-weakened one. rankedMoves rank-1 is the true best.
+                val uci = result.rankedMoves.minByOrNull { it.rank }?.uci
+                    ?: result.bestMove
                 if (uci.length < 4) {
                     _companionState.value = _companionState.value.copy(
                         isThinking = false,
@@ -993,7 +1000,7 @@ class PlayMultiplayerViewModel @Inject constructor(
         _companionState.value = _companionState.value.copy(isThinking = true)
         try {
             val fen = game.fen()
-            val result = stockfishEngine.getBestMove(fen, level)
+            val result = stockfishEngine.getBestMove(fen, level, opponentElo = _syntheticOpponentElo)
             val uci = result.bestMove
             if (uci.length < 4) {
                 _companionState.value = _companionState.value.copy(isThinking = false)

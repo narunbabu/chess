@@ -34,7 +34,7 @@ class StockfishEngine @Inject constructor(
         const val MIN_DEPTH = 1
         const val MAX_DEPTH = 16
         const val DEFAULT_DEPTH = 2
-        const val NUM_TOP_MOVES = 10
+        const val NUM_TOP_MOVES = 25   // match web (computerMoveUtils.js NUM_TOP_MOVES_TO_REQUEST)
         const val MIN_PERCEIVED_THINK_TIME_MS = 1500L
 
         /** Map depth (1-16) to Stockfish movetime in milliseconds. Matches web frontend. */
@@ -129,7 +129,26 @@ class StockfishEngine @Inject constructor(
      * @param depth Difficulty level 1-16
      * @return StockfishResult with selected move and analysis data
      */
-    suspend fun getBestMove(fen: String, depth: Int): StockfishResult = withContext(Dispatchers.Default) {
+    suspend fun getBestMove(fen: String, depth: Int): StockfishResult =
+        getBestMove(fen, depth, opponentElo = null)
+
+    /**
+     * Get the best move for a position, difficulty, and (optional) explicit ELO.
+     *
+     * When [opponentElo] is provided (synthetic bots — SyntheticPlayer.rating),
+     * the move is chosen to match that ELO's strength curve (cp-loss budget +
+     * softmax + blunder injection, matching web). When null, the ELO is inferred
+     * from [depth] via COMPUTER_LEVEL_RATINGS so difficulty play is also
+     * human-like. [depth] still controls Stockfish search movetime.
+     *
+     * @param depth Difficulty level 1-16 (search time)
+     * @param opponentElo Explicit ELO to play at, or null to derive from depth
+     */
+    suspend fun getBestMove(
+        fen: String,
+        depth: Int,
+        opponentElo: Int?,
+    ): StockfishResult = withContext(Dispatchers.Default) {
         check(isInitialized) { "Engine not initialized. Call initialize() first." }
         _state.value = EngineState.THINKING
 
@@ -158,8 +177,21 @@ class StockfishEngine @Inject constructor(
                 }
             }
 
-            // Select move based on difficulty
-            val selectedMove = selectMoveFromRankedList(rankedMoves, depth, bestMove)
+            // Keep only the last (deepest) info per multipv rank — web overwrites
+            // by rank so the final, most accurate eval per line wins.
+            val dedupedRanked = rankedMoves
+                .groupBy { it.rank }
+                .mapNotNull { (_, group) -> group.maxByOrNull { it.depth } }
+                .sortedBy { it.rank }
+
+            // ELO-faithful selection (replaces the old rank-bucket lottery). Derive
+            // the running half-move count from the FEN's fullmove number so the
+            // opening blunder-ramp works (a FEN-loaded game has empty history()).
+            val targetElo = EloMoveSelector.resolveTargetElo(depth, opponentElo)
+            val game = ChessGame(fen)
+            val halfMoveCount = (game.fullMoveNumber - 1) * 2 + if (game.turn == Color.BLACK) 1 else 0
+            val selectedMove = EloMoveSelector.select(dedupedRanked, targetElo, halfMoveCount)
+                ?: bestMove.ifEmpty { dedupedRanked.firstOrNull()?.uci ?: "" }
 
             // Enforce minimum perceived think time
             val elapsed = System.currentTimeMillis() - startTime
@@ -169,7 +201,7 @@ class StockfishEngine @Inject constructor(
             _state.value = EngineState.IDLE
             StockfishResult(
                 bestMove = selectedMove,
-                rankedMoves = rankedMoves,
+                rankedMoves = dedupedRanked,
                 thinkTimeMs = System.currentTimeMillis() - startTime
             )
         } catch (e: CancellationException) {
@@ -283,54 +315,8 @@ class StockfishEngine @Inject constructor(
     }
 
     // ── Move Selection Logic ─────────────────────────────────────────
-
-    /**
-     * Select a move from ranked list based on difficulty.
-     * Matches web frontend selectMoveFromRankedList logic:
-     * - Easy (1-4): Pick from ranks 5-8 (mediocre moves)
-     * - Medium (5-8): Pick from ranks 2-4 (decent moves)
-     * - Hard (9-12): Pick from ranks 1-2 (strong moves)
-     * - Expert (13-16): Always pick rank 1 (best move)
-     */
-    private fun selectMoveFromRankedList(
-        rankedMoves: List<RankedMove>,
-        depth: Int,
-        fallbackBestMove: String
-    ): String {
-        if (rankedMoves.isEmpty()) return fallbackBestMove
-
-        // Sort by rank (1 = best)
-        val sorted = rankedMoves.sortedBy { it.rank }
-        val tier = difficultyTier(depth)
-
-        val selectedRange: IntRange = when (tier) {
-            DifficultyTier.EASY -> {
-                val start = (4).coerceAtMost(sorted.size - 1)
-                val end = (7).coerceAtMost(sorted.size - 1)
-                start..end
-            }
-            DifficultyTier.MEDIUM -> {
-                val start = (1).coerceAtMost(sorted.size - 1)
-                val end = (3).coerceAtMost(sorted.size - 1)
-                start..end
-            }
-            DifficultyTier.HARD -> {
-                val end = (1).coerceAtMost(sorted.size - 1)
-                0..end
-            }
-            DifficultyTier.EXPERT -> 0..0
-        }
-
-        // If range is empty or out of bounds, fall back
-        if (selectedRange.isEmpty()) return sorted.first().uci
-
-        val candidates = sorted.slice(selectedRange)
-        return if (candidates.isNotEmpty()) {
-            candidates.random().uci
-        } else {
-            sorted.first().uci
-        }
-    }
+    // Moved to EloMoveSelector (ELO-faithful cp-budget model). The old
+    // rank-bucket selector (ignored ELO) was removed.
 
     // ── UCI Response Parsing ─────────────────────────────────────────
 
