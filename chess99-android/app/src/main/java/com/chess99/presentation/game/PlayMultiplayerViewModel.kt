@@ -48,6 +48,7 @@ class PlayMultiplayerViewModel @Inject constructor(
     private val webSocketApi: WebSocketApi,
     private val tokenManager: TokenManager,
     private val stockfishEngine: StockfishEngine,
+    val shareManager: com.chess99.presentation.social.ShareManager,
 ) : ViewModel() {
 
     val gameId: Int = savedStateHandle.get<Int>("gameId") ?: 0
@@ -1212,6 +1213,36 @@ class PlayMultiplayerViewModel @Inject constructor(
         }
     }
 
+
+    // ── Share (victory image) ────────────────────────────────────────────
+
+    /**
+     * Build a [ShareManager.ShareableGame] from the current multiplayer state,
+     * from the local player's perspective. The player is "You"; the opponent is
+     * their display name.
+     */
+    fun buildShareableGame(): com.chess99.presentation.social.ShareManager.ShareableGame {
+        val state = _uiState.value
+        val playerIsWhite = state.playerColor == Color.WHITE
+        val whiteName = if (playerIsWhite) "You" else state.opponentName
+        val blackName = if (playerIsWhite) state.opponentName else "You"
+
+        val result = when (state.gameResult?.status) {
+            ResultStatus.WON -> if (playerIsWhite) "white" else "black"
+            ResultStatus.LOST -> if (playerIsWhite) "black" else "white"
+            else -> "draw"
+        }
+
+        return com.chess99.presentation.social.ShareManager.ShareableGame(
+            gameId = state.gameId,
+            whitePlayer = whiteName,
+            blackPlayer = blackName,
+            result = result,
+            ratingChange = 0,
+            totalMoves = state.moveHistory.size,
+            timeControl = state.timeControl,
+        )
+    }
 
     override fun onCleared() {
         super.onCleared()

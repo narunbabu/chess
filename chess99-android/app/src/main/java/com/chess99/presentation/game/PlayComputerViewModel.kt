@@ -28,6 +28,7 @@ class PlayComputerViewModel @Inject constructor(
     private val stockfishEngine: StockfishEngine,
     private val matchmakingApi: MatchmakingApi,
     private val gameApi: GameApi,
+    val shareManager: com.chess99.presentation.social.ShareManager,
 ) : ViewModel() {
 
     companion object {
@@ -514,6 +515,39 @@ class PlayComputerViewModel @Inject constructor(
 
     fun clearError() {
         _uiState.value = _uiState.value.copy(error = null, engineInitFailed = false)
+    }
+
+    // ── Share (victory image) ────────────────────────────────────────────
+
+    /**
+     * Build a [ShareManager.ShareableGame] from the current computer-game state.
+     * gameId is 0 for a purely-local game — that's fine, the victory image share
+     * doesn't need a valid gameId. The player is always "You"; the opponent is
+     * the persona name if a persona was selected, else a plain computer label.
+     */
+    fun buildShareableGame(): com.chess99.presentation.social.ShareManager.ShareableGame {
+        val state = _uiState.value
+        val opponentLabel = state.opponentDisplayName ?: "Computer"
+        val playerIsWhite = state.playerColor == Color.WHITE
+        val whiteName = if (playerIsWhite) "You" else opponentLabel
+        val blackName = if (playerIsWhite) opponentLabel else "You"
+
+        // Map result to white/black/draw from the player's perspective.
+        val result = when (state.gameResult?.status) {
+            ResultStatus.WON -> if (playerIsWhite) "white" else "black"
+            ResultStatus.LOST -> if (playerIsWhite) "black" else "white"
+            else -> "draw"
+        }
+
+        return com.chess99.presentation.social.ShareManager.ShareableGame(
+            gameId = 0,
+            whitePlayer = whiteName,
+            blackPlayer = blackName,
+            result = result,
+            ratingChange = 0,
+            totalMoves = state.moveHistory.size,
+            timeControl = "${DEFAULT_TIME_SECONDS / 60}|0",
+        )
     }
 
     // ── Cleanup ──────────────────────────────────────────────────────

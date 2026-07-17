@@ -12,16 +12,20 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import kotlinx.coroutines.launch
 import com.chess99.domain.model.SyntheticPlayer
 import com.chess99.engine.*
 import com.chess99.presentation.common.*
@@ -41,6 +45,11 @@ fun PlayComputerScreen(
     val state by viewModel.uiState.collectAsState()
     val personaState by viewModel.personaState.collectAsState()
     var showLeaveDialog by remember { mutableStateOf(false) }
+
+    // Victory-image share (G3.1): capture the current screen and share it.
+    val shareView = LocalView.current
+    val shareContext = LocalContext.current
+    val shareScope = rememberCoroutineScope()
 
     // T3: a persona-backed game start (T5) that successfully created a
     // server-recorded game hands off to the multiplayer stack — the local
@@ -142,6 +151,12 @@ fun PlayComputerScreen(
                 onResign = { viewModel.resign() },
                 onNewGame = {
                     viewModel.setupGame()
+                },
+                onShare = {
+                    val shareable = viewModel.buildShareableGame()
+                    shareScope.launch {
+                        viewModel.shareManager.captureAndShare(shareView, shareContext, shareable)
+                    }
                 },
             )
             GamePhase.REPLAY -> { /* Future: replay mode */ }
@@ -396,6 +411,7 @@ private fun GamePlayContent(
     onUndo: () -> Unit,
     onResign: () -> Unit,
     onNewGame: () -> Unit,
+    onShare: () -> Unit,
 ) {
     val game = remember(state.fen) { ChessGame(state.fen) }
     val isPlayerTurn = game.turn == state.playerColor && !state.computerMoveInProgress
@@ -485,7 +501,7 @@ private fun GamePlayContent(
 
         // Game result
         state.gameResult?.let { result ->
-            GameResultCard(result = result, onNewGame = onNewGame)
+            GameResultCard(result = result, onNewGame = onNewGame, onShare = onShare)
         }
 
         // Move list
@@ -507,6 +523,7 @@ private fun GamePlayContent(
 private fun GameResultCard(
     result: GameResultState,
     onNewGame: () -> Unit,
+    onShare: () -> Unit,
 ) {
     Card(
         modifier = Modifier
@@ -538,8 +555,18 @@ private fun GameResultCard(
                 style = MaterialTheme.typography.bodyMedium,
             )
             Spacer(modifier = Modifier.height(12.dp))
-            Button(onClick = onNewGame) {
-                Text("New Game")
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Button(onClick = onNewGame) {
+                    Text("New Game")
+                }
+                OutlinedButton(onClick = onShare) {
+                    Icon(Icons.Default.Share, contentDescription = null)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Share")
+                }
             }
         }
     }

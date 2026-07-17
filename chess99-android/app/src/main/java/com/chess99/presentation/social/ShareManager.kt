@@ -1,24 +1,31 @@
 package com.chess99.presentation.social
 
+import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
+import android.view.PixelCopy
 import android.view.View
+import android.view.Window
 import android.widget.Toast
 import androidx.core.content.FileProvider
 import com.chess99.data.api.SocialApi
 import com.google.gson.JsonObject
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.io.File
 import java.io.FileOutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.resume
 
 /**
  * Singleton manager for sharing game results across platforms.
@@ -270,6 +277,114 @@ class ShareManager @Inject constructor(
             Toast.makeText(context, "Failed to share screenshot", Toast.LENGTH_SHORT).show()
         }
     }
+
+    // ── Victory Image Capture & Share (PixelCopy — API 26+) ─────────────
+
+    /**
+     * Capture the CURRENT screen to a PNG and share it via the system chooser.
+     *
+     * Uses the modern [PixelCopy] API (reliable on API 26+, unlike the
+     * deprecated drawingCache which returns a black bitmap on recent Android).
+     * The bitmap is written to `cacheDir/share_images/` and shared through the
+     * `com.chess99.fileprovider` FileProvider.
+     *
+     * The whole window is captured (board + result card + move list), so the
+     * shared image is a full "victory screenshot". Never crashes: on any
+     * failure it falls back to the text share ([shareGameResult]).
+     *
+     * Must be called from the main thread with a [view] that is attached to an
+     * Activity window (e.g. Compose's LocalView.current).
+     */
+    suspend fun captureAndShare(view: View, context: Context, game: ShareableGame) {
+        val caption = shareCaption(game)
+        try {
+            val window = (view.context as? Activity)?.window
+                ?: (context as? Activity)?.window
+            if (window == null) {
+                Timber.w("No Activity window available for capture, sharing text instead")
+                shareGameResult(context, game)
+                return
+            }
+
+            val bitmap = withContext(Dispatchers.Main) { capturePixels(window, view) }
+            if (bitmap == null) {
+                shareGameResult(context, game)
+                return
+            }
+
+            val file = withContext(Dispatchers.IO) {
+                val cacheDir = File(context.cacheDir, "share_images")
+                cacheDir.mkdirs()
+                val imageFile = File(cacheDir, "chess99_victory_${game.gameId}.png")
+                FileOutputStream(imageFile).use { out ->
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                }
+                imageFile
+            }
+
+            val uri = FileProvider.getUriForFile(context, FILE_PROVIDER_AUTHORITY, file)
+
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "image/png"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_SUBJECT, "Chess99 - Game Result")
+                putExtra(Intent.EXTRA_TEXT, caption)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            val chooser = Intent.createChooser(intent, "Share your game")
+            chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(chooser)
+
+            trackShare(game.gameId, "victory_image")
+        } catch (e: Exception) {
+            // Kid-safe: never surface raw exception text; quietly fall back to
+            // the text share so the child can still celebrate their win.
+            Timber.e(e, "Failed to capture and share victory image")
+            try {
+                shareGameResult(context, game)
+            } catch (e2: Exception) {
+                Timber.e(e2, "Text share fallback also failed")
+                Toast.makeText(context, "Couldn't share right now. Please try again.", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    /** Kid-safe one-line caption accompanying the shared image. */
+    private fun shareCaption(game: ShareableGame): String {
+        val resultText = when (game.result) {
+            "white" -> "${game.whitePlayer} won"
+            "black" -> "${game.blackPlayer} won"
+            "draw" -> "It was a draw"
+            else -> game.result
+        }
+        return "$resultText on Chess99! ${game.whitePlayer} vs ${game.blackPlayer}\n$BASE_URL"
+    }
+
+    /** Suspending PixelCopy request. Returns null on any failure. */
+    private suspend fun capturePixels(window: Window, view: View): Bitmap? =
+        suspendCancellableCoroutine { cont ->
+            try {
+                val width = view.width.takeIf { it > 0 } ?: window.decorView.width
+                val height = view.height.takeIf { it > 0 } ?: window.decorView.height
+                if (width <= 0 || height <= 0) {
+                    cont.resume(null)
+                    return@suspendCancellableCoroutine
+                }
+                val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                val handler = Handler(Looper.getMainLooper())
+                PixelCopy.request(window, bitmap, { result ->
+                    if (result == PixelCopy.SUCCESS) {
+                        cont.resume(bitmap)
+                    } else {
+                        Timber.w("PixelCopy failed with result=$result")
+                        cont.resume(null)
+                    }
+                }, handler)
+            } catch (e: Exception) {
+                Timber.e(e, "PixelCopy request threw")
+                cont.resume(null)
+            }
+        }
 
     // ── PGN File Share ───────────────────────────────────────────────────
 

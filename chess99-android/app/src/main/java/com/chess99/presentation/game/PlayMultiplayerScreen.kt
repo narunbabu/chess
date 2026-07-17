@@ -22,6 +22,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -51,6 +53,11 @@ fun PlayMultiplayerScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var showNavigationWarning by remember { mutableStateOf(false) }
     var showCompletionAnimation by remember { mutableStateOf(false) }
+
+    // Victory-image share (G3.1): capture the current screen and share it.
+    val shareView = LocalView.current
+    val shareContext = LocalContext.current
+    val shareScope = rememberCoroutineScope()
 
     // Companion bottom sheet
     val companionSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -268,6 +275,12 @@ fun PlayMultiplayerScreen(
                     onPause = { viewModel.pauseGame() },
                     onRequestResume = { viewModel.requestResumeGame() },
                     onNavigateBack = onNavigateBack,
+                    onShare = {
+                        val shareable = viewModel.buildShareableGame()
+                        shareScope.launch {
+                            viewModel.shareManager.captureAndShare(shareView, shareContext, shareable)
+                        }
+                    },
                 )
             }
         }
@@ -351,6 +364,7 @@ private fun GameBoard(
     onPause: () -> Unit,
     onRequestResume: () -> Unit,
     onNavigateBack: () -> Unit,
+    onShare: () -> Unit,
 ) {
     val game = remember(state.fen) { ChessGame(state.fen) }
     val isMyTurn = game.turn == state.playerColor
@@ -449,6 +463,7 @@ private fun GameBoard(
                         result = result,
                         opponentName = state.opponentName,
                         onBackToLobby = onNavigateBack,
+                        onShare = onShare,
                     )
                 }
             }
@@ -651,6 +666,7 @@ private fun MultiplayerResultCard(
     result: GameResultState,
     opponentName: String,
     onBackToLobby: () -> Unit,
+    onShare: () -> Unit,
 ) {
     Card(
         modifier = Modifier
@@ -687,8 +703,18 @@ private fun MultiplayerResultCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(modifier = Modifier.height(12.dp))
-            Button(onClick = onBackToLobby) {
-                Text("Back to Lobby")
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Button(onClick = onBackToLobby) {
+                    Text("Back to Lobby")
+                }
+                OutlinedButton(onClick = onShare) {
+                    Icon(Icons.Default.Share, contentDescription = null)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Share")
+                }
             }
         }
     }
