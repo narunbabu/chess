@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { BACKEND_URL } from '../config';
+import api from '../services/api';
 import { isAmbassador } from '../utils/permissionHelpers';
 
 const STATUS_LABELS = {
@@ -11,7 +11,7 @@ const STATUS_LABELS = {
 };
 
 const BecomeAmbassador = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   const [application, setApplication] = useState(null);
@@ -19,6 +19,11 @@ const BecomeAmbassador = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+
+  // Fail closed on unknown birthday too — mirrors the backend EnsureAdult
+  // gate (`user.is_minor || user.needs_birthday`), which is the source of
+  // truth. This just keeps the child from ever seeing the application form.
+  const isAdultGated = Boolean(user?.is_minor || user?.needs_birthday);
 
   const [form, setForm] = useState({
     name: user?.name || '',
@@ -29,22 +34,21 @@ const BecomeAmbassador = () => {
 
   const fetchApplication = useCallback(async () => {
     try {
-      const token = localStorage.getItem('chess99_token') || localStorage.getItem('token');
-      const res = await fetch(`${BACKEND_URL}/ambassador/application`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setApplication(data.application);
-        if (data.application) {
-          setForm((f) => ({
-            ...f,
-            name: data.application.name || f.name,
-            mobile: data.application.mobile || f.mobile,
-            upi_id: data.application.upi_id || f.upi_id,
-            reason: data.application.reason || '',
-          }));
-        }
+      // Use the shared `api` instance so the real `auth_token` bearer header
+      // is injected via its request interceptor (this previously read
+      // non-existent 'chess99_token'/'token' localStorage keys and sent
+      // `Bearer null`).
+      const res = await api.get('/ambassador/application');
+      const data = res.data;
+      setApplication(data.application);
+      if (data.application) {
+        setForm((f) => ({
+          ...f,
+          name: data.application.name || f.name,
+          mobile: data.application.mobile || f.mobile,
+          upi_id: data.application.upi_id || f.upi_id,
+          reason: data.application.reason || '',
+        }));
       }
     } catch (e) {
       // non-critical
@@ -54,6 +58,12 @@ const BecomeAmbassador = () => {
   }, []);
 
   useEffect(() => {
+    // Wait for AuthContext to finish hydrating before deciding whether the
+    // visitor is logged in — on a hard navigation `user` is always null
+    // until GET /user resolves, so redirecting on `!user` alone would bounce
+    // a genuinely logged-in visitor to /login (RouteGuard.js :37-46 pattern).
+    if (authLoading) return;
+
     if (!user) {
       navigate('/login?next=/become-ambassador', { replace: true });
       return;
@@ -62,8 +72,15 @@ const BecomeAmbassador = () => {
       navigate('/ambassador', { replace: true });
       return;
     }
+    if (isAdultGated) {
+      // Every ambassador endpoint (including GET /ambassador/application) is
+      // behind the same adult-only gate, so skip the round-trip entirely —
+      // it would just come back 403 `adult_only`.
+      setLoading(false);
+      return;
+    }
     fetchApplication();
-  }, [user, navigate, fetchApplication]);
+  }, [user, authLoading, navigate, isAdultGated, fetchApplication]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -77,24 +94,21 @@ const BecomeAmbassador = () => {
 
     setSubmitting(true);
     try {
-      const token = localStorage.getItem('chess99_token') || localStorage.getItem('token');
-      const res = await fetch(`${BACKEND_URL}/ambassador/apply`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(form),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || 'Failed to submit application.');
-        return;
-      }
+      // Use the shared `api` instance so the real `auth_token` bearer header
+      // is injected via its request interceptor (this previously read
+      // non-existent 'chess99_token'/'token' localStorage keys and sent
+      // `Bearer null`).
+      const res = await api.post('/ambassador/apply', form);
+      const data = res.data;
       setApplication(data.application);
       setSuccess(data.message || 'Application submitted!');
-    } catch (e) {
-      setError('Network error. Please try again.');
+    } catch (err) {
+      const apiError = err.response?.data?.error;
+      if (err.response?.status === 403 && apiError === 'adult_only') {
+        setError('adult_only');
+      } else {
+        setError(apiError || (err.response ? 'Failed to submit application.' : 'Network error. Please try again.'));
+      }
     } finally {
       setSubmitting(false);
     }
@@ -104,6 +118,21 @@ const BecomeAmbassador = () => {
     return (
       <div className="min-h-screen bg-[#262421] text-white flex items-center justify-center">
         <div className="text-[#8b8987]">Loading…</div>
+      </div>
+    );
+  }
+
+  // Adult-only program (kid-safety + financial data gate). Covers both the
+  // client-side check (minor / unknown birthday) and the backend's 403
+  // `adult_only` response, so a minor never sees the application form.
+  if (isAdultGated || error === 'adult_only') {
+    return (
+      <div className="min-h-screen bg-[#262421] text-[#bababa] p-6 flex items-center justify-center">
+        <div className="bg-[#312e2b] rounded-lg p-8 max-w-lg text-center">
+          <div className="text-5xl mb-4">&#9819;</div>
+          <h1 className="text-2xl font-bold text-white mb-3">Ambassador program is for adults</h1>
+          <p className="text-[#bababa]">The Ambassador program is for adults (18+).</p>
+        </div>
       </div>
     );
   }

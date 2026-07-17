@@ -60,6 +60,8 @@ class User extends Authenticatable implements MustVerifyEmail
         'profile_completed',
         'birthday',
         'class_of_study',
+        'guardian_email',
+        'guardian_consent_at',
         'board_theme',
         // SECURITY (M5): 'role' is intentionally NOT mass-assignable — it has no
         // legitimate mass-assignment path and must never be settable from request
@@ -89,6 +91,18 @@ class User extends Authenticatable implements MustVerifyEmail
         'password',
         'remember_token',
         'provider_token',
+        // Third-party PII (a minor's named guardian) — never expose in user payloads.
+        'guardian_email',
+    ];
+
+    /**
+     * Computed safety flags appended to every serialized user so clients can
+     * gate age-sensitive UI (chat, analytics/pixel) and prompt for a missing DOB.
+     */
+    protected $appends = [
+        'is_minor',
+        'is_under_13',
+        'needs_birthday',
     ];
 
     protected $casts = [
@@ -116,7 +130,30 @@ class User extends Authenticatable implements MustVerifyEmail
         'whatsapp_updates_opt_in' => 'boolean',
         'birthday' => 'date',
         'class_of_study' => 'string',
+        'guardian_consent_at' => 'datetime',
     ];
+
+    /**
+     * True only when we KNOW the account belongs to a minor (DOB on file, age < 18).
+     * Unknown age returns false here — chat safety fails closed separately in
+     * ChatSafetyService; analytics should not suppress tracking for unknown-age users.
+     */
+    public function getIsMinorAttribute(): bool
+    {
+        return $this->birthday !== null && $this->birthday->age < 18;
+    }
+
+    /** Known to be under 13 (COPPA/DPDP threshold for preset-only chat). */
+    public function getIsUnder13Attribute(): bool
+    {
+        return $this->birthday !== null && $this->birthday->age < 13;
+    }
+
+    /** No date of birth on file — client should prompt the user to add one. */
+    public function getNeedsBirthdayAttribute(): bool
+    {
+        return $this->birthday === null;
+    }
 
     protected static function booted(): void
     {

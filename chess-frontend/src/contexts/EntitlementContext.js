@@ -32,7 +32,10 @@ export const EntitlementProvider = ({ children }) => {
     try {
       setLoading(true);
       setError(null);
-      const response = await api.get('/entitlements/me');
+      // Boot-time/background call fired on mount and on tier/org changes — a
+      // 401 here should degrade feature-gating (fall back to defaults), not
+      // nuke the session.
+      const response = await api.get('/entitlements/me', { skipAuthRedirect: true });
       const nextSummary = response.data?.data || null;
       setSummary(nextSummary);
       return nextSummary;

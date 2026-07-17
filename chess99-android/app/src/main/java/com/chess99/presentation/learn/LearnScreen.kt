@@ -29,7 +29,6 @@ fun LearnScreen(
     onNavigateBack: () -> Unit,
     onNavigateToLesson: (Int) -> Unit,
     onNavigateToPuzzles: () -> Unit = {},
-    onNavigateToTrainingExercise: (String) -> Unit = {},
     onNavigateToTacticalTrainer: () -> Unit = {},
     viewModel: LearnViewModel = hiltViewModel(),
 ) {
@@ -116,20 +115,33 @@ fun LearnScreen(
                     dailyChallenge = state.dailyChallenge,
                     achievements = state.achievements,
                     onNavigateToPuzzles = onNavigateToPuzzles,
-                    onNavigateToTrainingExercise = onNavigateToTrainingExercise,
                     onNavigateToTacticalTrainer = onNavigateToTacticalTrainer,
                 )
             }
         }
 
-        // Error dialog
+        // Error dialog — surfaced for both hub-level and module-detail
+        // contract misses/network failures (S5-T2). Always offers Retry so a
+        // transient failure (e.g. airplane mode) never dead-ends as "0/0".
         state.error?.let { error ->
             AlertDialog(
                 onDismissRequest = { viewModel.clearError() },
-                title = { Text("Error") },
+                title = { Text("Couldn't load") },
                 text = { Text(error) },
                 confirmButton = {
-                    TextButton(onClick = { viewModel.clearError() }) { Text("OK") }
+                    TextButton(
+                        onClick = {
+                            viewModel.clearError()
+                            if (state.selectedModuleSlug != null) {
+                                viewModel.loadModuleDetail(state.selectedModuleSlug!!)
+                            } else {
+                                viewModel.refresh()
+                            }
+                        },
+                    ) { Text("Retry") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.clearError() }) { Text("Dismiss") }
                 },
             )
         }
@@ -375,7 +387,7 @@ private fun ModuleCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         module.title,
-                        style = MaterialTheme.typography.titleSmall,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -434,7 +446,6 @@ private fun TrainingTab(
     dailyChallenge: DailyChallenge?,
     achievements: List<Achievement>,
     onNavigateToPuzzles: () -> Unit = {},
-    onNavigateToTrainingExercise: (String) -> Unit = {},
     onNavigateToTacticalTrainer: () -> Unit = {},
 ) {
     LazyColumn(
@@ -490,7 +501,7 @@ private fun TrainingTab(
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            "Complete lessons to earn achievements",
+                            "Complete lessons and solve puzzles to earn achievements",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
@@ -511,36 +522,23 @@ private fun TrainingTab(
                 fontWeight = FontWeight.Bold,
             )
         }
+        // Only one tactics entry (S5-T3): the API-backed "Tactics Trainer"
+        // card used to duplicate this one but hit tutorial/daily-challenge
+        // for puzzle content, which returns "No puzzles available" on prod.
+        // "Tactical Progression" is backed by bundled puzzle data and works
+        // offline, so it keeps the slot — relabeled to the name players
+        // recognize.
+        // "Endgame Drills" / "Opening Explorer" removed (S14): both were
+        // stubs — the backend 422s the practice-game creation call, the VM
+        // swallowed the failure and showed a starting-position board that
+        // then marked any legal move "Good move!". Real drills are a
+        // post-v1 content project, not a bug fix.
         item {
             PracticeCard(
                 title = "Tactics Trainer",
-                description = "Solve chess puzzles to sharpen your tactical vision",
-                icon = Icons.Default.Extension,
-                onClick = onNavigateToPuzzles,
-            )
-        }
-        item {
-            PracticeCard(
-                title = "Tactical Progression",
                 description = "Staged puzzles from beginner to master with progression tracking",
                 icon = Icons.Default.TrendingUp,
                 onClick = onNavigateToTacticalTrainer,
-            )
-        }
-        item {
-            PracticeCard(
-                title = "Endgame Drills",
-                description = "Master essential endgame techniques",
-                icon = Icons.Default.Flag,
-                onClick = { onNavigateToTrainingExercise("endgame") },
-            )
-        }
-        item {
-            PracticeCard(
-                title = "Opening Explorer",
-                description = "Study popular opening lines and variations",
-                icon = Icons.Default.AutoStories,
-                onClick = { onNavigateToTrainingExercise("opening") },
             )
         }
     }

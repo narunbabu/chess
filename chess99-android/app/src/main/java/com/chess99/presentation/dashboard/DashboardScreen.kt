@@ -75,13 +75,13 @@ fun DashboardScreen(
             contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            // ── Loading / Error ──────────────────────────────────────
-            if (uiState.isLoading && uiState.stats == null) {
+            // ── Loading / Error / Content ─────────────────────────────
+            if (uiState.isLoading && uiState.userName.isEmpty() && uiState.error == null) {
                 item {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(200.dp),
+                            .height(320.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         CircularProgressIndicator()
@@ -90,6 +90,20 @@ fun DashboardScreen(
                 return@LazyColumn
             }
 
+            // Top-level error (user info failed to load) — full error card
+            // with Retry; the dashboard is not usable without user info.
+            if (uiState.error != null && uiState.userName.isEmpty()) {
+                item {
+                    DashboardErrorCard(
+                        message = uiState.error!!,
+                        onRetry = { viewModel.refreshDashboard() },
+                    )
+                }
+                return@LazyColumn
+            }
+
+            // Non-fatal error (e.g. a refresh failure after content already
+            // loaded) — dismissible banner, content still renders below.
             uiState.error?.let { errorMsg ->
                 item {
                     Card(
@@ -147,6 +161,15 @@ fun DashboardScreen(
             uiState.stats?.let { stats ->
                 item {
                     QuickStatsRow(stats = stats)
+                }
+            }
+            if (uiState.stats == null && uiState.statsError != null) {
+                item {
+                    Text(
+                        text = uiState.statsError!!,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
 
@@ -217,6 +240,39 @@ fun DashboardScreen(
 }
 
 // ── Composable Components ────────────────────────────────────────────────────
+
+@Composable
+private fun DashboardErrorCard(
+    message: String,
+    onRetry: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(320.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                Icons.Default.ErrorOutline,
+                contentDescription = null,
+                modifier = Modifier.size(48.dp),
+                tint = MaterialTheme.colorScheme.error,
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(onClick = onRetry) {
+                Text("Retry")
+            }
+        }
+    }
+}
 
 @Composable
 private fun WelcomeHeader(

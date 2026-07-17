@@ -81,14 +81,21 @@ class ParentDashboardController extends Controller
 
     public function accept(Request $request, GuardianChildRelationship $relationship, ParentDashboardService $reports)
     {
-        if ($relationship->child_id !== $request->user()->id) {
-            abort(403, 'Only the invited child account can accept this guardian link.');
-        }
-
         if ($relationship->status !== GuardianChildRelationship::STATUS_PENDING) {
             throw ValidationException::withMessages([
                 'relationship' => ['This guardian link is no longer pending.'],
             ]);
+        }
+
+        // Who confirms depends on who started it: a guardian's invite is accepted
+        // by the child; a minor's signup consent request is approved by the guardian.
+        $childInitiated = $relationship->initiated_by === GuardianChildRelationship::INITIATED_BY_CHILD;
+        $approverId = $childInitiated ? $relationship->guardian_id : $relationship->child_id;
+
+        if ($request->user()->id !== $approverId) {
+            abort(403, $childInitiated
+                ? 'Only the named guardian can approve this consent request.'
+                : 'Only the invited child account can accept this guardian link.');
         }
 
         $relationship->update([
@@ -96,6 +103,11 @@ class ParentDashboardController extends Controller
             'accepted_at' => now(),
             'revoked_at' => null,
         ]);
+
+        // Guardian approval of a minor's signup = verifiable parental consent.
+        if ($childInitiated) {
+            $relationship->child?->forceFill(['guardian_consent_at' => now()])->save();
+        }
 
         return response()->json([
             'success' => true,

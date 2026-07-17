@@ -3,6 +3,7 @@ package com.chess99.presentation.parent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chess99.data.api.ParentApi
+import com.chess99.presentation.common.friendlyError
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -83,7 +84,7 @@ class MyKidsViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to link child")
-                _uiState.value = _uiState.value.copy(isLinking = false, linkError = e.message ?: "Network error.")
+                _uiState.value = _uiState.value.copy(isLinking = false, linkError = friendlyError(e, "linking this child"))
             }
         }
     }
@@ -101,7 +102,7 @@ class MyKidsViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to accept guardian link")
-                _uiState.value = _uiState.value.copy(snackbarMessage = "Error: ${e.message}")
+                _uiState.value = _uiState.value.copy(snackbarMessage = friendlyError(e, "this action"))
             } finally {
                 _uiState.value = _uiState.value.copy(busyRelationshipId = null)
             }
@@ -120,7 +121,7 @@ class MyKidsViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to revoke link")
-                _uiState.value = _uiState.value.copy(snackbarMessage = "Error: ${e.message}")
+                _uiState.value = _uiState.value.copy(snackbarMessage = friendlyError(e, "this action"))
             } finally {
                 _uiState.value = _uiState.value.copy(busyRelationshipId = null)
             }
@@ -141,7 +142,7 @@ class MyKidsViewModel @Inject constructor(
                 )
             } catch (e: Exception) {
                 Timber.e(e, "Failed to email report")
-                _uiState.value = _uiState.value.copy(snackbarMessage = "Error: ${e.message}")
+                _uiState.value = _uiState.value.copy(snackbarMessage = friendlyError(e, "this action"))
             } finally {
                 _uiState.value = _uiState.value.copy(emailingRelationshipId = null)
             }
@@ -177,7 +178,7 @@ class MyKidsViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to update child profile")
-                _uiState.value = _uiState.value.copy(isManaging = false, manageError = e.message ?: "Network error.")
+                _uiState.value = _uiState.value.copy(isManaging = false, manageError = friendlyError(e, "managing this child"))
             }
         }
     }

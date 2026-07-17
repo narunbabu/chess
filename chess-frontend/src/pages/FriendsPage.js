@@ -131,7 +131,12 @@ const FriendsPage = () => {
   }
 
   const friendIds = new Set(friends.map(f => f.id));
-  const pendingSentIds = new Set(pendingRequests.map(p => p.id));
+  // `pendingRequests` is loaded from GET /friends/pending, which is the
+  // *incoming* list (requests sent TO the current user — see the Accept/
+  // Reject section above). There is no outgoing-pending endpoint, so a
+  // search result matching this set means "they sent you a request", not
+  // "you're waiting on them" — the badge below is named/labelled to match.
+  const requestedYouIds = new Set(pendingRequests.map(p => p.id));
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: '24px 16px' }}>
@@ -232,7 +237,7 @@ const FriendsPage = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {searchResults.map(result => {
               const isFriend = friendIds.has(result.id);
-              const isPending = pendingSentIds.has(result.id);
+              const requestedYou = requestedYouIds.has(result.id);
               return (
                 <div key={result.id} className="unified-card" style={{ flexDirection: 'row', alignItems: 'center', padding: '12px 16px', gap: 12 }}>
                   <img
@@ -248,9 +253,9 @@ const FriendsPage = () => {
                     <span style={{ padding: '4px 12px', borderRadius: 6, background: 'rgba(129,182,76,0.15)', color: '#81b64c', fontSize: 12, fontWeight: 600 }}>
                       Already Friends
                     </span>
-                  ) : isPending ? (
+                  ) : requestedYou ? (
                     <span style={{ padding: '4px 12px', borderRadius: 6, background: 'rgba(234,179,8,0.15)', color: '#eab308', fontSize: 12, fontWeight: 600 }}>
-                      Request Pending
+                      Sent You a Request
                     </span>
                   ) : (
                     <button

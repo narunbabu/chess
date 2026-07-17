@@ -3,7 +3,7 @@ package com.chess99.presentation.payment
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chess99.data.api.PaymentApi
-import com.google.gson.JsonObject
+import com.chess99.presentation.common.friendlyError
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,12 +13,14 @@ import timber.log.Timber
 import javax.inject.Inject
 
 /**
- * ViewModel for the Payments & Subscription feature.
+ * ViewModel for the Subscription feature.
  *
- * Manages subscription plans, Razorpay order creation / verification,
- * current subscription status, and cancellation.
+ * Manages current subscription status, cancellation, and restore.
  *
- * Mirrors chess-frontend Pricing + Subscription components.
+ * NOTE: purchase flows (plan listing, Razorpay order creation/verification)
+ * are intentionally absent — the Android app ships without in-app purchases
+ * for Play policy compliance. Subscriptions bought on the web are reflected
+ * here automatically via the account.
  */
 @HiltViewModel
 class PaymentViewModel @Inject constructor(
@@ -29,154 +31,7 @@ class PaymentViewModel @Inject constructor(
     val uiState: StateFlow<PaymentUiState> = _uiState.asStateFlow()
 
     init {
-        loadPlans()
         loadSubscription()
-    }
-
-    // ── Plans ────────────────────────────────────────────────────────────
-
-    fun loadPlans() {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoadingPlans = true)
-            try {
-                val response = paymentApi.getPlans()
-                if (response.isSuccessful) {
-                    val body = response.body() ?: return@launch
-                    val plansArray = body.getAsJsonArray("plans") ?: return@launch
-
-                    val plans = plansArray.map { el ->
-                        val plan = el.asJsonObject
-                        val featuresArray = plan.getAsJsonArray("features")
-                        val features = featuresArray?.map { it.asString } ?: emptyList()
-
-                        SubscriptionPlan(
-                            id = plan.get("id")?.asInt ?: 0,
-                            name = plan.get("name")?.asString ?: "",
-                            tier = plan.get("tier")?.asString ?: "free",
-                            price = plan.get("price")?.asInt ?: 0,
-                            currency = plan.get("currency")?.asString ?: "INR",
-                            duration = plan.get("duration_label")?.asString
-                                ?: plan.get("duration_days")?.let { "${it.asInt} days" }
-                                ?: "Monthly",
-                            features = features,
-                            isPopular = plan.get("is_popular")?.asBoolean ?: false,
-                            isActive = plan.get("is_active")?.asBoolean ?: true,
-                        )
-                    }
-
-                    _uiState.value = _uiState.value.copy(
-                        plans = plans,
-                        isLoadingPlans = false,
-                        isMockMode = body.get("mock_mode")?.asBoolean ?: false,
-                    )
-                } else {
-                    _uiState.value = _uiState.value.copy(
-                        isLoadingPlans = false,
-                        error = "Failed to load plans",
-                    )
-                }
-            } catch (e: Exception) {
-                Timber.e(e, "Failed to load plans")
-                _uiState.value = _uiState.value.copy(
-                    isLoadingPlans = false,
-                    error = "Network error: ${e.message}",
-                )
-            }
-        }
-    }
-
-    // ── Plan Selection ───────────────────────────────────────────────────
-
-    fun selectPlan(plan: SubscriptionPlan) {
-        _uiState.value = _uiState.value.copy(selectedPlan = plan)
-    }
-
-    // ── Create Order (Step 1 of Razorpay flow) ──────────────────────────
-
-    fun createOrder(planId: Int) {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isProcessingPayment = true, error = null)
-            try {
-                val body = JsonObject().apply {
-                    addProperty("plan_id", planId)
-                }
-                val response = paymentApi.createOrder(body)
-                if (response.isSuccessful) {
-                    val data = response.body() ?: return@launch
-                    val orderData = RazorpayOrderData(
-                        orderId = data.get("razorpay_order_id")?.asString
-                            ?: data.get("order_id")?.asString ?: "",
-                        amount = data.get("amount")?.asInt ?: 0,
-                        currency = data.get("currency")?.asString ?: "INR",
-                        description = data.get("description")?.asString ?: "Chess99 Subscription",
-                        razorpayKey = data.get("razorpay_key")?.asString ?: "",
-                        planId = planId,
-                    )
-                    _uiState.value = _uiState.value.copy(
-                        pendingOrder = orderData,
-                        isProcessingPayment = false,
-                    )
-                } else {
-                    val errorBody = response.errorBody()?.string()
-                    Timber.e("Create order failed: $errorBody")
-                    _uiState.value = _uiState.value.copy(
-                        isProcessingPayment = false,
-                        error = "Could not create order. Please try again.",
-                    )
-                }
-            } catch (e: Exception) {
-                Timber.e(e, "Create order error")
-                _uiState.value = _uiState.value.copy(
-                    isProcessingPayment = false,
-                    error = "Network error: ${e.message}",
-                )
-            }
-        }
-    }
-
-    // ── Verify Payment (Step 2 — after Razorpay checkout succeeds) ──────
-
-    fun verifyPayment(
-        razorpayPaymentId: String,
-        razorpayOrderId: String,
-        razorpaySignature: String,
-        planId: Int,
-    ) {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isProcessingPayment = true, error = null)
-            try {
-                val body = JsonObject().apply {
-                    addProperty("razorpay_payment_id", razorpayPaymentId)
-                    addProperty("razorpay_order_id", razorpayOrderId)
-                    addProperty("razorpay_signature", razorpaySignature)
-                    addProperty("plan_id", planId)
-                }
-                val response = paymentApi.verifyPayment(body)
-                if (response.isSuccessful) {
-                    _uiState.value = _uiState.value.copy(
-                        isProcessingPayment = false,
-                        pendingOrder = null,
-                        snackbarMessage = "Subscription activated!",
-                    )
-                    // Refresh subscription & plans
-                    loadSubscription()
-                    loadPlans()
-                } else {
-                    val errorBody = response.errorBody()?.string()
-                    Timber.e("Verify payment failed: $errorBody")
-                    _uiState.value = _uiState.value.copy(
-                        isProcessingPayment = false,
-                        error = "Payment verification failed. Please contact support.",
-                    )
-                }
-            } catch (e: Exception) {
-                Timber.e(e, "Verify payment error")
-                _uiState.value = _uiState.value.copy(
-                    isProcessingPayment = false,
-                    error = "Verification error: ${e.message}",
-                )
-            }
-        }
     }
 
     // ── Current Subscription ─────────────────────────────────────────────
@@ -215,17 +70,27 @@ class PaymentViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(
                         currentSubscription = subscription,
                         isLoadingSubscription = false,
+                        planCheckNotice = null,
                     )
                 } else {
+                    // Non-2xx without a thrown exception — same graceful
+                    // degradation as the network-failure path below.
                     _uiState.value = _uiState.value.copy(
+                        currentSubscription = null,
                         isLoadingSubscription = false,
+                        planCheckNotice = "Couldn't check your plan — you're on the Free plan for now.",
                     )
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to load subscription")
+                // Graceful degradation (S3 T6): a failed plan check must never
+                // block the screen with an obfuscated-text dialog. Treat the
+                // user as Free-tier for this session and show a soft, inline
+                // notice instead of an error dialog.
                 _uiState.value = _uiState.value.copy(
+                    currentSubscription = null,
                     isLoadingSubscription = false,
-                    error = "Failed to load subscription: ${e.message}",
+                    planCheckNotice = "Couldn't check your plan — you're on the Free plan for now.",
                 )
             }
         }
@@ -235,12 +100,12 @@ class PaymentViewModel @Inject constructor(
 
     fun cancelSubscription() {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isProcessingPayment = true, error = null)
+            _uiState.value = _uiState.value.copy(isProcessing = true, error = null)
             try {
                 val response = paymentApi.cancelSubscription()
                 if (response.isSuccessful) {
                     _uiState.value = _uiState.value.copy(
-                        isProcessingPayment = false,
+                        isProcessing = false,
                         showCancelDialog = false,
                         snackbarMessage = "Subscription cancelled. It remains active until the end of the billing period.",
                     )
@@ -249,15 +114,15 @@ class PaymentViewModel @Inject constructor(
                     val errorBody = response.errorBody()?.string()
                     Timber.e("Cancel subscription failed: $errorBody")
                     _uiState.value = _uiState.value.copy(
-                        isProcessingPayment = false,
+                        isProcessing = false,
                         error = "Failed to cancel subscription.",
                     )
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Cancel subscription error")
                 _uiState.value = _uiState.value.copy(
-                    isProcessingPayment = false,
-                    error = "Error: ${e.message}",
+                    isProcessing = false,
+                    error = friendlyError(e, "your subscription"),
                 )
             }
         }
@@ -268,26 +133,26 @@ class PaymentViewModel @Inject constructor(
     fun restorePurchases() {
         // Re-fetch current subscription from the server
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isProcessingPayment = true, error = null)
+            _uiState.value = _uiState.value.copy(isProcessing = true, error = null)
             try {
                 val response = paymentApi.getSubscription()
                 if (response.isSuccessful) {
                     _uiState.value = _uiState.value.copy(
-                        isProcessingPayment = false,
+                        isProcessing = false,
                         snackbarMessage = "Purchases restored successfully.",
                     )
                     loadSubscription()
                 } else {
                     _uiState.value = _uiState.value.copy(
-                        isProcessingPayment = false,
+                        isProcessing = false,
                         error = "No purchases found to restore.",
                     )
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Restore purchases error")
                 _uiState.value = _uiState.value.copy(
-                    isProcessingPayment = false,
-                    error = "Restore error: ${e.message}",
+                    isProcessing = false,
+                    error = friendlyError(e, "your purchases"),
                 )
             }
         }
@@ -303,10 +168,6 @@ class PaymentViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(showCancelDialog = false)
     }
 
-    fun clearPendingOrder() {
-        _uiState.value = _uiState.value.copy(pendingOrder = null)
-    }
-
     fun clearError() {
         _uiState.value = _uiState.value.copy(error = null)
     }
@@ -319,22 +180,19 @@ class PaymentViewModel @Inject constructor(
 // ── UI State ─────────────────────────────────────────────────────────────
 
 data class PaymentUiState(
-    // Plans
-    val plans: List<SubscriptionPlan> = emptyList(),
-    val selectedPlan: SubscriptionPlan? = null,
-    val isLoadingPlans: Boolean = false,
-
     // Subscription
     val currentSubscription: Subscription? = null,
     val isLoadingSubscription: Boolean = false,
 
-    // Payment processing
-    val isProcessingPayment: Boolean = false,
-    val pendingOrder: RazorpayOrderData? = null,
+    // Non-blocking, inline notice shown when the plan check itself fails
+    // (S3 T6) — never rendered as a dialog.
+    val planCheckNotice: String? = null,
+
+    // Cancel / restore in flight
+    val isProcessing: Boolean = false,
 
     // UI controls
     val showCancelDialog: Boolean = false,
-    val isMockMode: Boolean = false,
 
     // Messaging
     val error: String? = null,
@@ -342,22 +200,6 @@ data class PaymentUiState(
 )
 
 // ── Data Models ──────────────────────────────────────────────────────────
-
-data class SubscriptionPlan(
-    val id: Int,
-    val name: String,
-    val tier: String,
-    val price: Int,
-    val currency: String,
-    val duration: String,
-    val features: List<String>,
-    val isPopular: Boolean,
-    val isActive: Boolean = true,
-) {
-    val isFree: Boolean get() = price == 0 || tier == "free"
-    val formattedPrice: String
-        get() = if (isFree) "Free" else "$currency $price"
-}
 
 data class Subscription(
     val id: Int,
@@ -372,12 +214,3 @@ data class Subscription(
     val isCancelled: Boolean get() = status == "cancelled"
     val isExpired: Boolean get() = status == "expired"
 }
-
-data class RazorpayOrderData(
-    val orderId: String,
-    val amount: Int,
-    val currency: String,
-    val description: String,
-    val razorpayKey: String,
-    val planId: Int,
-)

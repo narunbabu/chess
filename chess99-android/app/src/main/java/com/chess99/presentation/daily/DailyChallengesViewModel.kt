@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chess99.data.api.TacticalApi
 import com.chess99.data.api.TutorialApi
+import com.chess99.presentation.common.friendlyError
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -140,7 +141,7 @@ class DailyChallengesViewModel @Inject constructor(
             )
         } catch (e: Exception) {
             Timber.e(e, "Failed to load daily challenge")
-            _uiState.value = _uiState.value.copy(isLoading = false, error = e.message)
+            _uiState.value = _uiState.value.copy(isLoading = false, error = friendlyError(e, "today's challenge"))
         }
     }
 

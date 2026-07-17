@@ -157,8 +157,11 @@ class ChatSafetyService
 
     public function requiresPresetOnly(User $user): bool
     {
+        // Fail closed: on a kid-safe platform, unknown age is treated as a child.
+        // New signups collect a birthday; legacy/OAuth accounts without one are
+        // prompted to add it (users.needs_birthday) to unlock free-text chat.
         if (!$user->birthday) {
-            return false;
+            return true;
         }
 
         $birthday = $user->birthday instanceof Carbon

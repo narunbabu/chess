@@ -14,6 +14,10 @@ fun UserDto.toDomain(): User = User(
     peakRating = peakRating ?: 1200,
     tutorialXp = tutorialXp ?: 0,
     tutorialLevel = tutorialLevel ?: 1,
+    // Fail closed: an absent flag from an older/partial API response is
+    // treated as "not verified adult" for this financial feature gate.
+    isMinor = isMinor ?: true,
+    needsBirthday = needsBirthday ?: true,
     createdAt = createdAt,
     updatedAt = updatedAt,
 )

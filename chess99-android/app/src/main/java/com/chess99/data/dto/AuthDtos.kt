@@ -15,6 +15,10 @@ data class RegisterRequest(
     val password: String,
     @SerializedName("password_confirmation")
     val passwordConfirmation: String,
+    // yyyy-MM-dd; required by the backend for age-gating (kid-safe chat + guardian).
+    val birthday: String? = null,
+    @SerializedName("guardian_email")
+    val guardianEmail: String? = null,
 )
 
 data class GoogleMobileLoginRequest(
@@ -76,6 +80,13 @@ data class UserDto(
     val tutorialXp: Int? = null,
     @SerializedName("tutorial_level")
     val tutorialLevel: Int? = null,
+    // Age-gating flags appended to every serialized user by the backend (see
+    // User::appends in app/Models/User.php) so clients can hide adult-only
+    // features (e.g. the Ambassador program) without a birthday round-trip.
+    @SerializedName("is_minor")
+    val isMinor: Boolean? = null,
+    @SerializedName("needs_birthday")
+    val needsBirthday: Boolean? = null,
     @SerializedName("created_at")
     val createdAt: String? = null,
     @SerializedName("updated_at")

@@ -22,11 +22,10 @@ import com.chess99.presentation.history.GameReviewScreen
 import com.chess99.presentation.home.HomeScreen
 import com.chess99.presentation.learn.LearnScreen
 import com.chess99.presentation.learn.PuzzleScreen
-import com.chess99.presentation.learn.TrainingExerciseScreen
 import com.chess99.presentation.learn.TutorialLessonScreen
 import com.chess99.presentation.learn.tactical.TacticalTrainerDashboardScreen
 import com.chess99.presentation.lobby.LobbyScreen
-import com.chess99.presentation.payment.PricingScreen
+import com.chess99.presentation.onboarding.OnboardingScreen
 import com.chess99.presentation.payment.SubscriptionScreen
 import com.chess99.presentation.profile.ProfileScreen
 import com.chess99.presentation.referral.ReferralDashboardScreen
@@ -38,7 +37,9 @@ import com.chess99.presentation.profile.OrganizationsScreen
 import com.chess99.presentation.referral.AmbassadorDashboardScreen
 import com.chess99.presentation.referral.BecomeAmbassadorScreen
 import com.chess99.presentation.daily.DailyChallengesScreen
-import com.chess99.presentation.common.WebViewScreen
+import com.chess99.presentation.legal.LegalScreen
+import com.chess99.presentation.legal.PrivacyPolicyContent
+import com.chess99.presentation.legal.TermsOfServiceContent
 import com.chess99.presentation.social.LeaderboardScreen
 import com.chess99.presentation.social.SharedResultScreen
 
@@ -51,6 +52,32 @@ fun Chess99NavGraph(
         navController = navController,
         startDestination = startDestination,
     ) {
+        // ── Onboarding (first-run only, pre-auth) ──────────────────────────
+        composable(Screen.Onboarding.route) {
+            OnboardingScreen(
+                onGetStarted = {
+                    navController.navigate(Screen.Register.route) {
+                        popUpTo(Screen.Onboarding.route) { inclusive = true }
+                    }
+                },
+                onLogin = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(Screen.Onboarding.route) { inclusive = true }
+                    }
+                },
+                onPlayAsGuest = {
+                    navController.navigate(Screen.PlayComputer.route) {
+                        popUpTo(Screen.Onboarding.route) { inclusive = true }
+                    }
+                },
+                onSkip = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(Screen.Onboarding.route) { inclusive = true }
+                    }
+                },
+            )
+        }
+
         // ── Auth ────────────────────────────────────────────────────────────
         composable(Screen.Login.route) {
             LoginScreen(
@@ -126,7 +153,12 @@ fun Chess99NavGraph(
                     navController.navigate(Screen.PlayComputer.route)
                 },
                 onNavigateToLobby = {
-                    navController.navigate(Screen.Lobby.route)
+                    navController.navigate(Screen.Lobby.createRoute())
+                },
+                // T2: a Nearby Opponents real-player tap lands on Matchmaking,
+                // not the default Players tab (spec T2 AC 3).
+                onNavigateToLobbyMatchmaking = {
+                    navController.navigate(Screen.Lobby.createRoute("matchmaking"))
                 },
                 onNavigateToLearn = {
                     navController.navigate(Screen.Learn.route)
@@ -152,6 +184,18 @@ fun Chess99NavGraph(
         composable(Screen.PlayComputer.route) {
             PlayComputerScreen(
                 onNavigateBack = { navController.popBackStack() },
+                onNavigateToTacticalTrainer = {
+                    navController.navigate(Screen.TacticalTrainer.route)
+                },
+                onNavigateToMultiplayerGame = { gameId ->
+                    // T3: a persona pick that started a real, server-recorded
+                    // game hands off to the multiplayer stack — replaces this
+                    // setup screen on the back stack so leaving the game
+                    // returns to Home, not back to an unused local setup form.
+                    navController.navigate(Screen.PlayMultiplayer.createRoute(gameId)) {
+                        popUpTo(Screen.PlayComputer.route) { inclusive = true }
+                    }
+                },
             )
         }
 
@@ -165,8 +209,13 @@ fun Chess99NavGraph(
         }
 
         // ── Lobby ───────────────────────────────────────────────────────────
-        composable(Screen.Lobby.route) {
+        composable(
+            route = Screen.Lobby.route,
+            arguments = listOf(navArgument("tab") { type = NavType.StringType; nullable = true; defaultValue = null }),
+        ) { backStackEntry ->
+            val initialTab = backStackEntry.arguments?.getString("tab")
             LobbyScreen(
+                initialTab = initialTab,
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToGame = { gameId ->
                     navController.navigate(Screen.PlayMultiplayer.createRoute(gameId))
@@ -183,9 +232,6 @@ fun Chess99NavGraph(
                 },
                 onNavigateToPuzzles = {
                     navController.navigate(Screen.Puzzles.route)
-                },
-                onNavigateToTrainingExercise = { exerciseId ->
-                    navController.navigate(Screen.TrainingExercise.createRoute(exerciseId))
                 },
                 onNavigateToTacticalTrainer = {
                     navController.navigate(Screen.TacticalTrainer.route)
@@ -210,16 +256,7 @@ fun Chess99NavGraph(
             )
         }
 
-        composable(
-            route = Screen.TrainingExercise.route,
-            arguments = listOf(navArgument("exerciseId") { type = NavType.StringType }),
-        ) { backStackEntry ->
-            val exerciseId = backStackEntry.arguments?.getString("exerciseId") ?: ""
-            TrainingExerciseScreen(
-                exerciseId = exerciseId,
-                onNavigateBack = { navController.popBackStack() },
-            )
-        }
+        // TrainingExercise route removed (S14) — see Screen.kt for rationale.
 
         composable(Screen.TacticalTrainer.route) {
             TacticalTrainerDashboardScreen(
@@ -303,22 +340,10 @@ fun Chess99NavGraph(
             )
         }
 
-        // ── Payment & Subscription ──────────────────────────────────────────
-        composable(Screen.Pricing.route) {
-            PricingScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToSubscription = {
-                    navController.navigate(Screen.Subscription.route)
-                },
-            )
-        }
-
+        // ── Subscription (status only — no in-app purchases in v1) ─────────
         composable(Screen.Subscription.route) {
             SubscriptionScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToPricing = {
-                    navController.navigate(Screen.Pricing.route)
-                },
             )
         }
 
@@ -392,7 +417,7 @@ fun Chess99NavGraph(
                     navController.navigate(Screen.PlayComputer.route)
                 },
                 onNavigateToLobby = {
-                    navController.navigate(Screen.Lobby.route)
+                    navController.navigate(Screen.Lobby.createRoute())
                 },
                 onNavigateToLearn = {
                     navController.navigate(Screen.Learn.route)
@@ -420,7 +445,6 @@ fun Chess99NavGraph(
             DailyChallengesScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onSolve = { navController.navigate(Screen.Puzzles.route) },
-                onUpgrade = { navController.navigate(Screen.Pricing.route) },
             )
         }
 
@@ -445,25 +469,23 @@ fun Chess99NavGraph(
             )
         }
 
-        // ── Content & Legal (WebView) ───────────────────────────────────────
-        composable(Screen.Ebook.route) {
-            WebViewScreen(
-                url = "https://chess99.com/ebook",
-                title = "E-Book: 0 to 1000",
-                onNavigateBack = { navController.popBackStack() },
-            )
-        }
+        // ── Content & Legal (native, offline-safe) ──────────────────────────
+        // E-Book removed from v1 (was a WebView pointed at a URL that never
+        // rendered inside WebView); a native reader is queued post-v1 — see
+        // Screen.Ebook for the compile-time placeholder.
         composable(Screen.Privacy.route) {
-            WebViewScreen(
-                url = "https://chess99.com/privacy",
-                title = "Privacy Policy",
+            LegalScreen(
+                title = PrivacyPolicyContent.TITLE,
+                lastUpdated = PrivacyPolicyContent.LAST_UPDATED,
+                sections = PrivacyPolicyContent.sections,
                 onNavigateBack = { navController.popBackStack() },
             )
         }
         composable(Screen.Terms.route) {
-            WebViewScreen(
-                url = "https://chess99.com/terms",
-                title = "Terms of Service",
+            LegalScreen(
+                title = TermsOfServiceContent.TITLE,
+                lastUpdated = TermsOfServiceContent.LAST_UPDATED,
+                sections = TermsOfServiceContent.sections,
                 onNavigateBack = { navController.popBackStack() },
             )
         }

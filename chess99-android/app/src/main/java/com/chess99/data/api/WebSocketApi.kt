@@ -129,9 +129,24 @@ interface WebSocketApi {
         @Body body: JsonObject,
     ): Response<JsonObject>
 
-    // ── Synthetic Move (Companion Mode) ─────────────────────────────────
-
-    @POST("games/{gameId}/synthetic-move")
+    // ── Synthetic Move (Companion Mode + T3 synthetic-opponent games) ────
+    // DEVIATION (S10, pre-existing bug found while implementing T3): this was
+    // `@POST("games/{gameId}/synthetic-move")` — a *relative* path. Retrofit
+    // base URL is BuildConfig.API_BASE_URL = ".../api/v1/" (see
+    // NetworkModule.kt), so that resolved to ".../api/v1/games/{id}/synthetic-move".
+    // The real route (`WebSocketController::broadcastSyntheticMove`) is
+    // registered ONLY in the legacy routes/api.php websocket group
+    // (routes/api.php:249, inside `Route::prefix('websocket')`), i.e.
+    // ".../api/websocket/games/{id}/synthetic-move" — NOT under /api/v1/ at
+    // all (confirmed by grep: routes/api_v1.php's own websocket group,
+    // routes/api_v1.php:236-273, has no synthetic-move route). So the old
+    // relative path 404'd on every real call — Companion Mode's existing
+    // "fall back to the regular move API" catch (PlayMultiplayerViewModel.
+    // companionPlayOneMove) was silently absorbing this failure. A leading
+    // `/` makes Retrofit/OkHttp resolve the path against the *host* (scheme
+    // + authority), not the base path — the only way to reach a path outside
+    // /api/v1/ without a second Retrofit/OkHttpClient instance.
+    @POST("/api/websocket/games/{gameId}/synthetic-move")
     suspend fun sendSyntheticMove(
         @Path("gameId") gameId: Int,
         @Body body: JsonObject,

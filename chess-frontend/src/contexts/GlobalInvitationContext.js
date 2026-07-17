@@ -457,7 +457,10 @@ export const GlobalInvitationProvider = ({ children }) => {
       if (isInActiveGameRef.current() || pendingInvitationRef.current) return;
 
       try {
-        const response = await api.get('/invitations/pending', { params: { limit: 1, page: 1 } });
+        // Background poll (every 10s) — a 401 here is already swallowed
+        // silently below since polling is best-effort; it must not also
+        // trigger the global session-expired redirect.
+        const response = await api.get('/invitations/pending', { params: { limit: 1, page: 1 }, skipAuthRedirect: true });
         const invitations = response.data?.data || [];
         if (invitations.length > 0 && !pendingInvitationRef.current) {
           const inv = invitations[0];

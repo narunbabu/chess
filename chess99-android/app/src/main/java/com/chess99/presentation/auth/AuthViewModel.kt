@@ -5,13 +5,44 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chess99.domain.model.User
 import com.chess99.domain.repository.AuthRepository
+import com.chess99.presentation.common.friendlyError
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import timber.log.Timber
+import java.io.IOException
 import javax.inject.Inject
+
+/** Actions covered by [authErrorCopy] — each gets its own kid-safe fallback text. */
+private enum class AuthAction { LOGIN, REGISTER, GOOGLE, FACEBOOK }
+
+/**
+ * Kid-safe auth failure copy. Never surface [Throwable.message] — on non-2xx
+ * responses that string is the raw server error body, and on parse/network
+ * failures it can be a class name or internal detail. This is the only
+ * sanctioned way to turn an auth [Throwable] into user-facing text; the real
+ * exception is always logged via Timber separately for debugging.
+ *
+ * IOException (thrown by OkHttp before any HTTP response exists) reliably
+ * means "no network" and reuses [friendlyError]'s copy. Everything else is a
+ * server-side rejection (bad credentials, validation failure, or unexpected
+ * error) — [AuthRepository]'s `Result<AuthResult>` contract does not carry
+ * the HTTP status code that far, so login/register/social failures collapse
+ * to one honest, action-specific fallback rather than guessing at a status
+ * code from message text.
+ */
+private fun authErrorCopy(e: Throwable, action: AuthAction): String {
+    if (e is IOException) return friendlyError(e, "your request")
+    return when (action) {
+        AuthAction.LOGIN -> "That email or password doesn't match. Try again."
+        AuthAction.REGISTER -> "Please check your details and try again."
+        AuthAction.GOOGLE -> "Google sign-in didn't work. Please try again."
+        AuthAction.FACEBOOK -> "Facebook sign-in didn't work. Please try again."
+    }
+}
 
 data class AuthUiState(
     val isLoading: Boolean = false,
@@ -49,21 +80,29 @@ class AuthViewModel @Inject constructor(
                     }
                 }
                 .onFailure { error ->
+                    Timber.w(error, "Login failed")
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            error = error.message ?: "Login failed",
+                            error = authErrorCopy(error, AuthAction.LOGIN),
                         )
                     }
                 }
         }
     }
 
-    fun register(name: String, email: String, password: String, passwordConfirmation: String) {
+    fun register(
+        name: String,
+        email: String,
+        password: String,
+        passwordConfirmation: String,
+        birthday: String,
+        guardianEmail: String? = null,
+    ) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
 
-            authRepository.register(name, email, password, passwordConfirmation)
+            authRepository.register(name, email, password, passwordConfirmation, birthday, guardianEmail)
                 .onSuccess { result ->
                     _uiState.update {
                         it.copy(
@@ -74,10 +113,11 @@ class AuthViewModel @Inject constructor(
                     }
                 }
                 .onFailure { error ->
+                    Timber.w(error, "Registration failed")
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            error = error.message ?: "Registration failed",
+                            error = authErrorCopy(error, AuthAction.REGISTER),
                         )
                     }
                 }
@@ -101,19 +141,21 @@ class AuthViewModel @Inject constructor(
                             }
                         }
                         .onFailure { error ->
+                            Timber.w(error, "Google mobile login failed")
                             _uiState.update {
                                 it.copy(
                                     isLoading = false,
-                                    error = error.message ?: "Google sign-in failed",
+                                    error = authErrorCopy(error, AuthAction.GOOGLE),
                                 )
                             }
                         }
                 }
                 is GoogleSignInResult.Failure -> {
+                    Timber.w(result.exception, "Google sign-in failed")
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            error = result.exception.message ?: "Google sign-in failed",
+                            error = authErrorCopy(result.exception, AuthAction.GOOGLE),
                         )
                     }
                 }
@@ -141,19 +183,21 @@ class AuthViewModel @Inject constructor(
                             }
                         }
                         .onFailure { error ->
+                            Timber.w(error, "Facebook mobile login failed")
                             _uiState.update {
                                 it.copy(
                                     isLoading = false,
-                                    error = error.message ?: "Facebook sign-in failed",
+                                    error = authErrorCopy(error, AuthAction.FACEBOOK),
                                 )
                             }
                         }
                 }
                 is FacebookSignInResult.Failure -> {
+                    Timber.w(result.exception, "Facebook sign-in failed")
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            error = result.exception.message ?: "Facebook sign-in failed",
+                            error = authErrorCopy(result.exception, AuthAction.FACEBOOK),
                         )
                     }
                 }
@@ -164,6 +208,12 @@ class AuthViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Silent/background Google sign-in (e.g. a stored token replay outside the
+     * explicit [initiateGoogleSignIn] button flow). Failure must NOT surface a
+     * user-visible error — it falls through quietly to the normal login screen,
+     * same as any other unauthenticated launch.
+     */
     fun googleSignIn(idToken: String) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
@@ -179,16 +229,18 @@ class AuthViewModel @Inject constructor(
                     }
                 }
                 .onFailure { error ->
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            error = error.message ?: "Google sign-in failed",
-                        )
-                    }
+                    Timber.w(error, "Silent Google sign-in failed")
+                    _uiState.update { it.copy(isLoading = false) }
                 }
         }
     }
 
+    /**
+     * Silent/background Facebook sign-in (e.g. a stored token replay outside
+     * the explicit [initiateFacebookSignIn] button flow). Failure must NOT
+     * surface a user-visible error — it falls through quietly to the normal
+     * login screen, same as any other unauthenticated launch.
+     */
     fun facebookSignIn(accessToken: String) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
@@ -204,12 +256,8 @@ class AuthViewModel @Inject constructor(
                     }
                 }
                 .onFailure { error ->
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            error = error.message ?: "Facebook sign-in failed",
-                        )
-                    }
+                    Timber.w(error, "Silent Facebook sign-in failed")
+                    _uiState.update { it.copy(isLoading = false) }
                 }
         }
     }

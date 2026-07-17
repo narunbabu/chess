@@ -15,10 +15,13 @@ import com.chess99.engine.CCTArrow
 import com.chess99.engine.CCTResult
 import com.chess99.engine.ChessGame
 import com.chess99.engine.Color
+import com.chess99.engine.EngineFailureCopy
+import com.chess99.engine.EngineInitException
 import com.chess99.engine.Piece
 import com.chess99.engine.Square
 import com.chess99.engine.StockfishEngine
 import com.chess99.presentation.common.BoardArrow
+import com.chess99.presentation.common.friendlyError
 import com.google.gson.JsonObject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -62,12 +65,30 @@ class PlayMultiplayerViewModel @Inject constructor(
     private var timerJob: Job? = null
     private var myUserId: Int = 0
     private var companionContinuousJob: Job? = null
+    private var syntheticOpponentJob: Job? = null
+
+    /** Engine level for the synthetic opponent (T3), null for human-vs-human games. */
+    private var _syntheticOpponentLevel: Int? = null
 
     init {
         myUserId = tokenManager.getUserId()
         if (gameId > 0) {
             loadGame()
         }
+    }
+
+    companion object {
+        /**
+         * [GameEvent.Error] messages known to already be static, fully
+         * human-authored, kid-safe copy — safe to show verbatim. NOTE:
+         * [GameWebSocketService] also emits `"Authentication failed: $message"`
+         * where `$message` is a raw Pusher/Reverb SDK callback string of
+         * unknown origin — that one is deliberately NOT whitelisted here and
+         * falls through to the generic retry copy below.
+         */
+        private val KNOWN_WEBSOCKET_ERROR_MESSAGES = setOf(
+            "Connection lost. Please rejoin the game.",
+        )
     }
 
     // ── Load Game ───────────────────────────────────────────────────────
@@ -113,6 +134,13 @@ class PlayMultiplayerViewModel @Inject constructor(
 
                 val opponentName = opponentObj?.get("name")?.asString ?: "Opponent"
                 val opponentRating = opponentObj?.get("rating")?.asInt ?: 1200
+
+                // T3: `GameController::createComputerGame`/`show` spread every
+                // Game column onto the response root (`...$game->toArray()`),
+                // so `computer_level`/`synthetic_player_id` are already here —
+                // no extra request needed to detect a bot game.
+                val computerLevel = gameObj.get("computer_level")?.takeIf { !it.isJsonNull }?.asInt
+                val isSyntheticGame = computerLevel != null
 
                 // Parse time control
                 val parts = timeControl.split("|")
@@ -167,6 +195,7 @@ class PlayMultiplayerViewModel @Inject constructor(
                     isRated = gameMode == "rated",
                     moveHistory = moveHistory,
                     timeControl = timeControl,
+                    isSyntheticGame = isSyntheticGame,
                 )
 
                 // Connect WebSocket
@@ -176,11 +205,30 @@ class PlayMultiplayerViewModel @Inject constructor(
                 if (status == "active") {
                     startTimer()
                 }
+
+                // T3: a game created via T2/T5's synthetic flow needs no user
+                // interaction to drive the bot's side — this is deliberately
+                // NOT Companion Mode (which plays on the human's behalf,
+                // gated on `game.turn == state.playerColor`); the synthetic
+                // opponent plays the *other* color, so it gets its own
+                // auto-play loop below rather than reusing
+                // startContinuousCompanionPlay/companionPlayOneMove.
+                if (isSyntheticGame) {
+                    _syntheticOpponentLevel = computerLevel
+                    try {
+                        stockfishEngine.initialize()
+                    } catch (e: Exception) {
+                        Timber.e(e, "Failed to initialize Stockfish for synthetic opponent")
+                        _uiState.value = _uiState.value.copy(error = EngineFailureCopy.MESSAGE)
+                        return@launch
+                    }
+                    startSyntheticOpponentAutoPlay()
+                }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to load game")
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = "Failed to load game: ${e.message}",
+                    error = friendlyError(e, "this game"),
                 )
             }
         }
@@ -341,9 +389,25 @@ class PlayMultiplayerViewModel @Inject constructor(
             }
 
             is GameEvent.Error -> {
-                _uiState.value = _uiState.value.copy(error = event.message)
+                _uiState.value = _uiState.value.copy(error = sanitizeWebSocketErrorMessage(event.message))
             }
         }
+    }
+
+    /**
+     * Kid-safe copy for [GameEvent.Error] payloads. WebSocket error events can
+     * carry the server's raw text verbatim, which may include internal detail
+     * unsuitable for a kids app — only an exact-match whitelist of known,
+     * already human-authored phrases passes through unchanged; anything else
+     * (including any interpolated/SDK-sourced text) collapses to one generic
+     * retry message. The raw text is always logged via Timber for debugging.
+     */
+    private fun sanitizeWebSocketErrorMessage(rawMessage: String): String {
+        if (rawMessage !in KNOWN_WEBSOCKET_ERROR_MESSAGES) {
+            Timber.w("Unrecognized WebSocket error event: $rawMessage")
+            return "Connection hiccup — trying to reconnect."
+        }
+        return rawMessage
     }
 
     // ── Player Move ─────────────────────────────────────────────────────
@@ -482,7 +546,7 @@ class PlayMultiplayerViewModel @Inject constructor(
                 )
             }
             result.onFailure { e ->
-                _uiState.value = _uiState.value.copy(error = "Failed to resign: ${e.message}")
+                _uiState.value = _uiState.value.copy(error = friendlyError(e, "your resignation"))
             }
         }
     }
@@ -494,7 +558,7 @@ class PlayMultiplayerViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(drawOfferedByMe = true)
             }
             result.onFailure { e ->
-                _uiState.value = _uiState.value.copy(error = "Failed to offer draw: ${e.message}")
+                _uiState.value = _uiState.value.copy(error = friendlyError(e, "your draw offer"))
             }
         }
     }
@@ -538,7 +602,7 @@ class PlayMultiplayerViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(gamePhase = MultiplayerPhase.PAUSED)
             }
             result.onFailure { e ->
-                _uiState.value = _uiState.value.copy(error = "Failed to pause: ${e.message}")
+                _uiState.value = _uiState.value.copy(error = friendlyError(e, "pausing the game"))
             }
         }
     }
@@ -550,7 +614,7 @@ class PlayMultiplayerViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(snackbarMessage = "Resume request sent")
             }
             result.onFailure { e ->
-                _uiState.value = _uiState.value.copy(error = "Failed to request resume: ${e.message}")
+                _uiState.value = _uiState.value.copy(error = friendlyError(e, "resuming the game"))
             }
         }
     }
@@ -710,19 +774,24 @@ class PlayMultiplayerViewModel @Inject constructor(
                 Timber.e(e, "Failed to load companions")
                 _companionState.value = _companionState.value.copy(
                     isLoading = false,
-                    error = "Failed to load companions: ${e.message}",
+                    error = friendlyError(e, "companion players"),
                 )
             }
         }
     }
 
     fun selectCompanion(companion: SyntheticPlayer) {
-        _companionState.value = _companionState.value.copy(selectedCompanion = companion)
+        _companionState.value = _companionState.value.copy(selectedCompanion = companion, error = null)
         viewModelScope.launch {
             try {
                 stockfishEngine.initialize()
+            } catch (e: EngineInitException) {
+                Timber.e(e, "Failed to initialize Stockfish for companion")
+                // Never surface e.message — honest, kid-safe copy (S2 T4).
+                _companionState.value = _companionState.value.copy(error = EngineFailureCopy.MESSAGE)
             } catch (e: Exception) {
                 Timber.e(e, "Failed to initialize Stockfish for companion")
+                _companionState.value = _companionState.value.copy(error = EngineFailureCopy.MESSAGE)
             }
         }
     }
@@ -834,9 +903,10 @@ class PlayMultiplayerViewModel @Inject constructor(
                 )
             } catch (e: Exception) {
                 Timber.e(e, "Companion move failed")
+                // Never surface e.message — kid-safe copy (master plan rule 6).
                 _companionState.value = _companionState.value.copy(
                     isThinking = false,
-                    error = "Companion failed: ${e.message}",
+                    error = "Your companion couldn't make a move. Please try again.",
                 )
             }
         }
@@ -866,6 +936,111 @@ class PlayMultiplayerViewModel @Inject constructor(
                 }
                 delay(600)
             }
+        }
+    }
+
+    // ── Synthetic Opponent Auto-Play (T3) ───────────────────────────────
+    // Drives the *opponent's* side of a real, server-recorded synthetic game
+    // (created via T2's Nearby Opponents or T5's persona row) — distinct from
+    // Companion Mode above, which plays on the *player's* behalf instead.
+
+    private fun startSyntheticOpponentAutoPlay() {
+        syntheticOpponentJob?.cancel()
+        syntheticOpponentJob = viewModelScope.launch {
+            while (isActive) {
+                val state = _uiState.value
+                if (state.gamePhase != MultiplayerPhase.PLAYING) {
+                    delay(600)
+                    continue
+                }
+                if (game.turn != state.playerColor && !_companionState.value.isThinking) {
+                    playSyntheticOpponentMove()
+                }
+                delay(600)
+            }
+        }
+    }
+
+    private suspend fun playSyntheticOpponentMove() {
+        val level = _syntheticOpponentLevel ?: return
+        val state = _uiState.value
+        if (state.gamePhase != MultiplayerPhase.PLAYING) return
+        if (game.turn == state.playerColor) return
+
+        _companionState.value = _companionState.value.copy(isThinking = true)
+        try {
+            val fen = game.fen()
+            val result = stockfishEngine.getBestMove(fen, level)
+            val uci = result.bestMove
+            if (uci.length < 4) {
+                _companionState.value = _companionState.value.copy(isThinking = false)
+                return
+            }
+            val from = uci.substring(0, 2)
+            val to = uci.substring(2, 4)
+            val promotion = uci.substring(4).ifEmpty { null }?.firstOrNull()
+            val opponentColor = state.playerColor.opposite()
+
+            val move = game.move(from, to, promotion) ?: run {
+                _companionState.value = _companionState.value.copy(isThinking = false)
+                return
+            }
+
+            val sound = when {
+                game.isCheck() -> MoveSound.CHECK
+                move.captured != Piece.NONE || move.isEnPassant -> MoveSound.CAPTURE
+                else -> MoveSound.MOVE
+            }
+
+            val moveRecord = GameMoveRecord(
+                moveNumber = game.historyVerbose().size,
+                from = from,
+                to = to,
+                san = move.san(game),
+                fen = game.fen(),
+                playerColor = opponentColor,
+                captured = move.captured != Piece.NONE,
+            )
+
+            val newWhiteTime = if (opponentColor == Color.WHITE) {
+                state.whiteTimeSeconds + state.incrementSeconds
+            } else state.whiteTimeSeconds
+            val newBlackTime = if (opponentColor == Color.BLACK) {
+                state.blackTimeSeconds + state.incrementSeconds
+            } else state.blackTimeSeconds
+
+            _uiState.value = state.copy(
+                fen = game.fen(),
+                lastMoveFrom = move.from,
+                lastMoveTo = move.to,
+                moveHistory = state.moveHistory + moveRecord,
+                whiteTimeSeconds = newWhiteTime,
+                blackTimeSeconds = newBlackTime,
+                soundToPlay = sound,
+            )
+
+            // Server-record the move so it appears in Game History (spec T3
+            // AC 2) — same endpoint Companion Mode already uses successfully.
+            val moveJson = JsonObject().apply {
+                addProperty("from", from)
+                addProperty("to", to)
+                promotion?.let { addProperty("promotion", it.toString()) }
+                addProperty("san", move.san(game))
+                addProperty("uci", uci)
+                addProperty("is_check", game.isCheck())
+                addProperty("is_mate_hint", false)
+                addProperty("is_stalemate", game.isStalemate())
+            }
+            val body = JsonObject().apply { add("move", moveJson) }
+            val response = webSocketApi.sendSyntheticMove(gameId, body)
+            if (!response.isSuccessful) {
+                Timber.w("Synthetic opponent move API failed (game $gameId), board already updated locally")
+            }
+
+            _companionState.value = _companionState.value.copy(isThinking = false)
+        } catch (e: Exception) {
+            Timber.e(e, "Synthetic opponent move failed")
+            _companionState.value = _companionState.value.copy(isThinking = false)
         }
     }
 
@@ -1012,6 +1187,7 @@ class PlayMultiplayerViewModel @Inject constructor(
         super.onCleared()
         timerJob?.cancel()
         companionContinuousJob?.cancel()
+        syntheticOpponentJob?.cancel()
         cctAnalysisJob?.cancel()
         bestMovesJob?.cancel()
         stockfishEngine.shutdown()
@@ -1050,6 +1226,11 @@ data class MultiplayerUiState(
     val error: String? = null,
     val snackbarMessage: String? = null,
     val cctArrows: List<BoardArrow> = emptyList(),
+    /** True for a T3 real-synthetic-opponent game — Companion Mode (plays on
+     *  the player's own behalf) is hidden for these, since the opponent side
+     *  is already bot-driven by [PlayMultiplayerViewModel]'s dedicated
+     *  synthetic-opponent auto-play loop. */
+    val isSyntheticGame: Boolean = false,
 )
 
 enum class MultiplayerPhase { CONNECTING, PLAYING, PAUSED, COMPLETED }

@@ -27,7 +27,6 @@ import timber.log.Timber
  *   - https://chess99.com/reset-password?...  -> ResetPassword(token, email)
  *   - https://chess99.com/referrals           -> ReferralDashboard
  *   - https://chess99.com/puzzles             -> Puzzles
- *   - https://chess99.com/pricing             -> Pricing
  *   - https://chess99.com/                    -> Home
  *
  * Usage:
@@ -76,7 +75,7 @@ object DeepLinkHandler {
                 Screen.PlayMultiplayer.createRoute(destination.gameId)
             is DeepLinkDestination.Tournament ->
                 Screen.ChampionshipDetail.createRoute(destination.championshipId)
-            is DeepLinkDestination.Lobby -> Screen.Lobby.route
+            is DeepLinkDestination.Lobby -> Screen.Lobby.createRoute()
             is DeepLinkDestination.ProfilePage -> Screen.Profile.route
             is DeepLinkDestination.LearnPage -> Screen.Learn.route
             is DeepLinkDestination.ChampionshipListPage -> Screen.ChampionshipList.route
@@ -92,7 +91,6 @@ object DeepLinkHandler {
             is DeepLinkDestination.ReferralDashboardPage ->
                 Screen.ReferralDashboard.route
             is DeepLinkDestination.PuzzlesPage -> Screen.Puzzles.route
-            is DeepLinkDestination.PricingPage -> Screen.Pricing.route
             is DeepLinkDestination.PublicGamePage ->
                 Screen.PublicGameViewer.createRoute(destination.gameId)
         }
@@ -173,7 +171,8 @@ object DeepLinkHandler {
             }
             "referrals" -> DeepLinkDestination.ReferralDashboardPage
             "puzzles" -> DeepLinkDestination.PuzzlesPage
-            "pricing" -> DeepLinkDestination.PricingPage
+            // "pricing" intentionally unhandled — there is no purchase UI in the
+            // app (Play policy), so /pricing links stay in the browser flow.
             "play" -> {
                 // https://chess99.com/play/public/{gameId}
                 if (pathSegments.getOrNull(1) == "public") {
@@ -232,9 +231,6 @@ sealed class DeepLinkDestination {
 
     /** Navigate to the puzzles screen. */
     data object PuzzlesPage : DeepLinkDestination()
-
-    /** Navigate to the pricing screen. */
-    data object PricingPage : DeepLinkDestination()
 
     /** View a public game replay. */
     data class PublicGamePage(val gameId: Int) : DeepLinkDestination()

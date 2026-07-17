@@ -8,18 +8,21 @@ import java.util.concurrent.TimeUnit
 /**
  * JNI bridge to the Stockfish chess engine binary.
  *
- * The Stockfish binary is bundled in the app's native libs (jniLibs/) for each ABI:
- * - arm64-v8a, armeabi-v7a, x86_64
+ * Stockfish 11 (classical eval, no NNUE) is compiled per-ABI by the NDK and
+ * packaged as a fake shared library `libstockfish.so` under
+ * `app/src/main/jniLibs/<abi>/` (arm64-v8a, armeabi-v7a, x86_64). Android only
+ * allows exec() of binaries that live under `context.applicationInfo.nativeLibraryDir`
+ * — since API 29, W^X enforcement blocks executing anything extracted to
+ * app-writable storage (filesDir, cacheDir, etc). `useLegacyPackaging = true`
+ * in app/build.gradle.kts guarantees the .so is extracted to nativeLibraryDir
+ * as a real file at install time, so this path is always exec-legal.
  *
  * Communication uses stdin/stdout via Process streams.
  * Thread-safe via synchronized blocks and blocking queue.
- *
- * Setup instructions:
- * 1. Cross-compile Stockfish for Android NDK targets
- * 2. Place binaries in app/src/main/jniLibs/{abi}/libstockfish.so
- * 3. Or use the process-based approach (copy binary to app files, chmod +x, exec)
  */
 object StockfishBridge {
+
+    private const val ENGINE_LIB_NAME = "libstockfish.so"
 
     private var process: Process? = null
     private var writer: BufferedWriter? = null
@@ -29,16 +32,26 @@ object StockfishBridge {
     private var isRunning = false
 
     /**
-     * Initialize the engine process.
-     * Extracts the Stockfish binary from assets and starts it.
+     * Initialize the engine process from the bundled native binary.
+     *
+     * @param context required — used to resolve applicationInfo.nativeLibraryDir.
+     *   Throws IllegalArgumentException if null (callers must supply an
+     *   application context; see StockfishEngine.initialize()).
      */
     @Synchronized
     fun init(context: Context? = null) {
         if (isRunning) return
+        requireNotNull(context) { "StockfishBridge.init() requires a Context to locate the native engine binary" }
 
-        // In production, extract stockfish binary from assets to internal storage
-        // For now, use a process-based approach with the bundled binary
-        val stockfishPath = context?.let { extractBinary(it) } ?: "stockfish"
+        val stockfishPath = File(context.applicationInfo.nativeLibraryDir, ENGINE_LIB_NAME).absolutePath
+        val binaryFile = File(stockfishPath)
+        if (!binaryFile.exists()) {
+            // Shouldn't happen once packaged correctly for this ABI (T2) — internal
+            // diagnostic message only; UI-facing copy is handled by callers (T4).
+            throw IllegalStateException(
+                "Stockfish binary missing at $stockfishPath (ABI ${android.os.Build.SUPPORTED_ABIS.firstOrNull()})"
+            )
+        }
 
         try {
             val pb = ProcessBuilder(stockfishPath)
@@ -123,29 +136,5 @@ object StockfishBridge {
         process = null
         writer = null
         reader = null
-    }
-
-    /**
-     * Extract the Stockfish binary from assets to internal storage.
-     * Returns the path to the executable.
-     */
-    private fun extractBinary(context: Context): String {
-        val binaryName = "stockfish"
-        val binaryFile = File(context.filesDir, binaryName)
-
-        if (!binaryFile.exists()) {
-            try {
-                context.assets.open(binaryName).use { input ->
-                    FileOutputStream(binaryFile).use { output ->
-                        input.copyTo(output)
-                    }
-                }
-                binaryFile.setExecutable(true)
-            } catch (e: Exception) {
-                throw RuntimeException("Failed to extract Stockfish binary", e)
-            }
-        }
-
-        return binaryFile.absolutePath
     }
 }

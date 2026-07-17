@@ -44,8 +44,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chess99.data.api.TutorialApi
+import com.chess99.data.api.arrOrNull
+import com.chess99.data.api.objOrNull
+import com.chess99.data.api.str
 import com.chess99.engine.ChessGame
 import com.chess99.presentation.common.ChessBoardView
+import com.chess99.presentation.common.friendlyError
 import com.google.gson.JsonObject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -53,6 +57,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 
 @HiltViewModel
@@ -85,6 +90,14 @@ class TutorialLessonViewModel @Inject constructor(
 
     private val game = ChessGame()
 
+    // Lesson types that carry real interactive_stages content on the
+    // backend (matches TutorialLesson::isInteractive() in
+    // chess-backend/app/Models/TutorialLesson.php). Every other type
+    // (currently just "theory" in the production dataset) 400s on
+    // tutorial/lessons/{id}/interactive with "This is not an interactive
+    // lesson." — verified live 2026-07-14, see S5-learn-tutorials-contract.md.
+    private val INTERACTIVE_LESSON_TYPES = setOf("interactive", "puzzle", "practice_game")
+
     fun loadLesson(lessonId: Int) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
@@ -92,34 +105,42 @@ class TutorialLessonViewModel @Inject constructor(
                 // Start the lesson
                 tutorialApi.startLesson(lessonId)
 
-                // Load interactive lesson data
-                val response = tutorialApi.getInteractiveLesson(lessonId)
-                if (!response.isSuccessful) {
-                    _state.update { it.copy(isLoading = false, error = "Failed to load lesson") }
+                // Look up the lesson's type first — theory lessons (slides +
+                // diagrams) and interactive lessons (staged move validation)
+                // are served by different endpoints with different shapes.
+                val plainResponse = tutorialApi.getLesson(lessonId)
+                if (!plainResponse.isSuccessful) {
+                    _state.update {
+                        it.copy(isLoading = false, error = "Couldn't load this lesson. Pull to retry.")
+                    }
+                    return@launch
+                }
+                val plainData = plainResponse.body()?.get("data").objOrNull()
+                if (plainData == null) {
+                    Timber.w("tutorial contract miss (lesson $lessonId): keys=${plainResponse.body()?.keySet()}")
+                    _state.update {
+                        it.copy(isLoading = false, error = "Couldn't load this lesson. Pull to retry.")
+                    }
                     return@launch
                 }
 
-                val body = response.body() ?: run {
-                    _state.update { it.copy(isLoading = false, error = "Empty response") }
-                    return@launch
+                val title = plainData.str("title") ?: "Lesson"
+                val lessonType = plainData.str("lesson_type")
+
+                val stages = if (lessonType in INTERACTIVE_LESSON_TYPES) {
+                    loadInteractiveStages(lessonId)
+                } else {
+                    // theory (slides) or puzzle-without-stage-data fallback:
+                    // render from the plain lesson payload's content_data.
+                    stagesFromContentData(plainData)
                 }
 
-                val data = body.getAsJsonObject("data") ?: body
-                val title = data.get("title")?.asString ?: "Lesson"
-                val description = data.get("description")?.asString ?: ""
-
-                val stagesArray = data.getAsJsonArray("stages")
-                val stages = stagesArray?.mapNotNull { element ->
-                    val obj = element.asJsonObject
-                    Stage(
-                        instruction = obj.get("instruction")?.asString
-                            ?: obj.get("description")?.asString ?: "",
-                        fen = obj.get("fen")?.asString
-                            ?: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-                        expectedMove = obj.get("expected_move")?.asString,
-                        hint = obj.get("hint")?.asString,
-                    )
-                } ?: emptyList()
+                if (stages == null) {
+                    _state.update {
+                        it.copy(isLoading = false, error = "Couldn't load this lesson. Pull to retry.")
+                    }
+                    return@launch
+                }
 
                 if (stages.isNotEmpty()) {
                     game.load(stages[0].fen)
@@ -129,16 +150,61 @@ class TutorialLessonViewModel @Inject constructor(
                     it.copy(
                         isLoading = false,
                         lessonTitle = title,
-                        lessonDescription = description,
+                        lessonDescription = plainData.str("description") ?: "",
                         stages = stages,
                         currentStageIndex = 0,
                     )
                 }
             } catch (e: Exception) {
-                _state.update { it.copy(isLoading = false, error = e.message ?: "Unknown error") }
+                Timber.e(e, "Failed to load lesson $lessonId")
+                _state.update { it.copy(isLoading = false, error = friendlyError(e, "this lesson")) }
             }
         }
     }
+
+    /** @return null on a contract miss (caller shows the error state); empty list is genuine no-content. */
+    private suspend fun loadInteractiveStages(lessonId: Int): List<Stage>? {
+        val response = tutorialApi.getInteractiveLesson(lessonId)
+        if (!response.isSuccessful) return null
+        val data = response.body()?.get("data").objOrNull() ?: return null
+        val stagesArray = data.get("interactive_stages").arrOrNull() ?: return emptyList()
+        return stagesArray.mapNotNull { element ->
+            val obj = element.objOrNull() ?: return@mapNotNull null
+            Stage(
+                instruction = obj.str("instruction_text") ?: obj.str("title") ?: "",
+                fen = obj.str("initial_fen")
+                    ?: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+                // No flat "expected move" concept on the real payload (it
+                // uses goals/success_criteria objects) — free play, same as
+                // the pre-existing null-expectedMove behavior.
+                expectedMove = null,
+                hint = obj.get("hints").arrOrNull()?.firstOrNull()?.takeIf { it.isJsonPrimitive }?.asString,
+            )
+        }
+    }
+
+    /** Renders a theory lesson's `content_data.slides[]` as read-along stages using the existing board UI. */
+    private fun stagesFromContentData(lessonData: JsonObject): List<Stage> {
+        val slides = lessonData.objOrNull("content_data")?.get("slides").arrOrNull() ?: return emptyList()
+        return slides.mapNotNull { element ->
+            val obj = element.objOrNull() ?: return@mapNotNull null
+            val slideTitle = obj.str("title")
+            val bodyText = stripHtml(obj.str("content") ?: "")
+            Stage(
+                instruction = listOfNotNull(slideTitle, bodyText.takeIf { it.isNotBlank() })
+                    .joinToString(separator = "\n\n"),
+                fen = obj.str("diagram")
+                    ?: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+                expectedMove = null,
+                hint = null,
+            )
+        }
+    }
+
+    private fun stripHtml(html: String): String =
+        html.replace(Regex("<[^>]*>"), "").replace("&nbsp;", " ").trim()
+
+    private fun JsonObject?.objOrNull(key: String): JsonObject? = this?.get(key).objOrNull()
 
     fun onMove(from: String, to: String, promotion: Char?) {
         val currentState = _state.value

@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.chess99.app",
+      "sha256_cert_fingerprints": [
+        "72:B3:BB:F1:81:72:6D:08:C7:CC:00:AE:0B:54:E1:C5:A8:53:53:EC:C3:96:EB:E1:72:3B:AF:A6:E0:F5:C6:1F"
+      ]
+    }
+  }
+]

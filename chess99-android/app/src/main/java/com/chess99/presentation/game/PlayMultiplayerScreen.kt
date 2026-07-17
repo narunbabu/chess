@@ -1,5 +1,6 @@
 package com.chess99.presentation.game
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -27,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.chess99.engine.ChessGame
+import com.chess99.presentation.common.ActiveGameType
 import com.chess99.presentation.common.ChessBoardView
 import com.chess99.presentation.common.GameCompletionAnimation
 import com.chess99.presentation.common.GameNavigationWarningDialog
@@ -60,6 +62,12 @@ fun PlayMultiplayerScreen(
 
     val scope = rememberCoroutineScope()
 
+    // Hardware/gesture back gets the SAME leave-game confirmation as the
+    // toolbar back arrow — previously only the arrow was guarded (S11 T3).
+    BackHandler(enabled = state.gamePhase == MultiplayerPhase.PLAYING) {
+        showNavigationWarning = true
+    }
+
     // Load companions when sheet opens for the first time
     LaunchedEffect(showCompanionSheet) {
         if (showCompanionSheet && companionState.companions.isEmpty() && !companionState.isLoading) {
@@ -74,10 +82,11 @@ fun PlayMultiplayerScreen(
         }
     }
 
-    // Navigation warning for back press during active game
+    // Navigation warning for back press during active game (toolbar arrow AND
+    // hardware/gesture back via BackHandler above trigger the same dialog).
     if (showNavigationWarning) {
         GameNavigationWarningDialog(
-            isRated = state.isRated,
+            gameType = ActiveGameType.MULTIPLAYER,
             onLeave = {
                 showNavigationWarning = false
                 onNavigateBack()
@@ -125,7 +134,13 @@ fun PlayMultiplayerScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text("Game #${state.gameId}", style = MaterialTheme.typography.titleMedium)
+                        // T3/T4/T5: a synthetic-opponent game always shows the
+                        // bot's real name here \u2014 never "Computer (Level N)"
+                        // and never a raw "synthetic" enum (spec T4).
+                        Text(
+                            text = if (state.isSyntheticGame) "Playing ${state.opponentName}" else "Game #${state.gameId}",
+                            style = MaterialTheme.typography.titleMedium,
+                        )
                         Text(
                             text = buildString {
                                 append(if (state.isRated) "Rated" else "Casual")
@@ -148,8 +163,11 @@ fun PlayMultiplayerScreen(
                     }
                 },
                 actions = {
-                    // Companion toggle (casual games only)
-                    if (!state.isRated && state.gamePhase != MultiplayerPhase.COMPLETED) {
+                    // Companion toggle (casual human-vs-human games only — a
+                    // T3 synthetic-opponent game already has its own bot
+                    // auto-playing the opponent side, so Companion Mode
+                    // doesn't apply here).
+                    if (!state.isRated && !state.isSyntheticGame && state.gamePhase != MultiplayerPhase.COMPLETED) {
                         IconButton(onClick = {
                             scope.launch {
                                 showCompanionSheet = true

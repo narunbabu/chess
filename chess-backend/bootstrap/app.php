@@ -103,6 +103,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin.auth' => \App\Http\Middleware\AdminAuthMiddleware::class,
             'admin.dashboard' => \App\Http\Middleware\AdminDashboardAccess::class,
             'subscription' => \App\Http\Middleware\CheckSubscription::class,
+            'adult' => \App\Http\Middleware\EnsureAdult::class,
         ]);
 
         // Exclude broadcasting/auth from CSRF verification for WebSocket authentication

@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chess99.data.api.SocialApi
 import com.chess99.data.local.TokenManager
+import com.chess99.presentation.common.friendlyError
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -90,7 +91,7 @@ class LeaderboardViewModel @Inject constructor(
                 Timber.e(e, "Error loading leaderboard")
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = "Network error: ${e.message}",
+                    error = friendlyError(e, "the leaderboard"),
                 )
             }
         }

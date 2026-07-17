@@ -4,11 +4,17 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chess99.data.api.GameApi
+import com.chess99.data.api.arrOrNull
+import com.chess99.data.api.int
+import com.chess99.data.api.objOrNull
+import com.chess99.data.api.str
 import com.chess99.domain.model.*
 import com.chess99.engine.ChessGame
+import com.chess99.engine.EngineFailureCopy
 import com.chess99.engine.StockfishEngine
 import com.chess99.engine.PositionAnalysis
 import com.chess99.engine.detectOpening
+import com.chess99.presentation.common.friendlyError
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -72,21 +78,23 @@ class GameHistoryViewModel @Inject constructor(
                 val response = gameApi.getUserGames(page = page, perPage = PAGE_SIZE)
                 if (response.isSuccessful) {
                     val body = response.body() ?: JsonObject()
-                    val gamesArray = body.getAsJsonArray("games")
-                        ?: body.getAsJsonObject("data")?.let { null }
-                        ?: body.getAsJsonArray("data")
+                    val gamesArray = body.get("games")?.arrOrNull()
+                        ?: body.get("data")?.arrOrNull()
                         ?: run {
                             // Try unwrapping from paginated response
-                            body.getAsJsonObject("games")?.getAsJsonArray("data")
+                            body.get("games")?.objOrNull()?.get("data")?.arrOrNull()
                         }
 
-                    val parsedGames = gamesArray?.map { el ->
-                        parseGameSummary(el.asJsonObject)
-                    } ?: emptyList()
+                    // Null-safe parse: a single junk/JsonNull entry from prod
+                    // must not crash the whole list (was a ClassCastException
+                    // via el.asJsonObject before this fix).
+                    val parsedGames = gamesArray
+                        ?.mapNotNull { el -> el.objOrNull()?.let { runCatching { parseGameSummary(it) }.getOrNull() } }
+                        ?: emptyList()
 
                     val totalPages = body.get("last_page")?.asInt
-                        ?: body.getAsJsonObject("games")?.get("last_page")?.asInt
-                        ?: body.getAsJsonObject("meta")?.get("last_page")?.asInt
+                        ?: body.get("games")?.objOrNull()?.get("last_page")?.asInt
+                        ?: body.get("meta")?.objOrNull()?.get("last_page")?.asInt
                         ?: if (parsedGames.size < PAGE_SIZE) page else page + 1
 
                     val allGames = if (reset) parsedGames else state.games + parsedGames
@@ -105,7 +113,7 @@ class GameHistoryViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         isLoadingMore = false,
-                        error = "Failed to load games (${response.code()})",
+                        error = "Couldn't load your games. Please try again.",
                     )
                 }
             } catch (e: Exception) {
@@ -113,7 +121,7 @@ class GameHistoryViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     isLoadingMore = false,
-                    error = "Network error: ${e.message}",
+                    error = friendlyError(e, "your games"),
                 )
             }
         }
@@ -208,7 +216,7 @@ class GameHistoryViewModel @Inject constructor(
                 val response = gameApi.getGame(gameId)
                 if (response.isSuccessful) {
                     val body = response.body() ?: return@launch
-                    val gameData = body.getAsJsonObject("game") ?: body
+                    val gameData = body.get("game")?.objOrNull() ?: body
                     val game = parseGameSummary(gameData)
                     _uiState.value = _uiState.value.copy(
                         games = listOf(game),
@@ -228,7 +236,7 @@ class GameHistoryViewModel @Inject constructor(
                 Timber.e(e, "Error loading game $gameId")
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = "Network error: ${e.message}",
+                    error = friendlyError(e, "this game"),
                 )
             }
         }
@@ -240,18 +248,18 @@ class GameHistoryViewModel @Inject constructor(
                 val response = gameApi.getGameMoves(gameId)
                 if (response.isSuccessful) {
                     val body = response.body() ?: return@launch
-                    val movesArray = body.getAsJsonArray("moves")
-                        ?: body.getAsJsonArray("data")
+                    val movesArray = body.get("moves")?.arrOrNull()
+                        ?: body.get("data")?.arrOrNull()
 
-                    val moves = movesArray?.map { el ->
-                        val m = el.asJsonObject
+                    val moves = movesArray?.mapNotNull { el ->
+                        val m = el.objOrNull() ?: return@mapNotNull null
                         ReplayMove(
-                            moveNumber = m.get("move_number")?.asInt ?: 0,
-                            from = m.get("from")?.asString ?: "",
-                            to = m.get("to")?.asString ?: "",
-                            san = m.get("san")?.asString ?: m.get("notation")?.asString ?: "",
-                            fen = m.get("fen")?.asString ?: "",
-                            promotion = m.get("promotion")?.asString,
+                            moveNumber = m.int("move_number") ?: 0,
+                            from = m.str("from") ?: "",
+                            to = m.str("to") ?: "",
+                            san = m.str("san") ?: m.str("notation") ?: "",
+                            fen = m.str("fen") ?: "",
+                            promotion = m.str("promotion"),
                         )
                     } ?: emptyList()
 
@@ -280,7 +288,7 @@ class GameHistoryViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(
                     replayState = _uiState.value.replayState?.copy(
                         isLoadingMoves = false,
-                        error = "Error: ${e.message}",
+                        error = friendlyError(e, "the moves"),
                     ),
                 )
             }
@@ -525,22 +533,22 @@ class GameHistoryViewModel @Inject constructor(
     // ── Parsing ───────────────────────────────────────────────────────
 
     private fun parseGameSummary(json: JsonObject): GameSummary {
-        val id = json.get("id")?.asInt ?: 0
+        val id = json.int("id") ?: 0
 
         // Determine opponent — API may structure this differently
-        val opponentName = json.get("opponent_name")?.asString
-            ?: json.getAsJsonObject("opponent")?.get("name")?.asString
-            ?: json.get("white_player_name")?.asString
+        val opponentName = json.str("opponent_name")
+            ?: json.get("opponent")?.objOrNull().str("name")
+            ?: json.str("white_player_name")
             ?: "Unknown"
 
-        val playerColor = json.get("player_color")?.asString
-            ?: json.get("color")?.asString
+        val playerColor = json.str("player_color")
+            ?: json.str("color")
             ?: "white"
 
         // Result
-        val resultStr = json.get("result")?.asString
-            ?: json.get("winner")?.asString
-            ?: json.get("status")?.asString
+        val resultStr = json.str("result")
+            ?: json.str("winner")
+            ?: json.str("status")
             ?: ""
         val result = when {
             resultStr.equals("won", ignoreCase = true) ||
@@ -551,8 +559,8 @@ class GameHistoryViewModel @Inject constructor(
                     resultStr.equals("1/2-1/2", ignoreCase = true) -> GameResult.DRAW
             else -> {
                 // Try to infer from winner field
-                val winnerId = json.get("winner_id")?.asInt
-                val userId = json.get("user_id")?.asInt
+                val winnerId = json.int("winner_id")
+                val userId = json.int("user_id")
                 when {
                     winnerId == null || winnerId == 0 -> GameResult.DRAW
                     winnerId == userId -> GameResult.WON
@@ -561,33 +569,33 @@ class GameHistoryViewModel @Inject constructor(
             }
         }
 
-        val timeControl = json.get("time_control")?.asString
-            ?: json.get("time_setting")?.asString
+        val timeControl = json.str("time_control")
+            ?: json.str("time_setting")
             ?: ""
 
-        val gameMode = json.get("game_mode")?.asString
-            ?: json.get("mode")?.asString
+        val gameMode = json.str("game_mode")
+            ?: json.str("mode")
             ?: "casual"
 
-        val ratingChange = json.get("rating_change")?.asInt
-            ?: json.get("rating_diff")?.asInt
+        val ratingChange = json.int("rating_change")
+            ?: json.int("rating_diff")
             ?: 0
 
-        val playedAt = json.get("played_at")?.asString
-            ?: json.get("created_at")?.asString
-            ?: json.get("completed_at")?.asString
+        val playedAt = json.str("played_at")
+            ?: json.str("created_at")
+            ?: json.str("completed_at")
             ?: ""
 
-        val totalMoves = json.get("total_moves")?.asInt
-            ?: json.get("moves_count")?.asInt
+        val totalMoves = json.int("total_moves")
+            ?: json.int("moves_count")
             ?: 0
 
-        val endReason = json.get("end_reason")?.asString
-            ?: json.get("termination")?.asString
+        val endReason = json.str("end_reason")
+            ?: json.str("termination")
             ?: ""
 
-        val opponentRating = json.get("opponent_rating")?.asInt
-            ?: json.getAsJsonObject("opponent")?.get("rating")?.asInt
+        val opponentRating = json.int("opponent_rating")
+            ?: json.get("opponent")?.objOrNull().int("rating")
             ?: 0
 
         return GameSummary(
@@ -685,10 +693,26 @@ class GameHistoryViewModel @Inject constructor(
             return
         }
 
+        // Isolate engine startup so a "couldn't start" failure gets the honest,
+        // kid-safe copy (S2 T4) instead of being caught by the broader analysis
+        // try/catch below, which reports genuine mid-analysis bugs. Both clauses
+        // show the same friendly copy — newGame()'s UCI handshake (non-init) can
+        // also fail, and the engine is equally unusable for this session either way.
         try {
             stockfishEngine.initialize()
             stockfishEngine.newGame()
+        } catch (e: Exception) {
+            Timber.e(e, "Stockfish failed to start for game review analysis")
+            _uiState.value = _uiState.value.copy(
+                analysisReport = GameAnalysisReport(
+                    status = AnalysisStatus.ERROR,
+                    error = EngineFailureCopy.MESSAGE,
+                ),
+            )
+            return
+        }
 
+        try {
             val fenPositions = replay.fenPositions
             val totalPositions = fenPositions.size
 
@@ -803,10 +827,11 @@ class GameHistoryViewModel @Inject constructor(
             )
         } catch (e: Exception) {
             Timber.e(e, "Local Stockfish analysis failed")
+            // Never surface e.message — kid-safe copy (master plan rule 6).
             _uiState.value = _uiState.value.copy(
                 analysisReport = GameAnalysisReport(
                     status = AnalysisStatus.ERROR,
-                    error = "Analysis failed: ${e.message}",
+                    error = "We couldn't finish analyzing this game. Please try again.",
                 ),
             )
         }

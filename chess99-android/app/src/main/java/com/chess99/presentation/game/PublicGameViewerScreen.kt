@@ -49,6 +49,7 @@ import androidx.lifecycle.viewModelScope
 import com.chess99.data.api.GameApi
 import com.chess99.engine.ChessGame
 import com.chess99.presentation.common.ChessBoardView
+import com.chess99.presentation.common.friendlyError
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -132,7 +133,7 @@ class PublicGameViewerViewModel @Inject constructor(
                     )
                 }
             } catch (e: Exception) {
-                _state.update { it.copy(isLoading = false, error = e.message) }
+                _state.update { it.copy(isLoading = false, error = friendlyError(e, "this game")) }
             }
         }
     }

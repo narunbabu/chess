@@ -31,10 +31,19 @@ import androidx.hilt.navigation.compose.hiltViewModel
 fun LobbyScreen(
     onNavigateBack: () -> Unit,
     onNavigateToGame: (Int) -> Unit,
+    /** T2: opens directly on Matchmaking when a Home "Nearby Opponents" real
+     *  player card was tapped. Any other/absent value falls back to Players. */
+    initialTab: String? = null,
     viewModel: LobbyViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(initialTab) {
+        if (initialTab == "matchmaking") {
+            viewModel.selectTab(LobbyTab.MATCHMAKING)
+        }
+    }
 
     // Navigate to matched game
     LaunchedEffect(state.matchedGameId) {
@@ -86,7 +95,17 @@ fun LobbyScreen(
                     selected = state.selectedTab == LobbyTab.FRIENDS,
                     onClick = { viewModel.selectTab(LobbyTab.FRIENDS) },
                     text = { Text("Friends") },
-                    icon = { Icon(Icons.Default.Group, null, modifier = Modifier.size(18.dp)) },
+                    icon = {
+                        BadgedBox(
+                            badge = {
+                                if (state.pendingFriendRequests.isNotEmpty()) {
+                                    Badge { Text("${state.pendingFriendRequests.size}") }
+                                }
+                            }
+                        ) {
+                            Icon(Icons.Default.Group, null, modifier = Modifier.size(18.dp))
+                        }
+                    },
                 )
                 Tab(
                     selected = state.selectedTab == LobbyTab.MATCHMAKING,
@@ -124,12 +143,16 @@ fun LobbyScreen(
                 )
                 LobbyTab.FRIENDS -> FriendsTab(
                     friends = state.friends,
+                    pendingRequests = state.pendingFriendRequests,
                     searchResults = state.searchResults,
                     onSearch = { viewModel.searchUsers(it) },
                     onAddFriend = { viewModel.sendFriendRequest(it) },
                     onChallenge = { playerId ->
                         viewModel.sendInvitation(playerId, "10|0", "random", "casual")
                     },
+                    onAcceptRequest = { viewModel.acceptFriendRequest(it) },
+                    onDeclineRequest = { viewModel.declineFriendRequest(it) },
+                    onRemoveFriend = { viewModel.removeFriend(it) },
                 )
                 LobbyTab.MATCHMAKING -> MatchmakingTab(
                     state = state.matchmakingState,
@@ -229,12 +252,17 @@ private fun PlayerCard(player: LobbyPlayer, onChallenge: () -> Unit) {
 @Composable
 private fun FriendsTab(
     friends: List<LobbyPlayer>,
+    pendingRequests: List<LobbyPlayer>,
     searchResults: List<LobbyPlayer>,
     onSearch: (String) -> Unit,
     onAddFriend: (Int) -> Unit,
     onChallenge: (Int) -> Unit,
+    onAcceptRequest: (Int) -> Unit,
+    onDeclineRequest: (Int) -> Unit,
+    onRemoveFriend: (Int) -> Unit,
 ) {
     var searchQuery by remember { mutableStateOf("") }
+    var friendPendingRemoval by remember { mutableStateOf<LobbyPlayer?>(null) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         // Search bar
@@ -284,24 +312,189 @@ private fun FriendsTab(
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
         }
 
-        // Friends list
-        Text(
-            "Friends (${friends.size})",
-            style = MaterialTheme.typography.titleSmall,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-        )
-        if (friends.isEmpty()) {
-            Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Text("No friends yet. Search for players above!", textAlign = TextAlign.Center)
+        LazyColumn(
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            // Friend requests section (T1) — above the friends list, absent when empty.
+            if (pendingRequests.isNotEmpty()) {
+                item(key = "requests-header") {
+                    SectionHeader("Friend requests")
+                }
+                items(pendingRequests, key = { "request-${it.id}" }) { requester ->
+                    FriendRequestCard(
+                        requester = requester,
+                        onAccept = { onAcceptRequest(requester.id) },
+                        onDecline = { onDeclineRequest(requester.id) },
+                    )
+                }
+                item(key = "requests-divider") {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                }
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+
+            item(key = "friends-header") {
+                Text(
+                    "Friends (${friends.size})",
+                    style = MaterialTheme.typography.titleSmall,
+                )
+            }
+
+            if (friends.isEmpty()) {
+                item(key = "friends-empty") {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text("No friends yet. Search for players above!", textAlign = TextAlign.Center)
+                    }
+                }
+            } else {
+                items(friends, key = { "friend-${it.id}" }) { friend ->
+                    FriendCard(
+                        friend = friend,
+                        onChallenge = { onChallenge(friend.id) },
+                        onRemove = { friendPendingRemoval = friend },
+                    )
+                }
+            }
+        }
+    }
+
+    // Remove-friend confirmation (T3) — removal must not be a one-tap.
+    friendPendingRemoval?.let { friend ->
+        AlertDialog(
+            onDismissRequest = { friendPendingRemoval = null },
+            title = { Text("Remove friend?") },
+            text = { Text("Remove ${friend.name} from your chess mates? You can add them again anytime.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onRemoveFriend(friend.id)
+                    friendPendingRemoval = null
+                }) { Text("Remove") }
+            },
+            dismissButton = {
+                TextButton(onClick = { friendPendingRemoval = null }) { Text("Cancel") }
+            },
+        )
+    }
+}
+
+@Composable
+private fun SectionHeader(title: String) {
+    Text(
+        title,
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.primary,
+    )
+}
+
+@Composable
+private fun FriendRequestCard(
+    requester: LobbyPlayer,
+    onAccept: () -> Unit,
+    onDecline: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp).fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // Avatar initial
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary),
+                contentAlignment = Alignment.Center,
             ) {
-                items(friends, key = { it.id }) { friend ->
-                    PlayerCard(player = friend, onChallenge = { onChallenge(friend.id) })
+                Text(
+                    requester.name.take(1).uppercase(),
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(requester.name, fontWeight = FontWeight.Medium)
+                Text(
+                    "Rating: ${requester.rating}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            TextButton(onClick = onDecline, contentPadding = PaddingValues(horizontal = 8.dp)) {
+                Text("Decline", fontSize = 12.sp)
+            }
+            Spacer(modifier = Modifier.width(4.dp))
+            Button(onClick = onAccept, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)) {
+                Text("Accept", fontSize = 12.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun FriendCard(
+    friend: LobbyPlayer,
+    onChallenge: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .padding(12.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // Online indicator
+            Box(
+                modifier = Modifier
+                    .size(10.dp)
+                    .clip(CircleShape)
+                    .background(if (friend.isOnline) Color(0xFF4CAF50) else Color.Gray)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // Friend info
+            Column(modifier = Modifier.weight(1f)) {
+                Text(friend.name, fontWeight = FontWeight.Medium)
+                Text(
+                    "Rating: ${friend.rating}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            // Challenge stays the primary action.
+            OutlinedButton(onClick = onChallenge, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)) {
+                Icon(Icons.Default.SportsEsports, null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Challenge", fontSize = 12.sp)
+            }
+
+            // Overflow menu — Remove friend is deliberately not a one-tap action.
+            Box {
+                IconButton(onClick = { menuExpanded = true }) {
+                    Icon(Icons.Default.MoreVert, "More options")
+                }
+                DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                    DropdownMenuItem(
+                        text = { Text("Remove friend") },
+                        onClick = {
+                            menuExpanded = false
+                            onRemove()
+                        },
+                    )
                 }
             }
         }
@@ -438,7 +631,17 @@ private fun MatchmakingTab(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(4.dp))
+                // T4: sets expectations up front — the server falls back to a
+                // synthetic opponent on queue expiry (MatchmakingService
+                // checkStatus → matchWithSynthetic), so a search is never a
+                // dead end even in a thin player pool. No "0 online" badge.
+                Text(
+                    text = "Finding a player usually takes under a minute.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.height(28.dp))
                 OutlinedButton(onClick = onCancel) {
                     Text("Cancel")
                 }

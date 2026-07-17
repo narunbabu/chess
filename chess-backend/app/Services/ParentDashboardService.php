@@ -39,8 +39,17 @@ class ParentDashboardService
                     $relationship
                 ))
                 ->values(),
+            // Guardian-initiated invites still awaiting the child's acceptance.
             'pending_children' => $relationships
                 ->where('status', GuardianChildRelationship::STATUS_PENDING)
+                ->filter(fn (GuardianChildRelationship $relationship) => $relationship->initiated_by !== GuardianChildRelationship::INITIATED_BY_CHILD)
+                ->map(fn (GuardianChildRelationship $relationship) => $this->relationshipPayload($relationship))
+                ->values(),
+            // Minors who named THIS guardian at signup — awaiting the guardian's
+            // consent (approve via the same accept endpoint).
+            'pending_child_consent_requests' => $relationships
+                ->where('status', GuardianChildRelationship::STATUS_PENDING)
+                ->filter(fn (GuardianChildRelationship $relationship) => $relationship->initiated_by === GuardianChildRelationship::INITIATED_BY_CHILD)
                 ->map(fn (GuardianChildRelationship $relationship) => $this->relationshipPayload($relationship))
                 ->values(),
             'pending_guardian_requests' => $pendingForChild
@@ -139,6 +148,7 @@ class ParentDashboardService
         return [
             'id' => $relationship->id,
             'status' => $relationship->status,
+            'initiated_by' => $relationship->initiated_by,
             'relationship_label' => $relationship->relationship_label,
             'invite_email' => $relationship->invite_email,
             'invited_at' => $relationship->invited_at?->toIso8601String(),

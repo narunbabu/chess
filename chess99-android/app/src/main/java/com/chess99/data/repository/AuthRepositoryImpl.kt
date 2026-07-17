@@ -25,9 +25,20 @@ class AuthRepositoryImpl @Inject constructor(
         email: String,
         password: String,
         passwordConfirmation: String,
+        birthday: String,
+        guardianEmail: String?,
     ): Result<AuthResult> {
         return executeAuth {
-            authApi.register(RegisterRequest(name, email, password, passwordConfirmation))
+            authApi.register(
+                RegisterRequest(
+                    name = name,
+                    email = email,
+                    password = password,
+                    passwordConfirmation = passwordConfirmation,
+                    birthday = birthday,
+                    guardianEmail = guardianEmail,
+                )
+            )
         }
     }
 

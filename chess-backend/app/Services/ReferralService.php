@@ -36,6 +36,20 @@ class ReferralService
     /** Combined activity threshold for the ₹5 milestone. */
     public const ACTIVITY_100_THRESHOLD = 100;
 
+    /**
+     * Anti-fraud (A-1): earnings in this status are NOT paid out and NOT shown as
+     * an ambassador's pending balance until an admin (or a real-activity trigger)
+     * releases them to 'approved'. Kept out of calculateMonthlyPayouts + getUserStats.
+     */
+    public const STATUS_HELD = 'held';
+
+    /**
+     * Max milestone earnings a single referrer can have auto-approved per day.
+     * Overflow is recorded as HELD for manual review (payouts are manual UPI, so
+     * the review gate is nearly free).
+     */
+    public const MILESTONE_DAILY_APPROVE_CAP = 20;
+
     const COMMISSION_RATE = 0.10; // legacy fallback (deprecated, kept for old callers)
 
     /**
@@ -248,6 +262,8 @@ class ReferralService
             return $existing;
         }
 
+        $status = $this->initialMilestoneStatus($referredUser, $eventType);
+
         $earning = ReferralEarning::create([
             'referral_code_id' => $referredUser->referred_by_code_id,
             'referrer_user_id' => $referredUser->referred_by_user_id,
@@ -260,8 +276,13 @@ class ReferralService
             'commission_rate' => 0,
             'earning_amount' => $amount,
             'currency' => 'INR',
-            'status' => 'approved', // milestones approve immediately — no refund window
+            'status' => $status,
         ]);
+
+        // Genuine activity backs the account: release the held ₹2 phone milestone.
+        if (in_array($eventType, ['first_activity', 'activity_100'], true)) {
+            $this->releaseHeldSignupPhone($referredUser);
+        }
 
         Log::info('Referral milestone earned', [
             'earning_id' => $earning->id,
@@ -270,9 +291,57 @@ class ReferralService
             'event_type' => $eventType,
             'event_ref_id' => $eventRefId,
             'amount' => $amount,
+            'status' => $status,
         ]);
 
         return $earning;
+    }
+
+    /**
+     * Decide the status a new milestone earning should start in (A-1 anti-fraud).
+     *
+     * - signup_phone (₹2): always HELD — the phone number is unverified (no OTP),
+     *   so it is farmable. Released to approved only when the referred user shows
+     *   real activity (first_activity / activity_100 via releaseHeldSignupPhone).
+     * - first_activity / activity_100: approved, unless the referrer has already
+     *   hit the daily auto-approve cap, in which case HELD for manual review.
+     */
+    private function initialMilestoneStatus(User $referredUser, string $eventType): string
+    {
+        if ($eventType === 'signup_phone') {
+            return self::STATUS_HELD;
+        }
+
+        $approvedToday = ReferralEarning::where('referrer_user_id', $referredUser->referred_by_user_id)
+            ->whereIn('event_type', ['signup_phone', 'first_activity', 'activity_100'])
+            ->where('status', 'approved')
+            ->whereDate('created_at', now()->toDateString())
+            ->count();
+
+        if ($approvedToday >= self::MILESTONE_DAILY_APPROVE_CAP) {
+            Log::warning('Referral milestone held — daily approve cap reached', [
+                'referrer_id' => $referredUser->referred_by_user_id,
+                'referred_id' => $referredUser->id,
+                'event_type' => $eventType,
+            ]);
+            return self::STATUS_HELD;
+        }
+
+        return 'approved';
+    }
+
+    /**
+     * Release a held ₹2 signup_phone milestone for a user who has now shown real
+     * activity. Idempotent and safe to call repeatedly. Never touches earnings
+     * already attached to a payout.
+     */
+    private function releaseHeldSignupPhone(User $referredUser): void
+    {
+        ReferralEarning::where('referred_user_id', $referredUser->id)
+            ->where('event_type', 'signup_phone')
+            ->where('status', self::STATUS_HELD)
+            ->whereNull('payout_id')
+            ->update(['status' => 'approved']);
     }
 
     /**

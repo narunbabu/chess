@@ -2,8 +2,10 @@
 <resources>
     <string name="app_name">Chess99</string>
 
-    <!-- Facebook SDK configuration — replace with actual Facebook App credentials -->
-    <string name="facebook_app_id">FACEBOOK_APP_ID</string>
-    <string name="facebook_client_token">FACEBOOK_CLIENT_TOKEN</string>
-    <string name="fb_login_protocol_scheme">fbFACEBOOK_APP_ID</string>
+    <!-- Facebook SDK configuration. The App ID is public (same app as web login);
+         the client token is from Meta for Developers → App Settings → Advanced →
+         Security → Client token (not a secret, but app-scoped). -->
+    <string name="facebook_app_id">1696238708465565</string>
+    <string name="facebook_client_token">807fbde0ab28c4c19061924a51510f3e</string>
+    <string name="fb_login_protocol_scheme">fb1696238708465565</string>
 </resources>

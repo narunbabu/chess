@@ -161,7 +161,11 @@ export const getGameHistories = async () => {
       const token = localStorage.getItem("auth_token");
       if (token) {
         try {
-          const res = await api.get("/game-history");
+          // Boot-time/background call (AppDataContext → Dashboard widget, among
+          // others) — a 401 here is handled locally below (falls back to
+          // localStorage), so it shouldn't also trigger the global session-expired
+          // redirect via the axios interceptor.
+          const res = await api.get("/game-history", { skipAuthRedirect: true });
           console.log('[gameHistoryService] ✅ Fetched from backend - Keeping moves as string');
           const processedData = res.data.data.map(game => {
           // console.log(`[gameHistoryService] Game ${game.id}: moves type = ${typeof game.moves}, value =`, game.moves?.substring?.(0, 50));

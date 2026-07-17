@@ -4,8 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chess99.data.api.GameApi
 import com.chess99.data.api.MatchmakingApi
+import com.chess99.data.api.RatingWindow
 import com.chess99.data.local.TokenManager
 import com.chess99.data.websocket.PusherManager
+import com.chess99.data.api.bool
+import com.chess99.data.api.int
+import com.chess99.data.api.str
+import com.chess99.presentation.common.friendlyError
 import com.google.gson.JsonObject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -57,6 +62,7 @@ class LobbyViewModel @Inject constructor(
                 launch { loadSentInvitations() }
                 launch { loadActiveGames() }
                 launch { loadFriends() }
+                launch { loadPendingFriendRequests() }
                 launch { loadOnlineCount() }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to load lobby data")
@@ -68,10 +74,15 @@ class LobbyViewModel @Inject constructor(
 
     private suspend fun loadOnlinePlayers() {
         try {
-            val response = matchmakingApi.getLobbyPlayers()
+            // LobbyViewModel has no current-user-rating fetch today (unlike
+            // HomeViewModel's authRepository.getCurrentUser() for T2's
+            // Nearby Opponents) — falls back to RatingWindow's documented
+            // default (400) rather than adding a new profile call here.
+            val (minRating, maxRating) = RatingWindow.defaultWindow(null)
+            val response = matchmakingApi.getLobbyPlayers(minRating, maxRating)
             if (response.isSuccessful) {
                 val body = response.body() ?: return
-                val players = body.getAsJsonArray("players")?.map { el ->
+                val realPlayers = body.getAsJsonArray("real_players")?.map { el ->
                     val p = el.asJsonObject
                     LobbyPlayer(
                         id = p.get("id")?.asInt ?: 0,
@@ -81,7 +92,7 @@ class LobbyViewModel @Inject constructor(
                         avatarUrl = p.get("avatar_url")?.asString,
                     )
                 } ?: emptyList()
-                _uiState.value = _uiState.value.copy(onlinePlayers = players)
+                _uiState.value = _uiState.value.copy(onlinePlayers = realPlayers)
             }
         } catch (e: Exception) {
             Timber.e(e, "Failed to load online players")
@@ -144,20 +155,42 @@ class LobbyViewModel @Inject constructor(
             val response = matchmakingApi.getFriends()
             if (response.isSuccessful) {
                 val body = response.body() ?: return
-                val friends = body.getAsJsonArray("friends")?.map { el ->
+                val friends = body.map { el ->
                     val f = el.asJsonObject
                     LobbyPlayer(
-                        id = f.get("id")?.asInt ?: 0,
-                        name = f.get("name")?.asString ?: "",
-                        rating = f.get("rating")?.asInt ?: 1200,
-                        isOnline = f.get("is_online")?.asBoolean ?: false,
-                        avatarUrl = f.get("avatar_url")?.asString,
+                        id = f.int("id") ?: 0,
+                        name = f.str("name") ?: "",
+                        rating = f.int("rating") ?: 1200,
+                        isOnline = f.bool("is_online") ?: false,
+                        avatarUrl = f.str("avatar_url"),
                     )
-                } ?: emptyList()
+                }
                 _uiState.value = _uiState.value.copy(friends = friends)
             }
         } catch (e: Exception) {
             Timber.e(e, "Failed to load friends")
+        }
+    }
+
+    private suspend fun loadPendingFriendRequests() {
+        try {
+            val response = matchmakingApi.getPendingFriendRequests()
+            if (response.isSuccessful) {
+                val body = response.body() ?: return
+                val requests = body.map { el ->
+                    val f = el.asJsonObject
+                    LobbyPlayer(
+                        id = f.int("id") ?: 0,
+                        name = f.str("name") ?: "",
+                        rating = f.int("rating") ?: 1200,
+                        isOnline = f.bool("is_online") ?: false,
+                        avatarUrl = f.str("avatar_url"),
+                    )
+                }
+                _uiState.value = _uiState.value.copy(pendingFriendRequests = requests)
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to load pending friend requests")
         }
     }
 
@@ -255,7 +288,7 @@ class LobbyViewModel @Inject constructor(
         } catch (e: Exception) {
             _uiState.value = _uiState.value.copy(
                 matchmakingState = MatchmakingState.IDLE,
-                error = "Queue error: ${e.message}",
+                error = friendlyError(e, "matchmaking"),
             )
         }
     }
@@ -372,7 +405,7 @@ class LobbyViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(error = "Failed to send challenge")
                 }
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(error = "Error: ${e.message}")
+                _uiState.value = _uiState.value.copy(error = friendlyError(e, "the lobby"))
             }
         }
     }
@@ -393,7 +426,7 @@ class LobbyViewModel @Inject constructor(
                     loadPendingInvitations()
                 }
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(error = "Failed to accept: ${e.message}")
+                _uiState.value = _uiState.value.copy(error = friendlyError(e, "accepting the invite"))
             }
         }
     }
@@ -456,7 +489,7 @@ class LobbyViewModel @Inject constructor(
                 matchmakingApi.sendFriendRequest(body)
                 _uiState.value = _uiState.value.copy(snackbarMessage = "Friend request sent!")
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(error = "Failed: ${e.message}")
+                _uiState.value = _uiState.value.copy(error = friendlyError(e, "this action"))
             }
         }
     }
@@ -464,10 +497,50 @@ class LobbyViewModel @Inject constructor(
     fun acceptFriendRequest(requestId: Int) {
         viewModelScope.launch {
             try {
-                matchmakingApi.acceptFriendRequest(requestId)
-                loadFriends()
+                val response = matchmakingApi.acceptFriendRequest(requestId)
+                if (response.isSuccessful) {
+                    _uiState.value = _uiState.value.copy(snackbarMessage = "Friend request accepted!")
+                    loadFriends()
+                    loadPendingFriendRequests()
+                } else {
+                    _uiState.value = _uiState.value.copy(error = "Couldn't accept this request. Please try again.")
+                }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to accept friend request")
+                _uiState.value = _uiState.value.copy(error = friendlyError(e, "this request"))
+            }
+        }
+    }
+
+    fun declineFriendRequest(requestId: Int) {
+        viewModelScope.launch {
+            try {
+                val response = matchmakingApi.declineFriendRequest(requestId)
+                if (response.isSuccessful) {
+                    loadPendingFriendRequests()
+                } else {
+                    _uiState.value = _uiState.value.copy(error = "Couldn't decline this request. Please try again.")
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to decline friend request")
+                _uiState.value = _uiState.value.copy(error = friendlyError(e, "this request"))
+            }
+        }
+    }
+
+    fun removeFriend(friendId: Int) {
+        viewModelScope.launch {
+            try {
+                val response = matchmakingApi.removeFriend(friendId)
+                if (response.isSuccessful) {
+                    _uiState.value = _uiState.value.copy(snackbarMessage = "Friend removed")
+                    loadFriends()
+                } else {
+                    _uiState.value = _uiState.value.copy(error = "Couldn't remove this friend. Please try again.")
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to remove friend")
+                _uiState.value = _uiState.value.copy(error = friendlyError(e, "this action"))
             }
         }
     }
@@ -512,6 +585,7 @@ data class LobbyUiState(
     val selectedTab: LobbyTab = LobbyTab.PLAYERS,
     val onlinePlayers: List<LobbyPlayer> = emptyList(),
     val friends: List<LobbyPlayer> = emptyList(),
+    val pendingFriendRequests: List<LobbyPlayer> = emptyList(),
     val pendingInvitations: List<Invitation> = emptyList(),
     val sentInvitations: List<Invitation> = emptyList(),
     val activeGames: List<ActiveGame> = emptyList(),

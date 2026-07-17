@@ -3,6 +3,7 @@ package com.chess99.presentation.profile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chess99.data.api.OrganizationApi
+import com.chess99.presentation.common.friendlyError
 import com.google.gson.JsonObject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -84,7 +85,7 @@ class OrganizationsViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to search organizations")
-                _uiState.value = _uiState.value.copy(isLoading = false, error = e.message)
+                _uiState.value = _uiState.value.copy(isLoading = false, error = friendlyError(e, "organizations"))
             }
         }
     }
@@ -117,7 +118,7 @@ class OrganizationsViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Create organization error")
-                _uiState.value = _uiState.value.copy(isCreating = false, snackbarMessage = e.message)
+                _uiState.value = _uiState.value.copy(isCreating = false, snackbarMessage = friendlyError(e, "creating the organization"))
             }
         }
     }
@@ -186,7 +187,7 @@ class OrganizationsViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(isInviting = false, snackbarMessage = msg)
             } catch (e: Exception) {
                 Timber.e(e, "Invite member error")
-                _uiState.value = _uiState.value.copy(isInviting = false, snackbarMessage = e.message)
+                _uiState.value = _uiState.value.copy(isInviting = false, snackbarMessage = friendlyError(e, "sending the invite"))
             }
         }
     }

@@ -692,25 +692,84 @@ private fun FriendCard(friend: FriendInfo, showOnlineIndicator: Boolean) {
 private fun StatsTab(state: ProfileUiState, viewModel: ProfileViewModel, onNavigateToRatingHistory: () -> Unit = {}) {
     val stats = state.stats
 
+    // Loading (first load, nothing to show yet)
+    if (state.isStatsLoading && stats == null && state.statsError == null) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .height(200.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+
+    // Friendly error + Retry (no stats to show)
+    if (state.statsError != null && stats == null) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(
+                    Icons.Default.ErrorOutline,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
+                    tint = MaterialTheme.colorScheme.error,
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = state.statsError,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(onClick = { viewModel.retryStats() }) {
+                    Text("Retry")
+                }
+            }
+        }
+        return
+    }
+
+    // Genuine empty state: API succeeded but the player has no games yet
+    if (stats != null && stats.totalGames == 0) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(
+                    Icons.Default.BarChart,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "Play your first game to see stats!",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+        return
+    }
+
+    if (stats == null) return
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        if (stats == null) {
-            item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CircularProgressIndicator()
-                }
-            }
-            return@LazyColumn
-        }
-
         // Win/Loss/Draw summary
         item {
             Card(modifier = Modifier.fillMaxWidth()) {

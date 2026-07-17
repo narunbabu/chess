@@ -67,6 +67,11 @@ const AmbassadorDashboard = () => {
   const [payoutSuccess, setPayoutSuccess] = useState(null);
 
   const userIsAmbassador = isAmbassador(user);
+  // Fail closed on unknown birthday too — mirrors the backend EnsureAdult
+  // gate (`user.is_minor || user.needs_birthday`), which is the source of
+  // truth. This just keeps the child from ever seeing the pitch/CTA or
+  // submitting the enroll request in the first place.
+  const isAdultGated = Boolean(user?.is_minor || user?.needs_birthday);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -77,7 +82,15 @@ const AmbassadorDashboard = () => {
           Accept: 'application/json',
         },
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        let body = null;
+        try { body = await res.json(); } catch (e) { /* non-JSON error body */ }
+        if (res.status === 403 && body?.error === 'adult_only') {
+          setError('adult_only');
+          return;
+        }
+        throw new Error(`HTTP ${res.status}`);
+      }
       setData(await res.json());
     } catch (err) {
       setError(err.message);
@@ -224,6 +237,23 @@ const AmbassadorDashboard = () => {
     if (!data?.share?.code) return;
     window.open(`/ambassador/poster?code=${encodeURIComponent(data.share.code)}`, '_blank', 'noopener,noreferrer');
   };
+
+  // Adult-only program (kid-safety + financial data gate). Covers both the
+  // client-side check (minor / unknown birthday) and the backend's 403
+  // `adult_only` response, so a minor never sees the enrollment pitch and
+  // an approved-then-demoted edge case still gets a friendly notice instead
+  // of a raw error string.
+  if (isAdultGated || error === 'adult_only') {
+    return (
+      <div className="min-h-screen bg-[#262421] text-[#bababa] p-6 flex items-center justify-center">
+        <div className="bg-[#312e2b] rounded-lg p-8 max-w-lg text-center">
+          <div className="text-5xl mb-4">&#9819;</div>
+          <h1 className="text-2xl font-bold text-white mb-3">Ambassador program is for adults</h1>
+          <p className="text-[#bababa]">The Ambassador program is for adults (18+).</p>
+        </div>
+      </div>
+    );
+  }
 
   // Not an ambassador yet — show enrollment page
   if (!userIsAmbassador && !loading) {

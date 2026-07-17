@@ -29,7 +29,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 fun DailyChallengesScreen(
     onNavigateBack: () -> Unit,
     onSolve: () -> Unit,
-    onUpgrade: () -> Unit = {},
     viewModel: DailyChallengesViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -101,7 +100,8 @@ fun DailyChallengesScreen(
             }
 
             if (state.isLocked) {
-                // Tier-gated track — mirror web upgrade prompt
+                // Tier-gated track. No upgrade CTA — the app has no purchase
+                // flow (Play policy); premium unlocks follow the account plan.
                 ElevatedCard(modifier = Modifier.fillMaxWidth()) {
                     Column(
                         modifier = Modifier.fillMaxWidth().padding(20.dp),
@@ -123,13 +123,9 @@ fun DailyChallengesScreen(
                         )
                         Spacer(Modifier.height(6.dp))
                         Text(
-                            "Upgrade your plan to unlock this daily challenge track.",
+                            "This daily challenge track is available on premium plans.",
                             style = MaterialTheme.typography.bodyMedium,
                         )
-                        Spacer(Modifier.height(16.dp))
-                        Button(onClick = onUpgrade, modifier = Modifier.fillMaxWidth()) {
-                            Text("View Plans")
-                        }
                     }
                 }
             } else {

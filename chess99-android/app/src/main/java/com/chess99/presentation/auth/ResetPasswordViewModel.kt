@@ -3,6 +3,7 @@ package com.chess99.presentation.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chess99.data.api.AuthApi
+import com.chess99.presentation.common.friendlyError
 import com.google.gson.JsonObject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -63,7 +64,7 @@ class ResetPasswordViewModel @Inject constructor(
             } catch (e: Exception) {
                 Timber.e(e, "Reset password error")
                 _uiState.value = ResetPasswordUiState(
-                    error = "Network error: ${e.message}",
+                    error = friendlyError(e, "your request"),
                 )
             }
         }

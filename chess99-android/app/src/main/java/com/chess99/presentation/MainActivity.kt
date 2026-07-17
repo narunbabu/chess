@@ -16,6 +16,7 @@ import com.chess99.presentation.auth.FacebookSignInHelper
 import com.chess99.presentation.navigation.Chess99NavGraph
 import com.chess99.presentation.navigation.DeepLinkHandler
 import com.chess99.presentation.navigation.Screen
+import com.chess99.presentation.onboarding.OnboardingPreferences
 import com.chess99.presentation.theme.Chess99Theme
 import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
@@ -26,6 +27,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var tokenManager: TokenManager
+
+    @Inject
+    lateinit var onboardingPreferences: OnboardingPreferences
 
     @Inject
     lateinit var facebookSignInHelper: FacebookSignInHelper
@@ -42,10 +46,13 @@ class MainActivity : ComponentActivity() {
                     val nc = rememberNavController()
                     navController = nc
 
-                    val startDestination = if (tokenManager.isLoggedIn()) {
-                        Screen.Home.route
-                    } else {
-                        Screen.Login.route
+                    // T2 (S7): authenticated -> Home; not authenticated and the
+                    // first-run pager hasn't been seen yet -> Onboarding;
+                    // otherwise (returning, not-yet-authenticated user) -> Login.
+                    val startDestination = when {
+                        tokenManager.isLoggedIn() -> Screen.Home.route
+                        !onboardingPreferences.hasSeenOnboarding() -> Screen.Onboarding.route
+                        else -> Screen.Login.route
                     }
 
                     Chess99NavGraph(

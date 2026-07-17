@@ -403,8 +403,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('/organizations/{organization}/social-access', [ChatModerationController::class, 'setOrganizationSocialAccess']);
     });
 
-    // Ambassador routes (any authenticated user)
-    Route::prefix('ambassador')->group(function () {
+    // Ambassador routes — 'adult' gate (S15): commission-earning + bank/UPI
+    // payout collection is adult-only (fails closed on unknown birthday) on
+    // a platform marketed to ages 5-18.
+    Route::prefix('ambassador')->middleware(['adult'])->group(function () {
         Route::get('/dashboard', [\App\Http\Controllers\AmbassadorController::class, 'dashboard']);
         Route::post('/self-assign', [\App\Http\Controllers\AmbassadorController::class, 'selfAssign']);
         Route::post('/apply', [\App\Http\Controllers\AmbassadorController::class, 'apply']);

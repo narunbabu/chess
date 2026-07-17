@@ -5,7 +5,14 @@ import com.chess99.domain.model.User
 
 interface AuthRepository {
     suspend fun login(email: String, password: String): Result<AuthResult>
-    suspend fun register(name: String, email: String, password: String, passwordConfirmation: String): Result<AuthResult>
+    suspend fun register(
+        name: String,
+        email: String,
+        password: String,
+        passwordConfirmation: String,
+        birthday: String,
+        guardianEmail: String? = null,
+    ): Result<AuthResult>
     suspend fun googleMobileLogin(idToken: String): Result<AuthResult>
     suspend fun facebookMobileLogin(accessToken: String): Result<AuthResult>
     suspend fun refreshToken(deviceName: String? = null): Result<AuthResult>

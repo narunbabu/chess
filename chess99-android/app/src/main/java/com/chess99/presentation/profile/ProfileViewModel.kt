@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chess99.data.api.ProfileApi
 import com.chess99.data.local.TokenManager
+import com.chess99.presentation.common.friendlyError
 import com.google.gson.JsonObject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -98,7 +99,7 @@ class ProfileViewModel @Inject constructor(
                 Timber.e(e, "Failed to load profile")
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = "Network error: ${e.message}",
+                    error = friendlyError(e, "your profile"),
                 )
             }
         }
@@ -133,29 +134,45 @@ class ProfileViewModel @Inject constructor(
 
     private fun loadStats() {
         viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isStatsLoading = true, statsError = null)
             try {
                 val response = profileApi.getPerformanceStats()
                 if (response.isSuccessful) {
-                    val body = response.body() ?: return@launch
-                    val statsObj = if (body.has("stats")) body.getAsJsonObject("stats") else body
+                    val body = response.body()
+                    val statsObj = if (body != null && body.has("stats")) body.getAsJsonObject("stats") else body
 
                     _uiState.value = _uiState.value.copy(
                         stats = GameStats(
-                            totalGames = statsObj.get("total_games")?.asInt ?: 0,
-                            wins = statsObj.get("wins")?.asInt ?: 0,
-                            losses = statsObj.get("losses")?.asInt ?: 0,
-                            draws = statsObj.get("draws")?.asInt ?: 0,
-                            winRate = statsObj.get("win_rate")?.asFloat ?: 0f,
-                            currentStreak = statsObj.get("current_streak")?.asInt ?: 0,
-                            bestStreak = statsObj.get("best_streak")?.asInt ?: 0,
-                            averageGameDuration = statsObj.get("average_game_duration")?.asInt ?: 0,
+                            totalGames = statsObj?.get("total_games")?.asInt ?: 0,
+                            wins = statsObj?.get("wins")?.asInt ?: 0,
+                            losses = statsObj?.get("losses")?.asInt ?: 0,
+                            draws = statsObj?.get("draws")?.asInt ?: 0,
+                            winRate = statsObj?.get("win_rate")?.asFloat ?: 0f,
+                            currentStreak = statsObj?.get("current_streak")?.asInt ?: 0,
+                            bestStreak = statsObj?.get("best_streak")?.asInt ?: 0,
+                            averageGameDuration = statsObj?.get("average_game_duration")?.asInt ?: 0,
                         ),
+                        isStatsLoading = false,
+                    )
+                } else {
+                    _uiState.value = _uiState.value.copy(
+                        isStatsLoading = false,
+                        statsError = "Couldn't load your stats.",
                     )
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to load stats")
+                _uiState.value = _uiState.value.copy(
+                    isStatsLoading = false,
+                    statsError = friendlyError(e, "your stats"),
+                )
             }
         }
+    }
+
+    /** Retry loading the Stats tab after a failure. */
+    fun retryStats() {
+        loadStats()
     }
 
     // ── Load Friends ───────────────────────────────────────────────────
@@ -260,7 +277,7 @@ class ProfileViewModel @Inject constructor(
                 Timber.e(e, "Failed to save profile")
                 _uiState.value = _uiState.value.copy(
                     isSaving = false,
-                    error = "Save error: ${e.message}",
+                    error = friendlyError(e, "your profile"),
                 )
             }
         }
@@ -316,7 +333,7 @@ class ProfileViewModel @Inject constructor(
                 Timber.e(e, "Avatar upload failed")
                 _uiState.value = _uiState.value.copy(
                     isUploadingAvatar = false,
-                    error = "Upload error: ${e.message}",
+                    error = friendlyError(e, "your avatar"),
                 )
             }
         }
@@ -348,7 +365,7 @@ class ProfileViewModel @Inject constructor(
                 Timber.e(e, "DiceBear avatar set failed")
                 _uiState.value = _uiState.value.copy(
                     isUploadingAvatar = false,
-                    error = "Error: ${e.message}",
+                    error = friendlyError(e, "your avatar"),
                 )
             }
         }
@@ -511,6 +528,8 @@ data class ProfileUiState(
 
     // Stats
     val stats: GameStats? = null,
+    val isStatsLoading: Boolean = false,
+    val statsError: String? = null,
 
     // Friends
     val friends: List<FriendInfo> = emptyList(),

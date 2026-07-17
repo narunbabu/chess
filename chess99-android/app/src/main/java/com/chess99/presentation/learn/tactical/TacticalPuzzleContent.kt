@@ -23,7 +23,9 @@ fun TacticalPuzzleContent(
     state: TacticalTrainerUiState,
     onAttemptMove: (String, String, Char?) -> Unit,
     onNextPuzzle: () -> Unit,
-    onShowSolution: () -> Unit,
+    onRequestHint: () -> Unit,
+    onDismissHintDialog: () -> Unit,
+    onConfirmShowSolution: () -> Unit,
     onBackToDashboard: () -> Unit,
 ) {
     val puzzle = state.currentPuzzle ?: return
@@ -50,8 +52,8 @@ fun TacticalPuzzleContent(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { onShowSolution() }, enabled = !state.isSolved && !state.solutionShown) {
-                        Icon(Icons.Default.Lightbulb, "Show Solution")
+                    IconButton(onClick = { onRequestHint() }, enabled = !state.isSolved && !state.solutionShown) {
+                        Icon(Icons.Default.Lightbulb, "Hint")
                     }
                 },
             )
@@ -174,6 +176,21 @@ fun TacticalPuzzleContent(
             Spacer(modifier = Modifier.weight(1f))
         }
     }
+
+    // Second hint tap: confirm before revealing the solution (0 points for this puzzle).
+    if (state.showHintConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = onDismissHintDialog,
+            title = { Text("Show the solution?") },
+            text = { Text("You'll get 0 points for this puzzle.") },
+            confirmButton = {
+                TextButton(onClick = onConfirmShowSolution) { Text("Show solution") }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismissHintDialog) { Text("Keep trying") }
+            },
+        )
+    }
 }
 
 @Composable
@@ -198,12 +215,7 @@ private fun SolvedCard(
             Spacer(modifier = Modifier.height(4.dp))
             Text("Correct!", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium, color = Color(0xFF4CAF50))
 
-            ratingDelta?.let { delta ->
-                Spacer(modifier = Modifier.height(4.dp))
-                val ratingText = if (delta.sign == "+") "+${delta.value}" else "-${delta.value}"
-                val ratingColor = if (delta.sign == "+") Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
-                Text("Rating $ratingText", style = MaterialTheme.typography.bodyMedium, color = ratingColor, fontWeight = FontWeight.SemiBold)
-            }
+            RatingDeltaChip(ratingDelta, modifier = Modifier.padding(top = 4.dp))
 
             score?.let { s ->
                 Spacer(modifier = Modifier.height(4.dp))
@@ -222,6 +234,25 @@ private fun SolvedCard(
             }
         }
     }
+}
+
+/**
+ * Renders a rating delta chip, never "-0": delta > 0 -> "+N" (green), delta < 0 ->
+ * "-N" (red), delta == 0 -> nothing (no chip at all).
+ */
+@Composable
+private fun RatingDeltaChip(delta: RatingDelta?, modifier: Modifier = Modifier) {
+    if (delta == null || delta.value == 0) return
+    val signedValue = if (delta.sign == "+") delta.value else -delta.value
+    val ratingText = if (signedValue > 0) "+$signedValue" else "$signedValue"
+    val ratingColor = if (signedValue > 0) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
+    Text(
+        "Rating $ratingText",
+        style = MaterialTheme.typography.bodyMedium,
+        color = ratingColor,
+        fontWeight = FontWeight.SemiBold,
+        modifier = modifier,
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -305,17 +336,7 @@ fun SolutionViewerContent(
             }
 
             // Rating delta
-            state.lastRatingDelta?.let { delta ->
-                Spacer(modifier = Modifier.height(8.dp))
-                val ratingText = if (delta.sign == "+") "+${delta.value}" else "-${delta.value}"
-                val ratingColor = if (delta.sign == "+") Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
-                Text(
-                    "Rating $ratingText",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = ratingColor,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
+            RatingDeltaChip(state.lastRatingDelta, modifier = Modifier.padding(top = 8.dp))
 
             Spacer(modifier = Modifier.height(12.dp))
 

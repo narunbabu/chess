@@ -36,7 +36,9 @@ export const SubscriptionProvider = ({ children }) => {
     try {
       setPlansLoading(true);
       setPlansError(null);
-      const response = await api.get('/subscriptions/plans', { timeout: 8000 });
+      // Boot-time call fired on every mount — a 401 here should degrade the
+      // pricing widget, not nuke the session.
+      const response = await api.get('/subscriptions/plans', { timeout: 8000, skipAuthRedirect: true });
       setPlans(response.data.plans || {});
     } catch (err) {
       console.error('[Subscription] Failed to fetch plans:', err);
@@ -56,7 +58,9 @@ export const SubscriptionProvider = ({ children }) => {
 
     try {
       setLoading(true);
-      const response = await api.get('/subscriptions/current');
+      // Boot-time/background call fired whenever auth state changes — a 401
+      // here should degrade the widget, not nuke the session.
+      const response = await api.get('/subscriptions/current', { skipAuthRedirect: true });
       setCurrentSubscription(response.data);
     } catch (err) {
       console.error('[Subscription] Failed to fetch current subscription:', err);

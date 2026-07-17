@@ -1,5 +1,7 @@
 package com.chess99.engine
 
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,7 +15,8 @@ import kotlin.math.max
  * Sends UCI commands, parses responses, provides coroutine-based API.
  *
  * Architecture:
- * - Stockfish binary compiled for NDK targets (arm64-v8a, armeabi-v7a, x86_64)
+ * - Stockfish 11 binary compiled for NDK targets (arm64-v8a, armeabi-v7a, x86_64),
+ *   packaged as jniLibs/<abi>/libstockfish.so (see StockfishBridge.kt)
  * - JNI bridge in StockfishBridge.kt handles native communication
  * - This class wraps the bridge with game-level logic (difficulty, MultiPV, think time)
  *
@@ -23,7 +26,9 @@ import kotlin.math.max
  * - Minimum perceived think time: 1500ms
  */
 @Singleton
-class StockfishEngine @Inject constructor() {
+class StockfishEngine @Inject constructor(
+    @ApplicationContext private val context: Context,
+) {
 
     companion object {
         const val MIN_DEPTH = 1
@@ -82,7 +87,7 @@ class StockfishEngine @Inject constructor() {
         _state.value = EngineState.INITIALIZING
 
         try {
-            StockfishBridge.init()
+            StockfishBridge.init(context)
             StockfishBridge.sendCommand("uci")
             StockfishBridge.waitForResponse("uciok")
             StockfishBridge.sendCommand("setoption name MultiPV value $NUM_TOP_MOVES")
@@ -93,7 +98,11 @@ class StockfishEngine @Inject constructor() {
             _state.value = EngineState.IDLE
         } catch (e: Exception) {
             _state.value = EngineState.ERROR
-            throw e
+            // Wrapped so UI call sites can show a friendly, non-technical message
+            // (never e.message — see EngineFailureCopy) instead of the raw
+            // exception, whatever its source (missing .so for this ABI, process
+            // start failure, UCI handshake timeout, ...).
+            throw EngineInitException(cause = e)
         }
     }
 
@@ -383,3 +392,20 @@ data class PositionAnalysis(
     val bestMove: String,       // UCI format best move
     val rankedMoves: List<RankedMove>,  // MultiPV top moves
 )
+
+/**
+ * Thrown by [StockfishEngine.initialize] when the native engine process fails
+ * to start or complete its UCI handshake, for any reason (binary missing for
+ * this ABI, exec() blocked, process crash, handshake timeout, ...).
+ *
+ * Callers should catch this specifically to show [EngineFailureCopy.MESSAGE]
+ * instead of the raw [cause] — never surface `cause.message`, a class name, or
+ * a stack trace to the user (this is a kids app).
+ */
+class EngineInitException(cause: Throwable) : Exception(cause)
+
+/** Shared, honest, kid-safe copy for engine-init failures. See EngineInitException. */
+object EngineFailureCopy {
+    const val MESSAGE = "The chess engine couldn't start on this device."
+    const val ACTION_LABEL = "Try a puzzle instead"
+}

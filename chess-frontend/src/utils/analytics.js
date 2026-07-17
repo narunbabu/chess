@@ -21,6 +21,23 @@
  * track('navigation', { from: 'landing', to: 'play' });
  * track('game_action', { action: 'start', mode: 'multiplayer' });
  */
+/**
+ * True when the signed-in account is a known minor (DOB on file, age < 18).
+ * We never forward events to Meta Pixel for minors — behavioural ad targeting of
+ * children is prohibited (DPDP Act / Meta policy). Product analytics (GA4) still
+ * runs. Unknown-age users are not treated as minors here (see User::is_minor).
+ */
+const isKnownMinor = () => {
+  try {
+    if (typeof window === 'undefined') return false;
+    const raw = window.localStorage.getItem('user');
+    if (!raw) return false;
+    return JSON.parse(raw)?.is_minor === true;
+  } catch (e) {
+    return false;
+  }
+};
+
 export const track = (event, payload = {}) => {
   try {
     // Google Analytics Integration (if available)
@@ -30,7 +47,8 @@ export const track = (event, payload = {}) => {
 
     // Meta Pixel: forward as a custom event so ad campaigns can build audiences
     // and optimize delivery. Standard funnel events use trackConversion() below.
-    if (typeof window !== 'undefined' && window.fbq) {
+    // Suppressed for known minors (no ad targeting of children).
+    if (typeof window !== 'undefined' && window.fbq && !isKnownMinor()) {
       window.fbq('trackCustom', event, payload);
     }
 
@@ -69,7 +87,7 @@ export const track = (event, payload = {}) => {
 export const trackConversion = (step, payload = {}, metaStandardEvent = null) => {
   track(step, payload);
   try {
-    if (metaStandardEvent && typeof window !== 'undefined' && window.fbq) {
+    if (metaStandardEvent && typeof window !== 'undefined' && window.fbq && !isKnownMinor()) {
       window.fbq('track', metaStandardEvent, payload);
     }
   } catch (error) {

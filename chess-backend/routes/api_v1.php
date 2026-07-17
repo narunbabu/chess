@@ -377,7 +377,10 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // ── Ambassador Program ────────────────────────────────────────────────
-    Route::prefix('ambassador')->group(function () {
+    // 'adult' gate (S15): commission-earning + bank/UPI payout collection is
+    // adult-only (fails closed on unknown birthday) on a platform marketed
+    // to ages 5-18.
+    Route::prefix('ambassador')->middleware(['adult'])->group(function () {
         Route::get('/dashboard', [AmbassadorController::class, 'dashboard']);
         Route::post('/self-assign', [AmbassadorController::class, 'selfAssign']);
         Route::post('/payout-request', [AmbassadorController::class, 'payoutRequest']);

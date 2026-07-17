@@ -1,7 +1,13 @@
 package com.chess99.presentation.game
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -11,9 +17,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.chess99.domain.model.SyntheticPlayer
 import com.chess99.engine.*
 import com.chess99.presentation.common.*
 
@@ -25,9 +34,33 @@ import com.chess99.presentation.common.*
 @Composable
 fun PlayComputerScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToTacticalTrainer: () -> Unit = {},
+    onNavigateToMultiplayerGame: (Int) -> Unit = {},
     viewModel: PlayComputerViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    val personaState by viewModel.personaState.collectAsState()
+    var showLeaveDialog by remember { mutableStateOf(false) }
+
+    // T3: a persona-backed game start (T5) that successfully created a
+    // server-recorded game hands off to the multiplayer stack — the local
+    // Stockfish setup below is never entered for that game.
+    LaunchedEffect(personaState.startedGameId) {
+        personaState.startedGameId?.let { gameId ->
+            viewModel.consumeStartedGameId()
+            onNavigateToMultiplayerGame(gameId)
+        }
+    }
+
+    // T3 fallback path: the real-game POST failed (offline/server error) —
+    // silently continue with the already-configured local Stockfish game
+    // (persona's level was applied via selectPersona/setupGame already).
+    LaunchedEffect(personaState.startGameError) {
+        if (personaState.startGameError == "fallback_local") {
+            viewModel.consumeStartGameError()
+            viewModel.startGame()
+        }
+    }
 
     // Sound effects
     val soundManager = remember { SoundManager::class.java }
@@ -38,12 +71,41 @@ fun PlayComputerScreen(
         }
     }
 
+    // Hardware/gesture back gets the same leave-game confirmation as the
+    // toolbar back arrow below — neither existed before S11 T3, so the
+    // toolbar arrow popped (and gesture back exited) unconditionally,
+    // silently forfeiting an active game.
+    BackHandler(enabled = state.gamePhase == GamePhase.PLAYING) {
+        showLeaveDialog = true
+    }
+
+    if (showLeaveDialog) {
+        GameNavigationWarningDialog(
+            gameType = ActiveGameType.VS_COMPUTER,
+            onLeave = {
+                showLeaveDialog = false
+                onNavigateBack()
+            },
+            onStay = { showLeaveDialog = false },
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Play vs Computer") },
+                title = {
+                    Text(
+                        state.opponentDisplayName?.let { "Playing $it" } ?: "Play vs Computer"
+                    )
+                },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = {
+                        if (state.gamePhase == GamePhase.PLAYING) {
+                            showLeaveDialog = true
+                        } else {
+                            onNavigateBack()
+                        }
+                    }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
@@ -53,9 +115,23 @@ fun PlayComputerScreen(
         when (state.gamePhase) {
             GamePhase.SETUP -> GameSetupContent(
                 modifier = Modifier.padding(padding),
-                onStartGame = { color, difficulty, rated ->
+                personaState = personaState,
+                onLoadPersonas = { viewModel.loadPersonas() },
+                onSelectPersona = { viewModel.selectPersona(it) },
+                onClearPersona = { viewModel.clearPersonaSelection() },
+                onStartGame = { color, difficulty, rated, persona ->
                     viewModel.setupGame(color, difficulty, rated)
-                    viewModel.startGame()
+                    if (persona != null && !rated) {
+                        // T3: try the real, server-recorded game first; the
+                        // LaunchedEffect above navigates away on success. On
+                        // failure PersonaUiState.startGameError flips to
+                        // "fallback_local" and we start the local engine below
+                        // with the persona's level already applied — the
+                        // player is never blocked by a network hiccup.
+                        viewModel.startPersonaGame(persona)
+                    } else {
+                        viewModel.startGame()
+                    }
                 },
             )
             GamePhase.PLAYING, GamePhase.COMPLETED -> GamePlayContent(
@@ -71,16 +147,34 @@ fun PlayComputerScreen(
             GamePhase.REPLAY -> { /* Future: replay mode */ }
         }
 
-        // Error dialog
+        // Error dialog — engine-init failures get honest copy + a redirect to
+        // Tactical Trainer instead of a dead-end "OK" (S2 T4: never show e.message).
         state.error?.let { error ->
-            AlertDialog(
-                onDismissRequest = { viewModel.clearError() },
-                title = { Text("Error") },
-                text = { Text(error) },
-                confirmButton = {
-                    TextButton(onClick = { viewModel.clearError() }) { Text("OK") }
-                },
-            )
+            if (state.engineInitFailed) {
+                AlertDialog(
+                    onDismissRequest = { viewModel.clearError() },
+                    title = { Text("Can't play the computer right now") },
+                    text = { Text(error) },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            viewModel.clearError()
+                            onNavigateToTacticalTrainer()
+                        }) { Text(EngineFailureCopy.ACTION_LABEL) }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { viewModel.clearError() }) { Text("Cancel") }
+                    },
+                )
+            } else {
+                AlertDialog(
+                    onDismissRequest = { viewModel.clearError() },
+                    title = { Text("Error") },
+                    text = { Text(error) },
+                    confirmButton = {
+                        TextButton(onClick = { viewModel.clearError() }) { Text("OK") }
+                    },
+                )
+            }
         }
     }
 }
@@ -90,11 +184,23 @@ fun PlayComputerScreen(
 @Composable
 private fun GameSetupContent(
     modifier: Modifier = Modifier,
-    onStartGame: (Color, Int, Boolean) -> Unit,
+    personaState: PersonaUiState,
+    onLoadPersonas: () -> Unit,
+    onSelectPersona: (SyntheticPlayer) -> Unit,
+    onClearPersona: () -> Unit,
+    onStartGame: (Color, Int, Boolean, SyntheticPlayer?) -> Unit,
 ) {
     var selectedColor by remember { mutableStateOf(Color.WHITE) }
     var difficulty by remember { mutableIntStateOf(StockfishEngine.DEFAULT_DEPTH) }
     var isRated by remember { mutableStateOf(false) }
+
+    // T5: cached for the VM's lifetime \u2014 only fetched once per screen visit.
+    LaunchedEffect(Unit) { onLoadPersonas() }
+
+    // Rated overrides any persona pick (spec T3: persona games are casual only).
+    LaunchedEffect(isRated) {
+        if (isRated && personaState.selectedPersona != null) onClearPersona()
+    }
 
     Column(
         modifier = modifier
@@ -122,19 +228,44 @@ private fun GameSetupContent(
             )
         }
 
+        // T5: bot persona chip row \u2014 offline/error leaves personas empty and
+        // the row simply doesn't render; the slider below still works.
+        if (!isRated && personaState.personas.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(24.dp))
+            Text("Play a bot", style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(8.dp))
+            PersonaChipRow(
+                personas = personaState.personas,
+                selectedPersona = personaState.selectedPersona,
+                onSelect = { persona ->
+                    if (personaState.selectedPersona?.id == persona.id) {
+                        onClearPersona()
+                        difficulty = StockfishEngine.DEFAULT_DEPTH
+                    } else {
+                        onSelectPersona(persona)
+                        difficulty = persona.computerLevel
+                    }
+                },
+            )
+        }
+
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Difficulty slider
+        // Difficulty slider \u2014 a persona pick sets it directly; moving the
+        // slider manually deselects the persona ("Custom" per spec T5).
         Text("Difficulty: $difficulty", style = MaterialTheme.typography.titleMedium)
         Text(
-            text = difficultyLabel(difficulty),
+            text = if (personaState.selectedPersona != null) "Custom" else difficultyLabel(difficulty),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(modifier = Modifier.height(8.dp))
         Slider(
             value = difficulty.toFloat(),
-            onValueChange = { difficulty = it.toInt() },
+            onValueChange = {
+                difficulty = it.toInt()
+                if (personaState.selectedPersona != null) onClearPersona()
+            },
             valueRange = 1f..16f,
             steps = 14,
         )
@@ -168,12 +299,89 @@ private fun GameSetupContent(
         Spacer(modifier = Modifier.height(32.dp))
 
         Button(
-            onClick = { onStartGame(selectedColor, difficulty, isRated) },
+            onClick = {
+                onStartGame(selectedColor, difficulty, isRated, personaState.selectedPersona)
+            },
+            enabled = !personaState.isStartingGame,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
         ) {
-            Text("Start Game", style = MaterialTheme.typography.titleMedium)
+            if (personaState.isStartingGame) {
+                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+            } else {
+                Text("Start Game", style = MaterialTheme.typography.titleMedium)
+            }
+        }
+    }
+}
+
+// \u2500\u2500 Bot Persona Chip Row (T5) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+
+@Composable
+private fun PersonaChipRow(
+    personas: List<SyntheticPlayer>,
+    selectedPersona: SyntheticPlayer?,
+    onSelect: (SyntheticPlayer) -> Unit,
+) {
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        items(personas, key = { it.id }) { persona ->
+            PersonaChip(
+                persona = persona,
+                selected = selectedPersona?.id == persona.id,
+                onClick = { onSelect(persona) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun PersonaChip(
+    persona: SyntheticPlayer,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
+        tonalElevation = if (selected) 2.dp else 0.dp,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (selected) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.secondaryContainer
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    persona.name.take(1).uppercase(),
+                    color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondaryContainer,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Column {
+                Text(
+                    persona.name,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    "Rating: ${persona.rating}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
@@ -200,7 +408,7 @@ private fun GamePlayContent(
         GameTimerDisplay(
             timeSeconds = state.computerTimeSeconds,
             isActive = state.activeTimer == state.computerColor && state.isTimerRunning,
-            playerName = "Computer (Lv.${state.difficulty})",
+            playerName = state.opponentDisplayName ?: "Computer (Lv.${state.difficulty})",
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 4.dp),

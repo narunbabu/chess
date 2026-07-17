@@ -1024,7 +1024,11 @@ const GameReview = () => {
     const gameId = gameHistory.id || gameHistory.game_id;
     if (gameId) {
       try {
-        const res = await api.get(`/api/v1/games/${gameId}/pgn`, { responseType: 'text' });
+        // `api`'s baseURL already ends in /api (see config.js), so the path
+        // here must NOT repeat the /api prefix — the old `/api/v1/...` path
+        // requested `/api/api/v1/...` and 404'd, silently falling back to
+        // client-side PGN generation below.
+        const res = await api.get(`/v1/games/${gameId}/pgn`, { responseType: 'text' });
         const blob = new Blob([res.data], { type: 'application/x-chess-pgn' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');

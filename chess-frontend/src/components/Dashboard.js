@@ -91,7 +91,10 @@ const Dashboard = () => {
     }
 
     console.log('[Dashboard] 🚀 Fetching active games');
-    activeGamesRequestRef.current = api.get('/games/active')
+    // Boot-time widget fetch — a 401 here is already handled by falling back
+    // to an empty list below, so it shouldn't also trigger the global
+    // session-expired redirect.
+    activeGamesRequestRef.current = api.get('/games/active', { skipAuthRedirect: true })
       .then(response => {
         console.log('[Dashboard] ✅ Active games fetched');
         return response;
@@ -294,12 +297,15 @@ const Dashboard = () => {
 
       try {
         // Fetch recent finished games for this user
+        // Boot-time widget fetch (part of the dashboard's initial load) — a 401
+        // here shouldn't trigger the global session-expired redirect.
         const gamesResponse = await api.get('/games', {
           params: {
             status: 'finished',
             limit: 50, // Enough for recent games
             user_id: user.id
-          }
+          },
+          skipAuthRedirect: true
         });
         const recentGames = gamesResponse.data || [];
 
@@ -386,7 +392,10 @@ const Dashboard = () => {
     if (!user) return;
 
     const fetchQuotaAndChallenge = () => {
-      api.get('/games/daily-quota')
+      // Boot-time/visibility-triggered widget fetch — error already swallowed
+      // below, so a 401 here shouldn't trigger the global session-expired
+      // redirect either.
+      api.get('/games/daily-quota', { skipAuthRedirect: true })
         .then(res => setDailyQuota(res.data))
         .catch(() => {});
     };

@@ -1,5 +1,6 @@
 package com.chess99.data.api
 
+import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import retrofit2.Response
 import retrofit2.http.*
@@ -37,8 +38,17 @@ interface MatchmakingApi {
 
     // ── Lobby Players ───────────────────────────────────────────────────
 
-    @GET("matchmaking/lobby-players")
-    suspend fun getLobbyPlayers(): Response<JsonObject>
+    // NOTE: was `matchmaking/lobby-players` (404 — no such backend route,
+    // confirmed via grep of routes/api.php + routes/api_v1.php). Repointed
+    // (S10) to the real endpoint: LobbyController::players, which returns
+    // `{ real_players: [], synthetic_players: [], rating_window: {...} }`.
+    // API_BASE_URL already ends in `/api/v1/` (see BuildConfig) — no `v1/`
+    // prefix here, or the resolved URL 404s as `/api/v1/v1/lobby/players`.
+    @GET("lobby/players")
+    suspend fun getLobbyPlayers(
+        @Query("min_rating") minRating: Int,
+        @Query("max_rating") maxRating: Int,
+    ): Response<JsonObject>
 
     @GET("matchmaking/search-users")
     suspend fun searchUsers(@Query("q") query: String): Response<JsonObject>
@@ -68,7 +78,8 @@ interface MatchmakingApi {
 
     // ── Synthetic Players (Companion Mode) ──────────────────────────────
 
-    @GET("v1/synthetic-players")
+    // Same base-URL pitfall as getLobbyPlayers above — no `v1/` prefix.
+    @GET("synthetic-players")
     suspend fun getSyntheticPlayers(): Response<JsonObject>
 
     // ── Presence ────────────────────────────────────────────────────────
@@ -81,14 +92,18 @@ interface MatchmakingApi {
 
     // ── Friends ─────────────────────────────────────────────────────────
 
+    // NOTE: FriendController@index and @pending (chess-backend) both return a
+    // bare JSON array, not `{"friends": [...]}` — declaring these as
+    // Response<JsonObject> would throw on every real call (Gson can't parse a
+    // top-level array as an object), silently caught by callers' try/catch.
     @GET("friends")
-    suspend fun getFriends(): Response<JsonObject>
+    suspend fun getFriends(): Response<JsonArray>
 
     @POST("friends/request")
     suspend fun sendFriendRequest(@Body body: JsonObject): Response<JsonObject>
 
     @GET("friends/pending")
-    suspend fun getPendingFriendRequests(): Response<JsonObject>
+    suspend fun getPendingFriendRequests(): Response<JsonArray>
 
     @POST("friends/{id}/accept")
     suspend fun acceptFriendRequest(@Path("id") id: Int): Response<JsonObject>

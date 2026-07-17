@@ -4,6 +4,7 @@ namespace App\Observers;
 
 use App\Models\User;
 use App\Services\ReferralService;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
@@ -27,6 +28,19 @@ class UserReferralObserver
             return;
         }
         if (empty($user->mobile_country_code) || empty($user->mobile_number)) {
+            return;
+        }
+
+        // A-1 anti-fraud: don't reward a phone number that already belongs to
+        // another account (blocks the cheapest farming vector — reusing numbers).
+        $duplicatePhone = User::where('id', '!=', $user->id)
+            ->where('mobile_country_code', $user->mobile_country_code)
+            ->where('mobile_number', $user->mobile_number)
+            ->exists();
+        if ($duplicatePhone) {
+            Log::warning('Skipping signup_phone milestone — phone already used by another account', [
+                'user_id' => $user->id,
+            ]);
             return;
         }
 

@@ -11,7 +11,9 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\URL;
 use App\Models\User;
+use App\Services\GuardianConsentService;
 use App\Services\ReferralService;
+use Illuminate\Support\Carbon;
 
 class AuthController extends Controller
 {
@@ -60,6 +62,10 @@ class AuthController extends Controller
             'password' => 'required|string|min:8|confirmed',
             'captcha_token' => 'required|string',
             'referral_code' => 'nullable|string|max:20',
+            // Age-gating (P0-3): DOB is required so we can apply kid-safe chat and
+            // require a guardian for minors. `different:email` blocks self-guardian.
+            'birthday' => 'required|date|before:today|after:1920-01-01',
+            'guardian_email' => 'nullable|email|max:255|different:email',
         ]);
 
         // Verify reCAPTCHA token with Google
@@ -79,17 +85,35 @@ class AuthController extends Controller
             }
         }
 
+        $birthday = Carbon::parse($validated['birthday'])->startOfDay();
+        $isMinor = $birthday->age < 18;
+
+        // A player under 18 must name a parent/guardian.
+        if ($isMinor && empty($validated['guardian_email'])) {
+            return response()->json([
+                'status' => 'error',
+                'code' => 'guardian_email_required',
+                'message' => "A parent or guardian's email is required to create an account for a player under 18.",
+            ], 422);
+        }
+
         $user = User::create([
             'name' => $validated['name'],
             'email' => strtolower($validated['email']),
             'password' => bcrypt($validated['password']),
             'referral_code' => strtoupper(\Illuminate\Support\Str::random(8)),
+            'birthday' => $birthday->toDateString(),
             // email_verified_at is null by default — user must verify
         ]);
 
         // Link referral if code was provided
         if (!empty($validated['referral_code'])) {
             app(ReferralService::class)->linkReferral($user, $validated['referral_code']);
+        }
+
+        // Record the named guardian + a consent request for minors.
+        if ($isMinor && !empty($validated['guardian_email'])) {
+            app(GuardianConsentService::class)->requestConsentForMinor($user, $validated['guardian_email']);
         }
 
         // Send verification email

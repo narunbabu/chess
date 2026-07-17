@@ -2,13 +2,19 @@ package com.chess99.presentation.game
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chess99.data.api.GameApi
+import com.chess99.data.api.MatchmakingApi
+import com.chess99.domain.model.SyntheticPlayer
 import com.chess99.engine.*
+import com.google.gson.JsonObject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import timber.log.Timber
 import javax.inject.Inject
+import kotlin.random.Random
 
 /**
  * ViewModel for PlayComputer screen.
@@ -20,6 +26,8 @@ import javax.inject.Inject
 @HiltViewModel
 class PlayComputerViewModel @Inject constructor(
     private val stockfishEngine: StockfishEngine,
+    private val matchmakingApi: MatchmakingApi,
+    private val gameApi: GameApi,
 ) : ViewModel() {
 
     companion object {
@@ -30,6 +38,13 @@ class PlayComputerViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(PlayComputerUiState())
     val uiState: StateFlow<PlayComputerUiState> = _uiState.asStateFlow()
+
+    // ── Bot Personas (T5) ───────────────────────────────────────────────
+    // Chip row above the difficulty slider. Cached for the VM's lifetime;
+    // offline/error leaves the list empty so the row hides (slider still works).
+
+    private val _personaState = MutableStateFlow(PersonaUiState())
+    val personaState: StateFlow<PersonaUiState> = _personaState.asStateFlow()
 
     private var game = ChessGame()
     private var computerMoveJob: Job? = null
@@ -59,14 +74,143 @@ class PlayComputerViewModel @Inject constructor(
         )
     }
 
+    /** Applies a persona's [SyntheticPlayer.computerLevel] to the setup slider (T5). */
+    fun selectPersona(persona: SyntheticPlayer) {
+        _personaState.value = _personaState.value.copy(selectedPersona = persona)
+        setupGame(
+            playerColor = _uiState.value.playerColor,
+            difficulty = persona.computerLevel,
+            isRated = false, // Persona games are casual only (spec T3 defaults).
+        )
+        _uiState.value = _uiState.value.copy(opponentDisplayName = persona.name)
+    }
+
+    /** Deselects the persona — slider reverts to a plain "Custom" computer game. */
+    fun clearPersonaSelection() {
+        _personaState.value = _personaState.value.copy(selectedPersona = null)
+        _uiState.value = _uiState.value.copy(opponentDisplayName = null)
+    }
+
+    // ── Bot Personas (T5) ────────────────────────────────────────────
+
+    /** Loads persona chips; cached for this VM's lifetime. Offline/error → empty list (row hides). */
+    fun loadPersonas() {
+        if (_personaState.value.personas.isNotEmpty() || _personaState.value.isLoading) return
+        viewModelScope.launch {
+            _personaState.value = _personaState.value.copy(isLoading = true)
+            try {
+                val response = matchmakingApi.getSyntheticPlayers()
+                if (!response.isSuccessful) {
+                    _personaState.value = _personaState.value.copy(isLoading = false)
+                    return@launch
+                }
+                val dataArray = response.body()?.getAsJsonArray("data")
+                val players = dataArray?.map { el ->
+                    val obj = el.asJsonObject
+                    SyntheticPlayer(
+                        id = obj.get("id")?.asInt ?: 0,
+                        name = obj.get("name")?.asString ?: "Companion",
+                        rating = obj.get("rating")?.asInt ?: 1200,
+                        computerLevel = obj.get("computer_level")?.asInt ?: StockfishEngine.DEFAULT_DEPTH,
+                        personality = obj.get("personality")?.asString ?: "Balanced",
+                        bio = obj.get("bio")?.asString ?: "",
+                        avatarUrl = obj.get("avatar_url")?.asString ?: "",
+                        gamesPlayed = obj.get("games_played")?.asInt ?: 0,
+                        winRate = obj.get("win_rate")?.asDouble ?: 50.0,
+                    )
+                } ?: emptyList()
+                _personaState.value = _personaState.value.copy(isLoading = false, personas = players)
+            } catch (e: Exception) {
+                // Kid-safe: no error surfaced, no spinner left behind — the row
+                // simply doesn't appear (spec T5 "offline → hide row").
+                Timber.e(e, "Failed to load bot personas")
+                _personaState.value = _personaState.value.copy(isLoading = false)
+            }
+        }
+    }
+
+    /**
+     * Starts a server-recorded game vs the selected persona (T3 flow): casual,
+     * 10+0, random color — mirrors web's Dashboard.js nearby-opponent tap
+     * defaults. On success emits the new game id via [PersonaUiState.startedGameId]
+     * for the screen to navigate into [com.chess99.presentation.navigation.Screen.PlayMultiplayer].
+     * On failure (offline, server error) leaves [PersonaUiState.startedGameId] null
+     * and the screen falls back to the plain local Stockfish flow already wired
+     * to the slider (persona's level is already applied via [selectPersona]).
+     */
+    fun startPersonaGame(persona: SyntheticPlayer) {
+        // The screen calls setupGame() immediately before this (to apply
+        // color/difficulty/rated), which rebuilds PlayComputerUiState from
+        // scratch and would otherwise wipe opponentDisplayName back to null —
+        // re-apply it here so the top bar/opponent label never regress to
+        // "Play vs Computer" / "Computer (Lv.N)" for a persona game (T4/T5:
+        // never show the generic computer label for a named bot).
+        _uiState.value = _uiState.value.copy(opponentDisplayName = persona.name)
+        viewModelScope.launch {
+            _personaState.value = _personaState.value.copy(isStartingGame = true, startGameError = null)
+            try {
+                val body = JsonObject().apply {
+                    addProperty("player_color", if (Random.nextBoolean()) "white" else "black")
+                    addProperty("computer_level", persona.computerLevel)
+                    addProperty("time_control", 10)
+                    addProperty("increment", 0)
+                    addProperty("synthetic_player_id", persona.id)
+                    addProperty("game_mode", "casual")
+                }
+                val response = gameApi.createComputerGame(body)
+                if (response.isSuccessful) {
+                    val gameId = response.body()?.getAsJsonObject("game")?.get("id")?.asInt
+                        ?: response.body()?.get("id")?.asInt
+                    if (gameId != null) {
+                        _personaState.value = _personaState.value.copy(
+                            isStartingGame = false,
+                            startedGameId = gameId,
+                        )
+                        return@launch
+                    }
+                }
+                _personaState.value = _personaState.value.copy(
+                    isStartingGame = false,
+                    startGameError = "fallback_local",
+                )
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to start persona game, falling back to local play")
+                _personaState.value = _personaState.value.copy(
+                    isStartingGame = false,
+                    startGameError = "fallback_local",
+                )
+            }
+        }
+    }
+
+    fun consumeStartedGameId() {
+        _personaState.value = _personaState.value.copy(startedGameId = null)
+    }
+
+    fun consumeStartGameError() {
+        _personaState.value = _personaState.value.copy(startGameError = null)
+    }
+
     fun startGame() {
         viewModelScope.launch {
             // Initialize engine
             try {
                 stockfishEngine.initialize()
                 stockfishEngine.newGame()
+            } catch (e: EngineInitException) {
+                _uiState.value = _uiState.value.copy(
+                    error = EngineFailureCopy.MESSAGE,
+                    engineInitFailed = true,
+                )
+                return@launch
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(error = "Failed to start engine: ${e.message}")
+                // Non-init failure (e.g. newGame()'s UCI handshake) — same honest
+                // copy; still offer the puzzle redirect since the engine is
+                // unusable for this session either way.
+                _uiState.value = _uiState.value.copy(
+                    error = EngineFailureCopy.MESSAGE,
+                    engineInitFailed = true,
+                )
                 return@launch
             }
 
@@ -185,9 +329,10 @@ class PlayComputerViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                // Never surface e.message — kid-safe copy (master plan rule 6).
                 _uiState.value = _uiState.value.copy(
                     computerMoveInProgress = false,
-                    error = "Engine error: ${e.message}",
+                    error = "The computer couldn't make a move. Please try again.",
                 )
             }
         }
@@ -365,7 +510,7 @@ class PlayComputerViewModel @Inject constructor(
     }
 
     fun clearError() {
-        _uiState.value = _uiState.value.copy(error = null)
+        _uiState.value = _uiState.value.copy(error = null, engineInitFailed = false)
     }
 
     // ── Cleanup ──────────────────────────────────────────────────────
@@ -400,6 +545,25 @@ data class PlayComputerUiState(
     val gameResult: GameResultState? = null,
     val soundToPlay: MoveSound? = null,
     val error: String? = null,
+    /** True when [error] is an engine-init failure — UI offers a puzzle redirect (S2 T4). */
+    val engineInitFailed: Boolean = false,
+    /** Set when a persona chip is selected (T5) — top bar shows "Playing {name}" instead of "Computer (Lv.N)". */
+    val opponentDisplayName: String? = null,
+)
+
+/** Bot persona chip row state (T5) — separate from [PlayComputerUiState] so a
+ *  persona load failure never touches the board/game state. */
+data class PersonaUiState(
+    val personas: List<SyntheticPlayer> = emptyList(),
+    val isLoading: Boolean = false,
+    val selectedPersona: SyntheticPlayer? = null,
+    val isStartingGame: Boolean = false,
+    /** Set once `POST v1/games/computer` succeeds — screen navigates to PlayMultiplayer and consumes it. */
+    val startedGameId: Int? = null,
+    /** Non-null (currently only "fallback_local") when the real-game start failed and the
+     *  screen should silently continue with the already-configured local Stockfish game
+     *  instead (spec T5: "local when offline"). Never shown to the user as raw text. */
+    val startGameError: String? = null,
 )
 
 enum class GamePhase { SETUP, PLAYING, COMPLETED, REPLAY }

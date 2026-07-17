@@ -3,7 +3,15 @@ package com.chess99.presentation.learn
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chess99.data.api.TutorialApi
+import com.chess99.data.api.arrOrNull
+import com.chess99.data.api.bool
+import com.chess99.data.api.int
+import com.chess99.data.api.objOrNull
+import com.chess99.data.api.str
+import com.chess99.presentation.common.friendlyError
+import com.google.gson.JsonArray
 import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,6 +23,14 @@ import javax.inject.Inject
 /**
  * ViewModel for the Learn screen (Tutorial Hub + Training).
  * Mirrors chess-frontend/src/pages/LearnPage.js
+ *
+ * CONTRACT (verified live against api.chess99.com on 2026-07-14 — see
+ * docs/specs/2026-07-14-quality-fix-program/S5-learn-tutorials-contract.md).
+ * Every `tutorial/` endpoint wraps its payload in `{ success, data }`. The
+ * previous implementation read keys from the top-level body with `?: 0` /
+ * `?: emptyList()` fallbacks, which silently degraded every miss to a
+ * fake-working empty UI ("0/0 Lessons") instead of surfacing an error —
+ * that was the root cause of the empty Learn tab on production.
  */
 @HiltViewModel
 class LearnViewModel @Inject constructor(
@@ -27,6 +43,19 @@ class LearnViewModel @Inject constructor(
     init {
         loadAll()
     }
+
+    // ── Envelope unwrapping ───────────────────────────────────────────────
+    // Every tutorial/* response is `{ success: bool, data: <object|array> }`.
+    // `getProgress()`/`getStats()` additionally nest the stats block under
+    // `data.stats`. Unwrap here so every loader below reads real keys.
+    // (Keyed obj/arr lookups are local to this file — data/api/JsonSafe.kt
+    // only exposes no-arg objOrNull()/arrOrNull() on a resolved JsonElement.)
+
+    private fun JsonObject.dataObj(): JsonObject? = get("data").objOrNull()
+    private fun JsonObject.dataArr(): JsonArray? = get("data").arrOrNull()
+    private fun JsonObject.succeeded(): Boolean = get("success")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: true
+    private fun JsonObject?.objOrNull(key: String): JsonObject? = this?.get(key).objOrNull()
+    private fun JsonObject?.arrOrNull(key: String): JsonArray? = this?.get(key).arrOrNull()
 
     // ── Load Data ──────────────────────────────────────────────────────
 
@@ -49,37 +78,58 @@ class LearnViewModel @Inject constructor(
     private suspend fun loadModules() {
         try {
             val response = tutorialApi.getModules()
-            if (response.isSuccessful) {
-                val body = response.body() ?: return
-                val modules = parseModules(body)
-                val grouped = modules.groupBy { it.tier }
+            if (!response.isSuccessful) {
                 _uiState.value = _uiState.value.copy(
-                    modules = modules,
-                    beginnerModules = grouped["beginner"] ?: emptyList(),
-                    intermediateModules = grouped["intermediate"] ?: emptyList(),
-                    advancedModules = grouped["advanced"] ?: emptyList(),
+                    error = friendlyError(java.io.IOException("HTTP ${response.code()}"), "lessons"),
                 )
+                return
             }
+            val body = response.body()
+            val modulesArray = body?.dataArr()
+            if (body == null || !body.succeeded() || modulesArray == null) {
+                Timber.w("tutorial contract miss (modules): keys=${body?.keySet()}")
+                _uiState.value = _uiState.value.copy(
+                    error = "Couldn't load lessons. Pull to retry.",
+                )
+                return
+            }
+            val modules = parseModules(modulesArray)
+            val grouped = modules.groupBy { it.tier }
+            _uiState.value = _uiState.value.copy(
+                modules = modules,
+                beginnerModules = grouped["beginner"] ?: emptyList(),
+                intermediateModules = grouped["intermediate"] ?: emptyList(),
+                advancedModules = grouped["advanced"] ?: emptyList(),
+                error = null,
+            )
         } catch (e: Exception) {
             Timber.e(e, "Failed to load tutorial modules")
+            _uiState.value = _uiState.value.copy(error = friendlyError(e, "lessons"))
         }
     }
 
     private suspend fun loadStats() {
         try {
             val response = tutorialApi.getStats()
-            if (response.isSuccessful) {
-                val body = response.body() ?: return
-                _uiState.value = _uiState.value.copy(
-                    stats = TutorialStats(
-                        completedLessons = body.get("completed_lessons")?.asInt ?: 0,
-                        totalLessons = body.get("total_lessons")?.asInt ?: 0,
-                        xp = body.get("xp")?.asInt ?: body.get("total_xp")?.asInt ?: 0,
-                        level = body.get("level")?.asInt ?: 1,
-                        streak = body.get("streak")?.asInt ?: body.get("current_streak")?.asInt ?: 0,
-                    ),
-                )
+            if (!response.isSuccessful) {
+                Timber.w("tutorial contract miss (stats): HTTP ${response.code()}")
+                return
             }
+            val body = response.body()
+            val statsObj = body?.dataObj()?.objOrNull("stats")
+            if (body == null || !body.succeeded() || statsObj == null) {
+                Timber.w("tutorial contract miss (stats): keys=${body?.keySet()}")
+                return
+            }
+            _uiState.value = _uiState.value.copy(
+                stats = TutorialStats(
+                    completedLessons = statsObj.int("completed_lessons") ?: 0,
+                    totalLessons = statsObj.int("total_lessons") ?: 0,
+                    xp = statsObj.int("xp_progress") ?: statsObj.int("xp") ?: 0,
+                    level = statsObj.int("level") ?: 1,
+                    streak = statsObj.int("current_streak") ?: statsObj.int("streak") ?: 0,
+                ),
+            )
         } catch (e: Exception) {
             Timber.e(e, "Failed to load tutorial stats")
         }
@@ -88,20 +138,28 @@ class LearnViewModel @Inject constructor(
     private suspend fun loadDailyChallenge() {
         try {
             val response = tutorialApi.getDailyChallenge()
-            if (response.isSuccessful) {
-                val body = response.body() ?: return
-                val challenge = body.getAsJsonObject("challenge") ?: body
-                _uiState.value = _uiState.value.copy(
-                    dailyChallenge = DailyChallenge(
-                        id = challenge.get("id")?.asInt ?: 0,
-                        title = challenge.get("title")?.asString ?: "Daily Challenge",
-                        description = challenge.get("description")?.asString ?: "",
-                        difficulty = challenge.get("difficulty")?.asString ?: "medium",
-                        isCompleted = challenge.get("is_completed")?.asBoolean ?: false,
-                        xpReward = challenge.get("xp_reward")?.asInt ?: 50,
-                    ),
-                )
+            if (!response.isSuccessful) {
+                Timber.w("tutorial contract miss (daily-challenge): HTTP ${response.code()}")
+                return
             }
+            val body = response.body()
+            val challenge = body?.dataObj()
+            if (body == null || !body.succeeded() || challenge == null) {
+                // Locked tracks return success:false with a message — not a
+                // parse error, just "no challenge for this user right now".
+                Timber.w("tutorial contract miss (daily-challenge): keys=${body?.keySet()}")
+                return
+            }
+            _uiState.value = _uiState.value.copy(
+                dailyChallenge = DailyChallenge(
+                    id = challenge.int("id") ?: 0,
+                    title = challenge.str("challenge_type_display") ?: challenge.str("title") ?: "Daily Challenge",
+                    description = challenge.objOrNull("track").str("focus") ?: challenge.str("description") ?: "",
+                    difficulty = challenge.objOrNull("track").str("skill_tier") ?: challenge.str("difficulty") ?: "medium",
+                    isCompleted = challenge.objOrNull("user_completion").bool("completed") ?: false,
+                    xpReward = challenge.int("xp_reward") ?: 20,
+                ),
+            )
         } catch (e: Exception) {
             Timber.e(e, "Failed to load daily challenge")
         }
@@ -110,24 +168,27 @@ class LearnViewModel @Inject constructor(
     private suspend fun loadAchievements() {
         try {
             val response = tutorialApi.getUserAchievements()
-            if (response.isSuccessful) {
-                val body = response.body() ?: return
-                val achievementsArray = body.getAsJsonArray("achievements") ?: return
-                val achievements = achievementsArray.mapNotNull { el ->
-                    try {
-                        val a = el.asJsonObject
-                        Achievement(
-                            id = a.get("id")?.asInt ?: return@mapNotNull null,
-                            name = a.get("name")?.asString ?: "",
-                            description = a.get("description")?.asString ?: "",
-                            icon = a.get("icon")?.asString,
-                            isUnlocked = a.get("is_unlocked")?.asBoolean
-                                ?: a.get("unlocked_at") != null,
-                        )
-                    } catch (_: Exception) { null }
-                }
-                _uiState.value = _uiState.value.copy(achievements = achievements)
+            if (!response.isSuccessful) {
+                Timber.w("tutorial contract miss (achievements): HTTP ${response.code()}")
+                return
             }
+            val body = response.body()
+            val achievementsArray = body?.dataArr()
+            if (body == null || !body.succeeded() || achievementsArray == null) {
+                Timber.w("tutorial contract miss (achievements): keys=${body?.keySet()}")
+                return
+            }
+            val achievements = achievementsArray.mapNotNull { el ->
+                val a = el.objOrNull() ?: return@mapNotNull null
+                Achievement(
+                    id = a.int("id") ?: return@mapNotNull null,
+                    name = a.str("name") ?: "",
+                    description = a.str("description") ?: "",
+                    icon = a.str("icon"),
+                    isUnlocked = a.bool("is_earned") ?: a.bool("is_unlocked") ?: false,
+                )
+            }
+            _uiState.value = _uiState.value.copy(achievements = achievements)
         } catch (e: Exception) {
             Timber.e(e, "Failed to load achievements")
         }
@@ -140,44 +201,60 @@ class LearnViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(
                 isLoadingModule = true,
                 selectedModuleSlug = slug,
+                error = null,
             )
             try {
                 val response = tutorialApi.getModule(slug)
-                if (response.isSuccessful) {
-                    val body = response.body() ?: return@launch
-                    val module = body.getAsJsonObject("module") ?: body
-                    val lessonsArray = module.getAsJsonArray("lessons")
-                        ?: body.getAsJsonArray("lessons")
-                    val lessons = lessonsArray?.mapNotNull { el ->
-                        try {
-                            val l = el.asJsonObject
-                            Lesson(
-                                id = l.get("id")?.asInt ?: return@mapNotNull null,
-                                title = l.get("title")?.asString ?: "",
-                                description = l.get("description")?.asString ?: "",
-                                order = l.get("order")?.asInt ?: l.get("sort_order")?.asInt ?: 0,
-                                isCompleted = l.get("is_completed")?.asBoolean ?: false,
-                                xpReward = l.get("xp_reward")?.asInt ?: 10,
-                                type = l.get("type")?.asString ?: "standard",
-                            )
-                        } catch (_: Exception) { null }
-                    }?.sortedBy { it.order } ?: emptyList()
-
+                if (!response.isSuccessful) {
+                    // 403 (tier-locked) and 404 (unknown slug) both come back
+                    // with `{success:false, message}` and no `data` node —
+                    // surface the server's own message rather than a generic one.
+                    val body = response.errorBody()?.charStream()?.let {
+                        runCatching { JsonParser.parseReader(it).asJsonObject }.getOrNull()
+                    }
                     _uiState.value = _uiState.value.copy(
                         isLoadingModule = false,
-                        selectedModuleLessons = lessons,
+                        error = body?.str("message") ?: "Couldn't load this module. Pull to retry.",
                     )
-                } else {
-                    _uiState.value = _uiState.value.copy(
-                        isLoadingModule = false,
-                        error = "Failed to load module",
-                    )
+                    return@launch
                 }
+                val body = response.body()
+                val module = body?.dataObj()
+                val lessonsArray = module?.get("lessons").arrOrNull()
+                if (body == null || !body.succeeded() || module == null || lessonsArray == null) {
+                    Timber.w("tutorial contract miss (module detail): keys=${body?.keySet()}")
+                    _uiState.value = _uiState.value.copy(
+                        isLoadingModule = false,
+                        error = "Couldn't load this module. Pull to retry.",
+                    )
+                    return@launch
+                }
+                val lessons = lessonsArray.mapNotNull { el ->
+                    val l = el.objOrNull() ?: return@mapNotNull null
+                    val status = l.objOrNull("user_progress").str("status")
+                    Lesson(
+                        id = l.int("id") ?: return@mapNotNull null,
+                        title = l.str("title") ?: "",
+                        description = l.str("description") ?: "",
+                        order = l.int("sort_order") ?: l.int("order") ?: 0,
+                        isCompleted = status == "completed" || status == "mastered",
+                        xpReward = l.int("xp_reward") ?: 10,
+                        type = l.str("lesson_type") ?: l.str("type") ?: "standard",
+                    )
+                }.sortedBy { it.order }
+
+                _uiState.value = _uiState.value.copy(
+                    isLoadingModule = false,
+                    // Genuine emptiness (HTTP ok, `data.lessons` present but
+                    // `[]`) keeps the existing empty-state copy in LearnScreen —
+                    // this is not a contract miss, `lessonsArray` unwrapped fine.
+                    selectedModuleLessons = lessons,
+                )
             } catch (e: Exception) {
                 Timber.e(e, "Failed to load module detail: $slug")
                 _uiState.value = _uiState.value.copy(
                     isLoadingModule = false,
-                    error = "Error: ${e.message}",
+                    error = friendlyError(e, "this module"),
                 )
             }
         }
@@ -206,7 +283,7 @@ class LearnViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to complete lesson $lessonId")
-                _uiState.value = _uiState.value.copy(error = "Error: ${e.message}")
+                _uiState.value = _uiState.value.copy(error = friendlyError(e, "your progress"))
             }
         }
     }
@@ -233,27 +310,32 @@ class LearnViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(snackbarMessage = null)
     }
 
-    private fun parseModules(body: JsonObject): List<TutorialModule> {
-        val modulesArray = body.getAsJsonArray("modules")
-            ?: body.getAsJsonArray("data")
-            ?: return emptyList()
-
+    /**
+     * @param modulesArray the already-unwrapped `data` array from `tutorial/modules`.
+     * Real field names (verified live, see class doc): module title is
+     * `name` (NOT `title` — modules and lessons use different fillable
+     * fields on the backend), tier is `skill_tier` (NOT `tier`), ordering is
+     * `sort_order` (NOT `order`), and per-module lesson counts live under the
+     * nested `user_progress.{total_lessons,completed_lessons}` object rather
+     * than flat `lessons_count`/`completed_lessons` keys.
+     */
+    private fun parseModules(modulesArray: JsonArray): List<TutorialModule> {
         return modulesArray.mapNotNull { el ->
             try {
-                val m = el.asJsonObject
+                val m = el.objOrNull() ?: return@mapNotNull null
+                val progress = m.objOrNull("user_progress")
                 TutorialModule(
-                    id = m.get("id")?.asInt ?: return@mapNotNull null,
-                    slug = m.get("slug")?.asString ?: "",
-                    title = m.get("title")?.asString ?: "",
-                    description = m.get("description")?.asString ?: "",
-                    tier = m.get("tier")?.asString
-                        ?: m.get("difficulty")?.asString ?: "beginner",
-                    icon = m.get("icon")?.asString,
-                    lessonsCount = m.get("lessons_count")?.asInt
-                        ?: m.get("total_lessons")?.asInt ?: 0,
-                    completedLessons = m.get("completed_lessons")?.asInt
-                        ?: m.get("completed_count")?.asInt ?: 0,
-                    order = m.get("order")?.asInt ?: m.get("sort_order")?.asInt ?: 0,
+                    id = m.int("id") ?: return@mapNotNull null,
+                    slug = m.str("slug") ?: "",
+                    title = m.str("name") ?: m.str("title") ?: "",
+                    description = m.str("description") ?: "",
+                    tier = m.str("skill_tier") ?: m.str("tier") ?: "beginner",
+                    icon = m.str("icon"),
+                    lessonsCount = progress.int("total_lessons")
+                        ?: m.int("lessons_count") ?: 0,
+                    completedLessons = progress.int("completed_lessons")
+                        ?: m.int("completed_lessons") ?: 0,
+                    order = m.int("sort_order") ?: m.int("order") ?: 0,
                 )
             } catch (e: Exception) {
                 Timber.w(e, "Failed to parse module")

@@ -6,10 +6,14 @@ import com.chess99.data.api.AuthApi
 import com.chess99.data.api.ChampionshipApi
 import com.chess99.data.api.GameApi
 import com.chess99.data.api.ProfileApi
+import com.chess99.data.api.arrOrNull
+import com.chess99.data.api.objOrNull
+import com.chess99.presentation.common.friendlyError
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
@@ -49,20 +53,15 @@ class DashboardViewModel @Inject constructor(
     private fun loadDashboard() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            try {
-                // Load all sections in parallel
-                launch { loadUserInfo() }
-                launch { loadStats() }
-                launch { loadRecentGames() }
-                launch { loadActiveTournaments() }
-                launch { loadUnfinishedGames() }
-            } catch (e: Exception) {
-                Timber.e(e, "Failed to load dashboard data")
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = "Failed to load dashboard: ${e.message}",
-                )
-            }
+            val jobs = listOf(
+                launch { loadUserInfo() },
+                launch { loadStats() },
+                launch { loadRecentGames() },
+                launch { loadActiveTournaments() },
+                launch { loadUnfinishedGames() },
+            )
+            jobs.joinAll()
+            _uiState.value = _uiState.value.copy(isLoading = false)
         }
     }
 
@@ -72,16 +71,24 @@ class DashboardViewModel @Inject constructor(
             if (response.isSuccessful) {
                 val user = response.body()
                 _uiState.value = _uiState.value.copy(
-                    isLoading = false,
                     userName = user?.name ?: "",
                     userEmail = user?.email ?: "",
                     userAvatarUrl = user?.avatarUrl,
                     userRating = user?.rating ?: 1200,
                     userPeakRating = user?.peakRating ?: user?.rating ?: 1200,
                 )
+            } else {
+                _uiState.value = _uiState.value.copy(
+                    error = "Couldn't load your dashboard. Please try again.",
+                )
             }
         } catch (e: Exception) {
             Timber.e(e, "Failed to load user info")
+            // User info is essential — without it the screen is useless, so
+            // surface a top-level error card with Retry.
+            _uiState.value = _uiState.value.copy(
+                error = friendlyError(e, "your dashboard"),
+            )
         }
     }
 
@@ -89,27 +96,35 @@ class DashboardViewModel @Inject constructor(
         try {
             val response = profileApi.getPerformanceStats()
             if (response.isSuccessful) {
-                val body = response.body() ?: return
-                val statsObj = if (body.has("stats")) body.getAsJsonObject("stats") else body
+                val body = response.body()
+                val statsObj = if (body != null && body.has("stats")) body.getAsJsonObject("stats") else body
 
                 _uiState.value = _uiState.value.copy(
                     stats = DashboardStats(
-                        rating = statsObj.get("rating")?.asInt
+                        rating = statsObj?.get("rating")?.asInt
                             ?: _uiState.value.userRating,
-                        peakRating = statsObj.get("peak_rating")?.asInt
+                        peakRating = statsObj?.get("peak_rating")?.asInt
                             ?: _uiState.value.userPeakRating,
-                        gamesPlayed = statsObj.get("total_games")?.asInt ?: 0,
-                        wins = statsObj.get("wins")?.asInt ?: 0,
-                        losses = statsObj.get("losses")?.asInt ?: 0,
-                        draws = statsObj.get("draws")?.asInt ?: 0,
-                        winRate = statsObj.get("win_rate")?.asFloat ?: 0f,
-                        currentStreak = statsObj.get("current_streak")?.asInt ?: 0,
-                        bestStreak = statsObj.get("best_streak")?.asInt ?: 0,
+                        gamesPlayed = statsObj?.get("total_games")?.asInt ?: 0,
+                        wins = statsObj?.get("wins")?.asInt ?: 0,
+                        losses = statsObj?.get("losses")?.asInt ?: 0,
+                        draws = statsObj?.get("draws")?.asInt ?: 0,
+                        winRate = statsObj?.get("win_rate")?.asFloat ?: 0f,
+                        currentStreak = statsObj?.get("current_streak")?.asInt ?: 0,
+                        bestStreak = statsObj?.get("best_streak")?.asInt ?: 0,
                     ),
+                    statsError = null,
+                )
+            } else {
+                _uiState.value = _uiState.value.copy(
+                    statsError = "Couldn't load your stats.",
                 )
             }
         } catch (e: Exception) {
             Timber.e(e, "Failed to load stats")
+            _uiState.value = _uiState.value.copy(
+                statsError = friendlyError(e, "your stats"),
+            )
         }
     }
 
@@ -117,13 +132,12 @@ class DashboardViewModel @Inject constructor(
         try {
             val response = gameApi.getUserGames(page = 1, perPage = 5)
             if (response.isSuccessful) {
-                val body = response.body() ?: return
-                val gamesArray = body.getAsJsonArray("data")
-                    ?: body.getAsJsonArray("games")
-                    ?: return
+                val body = response.body()
+                val gamesArray = body?.get("data")?.arrOrNull()
+                    ?: body?.get("games")?.arrOrNull()
 
-                val games = gamesArray.map { el ->
-                    val g = el.asJsonObject
+                val games = gamesArray?.mapNotNull { el ->
+                    val g = el.objOrNull() ?: return@mapNotNull null
                     RecentGame(
                         id = g.get("id")?.asInt ?: 0,
                         opponent = g.get("opponent_name")?.asString
@@ -138,7 +152,7 @@ class DashboardViewModel @Inject constructor(
                             ?: g.get("created_at")?.asString
                             ?: "",
                     )
-                }
+                } ?: emptyList()
                 _uiState.value = _uiState.value.copy(recentGames = games)
             }
         } catch (e: Exception) {
@@ -154,13 +168,12 @@ class DashboardViewModel @Inject constructor(
                 perPage = 5,
             )
             if (response.isSuccessful) {
-                val body = response.body() ?: return
-                val tournamentsArray = body.getAsJsonArray("data")
-                    ?: body.getAsJsonArray("championships")
-                    ?: return
+                val body = response.body()
+                val tournamentsArray = body?.get("data")?.arrOrNull()
+                    ?: body?.get("championships")?.arrOrNull()
 
-                val tournaments = tournamentsArray.map { el ->
-                    val t = el.asJsonObject
+                val tournaments = tournamentsArray?.mapNotNull { el ->
+                    val t = el.objOrNull() ?: return@mapNotNull null
                     ActiveTournament(
                         id = t.get("id")?.asInt ?: 0,
                         name = t.get("name")?.asString ?: "",
@@ -172,7 +185,7 @@ class DashboardViewModel @Inject constructor(
                             ?: t.get("participants_count")?.asInt ?: 0,
                         status = t.get("status")?.asString ?: "active",
                     )
-                }
+                } ?: emptyList()
                 _uiState.value = _uiState.value.copy(activeTournaments = tournaments)
             }
         } catch (e: Exception) {
@@ -184,18 +197,17 @@ class DashboardViewModel @Inject constructor(
         try {
             val response = gameApi.getUnfinishedGames()
             if (response.isSuccessful) {
-                val body = response.body() ?: return
-                val gamesArray = body.getAsJsonArray("games")
-                    ?: body.getAsJsonArray("data")
-                    ?: return
-                val games = gamesArray.map { el ->
-                    val g = el.asJsonObject
+                val body = response.body()
+                val gamesArray = body?.get("games")?.arrOrNull()
+                    ?: body?.get("data")?.arrOrNull()
+                val games = gamesArray?.mapNotNull { el ->
+                    val g = el.objOrNull() ?: return@mapNotNull null
                     UnfinishedGame(
                         gameId = g.get("id")?.asInt ?: 0,
                         opponentName = g.get("opponent_name")?.asString ?: "Unknown",
                         timeControl = g.get("time_control")?.asString ?: "10|0",
                     )
-                }
+                } ?: emptyList()
                 _unfinishedGames.value = games
             }
         } catch (e: Exception) {
@@ -237,15 +249,20 @@ class DashboardViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(isRefreshing = true)
         viewModelScope.launch {
             try {
-                loadUserInfo()
-                loadStats()
-                loadRecentGames()
-                loadActiveTournaments()
-                loadUnfinishedGames()
+                val jobs = listOf(
+                    launch { loadUserInfo() },
+                    launch { loadStats() },
+                    launch { loadRecentGames() },
+                    launch { loadActiveTournaments() },
+                    launch { loadUnfinishedGames() },
+                )
+                jobs.joinAll()
             } catch (e: Exception) {
+                // Each child loader already catches its own failures; this
+                // guards against anything unexpected escaping joinAll().
                 Timber.e(e, "Failed to refresh dashboard")
                 _uiState.value = _uiState.value.copy(
-                    error = "Refresh failed: ${e.message}",
+                    error = friendlyError(e, "your dashboard"),
                 )
             } finally {
                 _uiState.value = _uiState.value.copy(isRefreshing = false)
@@ -275,6 +292,7 @@ data class DashboardUiState(
 
     // Stats
     val stats: DashboardStats? = null,
+    val statsError: String? = null,
 
     // Recent games
     val recentGames: List<RecentGame> = emptyList(),

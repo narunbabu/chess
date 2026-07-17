@@ -20,16 +20,17 @@ import androidx.hilt.navigation.compose.hiltViewModel
 
 /**
  * Subscription management screen.
- * Shows current plan details, expiry, cancellation,
- * and a link to upgrade / view pricing.
+ * Shows current plan details, expiry, and cancellation.
  *
- * Mirrors chess-frontend Subscription management component.
+ * NOTE: intentionally has no purchase/upgrade call-to-action — Google Play
+ * policy prohibits directing users to non-Play payment methods for digital
+ * goods, and this app ships without in-app purchases (planned via Play
+ * Billing in v1.1). Subscriptions bought on the web are reflected here.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SubscriptionScreen(
     onNavigateBack: () -> Unit,
-    onNavigateToPricing: () -> Unit,
     viewModel: PaymentViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -77,10 +78,41 @@ fun SubscriptionScreen(
         ) {
             // Current plan card
             item {
-                CurrentPlanCard(
-                    subscription = state.currentSubscription,
-                    onUpgrade = onNavigateToPricing,
-                )
+                CurrentPlanCard(subscription = state.currentSubscription)
+            }
+
+            // Inline, non-blocking notice when the plan check itself failed
+            // (S3 T6) — never a dialog, degrades gracefully to Free tier.
+            state.planCheckNotice?.let { notice ->
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        ),
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                Icons.Default.Info,
+                                null,
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = notice,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                    }
+                }
             }
 
             // Subscription details (if active paid subscription)
@@ -94,7 +126,7 @@ fun SubscriptionScreen(
                 if (sub.isActive) {
                     item {
                         CancelSubscriptionCard(
-                            isProcessing = state.isProcessingPayment,
+                            isProcessing = state.isProcessing,
                             onCancel = { viewModel.showCancelDialog() },
                         )
                     }
@@ -104,15 +136,15 @@ fun SubscriptionScreen(
             // Restore purchases
             item {
                 RestorePurchasesCard(
-                    isProcessing = state.isProcessingPayment,
+                    isProcessing = state.isProcessing,
                     onRestore = { viewModel.restorePurchases() },
                 )
             }
 
-            // Upgrade prompt for free users
+            // Availability notice for free users (no purchase CTA — see note above)
             if (sub == null || sub.tier == "free") {
                 item {
-                    UpgradePromptCard(onUpgrade = onNavigateToPricing)
+                    PlansUnavailableCard()
                 }
             }
 
@@ -148,9 +180,9 @@ fun SubscriptionScreen(
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.error,
                         ),
-                        enabled = !state.isProcessingPayment,
+                        enabled = !state.isProcessing,
                     ) {
-                        if (state.isProcessingPayment) {
+                        if (state.isProcessing) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(16.dp),
                                 strokeWidth = 2.dp,
@@ -188,7 +220,6 @@ fun SubscriptionScreen(
 @Composable
 private fun CurrentPlanCard(
     subscription: Subscription?,
-    onUpgrade: () -> Unit,
 ) {
     val tier = subscription?.tier ?: "free"
     val planName = subscription?.planName ?: "Free"
@@ -260,23 +291,6 @@ private fun CurrentPlanCard(
                     labelColor = statusColor,
                 ),
             )
-
-            // Upgrade button for free / expired users
-            if (tier == "free" || subscription?.isExpired == true) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Button(
-                    onClick = onUpgrade,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Icon(
-                        Icons.Default.Upgrade,
-                        null,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Upgrade Now", fontWeight = FontWeight.SemiBold)
-                }
-            }
         }
     }
 }
@@ -487,14 +501,14 @@ private fun RestorePurchasesCard(
     }
 }
 
-// ── Upgrade Prompt Card ──────────────────────────────────────────────────
+// ── Plans Availability Notice ────────────────────────────────────────────
 
 @Composable
-private fun UpgradePromptCard(onUpgrade: () -> Unit) {
+private fun PlansUnavailableCard() {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
         ),
     ) {
         Column(
@@ -504,30 +518,20 @@ private fun UpgradePromptCard(onUpgrade: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Icon(
-                Icons.Default.Rocket,
+                Icons.Default.Info,
                 null,
-                modifier = Modifier.size(40.dp),
-                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(32.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "Unlock Premium Features",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Get access to exclusive board themes, advanced analysis, " +
-                    "and priority matchmaking.",
+                text = "Premium plan purchases are not available in this app. " +
+                    "If your Chess99 account has a premium plan, it is active " +
+                    "here automatically.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
-            Spacer(modifier = Modifier.height(16.dp))
-            Button(onClick = onUpgrade) {
-                Text("View Plans", fontWeight = FontWeight.SemiBold)
-            }
         }
     }
 }

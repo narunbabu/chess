@@ -52,8 +52,13 @@ fun ForgotPasswordScreen(
                 .padding(padding)
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
+            // Top-align under the app bar (spec T3) — this used to be
+            // Arrangement.Center, which floated the form near the
+            // vertical center-bottom of the screen.
+            verticalArrangement = Arrangement.Top,
         ) {
+            Spacer(modifier = Modifier.height(24.dp))
+
             when (state.status) {
                 ForgotPasswordStatus.SUCCESS -> {
                     Icon(

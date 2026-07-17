@@ -58,6 +58,10 @@ fun BecomeAmbassadorScreen(
             )
         },
     ) { padding ->
+        if (state.isAdultOnly) {
+            AdultOnlyNotice(modifier = Modifier.fillMaxSize().padding(padding))
+            return@Scaffold
+        }
         Column(
             modifier = Modifier
                 .fillMaxSize()

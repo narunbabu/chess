@@ -9,6 +9,7 @@ import { savePendingGame, getPendingGame } from '../services/gameHistoryService'
 import { migrateGuestGame } from '../services/unfinishedGameService';
 import tacticalApi from '../services/tacticalApi';
 import { STORAGE_KEY } from '../components/tactical/tacticalStages';
+import { setAuthHydrating } from '../services/authHydrationState';
 
 // Create the AuthContext
 const AuthContext = createContext(null);
@@ -128,7 +129,7 @@ export const AuthProvider = ({ children }) => {
   }, []); // No dependencies - this function never changes
 
   // Fetch current user data
-  const fetchUser = useCallback(async () => {
+  const fetchUser = useCallback(async (isRetry = false) => {
     try {
       console.log('[AuthContext] 🔄 fetchUser called');
       console.trace('[AuthContext] 📍 fetchUser call stack');
@@ -137,6 +138,7 @@ export const AuthProvider = ({ children }) => {
       if (!token) {
         logger.auth('Login', 'No auth token found');
         setLoading(false);
+        setAuthHydrating(false);
         return;
       }
 
@@ -232,15 +234,30 @@ export const AuthProvider = ({ children }) => {
 
       return userData;
     } catch (error) {
-      console.error('[Auth] Failed to fetch user:', error);
-      console.error('[Auth] Error details:', error.response?.data);
-      // If token is invalid, clear it
-      localStorage.removeItem("auth_token");
-      delete api.defaults.headers.common['Authorization'];
-      setIsAuthenticated(false);
-      setUser(null);
+      const status = error.response?.status;
+
+      if (status === 401) {
+        // Token is genuinely invalid/expired — clear it and log out cleanly.
+        console.error('[Auth] Failed to fetch user (401 — clearing session):', error);
+        console.error('[Auth] Error details:', error.response?.data);
+        localStorage.removeItem("auth_token");
+        delete api.defaults.headers.common['Authorization'];
+        setIsAuthenticated(false);
+        setUser(null);
+      } else {
+        // Network error, timeout, or 5xx — the token may still be valid.
+        // Keep the token and any existing user/auth state, and retry once
+        // after a short delay instead of nuking the session on a blip.
+        console.warn('[Auth] fetchUser failed (non-401, keeping session):', error);
+        if (!isRetry) {
+          setTimeout(() => {
+            fetchUser(true);
+          }, 3000);
+        }
+      }
     } finally {
       setLoading(false);
+      setAuthHydrating(false);
     }
   }, [checkAndSavePendingGames, migrateGuestUnfinishedGames]);
 

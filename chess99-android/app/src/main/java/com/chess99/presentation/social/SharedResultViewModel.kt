@@ -3,6 +3,7 @@ package com.chess99.presentation.social
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chess99.data.api.SocialApi
+import com.chess99.presentation.common.friendlyError
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -72,7 +73,7 @@ class SharedResultViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to load shared result")
-                _uiState.value = SharedResultUiState(error = "Network error: ${e.message}")
+                _uiState.value = SharedResultUiState(error = friendlyError(e, "this shared game"))
             }
         }
     }

@@ -6,10 +6,12 @@ import {
   Routes,
   Route,
   useLocation,
+  useNavigate,
 } from "react-router-dom";
 import * as Sentry from "@sentry/react";
 import { createLazyComponent } from "./utils/lazyLoad";
 import { trackPageView } from "./utils/analytics";
+import { SESSION_EXPIRED_EVENT } from "./services/api";
 
 // Critical imports - loaded immediately (providers, layout, utilities)
 import { AuthProvider } from "./contexts/AuthContext";
@@ -142,6 +144,7 @@ const App = () => {
 // Component to add full-bleed class for landing/login pages
 const AppContent = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const isFullBleed = ['/', '/login', '/forgot-password', '/reset-password', '/ambassador/poster'].includes(location.pathname) || location.pathname.startsWith('/join/') || location.pathname.startsWith('/r/');
 
   useEffect(() => {
@@ -154,6 +157,16 @@ const AppContent = () => {
     // changes). Captures every screen in the acquisition funnel, not just the first.
     trackPageView(location.pathname, { search: location.search });
   }, [location]);
+
+  // SPA-navigate to /login on a genuine session expiry (api.js dispatches this
+  // instead of a hard window.location redirect so the app instance survives).
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      navigate('/login', { state: { from: location.pathname } });
+    };
+    window.addEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
+  }, [navigate, location.pathname]);
 
   return (
     <div className={`app-container ${isFullBleed ? 'full-bleed' : ''} flex flex-col min-h-screen`}>

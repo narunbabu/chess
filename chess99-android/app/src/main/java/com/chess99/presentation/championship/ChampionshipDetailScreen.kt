@@ -22,6 +22,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chess99.data.api.ChampionshipApi
 import com.chess99.data.local.TokenManager
+import com.chess99.presentation.common.friendlyError
 import com.google.gson.JsonObject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -104,7 +105,7 @@ class ChampionshipDetailViewModel @Inject constructor(
         } catch (e: Exception) {
             _uiState.value = _uiState.value.copy(
                 isLoading = false,
-                error = "Network error: ${e.message}",
+                error = friendlyError(e, "tournament details"),
             )
         }
     }
@@ -233,7 +234,7 @@ class ChampionshipDetailViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Tournament management action failed")
-                _uiState.value = _uiState.value.copy(isManaging = false, manageMessage = e.message)
+                _uiState.value = _uiState.value.copy(isManaging = false, manageMessage = friendlyError(e, "this action"))
             }
         }
     }

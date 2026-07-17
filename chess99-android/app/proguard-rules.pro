@@ -1,4 +1,7 @@
 # Chess99 ProGuard Rules
+# NOTE: these rules are release-only (isMinifyEnabled). Test features that use
+# reflection/Gson against a RELEASE build, not just debug — R8 stripping has
+# already bitten tactical-puzzle loading (Gson TypeToken) once.
 
 # Retrofit
 -keepattributes Signature, InnerClasses, EnclosingMethod
@@ -15,10 +18,38 @@
 # Gson DTOs
 -keep class com.chess99.data.dto.** { *; }
 
+# Gson — keep generic signatures + SerializedName fields, and (critical) retain
+# the generic type argument of anonymous TypeToken subclasses under R8, else
+# `object : TypeToken<List<T>>() {}` throws "TypeToken must be created with a
+# type argument" at runtime (e.g. tactical-puzzle asset loading). See Gson README.
+-keepattributes Signature
+-keepattributes *Annotation*
+-keepclassmembers,allowobfuscation class * {
+    @com.google.gson.annotations.SerializedName <fields>;
+}
+-keep,allowobfuscation,allowshrinking class com.google.gson.reflect.TypeToken
+-keep,allowobfuscation,allowshrinking class * extends com.google.gson.reflect.TypeToken
+# Model classes deserialized from bundled JSON assets (kept generically so their
+# fields survive minification for reflective Gson binding).
+-keep class com.chess99.presentation.learn.tactical.** { *; }
+
 # Pusher
 -keep class com.pusher.** { *; }
 -dontwarn com.pusher.**
+# pusher-java-client pulls in slf4j-api 1.x; no slf4j binding is bundled, so
+# slf4j falls back to its NOP logger at runtime — safe to silence R8 here.
+-dontwarn org.slf4j.impl.StaticLoggerBinder
 
 # OkHttp
 -dontwarn okhttp3.**
 -dontwarn okio.**
+
+# Crashlytics — keep source file + line numbers so obfuscated crash reports are
+# still readable (the Crashlytics Gradle plugin uploads the mapping file too).
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
+-keep public class * extends java.lang.Exception
+
+# Facebook Login SDK
+-keep class com.facebook.** { *; }
+-dontwarn com.facebook.**

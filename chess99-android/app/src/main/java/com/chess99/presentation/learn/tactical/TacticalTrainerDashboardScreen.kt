@@ -41,7 +41,9 @@ fun TacticalTrainerDashboardScreen(
             state = state,
             onAttemptMove = { from, to, promo -> viewModel.attemptMove(from, to, promo) },
             onNextPuzzle = { viewModel.nextPuzzle() },
-            onShowSolution = { viewModel.showSolution() },
+            onRequestHint = { viewModel.requestHint() },
+            onDismissHintDialog = { viewModel.dismissHintDialog() },
+            onConfirmShowSolution = { viewModel.confirmShowSolution() },
             onBackToDashboard = { viewModel.backToDashboard() },
         )
         TacticalScreenPhase.SOLUTION_VIEWER -> SolutionViewerContent(

@@ -12,10 +12,16 @@ class GuardianChildRelationship extends Model
     public const STATUS_ACTIVE = 'active';
     public const STATUS_REVOKED = 'revoked';
 
+    /** Guardian invited a child, who accepts (existing parent-dashboard flow). */
+    public const INITIATED_BY_GUARDIAN = 'guardian';
+    /** Minor named a guardian at signup; the guardian approves (grants consent). */
+    public const INITIATED_BY_CHILD = 'child';
+
     protected $fillable = [
         'guardian_id',
         'child_id',
         'status',
+        'initiated_by',
         'relationship_label',
         'invite_email',
         'invited_at',

@@ -3,6 +3,7 @@ package com.chess99.presentation.championship
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chess99.data.api.ChampionshipApi
+import com.chess99.presentation.common.friendlyError
 import com.google.gson.JsonObject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -57,7 +58,7 @@ class ChampionshipListViewModel @Inject constructor(
                 Timber.e(e, "Failed to load championships")
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = "Network error: ${e.message}",
+                    error = friendlyError(e, "tournaments"),
                 )
             }
         }
@@ -110,7 +111,7 @@ class ChampionshipListViewModel @Inject constructor(
                 Timber.e(e, "Failed to register for championship $championshipId")
                 _uiState.value = _uiState.value.copy(
                     registeringId = null,
-                    error = "Registration error: ${e.message}",
+                    error = friendlyError(e, "tournament registration"),
                 )
             }
         }
@@ -155,7 +156,7 @@ class ChampionshipListViewModel @Inject constructor(
                 Timber.e(e, "Failed to create championship")
                 _uiState.value = _uiState.value.copy(
                     isCreating = false,
-                    error = "Error: ${e.message}",
+                    error = friendlyError(e, "this action"),
                 )
             }
         }

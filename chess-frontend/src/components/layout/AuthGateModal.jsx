@@ -9,6 +9,18 @@ import LockIcon from "../../assets/icons/LockIcon";
 import EyeIcon from "../../assets/icons/EyeIcon";
 import EyeOffIcon from "../../assets/icons/EyeOffIcon";
 
+// Age in whole years from a yyyy-mm-dd string, or null if unparseable.
+const calcAge = (dob) => {
+  if (!dob) return null;
+  const b = new Date(dob);
+  if (Number.isNaN(b.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - b.getFullYear();
+  const m = now.getMonth() - b.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < b.getDate())) age -= 1;
+  return age;
+};
+
 /**
  * AuthGateModal - Authentication modal for protected routes
  *
@@ -27,6 +39,8 @@ const AuthGateModal = ({ reason = 'this feature', returnTo = '/dashboard', onClo
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [birthday, setBirthday] = useState('');
+  const [guardianEmail, setGuardianEmail] = useState('');
   const [error, setError] = useState('');
   const [isLogin, setIsLogin] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
@@ -35,6 +49,9 @@ const AuthGateModal = ({ reason = 'this feature', returnTo = '/dashboard', onClo
 
   const navigate = useNavigate();
   const { login } = useAuth(); // ✅ Use existing login function
+
+  const age = calcAge(birthday);
+  const isMinor = age !== null && age < 18;
 
   // Reason-specific messaging
   const getReasonMessage = () => {
@@ -82,6 +99,21 @@ const AuthGateModal = ({ reason = 'this feature', returnTo = '/dashboard', onClo
           setIsLoading(false);
           return;
         }
+        if (!birthday) {
+          setError('Please enter your date of birth.');
+          setIsLoading(false);
+          return;
+        }
+        if (age !== null && age < 5) {
+          setError('Players must be at least 5 years old.');
+          setIsLoading(false);
+          return;
+        }
+        if (isMinor && !guardianEmail) {
+          setError("A parent or guardian's email is required for players under 18.");
+          setIsLoading(false);
+          return;
+        }
 
         const referralCode = localStorage.getItem('chess99_referral_code');
         const response = await api.post('/auth/register', {
@@ -89,10 +121,22 @@ const AuthGateModal = ({ reason = 'this feature', returnTo = '/dashboard', onClo
           email,
           password,
           password_confirmation: confirmPassword,
+          birthday,
+          ...(isMinor && guardianEmail ? { guardian_email: guardianEmail } : {}),
           ...(referralCode ? { referral_code: referralCode } : {}),
         });
 
-        if (response.data.status === 'success') {
+        // Email verification is required — the register endpoint returns no token.
+        // Prompt the user to verify and sign in rather than logging in with none.
+        if (response.data.requires_verification) {
+          trackAuth('register', 'email', { reason, returnTo, requires_verification: true });
+          setIsLogin(true);
+          setError('Account created! Check your email to verify, then sign in.');
+          setIsLoading(false);
+          return;
+        }
+
+        if (response.data.status === 'success' && response.data.token) {
           // Track successful registration
           trackAuth('register', 'email', { reason, returnTo });
 
@@ -246,6 +290,43 @@ const AuthGateModal = ({ reason = 'this feature', returnTo = '/dashboard', onClo
                       disabled={isLoading}
                       className="w-full px-4 py-3 bg-[#262421] border-2 border-[#3d3a37] rounded-lg focus:ring-primary-500 focus:border-primary-500 transition-all duration-300 text-white placeholder-gray-400"
                     />
+                  </div>
+                )}
+
+                {!isLogin && (
+                  <div className="mb-4">
+                    <label className="block text-xs text-gray-400 mb-1.5 ml-1">Date of birth</label>
+                    <input
+                      type="date"
+                      value={birthday}
+                      onChange={(e) => setBirthday(e.target.value)}
+                      required
+                      max={new Date().toISOString().split('T')[0]}
+                      disabled={isLoading}
+                      className="w-full px-4 py-3 bg-[#262421] border-2 border-[#3d3a37] rounded-lg focus:ring-primary-500 focus:border-primary-500 transition-all duration-300 text-white placeholder-gray-400 [color-scheme:dark]"
+                    />
+                  </div>
+                )}
+
+                {!isLogin && isMinor && (
+                  <div className="mb-4">
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-gray-400">
+                        <MailIcon />
+                      </div>
+                      <input
+                        type="email"
+                        placeholder="Parent / guardian email"
+                        value={guardianEmail}
+                        onChange={(e) => setGuardianEmail(e.target.value)}
+                        required
+                        disabled={isLoading}
+                        className="w-full pl-10 pr-4 py-3 bg-[#262421] border-2 border-[#3d3a37] rounded-lg focus:ring-primary-500 focus:border-primary-500 transition-all duration-300 text-white placeholder-gray-400"
+                      />
+                    </div>
+                    <p className="text-[11px] text-gray-400 mt-1 ml-1">
+                      Players under 18 need a parent or guardian to approve the account.
+                    </p>
                   </div>
                 )}
 

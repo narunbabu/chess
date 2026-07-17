@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -5,6 +7,15 @@ plugins {
     alias(libs.plugins.hilt.android)
     alias(libs.plugins.ksp)
     alias(libs.plugins.google.services)
+    alias(libs.plugins.firebase.crashlytics)
+}
+
+// Release signing — reads the upload keystore path + passwords from a gitignored
+// keystore.properties (never committed). When absent (e.g. CI without secrets),
+// the release build is left unsigned rather than failing the configuration.
+val keystorePropsFile = rootProject.file("keystore.properties")
+val keystoreProps = Properties().apply {
+    if (keystorePropsFile.exists()) keystorePropsFile.inputStream().use { load(it) }
 }
 
 android {
@@ -20,12 +31,32 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // API configuration (overridden per build type)
-        buildConfigField("String", "API_BASE_URL", "\"https://chess99.com/api/v1/\"")
-        buildConfigField("String", "WS_HOST", "\"chess99.com\"")
+        // S2: Stockfish 11 is packaged as a fake libstockfish.so per ABI under
+        // jniLibs/ (see StockfishBridge.kt) — restrict packaging to the ABIs we
+        // actually ship binaries for.
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+        }
+
+        // API configuration (overridden per build type).
+        // Production API + Reverb WebSockets are served from api.chess99.com —
+        // chess99.com itself only serves the SPA (its /api/* returns index.html).
+        buildConfigField("String", "API_BASE_URL", "\"https://api.chess99.com/api/v1/\"")
+        buildConfigField("String", "WS_HOST", "\"api.chess99.com\"")
         buildConfigField("int", "WS_PORT", "443")
         buildConfigField("String", "WS_KEY", "\"\"")
         buildConfigField("boolean", "WS_USE_TLS", "true")
+    }
+
+    signingConfigs {
+        create("release") {
+            if (keystorePropsFile.exists()) {
+                storeFile = file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+            }
+        }
     }
 
     buildTypes {
@@ -40,6 +71,12 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            // Sign with the upload key when keystore.properties is present.
+            signingConfig = if (keystorePropsFile.exists()) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfig
+            }
             // SECURITY (L5): the production Reverb key must NOT be hardcoded. It is
             // injected at build time from a gradle property (-PWS_KEY_RELEASE=…,
             // or in ~/.gradle/gradle.properties / local.properties) or the
@@ -68,6 +105,16 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+
+    // S2: force legacy jniLibs packaging so libstockfish.so is extracted to
+    // applicationInfo.nativeLibraryDir at install time (a real exec-able file
+    // path) instead of being mapped page-aligned straight out of the APK —
+    // StockfishBridge execs it directly, so it must exist as a real file.
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
     }
 }
 
@@ -115,6 +162,7 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
     implementation(libs.firebase.analytics)
+    implementation(libs.firebase.crashlytics)
 
     // Google Sign-In
     implementation(libs.google.identity)
@@ -127,8 +175,8 @@ dependencies {
     // WebSocket (Pusher - Reverb compatible)
     implementation(libs.pusher.java.client)
 
-    // Razorpay Payment SDK
-    implementation("com.razorpay:checkout:1.6.40")
+    // NOTE: no in-app purchases in v1 — Razorpay SDK removed for Play policy
+    // compliance (digital goods require Play Billing; planned for v1.1).
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.core)

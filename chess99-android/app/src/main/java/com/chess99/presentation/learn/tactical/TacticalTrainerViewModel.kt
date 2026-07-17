@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.chess99.data.api.TacticalApi
 import com.chess99.engine.ChessGame
 import com.chess99.engine.Color
+import com.chess99.presentation.common.friendlyError
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.reflect.TypeToken
@@ -42,6 +43,7 @@ data class TacticalTrainerUiState(
     val lastRatingDelta: RatingDelta? = null,
     val errorMessage: String? = null,
     val puzzleCount: Int = 0,
+    val showHintConfirmDialog: Boolean = false,
 )
 
 @HiltViewModel
@@ -59,6 +61,19 @@ class TacticalTrainerViewModel @Inject constructor(
     private var progress = TacticalStages.defaultProgress()
     private val offlineQueue = mutableListOf<JsonObject>()
     private var syncedOnce = false
+
+    /** Whether the free from-square hint has already been given for the current puzzle. */
+    private var hintGivenForCurrentPuzzle = false
+
+    /**
+     * Per-puzzle-id attempt state (wrongCount, solutionShown) that must survive
+     * re-entering the same puzzle within a session — e.g. viewing the solution,
+     * returning to the dashboard, and reselecting the same (unsolved) puzzle
+     * must NOT reset scoring back to a fresh 100/100 attempt. Cleared only when
+     * the puzzle is solved (moving to the next puzzle starts fresh, correctly).
+     */
+    private data class PuzzleAttemptState(val wrongCount: Int = 0, val solutionShown: Boolean = false)
+    private val puzzleAttemptState = mutableMapOf<String, PuzzleAttemptState>()
 
     init {
         loadProgressFromPrefs()
@@ -228,7 +243,7 @@ class TacticalTrainerViewModel @Inject constructor(
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    errorMessage = "Failed to load puzzles: ${e.message}",
+                    errorMessage = friendlyError(e, "the puzzles"),
                 )
             }
         }
@@ -241,32 +256,74 @@ class TacticalTrainerViewModel @Inject constructor(
         val type = object : TypeToken<List<TacticalPuzzle>>() {}.type
         val result: List<TacticalPuzzle> = gson.fromJson(reader, type)
         reader.close()
-        return result.sortedBy { it.rating }
+        return result.map { normalizePuzzle(it) }.sortedBy { it.rating }
+    }
+
+    /**
+     * Lichess-format bundled puzzles store the opponent's setup ply as moves[0].
+     * Apply it to the FEN so the solver sees the real puzzle position — mirrors
+     * normalizePuzzle() in chess-frontend TacticalTrainer.js.
+     */
+    private fun normalizePuzzle(p: TacticalPuzzle): TacticalPuzzle {
+        if (p.moves.size < 2) return p
+        return try {
+            val game = ChessGame(p.fen)
+            // Apply the setup ply; moveUci returns null if the move is illegal/fails —
+            // in that case leave the puzzle unchanged (matches web's `if (!moved) return puzzle`).
+            if (game.moveUci(p.moves[0]) == null) return p
+            val newFen = game.fen()
+            val newColor = newFen.split(" ")[1] // "w" or "b"
+            val colorName = if (newColor == "w") "White" else "Black"
+            val wrongName = if (newColor == "w") "Black" else "White"
+            val newExplanation =
+                if (p.explanation.startsWith(wrongName))
+                    colorName + p.explanation.removePrefix(wrongName)
+                else p.explanation
+            p.copy(
+                fen = newFen,
+                moves = p.moves.drop(1),
+                playerColor = newColor,
+                explanation = newExplanation,
+            )
+        } catch (e: Exception) {
+            p // never crash puzzle loading over one bad entry
+        }
     }
 
     private fun showPuzzle(index: Int) {
         if (index >= puzzles.size) return
         val puzzle = puzzles[index]
         currentMoveIndex = 0
-        val game = ChessGame(puzzle.fen)
+        hintGivenForCurrentPuzzle = false
         val color = when (puzzle.playerColor) {
             "b" -> Color.BLACK
             else -> Color.WHITE
         }
 
+        // Restore persisted attempt state for this puzzle id — re-entering a puzzle
+        // (e.g. dashboard -> same unsolved puzzle after viewing its solution) must
+        // NOT reset wrongCount/solutionShown back to a fresh, full-score attempt.
+        val persisted = puzzleAttemptState[puzzle.id] ?: PuzzleAttemptState()
+
+        // Always land in PLAY phase, never the solution viewer — this is the single
+        // entry point used both when opening a puzzle from the dashboard and when
+        // advancing from Solution Viewer's "Next", so "Next" can never spoil the
+        // next puzzle by leaving `phase` stuck at SOLUTION_VIEWER.
         _uiState.value = _uiState.value.copy(
+            phase = TacticalScreenPhase.PUZZLE,
             currentPuzzle = puzzle,
             fen = puzzle.fen,
             playerColor = color,
             isSolved = false,
             isWrongMove = false,
-            wrongCount = 0,
+            wrongCount = persisted.wrongCount,
             hintSquare = null,
-            solutionShown = false,
+            solutionShown = persisted.solutionShown,
             solutionMoveIndex = 0,
             lastScore = null,
             lastRatingDelta = null,
             puzzleIndex = index,
+            showHintConfirmDialog = false,
         )
     }
 
@@ -303,6 +360,10 @@ class TacticalTrainerViewModel @Inject constructor(
         } else {
             val newWrong = _uiState.value.wrongCount + 1
             val hint = if (newWrong >= 1) puzzle.moves.getOrNull(currentMoveIndex)?.take(2) else null
+            puzzleAttemptState[puzzle.id] = PuzzleAttemptState(
+                wrongCount = newWrong,
+                solutionShown = _uiState.value.solutionShown,
+            )
             _uiState.value = _uiState.value.copy(
                 isWrongMove = true,
                 wrongCount = newWrong,
@@ -313,18 +374,27 @@ class TacticalTrainerViewModel @Inject constructor(
     }
 
     private fun onPuzzleSolved(puzzle: TacticalPuzzle) {
+        val solutionWasShown = _uiState.value.solutionShown
         val score = TacticalStages.computePuzzleScore(
             wrongCount = _uiState.value.wrongCount,
-            solutionShown = _uiState.value.solutionShown,
+            solutionShown = solutionWasShown,
         )
+        // If the solution was already revealed for this attempt, playing the now-known
+        // move is not a genuine solve for rating purposes — award no positive delta
+        // (same small rating loss as viewing the solution). execScore is already 0
+        // via computePuzzleScore(solutionShown=true) above.
         val delta = TacticalStages.computeRatingDelta(
             puzzle = puzzle,
-            success = true,
+            success = !solutionWasShown,
             wrongCount = _uiState.value.wrongCount,
             cctQuality = score.cctQuality,
         )
 
-        val newRating = (progress.rating + delta.value).coerceIn(800, 2400)
+        val newRating = if (solutionWasShown) {
+            (progress.rating - delta.value).coerceIn(800, 2400)
+        } else {
+            (progress.rating + delta.value).coerceIn(800, 2400)
+        }
         val newPeak = maxOf(progress.peakRating, newRating)
         val newBest = maxOf(progress.bestStreak, progress.streak + 1)
         val sp = progress.stageProgress[puzzle.stage] ?: StageProgress(unlocked = true)
@@ -359,6 +429,9 @@ class TacticalTrainerViewModel @Inject constructor(
         )
         saveProgressToPrefs()
         submitAttemptToServer(puzzle, true, score)
+        // Puzzle is solved and will not be re-shown (added to completedPuzzleIds above);
+        // drop its attempt state so the map doesn't grow unbounded across a session.
+        puzzleAttemptState.remove(puzzle.id)
 
         val finalGame = ChessGame(_uiState.value.fen)
         finalGame.moveUci(puzzle.moves.last())
@@ -372,9 +445,43 @@ class TacticalTrainerViewModel @Inject constructor(
         )
     }
 
+    /**
+     * Two-stage hint flow (T3): first tap highlights the from-square of the expected
+     * move for free; second tap asks for confirmation before revealing the solution.
+     */
+    fun requestHint() {
+        val puzzle = _uiState.value.currentPuzzle ?: return
+        if (_uiState.value.isSolved || _uiState.value.solutionShown) return
+
+        if (!hintGivenForCurrentPuzzle) {
+            hintGivenForCurrentPuzzle = true
+            val hint = puzzle.moves.getOrNull(currentMoveIndex)?.take(2)
+            _uiState.value = _uiState.value.copy(hintSquare = hint)
+        } else {
+            _uiState.value = _uiState.value.copy(showHintConfirmDialog = true)
+        }
+    }
+
+    fun dismissHintDialog() {
+        _uiState.value = _uiState.value.copy(showHintConfirmDialog = false)
+    }
+
+    fun confirmShowSolution() {
+        _uiState.value = _uiState.value.copy(showHintConfirmDialog = false)
+        showSolution()
+    }
+
     fun showSolution() {
         val puzzle = _uiState.value.currentPuzzle ?: return
         if (_uiState.value.solutionShown) return
+
+        // Solution shown is permanent for this puzzle attempt — persist it keyed by
+        // puzzle id so re-entering the puzzle (dashboard -> reselect) still scores
+        // exec 0 for this attempt instead of resetting to a fresh 100/100 chance.
+        puzzleAttemptState[puzzle.id] = PuzzleAttemptState(
+            wrongCount = _uiState.value.wrongCount,
+            solutionShown = true,
+        )
 
         val score = TacticalStages.computePuzzleScore(
             wrongCount = _uiState.value.wrongCount,

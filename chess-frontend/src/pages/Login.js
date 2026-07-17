@@ -14,11 +14,25 @@ import logo from '../assets/images/logo.png';
 
 const RECAPTCHA_SITE_KEY = process.env.REACT_APP_RECAPTCHA_SITE_KEY;
 
+// Age in whole years from a yyyy-mm-dd string, or null if unparseable.
+const calcAge = (dob) => {
+  if (!dob) return null;
+  const b = new Date(dob);
+  if (Number.isNaN(b.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - b.getFullYear();
+  const m = now.getMonth() - b.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < b.getDate())) age -= 1;
+  return age;
+};
+
 const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [birthday, setBirthday] = useState("");
+  const [guardianEmail, setGuardianEmail] = useState("");
   const [error, setError] = useState("");
   const [isLogin, setIsLogin] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
@@ -38,6 +52,9 @@ const LoginPage = () => {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { login, isAuthenticated, loading } = useAuth();
+
+  const age = calcAge(birthday);
+  const isMinor = age !== null && age < 18;
 
   // Determine where to redirect after login (respects state.from from pricing, RouteGuard, etc.)
   const getRedirectPath = () => {
@@ -136,10 +153,27 @@ const LoginPage = () => {
           setIsLoading(false);
           return;
         }
+        if (!birthday) {
+          setError("Please enter your date of birth.");
+          setIsLoading(false);
+          return;
+        }
+        if (age !== null && age < 5) {
+          setError("Players must be at least 5 years old.");
+          setIsLoading(false);
+          return;
+        }
+        if (isMinor && !guardianEmail) {
+          setError("A parent or guardian's email is required for players under 18.");
+          setIsLoading(false);
+          return;
+        }
         trackConversion('signup_start', { method: 'email' });
         const response = await api.post('/auth/register', {
           name, email, password, password_confirmation: confirmPassword,
           captcha_token: captchaToken,
+          birthday,
+          ...(isMinor && guardianEmail ? { guardian_email: guardianEmail } : {}),
           ...(referralCode ? { referral_code: referralCode } : {}),
         });
         if (response.data.requires_verification) {
@@ -375,6 +409,43 @@ const LoginPage = () => {
                       disabled={isLoading}
                       className="w-full px-4 py-3 bg-[#1a1a18] border border-[#3d3a37] rounded-lg text-sm text-white placeholder-[#6b6966] focus:border-[#81b64c] focus:outline-none transition-colors"
                     />
+                  )}
+
+                  {!isLogin && (
+                    <div>
+                      <label className="block text-xs text-[#8b8987] mb-1.5 ml-1">Date of birth</label>
+                      <input
+                        type="date"
+                        value={birthday}
+                        onChange={(e) => setBirthday(e.target.value)}
+                        required
+                        max={new Date().toISOString().split('T')[0]}
+                        disabled={isLoading}
+                        className="w-full px-4 py-3 bg-[#1a1a18] border border-[#3d3a37] rounded-lg text-sm text-white placeholder-[#6b6966] focus:border-[#81b64c] focus:outline-none transition-colors [color-scheme:dark]"
+                      />
+                    </div>
+                  )}
+
+                  {!isLogin && isMinor && (
+                    <div>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-[#6b6966]">
+                          <MailIcon />
+                        </div>
+                        <input
+                          type="email"
+                          placeholder="Parent / guardian email"
+                          value={guardianEmail}
+                          onChange={(e) => setGuardianEmail(e.target.value)}
+                          required
+                          disabled={isLoading}
+                          className="w-full pl-10 pr-4 py-3 bg-[#1a1a18] border border-[#3d3a37] rounded-lg text-sm text-white placeholder-[#6b6966] focus:border-[#81b64c] focus:outline-none transition-colors"
+                        />
+                      </div>
+                      <p className="text-[11px] text-[#8b8987] mt-1 ml-1">
+                        Players under 18 need a parent or guardian to approve the account.
+                      </p>
+                    </div>
                   )}
 
                   <div className="relative">

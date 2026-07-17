@@ -6,13 +6,18 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.font.FontWeight
 
+/** Which active-game screen is showing [GameNavigationWarningDialog], for body copy. */
+enum class ActiveGameType { MULTIPLAYER, VS_COMPUTER }
+
 /**
- * Warning dialog when navigating away from an active game.
+ * Warning dialog when navigating away from an active game (toolbar back arrow
+ * or hardware/gesture back via `BackHandler`) — same dialog, same copy, no
+ * matter how the user tried to leave.
  * Mirrors chess-frontend/src/components/game/GameNavigationWarningDialog.jsx
  */
 @Composable
 fun GameNavigationWarningDialog(
-    isRated: Boolean,
+    gameType: ActiveGameType,
     onStay: () -> Unit,
     onLeave: () -> Unit,
 ) {
@@ -27,16 +32,17 @@ fun GameNavigationWarningDialog(
         },
         title = {
             Text(
-                text = "Leave Game?",
+                text = "Leave the game?",
                 fontWeight = FontWeight.Bold,
             )
         },
         text = {
             Text(
-                text = if (isRated) {
-                    "You have an active rated game. Leaving will count as a loss and affect your rating."
-                } else {
-                    "You have an active game. Leaving will end the game."
+                text = when (gameType) {
+                    ActiveGameType.MULTIPLAYER ->
+                        "Your game is still going. If you leave now, it counts as a loss."
+                    ActiveGameType.VS_COMPUTER ->
+                        "Your game won't be saved."
                 },
                 style = MaterialTheme.typography.bodyMedium,
             )
@@ -48,12 +54,12 @@ fun GameNavigationWarningDialog(
                     containerColor = MaterialTheme.colorScheme.error,
                 ),
             ) {
-                Text("Leave Game")
+                Text("Leave game")
             }
         },
         dismissButton = {
             OutlinedButton(onClick = onStay) {
-                Text("Stay")
+                Text("Keep playing")
             }
         },
     )

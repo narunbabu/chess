@@ -9,27 +9,31 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.sp
+import com.chess99.R
 import com.chess99.engine.*
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 /**
  * Custom Canvas-based chess board component.
  * Features:
  * - 8x8 grid with configurable colors
- * - Unicode chess piece rendering
+ * - High-res Cburnett piece art (matches the web board; drawable-nodpi/piece_*)
  * - Drag-and-drop + tap-tap move input
  * - Legal move highlighting (dots)
  * - Last move highlighting (colored squares)
@@ -57,6 +61,34 @@ fun ChessBoardView(
 ) {
     val haptic = LocalHapticFeedback.current
     val textMeasurer = rememberTextMeasurer()
+
+    // Cburnett piece art (same set the web board uses), loaded once. Keyed by
+    // (isWhite, pieceType) via pieceBitmap() below.
+    val wP = ImageBitmap.imageResource(R.drawable.piece_wp)
+    val wN = ImageBitmap.imageResource(R.drawable.piece_wn)
+    val wB = ImageBitmap.imageResource(R.drawable.piece_wb)
+    val wR = ImageBitmap.imageResource(R.drawable.piece_wr)
+    val wQ = ImageBitmap.imageResource(R.drawable.piece_wq)
+    val wK = ImageBitmap.imageResource(R.drawable.piece_wk)
+    val bP = ImageBitmap.imageResource(R.drawable.piece_bp)
+    val bN = ImageBitmap.imageResource(R.drawable.piece_bn)
+    val bB = ImageBitmap.imageResource(R.drawable.piece_bb)
+    val bR = ImageBitmap.imageResource(R.drawable.piece_br)
+    val bQ = ImageBitmap.imageResource(R.drawable.piece_bq)
+    val bK = ImageBitmap.imageResource(R.drawable.piece_bk)
+
+    fun pieceBitmap(piece: Int): ImageBitmap? {
+        val white = Piece.color(piece) == com.chess99.engine.Color.WHITE
+        return when (Piece.type(piece)) {
+            Piece.PAWN -> if (white) wP else bP
+            Piece.KNIGHT -> if (white) wN else bN
+            Piece.BISHOP -> if (white) wB else bB
+            Piece.ROOK -> if (white) wR else bR
+            Piece.QUEEN -> if (white) wQ else bQ
+            Piece.KING -> if (white) wK else bK
+            else -> null
+        }
+    }
 
     // Selection state for tap-tap moves
     var selectedSquare by remember { mutableIntStateOf(-1) }
@@ -258,15 +290,18 @@ fun ChessBoardView(
                     val x = viewFile * sqSize
                     val y = viewRank * sqSize
 
-                    drawPieceUnicode(textMeasurer, piece, Offset(x, y), sqSize)
+                    pieceBitmap(piece)?.let { drawPieceImage(it, Offset(x, y), sqSize) }
                 }
             }
 
-            // Draw dragged piece at cursor position
+            // Draw dragged piece at cursor position (slightly enlarged, lifted)
             if (isDragging && draggedPiece != Piece.NONE) {
-                val x = dragOffset.x - sqSize / 2
-                val y = dragOffset.y - sqSize / 2
-                drawPieceUnicode(textMeasurer, draggedPiece, Offset(x, y), sqSize * 1.2f)
+                pieceBitmap(draggedPiece)?.let {
+                    val lifted = sqSize * 1.15f
+                    val x = dragOffset.x - lifted / 2
+                    val y = dragOffset.y - lifted / 2
+                    drawPieceImage(it, Offset(x, y), lifted)
+                }
             }
 
             // Draw analysis arrows
@@ -289,21 +324,20 @@ fun ChessBoardView(
 
 // ── Drawing Helpers ──────────────────────────────────────────────────
 
-private fun DrawScope.drawPieceUnicode(
-    textMeasurer: TextMeasurer,
-    piece: Int,
+private fun DrawScope.drawPieceImage(
+    image: ImageBitmap,
     topLeft: Offset,
     squareSize: Float,
 ) {
-    val unicode = pieceToUnicode(piece) ?: return
-    val style = TextStyle(
-        fontSize = (squareSize * 0.7f).sp,
-        color = Color.Unspecified, // Use actual piece color via unicode chars
+    val size = squareSize.roundToInt()
+    drawImage(
+        image = image,
+        srcOffset = IntOffset.Zero,
+        srcSize = IntSize(image.width, image.height),
+        dstOffset = IntOffset(topLeft.x.roundToInt(), topLeft.y.roundToInt()),
+        dstSize = IntSize(size, size),
+        filterQuality = FilterQuality.High,
     )
-    val measured = textMeasurer.measure(unicode, style)
-    val x = topLeft.x + (squareSize - measured.size.width) / 2
-    val y = topLeft.y + (squareSize - measured.size.height) / 2
-    drawText(measured, topLeft = Offset(x, y))
 }
 
 private fun DrawScope.drawCoordinates(
@@ -333,19 +367,6 @@ private fun DrawScope.drawCoordinates(
         val label = (8 - rank).toString()
         val measured = textMeasurer.measure(label, style)
         drawText(measured, topLeft = Offset(2f, viewRank * squareSize + 1))
-    }
-}
-
-private fun pieceToUnicode(piece: Int): String? {
-    val isWhite = Piece.color(piece) == com.chess99.engine.Color.WHITE
-    return when (Piece.type(piece)) {
-        Piece.KING -> if (isWhite) "\u2654" else "\u265A"
-        Piece.QUEEN -> if (isWhite) "\u2655" else "\u265B"
-        Piece.ROOK -> if (isWhite) "\u2656" else "\u265C"
-        Piece.BISHOP -> if (isWhite) "\u2657" else "\u265D"
-        Piece.KNIGHT -> if (isWhite) "\u2658" else "\u265E"
-        Piece.PAWN -> if (isWhite) "\u2659" else "\u265F"
-        else -> null
     }
 }
 
