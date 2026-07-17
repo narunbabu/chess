@@ -489,6 +489,11 @@ class PlayMultiplayerViewModel @Inject constructor(
                 addProperty("from", from)
                 addProperty("to", to)
                 promotion?.let { addProperty("promotion", it.toString()) }
+                // Persist remaining clocks so the server stays in sync (web
+                // parity) — reduces clock drift/desync on reconnect. The backend
+                // accepts these under move.* as nullable.
+                addProperty("white_time_remaining_ms", _uiState.value.whiteTimeSeconds * 1000L)
+                addProperty("black_time_remaining_ms", _uiState.value.blackTimeSeconds * 1000L)
             }
             val result = gameWebSocketService.sendMove(moveJson)
             result.onFailure { e ->
