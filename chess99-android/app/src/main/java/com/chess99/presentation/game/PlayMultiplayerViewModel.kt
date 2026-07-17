@@ -111,12 +111,22 @@ class PlayMultiplayerViewModel @Inject constructor(
                 val gameData = response.body() ?: return@launch
                 val gameObj = gameData.getAsJsonObject("game") ?: gameData
 
-                val fen = gameObj.get("fen")?.asString ?: ChessGame.STARTING_FEN
-                val status = gameObj.get("status")?.asString ?: "waiting"
-                val whitePlayerId = gameObj.get("white_player_id")?.asInt
-                val blackPlayerId = gameObj.get("black_player_id")?.asInt
-                val timeControl = gameObj.get("time_control")?.asString ?: "10|0"
-                val gameMode = gameObj.get("game_mode")?.asString ?: "casual"
+                val fen = gameObj.get("fen")?.takeIf { it.isJsonPrimitive }?.asString ?: ChessGame.STARTING_FEN
+                val status = gameObj.get("status")?.takeIf { it.isJsonPrimitive }?.asString ?: "waiting"
+                // A synthetic/computer game has no User on the bot's side, so
+                // that player-id field is JSON null — `?.asInt` guards a missing
+                // key but still throws UnsupportedOperationException on JsonNull,
+                // so filter JsonNull out (else loadGame fails for every bot game).
+                val whitePlayerId = gameObj.get("white_player_id")?.takeIf { !it.isJsonNull }?.asInt
+                val blackPlayerId = gameObj.get("black_player_id")?.takeIf { !it.isJsonNull }?.asInt
+                // `time_control` in the response is an OBJECT ({minutes, ...});
+                // the scalar values live in the time_control_minutes /
+                // increment_seconds columns. Build the "min|inc" string from
+                // those — reading `time_control` as a string throws (JsonObject).
+                val tcMinutes = gameObj.get("time_control_minutes")?.takeIf { it.isJsonPrimitive }?.asInt ?: 10
+                val tcIncrement = gameObj.get("increment_seconds")?.takeIf { it.isJsonPrimitive }?.asInt ?: 0
+                val timeControl = "$tcMinutes|$tcIncrement"
+                val gameMode = gameObj.get("game_mode")?.takeIf { it.isJsonPrimitive }?.asString ?: "casual"
 
                 // Determine player color
                 val playerColor = when (myUserId) {
@@ -125,15 +135,24 @@ class PlayMultiplayerViewModel @Inject constructor(
                     else -> Color.WHITE
                 }
 
-                // Parse opponent info
-                val opponentObj = if (playerColor == Color.WHITE) {
-                    gameObj.getAsJsonObject("black_player")
+                // Parse opponent info. A synthetic/computer opponent has no User
+                // row, so `black_player`/`white_player` is JSON null — guard the
+                // cast (getAsJsonObject throws casting JsonNull to JsonObject) and
+                // fall back to the bot's synthetic_player name so a bot game shows
+                // "Aarav Beginner" rather than a generic "Opponent".
+                val opponentObj = (if (playerColor == Color.WHITE) {
+                    gameObj.get("black_player")
                 } else {
-                    gameObj.getAsJsonObject("white_player")
-                }
+                    gameObj.get("white_player")
+                })?.takeIf { it.isJsonObject }?.asJsonObject
+                val syntheticObj = gameObj.get("synthetic_player")?.takeIf { it.isJsonObject }?.asJsonObject
 
-                val opponentName = opponentObj?.get("name")?.asString ?: "Opponent"
-                val opponentRating = opponentObj?.get("rating")?.asInt ?: 1200
+                val opponentName = opponentObj?.get("name")?.takeIf { it.isJsonPrimitive }?.asString
+                    ?: syntheticObj?.get("name")?.takeIf { it.isJsonPrimitive }?.asString
+                    ?: "Opponent"
+                val opponentRating = opponentObj?.get("rating")?.takeIf { it.isJsonPrimitive }?.asInt
+                    ?: syntheticObj?.get("rating")?.takeIf { it.isJsonPrimitive }?.asInt
+                    ?: 1200
 
                 // T3: `GameController::createComputerGame`/`show` spread every
                 // Game column onto the response root (`...$game->toArray()`),
@@ -147,8 +166,8 @@ class PlayMultiplayerViewModel @Inject constructor(
                 val baseMinutes = parts.getOrNull(0)?.toIntOrNull() ?: 10
                 val incrementSeconds = parts.getOrNull(1)?.toIntOrNull() ?: 0
 
-                val whiteTime = gameObj.get("white_time")?.asInt ?: (baseMinutes * 60)
-                val blackTime = gameObj.get("black_time")?.asInt ?: (baseMinutes * 60)
+                val whiteTime = gameObj.get("white_time")?.takeIf { !it.isJsonNull }?.asInt ?: (baseMinutes * 60)
+                val blackTime = gameObj.get("black_time")?.takeIf { !it.isJsonNull }?.asInt ?: (baseMinutes * 60)
 
                 // Load board state
                 game = ChessGame(fen)
@@ -158,7 +177,11 @@ class PlayMultiplayerViewModel @Inject constructor(
                 val moveHistory = mutableListOf<GameMoveRecord>()
                 if (movesResponse.isSuccessful) {
                     val movesData = movesResponse.body()
-                    val movesArray = movesData?.getAsJsonArray("moves")
+                    // `moves` may come back as a JSON array, or (for some game
+                    // shapes) as a JSON-encoded string / absent — getAsJsonArray
+                    // throws (ClassCastException) on a primitive, so guard it and
+                    // treat anything non-array as an empty history.
+                    val movesArray = movesData?.get("moves")?.takeIf { it.isJsonArray }?.asJsonArray
                     movesArray?.forEach { moveEl ->
                         val m = moveEl.asJsonObject
                         moveHistory.add(
