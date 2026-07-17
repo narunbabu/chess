@@ -573,15 +573,19 @@ class WebSocketController extends Controller
             'move.from' => 'required|string',
             'move.to' => 'required|string',
             'move.promotion' => 'nullable|string',
-            'move.san' => 'required|string',
-            'move.uci' => 'required|string',
+            // These are display/metadata fields the server does NOT need to
+            // apply the move (validateAndApplyMove recomputes fen/turn from
+            // from/to). Native clients send only from/to/promotion, so accept
+            // them as nullable — the web client still sends the full set.
+            'move.san' => 'nullable|string',
+            'move.uci' => 'nullable|string',
             'move.piece' => 'nullable|string',
             'move.color' => 'nullable|string',
             'move.captured' => 'nullable|string',
             'move.flags' => 'nullable|string',
-              'move.is_mate_hint' => 'required|boolean',
-            'move.is_check' => 'required|boolean',
-            'move.is_stalemate' => 'required|boolean',
+            'move.is_mate_hint' => 'nullable|boolean',
+            'move.is_check' => 'nullable|boolean',
+            'move.is_stalemate' => 'nullable|boolean',
             'move.move_time_ms' => 'nullable|numeric',
             'move.player_rating' => 'nullable|integer',
             // Accept both players' scores to preserve scoring across moves
@@ -590,7 +594,11 @@ class WebSocketController extends Controller
             // Accept remaining clock times to persist across moves
             'move.white_time_remaining_ms' => 'nullable|numeric',
             'move.black_time_remaining_ms' => 'nullable|numeric',
-            'socket_id' => 'required|string'
+            // Native clients that fell back to HTTP polling (e.g. a synthetic/bot
+            // game whose WebSocket handshake never completed) have no Pusher
+            // socket id — accept its absence; an empty id just means the move
+            // broadcast excludes nobody.
+            'socket_id' => 'nullable|string'
         ]);
 
         try {
@@ -598,7 +606,7 @@ class WebSocketController extends Controller
                 $gameId,
                 Auth::id(),
                 $request->input('move'),
-                $request->input('socket_id')
+                $request->input('socket_id') ?? ''
             );
 
             Log::info('Move broadcasted', [
