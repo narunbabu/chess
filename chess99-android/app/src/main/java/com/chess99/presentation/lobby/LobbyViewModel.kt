@@ -7,8 +7,10 @@ import com.chess99.data.api.MatchmakingApi
 import com.chess99.data.api.RatingWindow
 import com.chess99.data.local.TokenManager
 import com.chess99.data.websocket.PusherManager
+import com.chess99.data.api.arrOrNull
 import com.chess99.data.api.bool
 import com.chess99.data.api.int
+import com.chess99.data.api.objOrNull
 import com.chess99.data.api.str
 import com.chess99.presentation.common.friendlyError
 import com.google.gson.JsonObject
@@ -74,25 +76,41 @@ class LobbyViewModel @Inject constructor(
 
     private suspend fun loadOnlinePlayers() {
         try {
-            // LobbyViewModel has no current-user-rating fetch today (unlike
-            // HomeViewModel's authRepository.getCurrentUser() for T2's
-            // Nearby Opponents) — falls back to RatingWindow's documented
-            // default (400) rather than adding a new profile call here.
-            val (minRating, maxRating) = RatingWindow.defaultWindow(null)
+            // The Players tab is a full lobby, not "nearby opponents": show bots
+            // across ALL ELOs (the user's ask) rather than a narrow window around
+            // an unknown rating — a default 200–750 window hid every seeded bot
+            // (they start ~800). Full span => backend returns a varied-ELO set.
+            val (minRating, maxRating) = RatingWindow.fullWindow()
             val response = matchmakingApi.getLobbyPlayers(minRating, maxRating)
             if (response.isSuccessful) {
                 val body = response.body() ?: return
-                val realPlayers = body.getAsJsonArray("real_players")?.map { el ->
-                    val p = el.asJsonObject
+                // `GET v1/lobby/players` returns { real_players, synthetic_players }.
+                // Surface BOTH so the Players tab always has opponents of varying
+                // ELO (matches web's PlayersList.jsx) — real humans first, then
+                // synthetic bots fill in, so an empty online list is never a dead end.
+                val realPlayers = body.get("real_players")?.arrOrNull()?.mapNotNull { el ->
+                    val p = el.objOrNull() ?: return@mapNotNull null
                     LobbyPlayer(
-                        id = p.get("id")?.asInt ?: 0,
-                        name = p.get("name")?.asString ?: "",
-                        rating = p.get("rating")?.asInt ?: 1200,
+                        id = p.int("id") ?: return@mapNotNull null,
+                        name = p.str("name") ?: "Player",
+                        rating = p.int("rating") ?: 1200,
                         isOnline = true,
-                        avatarUrl = p.get("avatar_url")?.asString,
+                        avatarUrl = p.str("avatar_url"),
                     )
                 } ?: emptyList()
-                _uiState.value = _uiState.value.copy(onlinePlayers = realPlayers)
+                val syntheticPlayers = body.get("synthetic_players")?.arrOrNull()?.mapNotNull { el ->
+                    val p = el.objOrNull() ?: return@mapNotNull null
+                    LobbyPlayer(
+                        id = p.int("id") ?: return@mapNotNull null,
+                        name = p.str("name") ?: "Bot",
+                        rating = p.int("rating") ?: 1200,
+                        isOnline = true,
+                        avatarUrl = p.str("avatar_url"),
+                        isSynthetic = true,
+                        computerLevel = p.int("computer_level"),
+                    )
+                } ?: emptyList()
+                _uiState.value = _uiState.value.copy(onlinePlayers = realPlayers + syntheticPlayers)
             }
         } catch (e: Exception) {
             Timber.e(e, "Failed to load online players")
@@ -386,6 +404,46 @@ class LobbyViewModel @Inject constructor(
         )
     }
 
+    /**
+     * Tapping "Play" on a synthetic (bot) player in the Players tab starts a
+     * real, server-recorded game vs that bot — same request shape as
+     * [com.chess99.presentation.home.HomeViewModel.startGameVsSynthetic] and
+     * PlayComputerViewModel.startPersonaGame: casual, 10+0, random color. On
+     * success the new game id flows through the existing [LobbyUiState.matchedGameId]
+     * navigation path; on failure a snackbar explains it (you cannot invite a
+     * bot the way you challenge a human, so this must not fall through to
+     * sendInvitation).
+     */
+    fun startGameVsSynthetic(player: LobbyPlayer) {
+        if (!player.isSynthetic) return
+        viewModelScope.launch {
+            try {
+                val body = JsonObject().apply {
+                    addProperty("player_color", if ((0..1).random() == 0) "white" else "black")
+                    addProperty("computer_level", player.computerLevel ?: 2)
+                    addProperty("time_control", 10)
+                    addProperty("increment", 0)
+                    addProperty("synthetic_player_id", player.id)
+                    addProperty("game_mode", "casual")
+                }
+                val response = gameApi.createComputerGame(body)
+                val gameId = response.body()?.getAsJsonObject("game")?.get("id")?.asInt
+                if (response.isSuccessful && gameId != null) {
+                    _uiState.value = _uiState.value.copy(matchedGameId = gameId)
+                } else {
+                    _uiState.value = _uiState.value.copy(
+                        snackbarMessage = "Couldn't start that game. Please try again.",
+                    )
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to start game vs synthetic player ${player.id}")
+                _uiState.value = _uiState.value.copy(
+                    snackbarMessage = "Couldn't start that game. Please try again.",
+                )
+            }
+        }
+    }
+
     // ── Invitations ─────────────────────────────────────────────────────
 
     fun sendInvitation(opponentId: Int, timeControl: String, colorPref: String, gameMode: String) {
@@ -607,6 +665,10 @@ data class LobbyPlayer(
     val rating: Int,
     val isOnline: Boolean,
     val avatarUrl: String? = null,
+    /** True for a synthetic (bot) player — tapping "Play" starts a bot game rather than sending an invitation. */
+    val isSynthetic: Boolean = false,
+    /** Synthetic players only — engine level used when starting a game vs this bot. */
+    val computerLevel: Int? = null,
 )
 
 data class Invitation(

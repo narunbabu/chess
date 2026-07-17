@@ -140,6 +140,7 @@ fun LobbyScreen(
                     onChallenge = { playerId ->
                         viewModel.sendInvitation(playerId, "10|0", "random", "casual")
                     },
+                    onPlaySynthetic = { viewModel.startGameVsSynthetic(it) },
                 )
                 LobbyTab.FRIENDS -> FriendsTab(
                     friends = state.friends,
@@ -183,6 +184,7 @@ private fun PlayersTab(
     players: List<LobbyPlayer>,
     isLoading: Boolean,
     onChallenge: (Int) -> Unit,
+    onPlaySynthetic: (LobbyPlayer) -> Unit,
 ) {
     if (isLoading && players.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -203,8 +205,13 @@ private fun PlayersTab(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        items(players, key = { it.id }) { player ->
-            PlayerCard(player = player, onChallenge = { onChallenge(player.id) })
+        items(players, key = { "${if (it.isSynthetic) "s" else "h"}-${it.id}" }) { player ->
+            PlayerCard(
+                player = player,
+                onChallenge = {
+                    if (player.isSynthetic) onPlaySynthetic(player) else onChallenge(player.id)
+                },
+            )
         }
     }
 }
@@ -218,7 +225,7 @@ private fun PlayerCard(player: LobbyPlayer, onChallenge: () -> Unit) {
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Online indicator
+            // Online indicator (bots are always available to play)
             Box(
                 modifier = Modifier
                     .size(10.dp)
@@ -229,7 +236,23 @@ private fun PlayerCard(player: LobbyPlayer, onChallenge: () -> Unit) {
 
             // Player info
             Column(modifier = Modifier.weight(1f)) {
-                Text(player.name, fontWeight = FontWeight.Medium)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(player.name, fontWeight = FontWeight.Medium)
+                    if (player.isSynthetic) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Surface(
+                            shape = MaterialTheme.shapes.small,
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                        ) {
+                            Text(
+                                "BOT",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+                            )
+                        }
+                    }
+                }
                 Text(
                     "Rating: ${player.rating}",
                     style = MaterialTheme.typography.bodySmall,
@@ -237,11 +260,11 @@ private fun PlayerCard(player: LobbyPlayer, onChallenge: () -> Unit) {
                 )
             }
 
-            // Challenge button
+            // Action: bots start a game immediately; humans get a challenge invite
             OutlinedButton(onClick = onChallenge, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)) {
                 Icon(Icons.Default.SportsEsports, null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("Challenge", fontSize = 12.sp)
+                Text(if (player.isSynthetic) "Play" else "Challenge", fontSize = 12.sp)
             }
         }
     }

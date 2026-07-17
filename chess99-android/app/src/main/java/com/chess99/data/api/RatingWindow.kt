@@ -24,4 +24,13 @@ object RatingWindow {
         val max = (rating + DEFAULT_WINDOW_ABOVE).coerceAtMost(MAX_OPPONENT_RATING)
         return min to max
     }
+
+    /**
+     * Full rating span, for the Lobby "Players" list where the intent is to
+     * show opponents across ALL skill levels (synthetic bots of varying ELO),
+     * not just ones near the current user — unlike Home's rating-windowed
+     * "Nearby Opponents". A narrow default window (e.g. 200–750 for an unknown
+     * rating) would hide the seeded bots, which start around 800.
+     */
+    fun fullWindow(): Pair<Int, Int> = MIN_OPPONENT_RATING to MAX_OPPONENT_RATING
 }
