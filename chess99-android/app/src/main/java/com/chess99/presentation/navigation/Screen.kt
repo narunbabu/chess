@@ -25,6 +25,7 @@ sealed class Screen(val route: String) {
     }
     data object Learn : Screen("learn")
     data object Profile : Screen("profile")
+    data object Progress : Screen("progress")
 
     // Game
     data object PlayComputer : Screen("play_computer")

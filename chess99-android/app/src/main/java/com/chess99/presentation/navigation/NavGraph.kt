@@ -383,6 +383,13 @@ fun Chess99NavGraph(
             )
         }
 
+        // ── My Progress (charts) ─────────────────────────────────────────────
+        composable(Screen.Progress.route) {
+            com.chess99.presentation.profile.ProgressScreen(
+                onNavigateBack = { navController.popBackStack() },
+            )
+        }
+
         // ── Game Detail ────────────────────────────────────────────────────
         composable(
             route = Screen.GameDetail.route,

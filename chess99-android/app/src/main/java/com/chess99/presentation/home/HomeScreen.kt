@@ -354,6 +354,7 @@ private fun PlayTab(
                 QuickAction("Daily", Icons.Default.Today, Color(0xFF8B4513)) { onNavigate(Screen.DailyChallenges.route) },
                 QuickAction("Tournaments", Icons.Default.EmojiEvents, Color(0xFF5A7A42)) { onNavigate(Screen.ChampionshipList.route) },
                 QuickAction("Leaderboard", Icons.Default.Leaderboard, Color(0xFFB07D00)) { onNavigate(Screen.Leaderboard.route) },
+                QuickAction("Progress", Icons.Default.ShowChart, Color(0xFF5A7A42)) { onNavigate(Screen.Progress.route) },
                 QuickAction("History", Icons.Default.History, Color(0xFF6B5B47)) { onNavigate(Screen.GameHistory.route) },
             )
             actions.chunked(2).forEach { row ->
