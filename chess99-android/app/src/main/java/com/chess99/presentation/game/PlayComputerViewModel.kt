@@ -33,6 +33,11 @@ class PlayComputerViewModel @Inject constructor(
 
     companion object {
         const val DEFAULT_TIME_SECONDS = 600 // 10 minutes
+
+        /** Default helpline pool size for Learning mode — mirrors web's
+         *  DEFAULT_LEARNING_HELP_LIMIT (LEARNING_HELP_OPTIONS = [1,3,5,7], default 5).
+         *  In Learning mode the undo budget == this helpline pool. */
+        const val DEFAULT_LEARNING_HELP_LIMIT = 5
     }
 
     // ── Game State ───────────────────────────────────────────────────
@@ -56,17 +61,27 @@ class PlayComputerViewModel @Inject constructor(
     fun setupGame(
         playerColor: Color = Color.WHITE,
         difficulty: Int = StockfishEngine.DEFAULT_DEPTH,
-        isRated: Boolean = false,
+        mode: GameMode = GameMode.CASUAL,
+        learningHelpLimit: Int = DEFAULT_LEARNING_HELP_LIMIT,
     ) {
         game = ChessGame()
-        val undoChances = StockfishEngine.undoChances(difficulty, isRated)
+        val isRated = mode == GameMode.RATED
+        // Learning mode: undo budget == the helpline pool (default 5), mirroring
+        // web's `undoChancesRemaining = learningHelpLimit`. Casual keeps its
+        // per-difficulty budget; rated has none.
+        val undoChances = when (mode) {
+            GameMode.LEARNING -> learningHelpLimit
+            else -> StockfishEngine.undoChances(difficulty, isRated)
+        }
 
         _uiState.value = PlayComputerUiState(
             fen = game.fen(),
             playerColor = playerColor,
             computerColor = playerColor.opposite(),
             difficulty = difficulty,
+            gameMode = mode,
             isRated = isRated,
+            learningMode = mode == GameMode.LEARNING,
             gamePhase = GamePhase.SETUP,
             undoChancesRemaining = undoChances,
             maxUndoChances = undoChances,
@@ -81,7 +96,7 @@ class PlayComputerViewModel @Inject constructor(
         setupGame(
             playerColor = _uiState.value.playerColor,
             difficulty = persona.computerLevel,
-            isRated = false, // Persona games are casual only (spec T3 defaults).
+            mode = GameMode.CASUAL, // Persona games are casual only (spec T3 defaults).
         )
         _uiState.value = _uiState.value.copy(opponentDisplayName = persona.name)
     }
@@ -140,7 +155,7 @@ class PlayComputerViewModel @Inject constructor(
      * and the screen falls back to the plain local Stockfish flow already wired
      * to the slider (persona's level is already applied via [selectPersona]).
      */
-    fun startPersonaGame(persona: SyntheticPlayer, rated: Boolean = false) {
+    fun startPersonaGame(persona: SyntheticPlayer, mode: GameMode = GameMode.CASUAL) {
         // The screen calls setupGame() immediately before this (to apply
         // color/difficulty/rated), which rebuilds PlayComputerUiState from
         // scratch and would otherwise wipe opponentDisplayName back to null —
@@ -159,7 +174,10 @@ class PlayComputerViewModel @Inject constructor(
                     addProperty("synthetic_player_id", persona.id)
                     // Rated bot games are server-supported: game_mode=rated makes
                     // GameController::completeGame apply Elo (applyRatedSyntheticElo).
-                    addProperty("game_mode", if (rated) "rated" else "casual")
+                    // Learning is not rated → game_mode=casual, plus learning_mode=true
+                    // (mirrors web PlayComputer.js: backendRatedMode='casual' for learning).
+                    addProperty("game_mode", if (mode == GameMode.RATED) "rated" else "casual")
+                    if (mode == GameMode.LEARNING) addProperty("learning_mode", true)
                 }
                 val response = gameApi.createComputerGame(body)
                 if (response.isSuccessful) {
@@ -570,7 +588,11 @@ data class PlayComputerUiState(
     val playerColor: Color = Color.WHITE,
     val computerColor: Color = Color.BLACK,
     val difficulty: Int = StockfishEngine.DEFAULT_DEPTH,
+    /** Selected play mode (Casual / Learning / Rated) — mirrors web's `ratedMode`. */
+    val gameMode: GameMode = GameMode.CASUAL,
     val isRated: Boolean = false,
+    /** True for Learning mode — undo pool is the helpline budget; game is NOT rated. */
+    val learningMode: Boolean = false,
     val gamePhase: GamePhase = GamePhase.SETUP,
     val lastMoveFrom: Int = -1,
     val lastMoveTo: Int = -1,
@@ -605,6 +627,15 @@ data class PersonaUiState(
      *  instead (spec T5: "local when offline"). Never shown to the user as raw text. */
     val startGameError: String? = null,
 )
+
+/**
+ * Play-vs-Computer mode, matching web's three modes (GameModeSelector.jsx):
+ *  - CASUAL: per-difficulty undo budget, not rated.
+ *  - LEARNING: a small helpline pool for undo + best-move/CCT help, not rated.
+ *  - RATED: no undo, affects your rating (server bot game applies Elo).
+ * (Companion is a separate existing Android feature, not part of this selector.)
+ */
+enum class GameMode { CASUAL, LEARNING, RATED }
 
 enum class GamePhase { SETUP, PLAYING, COMPLETED, REPLAY }
 

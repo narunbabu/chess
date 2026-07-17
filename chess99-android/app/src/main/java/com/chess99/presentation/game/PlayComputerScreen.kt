@@ -128,8 +128,8 @@ fun PlayComputerScreen(
                 onLoadPersonas = { viewModel.loadPersonas() },
                 onSelectPersona = { viewModel.selectPersona(it) },
                 onClearPersona = { viewModel.clearPersonaSelection() },
-                onStartGame = { color, difficulty, rated, persona ->
-                    viewModel.setupGame(color, difficulty, rated)
+                onStartGame = { color, difficulty, mode, persona ->
+                    viewModel.setupGame(color, difficulty, mode)
                     if (persona != null) {
                         // T3: try the real, server-recorded game first; the
                         // LaunchedEffect above navigates away on success. On
@@ -139,7 +139,8 @@ fun PlayComputerScreen(
                         // player is never blocked by a network hiccup.
                         // A rated persona game is created server-side as a rated
                         // bot game (game_mode=rated) so Elo applies + shows at end.
-                        viewModel.startPersonaGame(persona, rated = rated)
+                        // Learning persona games are casual server-side + learning_mode=true.
+                        viewModel.startPersonaGame(persona, mode = mode)
                     } else {
                         viewModel.startGame()
                     }
@@ -205,11 +206,11 @@ private fun GameSetupContent(
     onLoadPersonas: () -> Unit,
     onSelectPersona: (SyntheticPlayer) -> Unit,
     onClearPersona: () -> Unit,
-    onStartGame: (Color, Int, Boolean, SyntheticPlayer?) -> Unit,
+    onStartGame: (Color, Int, GameMode, SyntheticPlayer?) -> Unit,
 ) {
     var selectedColor by remember { mutableStateOf(Color.WHITE) }
     var difficulty by remember { mutableIntStateOf(StockfishEngine.DEFAULT_DEPTH) }
-    var isRated by remember { mutableStateOf(false) }
+    var gameMode by remember { mutableStateOf(GameMode.CASUAL) }
 
     // T5: cached for the VM's lifetime \u2014 only fetched once per screen visit.
     LaunchedEffect(Unit) { onLoadPersonas() }
@@ -289,35 +290,59 @@ private fun GameSetupContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Rated toggle
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Rated Game", style = MaterialTheme.typography.titleMedium)
-            Spacer(modifier = Modifier.weight(1f))
-            Switch(checked = isRated, onCheckedChange = { isRated = it })
+        // Game mode — 3-way selector (Casual / Learning / Rated), matching web's
+        // GameModeSelector.jsx. (Companion is a separate existing feature.)
+        Text(
+            "Game Mode",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.align(Alignment.Start),
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            GameMode.entries.forEachIndexed { index, mode ->
+                SegmentedButton(
+                    selected = gameMode == mode,
+                    onClick = { gameMode = mode },
+                    shape = SegmentedButtonDefaults.itemShape(index = index, count = GameMode.entries.size),
+                ) {
+                    Text(
+                        when (mode) {
+                            GameMode.CASUAL -> "Casual"
+                            GameMode.LEARNING -> "Learning"
+                            GameMode.RATED -> "Rated"
+                        }
+                    )
+                }
+            }
         }
-        if (isRated) {
-            Text(
+        Spacer(modifier = Modifier.height(8.dp))
+        when (gameMode) {
+            GameMode.RATED -> Text(
                 text = "No undo, no pause, affects your rating",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
             )
-        } else {
-            val undos = StockfishEngine.undoChances(difficulty, false)
-            Text(
-                text = "$undos undo chances available",
+            GameMode.LEARNING -> Text(
+                text = "Best-move & undo help from a small pool " +
+                    "(${PlayComputerViewModel.DEFAULT_LEARNING_HELP_LIMIT}); not rated",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            GameMode.CASUAL -> {
+                val undos = StockfishEngine.undoChances(difficulty, false)
+                Text(
+                    text = "$undos undo chances available",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(32.dp))
 
         Button(
             onClick = {
-                onStartGame(selectedColor, difficulty, isRated, personaState.selectedPersona)
+                onStartGame(selectedColor, difficulty, gameMode, personaState.selectedPersona)
             },
             enabled = !personaState.isStartingGame,
             modifier = Modifier
