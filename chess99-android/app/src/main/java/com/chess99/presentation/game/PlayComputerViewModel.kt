@@ -131,15 +131,16 @@ class PlayComputerViewModel @Inject constructor(
     }
 
     /**
-     * Starts a server-recorded game vs the selected persona (T3 flow): casual,
-     * 10+0, random color — mirrors web's Dashboard.js nearby-opponent tap
-     * defaults. On success emits the new game id via [PersonaUiState.startedGameId]
+     * Starts a server-recorded game vs the selected persona (T3 flow): 10+0,
+     * random color, casual by default or rated when [rated] is set (a rated bot
+     * game applies Elo server-side). Mirrors web's Dashboard.js nearby-opponent
+     * tap defaults. On success emits the new game id via [PersonaUiState.startedGameId]
      * for the screen to navigate into [com.chess99.presentation.navigation.Screen.PlayMultiplayer].
      * On failure (offline, server error) leaves [PersonaUiState.startedGameId] null
      * and the screen falls back to the plain local Stockfish flow already wired
      * to the slider (persona's level is already applied via [selectPersona]).
      */
-    fun startPersonaGame(persona: SyntheticPlayer) {
+    fun startPersonaGame(persona: SyntheticPlayer, rated: Boolean = false) {
         // The screen calls setupGame() immediately before this (to apply
         // color/difficulty/rated), which rebuilds PlayComputerUiState from
         // scratch and would otherwise wipe opponentDisplayName back to null —
@@ -156,7 +157,9 @@ class PlayComputerViewModel @Inject constructor(
                     addProperty("time_control", 10)
                     addProperty("increment", 0)
                     addProperty("synthetic_player_id", persona.id)
-                    addProperty("game_mode", "casual")
+                    // Rated bot games are server-supported: game_mode=rated makes
+                    // GameController::completeGame apply Elo (applyRatedSyntheticElo).
+                    addProperty("game_mode", if (rated) "rated" else "casual")
                 }
                 val response = gameApi.createComputerGame(body)
                 if (response.isSuccessful) {
@@ -620,6 +623,19 @@ data class GameResultState(
     val endReason: EndReason,
     val winner: Winner,
     val details: String,
+    /**
+     * Server-authoritative Elo delta for a rated game, once fetched from
+     * `GET /games/{id}/rating-change`. null while pending or for casual games
+     * (no rating movement to show). Mirrors web's RatingChangeDisplay input.
+     */
+    val ratingChange: RatingChangeInfo? = null,
+)
+
+/** Elo delta shown on the game-over card for a rated game. */
+data class RatingChangeInfo(
+    val change: Int,
+    val oldRating: Int,
+    val newRating: Int,
 )
 
 enum class ResultStatus { WON, LOST, DRAW }

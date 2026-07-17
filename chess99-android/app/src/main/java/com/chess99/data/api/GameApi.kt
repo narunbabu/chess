@@ -36,6 +36,16 @@ interface GameApi {
     @POST("games/{id}/resign")
     suspend fun resign(@Path("id") id: Int): Response<JsonObject>
 
+    // Mark a game finished server-side. For rated synthetic (bot) games this is
+    // the ONLY path that applies Elo — the WebSocket move/finalize flow skips
+    // Elo for synthetic games (GameRoomService::applyRatedGameElo returns early
+    // when computer_player_id/synthetic_player_id is set; synthetic Elo lives in
+    // GameController::completeGame -> applyRatedSyntheticElo). Rated
+    // human-vs-human games apply Elo automatically server-side, so we do not
+    // need this call for them.
+    @POST("games/{id}/complete")
+    suspend fun completeGame(@Path("id") id: Int, @Body body: JsonObject): Response<JsonObject>
+
     @POST("games/{id}/pause-navigation")
     suspend fun pauseNavigation(@Path("id") id: Int): Response<JsonObject>
 

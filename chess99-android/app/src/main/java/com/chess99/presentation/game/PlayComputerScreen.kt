@@ -130,14 +130,16 @@ fun PlayComputerScreen(
                 onClearPersona = { viewModel.clearPersonaSelection() },
                 onStartGame = { color, difficulty, rated, persona ->
                     viewModel.setupGame(color, difficulty, rated)
-                    if (persona != null && !rated) {
+                    if (persona != null) {
                         // T3: try the real, server-recorded game first; the
                         // LaunchedEffect above navigates away on success. On
                         // failure PersonaUiState.startGameError flips to
                         // "fallback_local" and we start the local engine below
                         // with the persona's level already applied — the
                         // player is never blocked by a network hiccup.
-                        viewModel.startPersonaGame(persona)
+                        // A rated persona game is created server-side as a rated
+                        // bot game (game_mode=rated) so Elo applies + shows at end.
+                        viewModel.startPersonaGame(persona, rated = rated)
                     } else {
                         viewModel.startGame()
                     }
@@ -212,10 +214,9 @@ private fun GameSetupContent(
     // T5: cached for the VM's lifetime \u2014 only fetched once per screen visit.
     LaunchedEffect(Unit) { onLoadPersonas() }
 
-    // Rated overrides any persona pick (spec T3: persona games are casual only).
-    LaunchedEffect(isRated) {
-        if (isRated && personaState.selectedPersona != null) onClearPersona()
-    }
+    // Rated bot games are now supported server-side (game_mode=rated applies
+    // Elo via GameController::completeGame), so a persona pick + rated toggle can
+    // coexist — no longer force-clear the persona when rated is turned on.
 
     Column(
         modifier = modifier
@@ -244,8 +245,9 @@ private fun GameSetupContent(
         }
 
         // T5: bot persona chip row \u2014 offline/error leaves personas empty and
-        // the row simply doesn't render; the slider below still works.
-        if (!isRated && personaState.personas.isNotEmpty()) {
+        // the row simply doesn't render; the slider below still works. Shown for
+        // both casual and rated: a rated persona game becomes a rated bot game.
+        if (personaState.personas.isNotEmpty()) {
             Spacer(modifier = Modifier.height(24.dp))
             Text("Play a bot", style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))

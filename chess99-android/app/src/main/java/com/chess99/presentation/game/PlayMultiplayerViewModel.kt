@@ -317,6 +317,7 @@ class PlayMultiplayerViewModel @Inject constructor(
                     ),
                     soundToPlay = MoveSound.GAME_END,
                 )
+                onGameCompleted()
             }
 
             is GameEvent.GamePaused -> {
@@ -405,6 +406,7 @@ class PlayMultiplayerViewModel @Inject constructor(
                     ),
                     soundToPlay = MoveSound.GAME_END,
                 )
+                onGameCompleted()
             }
 
             is GameEvent.OpponentPinged -> {
@@ -558,8 +560,24 @@ class PlayMultiplayerViewModel @Inject constructor(
 
     fun resign() {
         viewModelScope.launch {
-            val result = gameWebSocketService.resignGame()
-            result.onSuccess {
+            val state = _uiState.value
+            // A synthetic/bot game must finalize via completeGame — that applies
+            // the bot's Elo (rated games) while the game is still active. The
+            // human resign endpoint would finalize WITHOUT synthetic Elo, and the
+            // follow-up completeGame would then 422 ("game is not active").
+            val ok: Boolean = if (state.isSyntheticGame) {
+                val body = JsonObject().apply {
+                    addProperty("result", if (state.playerColor == Color.WHITE) "0-1" else "1-0")
+                    addProperty("end_reason", "resignation")
+                    addProperty("move_count", state.moveHistory.size)
+                    addProperty("fen", game.fen())
+                }
+                runCatching { gameApi.completeGame(gameId, body).isSuccessful }.getOrDefault(false)
+            } else {
+                gameWebSocketService.resignGame().isSuccess
+            }
+
+            if (ok) {
                 stopTimer()
                 _uiState.value = _uiState.value.copy(
                     gamePhase = MultiplayerPhase.COMPLETED,
@@ -571,9 +589,11 @@ class PlayMultiplayerViewModel @Inject constructor(
                     ),
                     soundToPlay = MoveSound.GAME_END,
                 )
-            }
-            result.onFailure { e ->
-                _uiState.value = _uiState.value.copy(error = friendlyError(e, "your resignation"))
+                onGameCompleted()
+            } else {
+                _uiState.value = _uiState.value.copy(
+                    error = "Couldn't record your resignation. Please try again.",
+                )
             }
         }
     }
@@ -715,6 +735,7 @@ class PlayMultiplayerViewModel @Inject constructor(
             ),
             soundToPlay = MoveSound.GAME_END,
         )
+        onGameCompleted()
     }
 
     private fun stopTimer() {
@@ -1242,6 +1263,85 @@ class PlayMultiplayerViewModel @Inject constructor(
             totalMoves = state.moveHistory.size,
             timeControl = state.timeControl,
         )
+    }
+
+    // ── Rating change (rated games) ─────────────────────────────────────
+    // At game end, show the server-authoritative Elo delta (web parity: the
+    // RatingChangeDisplay via getRatingChange). Two backend realities:
+    //   • Rated human-vs-human: Elo is applied automatically server-side when
+    //     the game finalizes (GameRoomService::applyRatedGameElo). We just read
+    //     it back via GET /games/{id}/rating-change.
+    //   • Rated synthetic (bot): the finalize path skips synthetic Elo, so we
+    //     must POST /games/{id}/complete first (applies applyRatedSyntheticElo),
+    //     then read the delta back. completeGame is idempotent server-side.
+    // Casual games have no ratings_history row → rating-change returns 404 → we
+    // leave ratingChange null and the card shows the neutral "Casual game" line.
+    private var ratingFetchStarted = false
+
+    private fun onGameCompleted() {
+        if (ratingFetchStarted) return
+        ratingFetchStarted = true
+        val state = _uiState.value
+        if (!state.isRated || state.gameId <= 0) return
+        val result = state.gameResult ?: return
+
+        viewModelScope.launch {
+            try {
+                // Rated bot games need an explicit complete call to trigger Elo.
+                if (state.isSyntheticGame) {
+                    val body = JsonObject().apply {
+                        addProperty("result", resultStringFor(result))
+                        addProperty("end_reason", endReasonStringFor(result.endReason))
+                        addProperty("move_count", state.moveHistory.size)
+                        addProperty("fen", game.fen())
+                    }
+                    // Fire-and-forget; ignore failures (rating fetch below still
+                    // works for the human-vs-human case, and a bot game with no
+                    // Elo simply shows the casual line).
+                    runCatching { gameApi.completeGame(gameId, body) }
+                }
+
+                val response = gameApi.getRatingChange(gameId)
+                if (!response.isSuccessful) return@launch
+                val rc = response.body()
+                    ?.getAsJsonObject("rating_change") ?: return@launch
+                val change = rc.get("rating_change")?.takeIf { it.isJsonPrimitive }?.asInt ?: return@launch
+                val oldRating = rc.get("old_rating")?.takeIf { it.isJsonPrimitive }?.asInt ?: state.myRating
+                val newRating = rc.get("new_rating")?.takeIf { it.isJsonPrimitive }?.asInt ?: (oldRating + change)
+
+                // Only overlay onto the still-current completed result.
+                val current = _uiState.value
+                if (current.gamePhase == MultiplayerPhase.COMPLETED && current.gameResult != null) {
+                    _uiState.value = current.copy(
+                        gameResult = current.gameResult.copy(
+                            ratingChange = RatingChangeInfo(change, oldRating, newRating),
+                        ),
+                        myRating = newRating,
+                    )
+                }
+            } catch (e: Exception) {
+                // Kid-safe: never surface raw errors; the card just omits the delta.
+                Timber.e(e, "Failed to fetch rating change for game $gameId")
+            }
+        }
+    }
+
+    /** Map a completed result to the backend result string from the player's POV. */
+    private fun resultStringFor(result: GameResultState): String = when (result.status) {
+        ResultStatus.DRAW -> "1/2-1/2"
+        ResultStatus.WON -> if (_uiState.value.playerColor == Color.WHITE) "1-0" else "0-1"
+        ResultStatus.LOST -> if (_uiState.value.playerColor == Color.WHITE) "0-1" else "1-0"
+    }
+
+    private fun endReasonStringFor(endReason: EndReason): String = when (endReason) {
+        EndReason.CHECKMATE -> "checkmate"
+        EndReason.STALEMATE -> "stalemate"
+        EndReason.TIMEOUT -> "timeout"
+        EndReason.RESIGNATION -> "resignation"
+        EndReason.INSUFFICIENT_MATERIAL -> "insufficient_material"
+        EndReason.THREEFOLD_REPETITION -> "threefold"
+        EndReason.FIFTY_MOVE_RULE -> "fifty_move"
+        EndReason.UNKNOWN -> "other"
     }
 
     override fun onCleared() {

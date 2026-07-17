@@ -702,6 +702,8 @@ private fun MultiplayerResultCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            Spacer(modifier = Modifier.height(8.dp))
+            RatingChangeLine(ratingChange = result.ratingChange)
             Spacer(modifier = Modifier.height(12.dp))
             Row(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -718,6 +720,37 @@ private fun MultiplayerResultCard(
             }
         }
     }
+}
+
+/**
+ * Rating delta shown on the game-over card for a rated game. Mirrors web's
+ * RatingChangeDisplay intent: green for a gain, red for a loss, neutral copy
+ * when there was no rating movement (casual game / delta not yet available).
+ * Uses theme colors only (primary == board green) — kid-safe, no raw numbers
+ * dressed up as errors.
+ */
+@Composable
+private fun RatingChangeLine(ratingChange: RatingChangeInfo?) {
+    // No row for casual games or while a rated delta is still loading — mirrors
+    // web's RatingChangeDisplay returning null when there's nothing to show.
+    if (ratingChange == null) return
+    val change = ratingChange.change
+    val (label, color) = when {
+        change > 0 -> "Rating +$change" to MaterialTheme.colorScheme.primary
+        change < 0 -> "Rating $change" to MaterialTheme.colorScheme.error
+        else -> "Rating unchanged" to MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Text(
+        text = label,
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold,
+        color = color,
+    )
+    Text(
+        text = "${ratingChange.oldRating} → ${ratingChange.newRating}",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }
 
 // ── Chat Panel ──────────────────────────────────────────────────────────
