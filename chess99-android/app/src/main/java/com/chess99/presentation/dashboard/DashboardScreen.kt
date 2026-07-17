@@ -149,6 +149,15 @@ fun DashboardScreen(
                 )
             }
 
+            // ── 1b. Daily Quota Strip (free/silver usage) ────────────
+            uiState.dailyQuota?.let { quota ->
+                if (!quota.unlimited) {
+                    item {
+                        DailyQuotaStrip(quota = quota)
+                    }
+                }
+            }
+
             // ── 2. Rating Card ───────────────────────────────────────
             item {
                 RatingCard(
@@ -161,6 +170,11 @@ fun DashboardScreen(
             uiState.stats?.let { stats ->
                 item {
                     QuickStatsRow(stats = stats)
+                }
+                if (stats.gamesPlayed > 0) {
+                    item {
+                        WinLossDrawRow(stats = stats)
+                    }
                 }
             }
             if (uiState.stats == null && uiState.statsError != null) {
@@ -181,6 +195,26 @@ fun DashboardScreen(
                     onLearn = onNavigateToLearn,
                     onTournaments = onNavigateToChampionships,
                 )
+            }
+
+            // ── 4b. Active Games (in-progress, resumable) ────────────
+            if (uiState.activeGames.isNotEmpty()) {
+                item {
+                    Text(
+                        text = "Active Games",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+                items(
+                    items = uiState.activeGames,
+                    key = { "active-${it.id}" },
+                ) { game ->
+                    ActiveGameCard(
+                        game = game,
+                        onResume = { onNavigateToGame(game.id) },
+                    )
+                }
             }
 
             // ── 5. Recent Games ──────────────────────────────────────
@@ -437,6 +471,7 @@ private fun StatMiniCard(
     label: String,
     value: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
+    valueColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.primary,
 ) {
     OutlinedCard(modifier = modifier) {
         Column(
@@ -449,19 +484,171 @@ private fun StatMiniCard(
                 icon,
                 contentDescription = null,
                 modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.primary,
+                tint = valueColor,
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = value,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
+                color = valueColor,
             )
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+    }
+}
+
+@Composable
+private fun WinLossDrawRow(stats: DashboardStats) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        StatMiniCard(
+            modifier = Modifier.weight(1f),
+            label = "Wins",
+            value = stats.wins.toString(),
+            icon = Icons.Default.CheckCircle,
+            valueColor = MaterialTheme.colorScheme.primary,
+        )
+        StatMiniCard(
+            modifier = Modifier.weight(1f),
+            label = "Losses",
+            value = stats.losses.toString(),
+            icon = Icons.Default.Close,
+            valueColor = MaterialTheme.colorScheme.error,
+        )
+        StatMiniCard(
+            modifier = Modifier.weight(1f),
+            label = "Draws",
+            value = stats.draws.toString(),
+            icon = Icons.Default.Handshake,
+            valueColor = MaterialTheme.colorScheme.tertiary,
+        )
+    }
+}
+
+@Composable
+private fun DailyQuotaStrip(quota: DailyQuota) {
+    val pct = if (quota.dailyLimit > 0) {
+        (quota.gamesToday.toFloat() / quota.dailyLimit).coerceIn(0f, 1f)
+    } else 0f
+    val barColor = when {
+        quota.remaining <= 0 -> MaterialTheme.colorScheme.error
+        pct >= 0.6f -> MaterialTheme.colorScheme.tertiary
+        else -> MaterialTheme.colorScheme.primary
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        ),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Surface(
+                    shape = MaterialTheme.shapes.small,
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                ) {
+                    Text(
+                        text = quota.tier.uppercase(),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    )
+                }
+                Text(
+                    text = "${quota.remaining} of ${quota.dailyLimit} games left today",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            LinearProgressIndicator(
+                progress = { pct },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .clip(MaterialTheme.shapes.small),
+                color = barColor,
+                trackColor = MaterialTheme.colorScheme.surface,
+            )
+            if (quota.remaining <= 0) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "You've used all your free games for today. Come back tomorrow, or upgrade for unlimited play!",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ActiveGameCard(
+    game: ActiveGame,
+    onResume: () -> Unit,
+) {
+    OutlinedCard(
+        onClick = onResume,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                modifier = Modifier.size(40.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        Icons.Default.PlayArrow,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "vs ${game.opponentName}",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = "${game.status.replaceFirstChar { it.uppercase() }} - Playing as ${game.playerColor}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            FilledTonalButton(onClick = onResume) {
+                Text("Resume")
+            }
         }
     }
 }

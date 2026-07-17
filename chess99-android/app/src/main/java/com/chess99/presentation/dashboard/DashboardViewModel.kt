@@ -7,7 +7,11 @@ import com.chess99.data.api.ChampionshipApi
 import com.chess99.data.api.GameApi
 import com.chess99.data.api.ProfileApi
 import com.chess99.data.api.arrOrNull
+import com.chess99.data.api.bool
+import com.chess99.data.api.dbl
+import com.chess99.data.api.int
 import com.chess99.data.api.objOrNull
+import com.chess99.data.api.str
 import com.chess99.presentation.common.friendlyError
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -59,6 +63,8 @@ class DashboardViewModel @Inject constructor(
                 launch { loadRecentGames() },
                 launch { loadActiveTournaments() },
                 launch { loadUnfinishedGames() },
+                launch { loadActiveGames() },
+                launch { loadDailyQuota() },
             )
             jobs.joinAll()
             _uiState.value = _uiState.value.copy(isLoading = false)
@@ -71,6 +77,7 @@ class DashboardViewModel @Inject constructor(
             if (response.isSuccessful) {
                 val user = response.body()
                 _uiState.value = _uiState.value.copy(
+                    userId = user?.id,
                     userName = user?.name ?: "",
                     userEmail = user?.email ?: "",
                     userAvatarUrl = user?.avatarUrl,
@@ -97,21 +104,19 @@ class DashboardViewModel @Inject constructor(
             val response = profileApi.getPerformanceStats()
             if (response.isSuccessful) {
                 val body = response.body()
-                val statsObj = if (body != null && body.has("stats")) body.getAsJsonObject("stats") else body
+                val statsObj = if (body != null && body.has("stats")) body.get("stats").objOrNull() else body
 
                 _uiState.value = _uiState.value.copy(
                     stats = DashboardStats(
-                        rating = statsObj?.get("rating")?.asInt
-                            ?: _uiState.value.userRating,
-                        peakRating = statsObj?.get("peak_rating")?.asInt
-                            ?: _uiState.value.userPeakRating,
-                        gamesPlayed = statsObj?.get("total_games")?.asInt ?: 0,
-                        wins = statsObj?.get("wins")?.asInt ?: 0,
-                        losses = statsObj?.get("losses")?.asInt ?: 0,
-                        draws = statsObj?.get("draws")?.asInt ?: 0,
-                        winRate = statsObj?.get("win_rate")?.asFloat ?: 0f,
-                        currentStreak = statsObj?.get("current_streak")?.asInt ?: 0,
-                        bestStreak = statsObj?.get("best_streak")?.asInt ?: 0,
+                        rating = statsObj.int("rating") ?: _uiState.value.userRating,
+                        peakRating = statsObj.int("peak_rating") ?: _uiState.value.userPeakRating,
+                        gamesPlayed = statsObj.int("total_games") ?: 0,
+                        wins = statsObj.int("wins") ?: 0,
+                        losses = statsObj.int("losses") ?: 0,
+                        draws = statsObj.int("draws") ?: 0,
+                        winRate = statsObj.dbl("win_rate")?.toFloat() ?: 0f,
+                        currentStreak = statsObj.int("current_streak") ?: 0,
+                        bestStreak = statsObj.int("best_streak") ?: 0,
                     ),
                     statsError = null,
                 )
@@ -139,17 +144,17 @@ class DashboardViewModel @Inject constructor(
                 val games = gamesArray?.mapNotNull { el ->
                     val g = el.objOrNull() ?: return@mapNotNull null
                     RecentGame(
-                        id = g.get("id")?.asInt ?: 0,
-                        opponent = g.get("opponent_name")?.asString
-                            ?: g.get("opponent")?.asString
+                        id = g.int("id") ?: 0,
+                        opponent = g.str("opponent_name")
+                            ?: g.str("opponent")
                             ?: "Unknown",
-                        result = g.get("result")?.asString
-                            ?: g.get("status")?.asString
+                        result = g.str("result")
+                            ?: g.str("status")
                             ?: "unknown",
-                        ratingChange = g.get("rating_change")?.asInt ?: 0,
-                        timeControl = g.get("time_control")?.asString ?: "10|0",
-                        date = g.get("completed_at")?.asString
-                            ?: g.get("created_at")?.asString
+                        ratingChange = g.int("rating_change") ?: 0,
+                        timeControl = g.str("time_control") ?: "10|0",
+                        date = g.str("completed_at")
+                            ?: g.str("created_at")
                             ?: "",
                     )
                 } ?: emptyList()
@@ -175,15 +180,15 @@ class DashboardViewModel @Inject constructor(
                 val tournaments = tournamentsArray?.mapNotNull { el ->
                     val t = el.objOrNull() ?: return@mapNotNull null
                     ActiveTournament(
-                        id = t.get("id")?.asInt ?: 0,
-                        name = t.get("name")?.asString ?: "",
-                        format = t.get("format")?.asString ?: "swiss",
-                        currentRound = t.get("current_round")?.asInt ?: 0,
-                        totalRounds = t.get("total_rounds")?.asInt
-                            ?: t.get("rounds")?.asInt ?: 0,
-                        playerCount = t.get("player_count")?.asInt
-                            ?: t.get("participants_count")?.asInt ?: 0,
-                        status = t.get("status")?.asString ?: "active",
+                        id = t.int("id") ?: 0,
+                        name = t.str("name") ?: "",
+                        format = t.str("format") ?: "swiss",
+                        currentRound = t.int("current_round") ?: 0,
+                        totalRounds = t.int("total_rounds")
+                            ?: t.int("rounds") ?: 0,
+                        playerCount = t.int("player_count")
+                            ?: t.int("participants_count") ?: 0,
+                        status = t.str("status") ?: "active",
                     )
                 } ?: emptyList()
                 _uiState.value = _uiState.value.copy(activeTournaments = tournaments)
@@ -203,15 +208,68 @@ class DashboardViewModel @Inject constructor(
                 val games = gamesArray?.mapNotNull { el ->
                     val g = el.objOrNull() ?: return@mapNotNull null
                     UnfinishedGame(
-                        gameId = g.get("id")?.asInt ?: 0,
-                        opponentName = g.get("opponent_name")?.asString ?: "Unknown",
-                        timeControl = g.get("time_control")?.asString ?: "10|0",
+                        gameId = g.int("id") ?: 0,
+                        opponentName = g.str("opponent_name") ?: "Unknown",
+                        timeControl = g.str("time_control") ?: "10|0",
                     )
                 } ?: emptyList()
                 _unfinishedGames.value = games
             }
         } catch (e: Exception) {
             Timber.e(e, "Failed to load unfinished games")
+        }
+    }
+
+    private suspend fun loadActiveGames() {
+        try {
+            val response = gameApi.getActiveGames()
+            if (response.isSuccessful) {
+                val body = response.body()
+                val currentUserId = _uiState.value.userId
+                val gamesArray = body?.get("data")?.arrOrNull()
+                    ?: body?.get("games")?.arrOrNull()
+                val games = gamesArray?.mapNotNull { el ->
+                    val g = el.objOrNull() ?: return@mapNotNull null
+                    val whiteId = g.int("white_player_id")
+                    val playerIsWhite = currentUserId != null && whiteId == currentUserId
+                    val opponent = if (playerIsWhite) g.get("black_player").objOrNull()
+                        else g.get("white_player").objOrNull()
+                    ActiveGame(
+                        id = g.int("id") ?: 0,
+                        opponentName = opponent.str("name") ?: "Opponent",
+                        playerColor = if (playerIsWhite) "White" else "Black",
+                        status = g.str("status") ?: "active",
+                        lastMoveAt = g.str("last_move_at"),
+                    )
+                }?.filter { it.id != 0 } ?: emptyList()
+                _uiState.value = _uiState.value.copy(activeGames = games)
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to load active games")
+        }
+    }
+
+    private suspend fun loadDailyQuota() {
+        try {
+            val response = gameApi.getDailyQuota()
+            if (response.isSuccessful) {
+                val body = response.body()
+                if (body != null) {
+                    val unlimited = body.bool("unlimited") ?: false
+                    _uiState.value = _uiState.value.copy(
+                        dailyQuota = DailyQuota(
+                            tier = body.str("tier") ?: "free",
+                            unlimited = unlimited,
+                            dailyLimit = body.int("daily_limit") ?: 5,
+                            gamesToday = body.int("games_today") ?: 0,
+                            remaining = body.int("remaining")
+                                ?: ((body.int("daily_limit") ?: 5) - (body.int("games_today") ?: 0)).coerceAtLeast(0),
+                        ),
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to load daily quota")
         }
     }
 
@@ -255,6 +313,8 @@ class DashboardViewModel @Inject constructor(
                     launch { loadRecentGames() },
                     launch { loadActiveTournaments() },
                     launch { loadUnfinishedGames() },
+                    launch { loadActiveGames() },
+                    launch { loadDailyQuota() },
                 )
                 jobs.joinAll()
             } catch (e: Exception) {
@@ -284,6 +344,7 @@ data class DashboardUiState(
     val error: String? = null,
 
     // User info
+    val userId: Int? = null,
     val userName: String = "",
     val userEmail: String = "",
     val userAvatarUrl: String? = null,
@@ -300,8 +361,30 @@ data class DashboardUiState(
     // Active tournaments
     val activeTournaments: List<ActiveTournament> = emptyList(),
 
+    // Active (in-progress) games — resumable
+    val activeGames: List<ActiveGame> = emptyList(),
+
+    // Daily online-game quota (free/silver tier usage strip)
+    val dailyQuota: DailyQuota? = null,
+
     // Notifications
     val notifications: List<DashboardNotification> = emptyList(),
+)
+
+data class ActiveGame(
+    val id: Int,
+    val opponentName: String,
+    val playerColor: String,
+    val status: String,
+    val lastMoveAt: String?,
+)
+
+data class DailyQuota(
+    val tier: String,
+    val unlimited: Boolean,
+    val dailyLimit: Int,
+    val gamesToday: Int,
+    val remaining: Int,
 )
 
 data class DashboardStats(

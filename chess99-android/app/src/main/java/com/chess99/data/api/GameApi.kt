@@ -15,6 +15,9 @@ interface GameApi {
     @GET("games/active")
     suspend fun getActiveGames(): Response<JsonObject>
 
+    @GET("games/daily-quota")
+    suspend fun getDailyQuota(): Response<JsonObject>
+
     @GET("games/unfinished")
     suspend fun getUnfinishedGames(): Response<JsonObject>
 
