@@ -76,6 +76,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', function (Illuminate\Http\Request $request) {
         return $request->user()->load('roles');
     });
+    // User progress charts (rating-over-time, games/points-per-day). Was only in
+    // legacy routes/api.php (/api/*) — native clients use /api/v1/, so mirror it
+    // here or the progress charts 404.
+    Route::get('/user/progress', [\App\Http\Controllers\UserProgressController::class, 'progress']);
     Route::get('/entitlements/me', [EntitlementController::class, 'me']);
 
     // ── Device Token Management (Push Notifications) ──────────────────────
