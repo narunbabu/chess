@@ -66,6 +66,26 @@ interface ProfileApi {
     @GET("rating/history")
     suspend fun getRatingHistory(): Response<JsonObject>
 
+    /**
+     * Get day-wise progress time-series for the authenticated user (charts).
+     * Mirrors chess-frontend/src/components/UserProgressCharts.js.
+     *
+     * Backend: GET /user/progress?period=7d|30d|all -> UserProgressController@progress
+     * Returns: {
+     *   rating_progression: [{ date, rating, change, games }],
+     *   points_per_day:     [{ date, points, lost, games }],
+     *   games_per_day:      [{ date, total, wins, draws, losses }],
+     *   meta: { period, user_id }
+     * }
+     *
+     * @param period one of "7d", "30d", "all" (backend default is "30d";
+     *               any unrecognised value including "all" == full history).
+     */
+    @GET("user/progress")
+    suspend fun getUserProgress(
+        @Query("period") period: String = "30d",
+    ): Response<JsonObject>
+
     // ── Game Statistics ───────────────────────────────────────────────────
 
     /**

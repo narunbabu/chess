@@ -150,11 +150,14 @@ class RatingHistoryViewModel @Inject constructor(
 fun RatingHistoryScreen(
     onNavigateBack: () -> Unit,
     viewModel: RatingHistoryViewModel = hiltViewModel(),
+    progressViewModel: UserProgressViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+    val progressState by progressViewModel.state.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.loadHistory()
+        progressViewModel.load()
     }
 
     Scaffold(
@@ -196,6 +199,22 @@ fun RatingHistoryScreen(
                             Spacer(Modifier.height(4.dp))
                             StatsCards(stats)
                         }
+                    }
+
+                    // Progress charts (rating line + games-per-day bars) with range toggle
+                    item {
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "Your Progress",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 16.sp,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        UserProgressSection(
+                            state = progressState,
+                            onRangeSelected = { progressViewModel.setRange(it) },
+                            onRetry = { progressViewModel.load() },
+                        )
                     }
 
                     // History list
