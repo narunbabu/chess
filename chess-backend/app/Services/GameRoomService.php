@@ -1243,9 +1243,13 @@ class GameRoomService
      */
     private function broadcastGameEnded(Game $game): void
     {
-        // Include player names in the broadcast data
+        // Include player names in the broadcast data. A synthetic/computer game
+        // has no User on the bot's side, so that relation is null — use null-safe
+        // access and fall back to the synthetic player's name/rating so a bot
+        // game can end (resign/timeout/checkmate) without a null-property crash.
         $whitePlayer = $game->whitePlayer;
         $blackPlayer = $game->blackPlayer;
+        $synthetic = $game->syntheticPlayer;
 
         broadcast(new GameEndedEvent($game->id, [
             'game_over' => true,
@@ -1257,16 +1261,16 @@ class GameRoomService
             'move_count' => $game->move_count,
             'ended_at' => $game->ended_at?->toISOString(),
             'white_player' => [
-                'id' => $whitePlayer->id,
-                'name' => $whitePlayer->name,
-                'avatar' => $whitePlayer->avatar_url,
-                'rating' => $whitePlayer->rating ?? 1200
+                'id' => $whitePlayer?->id,
+                'name' => $whitePlayer?->name ?? $synthetic?->name ?? 'Computer',
+                'avatar' => $whitePlayer?->avatar_url ?? $synthetic?->avatar_url,
+                'rating' => $whitePlayer?->rating ?? $synthetic?->rating ?? 1200
             ],
             'black_player' => [
-                'id' => $blackPlayer->id,
-                'name' => $blackPlayer->name,
-                'avatar' => $blackPlayer->avatar_url,
-                'rating' => $blackPlayer->rating ?? 1200
+                'id' => $blackPlayer?->id,
+                'name' => $blackPlayer?->name ?? $synthetic?->name ?? 'Computer',
+                'avatar' => $blackPlayer?->avatar_url ?? $synthetic?->avatar_url,
+                'rating' => $blackPlayer?->rating ?? $synthetic?->rating ?? 1200
             ],
             'white_player_score' => $game->white_player_score ?? 0.0,
             'black_player_score' => $game->black_player_score ?? 0.0
