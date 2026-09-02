@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -220,7 +221,7 @@ fun GameEndCard(
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
                 ShareIconButton(
-                    icon = Icons.Default.Chat,
+                    icon = Icons.AutoMirrored.Filled.Chat,
                     label = "WhatsApp",
                     color = Color(0xFF25D366),
                     onClick = { onShareClick(SharePlatform.WHATSAPP) },
@@ -395,9 +396,9 @@ private fun AnimatedRatingChange(
     }
 
     val deltaIcon = when {
-        delta > 0 -> Icons.Default.TrendingUp
-        delta < 0 -> Icons.Default.TrendingDown
-        else -> Icons.Default.TrendingFlat
+        delta > 0 -> Icons.AutoMirrored.Filled.TrendingUp
+        delta < 0 -> Icons.AutoMirrored.Filled.TrendingDown
+        else -> Icons.AutoMirrored.Filled.TrendingFlat
     }
 
     Card(

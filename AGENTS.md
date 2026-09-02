@@ -196,7 +196,25 @@ cd chess-backend && php artisan test && php artisan migrate --pretend
    **IMPORTANT**: Nginx serves chess99.com from `/var/www/chess99.com/` — the
    React build output at `chess-frontend/build/` must be copied there after
    every frontend build or the old version stays live.
-5. Health check: `curl https://chess99.com` + `curl https://api.chess99.com/health`
+
+   **App Links**: `chess-frontend/public/.well-known/assetlinks.json` is a
+   dot-directory. Confirm it survived the copy and that nginx is not shadowing
+   it with the SPA fallback:
+   ```bash
+   ls -l /var/www/chess99.com/.well-known/assetlinks.json
+   curl -sI https://chess99.com/.well-known/assetlinks.json | grep -i content-type
+   ```
+   `Content-Type` must be `application/json`. A 200 with `text/html` means
+   nginx answered `try_files ... /index.html`, the file is not on disk, and
+   Android App Link verification will fail. If nginx denies dot-paths, the
+   server block needs `location ~ /\.(?!well-known)` rather than `~ /\.`.
+   `chess99-android/scripts/check_assetlinks.ps1` asserts all of this and
+   exits non-zero on failure.
+5. Health check: `curl https://chess99.com` + `curl https://api.chess99.com/up`
+   (Laravel's health endpoint is `/up` — configured in `chess-backend/bootstrap/app.php`.
+   `/health` alone 404s; the richer JSON probe used by the native apps is
+   `curl https://api.chess99.com/api/v1/health`. `chess99-android/scripts/check_backend_health.ps1`
+   checks all of these.)
 6. **Never deploy directly from this project pane**
 
 ### Rollback Plan

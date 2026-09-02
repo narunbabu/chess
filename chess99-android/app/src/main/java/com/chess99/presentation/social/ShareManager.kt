@@ -14,6 +14,8 @@ import android.view.View
 import android.view.Window
 import android.widget.Toast
 import androidx.core.content.FileProvider
+import androidx.core.graphics.createBitmap
+import androidx.core.net.toUri
 import com.chess99.data.api.SocialApi
 import com.google.gson.JsonObject
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -169,7 +171,7 @@ class ShareManager @Inject constructor(
             } catch (e2: Exception) {
                 Timber.w(e2, "Twitter/X not installed, falling back to browser")
                 val url = "https://twitter.com/intent/tweet?text=${Uri.encode(tweetText)}"
-                val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                val browserIntent = Intent(Intent.ACTION_VIEW, url.toUri())
                 browserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 context.startActivity(browserIntent)
                 trackShare(game.gameId, "twitter")
@@ -194,7 +196,7 @@ class ShareManager @Inject constructor(
         } catch (e: Exception) {
             Timber.w(e, "Facebook not installed, falling back to browser")
             val url = "https://www.facebook.com/sharer/sharer.php?u=${Uri.encode(gameUrl)}"
-            val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+            val browserIntent = Intent(Intent.ACTION_VIEW, url.toUri())
             browserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(browserIntent)
             trackShare(game.gameId, "facebook")
@@ -370,7 +372,7 @@ class ShareManager @Inject constructor(
                     cont.resume(null)
                     return@suspendCancellableCoroutine
                 }
-                val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                val bitmap = createBitmap(width, height) // ARGB_8888
                 val handler = Handler(Looper.getMainLooper())
                 PixelCopy.request(window, bitmap, { result ->
                     if (result == PixelCopy.SUCCESS) {

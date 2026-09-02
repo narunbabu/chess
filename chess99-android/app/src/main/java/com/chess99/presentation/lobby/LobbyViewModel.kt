@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.chess99.data.api.GameApi
 import com.chess99.data.api.MatchmakingApi
 import com.chess99.data.api.RatingWindow
+import com.chess99.data.local.LobbyPreferences
 import com.chess99.data.local.TokenManager
 import com.chess99.data.websocket.PusherManager
 import com.chess99.data.api.arrOrNull
@@ -13,6 +14,7 @@ import com.chess99.data.api.int
 import com.chess99.data.api.objOrNull
 import com.chess99.data.api.str
 import com.chess99.presentation.common.friendlyError
+import com.chess99.presentation.game.PlayComputerViewModel
 import com.google.gson.JsonObject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -36,6 +38,7 @@ class LobbyViewModel @Inject constructor(
     private val gameApi: GameApi,
     private val tokenManager: TokenManager,
     private val pusherManager: PusherManager,
+    private val lobbyPreferences: LobbyPreferences,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LobbyUiState())
@@ -47,6 +50,19 @@ class LobbyViewModel @Inject constructor(
     private var findPlayersToken: String? = null
 
     init {
+        // Restore the Elo range and the mode / time control the player last chose,
+        // so the lobby comes back the way they left it (web parity: LobbyPage.js
+        // seeds from getModeAwareDefaultRatingWindow + stored prefs).
+        val storedWindow = lobbyPreferences.getRatingWindow() ?: RatingWindow.full()
+        _uiState.value = _uiState.value.copy(
+            ratingWindow = storedWindow,
+            ratingWindowDraftMin = storedWindow.minRating.toString(),
+            ratingWindowDraftMax = storedWindow.maxRating.toString(),
+            hasStoredRatingWindow = lobbyPreferences.getRatingWindow() != null,
+            selectedGameMode = lobbyPreferences.getGameMode(),
+            selectedTimeControlMinutes = lobbyPreferences.getTimeControlMinutes(),
+            selectedIncrementSeconds = lobbyPreferences.getIncrementSeconds(),
+        )
         loadLobbyData()
         startPolling()
         ensureWebSocketConnected()
@@ -80,7 +96,7 @@ class LobbyViewModel @Inject constructor(
             // across ALL ELOs (the user's ask) rather than a narrow window around
             // an unknown rating — a default 200–750 window hid every seeded bot
             // (they start ~800). Full span => backend returns a varied-ELO set.
-            val (minRating, maxRating) = RatingWindow.fullWindow()
+            val (minRating, maxRating) = RatingWindow.full()
             val response = matchmakingApi.getLobbyPlayers(minRating, maxRating)
             if (response.isSuccessful) {
                 val body = response.body() ?: return
@@ -102,7 +118,7 @@ class LobbyViewModel @Inject constructor(
                     val p = el.objOrNull() ?: return@mapNotNull null
                     LobbyPlayer(
                         id = p.int("id") ?: return@mapNotNull null,
-                        name = p.str("name") ?: "Bot",
+                        name = p.str("name") ?: "Player",
                         rating = p.int("rating") ?: 1200,
                         isOnline = true,
                         avatarUrl = p.str("avatar_url"),
@@ -404,6 +420,69 @@ class LobbyViewModel @Inject constructor(
         )
     }
 
+    // ── Elo filter (Players tab) ────────────────────────────────────────
+
+    /** Type into the From box. Kept as text until [applyRatingWindow]. */
+    fun setRatingWindowDraftMin(value: String) {
+        _uiState.value = _uiState.value.copy(ratingWindowDraftMin = value.filter { it.isDigit() }.take(4))
+    }
+
+    /** Type into the To box. */
+    fun setRatingWindowDraftMax(value: String) {
+        _uiState.value = _uiState.value.copy(ratingWindowDraftMax = value.filter { it.isDigit() }.take(4))
+    }
+
+    /**
+     * Commit the typed range: normalize it (clamping and swapping if reversed),
+     * persist it, and re-render the list. No refetch — the full span is already
+     * loaded, so filtering is instant.
+     */
+    fun applyRatingWindow() {
+        val state = _uiState.value
+        val window = RatingWindow(
+            minRating = state.ratingWindowDraftMin.toIntOrNull() ?: RatingWindow.MIN_OPPONENT_RATING,
+            maxRating = state.ratingWindowDraftMax.toIntOrNull() ?: RatingWindow.MAX_OPPONENT_RATING,
+        ).normalize()
+
+        lobbyPreferences.saveRatingWindow(window)
+        _uiState.value = state.copy(
+            ratingWindow = window,
+            // Reflect the normalized values back so the boxes show what was applied.
+            ratingWindowDraftMin = window.minRating.toString(),
+            ratingWindowDraftMax = window.maxRating.toString(),
+            hasStoredRatingWindow = true,
+        )
+    }
+
+    /** Drop the saved range and show every opponent again. */
+    fun resetRatingWindow() {
+        lobbyPreferences.clearRatingWindow()
+        val window = RatingWindow.full()
+        _uiState.value = _uiState.value.copy(
+            ratingWindow = window,
+            ratingWindowDraftMin = window.minRating.toString(),
+            ratingWindowDraftMax = window.maxRating.toString(),
+            hasStoredRatingWindow = false,
+        )
+    }
+
+    // ── Start-a-game options (Players tab) ──────────────────────────────
+
+    /** "casual" | "rated" | "learning" — web parity: PlayOnlineButton sends prefs.game_mode. */
+    fun setSelectedGameMode(mode: String) {
+        lobbyPreferences.saveGameMode(mode)
+        _uiState.value = _uiState.value.copy(selectedGameMode = mode)
+    }
+
+    fun setSelectedTimeControl(minutes: Int, incrementSeconds: Int) {
+        lobbyPreferences.saveTimeControlMinutes(minutes)
+        lobbyPreferences.saveIncrementSeconds(incrementSeconds)
+        _uiState.value = _uiState.value.copy(
+            selectedTimeControlMinutes = minutes,
+            selectedIncrementSeconds = incrementSeconds,
+        )
+    }
+
     /**
      * Tapping "Play" on a synthetic (bot) player in the Players tab starts a
      * real, server-recorded game vs that bot — same request shape as
@@ -416,15 +495,35 @@ class LobbyViewModel @Inject constructor(
      */
     fun startGameVsSynthetic(player: LobbyPlayer) {
         if (!player.isSynthetic) return
+        val state = _uiState.value
         viewModelScope.launch {
             try {
                 val body = JsonObject().apply {
                     addProperty("player_color", if ((0..1).random() == 0) "white" else "black")
                     addProperty("computer_level", player.computerLevel ?: 2)
-                    addProperty("time_control", 10)
-                    addProperty("increment", 0)
+                    // Was hardcoded 10|0 casual, so the Players tab could only
+                    // ever start one kind of game. Web sends the player's stored
+                    // preferences here (PlayOnlineButton.js:51-55), including
+                    // learning mode and its help budget.
+                    addProperty("time_control", state.selectedTimeControlMinutes)
+                    addProperty("increment", state.selectedIncrementSeconds)
                     addProperty("synthetic_player_id", player.id)
-                    addProperty("game_mode", "casual")
+                    // The server validates game_mode as rated|casual only —
+                    // "learning" is expressed as a casual game with the
+                    // learning_mode flag, same convention as
+                    // PlayComputerViewModel. Sending game_mode="learning"
+                    // straight through 422s.
+                    addProperty(
+                        "game_mode",
+                        if (state.selectedGameMode == "rated") "rated" else "casual",
+                    )
+                    if (state.selectedGameMode == "learning") {
+                        addProperty("learning_mode", true)
+                        addProperty(
+                            "learning_help_limit",
+                            PlayComputerViewModel.DEFAULT_LEARNING_HELP_LIMIT,
+                        )
+                    }
                 }
                 val response = gameApi.createComputerGame(body)
                 val gameId = response.body()?.getAsJsonObject("game")?.get("id")?.asInt
@@ -649,12 +748,31 @@ data class LobbyUiState(
     val activeGames: List<ActiveGame> = emptyList(),
     val searchResults: List<LobbyPlayer> = emptyList(),
     val onlineCount: Int = 0,
+    /** Applied Elo filter for the Players tab. */
+    val ratingWindow: RatingWindow = RatingWindow.full(),
+    /** Raw text in the From/To boxes — kept as strings so a half-typed value is not clobbered. */
+    val ratingWindowDraftMin: String = RatingWindow.MIN_OPPONENT_RATING.toString(),
+    val ratingWindowDraftMax: String = RatingWindow.MAX_OPPONENT_RATING.toString(),
+    /** True once the player has explicitly saved a range — enables "Reset". */
+    val hasStoredRatingWindow: Boolean = false,
+    /** Mode / time control used when starting a game from the Players list. */
+    val selectedGameMode: String = LobbyPreferences.DEFAULT_GAME_MODE,
+    val selectedTimeControlMinutes: Int = LobbyPreferences.DEFAULT_TIME_CONTROL,
+    val selectedIncrementSeconds: Int = LobbyPreferences.DEFAULT_INCREMENT,
     val matchmakingState: MatchmakingState = MatchmakingState.IDLE,
     val matchmakingTimeControl: String = "10|0",
     val matchedGameId: Int? = null,
     val error: String? = null,
     val snackbarMessage: String? = null,
-)
+) {
+    /**
+     * Players tab contents after the Elo filter. The full list stays in
+     * [onlinePlayers] so widening the range never needs a refetch — the server
+     * is queried with the full span (see RatingWindow.full).
+     */
+    val visiblePlayers: List<LobbyPlayer>
+        get() = onlinePlayers.filter { ratingWindow.contains(it.rating) }
+}
 
 enum class LobbyTab { PLAYERS, FRIENDS, MATCHMAKING }
 enum class MatchmakingState { IDLE, SEARCHING, MATCHED }

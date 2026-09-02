@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { getPlayerAvatar } from '../../utils/playerDisplayUtils';
 import {
   DEFAULT_USER_RATING,
+  hasStoredRatingWindow,
   isRatingInWindow,
   normalizeRatingWindow,
 } from '../../utils/ratingWindow';
@@ -50,6 +51,9 @@ const PlayersList = ({
 }) => {
   const [showAll, setShowAll] = useState(false);
   const normalizedWindow = normalizeRatingWindow(ratingWindow);
+  // Re-read on every render: the parent re-renders this list whenever the range
+  // changes, which is exactly when the stored preference changes too.
+  const isRangeRemembered = hasStoredRatingWindow();
 
   const updateRatingWindow = (field, value) => {
     onRatingWindowChange?.({
@@ -117,6 +121,14 @@ const PlayersList = ({
           >
             Near me
           </button>
+        )}
+        {isRangeRemembered && (
+          <span
+            title="This Elo range is saved and will still be here after your next game."
+            style={{ color: '#81b64c', fontSize: '0.78rem', fontWeight: 700 }}
+          >
+            Saved
+          </span>
         )}
       </div>
 

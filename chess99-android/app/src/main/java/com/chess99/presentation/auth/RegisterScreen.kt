@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -21,12 +22,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.chess99.BuildConfig
+import com.chess99.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(
     onNavigateToLogin: () -> Unit,
     onRegisterSuccess: () -> Unit,
+    referralCode: String? = null,
     viewModel: AuthViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -66,10 +70,10 @@ fun RegisterScreen(
                             .toString()
                     }
                     showDatePicker = false
-                }) { Text("OK") }
+                }) { Text(stringResource(R.string.action_ok)) }
             },
             dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+                TextButton(onClick = { showDatePicker = false }) { Text(stringResource(R.string.action_cancel)) }
             },
         ) {
             DatePicker(state = datePickerState)
@@ -84,7 +88,7 @@ fun RegisterScreen(
         verticalArrangement = Arrangement.Center,
     ) {
         Text(
-            text = "Chess99",
+            text = stringResource(R.string.auth_brand),
             style = MaterialTheme.typography.displaySmall,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary,
@@ -93,18 +97,29 @@ fun RegisterScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Create your account",
+            text = stringResource(R.string.auth_create_account_subtitle),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
         Spacer(modifier = Modifier.height(32.dp))
 
+        if (!referralCode.isNullOrBlank()) {
+            AssistChip(
+                onClick = {},
+                label = { Text(stringResource(R.string.auth_referral_applied, referralCode)) },
+                leadingIcon = {
+                    Icon(Icons.Default.CardGiftcard, contentDescription = null)
+                },
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+
         // Name field
         OutlinedTextField(
             value = name,
             onValueChange = { name = it },
-            label = { Text("Name") },
+            label = { Text(stringResource(R.string.auth_field_name)) },
             leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
             keyboardActions = KeyboardActions(
@@ -120,7 +135,7 @@ fun RegisterScreen(
         OutlinedTextField(
             value = email,
             onValueChange = { email = it },
-            label = { Text("Email") },
+            label = { Text(stringResource(R.string.auth_field_email)) },
             leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Email,
@@ -139,14 +154,17 @@ fun RegisterScreen(
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
-            label = { Text("Password") },
+            label = { Text(stringResource(R.string.auth_field_password)) },
             leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
             trailingIcon = {
                 IconButton(onClick = { passwordVisible = !passwordVisible }) {
                     Icon(
                         if (passwordVisible) Icons.Default.VisibilityOff
                         else Icons.Default.Visibility,
-                        contentDescription = null,
+                        contentDescription = stringResource(
+                            if (passwordVisible) R.string.a11y_hide_password
+                            else R.string.a11y_show_password
+                        ),
                     )
                 }
             },
@@ -169,7 +187,7 @@ fun RegisterScreen(
         OutlinedTextField(
             value = confirmPassword,
             onValueChange = { confirmPassword = it },
-            label = { Text("Confirm Password") },
+            label = { Text(stringResource(R.string.auth_field_confirm_password)) },
             leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
             visualTransformation = if (passwordVisible) VisualTransformation.None
             else PasswordVisualTransformation(),
@@ -191,14 +209,14 @@ fun RegisterScreen(
             value = birthday,
             onValueChange = {},
             readOnly = true,
-            label = { Text("Date of birth") },
+            label = { Text(stringResource(R.string.auth_field_date_of_birth)) },
             leadingIcon = { Icon(Icons.Default.DateRange, contentDescription = null) },
             trailingIcon = {
                 IconButton(onClick = { showDatePicker = true }) {
-                    Icon(Icons.Default.DateRange, contentDescription = "Pick date")
+                    Icon(Icons.Default.DateRange, contentDescription = stringResource(R.string.auth_pick_date))
                 }
             },
-            placeholder = { Text("YYYY-MM-DD") },
+            placeholder = { Text(stringResource(R.string.auth_field_date_hint)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -206,7 +224,7 @@ fun RegisterScreen(
         Spacer(modifier = Modifier.height(4.dp))
 
         Text(
-            text = "We use birthdays to keep chat safe for kids.",
+            text = stringResource(R.string.auth_birthday_reason),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -218,7 +236,7 @@ fun RegisterScreen(
             OutlinedTextField(
                 value = guardianEmail,
                 onValueChange = { guardianEmail = it },
-                label = { Text("Parent / guardian email") },
+                label = { Text(stringResource(R.string.auth_field_guardian_email)) },
                 leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Email,
@@ -231,7 +249,7 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = "Players under 18 need a parent or guardian to approve the account.",
+                text = stringResource(R.string.auth_guardian_reason),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -257,6 +275,7 @@ fun RegisterScreen(
                 viewModel.register(
                     name, email, password, confirmPassword,
                     birthday, if (isMinor) guardianEmail else null,
+                    referralCode,
                 )
             },
             enabled = !uiState.isLoading
@@ -277,7 +296,7 @@ fun RegisterScreen(
                     strokeWidth = 2.dp,
                 )
             } else {
-                Text("Create Account")
+                Text(stringResource(R.string.auth_create_account))
             }
         }
 
@@ -287,18 +306,19 @@ fun RegisterScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Google Sign-In shortcut
-        OutlinedButton(
-            onClick = { viewModel.initiateGoogleSignIn(context) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
-            enabled = !uiState.isLoading,
-        ) {
-            Text("Sign up with Google")
-        }
+        if (BuildConfig.GOOGLE_SIGN_IN_ENABLED) {
+            OutlinedButton(
+                onClick = { viewModel.initiateGoogleSignIn(context, referralCode) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
+                enabled = !uiState.isLoading,
+            ) {
+                Text(stringResource(R.string.auth_sign_up_google))
+            }
 
-        Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(12.dp))
+        }
 
         // Facebook Sign-In shortcut
         OutlinedButton(
@@ -308,13 +328,13 @@ fun RegisterScreen(
                 .height(50.dp),
             enabled = !uiState.isLoading,
         ) {
-            Text("Sign up with Facebook")
+            Text(stringResource(R.string.auth_sign_up_facebook))
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
         TextButton(onClick = onNavigateToLogin) {
-            Text("Already have an account? Sign In")
+            Text(stringResource(R.string.auth_have_account_sign_in))
         }
     }
 }

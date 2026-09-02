@@ -10,9 +10,9 @@
 #   - Stockfish binary in VideoProduction/studios/ChessVideoGen/stockfish/
 #   - Run from Windows PowerShell (not WSL bash)
 
-$ChessVideoGenDir = "C:\ArunApps\VideoProduction\studios\ChessVideoGen"
-$OutputDir        = "C:\ArunApps\Chess-Web\chess-backend\database\videogen\output"
-$ScriptsDir       = "C:\ArunApps\Chess-Web\chess-backend\database\videogen"
+$ChessVideoGenDir = "D:\ArunApps\VideoProduction\studios\ChessVideoGen"
+$OutputDir        = "D:\ArunApps\Chess-Web\chess-backend\database\videogen\output"
+$ScriptsDir       = "D:\ArunApps\Chess-Web\chess-backend\database\videogen"
 
 New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
 

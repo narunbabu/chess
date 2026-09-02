@@ -166,6 +166,24 @@ class AmbassadorAdultGateTest extends TestCase
         ]));
     }
 
+    public function test_legacy_minor_is_blocked_from_payout_request(): void
+    {
+        Sanctum::actingAs($this->minor());
+
+        $this->assertAdultOnly($this->postJson('/api/ambassador/payout-request', [
+            'amount' => 100,
+            'payment_method' => 'upi',
+            'upi_id' => 'kid@upi',
+        ]));
+    }
+
+    public function test_legacy_minor_is_blocked_from_payout_history(): void
+    {
+        Sanctum::actingAs($this->minor());
+
+        $this->assertAdultOnly($this->getJson('/api/ambassador/payout-requests'));
+    }
+
     public function test_legacy_null_birthday_is_blocked_from_all_endpoints(): void
     {
         Sanctum::actingAs($this->noBirthday());
@@ -177,6 +195,12 @@ class AmbassadorAdultGateTest extends TestCase
             'mobile' => '+919998887766',
             'upi_id' => 'nodob@upi',
         ]));
+        $this->assertAdultOnly($this->postJson('/api/ambassador/payout-request', [
+            'amount' => 100,
+            'payment_method' => 'upi',
+            'upi_id' => 'nodob@upi',
+        ]));
+        $this->assertAdultOnly($this->getJson('/api/ambassador/payout-requests'));
     }
 
     public function test_legacy_adult_passes_the_gate(): void
@@ -196,6 +220,25 @@ class AmbassadorAdultGateTest extends TestCase
             'mobile' => '+919998880001',
             'upi_id' => 'adult2@upi',
         ])->assertCreated();
+
+        // payout-requests (history) reaches the controller: 200 with an
+        // empty list, never a 403 or a 404 (the route must be registered on
+        // the web route file too — the web dashboard calls it under /api).
+        Sanctum::actingAs($this->adult());
+        $this->getJson('/api/ambassador/payout-requests')
+            ->assertOk()
+            ->assertJson(['payout_requests' => []]);
+
+        // payout-request passes the gate and lands on business validation
+        // (422 "exceeds pending earnings"), not 403 and not 404.
+        Sanctum::actingAs($this->adult());
+        $response = $this->postJson('/api/ambassador/payout-request', [
+            'amount' => 100,
+            'payment_method' => 'upi',
+            'upi_id' => 'adult2@upi',
+        ]);
+        $response->assertStatus(422);
+        $response->assertJsonMissing(['error' => 'adult_only']);
     }
 
     // ─── Existing minor ambassador is still blocked ──────────────────────

@@ -3,6 +3,7 @@ package com.chess99.presentation.game
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -12,6 +13,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -150,7 +152,17 @@ fun PlayMultiplayerScreen(
                         )
                         Text(
                             text = buildString {
-                                append(if (state.isRated) "Rated" else "Casual")
+                                // Learning games are casual server-side (game_mode
+                                // is validated as rated|casual), so the flag - not
+                                // game_mode - decides the label. Without this a
+                                // Learning game reads "Casual".
+                                append(
+                                    when {
+                                        state.isRated -> "Rated"
+                                        state.isLearningMode -> "Learning"
+                                        else -> "Casual"
+                                    }
+                                )
                                 append(" \u2022 ${state.timeControl}")
                             },
                             style = MaterialTheme.typography.bodySmall,
@@ -207,16 +219,17 @@ fun PlayMultiplayerScreen(
                         }
                     }
 
-                    // Chat toggle
-                    BadgedBox(
-                        badge = {
-                            if (state.unreadChatCount > 0) {
-                                Badge { Text("${state.unreadChatCount}") }
+                    if (state.isChatFeatureEnabled && !state.isSyntheticGame) {
+                        BadgedBox(
+                            badge = {
+                                if (state.unreadChatCount > 0) {
+                                    Badge { Text("${state.unreadChatCount}") }
+                                }
                             }
-                        }
-                    ) {
-                        IconButton(onClick = { viewModel.toggleChat() }) {
-                            Icon(Icons.AutoMirrored.Filled.Chat, "Chat")
+                        ) {
+                            IconButton(onClick = { viewModel.toggleChat() }) {
+                                Icon(Icons.AutoMirrored.Filled.Chat, "Chat")
+                            }
                         }
                     }
 
@@ -255,7 +268,13 @@ fun PlayMultiplayerScreen(
                 ChatPanel(
                     messages = state.chatMessages,
                     isGameOver = state.gamePhase == MultiplayerPhase.COMPLETED,
+                    isMinor = state.isMinor,
+                    policy = state.chatPolicy,
+                    notice = state.chatNotice,
+                    reportedMessageIds = state.reportedMessageIds,
                     onSendMessage = { viewModel.sendChat(it) },
+                    onReportMessage = { viewModel.reportChatMessage(it) },
+                    onBlockUser = { viewModel.blockChatUser(it) },
                     onClose = { viewModel.toggleChat() },
                     modifier = Modifier.padding(padding),
                 )
@@ -270,6 +289,7 @@ fun PlayMultiplayerScreen(
                     onOfferDraw = { viewModel.offerDraw() },
                     onAcceptDraw = { viewModel.acceptDraw() },
                     onDeclineDraw = { viewModel.declineDraw() },
+                    onRequestUndo = { viewModel.requestUndo() },
                     onAcceptUndo = { viewModel.acceptUndo() },
                     onDeclineUndo = { viewModel.declineUndo() },
                     onPause = { viewModel.pauseGame() },
@@ -359,6 +379,7 @@ private fun GameBoard(
     onOfferDraw: () -> Unit,
     onAcceptDraw: () -> Unit,
     onDeclineDraw: () -> Unit,
+    onRequestUndo: () -> Unit,
     onAcceptUndo: () -> Unit,
     onDeclineUndo: () -> Unit,
     onPause: () -> Unit,
@@ -450,6 +471,10 @@ private fun GameBoard(
                     onPause = onPause,
                     drawOfferedByMe = state.drawOfferedByMe,
                     isRated = state.isRated,
+                    canRequestUndo = state.canRequestUndo,
+                    undoChancesRemaining = state.undoChancesRemaining,
+                    undoRequestPending = state.undoRequestPending,
+                    onRequestUndo = onRequestUndo,
                 )
             }
 
@@ -502,39 +527,80 @@ private fun GameControlsRow(
     onPause: () -> Unit,
     drawOfferedByMe: Boolean,
     isRated: Boolean,
+    canRequestUndo: Boolean,
+    undoChancesRemaining: Int,
+    undoRequestPending: Boolean,
+    onRequestUndo: () -> Unit,
 ) {
     var showResignConfirm by remember { mutableStateOf(false) }
+
+    // Four controls have to share this row in a casual game (Draw / Pause / Undo
+    // / Resign), so the buttons run tight: minimal content padding, 4dp gaps and
+    // single-line labels. Without this every label wraps mid-word ("Dra w").
+    val controlPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(horizontal = 8.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceEvenly,
     ) {
         // Draw button
         OutlinedButton(
             onClick = onOfferDraw,
             enabled = !drawOfferedByMe,
+            contentPadding = controlPadding,
             modifier = Modifier.weight(1f),
         ) {
-            Icon(Icons.Default.Handshake, contentDescription = null, modifier = Modifier.size(16.dp))
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(if (drawOfferedByMe) "Offered" else "Draw", fontSize = 12.sp)
+            Icon(Icons.Default.Handshake, contentDescription = null, modifier = Modifier.size(14.dp))
+            Spacer(modifier = Modifier.width(3.dp))
+            Text(
+                if (drawOfferedByMe) "Offered" else "Draw",
+                fontSize = 11.sp,
+                maxLines = 1,
+                softWrap = false,
+            )
         }
 
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(4.dp))
 
         // Pause button (casual only)
         if (!isRated) {
             OutlinedButton(
                 onClick = onPause,
+                contentPadding = controlPadding,
                 modifier = Modifier.weight(1f),
             ) {
-                Icon(Icons.Default.Pause, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Pause", fontSize = 12.sp)
+                Icon(Icons.Default.Pause, contentDescription = null, modifier = Modifier.size(14.dp))
+                Spacer(modifier = Modifier.width(3.dp))
+                Text("Pause", fontSize = 11.sp, maxLines = 1, softWrap = false)
             }
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(4.dp))
+        }
+
+        // Takeback - web parity with GameContainer.js's Undo. Hidden entirely in
+        // rated games (where it can never be used) rather than shown disabled.
+        if (!isRated) {
+            OutlinedButton(
+                onClick = onRequestUndo,
+                enabled = canRequestUndo,
+                contentPadding = controlPadding,
+                modifier = Modifier.weight(1f),
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Filled.Undo,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp),
+                )
+                Spacer(modifier = Modifier.width(3.dp))
+                Text(
+                    if (undoRequestPending) "Asked" else "Undo $undoChancesRemaining",
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    softWrap = false,
+                )
+            }
+            Spacer(modifier = Modifier.width(4.dp))
         }
 
         // Resign button
@@ -543,11 +609,12 @@ private fun GameControlsRow(
             colors = ButtonDefaults.outlinedButtonColors(
                 contentColor = MaterialTheme.colorScheme.error,
             ),
+            contentPadding = controlPadding,
             modifier = Modifier.weight(1f),
         ) {
-            Icon(Icons.Default.Flag, contentDescription = null, modifier = Modifier.size(16.dp))
-            Spacer(modifier = Modifier.width(4.dp))
-            Text("Resign", fontSize = 12.sp)
+            Icon(Icons.Default.Flag, contentDescription = null, modifier = Modifier.size(14.dp))
+            Spacer(modifier = Modifier.width(3.dp))
+            Text("Resign", fontSize = 11.sp, maxLines = 1, softWrap = false)
         }
     }
 
@@ -759,12 +826,20 @@ private fun RatingChangeLine(ratingChange: RatingChangeInfo?) {
 private fun ChatPanel(
     messages: List<ChatMessageData>,
     isGameOver: Boolean,
+    isMinor: Boolean,
+    policy: ChatPolicy,
+    notice: String?,
+    reportedMessageIds: Set<Int>,
     onSendMessage: (String) -> Unit,
+    onReportMessage: (Int) -> Unit,
+    onBlockUser: (Int) -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var messageText by remember { mutableStateOf("") }
+    var pendingBlockUserId by remember { mutableStateOf<Int?>(null) }
     val listState = rememberLazyListState()
+    val presetOnly = ChatSafetyRules.isPresetOnly(isMinor, policy)
 
     // Auto-scroll to bottom
     LaunchedEffect(messages.size) {
@@ -810,14 +885,61 @@ private fun ChatPanel(
                     )
                 }
             }
-            items(messages) { msg ->
-                ChatBubble(msg)
+            items(messages, key = { "${it.id}-${it.timestamp}-${it.userId}" }) { msg ->
+                ChatBubble(
+                    msg = msg,
+                    isReported = msg.id in reportedMessageIds,
+                    onReport = { onReportMessage(msg.id) },
+                    onBlock = { pendingBlockUserId = msg.userId },
+                )
                 Spacer(modifier = Modifier.height(4.dp))
             }
         }
 
-        // Input
-        if (!isGameOver) {
+        val statusNotice = notice ?: if (!policy.enabled) {
+            ChatSafetyRules.disabledReason(policy.reason)
+        } else null
+        statusNotice?.let {
+            HorizontalDivider()
+            Text(
+                text = it,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                style = MaterialTheme.typography.bodySmall,
+                color = if (policy.enabled) {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.error
+                },
+                textAlign = TextAlign.Center,
+            )
+        }
+
+        if (!isGameOver && policy.enabled && presetOnly) {
+            HorizontalDivider()
+            Text(
+                text = if (isMinor) "Choose a kid-safe quick message" else "Choose a quick message",
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                (policy.presetMessages + policy.emojiMessages).forEach { phrase ->
+                    AssistChip(
+                        onClick = { onSendMessage(phrase) },
+                        label = { Text(phrase) },
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        } else if (!isGameOver && policy.enabled) {
             HorizontalDivider()
             Row(
                 modifier = Modifier
@@ -844,11 +966,35 @@ private fun ChatPanel(
                 }
             }
         }
+
+        pendingBlockUserId?.let { userId ->
+            AlertDialog(
+                onDismissRequest = { pendingBlockUserId = null },
+                title = { Text("Block this player?") },
+                text = { Text("You will no longer be able to chat with each other.") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            onBlockUser(userId)
+                            pendingBlockUserId = null
+                        }
+                    ) { Text("Block") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingBlockUserId = null }) { Text("Cancel") }
+                },
+            )
+        }
     }
 }
 
 @Composable
-private fun ChatBubble(msg: ChatMessageData) {
+private fun ChatBubble(
+    msg: ChatMessageData,
+    isReported: Boolean,
+    onReport: () -> Unit,
+    onBlock: () -> Unit,
+) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = if (msg.isMe) Alignment.End else Alignment.Start,
@@ -870,6 +1016,39 @@ private fun ChatBubble(msg: ChatMessageData) {
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                 style = MaterialTheme.typography.bodyMedium,
             )
+        }
+        if (!msg.isMe) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(
+                    onClick = onReport,
+                    enabled = msg.id > 0 && !isReported,
+                    modifier = Modifier.size(36.dp),
+                ) {
+                    Icon(
+                        Icons.Default.ReportProblem,
+                        contentDescription = if (isReported) "Message reported" else "Report message",
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+                IconButton(
+                    onClick = onBlock,
+                    enabled = msg.userId > 0,
+                    modifier = Modifier.size(36.dp),
+                ) {
+                    Icon(
+                        Icons.Default.Block,
+                        contentDescription = "Block player",
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+                if (msg.filtered) {
+                    Text(
+                        "filtered",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
     }
 }

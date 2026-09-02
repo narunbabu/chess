@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.chess99.domain.model.*
+import com.chess99.presentation.common.MoveEffects
 
 /**
  * Full-screen game review for a single game.
@@ -311,10 +312,17 @@ private fun BoardWithEvalBar(
         } else {
             com.chess99.engine.Color.WHITE
         }
+        // currentMoveIndex -1 is the starting position, so getOrNull(-1) is the
+        // "no move to show" case; stepping back lands on the move that produced
+        // the position now on the board.
+        val shownPly = replayState.plies.getOrNull(replayState.currentMoveIndex)
         com.chess99.presentation.common.ChessBoardView(
             game = boardGame,
             boardOrientation = boardOrientation,
             isInteractive = false,
+            lastMoveFrom = shownPly?.from ?: -1,
+            lastMoveTo = shownPly?.to ?: -1,
+            lastMoveEffects = shownPly?.effects ?: MoveEffects.None,
             modifier = Modifier.weight(1f),
         )
     }

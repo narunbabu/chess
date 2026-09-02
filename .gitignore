@@ -73,3 +73,9 @@ Desktop.ini
 
 # Claude Code local state
 .claude/
+
+# Playwright research screenshots - 19 MB of run output, regenerable
+chess-frontend/research-artifacts/
+
+# Stray screenshot committed by accident
+chess99-android/image.png

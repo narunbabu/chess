@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -276,7 +277,7 @@ private fun TutorialsTab(
                 TierHeader(
                     tier = "Intermediate",
                     color = Color(0xFFFFA726),
-                    icon = Icons.Default.TrendingUp,
+                    icon = Icons.AutoMirrored.Filled.TrendingUp,
                 )
             }
             items(intermediateModules, key = { it.id }) { module ->
@@ -374,7 +375,7 @@ private fun ModuleCard(
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            Icons.Default.MenuBook,
+                            Icons.AutoMirrored.Filled.MenuBook,
                             null,
                             tint = tierColor,
                             modifier = Modifier.size(24.dp),
@@ -537,7 +538,7 @@ private fun TrainingTab(
             PracticeCard(
                 title = "Tactics Trainer",
                 description = "Staged puzzles from beginner to master with progression tracking",
-                icon = Icons.Default.TrendingUp,
+                icon = Icons.AutoMirrored.Filled.TrendingUp,
                 onClick = onNavigateToTacticalTrainer,
             )
         }

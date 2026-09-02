@@ -16,6 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -710,7 +711,7 @@ internal fun ReplayControls(
             onClick = onPrevMove,
             enabled = replayState.currentMoveIndex > -1,
         ) {
-            Icon(Icons.Default.NavigateBefore, contentDescription = "Previous move")
+            Icon(Icons.AutoMirrored.Filled.NavigateBefore, contentDescription = "Previous move")
         }
 
         // Auto-play toggle
@@ -729,7 +730,7 @@ internal fun ReplayControls(
             onClick = onNextMove,
             enabled = replayState.currentMoveIndex < replayState.moves.size - 1,
         ) {
-            Icon(Icons.Default.NavigateNext, contentDescription = "Next move")
+            Icon(Icons.AutoMirrored.Filled.NavigateNext, contentDescription = "Next move")
         }
 
         // Last move >|

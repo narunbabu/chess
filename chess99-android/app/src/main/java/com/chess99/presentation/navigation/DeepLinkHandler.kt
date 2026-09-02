@@ -2,6 +2,9 @@ package com.chess99.presentation.navigation
 
 import android.net.Uri
 import timber.log.Timber
+import java.net.URI
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
 
 /**
  * Deep link handler for Chess99.
@@ -23,6 +26,7 @@ import timber.log.Timber
  *   - https://chess99.com/learn               -> Learn
  *   - https://chess99.com/championships       -> ChampionshipList
  *   - https://chess99.com/join/{code}         -> ReferralJoin(code)
+ *   - https://chess99.com/r/{code}            -> ReferralJoin(code)
  *   - https://chess99.com/share/result/{id}   -> SharedResult(uniqueId)
  *   - https://chess99.com/reset-password?...  -> ResetPassword(token, email)
  *   - https://chess99.com/referrals           -> ReferralDashboard
@@ -40,11 +44,27 @@ object DeepLinkHandler {
      * doesn't match any known pattern.
      */
     fun handleDeepLink(uri: Uri?): DeepLinkDestination? {
-        if (uri == null) return null
+        return handleDeepLink(uri?.toString())
+    }
+
+    /**
+     * Pure-JVM parser used by unit tests and by the Android Uri adapter above.
+     */
+    fun handleDeepLink(rawUrl: String?): DeepLinkDestination? {
+        if (rawUrl.isNullOrBlank()) return null
+        val uri = try {
+            URI(rawUrl)
+        } catch (_: Exception) {
+            return null
+        }
 
         val scheme = uri.scheme?.lowercase()
         val host = uri.host?.lowercase()
-        val pathSegments = uri.pathSegments
+        val pathSegments = uri.rawPath.orEmpty()
+            .split("/")
+            .filter { it.isNotBlank() }
+            .map(::decodeComponent)
+        val query = parseQuery(uri.rawQuery)
 
         // SECURITY (L4): log scheme/host only — the full URI can carry a
         // password-reset token in its query/path.
@@ -52,11 +72,11 @@ object DeepLinkHandler {
 
         return when {
             // ── Custom scheme: chess99:// ─────────────────────────
-            scheme == "chess99" -> parseCustomScheme(host, pathSegments, uri)
+            scheme == "chess99" -> parseCustomScheme(host, pathSegments, query)
 
             // ── Web URL: https://chess99.com/... ──────────────────
             scheme in listOf("http", "https") && host == "chess99.com" ->
-                parseWebUrl(pathSegments, uri)
+                parseWebUrl(pathSegments, query)
 
             else -> {
                 Timber.w("Unknown deep link scheme/host: %s://%s", scheme, host)
@@ -83,7 +103,7 @@ object DeepLinkHandler {
             is DeepLinkDestination.GameReviewPage ->
                 Screen.GameReview.createRoute(destination.gameId)
             is DeepLinkDestination.ReferralJoin ->
-                Screen.Register.route // Navigate to register with code stored
+                Screen.Register.createRoute(destination.code)
             is DeepLinkDestination.SharedResultPage ->
                 Screen.SharedResult.createRoute(destination.uniqueId)
             is DeepLinkDestination.ResetPasswordPage ->
@@ -101,17 +121,17 @@ object DeepLinkHandler {
     private fun parseCustomScheme(
         host: String?,
         pathSegments: List<String>,
-        uri: Uri,
+        query: Map<String, String>,
     ): DeepLinkDestination? {
         return when (host) {
             "game" -> {
                 val gameId = pathSegments.firstOrNull()?.toIntOrNull()
-                    ?: uri.getQueryParameter("id")?.toIntOrNull()
+                    ?: query["id"]?.toIntOrNull()
                 if (gameId != null) DeepLinkDestination.Game(gameId) else null
             }
             "tournament" -> {
                 val id = pathSegments.firstOrNull()?.toIntOrNull()
-                    ?: uri.getQueryParameter("id")?.toIntOrNull()
+                    ?: query["id"]?.toIntOrNull()
                 if (id != null) DeepLinkDestination.Tournament(id) else null
             }
             "lobby" -> DeepLinkDestination.Lobby
@@ -129,14 +149,14 @@ object DeepLinkHandler {
 
     private fun parseWebUrl(
         pathSegments: List<String>,
-        uri: Uri,
+        query: Map<String, String>,
     ): DeepLinkDestination? {
         if (pathSegments.isEmpty()) return DeepLinkDestination.HomePage
 
         return when (pathSegments[0]) {
             "game" -> {
                 val gameId = pathSegments.getOrNull(1)?.toIntOrNull()
-                    ?: uri.getQueryParameter("id")?.toIntOrNull()
+                    ?: query["id"]?.toIntOrNull()
                 if (gameId != null) DeepLinkDestination.Game(gameId) else null
             }
             "tournament", "championships" -> {
@@ -154,7 +174,7 @@ object DeepLinkHandler {
                 val gameId = pathSegments.getOrNull(1)?.toIntOrNull()
                 if (gameId != null) DeepLinkDestination.GameReviewPage(gameId) else null
             }
-            "join" -> {
+            "join", "r" -> {
                 val code = pathSegments.getOrNull(1)
                 if (code != null) DeepLinkDestination.ReferralJoin(code) else null
             }
@@ -165,8 +185,8 @@ object DeepLinkHandler {
                 } else null
             }
             "reset-password" -> {
-                val token = uri.getQueryParameter("token") ?: ""
-                val email = uri.getQueryParameter("email") ?: ""
+                val token = query["token"] ?: ""
+                val email = query["email"] ?: ""
                 if (token.isNotBlank()) DeepLinkDestination.ResetPasswordPage(token, email) else null
             }
             "referrals" -> DeepLinkDestination.ReferralDashboardPage
@@ -186,6 +206,22 @@ object DeepLinkHandler {
             }
         }
     }
+
+    private fun parseQuery(rawQuery: String?): Map<String, String> {
+        if (rawQuery.isNullOrBlank()) return emptyMap()
+        return rawQuery.split("&").mapNotNull { pair ->
+            val parts = pair.split("=", limit = 2)
+            val key = decodeComponent(parts[0])
+            if (key.isBlank()) null else key to decodeComponent(parts.getOrElse(1) { "" })
+        }.toMap()
+    }
+
+    private fun decodeComponent(value: String): String =
+        try {
+            URLDecoder.decode(value, StandardCharsets.UTF_8.name())
+        } catch (_: IllegalArgumentException) {
+            value
+        }
 }
 
 /**
@@ -234,4 +270,17 @@ sealed class DeepLinkDestination {
 
     /** View a public game replay. */
     data class PublicGamePage(val gameId: Int) : DeepLinkDestination()
+}
+
+/**
+ * Public auth and read-only destinations can open before login. Everything
+ * else is retained and resumed after successful authentication.
+ */
+fun DeepLinkDestination.requiresAuthentication(): Boolean = when (this) {
+    is DeepLinkDestination.ResetPasswordPage,
+    is DeepLinkDestination.ReferralJoin,
+    is DeepLinkDestination.SharedResultPage,
+    is DeepLinkDestination.PublicGamePage,
+    is DeepLinkDestination.PuzzlesPage -> false
+    else -> true
 }

@@ -8,6 +8,21 @@
 > feature/quality parity with the web version before publishing. See
 > `docs/android-quality-parity-plan.md`.
 
+> **Re-verified 2026-08-12 against the live repo/server — three items in this
+> plan are out of date:**
+> - **Step 9 (FB client token) is DONE.** `strings.xml` holds a real
+>   `facebook_client_token`, not a placeholder.
+> - **Step 12 (assetlinks.json) is NOT deployed.**
+>   `https://chess99.com/.well-known/assetlinks.json` returns **HTTP 200 with
+>   `Content-Type: text/html`** — the SPA index.html, not the JSON. A status-code
+>   check passes here and still leaves App Links broken; assert the content type.
+>   Use `chess99-android/scripts/check_assetlinks.ps1`.
+> - **Step 5 (unit tests) is DONE** — 154 JVM tests + 9 on-device engine tests.
+>
+> The only thing failing `:app:verifyReleaseConfiguration` is the placeholder
+> `app/google-services.json`. `WS_KEY_RELEASE` and `GOOGLE_SERVER_CLIENT_ID` are
+> set and the upload keystore is present.
+
 **Date**: 2026-07-14 (updated same day after Phase 1–3 execution)
 **Status**: MECHANICS READY, PUBLISH BLOCKED ON QUALITY — decisions D1/D2/D3 made, code fixes done
 **Source**: Play-readiness audit (debug APK valid; release AAB was blocked by 5 issues + missing store assets)

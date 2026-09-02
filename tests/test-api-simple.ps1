@@ -62,4 +62,4 @@ try {
 }
 
 Write-Host "`n=== Laravel Logs (Last 100 lines with errors) ===" -ForegroundColor Cyan
-Get-Content "C:\ArunApps\Chess-Web\chess-backend\storage\logs\laravel.log" -Tail 100 | Where-Object { $_ -match "ERROR|Exception|completeLesson" }
+Get-Content "D:\ArunApps\Chess-Web\chess-backend\storage\logs\laravel.log" -Tail 100 | Where-Object { $_ -match "ERROR|Exception|completeLesson" }

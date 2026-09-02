@@ -9,6 +9,7 @@ import com.chess99.data.local.TokenManager
 import com.chess99.presentation.common.friendlyError
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.util.Locale
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -211,7 +212,7 @@ class LeaderboardViewModel @Inject constructor(
             return if (value == value.toLong().toDouble()) {
                 value.toLong().toString()
             } else {
-                String.format("%.1f", value)
+                String.format(Locale.getDefault(), "%.1f", value)
             }
         }
     }

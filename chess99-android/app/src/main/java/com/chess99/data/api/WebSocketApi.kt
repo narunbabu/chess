@@ -121,6 +121,16 @@ interface WebSocketApi {
         @Body body: JsonObject,
     ): Response<JsonObject>
 
+    @POST("websocket/games/{gameId}/chat/{messageId}/report")
+    suspend fun reportChatMessage(
+        @Path("gameId") gameId: Int,
+        @Path("messageId") messageId: Int,
+        @Body body: JsonObject,
+    ): Response<JsonObject>
+
+    @POST("users/{userId}/block")
+    suspend fun blockUser(@Path("userId") userId: Int): Response<JsonObject>
+
     // ── Ping ────────────────────────────────────────────────────────────
 
     @POST("websocket/games/{gameId}/ping-opponent")

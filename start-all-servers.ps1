@@ -9,7 +9,7 @@ Write-Host "1️⃣  Starting Laravel Backend Server (Port 8000)..." -Foreground
 Start-Process powershell -ArgumentList @(
     "-NoExit",
     "-Command",
-    "cd 'C:\ArunApps\Chess-Web\chess-backend'; Write-Host '🟢 Laravel Backend Running on http://localhost:8000' -ForegroundColor Green; php artisan serve --host=0.0.0.0 --port=8000"
+    "cd 'D:\ArunApps\Chess-Web\chess-backend'; Write-Host '🟢 Laravel Backend Running on http://localhost:8000' -ForegroundColor Green; php artisan serve --host=0.0.0.0 --port=8000"
 )
 
 Start-Sleep -Seconds 2
@@ -19,7 +19,7 @@ Write-Host "2️⃣  Starting Reverb WebSocket Server (Port 8080)..." -Foregroun
 Start-Process powershell -ArgumentList @(
     "-NoExit",
     "-Command",
-    "cd 'C:\ArunApps\Chess-Web\chess-backend'; Write-Host '🔌 Reverb WebSocket Running on http://localhost:8080' -ForegroundColor Green; php artisan reverb:start"
+    "cd 'D:\ArunApps\Chess-Web\chess-backend'; Write-Host '🔌 Reverb WebSocket Running on http://localhost:8080' -ForegroundColor Green; php artisan reverb:start"
 )
 
 Start-Sleep -Seconds 2
@@ -29,7 +29,7 @@ Write-Host "3️⃣  Starting React Frontend (Port 3000)..." -ForegroundColor Ye
 Start-Process powershell -ArgumentList @(
     "-NoExit",
     "-Command",
-    "cd 'C:\ArunApps\Chess-Web\chess-frontend'; Write-Host '⚛️  React Frontend Running on http://localhost:3000' -ForegroundColor Green; pnpm start"
+    "cd 'D:\ArunApps\Chess-Web\chess-frontend'; Write-Host '⚛️  React Frontend Running on http://localhost:3000' -ForegroundColor Green; pnpm start"
 )
 
 Write-Host ""

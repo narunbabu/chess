@@ -30,7 +30,7 @@ function Invoke-Tinker {
     param([string]$Command)
 
     $escapedCommand = $Command -replace '"', '""' -replace '`', '``'
-    $tinkerCommand = "cd 'C:\ArunApps\Chess-Web\chess-backend'; php artisan tinker --execute=`"`$escapedCommand`""
+    $tinkerCommand = "cd 'D:\ArunApps\Chess-Web\chess-backend'; php artisan tinker --execute=`"`$escapedCommand`""
     Write-Info "Executing: $Command"
     try {
         cmd /c $tinkerCommand

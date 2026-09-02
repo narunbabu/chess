@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import java.util.Locale
 
 /**
  * Profile screen with 3 tabs: Settings, Friends, Stats.
@@ -820,7 +821,7 @@ private fun StatsTab(state: ProfileUiState, viewModel: ProfileViewModel, onNavig
                     HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
                     StatsRow(
                         label = "Win Rate",
-                        value = "${String.format("%.1f", stats.winRate)}%",
+                        value = "${String.format(Locale.getDefault(), "%.1f", stats.winRate)}%",
                     )
                     HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
                     StatsRow(label = "Current Streak", value = "${stats.currentStreak}")

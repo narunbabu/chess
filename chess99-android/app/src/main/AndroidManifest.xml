@@ -10,12 +10,14 @@
     <application
         android:name=".Chess99App"
         android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Chess99"
-        tools:targetApi="35">
+        tools:targetApi="36">
 
         <activity
             android:name=".presentation.MainActivity"
@@ -35,14 +37,33 @@
                 <data android:scheme="chess99" />
             </intent-filter>
 
-            <!-- Deep links: https://chess99.com web URLs -->
+            <!-- Only claim web paths handled natively. Unsupported pages stay
+                 in the browser rather than being swallowed by Home. -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data
-                    android:scheme="https"
-                    android:host="chess99.com" />
+                <!-- Android merges every <data> attribute inside one filter, so
+                     scheme and host are declared once and each claimed path gets
+                     its own tag. Repeating scheme/host per path reads as if the
+                     tags were independent rules, which they are not. -->
+                <data android:scheme="https" />
+                <data android:host="chess99.com" />
+
+                <data android:pathPrefix="/game/" />
+                <data android:pathPrefix="/play/public/" />
+                <data android:pathPrefix="/review/" />
+                <data android:pathPrefix="/share/result/" />
+                <data android:pathPrefix="/tournament/" />
+                <data android:pathPrefix="/championships" />
+                <data android:pathPrefix="/lobby" />
+                <data android:pathPrefix="/profile" />
+                <data android:pathPrefix="/learn" />
+                <data android:pathPrefix="/join/" />
+                <data android:pathPrefix="/r/" />
+                <data android:pathPrefix="/reset-password" />
+                <data android:pathPrefix="/referrals" />
+                <data android:pathPrefix="/puzzles" />
             </intent-filter>
         </activity>
 

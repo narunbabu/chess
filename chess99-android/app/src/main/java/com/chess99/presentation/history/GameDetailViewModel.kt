@@ -4,6 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chess99.data.api.GameApi
 import com.chess99.engine.ChessGame
+import com.chess99.presentation.common.MoveEffects
+import com.chess99.presentation.common.MoveReplay
+import com.chess99.presentation.common.ReplayPly
 import com.chess99.presentation.common.friendlyError
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -17,11 +20,6 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
 import javax.inject.Inject
-
-data class MoveParsed(
-    val san: String,
-    val fen: String,
-)
 
 @HiltViewModel
 class GameDetailViewModel @Inject constructor(
@@ -57,13 +55,26 @@ class GameDetailViewModel @Inject constructor(
         val totalMoves: Int = 0,
         val isAutoPlaying: Boolean = false,
         val movePairs: List<MovePair> = emptyList(),
+        // Squares of the ply that produced currentFen, for the board highlight
+        // and slide. -1/-1 at the starting position.
+        val lastMoveFrom: Int = -1,
+        val lastMoveTo: Int = -1,
+        val lastMoveEffects: MoveEffects = MoveEffects.None,
     )
 
     private val _state = MutableStateFlow(State())
     val state: StateFlow<State> = _state.asStateFlow()
 
-    private var parsedMoves: List<MoveParsed> = emptyList() // index 0 = start position
+    // One entry per ply; index 0 is the first move, so the position shown at
+    // currentMoveIndex N was produced by plies[N - 1] and 0 is the start.
+    private var plies: List<ReplayPly> = emptyList()
     private var autoPlayJob: Job? = null
+
+    private val startFen = ChessGame.STARTING_FEN
+
+    /** FEN of the position reached after [position] plies. */
+    private fun fenAt(position: Int): String =
+        if (position <= 0) startFen else plies[position - 1].fenAfter
 
     fun loadGame(gameId: Int) {
         viewModelScope.launch {
@@ -87,50 +98,34 @@ class GameDetailViewModel @Inject constructor(
                 val whitePlayer = gameData.getAsJsonObject("white_player")
                 val blackPlayer = gameData.getAsJsonObject("black_player")
 
-                // Parse moves
+                // Parse moves. The API sends SAN on some endpoints and
+                // coordinates on others; MoveReplay accepts either and reports
+                // the squares each ply touched.
                 val movesArray = gameData.getAsJsonArray("moves")
-                val engine = ChessGame()
-                val moves = mutableListOf(
-                    MoveParsed("Start", engine.fen()),
-                )
+                val tokens = movesArray?.mapNotNull { element ->
+                    val moveObj = element.asJsonObject
+                    moveObj.get("san")?.asString
+                        ?: moveObj.get("move")?.asString
+                        ?: moveObj.get("notation")?.asString
+                } ?: emptyList()
 
-                if (movesArray != null) {
-                    for (element in movesArray) {
-                        val moveObj = element.asJsonObject
-                        val san = moveObj.get("san")?.asString
-                            ?: moveObj.get("move")?.asString
-                            ?: moveObj.get("notation")?.asString
-                            ?: continue
+                val replayed = MoveReplay.replay(tokens, startFen)
+                plies = replayed
+                val totalMoves = replayed.size
 
-                        // Try to apply the move
-                        val from = san.take(2)
-                        val to = san.drop(2).take(2)
-                        // For SAN-format moves, we need to use the engine's SAN parser
-                        // Since our engine uses coordinate notation, try coordinate first
-                        val result = engine.move(from, to, null)
-                        if (result != null) {
-                            moves.add(MoveParsed(san, engine.fen()))
-                        }
-                        // If coordinate notation fails, the move format may differ
-                        // In a production app, add SAN parsing support
-                    }
-                }
-
-                parsedMoves = moves
-                val totalMoves = moves.size - 1
-
-                // Build move pairs for display
+                // Build move pairs for display. Indices are replay positions
+                // (1 = after the first ply), matching currentMoveIndex.
                 val pairs = mutableListOf<MovePair>()
                 var i = 1
-                while (i < moves.size) {
-                    val white = moves[i]
-                    val black = moves.getOrNull(i + 1)
+                while (i <= replayed.size) {
+                    val white = replayed[i - 1]
+                    val black = replayed.getOrNull(i)
                     pairs.add(
                         MovePair(
                             num = (i + 1) / 2,
-                            whiteSan = white.san,
+                            whiteSan = white.token,
                             whiteIdx = i,
-                            blackSan = black?.san,
+                            blackSan = black?.token,
                             blackIdx = i + 1,
                         ),
                     )
@@ -174,10 +169,13 @@ class GameDetailViewModel @Inject constructor(
                         gameMode = gameData.get("game_mode")?.asString,
                         timeControl = timeControl,
                         openingName = gameData.get("opening_name")?.asString,
-                        currentFen = moves.firstOrNull()?.fen ?: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+                        currentFen = startFen,
                         currentMoveIndex = 0,
                         totalMoves = totalMoves,
                         movePairs = pairs,
+                        lastMoveFrom = -1,
+                        lastMoveTo = -1,
+                        lastMoveEffects = MoveEffects.None,
                     )
                 }
             } catch (e: Exception) {
@@ -187,20 +185,26 @@ class GameDetailViewModel @Inject constructor(
     }
 
     fun jumpToMove(index: Int) {
-        if (index < 0 || index >= parsedMoves.size) return
+        if (index < 0 || index > plies.size) return
         autoPlayJob?.cancel()
+        // Highlight the ply that produced this position, not the one undone by
+        // stepping back to it.
+        val ply = MoveReplay.plyAtPosition(plies, index)
         _state.update {
             it.copy(
                 currentMoveIndex = index,
-                currentFen = parsedMoves[index].fen,
+                currentFen = fenAt(index),
                 isAutoPlaying = false,
+                lastMoveFrom = ply?.from ?: -1,
+                lastMoveTo = ply?.to ?: -1,
+                lastMoveEffects = ply?.effects ?: MoveEffects.None,
             )
         }
     }
 
     fun stepForward() {
         val next = _state.value.currentMoveIndex + 1
-        if (next < parsedMoves.size) jumpToMove(next)
+        if (next <= plies.size) jumpToMove(next)
     }
 
     fun stepBackward() {
@@ -210,27 +214,30 @@ class GameDetailViewModel @Inject constructor(
 
     fun goToStart() = jumpToMove(0)
 
-    fun goToEnd() = jumpToMove(parsedMoves.size - 1)
+    fun goToEnd() = jumpToMove(plies.size)
 
     fun toggleAutoPlay() {
         if (_state.value.isAutoPlaying) {
             autoPlayJob?.cancel()
             _state.update { it.copy(isAutoPlaying = false) }
         } else {
-            if (_state.value.currentMoveIndex >= parsedMoves.size - 1) {
+            if (_state.value.currentMoveIndex >= plies.size) {
                 jumpToMove(0)
             }
             _state.update { it.copy(isAutoPlaying = true) }
             autoPlayJob = viewModelScope.launch {
                 while (isActive) {
                     delay(1000)
-                    val current = _state.value.currentMoveIndex
-                    val next = current + 1
-                    if (next < parsedMoves.size) {
+                    val next = _state.value.currentMoveIndex + 1
+                    if (next <= plies.size) {
+                        val ply = MoveReplay.plyAtPosition(plies, next)
                         _state.update {
                             it.copy(
                                 currentMoveIndex = next,
-                                currentFen = parsedMoves[next].fen,
+                                currentFen = fenAt(next),
+                                lastMoveFrom = ply?.from ?: -1,
+                                lastMoveTo = ply?.to ?: -1,
+                                lastMoveEffects = ply?.effects ?: MoveEffects.None,
                             )
                         }
                     } else {

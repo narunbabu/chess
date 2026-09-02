@@ -178,6 +178,12 @@ class AmbassadorController extends Controller
                 'short_url' => $frontendUrl . '/r/' . $joinCode,
                 'join_url'  => $frontendUrl . '/join/' . $joinCode,
             ],
+            'promoter_program' => [
+                'active_members' => $this->activePromoterCount(),
+                'capacity' => CommunityProgramController::PROMOTER_CAP,
+                'monthly_max' => CommunityProgramController::PROMOTER_MONTHLY_MAX,
+                'terms' => 'Up to ₹5,000/month based on verified Chess99 referrals and qualifying activity. Earnings are reviewed and are not guaranteed.',
+            ],
             'codes' => $codes,
             'referred_users' => $referredEnriched,
         ]);
@@ -263,6 +269,13 @@ class AmbassadorController extends Controller
             return response()->json(['message' => 'User is already an ambassador'], 200);
         }
 
+        if ($this->activePromoterCount() >= CommunityProgramController::PROMOTER_CAP) {
+            return response()->json([
+                'error' => 'promoter_capacity_reached',
+                'message' => 'The Chess99 promoter program is currently full (20 active members).',
+            ], 409);
+        }
+
         DB::table('user_roles')->insert([
             'user_id' => $userId,
             'role_id' => $ambassadorRoleId,
@@ -318,6 +331,13 @@ class AmbassadorController extends Controller
 
         if ($exists) {
             return response()->json(['message' => 'You are already an ambassador'], 200);
+        }
+
+        if ($this->activePromoterCount() >= CommunityProgramController::PROMOTER_CAP) {
+            return response()->json([
+                'error' => 'promoter_capacity_reached',
+                'message' => 'The Chess99 promoter program is currently full (20 active members).',
+            ], 409);
         }
 
         DB::table('user_roles')->insert([
@@ -526,6 +546,13 @@ class AmbassadorController extends Controller
             return response()->json(['error' => 'Ambassador role not found'], 500);
         }
 
+        if ($this->activePromoterCount() >= CommunityProgramController::PROMOTER_CAP) {
+            return response()->json([
+                'error' => 'promoter_capacity_reached',
+                'message' => 'The Chess99 promoter program is currently full (20 active members).',
+            ], 409);
+        }
+
         $exists = DB::table('user_roles')
             ->where('user_id', $application->user_id)
             ->where('role_id', $ambassadorRoleId)
@@ -580,5 +607,13 @@ class AmbassadorController extends Controller
             'message' => 'Application rejected.',
             'application' => $application->fresh(),
         ]);
+    }
+
+    private function activePromoterCount(): int
+    {
+        $roleId = DB::table('roles')->where('name', 'ambassador')->value('id');
+        return $roleId
+            ? DB::table('user_roles')->where('role_id', $roleId)->count()
+            : 0;
     }
 }

@@ -9,6 +9,7 @@ import com.chess99.presentation.common.friendlyError
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.util.Locale
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -312,7 +313,7 @@ data class ReferralStats(
     val currency: String = "INR",
 ) {
     val formattedEarnings: String
-        get() = if (totalEarnings > 0) "$currency ${String.format("%.0f", totalEarnings)}" else "$currency 0"
+        get() = if (totalEarnings > 0) "$currency ${String.format(Locale.getDefault(), "%.0f", totalEarnings)}" else "$currency 0"
 }
 
 data class ReferredUser(
@@ -327,7 +328,7 @@ data class ReferralEarning(
     val currency: String,
     val date: String,
 ) {
-    val formattedAmount: String get() = "+$currency ${String.format("%.0f", amount)}"
+    val formattedAmount: String get() = "+$currency ${String.format(Locale.getDefault(), "%.0f", amount)}"
 }
 
 data class ReferralPayout(
@@ -337,5 +338,5 @@ data class ReferralPayout(
     val status: String,
     val date: String,
 ) {
-    val formattedAmount: String get() = "$currency ${String.format("%.0f", amount)}"
+    val formattedAmount: String get() = "$currency ${String.format(Locale.getDefault(), "%.0f", amount)}"
 }

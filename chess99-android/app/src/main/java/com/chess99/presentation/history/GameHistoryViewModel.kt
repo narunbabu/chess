@@ -14,6 +14,8 @@ import com.chess99.engine.EngineFailureCopy
 import com.chess99.engine.StockfishEngine
 import com.chess99.engine.PositionAnalysis
 import com.chess99.engine.detectOpening
+import com.chess99.presentation.common.MoveReplay
+import com.chess99.presentation.common.ReplayPly
 import com.chess99.presentation.common.friendlyError
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
@@ -263,13 +265,15 @@ class GameHistoryViewModel @Inject constructor(
                         )
                     } ?: emptyList()
 
-                    // Build FEN positions for navigation
-                    val fenPositions = buildFenPositions(moves)
+                    // Build FEN positions for navigation, plus the squares
+                    // each ply touched so the board can highlight and animate it.
+                    val (fenPositions, plies) = buildReplay(moves)
 
                     _uiState.value = _uiState.value.copy(
                         replayState = ReplayState(
                             moves = moves,
                             fenPositions = fenPositions,
+                            plies = plies,
                             currentMoveIndex = -1, // Start at initial position
                             currentFen = ChessGame.STARTING_FEN,
                             isLoadingMoves = false,
@@ -296,48 +300,65 @@ class GameHistoryViewModel @Inject constructor(
     }
 
     /**
-     * Build FEN positions by replaying moves through ChessGame engine.
-     * Index 0 = starting position, index N = position after move N.
+     * Replay the move list through the engine, producing both the FEN of every
+     * position (index 0 = start, index N = after move N) and the ply that
+     * produced it (index N = move N), so the review board can highlight and
+     * animate the move it is showing.
+     *
+     * The server's own FEN still wins for the position when it sends one — the
+     * ply is resolved against the pre-move board either way, so a move the
+     * engine cannot reproduce simply gets no highlight rather than a wrong one.
      */
-    private fun buildFenPositions(moves: List<ReplayMove>): List<String> {
+    private fun buildReplay(moves: List<ReplayMove>): Pair<List<String>, List<ReplayPly?>> {
         val positions = mutableListOf<String>()
+        val plies = mutableListOf<ReplayPly?>()
         val game = ChessGame()
         positions.add(game.fen()) // Starting position
 
         for (move in moves) {
-            if (move.fen.isNotBlank()) {
-                // If FEN is provided by the server, use it directly
-                game.load(move.fen)
-                positions.add(move.fen)
-            } else if (move.san.isNotBlank()) {
-                // Apply SAN move
-                val result = game.moveSan(move.san)
-                if (result != null) {
-                    positions.add(game.fen())
-                } else if (move.from.isNotBlank() && move.to.isNotBlank()) {
-                    // Fallback: try algebraic from/to
-                    val promo = move.promotion?.firstOrNull()
-                    val altResult = game.move(move.from, move.to, promo)
-                    if (altResult != null) {
-                        positions.add(game.fen())
-                    } else {
-                        positions.add(game.fen()) // Keep current position on failure
-                    }
-                } else {
-                    positions.add(game.fen())
+            // Identify the move without playing it, so `captured` is read off
+            // the board as it stood before the piece landed.
+            val found = move.san.takeIf { it.isNotBlank() }
+                ?.let { MoveReplay.findLegal(game, it) }
+                ?: coordinateToken(move)?.let { MoveReplay.findLegal(game, it) }
+
+            val san = found?.san(game)
+            val effects = found?.let { MoveReplay.effectsOf(it) }
+
+            val fen = when {
+                move.fen.isNotBlank() -> {
+                    game.load(move.fen)
+                    move.fen
                 }
-            } else if (move.from.isNotBlank() && move.to.isNotBlank()) {
-                val promo = move.promotion?.firstOrNull()
-                val result = game.move(move.from, move.to, promo)
-                if (result != null) {
-                    positions.add(game.fen())
-                } else {
-                    positions.add(game.fen())
-                }
+                found != null && game.moveUci(found.uci()) != null -> game.fen()
+                // Unplayable move: hold the position so later indices still line up.
+                else -> game.fen()
             }
+            positions.add(fen)
+
+            plies.add(
+                if (found != null && san != null && effects != null) {
+                    ReplayPly(
+                        token = move.san.ifBlank { coordinateToken(move) ?: "" },
+                        san = san,
+                        from = found.from,
+                        to = found.to,
+                        effects = effects,
+                        fenAfter = fen,
+                    )
+                } else {
+                    null
+                },
+            )
         }
 
-        return positions
+        return positions to plies
+    }
+
+    /** "e2e4" / "e7e8q" from a move that only carries from/to, else null. */
+    private fun coordinateToken(move: ReplayMove): String? {
+        if (move.from.isBlank() || move.to.isBlank()) return null
+        return move.from + move.to + (move.promotion ?: "")
     }
 
     // ── Replay Navigation ─────────────────────────────────────────────
@@ -1066,6 +1087,8 @@ data class GameSummary(
 data class ReplayState(
     val moves: List<ReplayMove> = emptyList(),
     val fenPositions: List<String> = listOf(ChessGame.STARTING_FEN),
+    /** Squares touched by each move, aligned with [moves]; null where unresolvable. */
+    val plies: List<ReplayPly?> = emptyList(),
     val currentMoveIndex: Int = -1, // -1 = initial position
     val currentFen: String = ChessGame.STARTING_FEN,
     val isPlaying: Boolean = false,

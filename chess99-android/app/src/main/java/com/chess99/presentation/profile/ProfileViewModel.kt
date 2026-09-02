@@ -2,6 +2,7 @@ package com.chess99.presentation.profile
 
 import android.content.Context
 import android.net.Uri
+import androidx.core.content.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chess99.data.api.ProfileApi
@@ -87,7 +88,7 @@ class ProfileViewModel @Inject constructor(
 
                     // Sync board theme to local prefs if server has one
                     user.get("board_theme")?.asString?.let { theme ->
-                        prefs.edit().putString(KEY_BOARD_THEME, theme).apply()
+                        prefs.edit { putString(KEY_BOARD_THEME, theme) }
                     }
                 } else {
                     _uiState.value = _uiState.value.copy(
@@ -397,7 +398,7 @@ class ProfileViewModel @Inject constructor(
 
     fun selectBoardTheme(themeKey: String) {
         _uiState.value = _uiState.value.copy(boardTheme = themeKey)
-        prefs.edit().putString(KEY_BOARD_THEME, themeKey).apply()
+        prefs.edit { putString(KEY_BOARD_THEME, themeKey) }
 
         // Persist to server
         viewModelScope.launch {
@@ -416,7 +417,7 @@ class ProfileViewModel @Inject constructor(
 
     fun selectPieceStyle(style: String) {
         _uiState.value = _uiState.value.copy(pieceStyle = style)
-        prefs.edit().putString(KEY_PIECE_STYLE, style).apply()
+        prefs.edit { putString(KEY_PIECE_STYLE, style) }
     }
 
     // ── Sound ──────────────────────────────────────────────────────────
@@ -424,7 +425,7 @@ class ProfileViewModel @Inject constructor(
     fun toggleSoundMuted() {
         val newMuted = !_uiState.value.isSoundMuted
         _uiState.value = _uiState.value.copy(isSoundMuted = newMuted)
-        prefs.edit().putBoolean(KEY_SOUND_MUTED, newMuted).apply()
+        prefs.edit { putBoolean(KEY_SOUND_MUTED, newMuted) }
     }
 
     // ── Local Preferences ──────────────────────────────────────────────

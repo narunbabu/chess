@@ -37,6 +37,10 @@ class HealthController extends Controller
                 'push_notifications' => true,
                 'apple_sign_in' => true,
                 'google_sign_in' => true,
+                // Operational kill switch consumed by native clients. Keep
+                // this server-controlled so chat can be disabled without an
+                // app-store release during a safety incident.
+                'chat_enabled' => (bool) config('features.chat_enabled', true),
             ],
             'server_time' => now()->toIso8601String(),
         ]);

@@ -60,7 +60,12 @@ class AuthController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
-            'captcha_token' => 'required|string',
+            // Native registration is protected by the mobile-auth throttle and
+            // cannot execute the web reCAPTCHA widget. Keep CAPTCHA mandatory
+            // for web registration while allowing the v1 native endpoint.
+            'captcha_token' => $request->is('api/v1/auth/register')
+                ? 'nullable|string'
+                : 'required|string',
             'referral_code' => 'nullable|string|max:20',
             // Age-gating (P0-3): DOB is required so we can apply kid-safe chat and
             // require a guardian for minors. `different:email` blocks self-guardian.
@@ -70,7 +75,7 @@ class AuthController extends Controller
 
         // Verify reCAPTCHA token with Google
         $secretKey = config('services.recaptcha.secret_key');
-        if ($secretKey) {
+        if ($secretKey && $request->filled('captcha_token')) {
             $captchaResponse = Http::asForm()->post('https://www.google.com/recaptcha/api/siteverify', [
                 'secret' => $secretKey,
                 'response' => $validated['captcha_token'],

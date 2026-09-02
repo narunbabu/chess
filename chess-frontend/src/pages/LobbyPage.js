@@ -11,11 +11,12 @@ import presenceService from '../services/presenceService';
 import { BACKEND_URL, BASE_URL } from '../config';
 import { getPreferredGameMode } from '../utils/gamePreferences';
 import {
+  forgetRatingWindow,
   getDefaultRatingWindow,
   getModeAwareDefaultRatingWindow,
   isRatingInWindow,
   rememberOpponentRatingForMode,
-  rememberRatingWindowForMode,
+  rememberRatingWindow,
   toRatingWindowParams,
 } from '../utils/ratingWindow';
 import './LobbyPage.css';
@@ -319,10 +320,18 @@ const LobbyPage = () => {
     }
   };
 
+  // Persist as the player types: the range they picked has to survive playing a
+  // game, even if they never press Refresh.
+  const handleRatingWindowChange = (nextWindow) => {
+    ratingWindowRef.current = nextWindow;
+    setRatingWindow(nextWindow);
+    rememberRatingWindow(nextWindow);
+  };
+
   const handleApplyRatingWindow = async () => {
     if (isRefreshing) return;
 
-    rememberRatingWindowForMode(getPreferredGameMode(), ratingWindowRef.current);
+    rememberRatingWindow(ratingWindowRef.current);
     await handleRefresh();
   };
 
@@ -386,6 +395,7 @@ const LobbyPage = () => {
   const handleResetRatingWindow = async () => {
     if (isRefreshing) return;
 
+    forgetRatingWindow();
     const nextWindow = getDefaultRatingWindow(user?.rating);
     ratingWindowRef.current = nextWindow;
     setRatingWindow(nextWindow);
@@ -904,7 +914,7 @@ const LobbyPage = () => {
               players={players}
               onChallenge={handleInvite}
               ratingWindow={ratingWindow}
-              onRatingWindowChange={setRatingWindow}
+              onRatingWindowChange={handleRatingWindowChange}
               onApplyRatingWindow={handleApplyRatingWindow}
               onResetRatingWindow={handleResetRatingWindow}
               isRefreshing={isRefreshing}

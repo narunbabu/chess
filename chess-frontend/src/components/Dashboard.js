@@ -21,10 +21,11 @@ import AdBanner from "./common/AdBanner";
 import DailyChallengeCard from "./daily/DailyChallengeCard";
 import { getPreferredGameMode } from "../utils/gamePreferences";
 import {
+  forgetRatingWindow,
   getDefaultRatingWindow,
   getModeAwareDefaultRatingWindow,
   rememberOpponentRatingForMode,
-  rememberRatingWindowForMode,
+  rememberRatingWindow,
   toRatingWindowParams,
 } from "../utils/ratingWindow";
 import "./Dashboard.css";
@@ -141,12 +142,21 @@ const Dashboard = () => {
     fetchNearbyPlayers(nextWindow);
   }, [fetchNearbyPlayers, user?.id, user?.rating]);
 
+  // Persist as the player types: the range they picked has to survive playing a
+  // game, even if they never press Refresh.
+  const handleNearbyWindowChange = useCallback((nextWindow) => {
+    ratingWindowRef.current = nextWindow;
+    setRatingWindow(nextWindow);
+    rememberRatingWindow(nextWindow);
+  }, []);
+
   const handleNearbyApply = useCallback(() => {
-    rememberRatingWindowForMode(getPreferredGameMode(), ratingWindowRef.current);
+    rememberRatingWindow(ratingWindowRef.current);
     fetchNearbyPlayers();
   }, [fetchNearbyPlayers]);
 
   const handleNearbyReset = useCallback(() => {
+    forgetRatingWindow();
     const nextWindow = getDefaultRatingWindow(user?.rating);
     ratingWindowRef.current = nextWindow;
     setRatingWindow(nextWindow);
@@ -733,7 +743,7 @@ const Dashboard = () => {
           players={nearbyPlayers}
           onChallenge={handleNearbyChallenge}
           ratingWindow={ratingWindow}
-          onRatingWindowChange={setRatingWindow}
+          onRatingWindowChange={handleNearbyWindowChange}
           onApplyRatingWindow={handleNearbyApply}
           onResetRatingWindow={handleNearbyReset}
           isRefreshing={nearbyRefreshing}

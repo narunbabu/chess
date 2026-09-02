@@ -49,6 +49,9 @@ import androidx.lifecycle.viewModelScope
 import com.chess99.data.api.GameApi
 import com.chess99.engine.ChessGame
 import com.chess99.presentation.common.ChessBoardView
+import com.chess99.presentation.common.MoveEffects
+import com.chess99.presentation.common.MoveReplay
+import com.chess99.presentation.common.ReplayPly
 import com.chess99.presentation.common.friendlyError
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -77,13 +80,24 @@ class PublicGameViewerViewModel @Inject constructor(
         val playerColor: String = "white",
         val whiteName: String = "White",
         val blackName: String = "Black",
+        // Squares of the ply that produced currentFen (-1/-1 at the start).
+        val lastMoveFrom: Int = -1,
+        val lastMoveTo: Int = -1,
+        val lastMoveEffects: MoveEffects = MoveEffects.None,
     )
 
     private val _state = MutableStateFlow(State())
     val state: StateFlow<State> = _state.asStateFlow()
 
-    private var fens: List<String> = listOf("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+    // One entry per ply. Position N on screen was produced by plies[N - 1].
+    private var plies: List<ReplayPly> = emptyList()
     private var autoPlayJob: Job? = null
+
+    private val startFen = ChessGame.STARTING_FEN
+
+    /** FEN of the position reached after [position] plies. */
+    private fun fenAt(position: Int): String =
+        if (position <= 0) startFen else plies[position - 1].fenAfter
 
     fun loadGame(gameId: Int) {
         viewModelScope.launch {
@@ -100,23 +114,13 @@ class PublicGameViewerViewModel @Inject constructor(
                     return@launch
                 }
 
-                // Parse moves
-                val engine = ChessGame()
-                val fenList = mutableListOf(engine.fen())
+                // Parse moves — SAN or coordinates, whichever the API sent.
                 val movesArray = gameData.getAsJsonArray("moves")
-                if (movesArray != null) {
-                    for (element in movesArray) {
-                        val moveObj = element.asJsonObject
-                        val san = moveObj.get("san")?.asString
-                            ?: moveObj.get("move")?.asString
-                            ?: continue
-                        val from = san.take(2)
-                        val to = san.drop(2).take(2)
-                        val result = engine.move(from, to, null)
-                        if (result != null) fenList.add(engine.fen())
-                    }
-                }
-                fens = fenList
+                val tokens = movesArray?.mapNotNull { element ->
+                    val moveObj = element.asJsonObject
+                    moveObj.get("san")?.asString ?: moveObj.get("move")?.asString
+                } ?: emptyList()
+                plies = MoveReplay.replay(tokens, startFen)
 
                 val wp = gameData.getAsJsonObject("white_player")
                 val bp = gameData.getAsJsonObject("black_player")
@@ -124,8 +128,12 @@ class PublicGameViewerViewModel @Inject constructor(
                 _state.update {
                     it.copy(
                         isLoading = false,
-                        currentFen = fenList.first(),
-                        totalMoves = fenList.size - 1,
+                        currentFen = startFen,
+                        currentMoveIndex = 0,
+                        totalMoves = plies.size,
+                        lastMoveFrom = -1,
+                        lastMoveTo = -1,
+                        lastMoveEffects = MoveEffects.None,
                         result = gameData.get("result")?.asString,
                         playerColor = gameData.get("player_color")?.asString ?: "white",
                         whiteName = wp?.get("name")?.asString ?: "White",
@@ -139,14 +147,26 @@ class PublicGameViewerViewModel @Inject constructor(
     }
 
     fun jumpToMove(index: Int) {
-        if (index < 0 || index >= fens.size) return
+        if (index < 0 || index > plies.size) return
         autoPlayJob?.cancel()
-        _state.update { it.copy(currentMoveIndex = index, currentFen = fens[index], isAutoPlaying = false) }
+        // The highlight belongs to the ply that produced this position, so
+        // stepping back lands on the previous move rather than the undone one.
+        val ply = MoveReplay.plyAtPosition(plies, index)
+        _state.update {
+            it.copy(
+                currentMoveIndex = index,
+                currentFen = fenAt(index),
+                isAutoPlaying = false,
+                lastMoveFrom = ply?.from ?: -1,
+                lastMoveTo = ply?.to ?: -1,
+                lastMoveEffects = ply?.effects ?: MoveEffects.None,
+            )
+        }
     }
 
     fun stepForward() {
         val next = _state.value.currentMoveIndex + 1
-        if (next < fens.size) jumpToMove(next)
+        if (next <= plies.size) jumpToMove(next)
     }
 
     fun stepBackward() {
@@ -155,21 +175,32 @@ class PublicGameViewerViewModel @Inject constructor(
     }
 
     fun goToStart() = jumpToMove(0)
-    fun goToEnd() = jumpToMove(fens.size - 1)
+    fun goToEnd() = jumpToMove(plies.size)
 
     fun toggleAutoPlay() {
         if (_state.value.isAutoPlaying) {
             autoPlayJob?.cancel()
             _state.update { it.copy(isAutoPlaying = false) }
         } else {
-            if (_state.value.currentMoveIndex >= fens.size - 1) jumpToMove(0)
+            if (_state.value.currentMoveIndex >= plies.size) jumpToMove(0)
             _state.update { it.copy(isAutoPlaying = true) }
             autoPlayJob = viewModelScope.launch {
                 while (isActive) {
+                    // Comfortably longer than the board's move animation, so
+                    // each ply has settled before the next one starts.
                     delay(1000)
-                    val current = _state.value.currentMoveIndex + 1
-                    if (current < fens.size) {
-                        _state.update { it.copy(currentMoveIndex = current, currentFen = fens[current]) }
+                    val next = _state.value.currentMoveIndex + 1
+                    if (next <= plies.size) {
+                        val ply = MoveReplay.plyAtPosition(plies, next)
+                        _state.update {
+                            it.copy(
+                                currentMoveIndex = next,
+                                currentFen = fenAt(next),
+                                lastMoveFrom = ply?.from ?: -1,
+                                lastMoveTo = ply?.to ?: -1,
+                                lastMoveEffects = ply?.effects ?: MoveEffects.None,
+                            )
+                        }
                     } else {
                         _state.update { it.copy(isAutoPlaying = false) }
                         break
@@ -256,17 +287,18 @@ fun PublicGameViewerScreen(
 
                     Spacer(Modifier.height(12.dp))
 
-                    // Board
-                    val replayGame = remember { ChessGame() }
-                    LaunchedEffect(state.currentFen) {
-                        replayGame.load(state.currentFen)
-                    }
+                    // Board — rebuilt per position so the board and the
+                    // last-move highlight always describe the same ply.
+                    val replayGame = remember(state.currentFen) { ChessGame(state.currentFen) }
                     val orientation = if (state.playerColor == "black")
                         com.chess99.engine.Color.BLACK else com.chess99.engine.Color.WHITE
                     ChessBoardView(
                         game = replayGame,
                         boardOrientation = orientation,
                         isInteractive = false,
+                        lastMoveFrom = state.lastMoveFrom,
+                        lastMoveTo = state.lastMoveTo,
+                        lastMoveEffects = state.lastMoveEffects,
                         modifier = Modifier.fillMaxWidth(),
                     )
 

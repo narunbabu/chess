@@ -148,7 +148,7 @@ const BecomeAmbassador = () => {
         <h1 className="text-3xl font-bold mb-2">Become a Chess99 Ambassador</h1>
         <p className="text-[#b8b6b3] mb-6">
           Bring chess to your school, neighborhood, or community. Earn commissions on every signup
-          you bring through your referral code.
+          you bring through your referral code. This promoter intake is capped at 20 active members.
         </p>
 
         <div className="bg-[#312e2b] rounded-lg p-5 mb-6 border border-[#3d3a37]">
@@ -158,6 +158,8 @@ const BecomeAmbassador = () => {
             <li>• <b>10% / 5% / 2% / 2%</b> recurring commissions across years 1–4</li>
             <li>• Personal QR code, printable poster, share templates</li>
             <li>• Monthly UPI payouts, full transparency dashboard</li>
+            <li>• Up to <b>₹5,000/month</b> based on verified referrals and qualifying activity; actual earnings are not guaranteed</li>
+            <li>• No payment for spam, self-referrals, or Play Store ratings/reviews</li>
           </ul>
         </div>
 

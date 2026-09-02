@@ -12,7 +12,7 @@ ORDER BY tokens.created_at DESC
 LIMIT 1;
 "@
 
-cd C:\ArunApps\Chess-Web\chess-backend
+cd D:\ArunApps\Chess-Web\chess-backend
 
 # Get the token using tinker
 $tokenCommand = "DB::select(`"$getTokenQuery`")[0]->token ?? null;"
@@ -64,4 +64,4 @@ try {
 
 # Step 3: Check Laravel logs for detailed error
 Write-Host "`n`nChecking Laravel logs for errors..." -ForegroundColor Cyan
-Get-Content "C:\ArunApps\Chess-Web\chess-backend\storage\logs\laravel.log" -Tail 50 | Select-String "Error" -Context 0,5
+Get-Content "D:\ArunApps\Chess-Web\chess-backend\storage\logs\laravel.log" -Tail 50 | Select-String "Error" -Context 0,5

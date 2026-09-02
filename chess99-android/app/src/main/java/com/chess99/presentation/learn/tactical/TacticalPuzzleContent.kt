@@ -16,6 +16,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.chess99.engine.ChessGame
 import com.chess99.presentation.common.ChessBoardView
+import com.chess99.presentation.common.MoveEffects
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -139,6 +140,9 @@ fun TacticalPuzzleContent(
                 game = game,
                 boardOrientation = state.playerColor,
                 isInteractive = !state.isSolved && !state.solutionShown,
+                lastMoveFrom = state.lastMoveFrom,
+                lastMoveTo = state.lastMoveTo,
+                lastMoveEffects = state.lastMoveEffects,
                 onMove = { from, to, promo -> onAttemptMove(from, to, promo) },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -311,6 +315,9 @@ fun SolutionViewerContent(
                 game = game,
                 boardOrientation = state.playerColor,
                 isInteractive = false,
+                lastMoveFrom = state.lastMoveFrom,
+                lastMoveTo = state.lastMoveTo,
+                lastMoveEffects = state.lastMoveEffects,
                 onMove = { _, _, _ -> },
                 modifier = Modifier
                     .fillMaxWidth()

@@ -2,6 +2,7 @@ package com.chess99.presentation.onboarding
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -29,7 +30,7 @@ class OnboardingPreferences @Inject constructor(
     fun hasSeenOnboarding(): Boolean = prefs.getBoolean(KEY_ONBOARDING_SEEN, false)
 
     fun markOnboardingSeen() {
-        prefs.edit().putBoolean(KEY_ONBOARDING_SEEN, true).apply()
+        prefs.edit { putBoolean(KEY_ONBOARDING_SEEN, true) }
     }
 
     companion object {

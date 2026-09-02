@@ -98,11 +98,20 @@ class AuthViewModel @Inject constructor(
         passwordConfirmation: String,
         birthday: String,
         guardianEmail: String? = null,
+        referralCode: String? = null,
     ) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
 
-            authRepository.register(name, email, password, passwordConfirmation, birthday, guardianEmail)
+            authRepository.register(
+                name,
+                email,
+                password,
+                passwordConfirmation,
+                birthday,
+                guardianEmail,
+                referralCode,
+            )
                 .onSuccess { result ->
                     _uiState.update {
                         it.copy(
@@ -124,13 +133,13 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun initiateGoogleSignIn(activityContext: Context) {
+    fun initiateGoogleSignIn(activityContext: Context, referralCode: String? = null) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
 
             when (val result = googleSignInHelper.signIn(activityContext)) {
                 is GoogleSignInResult.Success -> {
-                    authRepository.googleMobileLogin(result.idToken)
+                    authRepository.googleMobileLogin(result.idToken, referralCode)
                         .onSuccess { authResult ->
                             _uiState.update {
                                 it.copy(
@@ -156,6 +165,15 @@ class AuthViewModel @Inject constructor(
                         it.copy(
                             isLoading = false,
                             error = authErrorCopy(result.exception, AuthAction.GOOGLE),
+                        )
+                    }
+                }
+                GoogleSignInResult.NoCredential -> {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = "No Google account on this device. " +
+                                "Add one in Settings, or sign up with an email address.",
                         )
                     }
                 }

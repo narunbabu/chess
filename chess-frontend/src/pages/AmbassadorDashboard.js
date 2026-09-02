@@ -299,6 +299,19 @@ const AmbassadorDashboard = () => {
       <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">Ambassador Dashboard</h1>
       <p className="text-[#9b9895] text-sm mb-6">Chess99 Ambassador Program</p>
 
+      {data?.promoter_program && (
+        <div className="bg-[#312e2b] rounded-lg p-4 mb-6 border border-[#464340]">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs text-[#9b9895] uppercase tracking-wider">Promoter intake</p>
+              <p className="text-white font-semibold">{data.promoter_program.active_members}/{data.promoter_program.capacity} active members</p>
+            </div>
+            <div className="text-right"><p className="text-xs text-[#9b9895]">Maximum opportunity</p><p className="text-[#ffd700] font-semibold">Up to ₹{Number(data.promoter_program.monthly_max).toLocaleString('en-IN')}/month</p></div>
+          </div>
+          <p className="text-xs text-[#9b9895] mt-3">{data.promoter_program.terms}</p>
+        </div>
+      )}
+
       {loading && !data && (
         <div className="flex justify-center py-20">
           <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-[#81b64c]" />

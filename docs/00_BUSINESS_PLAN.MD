@@ -393,6 +393,15 @@
     - Commission on school signups
   - Provide marketing materials
 
+  Tactic 4: Ameyem Community Opportunities (2026 extension)
+
+  - Publish a single recruitment page at `/community-programs` under the Ameyem Geo Solutions name.
+  - Internal testers apply with contact and UPI details, test assigned games/apps, and submit one report link per app and month.
+  - An admin reviews each report and records a manual payment only for complete, useful, verified work. Tester payments are not tied to Play Store ratings or reviews.
+  - Chess99 promoters use the existing referral code, dashboard, QR, and message templates. Keep the active promoter intake capped at 20 members.
+  - Promoter earnings are based on verified referrals and qualifying activity, with an opportunity of up to ₹5,000 per month; communicate this as a maximum, not a guarantee.
+  - Applications, reports, payment decisions, and terms must be auditable. Never request passwords or OTPs, and keep minors out of paid roles through the existing adult gate.
+
   Tactic 4: YouTube Challenge Series
 
   - "7-Day Chess Champion Challenge"

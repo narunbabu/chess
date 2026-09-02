@@ -33,6 +33,9 @@ use App\Http\Controllers\ParentDashboardController;
 // use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 
+// Public program summary used by the recruitment page. Applications and
+// submissions remain authenticated and adult-gated below.
+Route::get('/community-programs/overview', [\App\Http\Controllers\CommunityProgramController::class, 'overview']);
 
 Route::group(['middleware' => ['api', 'throttle:api-auth'], 'prefix' => 'auth'], function () {
     Route::post('login', [AuthController::class, 'login']);
@@ -411,6 +414,20 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/self-assign', [\App\Http\Controllers\AmbassadorController::class, 'selfAssign']);
         Route::post('/apply', [\App\Http\Controllers\AmbassadorController::class, 'apply']);
         Route::get('/application', [\App\Http\Controllers\AmbassadorController::class, 'myApplication']);
+        // Payout collection — the web dashboard (AmbassadorDashboard.js) calls
+        // these under BACKEND_URL (/api), so they must exist here as well as in
+        // routes/api_v1.php, and behind the same 'adult' gate.
+        Route::post('/payout-request', [\App\Http\Controllers\AmbassadorController::class, 'payoutRequest']);
+        Route::get('/payout-requests', [\App\Http\Controllers\AmbassadorController::class, 'payoutHistory']);
+    });
+
+    // Ameyem Geo Solutions internal tester programme. Testers submit a
+    // monthly report link; an admin reviews it and records any manual payout.
+    Route::prefix('tester-program')->middleware(['adult'])->group(function () {
+        Route::get('/application', [\App\Http\Controllers\CommunityProgramController::class, 'testerApplication']);
+        Route::post('/apply', [\App\Http\Controllers\CommunityProgramController::class, 'applyTester']);
+        Route::get('/submissions', [\App\Http\Controllers\CommunityProgramController::class, 'submissions']);
+        Route::post('/submissions', [\App\Http\Controllers\CommunityProgramController::class, 'submitReport']);
     });
 
     // Admin ambassador management routes
@@ -422,6 +439,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/applications', [\App\Http\Controllers\AmbassadorController::class, 'adminApplications']);
         Route::post('/applications/{id}/approve', [\App\Http\Controllers\AmbassadorController::class, 'approveApplication']);
         Route::post('/applications/{id}/reject', [\App\Http\Controllers\AmbassadorController::class, 'rejectApplication']);
+    });
+
+    // Admin queue for tester applications and monthly report review.
+    Route::prefix('admin/community-programs')->middleware(['admin.dashboard'])->group(function () {
+        Route::get('/overview', [\App\Http\Controllers\CommunityProgramController::class, 'adminOverview']);
+        Route::post('/tester-applications/{id}/approve', [\App\Http\Controllers\CommunityProgramController::class, 'approveTester']);
+        Route::post('/tester-applications/{id}/reject', [\App\Http\Controllers\CommunityProgramController::class, 'rejectTester']);
+        Route::post('/tester-submissions/{id}/review', [\App\Http\Controllers\CommunityProgramController::class, 'reviewSubmission']);
     });
     // (admin/ambassador-tiers routes were removed — cumulative tier model retired,
     // see ReferralService::SUBSCRIPTION_RATE_BY_YEAR for the current commission model.)

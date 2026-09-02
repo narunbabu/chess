@@ -288,7 +288,8 @@ Full API: 226+ routes in `routes/api.php` and `routes/api_v1.php`.
    # Always:
    sudo systemctl reload nginx
    ```
-4. Health check: `curl https://chess99.com` + `curl https://api.chess99.com/health`
+4. Health check: `curl https://chess99.com` + `curl https://api.chess99.com/up`
+   (Laravel health endpoint is `/up`; `/api/v1/health` for the native JSON probe.)
 
 ### Rollback
 

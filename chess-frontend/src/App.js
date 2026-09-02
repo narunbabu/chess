@@ -90,6 +90,8 @@ const AdminDashboard = createLazyComponent(() => import("./pages/AdminDashboard"
 const AmbassadorDashboard = createLazyComponent(() => import("./pages/AmbassadorDashboard"), { componentName: "AmbassadorDashboard" });
 const AmbassadorPoster = createLazyComponent(() => import("./pages/AmbassadorPoster"), { componentName: "AmbassadorPoster" });
 const BecomeAmbassador = createLazyComponent(() => import("./pages/BecomeAmbassador"), { componentName: "BecomeAmbassador" });
+const CommunityPrograms = createLazyComponent(() => import("./pages/CommunityPrograms"), { componentName: "CommunityPrograms" });
+const CommunityProgramsAdmin = createLazyComponent(() => import("./pages/CommunityProgramsAdmin"), { componentName: "CommunityProgramsAdmin" });
 const OrganizationDashboard = createLazyComponent(() => import("./pages/OrganizationDashboard"), { componentName: "OrganizationDashboard" });
 const MyKidsPage = createLazyComponent(() => import("./pages/MyKidsPage"), { componentName: "MyKidsPage" });
 const FriendsPage = createLazyComponent(() => import("./pages/FriendsPage"), { componentName: "FriendsPage" });
@@ -186,6 +188,7 @@ const AppContent = () => {
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<TermsOfService />} />
             <Route path="/pricing" element={<PricingPage />} />
+            <Route path="/community-programs" element={<CommunityPrograms />} />
             <Route path="/join/:code" element={<JoinRedirect />} />
             {/* /r/<code> — short ambassador URL, alias of /join/<code> */}
             <Route path="/r/:code" element={<JoinRedirect />} />
@@ -351,6 +354,14 @@ const AppContent = () => {
               element={
                 <RouteGuard>
                   <BecomeAmbassador />
+                </RouteGuard>
+              }
+            />
+            <Route
+              path="/community-programs/admin"
+              element={
+                <RouteGuard>
+                  <CommunityProgramsAdmin />
                 </RouteGuard>
               }
             />

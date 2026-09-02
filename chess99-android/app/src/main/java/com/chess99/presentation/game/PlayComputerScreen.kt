@@ -13,7 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Undo
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -250,7 +250,7 @@ private fun GameSetupContent(
         // both casual and rated: a rated persona game becomes a rated bot game.
         if (personaState.personas.isNotEmpty()) {
             Spacer(modifier = Modifier.height(24.dp))
-            Text("Play a bot", style = MaterialTheme.typography.titleMedium)
+            Text("Choose an opponent", style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))
             PersonaChipRow(
                 personas = personaState.personas,
@@ -508,7 +508,7 @@ private fun GamePlayContent(
                         onClick = onUndo,
                         enabled = isPlayerTurn && state.moveHistory.size >= 2,
                     ) {
-                        Icon(Icons.Default.Undo, contentDescription = "Undo")
+                        Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Undo")
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("Undo (${state.undoChancesRemaining})")
                     }

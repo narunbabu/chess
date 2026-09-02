@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -19,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import java.util.Locale
 
 /**
  * Full dashboard screen that serves as the primary landing surface.
@@ -400,7 +402,7 @@ private fun RatingCard(
                     )
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            Icons.Default.TrendingUp,
+                            Icons.AutoMirrored.Filled.TrendingUp,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp),
                             tint = MaterialTheme.colorScheme.secondary,
@@ -449,7 +451,7 @@ private fun QuickStatsRow(stats: DashboardStats) {
         StatMiniCard(
             modifier = Modifier.weight(1f),
             label = "Win Rate",
-            value = "${String.format("%.0f", stats.winRate)}%",
+            value = "${String.format(Locale.getDefault(), "%.0f", stats.winRate)}%",
             icon = Icons.Default.EmojiEvents,
         )
         StatMiniCard(
@@ -748,7 +750,7 @@ private fun SectionHeader(
             Text(text = actionLabel)
             Spacer(modifier = Modifier.width(4.dp))
             Icon(
-                Icons.Default.ArrowForward,
+                Icons.AutoMirrored.Filled.ArrowForward,
                 contentDescription = null,
                 modifier = Modifier.size(16.dp),
             )

@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -29,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import com.chess99.R
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.chess99.BuildConfig
 
 @Composable
 fun LoginScreen(
@@ -68,7 +70,7 @@ fun LoginScreen(
 
         // Logo / Title
         Text(
-            text = "Chess99",
+            text = stringResource(R.string.auth_brand),
             style = MaterialTheme.typography.displaySmall,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary,
@@ -77,7 +79,7 @@ fun LoginScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Welcome back",
+            text = stringResource(R.string.auth_welcome_back),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -88,7 +90,7 @@ fun LoginScreen(
         OutlinedTextField(
             value = email,
             onValueChange = { email = it },
-            label = { Text("Email") },
+            label = { Text(stringResource(R.string.auth_field_email)) },
             leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Email,
@@ -107,14 +109,17 @@ fun LoginScreen(
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
-            label = { Text("Password") },
+            label = { Text(stringResource(R.string.auth_field_password)) },
             leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
             trailingIcon = {
                 IconButton(onClick = { passwordVisible = !passwordVisible }) {
                     Icon(
                         if (passwordVisible) Icons.Default.VisibilityOff
                         else Icons.Default.Visibility,
-                        contentDescription = if (passwordVisible) "Hide password" else "Show password",
+                        contentDescription = stringResource(
+                            if (passwordVisible) R.string.a11y_hide_password
+                            else R.string.a11y_show_password
+                        ),
                     )
                 }
             },
@@ -164,7 +169,7 @@ fun LoginScreen(
                     strokeWidth = 2.dp,
                 )
             } else {
-                Text("Sign In")
+                Text(stringResource(R.string.auth_sign_in))
             }
         }
 
@@ -173,7 +178,7 @@ fun LoginScreen(
         // Forgot password link
         TextButton(onClick = onNavigateToForgotPassword) {
             Text(
-                "Forgot password?",
+                stringResource(R.string.auth_forgot_password_link),
                 color = MaterialTheme.colorScheme.primary,
                 style = MaterialTheme.typography.bodySmall,
             )
@@ -185,18 +190,19 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Google Sign-In button
-        OutlinedButton(
-            onClick = { viewModel.initiateGoogleSignIn(context) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
-            enabled = !uiState.isLoading,
-        ) {
-            Text("Sign in with Google")
-        }
+        if (BuildConfig.GOOGLE_SIGN_IN_ENABLED) {
+            OutlinedButton(
+                onClick = { viewModel.initiateGoogleSignIn(context) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
+                enabled = !uiState.isLoading,
+            ) {
+                Text(stringResource(R.string.auth_sign_in_google))
+            }
 
-        Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(12.dp))
+        }
 
         // Facebook Sign-In button
         OutlinedButton(
@@ -206,14 +212,14 @@ fun LoginScreen(
                 .height(50.dp),
             enabled = !uiState.isLoading,
         ) {
-            Text("Sign in with Facebook")
+            Text(stringResource(R.string.auth_sign_in_facebook))
         }
 
         Spacer(modifier = Modifier.height(24.dp))
 
         // Register link
         TextButton(onClick = onNavigateToRegister) {
-            Text("Don't have an account? Sign Up")
+            Text(stringResource(R.string.auth_no_account_sign_up))
         }
 
         Spacer(modifier = Modifier.height(4.dp))
@@ -226,7 +232,7 @@ fun LoginScreen(
                 .fillMaxWidth()
                 .height(50.dp),
         ) {
-            Text("Play as Guest")
+            Text(stringResource(R.string.auth_play_as_guest))
         }
     }
 }

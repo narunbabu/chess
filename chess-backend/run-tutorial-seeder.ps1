@@ -27,7 +27,7 @@ Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
 # Navigate to the correct directory
-Set-Location "C:\ArunApps\Chess-Web\chess-backend"
+Set-Location "D:\ArunApps\Chess-Web\chess-backend"
 
 # Check if we're in the correct directory
 if (-not (Test-Path ".\artisan")) {

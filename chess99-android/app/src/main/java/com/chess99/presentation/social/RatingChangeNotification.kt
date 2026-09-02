@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -96,7 +97,7 @@ fun RatingChangeNotification(
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
-                        imageVector = if (isIncrease) Icons.Default.TrendingUp else Icons.Default.TrendingDown,
+                        imageVector = if (isIncrease) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
                         contentDescription = null,
                         tint = deltaColor,
                         modifier = Modifier.size(24.dp),

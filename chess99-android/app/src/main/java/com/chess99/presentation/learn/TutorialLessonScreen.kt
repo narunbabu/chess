@@ -49,6 +49,8 @@ import com.chess99.data.api.objOrNull
 import com.chess99.data.api.str
 import com.chess99.engine.ChessGame
 import com.chess99.presentation.common.ChessBoardView
+import com.chess99.presentation.common.MoveEffects
+import com.chess99.presentation.common.MoveReplay
 import com.chess99.presentation.common.friendlyError
 import com.google.gson.JsonObject
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -83,6 +85,11 @@ class TutorialLessonViewModel @Inject constructor(
         val feedbackMessage: String? = null,
         val feedbackIsCorrect: Boolean = false,
         val showHint: Boolean = false,
+        // Squares of the move just played on the board, cleared whenever a new
+        // stage position is loaded (nothing on that board has moved yet).
+        val lastMoveFrom: Int = -1,
+        val lastMoveTo: Int = -1,
+        val lastMoveEffects: MoveEffects = MoveEffects.None,
     )
 
     private val _state = MutableStateFlow(State())
@@ -153,6 +160,9 @@ class TutorialLessonViewModel @Inject constructor(
                         lessonDescription = plainData.str("description") ?: "",
                         stages = stages,
                         currentStageIndex = 0,
+                        lastMoveFrom = -1,
+                        lastMoveTo = -1,
+                        lastMoveEffects = MoveEffects.None,
                     )
                 }
             } catch (e: Exception) {
@@ -220,6 +230,9 @@ class TutorialLessonViewModel @Inject constructor(
                 it.copy(
                     feedbackMessage = "Not quite. Try again!",
                     feedbackIsCorrect = false,
+                    lastMoveFrom = -1,
+                    lastMoveTo = -1,
+                    lastMoveEffects = MoveEffects.None,
                 )
             }
             return
@@ -259,6 +272,10 @@ class TutorialLessonViewModel @Inject constructor(
                     feedbackMessage = "Correct!",
                     feedbackIsCorrect = true,
                     showHint = false,
+                    // Fresh position — nothing has moved on it.
+                    lastMoveFrom = -1,
+                    lastMoveTo = -1,
+                    lastMoveEffects = MoveEffects.None,
                 )
             }
         } else {
@@ -267,6 +284,9 @@ class TutorialLessonViewModel @Inject constructor(
                     isComplete = true,
                     feedbackMessage = "Lesson complete!",
                     feedbackIsCorrect = true,
+                    lastMoveFrom = result.from,
+                    lastMoveTo = result.to,
+                    lastMoveEffects = MoveReplay.effectsOf(result),
                 )
             }
         }
@@ -279,7 +299,15 @@ class TutorialLessonViewModel @Inject constructor(
     fun resetStage() {
         val stage = _state.value.stages.getOrNull(_state.value.currentStageIndex) ?: return
         game.load(stage.fen)
-        _state.update { it.copy(feedbackMessage = null, showHint = false) }
+        _state.update {
+            it.copy(
+                feedbackMessage = null,
+                showHint = false,
+                lastMoveFrom = -1,
+                lastMoveTo = -1,
+                lastMoveEffects = MoveEffects.None,
+            )
+        }
     }
 
     fun getGame(): ChessGame = game
@@ -414,6 +442,9 @@ fun TutorialLessonScreen(
                     ChessBoardView(
                         game = game,
                         isInteractive = true,
+                        lastMoveFrom = state.lastMoveFrom,
+                        lastMoveTo = state.lastMoveTo,
+                        lastMoveEffects = state.lastMoveEffects,
                         onMove = { from, to, promotion ->
                             viewModel.onMove(from, to, promotion)
                         },

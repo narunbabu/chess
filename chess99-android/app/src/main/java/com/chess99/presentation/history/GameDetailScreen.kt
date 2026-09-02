@@ -131,9 +131,10 @@ fun GameDetailScreen(
                                 modifier = Modifier.padding(12.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
-                                val replayGame = remember { ChessGame() }
-                                LaunchedEffect(state.currentFen) {
-                                    replayGame.load(state.currentFen)
+                                // Rebuilt per position so the board and the
+                                // last-move highlight always describe the same ply.
+                                val replayGame = remember(state.currentFen) {
+                                    ChessGame(state.currentFen)
                                 }
                                 val orientation = if (state.playerColor == "black")
                                     com.chess99.engine.Color.BLACK else com.chess99.engine.Color.WHITE
@@ -141,6 +142,9 @@ fun GameDetailScreen(
                                     game = replayGame,
                                     boardOrientation = orientation,
                                     isInteractive = false,
+                                    lastMoveFrom = state.lastMoveFrom,
+                                    lastMoveTo = state.lastMoveTo,
+                                    lastMoveEffects = state.lastMoveEffects,
                                     modifier = Modifier.fillMaxWidth(),
                                 )
 

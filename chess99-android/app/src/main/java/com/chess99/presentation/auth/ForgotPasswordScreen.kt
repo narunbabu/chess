@@ -11,12 +11,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.chess99.R
 
 /**
  * Forgot password screen.
@@ -37,10 +39,10 @@ fun ForgotPasswordScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Forgot Password") },
+                title = { Text(stringResource(R.string.auth_forgot_password_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
                     }
                 },
             )
@@ -69,51 +71,51 @@ fun ForgotPasswordScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Check your email",
+                        text = stringResource(R.string.auth_check_email_heading),
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "If $email is registered, we've sent a reset link.\nThe link expires in 1 hour.",
+                        text = stringResource(R.string.auth_check_email_body, email),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                     )
                     Spacer(modifier = Modifier.height(24.dp))
                     TextButton(onClick = onNavigateBack) {
-                        Text("Back to Sign In")
+                        Text(stringResource(R.string.auth_back_to_sign_in))
                     }
                 }
 
                 ForgotPasswordStatus.OAUTH -> {
                     Text(
-                        text = "Use Google Sign In",
+                        text = stringResource(R.string.auth_use_google_heading),
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "This account was created with Google.\nPlease sign in with Google \u2014 no password needed.",
+                        text = stringResource(R.string.auth_use_google_body),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                     )
                     Spacer(modifier = Modifier.height(24.dp))
                     Button(onClick = onNavigateBack) {
-                        Text("Back to Sign In")
+                        Text(stringResource(R.string.auth_back_to_sign_in))
                     }
                 }
 
                 else -> {
                     Text(
-                        text = "Forgot your password?",
+                        text = stringResource(R.string.auth_forgot_password_heading),
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Enter your email and we'll send you a reset link",
+                        text = stringResource(R.string.auth_forgot_password_body),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -141,7 +143,7 @@ fun ForgotPasswordScreen(
                     OutlinedTextField(
                         value = email,
                         onValueChange = { email = it },
-                        label = { Text("Email address") },
+                        label = { Text(stringResource(R.string.auth_field_email_address)) },
                         leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Email,
@@ -173,14 +175,14 @@ fun ForgotPasswordScreen(
                                 strokeWidth = 2.dp,
                             )
                         } else {
-                            Text("Send Reset Link")
+                            Text(stringResource(R.string.auth_send_reset_link))
                         }
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
                     TextButton(onClick = onNavigateBack) {
-                        Text("Remember your password? Sign In")
+                        Text(stringResource(R.string.auth_remember_password_sign_in))
                     }
                 }
             }

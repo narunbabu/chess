@@ -21,6 +21,7 @@ import com.chess99.engine.Piece
 import com.chess99.engine.Square
 import com.chess99.engine.StockfishEngine
 import com.chess99.presentation.common.BoardArrow
+import com.chess99.presentation.common.FeatureFlagManager
 import com.chess99.presentation.common.friendlyError
 import com.google.gson.JsonObject
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -47,6 +48,7 @@ class PlayMultiplayerViewModel @Inject constructor(
     private val matchmakingApi: MatchmakingApi,
     private val webSocketApi: WebSocketApi,
     private val tokenManager: TokenManager,
+    private val featureFlagManager: FeatureFlagManager,
     private val stockfishEngine: StockfishEngine,
     val shareManager: com.chess99.presentation.social.ShareManager,
 ) : ViewModel() {
@@ -75,6 +77,16 @@ class PlayMultiplayerViewModel @Inject constructor(
 
     init {
         myUserId = tokenManager.getUserId()
+        viewModelScope.launch {
+            featureFlagManager.flags.collect { flags ->
+                val enabled = flags[FeatureFlagManager.FLAG_CHAT_ENABLED] ?: false
+                _uiState.value = _uiState.value.copy(
+                    isChatFeatureEnabled = enabled,
+                    isChatOpen = _uiState.value.isChatOpen && enabled,
+                    unreadChatCount = if (enabled) _uiState.value.unreadChatCount else 0,
+                )
+            }
+        }
         if (gameId > 0) {
             loadGame()
         }
@@ -130,6 +142,11 @@ class PlayMultiplayerViewModel @Inject constructor(
                 val tcIncrement = gameObj.get("increment_seconds")?.takeIf { it.isJsonPrimitive }?.asInt ?: 0
                 val timeControl = "$tcMinutes|$tcIncrement"
                 val gameMode = gameObj.get("game_mode")?.takeIf { it.isJsonPrimitive }?.asString ?: "casual"
+                // Learning is stored as a casual game plus a flag — the server
+                // validates game_mode as rated|casual only, so "learning" never
+                // appears in game_mode and the header must read the flag.
+                val isLearningMode = gameObj.get("learning_mode")
+                    ?.takeIf { it.isJsonPrimitive }?.asBoolean ?: false
 
                 // Determine player color
                 val playerColor = when (myUserId) {
@@ -156,6 +173,7 @@ class PlayMultiplayerViewModel @Inject constructor(
                 val opponentRating = opponentObj?.get("rating")?.takeIf { it.isJsonPrimitive }?.asInt
                     ?: syntheticObj?.get("rating")?.takeIf { it.isJsonPrimitive }?.asInt
                     ?: 1200
+                val opponentUserId = if (playerColor == Color.WHITE) blackPlayerId else whitePlayerId
 
                 // T3: `GameController::createComputerGame`/`show` spread every
                 // Game column onto the response root (`...$game->toArray()`),
@@ -219,13 +237,36 @@ class PlayMultiplayerViewModel @Inject constructor(
                     blackTimeSeconds = blackTime,
                     incrementSeconds = incrementSeconds,
                     isRated = gameMode == "rated",
+                    isLearningMode = isLearningMode,
+                    // Web parity (PlayMultiplayer.js:960-967): rated games get no
+                    // undos; otherwise take this colour's server-side remaining
+                    // count, falling back to DEFAULT_UNDO_CHANCES when the payload
+                    // predates the column.
+                    undoChancesRemaining = if (gameMode == "rated") {
+                        0
+                    } else {
+                        val key = if (playerColor == Color.WHITE) {
+                            "undo_white_remaining"
+                        } else {
+                            "undo_black_remaining"
+                        }
+                        gameObj.get(key)?.takeIf { it.isJsonPrimitive }?.asInt
+                            ?.coerceAtLeast(0)
+                            ?: DEFAULT_UNDO_CHANCES
+                    },
                     moveHistory = moveHistory,
                     timeControl = timeControl,
                     isSyntheticGame = isSyntheticGame,
+                    opponentUserId = opponentUserId,
+                    isMinor = tokenManager.isMinor(),
+                    isChatFeatureEnabled = featureFlagManager.isEnabled(
+                        FeatureFlagManager.FLAG_CHAT_ENABLED
+                    ),
                 )
 
                 // Connect WebSocket
                 connectWebSocket()
+                if (!isSyntheticGame) loadChatHistory()
 
                 // Start timer if game is active
                 if (status == "active") {
@@ -367,7 +408,13 @@ class PlayMultiplayerViewModel @Inject constructor(
             }
 
             is GameEvent.UndoAccepted -> {
-                _uiState.value = _uiState.value.copy(undoRequestedByOpponent = false)
+                // Only the requester spends an undo. reloadGameState() re-seeds
+                // the count from the server, so just clear the local pending
+                // flag here and let the reload be the source of truth.
+                _uiState.value = _uiState.value.copy(
+                    undoRequestedByOpponent = false,
+                    undoRequestPending = false,
+                )
                 // Reload game state to get updated FEN
                 reloadGameState()
             }
@@ -375,17 +422,21 @@ class PlayMultiplayerViewModel @Inject constructor(
             is GameEvent.UndoDeclined -> {
                 _uiState.value = _uiState.value.copy(
                     undoRequestedByOpponent = false,
+                    undoRequestPending = false,
                     snackbarMessage = "Undo request declined",
                 )
             }
 
             is GameEvent.ChatMessage -> {
+                if (!_uiState.value.isChatFeatureEnabled) return
                 val messages = _uiState.value.chatMessages + ChatMessageData(
+                    id = event.messageId,
                     userId = event.userId,
                     userName = event.userName,
                     message = event.message,
                     timestamp = event.timestamp,
                     isMe = event.userId == myUserId,
+                    filtered = event.filtered,
                 )
                 _uiState.value = _uiState.value.copy(
                     chatMessages = messages,
@@ -448,8 +499,16 @@ class PlayMultiplayerViewModel @Inject constructor(
 
         val move = game.move(from, to, promotion) ?: return
 
+        // Snapshot the post-move position once. These feed both the local move
+        // record and the payload the server validates, and the request goes out
+        // from a coroutine that may run after further state changes.
+        val san = move.san(game)
+        val isCheck = game.isCheck()
+        val isCheckmate = game.isCheckmate()
+        val isStalemate = game.isStalemate()
+
         val sound = when {
-            game.isCheck() -> MoveSound.CHECK
+            isCheck -> MoveSound.CHECK
             move.captured != Piece.NONE || move.isEnPassant -> MoveSound.CAPTURE
             else -> MoveSound.MOVE
         }
@@ -458,7 +517,7 @@ class PlayMultiplayerViewModel @Inject constructor(
             moveNumber = game.historyVerbose().size,
             from = from,
             to = to,
-            san = move.san(game),
+            san = san,
             fen = game.fen(),
             playerColor = state.playerColor,
             captured = move.captured != Piece.NONE,
@@ -489,6 +548,21 @@ class PlayMultiplayerViewModel @Inject constructor(
                 addProperty("from", from)
                 addProperty("to", to)
                 promotion?.let { addProperty("promotion", it.toString()) }
+                // broadcastMove validates san/uci/is_check/is_mate_hint/
+                // is_stalemate as REQUIRED. They are display metadata the server
+                // does not need to apply a move (validateAndApplyMove recomputes
+                // fen/turn from from/to) and a backend commit relaxes them to
+                // nullable — but that commit is not on the deployed branch, so
+                // omitting them 422s every move of a synthetic-opponent game.
+                // The web client has always sent the full set; sending it here
+                // keeps the native client working against the deployed
+                // validation *and* the relaxed one, instead of the app being
+                // broken until a backend rollout happens.
+                addProperty("san", san)
+                addProperty("uci", from + to + (promotion?.toString() ?: ""))
+                addProperty("is_check", isCheck)
+                addProperty("is_mate_hint", isCheckmate)
+                addProperty("is_stalemate", isStalemate)
                 // Persist remaining clocks so the server stays in sync (web
                 // parity) — reduces clock drift/desync on reconnect. The backend
                 // accepts these under move.* as nullable.
@@ -630,6 +704,30 @@ class PlayMultiplayerViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Ask the opponent for a takeback. Mirrors web's handleUndo
+     * (PlayMultiplayer.js:2636): blocked in rated games, only on your own turn,
+     * only with a chance left and at least one full move pair on the board.
+     * The move is not rolled back here — that happens when the opponent accepts
+     * and [reloadGameState] brings back the server's position.
+     */
+    fun requestUndo() {
+        val state = _uiState.value
+        if (!state.canRequestUndo) return
+
+        _uiState.value = state.copy(undoRequestPending = true)
+        viewModelScope.launch {
+            gameWebSocketService.requestUndo()
+                .onFailure { e ->
+                    Timber.w(e, "Failed to request undo")
+                    _uiState.value = _uiState.value.copy(
+                        undoRequestPending = false,
+                        snackbarMessage = "Couldn't ask for a takeback. Please try again.",
+                    )
+                }
+        }
+    }
+
     fun acceptUndo() {
         viewModelScope.launch {
             gameWebSocketService.acceptUndo()
@@ -672,19 +770,146 @@ class PlayMultiplayerViewModel @Inject constructor(
     }
 
     fun sendChat(message: String) {
-        if (message.isBlank() || message.length > 500) return
+        val state = _uiState.value
+        if (!state.isChatFeatureEnabled ||
+            !ChatSafetyRules.canSend(message, state.isMinor, state.chatPolicy)
+        ) return
+
         viewModelScope.launch {
             gameWebSocketService.sendChatMessage(message.trim())
+                .onSuccess { body ->
+                    val sent = body.toChatMessageData(myUserId)
+                    val policy = body.getAsJsonObject("chat_policy")?.toChatPolicy()
+                        ?: _uiState.value.chatPolicy
+                    _uiState.value = _uiState.value.copy(
+                        chatMessages = if (
+                            sent != null &&
+                            _uiState.value.chatMessages.none { it.id == sent.id }
+                        ) {
+                            _uiState.value.chatMessages + sent
+                        } else {
+                            _uiState.value.chatMessages
+                        },
+                        chatPolicy = policy,
+                        chatNotice = if (body.get("filtered")?.asBoolean == true) {
+                            "Message was filtered before sending."
+                        } else null,
+                    )
+                }
+                .onFailure { error ->
+                    Timber.w(error, "Failed to send chat message")
+                    _uiState.value = _uiState.value.copy(
+                        chatNotice = "Message could not be sent. Please try again."
+                    )
+                }
         }
     }
 
     fun toggleChat() {
+        if (!_uiState.value.isChatFeatureEnabled || _uiState.value.isSyntheticGame) return
         val isOpen = !_uiState.value.isChatOpen
         _uiState.value = _uiState.value.copy(
             isChatOpen = isOpen,
             unreadChatCount = if (isOpen) 0 else _uiState.value.unreadChatCount,
         )
     }
+
+    fun reportChatMessage(messageId: Int) {
+        val message = _uiState.value.chatMessages.firstOrNull { it.id == messageId } ?: return
+        if (message.isMe || message.id <= 0) return
+        val reason = _uiState.value.chatPolicy.reportReasons.firstOrNull()
+            ?: ChatSafetyRules.REPORT_REASONS.first()
+        viewModelScope.launch {
+            gameWebSocketService.reportChatMessage(messageId, reason)
+                .onSuccess {
+                    _uiState.value = _uiState.value.copy(
+                        reportedMessageIds = _uiState.value.reportedMessageIds + messageId,
+                        chatNotice = "Message reported for review.",
+                    )
+                }
+                .onFailure { error ->
+                    Timber.w(error, "Failed to report chat message")
+                    _uiState.value = _uiState.value.copy(
+                        chatNotice = "Report could not be sent. Please try again."
+                    )
+                }
+        }
+    }
+
+    fun blockChatUser(userId: Int) {
+        if (userId <= 0 || userId == myUserId) return
+        viewModelScope.launch {
+            gameWebSocketService.blockUser(userId)
+                .onSuccess {
+                    _uiState.value = _uiState.value.copy(
+                        chatPolicy = _uiState.value.chatPolicy.copy(
+                            enabled = false,
+                            reason = "blocked",
+                        ),
+                        chatNotice = "Chat blocked with this player.",
+                    )
+                }
+                .onFailure { error ->
+                    Timber.w(error, "Failed to block chat user")
+                    _uiState.value = _uiState.value.copy(
+                        chatNotice = "Player could not be blocked. Please try again."
+                    )
+                }
+        }
+    }
+
+    private fun loadChatHistory() {
+        viewModelScope.launch {
+            gameWebSocketService.getChatMessages()
+                .onSuccess { body ->
+                    val messages = body.getAsJsonArray("messages")
+                        ?.mapNotNull { it.takeIf { value -> value.isJsonObject }
+                            ?.asJsonObject
+                            ?.toChatMessageData(myUserId) }
+                        ?: emptyList()
+                    val policy = body.getAsJsonObject("chat_policy")?.toChatPolicy()
+                        ?: ChatPolicy()
+                    _uiState.value = _uiState.value.copy(
+                        chatMessages = messages,
+                        chatPolicy = policy,
+                    )
+                }
+                .onFailure { error ->
+                    Timber.d(error, "Chat history unavailable")
+                }
+        }
+    }
+
+    private fun JsonObject.toChatMessageData(currentUserId: Int): ChatMessageData? {
+        val id = get("id")?.takeIf { it.isJsonPrimitive }?.asInt ?: return null
+        val senderId = get("sender_id")?.takeIf { it.isJsonPrimitive }?.asInt
+            ?: get("user_id")?.takeIf { it.isJsonPrimitive }?.asInt
+            ?: return null
+        return ChatMessageData(
+            id = id,
+            userId = senderId,
+            userName = get("sender_name")?.takeIf { it.isJsonPrimitive }?.asString
+                ?: get("user_name")?.takeIf { it.isJsonPrimitive }?.asString
+                ?: "Player",
+            message = get("message")?.takeIf { it.isJsonPrimitive }?.asString ?: "",
+            timestamp = get("created_at")?.takeIf { it.isJsonPrimitive }?.asString ?: "",
+            isMe = senderId == currentUserId,
+            filtered = get("filtered")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: false,
+        )
+    }
+
+    private fun JsonObject.toChatPolicy(): ChatPolicy = ChatPolicy(
+        enabled = get("enabled")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: true,
+        presetOnly = get("preset_only")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: false,
+        reason = get("reason")?.takeIf { !it.isJsonNull && it.isJsonPrimitive }?.asString,
+        presetMessages = getAsJsonArray("preset_messages")?.map { it.asString }
+            ?: ChatSafetyRules.PRESET_MESSAGES,
+        emojiMessages = getAsJsonArray("emoji_messages")?.map { it.asString }
+            ?: ChatSafetyRules.EMOJI_MESSAGES,
+        reportReasons = getAsJsonArray("report_reasons")?.map { it.asString }
+            ?: ChatSafetyRules.REPORT_REASONS,
+        maxLength = get("max_length")?.takeIf { it.isJsonPrimitive }?.asInt ?: 500,
+    )
 
     // ── Timer ───────────────────────────────────────────────────────────
 
@@ -934,7 +1159,9 @@ class PlayMultiplayerViewModel @Inject constructor(
                     addProperty("san", move.san(game))
                     addProperty("uci", uci)
                     addProperty("is_check", game.isCheck())
-                    addProperty("is_mate_hint", false)
+                    // Was hardcoded false, so a companion move that delivered
+                    // mate told the server the game was still running.
+                    addProperty("is_mate_hint", game.isCheckmate())
                     addProperty("is_stalemate", game.isStalemate())
                 }
                 val body = JsonObject().apply {
@@ -943,10 +1170,18 @@ class PlayMultiplayerViewModel @Inject constructor(
                 val response = webSocketApi.sendSyntheticMove(gameId, body)
                 if (!response.isSuccessful) {
                     Timber.w("Synthetic move API failed, falling back to regular move API")
+                    // Carry the same metadata across: broadcastMove requires it,
+                    // so a bare from/to/promotion fallback 422s and the companion
+                    // move is silently lost. See the note in onPlayerMove.
                     val fallbackJson = JsonObject().apply {
                         addProperty("from", from)
                         addProperty("to", to)
                         promotion?.let { addProperty("promotion", it.toString()) }
+                        addProperty("san", move.san(game))
+                        addProperty("uci", uci)
+                        addProperty("is_check", game.isCheck())
+                        addProperty("is_mate_hint", game.isCheckmate())
+                        addProperty("is_stalemate", game.isStalemate())
                     }
                     val fallbackBody = JsonObject().apply {
                         add("move", fallbackJson)
@@ -1384,9 +1619,21 @@ data class MultiplayerUiState(
     val drawOfferedByOpponent: Boolean = false,
     val drawOfferedByMe: Boolean = false,
     val undoRequestedByOpponent: Boolean = false,
+    /** True once we have asked and are waiting on the opponent. */
+    val undoRequestPending: Boolean = false,
+    /** Takebacks this player has left. Rated games get none. */
+    val undoChancesRemaining: Int = 0,
+    /** Learning game — shown in the header and unlocks the help controls. */
+    val isLearningMode: Boolean = false,
     val chatMessages: List<ChatMessageData> = emptyList(),
     val isChatOpen: Boolean = false,
     val unreadChatCount: Int = 0,
+    val isChatFeatureEnabled: Boolean = false,
+    val chatPolicy: ChatPolicy = ChatPolicy(),
+    val isMinor: Boolean = true,
+    val opponentUserId: Int? = null,
+    val reportedMessageIds: Set<Int> = emptySet(),
+    val chatNotice: String? = null,
     val gameResult: GameResultState? = null,
     val soundToPlay: MoveSound? = null,
     val error: String? = null,
@@ -1397,16 +1644,38 @@ data class MultiplayerUiState(
      *  is already bot-driven by [PlayMultiplayerViewModel]'s dedicated
      *  synthetic-opponent auto-play loop. */
     val isSyntheticGame: Boolean = false,
-)
+) {
+    /** Whose turn it is, derived from the position rather than tracked separately. */
+    val isMyTurn: Boolean
+        get() = (fen.split(" ").getOrNull(1) == "w") == (playerColor == Color.WHITE)
+
+    /**
+     * Web parity (PlayMultiplayer.js:2957): a takeback needs a completed turn
+     * pair to roll back, a remaining chance, your own turn, a live game, and no
+     * request already in flight. Rated games never qualify.
+     */
+    val canRequestUndo: Boolean
+        get() = !isRated &&
+            undoChancesRemaining > 0 &&
+            !undoRequestPending &&
+            isMyTurn &&
+            gamePhase == MultiplayerPhase.PLAYING &&
+            moveHistory.size >= 2
+}
 
 enum class MultiplayerPhase { CONNECTING, PLAYING, PAUSED, COMPLETED }
 
+/** Web's useGameState.js:71 seeds multiplayer games with 9 takebacks. */
+const val DEFAULT_UNDO_CHANCES = 9
+
 data class ChatMessageData(
+    val id: Int,
     val userId: Int,
     val userName: String,
     val message: String,
     val timestamp: String,
     val isMe: Boolean,
+    val filtered: Boolean = false,
 )
 
 data class CompanionState(

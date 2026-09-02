@@ -21,7 +21,7 @@ if ($phpProcesses) {
 # Step 2: Navigate to backend directory
 Write-Host ""
 Write-Host "Step 2: Navigating to backend directory..." -ForegroundColor Yellow
-$backendPath = "C:\ArunApps\Chess-Web\chess-backend"
+$backendPath = "D:\ArunApps\Chess-Web\chess-backend"
 if (Test-Path $backendPath) {
     Set-Location $backendPath
     Write-Host "  OK Changed to: $backendPath" -ForegroundColor Green

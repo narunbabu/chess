@@ -15,7 +15,9 @@ import com.chess99.data.local.TokenManager
 import com.chess99.presentation.auth.FacebookSignInHelper
 import com.chess99.presentation.navigation.Chess99NavGraph
 import com.chess99.presentation.navigation.DeepLinkHandler
+import com.chess99.presentation.navigation.PendingDeepLinkStore
 import com.chess99.presentation.navigation.Screen
+import com.chess99.presentation.navigation.requiresAuthentication
 import com.chess99.presentation.onboarding.OnboardingPreferences
 import com.chess99.presentation.theme.Chess99Theme
 import dagger.hilt.android.AndroidEntryPoint
@@ -33,6 +35,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var facebookSignInHelper: FacebookSignInHelper
+
+    @Inject
+    lateinit var pendingDeepLinkStore: PendingDeepLinkStore
 
     private var navController: NavHostController? = null
 
@@ -58,6 +63,7 @@ class MainActivity : ComponentActivity() {
                     Chess99NavGraph(
                         navController = nc,
                         startDestination = startDestination,
+                        consumePendingDeepLink = pendingDeepLinkStore::consume,
                     )
 
                     // Handle deep link from launch intent
@@ -71,6 +77,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        setIntent(intent)
         navController?.let { handleDeepLinkIntent(intent, it) }
     }
 
@@ -82,11 +89,17 @@ class MainActivity : ComponentActivity() {
 
     private fun handleDeepLinkIntent(intent: Intent, navController: NavHostController) {
         val uri = intent.data ?: return
-        if (!tokenManager.isLoggedIn()) return
 
         val destination = DeepLinkHandler.handleDeepLink(uri)
         if (destination != null) {
             val route = DeepLinkHandler.destinationToRoute(destination)
+            if (!tokenManager.isLoggedIn() && destination.requiresAuthentication()) {
+                pendingDeepLinkStore.save(route)
+                navController.navigate(Screen.Login.route) {
+                    launchSingleTop = true
+                }
+                return
+            }
             Timber.d("Deep link navigating to: $route")
             navController.navigate(route) {
                 launchSingleTop = true

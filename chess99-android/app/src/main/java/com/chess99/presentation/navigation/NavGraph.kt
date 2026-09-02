@@ -38,6 +38,7 @@ import com.chess99.presentation.referral.AmbassadorDashboardScreen
 import com.chess99.presentation.referral.BecomeAmbassadorScreen
 import com.chess99.presentation.daily.DailyChallengesScreen
 import com.chess99.presentation.legal.LegalScreen
+import com.chess99.presentation.legal.OpenSourceLicensesScreen
 import com.chess99.presentation.legal.PrivacyPolicyContent
 import com.chess99.presentation.legal.TermsOfServiceContent
 import com.chess99.presentation.social.LeaderboardScreen
@@ -47,6 +48,7 @@ import com.chess99.presentation.social.SharedResultScreen
 fun Chess99NavGraph(
     navController: NavHostController,
     startDestination: String,
+    consumePendingDeepLink: () -> String? = { null },
 ) {
     NavHost(
         navController = navController,
@@ -56,7 +58,7 @@ fun Chess99NavGraph(
         composable(Screen.Onboarding.route) {
             OnboardingScreen(
                 onGetStarted = {
-                    navController.navigate(Screen.Register.route) {
+                    navController.navigate(Screen.Register.createRoute()) {
                         popUpTo(Screen.Onboarding.route) { inclusive = true }
                     }
                 },
@@ -81,23 +83,33 @@ fun Chess99NavGraph(
         // ── Auth ────────────────────────────────────────────────────────────
         composable(Screen.Login.route) {
             LoginScreen(
-                onNavigateToRegister = { navController.navigate(Screen.Register.route) },
+                onNavigateToRegister = { navController.navigate(Screen.Register.createRoute()) },
                 onNavigateToForgotPassword = { navController.navigate(Screen.ForgotPassword.route) },
                 onLoginSuccess = {
-                    navController.navigate(Screen.Home.route) {
-                        popUpTo(Screen.Login.route) { inclusive = true }
+                    navController.navigate(consumePendingDeepLink() ?: Screen.Home.route) {
+                        popUpTo(0) { inclusive = true }
                     }
                 },
                 onPlayAsGuest = { navController.navigate(Screen.PlayComputer.route) },
             )
         }
 
-        composable(Screen.Register.route) {
+        composable(
+            route = Screen.Register.route,
+            arguments = listOf(
+                navArgument("referralCode") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+            ),
+        ) { backStackEntry ->
             RegisterScreen(
+                referralCode = backStackEntry.arguments?.getString("referralCode"),
                 onNavigateToLogin = { navController.popBackStack() },
                 onRegisterSuccess = {
-                    navController.navigate(Screen.Home.route) {
-                        popUpTo(Screen.Login.route) { inclusive = true }
+                    navController.navigate(consumePendingDeepLink() ?: Screen.Home.route) {
+                        popUpTo(0) { inclusive = true }
                     }
                 },
             )
@@ -493,6 +505,11 @@ fun Chess99NavGraph(
                 title = TermsOfServiceContent.TITLE,
                 lastUpdated = TermsOfServiceContent.LAST_UPDATED,
                 sections = TermsOfServiceContent.sections,
+                onNavigateBack = { navController.popBackStack() },
+            )
+        }
+        composable(Screen.OpenSourceLicenses.route) {
+            OpenSourceLicensesScreen(
                 onNavigateBack = { navController.popBackStack() },
             )
         }

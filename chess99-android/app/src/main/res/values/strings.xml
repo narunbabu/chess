@@ -8,4 +8,100 @@
     <string name="facebook_app_id">1696238708465565</string>
     <string name="facebook_client_token">807fbde0ab28c4c19061924a51510f3e</string>
     <string name="fb_login_protocol_scheme">fb1696238708465565</string>
+
+    <!-- ── Accessibility: chess board ──────────────────────────────────
+         The board is a bare Canvas, so TalkBack has nothing to read unless we
+         describe it. Keep these short: they are announced on every move. -->
+    <string name="board_a11y_board">Chess board.</string>
+    <string name="board_a11y_white">White</string>
+    <string name="board_a11y_black">Black</string>
+    <string name="board_a11y_last_move">Last move %1$s to %2$s.</string>
+    <string name="board_a11y_to_move">%1$s to move.</string>
+    <string name="board_a11y_in_check">%1$s is in check.</string>
+
+    <!-- ── Accessibility: form controls ────────────────────────────── -->
+    <string name="a11y_show_password">Show password</string>
+    <string name="a11y_hide_password">Hide password</string>
+
+    <!-- ══ Sign-in / sign-up ═══════════════════════════════════════════
+         Everything a player sees before they have an account. Apostrophes
+         must be backslash-escaped in Android string resources. -->
+    <string name="auth_brand">Chess99</string>
+    <string name="auth_welcome_back">Welcome back</string>
+    <string name="auth_create_account_subtitle">Create your account</string>
+
+    <!-- Field labels, shared by sign-in, sign-up and password reset -->
+    <string name="auth_field_name">Name</string>
+    <string name="auth_field_email">Email</string>
+    <string name="auth_field_email_address">Email address</string>
+    <string name="auth_field_password">Password</string>
+    <string name="auth_field_confirm_password">Confirm Password</string>
+    <string name="auth_field_date_of_birth">Date of birth</string>
+    <string name="auth_field_date_hint">YYYY-MM-DD</string>
+    <string name="auth_field_guardian_email">Parent / guardian email</string>
+    <string name="auth_pick_date">Pick date</string>
+
+    <!-- Sign-in -->
+    <string name="auth_sign_in">Sign In</string>
+    <string name="auth_forgot_password_link">Forgot password?</string>
+    <string name="auth_sign_in_google">Sign in with Google</string>
+    <string name="auth_sign_in_facebook">Sign in with Facebook</string>
+    <string name="auth_no_account_sign_up">Don\'t have an account? Sign Up</string>
+    <string name="auth_play_as_guest">Play as Guest</string>
+
+    <!-- Sign-up -->
+    <string name="auth_referral_applied">Referral code applied: %1$s</string>
+    <string name="auth_birthday_reason">We use birthdays to keep chat safe for kids.</string>
+    <string name="auth_guardian_reason">Players under 18 need a parent or guardian to approve the account.</string>
+    <string name="auth_create_account">Create Account</string>
+    <string name="auth_sign_up_google">Sign up with Google</string>
+    <string name="auth_sign_up_facebook">Sign up with Facebook</string>
+    <string name="auth_have_account_sign_in">Already have an account? Sign In</string>
+
+    <!-- Forgot password -->
+    <string name="auth_forgot_password_title">Forgot Password</string>
+    <string name="auth_forgot_password_heading">Forgot your password?</string>
+    <string name="auth_forgot_password_body">Enter your email and we\'ll send you a reset link</string>
+    <string name="auth_send_reset_link">Send Reset Link</string>
+    <string name="auth_remember_password_sign_in">Remember your password? Sign In</string>
+    <string name="auth_check_email_heading">Check your email</string>
+    <string name="auth_check_email_body">If %1$s is registered, we\'ve sent a reset link.\nThe link expires in 1 hour.</string>
+    <string name="auth_back_to_sign_in">Back to Sign In</string>
+    <string name="auth_use_google_heading">Use Google Sign In</string>
+    <string name="auth_use_google_body">This account was created with Google.\nPlease sign in with Google — no password needed.</string>
+
+    <!-- Reset password -->
+    <string name="auth_reset_password_title">Reset Password</string>
+    <string name="auth_reset_heading">Set a new password</string>
+    <string name="auth_reset_body">Choose a strong password for your account</string>
+    <string name="auth_field_new_password">New password</string>
+    <string name="auth_field_confirm_new_password">Confirm new password</string>
+    <string name="auth_password_min_length">Minimum 8 characters</string>
+    <string name="auth_update_password">Update Password</string>
+    <string name="auth_need_new_link">Need a new link? Request reset</string>
+    <string name="auth_password_updated_heading">Password updated!</string>
+    <string name="auth_password_updated_body">Redirecting you to sign in…</string>
+    <string name="auth_invalid_link_heading">Invalid reset link</string>
+    <string name="auth_invalid_link_body">This link is invalid or expired.\nPlease request a new one.</string>
+    <string name="auth_request_new_link">Request a new link</string>
+
+    <!-- Skill assessment -->
+    <string name="skill_title">Skill Assessment</string>
+    <string name="skill_evaluating">Evaluating your skill level…</string>
+    <string name="skill_continue">Continue</string>
+    <string name="skill_skip">Skip Assessment</string>
+
+    <!-- ══ First-run onboarding ════════════════════════════════════════ -->
+    <string name="onboarding_skip">Skip</string>
+    <string name="onboarding_1_headline">Learn chess the fun way</string>
+    <string name="onboarding_1_body">Lessons, puzzles and games built for young players.</string>
+    <string name="onboarding_2_headline">Play and improve every day</string>
+    <string name="onboarding_2_body">Solve daily challenges, earn XP and climb the leaderboard.</string>
+    <string name="onboarding_3_headline">Safe for kids. Loved by parents.</string>
+    <string name="onboarding_3_body">Kid-safe chat controls and a parent dashboard keep you in charge.</string>
+
+    <!-- ══ Shared dialog actions ═══════════════════════════════════════ -->
+    <string name="action_ok">OK</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_back">Back</string>
 </resources>

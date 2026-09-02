@@ -8,10 +8,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.chess99.R
 
 /**
  * Skill assessment screen for new user onboarding.
@@ -34,7 +36,7 @@ fun SkillAssessmentScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Skill Assessment") },
+                title = { Text(stringResource(R.string.skill_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
@@ -59,7 +61,7 @@ fun SkillAssessmentScreen(
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             CircularProgressIndicator()
                             Spacer(modifier = Modifier.height(16.dp))
-                            Text("Evaluating your skill level...")
+                            Text(stringResource(R.string.skill_evaluating))
                         }
                     }
                 }
@@ -97,7 +99,7 @@ fun SkillAssessmentScreen(
                             .fillMaxWidth()
                             .height(50.dp),
                     ) {
-                        Text("Continue")
+                        Text(stringResource(R.string.skill_continue))
                     }
                     Spacer(modifier = Modifier.height(16.dp))
                 }
@@ -151,7 +153,7 @@ fun SkillAssessmentScreen(
                     Spacer(modifier = Modifier.weight(1f))
 
                     TextButton(onClick = { viewModel.skipAssessment() }) {
-                        Text("Skip Assessment")
+                        Text(stringResource(R.string.skill_skip))
                     }
                 }
             }

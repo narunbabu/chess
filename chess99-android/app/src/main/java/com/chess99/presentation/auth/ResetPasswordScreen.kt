@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -22,6 +23,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.chess99.R
 
 /**
  * Reset password screen — user arrives via deep link with token + email.
@@ -56,10 +58,10 @@ fun ResetPasswordScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Reset Password") },
+                title = { Text(stringResource(R.string.auth_reset_password_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateToLogin) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_back))
                     }
                 },
             )
@@ -83,13 +85,13 @@ fun ResetPasswordScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Password updated!",
+                        text = stringResource(R.string.auth_password_updated_heading),
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Redirecting you to sign in\u2026",
+                        text = stringResource(R.string.auth_password_updated_body),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -97,32 +99,32 @@ fun ResetPasswordScreen(
 
                 isInvalidLink -> {
                     Text(
-                        text = "Invalid reset link",
+                        text = stringResource(R.string.auth_invalid_link_heading),
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "This link is invalid or expired.\nPlease request a new one.",
+                        text = stringResource(R.string.auth_invalid_link_body),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                     )
                     Spacer(modifier = Modifier.height(24.dp))
                     Button(onClick = onNavigateToForgotPassword) {
-                        Text("Request a new link")
+                        Text(stringResource(R.string.auth_request_new_link))
                     }
                 }
 
                 else -> {
                     Text(
-                        text = "Set a new password",
+                        text = stringResource(R.string.auth_reset_heading),
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Choose a strong password for your account",
+                        text = stringResource(R.string.auth_reset_body),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -150,14 +152,17 @@ fun ResetPasswordScreen(
                     OutlinedTextField(
                         value = password,
                         onValueChange = { password = it },
-                        label = { Text("New password") },
+                        label = { Text(stringResource(R.string.auth_field_new_password)) },
                         leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
                         trailingIcon = {
                             IconButton(onClick = { showPassword = !showPassword }) {
                                 Icon(
                                     if (showPassword) Icons.Default.VisibilityOff
                                     else Icons.Default.Visibility,
-                                    contentDescription = null,
+                                    contentDescription = stringResource(
+                                        if (showPassword) R.string.a11y_hide_password
+                                        else R.string.a11y_show_password
+                                    ),
                                 )
                             }
                         },
@@ -179,14 +184,17 @@ fun ResetPasswordScreen(
                     OutlinedTextField(
                         value = passwordConfirmation,
                         onValueChange = { passwordConfirmation = it },
-                        label = { Text("Confirm new password") },
+                        label = { Text(stringResource(R.string.auth_field_confirm_new_password)) },
                         leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
                         trailingIcon = {
                             IconButton(onClick = { showConfirm = !showConfirm }) {
                                 Icon(
                                     if (showConfirm) Icons.Default.VisibilityOff
                                     else Icons.Default.Visibility,
-                                    contentDescription = null,
+                                    contentDescription = stringResource(
+                                        if (showConfirm) R.string.a11y_hide_password
+                                        else R.string.a11y_show_password
+                                    ),
                                 )
                             }
                         },
@@ -208,7 +216,7 @@ fun ResetPasswordScreen(
 
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Minimum 8 characters",
+                        text = stringResource(R.string.auth_password_min_length),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -231,14 +239,14 @@ fun ResetPasswordScreen(
                                 strokeWidth = 2.dp,
                             )
                         } else {
-                            Text("Update Password")
+                            Text(stringResource(R.string.auth_update_password))
                         }
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
                     TextButton(onClick = onNavigateToForgotPassword) {
-                        Text("Need a new link? Request reset")
+                        Text(stringResource(R.string.auth_need_new_link))
                     }
                 }
             }

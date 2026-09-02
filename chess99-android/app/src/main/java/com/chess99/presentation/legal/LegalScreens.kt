@@ -356,7 +356,8 @@ object TermsOfServiceContent {
                 "The Service, including its software, design, logos, lessons, and puzzles, is owned by " +
                     "Chess99 or its licensors and is protected by intellectual-property laws. You may " +
                     "use the Service for your personal, non-commercial use only and may not copy, " +
-                    "distribute, or create derivative works without our permission.",
+                    "distribute, or create derivative works without our permission. Open-source " +
+                    "components included in the Service remain governed by their respective licences.",
             ),
         ),
         LegalSection(

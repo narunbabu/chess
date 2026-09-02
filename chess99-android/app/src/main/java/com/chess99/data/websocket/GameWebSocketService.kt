@@ -163,10 +163,16 @@ class GameWebSocketService @Inject constructor(
                 eventName.contains("game.activated") -> GameEvent.GameActivated
                 eventName.contains("game.chat") -> {
                     GameEvent.ChatMessage(
-                        userId = data.get("user_id")?.asInt ?: 0,
-                        userName = data.get("user_name")?.asString ?: "",
+                        messageId = data.get("id")?.asInt ?: 0,
+                        userId = data.get("sender_id")?.asInt
+                            ?: data.get("user_id")?.asInt
+                            ?: 0,
+                        userName = data.get("sender_name")?.asString
+                            ?: data.get("user_name")?.asString
+                            ?: "",
                         message = data.get("message")?.asString ?: "",
                         timestamp = data.get("created_at")?.asString ?: "",
+                        filtered = data.get("filtered")?.asBoolean ?: false,
                     )
                 }
                 eventName.contains("draw.offered") -> {
@@ -302,6 +308,15 @@ class GameWebSocketService @Inject constructor(
 
     suspend fun getChatMessages(): Result<JsonObject> = apiCall {
         webSocketApi.getChatMessages(gameId!!)
+    }
+
+    suspend fun reportChatMessage(messageId: Int, reason: String): Result<JsonObject> = apiCall {
+        val body = JsonObject().apply { addProperty("reason", reason) }
+        webSocketApi.reportChatMessage(gameId!!, messageId, body)
+    }
+
+    suspend fun blockUser(userId: Int): Result<JsonObject> = apiCall {
+        webSocketApi.blockUser(userId)
     }
 
     // ── Polling Fallback ────────────────────────────────────────────────
@@ -453,10 +468,12 @@ sealed class GameEvent {
     data class GameResumed(val whiteTime: Int?, val blackTime: Int?) : GameEvent()
     data object GameActivated : GameEvent()
     data class ChatMessage(
+        val messageId: Int,
         val userId: Int,
         val userName: String,
         val message: String,
         val timestamp: String,
+        val filtered: Boolean,
     ) : GameEvent()
     data class DrawOffered(val offeredBy: Int) : GameEvent()
     data object DrawAccepted : GameEvent()

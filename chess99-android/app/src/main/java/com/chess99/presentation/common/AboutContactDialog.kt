@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 
 /**
  * About & Contact info dialog.
@@ -72,7 +73,7 @@ fun AboutContactDialog(
             TextButton(
                 onClick = {
                     val intent = Intent(Intent.ACTION_SENDTO).apply {
-                        data = Uri.parse("mailto:support@chess99.com")
+                        data = "mailto:support@chess99.com".toUri()
                         putExtra(Intent.EXTRA_SUBJECT, "Chess99 App Feedback")
                     }
                     context.startActivity(intent)

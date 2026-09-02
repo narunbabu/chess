@@ -1,5 +1,8 @@
 package com.chess99.presentation.common
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -17,6 +20,9 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.imageResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
@@ -39,7 +45,12 @@ import kotlin.math.roundToInt
  * - Last move highlighting (colored squares)
  * - Check indicator (red king square)
  * - Board orientation flip
- * - Animated piece sliding (via recomposition)
+ * - Animated piece sliding: the piece that just moved slides from its origin
+ *   square to its destination (castling slides the rook too). Suppressed for
+ *   drag-and-drop, where the player has already dragged the piece there.
+ * - Capture feedback: the taken piece fades and shrinks away as the incoming
+ *   piece lands on it, instead of blinking out of existence.
+ * - Promotion feedback: the arriving pawn cross-fades into the piece it became.
  * - Haptic feedback on capture
  */
 data class BoardArrow(
@@ -55,6 +66,7 @@ fun ChessBoardView(
     isInteractive: Boolean = true,
     lastMoveFrom: Int = -1,
     lastMoveTo: Int = -1,
+    lastMoveEffects: MoveEffects = MoveEffects.None,
     arrows: List<BoardArrow> = emptyList(),
     onMove: ((from: String, to: String, promotion: Char?) -> Unit)? = null,
     modifier: Modifier = Modifier,
@@ -100,6 +112,79 @@ fun ChessBoardView(
     var dragOffset by remember { mutableStateOf(Offset.Zero) }
     var isDragging by remember { mutableStateOf(false) }
 
+    // ── Move slide animation ─────────────────────────────────────────
+    // When a new (lastMoveFrom, lastMoveTo) pair arrives, the piece now sitting
+    // on lastMoveTo is drawn sliding in from lastMoveFrom instead of appearing
+    // there instantly. A castling move slides the rook alongside the king.
+    //
+    // Drag-and-drop is excluded: the player has already physically dragged the
+    // piece to the destination, so replaying the slide would look like a rewind.
+    var animFrom by remember { mutableIntStateOf(-1) }
+    var animTo by remember { mutableIntStateOf(-1) }
+    var animRookFrom by remember { mutableIntStateOf(-1) }
+    var animRookTo by remember { mutableIntStateOf(-1) }
+    // Piece taken by the animated move, fading out where it stood.
+    var animCaptured by remember { mutableIntStateOf(Piece.NONE) }
+    var animCapturedSquare by remember { mutableIntStateOf(-1) }
+    // True while the arriving pawn is turning into the piece it promoted to.
+    var animPromoting by remember { mutableStateOf(false) }
+    val slide = remember { Animatable(1f) }
+    // 0 = still a pawn, 1 = fully the promoted piece. Parked at 1 when the
+    // move was not a promotion, so the normal draw path is unaffected.
+    val promote = remember { Animatable(1f) }
+    // Set by onDragEnd so the move it produces is not re-animated.
+    var dragMoveSquares by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+
+    LaunchedEffect(lastMoveFrom, lastMoveTo, lastMoveEffects) {
+        val wasDragged = dragMoveSquares == (lastMoveFrom to lastMoveTo)
+        dragMoveSquares = null
+
+        if (wasDragged || lastMoveFrom < 0 || lastMoveTo < 0 || lastMoveFrom == lastMoveTo) {
+            animFrom = -1
+            animTo = -1
+            animRookFrom = -1
+            animRookTo = -1
+            animCaptured = Piece.NONE
+            animCapturedSquare = -1
+            animPromoting = false
+            slide.snapTo(1f)
+            promote.snapTo(1f)
+            return@LaunchedEffect
+        }
+
+        animFrom = lastMoveFrom
+        animTo = lastMoveTo
+
+        // Castling also moves a rook; slide it alongside the king.
+        val moved = game.get(lastMoveTo)
+        val isKing = moved != Piece.NONE && Piece.type(moved) == Piece.KING
+        val rookSlide = BoardGeometry.castlingRookSlide(lastMoveFrom, lastMoveTo, isKing)
+        animRookFrom = rookSlide?.first ?: -1
+        animRookTo = rookSlide?.second ?: -1
+
+        animCaptured = if (lastMoveEffects.hasCapture) lastMoveEffects.capturedPiece else Piece.NONE
+        animCapturedSquare = if (lastMoveEffects.hasCapture) lastMoveEffects.capturedSquare else -1
+        animPromoting = lastMoveEffects.isPromotion
+
+        promote.snapTo(if (animPromoting) 0f else 1f)
+        slide.snapTo(0f)
+        slide.animateTo(1f, tween(MOVE_ANIMATION_MS, easing = FastOutSlowInEasing))
+
+        // The victim has finished fading by the time the mover lands.
+        animCaptured = Piece.NONE
+        animCapturedSquare = -1
+
+        if (animPromoting) {
+            promote.animateTo(1f, tween(PROMOTION_ANIMATION_MS, easing = FastOutSlowInEasing))
+        }
+
+        animFrom = -1
+        animTo = -1
+        animRookFrom = -1
+        animRookTo = -1
+        animPromoting = false
+    }
+
     // Board sizing
     BoxWithConstraints(modifier = modifier.aspectRatio(1f)) {
         val boardSizePx = with(LocalDensity.current) {
@@ -115,13 +200,7 @@ fun ChessBoardView(
             return actualRank * 16 + actualFile // 0x88 square
         }
 
-        fun boardToView(sq: Int): Offset {
-            val rank = Square.rank(sq)
-            val file = Square.file(sq)
-            val viewFile = if (boardOrientation == com.chess99.engine.Color.WHITE) file else 7 - file
-            val viewRank = if (boardOrientation == com.chess99.engine.Color.WHITE) rank else 7 - rank
-            return Offset(viewFile * squareSize, viewRank * squareSize)
-        }
+        fun boardToView(sq: Int): Offset = squareTopLeft(sq, squareSize, boardOrientation)
 
         fun selectSquare(sq: Int) {
             val piece = game.get(sq)
@@ -131,9 +210,17 @@ fun ChessBoardView(
             }
         }
 
+        val boardDescription = boardContentDescription(
+            turnIsWhite = game.turn == com.chess99.engine.Color.WHITE,
+            inCheck = game.isCheck(),
+            lastMoveFrom = lastMoveFrom,
+            lastMoveTo = lastMoveTo,
+        )
+
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
+                .semantics { contentDescription = boardDescription }
                 .pointerInput(isInteractive, game.fen()) {
                     if (!isInteractive) return@pointerInput
                     detectTapGestures { offset ->
@@ -188,6 +275,9 @@ fun ChessBoardView(
                                 if (sq in legalMoveTargets) {
                                     val fromAlg = Square.toAlgebraic(dragFrom)
                                     val toAlg = Square.toAlgebraic(sq)
+                                    // The player already dragged the piece here —
+                                    // suppress the slide for this move.
+                                    dragMoveSquares = dragFrom to sq
                                     val isPromotion = Piece.type(draggedPiece) == Piece.PAWN &&
                                             (Square.rank(sq) == 0 || Square.rank(sq) == 7)
                                     val captured = game.get(sq)
@@ -284,6 +374,9 @@ fun ChessBoardView(
                     val piece = game.get(sq)
                     if (piece == Piece.NONE) continue
                     if (isDragging && sq == dragFrom) continue // Don't draw dragged piece at original position
+                    // Mid-slide the moved piece (and a castling rook) is drawn
+                    // separately at its interpolated position, below.
+                    if (sq == animTo || sq == animRookTo) continue
 
                     val viewFile = if (boardOrientation == com.chess99.engine.Color.WHITE) file else 7 - file
                     val viewRank = if (boardOrientation == com.chess99.engine.Color.WHITE) rank else 7 - rank
@@ -291,6 +384,62 @@ fun ChessBoardView(
                     val y = viewRank * sqSize
 
                     pieceBitmap(piece)?.let { drawPieceImage(it, Offset(x, y), sqSize) }
+                }
+            }
+
+            // The piece this move captured is already off the board, so draw it
+            // back in on the square it was standing on, fading and shrinking so
+            // it has left by the time the incoming piece lands on top of it.
+            if (animCaptured != Piece.NONE && animCapturedSquare >= 0) {
+                val t = slide.value.coerceIn(0f, 1f)
+                pieceBitmap(animCaptured)?.let {
+                    drawPieceImage(
+                        image = it,
+                        topLeft = squareTopLeft(animCapturedSquare, sqSize, boardOrientation),
+                        squareSize = sqSize,
+                        alpha = 1f - t,
+                        scale = 1f - CAPTURE_SHRINK * t,
+                    )
+                }
+            }
+
+            // Draw the sliding piece(s) at their interpolated position. Reading
+            // slide.value here keeps the redraw in the draw phase only.
+            if (animTo >= 0) {
+                val t = slide.value
+                for ((fromSq, toSq) in listOf(animFrom to animTo, animRookFrom to animRookTo)) {
+                    if (fromSq < 0 || toSq < 0) continue
+                    val piece = game.get(toSq)
+                    if (piece == Piece.NONE) continue
+                    val start = squareTopLeft(fromSq, sqSize, boardOrientation)
+                    val end = squareTopLeft(toSq, sqSize, boardOrientation)
+                    val pos = Offset(
+                        start.x + (end.x - start.x) * t,
+                        start.y + (end.y - start.y) * t,
+                    )
+                    if (toSq == animTo && animPromoting) {
+                        // Travel as a pawn, arrive as whatever it became.
+                        val p = promote.value.coerceIn(0f, 1f)
+                        val pawn = Piece.make(Piece.PAWN, Piece.color(piece))
+                        if (p < 1f) {
+                            pieceBitmap(pawn)?.let {
+                                drawPieceImage(it, pos, sqSize, alpha = 1f - p, scale = 1f - PROMOTION_DIP * p)
+                            }
+                        }
+                        if (p > 0f) {
+                            pieceBitmap(piece)?.let {
+                                drawPieceImage(
+                                    image = it,
+                                    topLeft = pos,
+                                    squareSize = sqSize,
+                                    alpha = p,
+                                    scale = (1f - PROMOTION_DIP) + PROMOTION_DIP * p,
+                                )
+                            }
+                        }
+                    } else {
+                        pieceBitmap(piece)?.let { drawPieceImage(it, pos, sqSize) }
+                    }
                 }
             }
 
@@ -324,18 +473,116 @@ fun ChessBoardView(
 
 // ── Drawing Helpers ──────────────────────────────────────────────────
 
+/**
+ * Spoken summary of the board for TalkBack. The Canvas draws everything itself,
+ * so without this the whole board is invisible to screen readers.
+ */
+@Composable
+private fun boardContentDescription(
+    turnIsWhite: Boolean,
+    inCheck: Boolean,
+    lastMoveFrom: Int,
+    lastMoveTo: Int,
+): String {
+    val side = stringResource(if (turnIsWhite) R.string.board_a11y_white else R.string.board_a11y_black)
+    val parts = mutableListOf(stringResource(R.string.board_a11y_board))
+    if (lastMoveFrom >= 0 && lastMoveTo >= 0) {
+        parts += stringResource(
+            R.string.board_a11y_last_move,
+            Square.toAlgebraic(lastMoveFrom),
+            Square.toAlgebraic(lastMoveTo),
+        )
+    }
+    parts += stringResource(R.string.board_a11y_to_move, side)
+    if (inCheck) parts += stringResource(R.string.board_a11y_in_check, side)
+    return parts.joinToString(" ")
+}
+
+/** How long a piece takes to slide to its destination square. */
+private const val MOVE_ANIMATION_MS = 180
+
+/**
+ * How long the arriving pawn takes to become the piece it promoted to. Runs
+ * after the slide, so a promotion animates for MOVE_ANIMATION_MS + this —
+ * still comfortably inside the fastest replay auto-play interval (1000 ms).
+ */
+private const val PROMOTION_ANIMATION_MS = 120
+
+/** How far a captured piece shrinks while fading out. */
+private const val CAPTURE_SHRINK = 0.25f
+
+/** How far the promoting piece scales down at the mid-point of the cross-fade. */
+private const val PROMOTION_DIP = 0.25f
+
+/** Top-left pixel offset of a 0x88 square, honouring board orientation. */
+private fun squareTopLeft(
+    sq: Int,
+    squareSize: Float,
+    orientation: com.chess99.engine.Color,
+): Offset {
+    val whiteAtBottom = orientation == com.chess99.engine.Color.WHITE
+    return Offset(
+        BoardGeometry.viewFile(sq, whiteAtBottom) * squareSize,
+        BoardGeometry.viewRank(sq, whiteAtBottom) * squareSize,
+    )
+}
+
+/**
+ * Pure board geometry, split out from the drawing code so it can be unit
+ * tested on the JVM (no Compose or Android classes involved).
+ */
+internal object BoardGeometry {
+    /** Column a piece is drawn in, 0 = left edge, given board orientation. */
+    fun viewFile(sq: Int, whiteAtBottom: Boolean): Int {
+        val file = Square.file(sq)
+        return if (whiteAtBottom) file else 7 - file
+    }
+
+    /** Row a piece is drawn in, 0 = top edge, given board orientation. */
+    fun viewRank(sq: Int, whiteAtBottom: Boolean): Int {
+        val rank = Square.rank(sq)
+        return if (whiteAtBottom) rank else 7 - rank
+    }
+
+    /**
+     * Origin and destination of the rook in a castling move, or null when the
+     * move was not a castle. The king travels exactly two files; the rook has
+     * already been placed on the square the king crossed, so we slide it in
+     * from the corner it started on.
+     */
+    fun castlingRookSlide(from: Int, to: Int, movedPieceIsKing: Boolean): Pair<Int, Int>? {
+        if (!movedPieceIsKing) return null
+        if (Square.rank(from) != Square.rank(to)) return null
+        val fileDelta = Square.file(to) - Square.file(from)
+        val rank = Square.rank(to)
+        return when (fileDelta) {
+            2 -> (rank * 16 + 7) to (rank * 16 + 5)  // king-side: h-file rook -> f-file
+            -2 -> (rank * 16 + 0) to (rank * 16 + 3) // queen-side: a-file rook -> d-file
+            else -> null
+        }
+    }
+}
+
 private fun DrawScope.drawPieceImage(
     image: ImageBitmap,
     topLeft: Offset,
     squareSize: Float,
+    alpha: Float = 1f,
+    scale: Float = 1f,
 ) {
-    val size = squareSize.roundToInt()
+    val drawnSize = squareSize * scale
+    val size = drawnSize.roundToInt()
+    if (size <= 0) return
+    // Shrinking keeps the piece centred on its square rather than pinned to the
+    // top-left corner of it.
+    val inset = (squareSize - drawnSize) / 2f
     drawImage(
         image = image,
         srcOffset = IntOffset.Zero,
         srcSize = IntSize(image.width, image.height),
-        dstOffset = IntOffset(topLeft.x.roundToInt(), topLeft.y.roundToInt()),
+        dstOffset = IntOffset((topLeft.x + inset).roundToInt(), (topLeft.y + inset).roundToInt()),
         dstSize = IntSize(size, size),
+        alpha = alpha.coerceIn(0f, 1f),
         filterQuality = FilterQuality.High,
     )
 }

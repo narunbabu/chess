@@ -12,7 +12,7 @@ local.properties
 
 # Stockfish source used to cross-compile app/src/main/jniLibs/*/libstockfish.so
 # (S2 spec). Only the compiled .so outputs are tracked; the cloned sources are not.
-third_party/
+third_party/*
 
 # Build artifacts
 .gradle/

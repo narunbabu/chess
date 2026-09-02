@@ -27,6 +27,7 @@ class AuthRepositoryImpl @Inject constructor(
         passwordConfirmation: String,
         birthday: String,
         guardianEmail: String?,
+        referralCode: String?,
     ): Result<AuthResult> {
         return executeAuth {
             authApi.register(
@@ -37,13 +38,16 @@ class AuthRepositoryImpl @Inject constructor(
                     passwordConfirmation = passwordConfirmation,
                     birthday = birthday,
                     guardianEmail = guardianEmail,
+                    referralCode = referralCode,
                 )
             )
         }
     }
 
-    override suspend fun googleMobileLogin(idToken: String): Result<AuthResult> {
-        return executeAuth { authApi.googleMobileLogin(GoogleMobileLoginRequest(idToken)) }
+    override suspend fun googleMobileLogin(idToken: String, referralCode: String?): Result<AuthResult> {
+        return executeAuth {
+            authApi.googleMobileLogin(GoogleMobileLoginRequest(idToken, referralCode))
+        }
     }
 
     override suspend fun facebookMobileLogin(accessToken: String): Result<AuthResult> {
@@ -93,7 +97,9 @@ class AuthRepositoryImpl @Inject constructor(
             if (response.isSuccessful) {
                 val userDto = response.body()
                     ?: return Result.failure(Exception("Empty response"))
-                Result.success(userDto.toDomain())
+                val user = userDto.toDomain()
+                tokenManager.saveIsMinor(user.isMinor)
+                Result.success(user)
             } else {
                 Result.failure(Exception("Failed to get user: ${response.code()}"))
             }
@@ -122,6 +128,7 @@ class AuthRepositoryImpl @Inject constructor(
                 tokenManager.saveUserId(authResult.user.id)
                 tokenManager.saveUserName(authResult.user.name)
                 tokenManager.saveUserEmail(authResult.user.email)
+                tokenManager.saveIsMinor(authResult.user.isMinor)
                 Result.success(authResult)
             } else {
                 val errorBody = response.errorBody()?.string()

@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.core.app.NotificationCompat
+import androidx.core.net.toUri
 import com.chess99.R
 import com.chess99.presentation.MainActivity
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -200,7 +201,7 @@ class NotificationHelper @Inject constructor(
     private fun buildDeepLinkPendingIntent(uri: String, requestCode: Int): PendingIntent {
         val intent = Intent(context, MainActivity::class.java).apply {
             action = Intent.ACTION_VIEW
-            data = Uri.parse(uri)
+            data = uri.toUri()
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
 

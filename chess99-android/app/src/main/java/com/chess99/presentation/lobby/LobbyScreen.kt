@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -17,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -69,7 +71,14 @@ fun LobbyScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("Lobby")
                         Spacer(modifier = Modifier.width(8.dp))
-                        Badge { Text("${state.onlineCount} online") }
+                        // Count what the Players tab actually lists. onlineCount
+                        // comes from a separate endpoint that counts only real
+                        // humans, which read as "0 online" above a list of nine
+                        // available opponents. Synthetic players are presented as
+                        // ordinary opponents, so they count as available too.
+                        Badge {
+                            Text("${maxOf(state.onlineCount, state.onlinePlayers.size)} online")
+                        }
                     }
                 },
                 navigationIcon = {
@@ -135,12 +144,24 @@ fun LobbyScreen(
             // Tab content
             when (state.selectedTab) {
                 LobbyTab.PLAYERS -> PlayersTab(
-                    players = state.onlinePlayers,
-                    isLoading = state.isLoading,
+                    state = state,
                     onChallenge = { playerId ->
-                        viewModel.sendInvitation(playerId, "10|0", "random", "casual")
+                        viewModel.sendInvitation(
+                            playerId,
+                            "${state.selectedTimeControlMinutes}|${state.selectedIncrementSeconds}",
+                            "random",
+                            // Invitations take rated|casual too; a learning game
+                            // is a casual one with help enabled.
+                            if (state.selectedGameMode == "rated") "rated" else "casual",
+                        )
                     },
                     onPlaySynthetic = { viewModel.startGameVsSynthetic(it) },
+                    onMinRatingChange = { viewModel.setRatingWindowDraftMin(it) },
+                    onMaxRatingChange = { viewModel.setRatingWindowDraftMax(it) },
+                    onApplyRatingWindow = { viewModel.applyRatingWindow() },
+                    onResetRatingWindow = { viewModel.resetRatingWindow() },
+                    onGameModeChange = { viewModel.setSelectedGameMode(it) },
+                    onTimeControlChange = { m, i -> viewModel.setSelectedTimeControl(m, i) },
                 )
                 LobbyTab.FRIENDS -> FriendsTab(
                     friends = state.friends,
@@ -181,21 +202,21 @@ fun LobbyScreen(
 
 @Composable
 private fun PlayersTab(
-    players: List<LobbyPlayer>,
-    isLoading: Boolean,
+    state: LobbyUiState,
     onChallenge: (Int) -> Unit,
     onPlaySynthetic: (LobbyPlayer) -> Unit,
+    onMinRatingChange: (String) -> Unit,
+    onMaxRatingChange: (String) -> Unit,
+    onApplyRatingWindow: () -> Unit,
+    onResetRatingWindow: () -> Unit,
+    onGameModeChange: (String) -> Unit,
+    onTimeControlChange: (Int, Int) -> Unit,
 ) {
-    if (isLoading && players.isEmpty()) {
+    val players = state.visiblePlayers
+
+    if (state.isLoading && state.onlinePlayers.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
-        }
-        return
-    }
-
-    if (players.isEmpty()) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("No players online", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         return
     }
@@ -205,6 +226,52 @@ private fun PlayersTab(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        item {
+            EloFilterCard(
+                minText = state.ratingWindowDraftMin,
+                maxText = state.ratingWindowDraftMax,
+                canReset = state.hasStoredRatingWindow,
+                onMinChange = onMinRatingChange,
+                onMaxChange = onMaxRatingChange,
+                onApply = onApplyRatingWindow,
+                onReset = onResetRatingWindow,
+            )
+        }
+
+        item {
+            GameOptionsCard(
+                selectedMode = state.selectedGameMode,
+                timeControlMinutes = state.selectedTimeControlMinutes,
+                incrementSeconds = state.selectedIncrementSeconds,
+                onModeChange = onGameModeChange,
+                onTimeControlChange = onTimeControlChange,
+            )
+        }
+
+        if (players.isEmpty()) {
+            item {
+                // Distinguish "nobody here" from "your filter hid everyone" - the
+                // old copy said "No players online" in both cases.
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 32.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        if (state.onlinePlayers.isEmpty()) {
+                            "No players online"
+                        } else {
+                            "No opponents rated ${state.ratingWindow.minRating}-" +
+                                "${state.ratingWindow.maxRating}. Widen the range to see more."
+                        },
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            }
+        }
+
         items(players, key = { "${if (it.isSynthetic) "s" else "h"}-${it.id}" }) { player ->
             PlayerCard(
                 player = player,
@@ -215,6 +282,133 @@ private fun PlayersTab(
         }
     }
 }
+
+/**
+ * Elo range filter - web parity with PlayersList.jsx's "ELO From/To" row.
+ * Filtering is local: the server is queried across the full span, so narrowing
+ * or widening is instant and never blanks the list while a request is in flight.
+ */
+@Composable
+private fun EloFilterCard(
+    minText: String,
+    maxText: String,
+    canReset: Boolean,
+    onMinChange: (String) -> Unit,
+    onMaxChange: (String) -> Unit,
+    onApply: () -> Unit,
+    onReset: () -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(
+                "Opponent rating",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedTextField(
+                    value = minText,
+                    onValueChange = onMinChange,
+                    label = { Text("From") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f),
+                )
+                Text("to", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                OutlinedTextField(
+                    value = maxText,
+                    onValueChange = onMaxChange,
+                    label = { Text("To") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = onApply) { Text("Apply") }
+                if (canReset) {
+                    OutlinedButton(onClick = onReset) { Text("Reset") }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Mode and time control applied when starting a game from this list. Previously
+ * hardcoded to casual 10|0 in LobbyViewModel.startGameVsSynthetic, so the
+ * Players tab could only ever start one kind of game.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun GameOptionsCard(
+    selectedMode: String,
+    timeControlMinutes: Int,
+    incrementSeconds: Int,
+    onModeChange: (String) -> Unit,
+    onTimeControlChange: (Int, Int) -> Unit,
+) {
+    val options = listOf(3 to 1, 5 to 0, 10 to 0, 15 to 10, 30 to 0)
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(
+                "Game options",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                "Mode",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                MODE_OPTIONS.forEach { (value, label) ->
+                    FilterChip(
+                        selected = selectedMode == value,
+                        onClick = { onModeChange(value) },
+                        label = { Text(label) },
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                "Time",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                options.forEach { (minutes, increment) ->
+                    FilterChip(
+                        selected = timeControlMinutes == minutes && incrementSeconds == increment,
+                        onClick = { onTimeControlChange(minutes, increment) },
+                        label = { Text("$minutes+$increment") },
+                    )
+                }
+            }
+        }
+    }
+}
+
+private val MODE_OPTIONS = listOf(
+    "casual" to "Casual",
+    "learning" to "Learning",
+    "rated" to "Rated",
+)
 
 @Composable
 private fun PlayerCard(player: LobbyPlayer, onChallenge: () -> Unit) {
@@ -236,22 +430,12 @@ private fun PlayerCard(player: LobbyPlayer, onChallenge: () -> Unit) {
 
             // Player info
             Column(modifier = Modifier.weight(1f)) {
+                // Synthetic players are presented as ordinary opponents chosen by
+                // rating — deliberately no "BOT" badge. Players pick someone at
+                // their level, not a labelled machine. `isSynthetic` still drives
+                // behaviour (instant start vs invitation), just not the copy.
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(player.name, fontWeight = FontWeight.Medium)
-                    if (player.isSynthetic) {
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Surface(
-                            shape = MaterialTheme.shapes.small,
-                            color = MaterialTheme.colorScheme.secondaryContainer,
-                        ) {
-                            Text(
-                                "BOT",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
-                            )
-                        }
-                    }
                 }
                 Text(
                     "Rating: ${player.rating}",
@@ -600,6 +784,11 @@ private fun MatchmakingTab(
                         selected = selectedMode == "casual",
                         onClick = { selectedMode = "casual" },
                         label = { Text("Casual") },
+                    )
+                    FilterChip(
+                        selected = selectedMode == "learning",
+                        onClick = { selectedMode = "learning" },
+                        label = { Text("Learning") },
                     )
                     FilterChip(
                         selected = selectedMode == "rated",

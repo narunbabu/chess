@@ -2,6 +2,7 @@ package com.chess99.data.local
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -25,7 +26,7 @@ class TokenManager @Inject constructor(
     )
 
     fun saveToken(token: String) {
-        prefs.edit().putString(KEY_TOKEN, token).apply()
+        prefs.edit { putString(KEY_TOKEN, token) }
     }
 
     fun getToken(): String? {
@@ -33,7 +34,7 @@ class TokenManager @Inject constructor(
     }
 
     fun saveUserId(userId: Int) {
-        prefs.edit().putInt(KEY_USER_ID, userId).apply()
+        prefs.edit { putInt(KEY_USER_ID, userId) }
     }
 
     fun getUserId(): Int {
@@ -41,7 +42,7 @@ class TokenManager @Inject constructor(
     }
 
     fun saveUserName(name: String) {
-        prefs.edit().putString(KEY_USER_NAME, name).apply()
+        prefs.edit { putString(KEY_USER_NAME, name) }
     }
 
     fun getUserName(): String? {
@@ -49,11 +50,23 @@ class TokenManager @Inject constructor(
     }
 
     fun saveUserEmail(email: String) {
-        prefs.edit().putString(KEY_USER_EMAIL, email).apply()
+        prefs.edit { putString(KEY_USER_EMAIL, email) }
     }
 
     fun getUserEmail(): String? {
         return prefs.getString(KEY_USER_EMAIL, null)
+    }
+
+    fun saveIsMinor(isMinor: Boolean) {
+        prefs.edit { putBoolean(KEY_IS_MINOR, isMinor) }
+    }
+
+    /**
+     * Fail closed when an older session has no cached age classification.
+     * The next current-user/auth response refreshes this value.
+     */
+    fun isMinor(): Boolean {
+        return prefs.getBoolean(KEY_IS_MINOR, true)
     }
 
     fun isLoggedIn(): Boolean {
@@ -61,7 +74,7 @@ class TokenManager @Inject constructor(
     }
 
     fun clearAll() {
-        prefs.edit().clear().apply()
+        prefs.edit { clear() }
     }
 
     companion object {
@@ -69,5 +82,6 @@ class TokenManager @Inject constructor(
         private const val KEY_USER_ID = "user_id"
         private const val KEY_USER_NAME = "user_name"
         private const val KEY_USER_EMAIL = "user_email"
+        private const val KEY_IS_MINOR = "is_minor"
     }
 }

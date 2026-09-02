@@ -1,5 +1,6 @@
 package com.chess99.presentation.onboarding
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -34,6 +35,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -43,22 +45,24 @@ import com.chess99.presentation.theme.ChessDarkGreen
 import com.chess99.presentation.theme.ChessGreen
 
 private data class OnboardingPage(
-    val headline: String,
-    val body: String,
+    @StringRes val headline: Int,
+    @StringRes val body: Int,
 )
 
+// Resource ids, not literals: this list is a top-level val, so it is built
+// once outside any composition and could not call stringResource() anyway.
 private val onboardingPages = listOf(
     OnboardingPage(
-        headline = "Learn chess the fun way",
-        body = "Lessons, puzzles and games built for young players.",
+        headline = R.string.onboarding_1_headline,
+        body = R.string.onboarding_1_body,
     ),
     OnboardingPage(
-        headline = "Play and improve every day",
-        body = "Solve daily challenges, earn XP and climb the leaderboard.",
+        headline = R.string.onboarding_2_headline,
+        body = R.string.onboarding_2_body,
     ),
     OnboardingPage(
-        headline = "Safe for kids. Loved by parents.",
-        body = "Kid-safe chat controls and a parent dashboard keep you in charge.",
+        headline = R.string.onboarding_3_headline,
+        body = R.string.onboarding_3_body,
     ),
 )
 
@@ -99,7 +103,7 @@ fun OnboardingScreen(
                 .align(Alignment.TopEnd)
                 .padding(top = 8.dp, end = 8.dp),
         ) {
-            Text("Skip", color = Color.White)
+            Text(stringResource(R.string.onboarding_skip), color = Color.White)
         }
 
         Column(
@@ -144,7 +148,7 @@ private fun OnboardingPageContent(page: Int) {
         Spacer(Modifier.height(40.dp))
 
         Text(
-            text = data.headline,
+            text = stringResource(data.headline),
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             color = Color.White,
@@ -154,7 +158,7 @@ private fun OnboardingPageContent(page: Int) {
         Spacer(Modifier.height(12.dp))
 
         Text(
-            text = data.body,
+            text = stringResource(data.body),
             style = MaterialTheme.typography.bodyLarge,
             color = Color.White.copy(alpha = 0.9f),
             textAlign = TextAlign.Center,

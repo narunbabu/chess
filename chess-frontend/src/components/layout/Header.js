@@ -748,6 +748,12 @@ const Header = () => {
                 </button>
                 <button
                   className="nav-item"
+                  onClick={() => handleNavItemClick(() => navigate('/community-programs'), '/community-programs')}
+                >
+                  💼 Community Opportunities
+                </button>
+                <button
+                  className="nav-item"
                   onClick={() => handleNavItemClick(() => navigate('/history'), '/history')}
                 >
                   📋 My Games

@@ -11,6 +11,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -174,6 +175,7 @@ private fun AppDrawer(
     val footer = listOf(
         DrawerEntry("Privacy Policy", Icons.Default.PrivacyTip, Screen.Privacy.route),
         DrawerEntry("Terms of Service", Icons.Default.Description, Screen.Terms.route),
+        DrawerEntry("Open-source licences", Icons.Default.Code, Screen.OpenSourceLicenses.route),
     )
 
     ModalDrawerSheet {
@@ -354,7 +356,7 @@ private fun PlayTab(
                 QuickAction("Daily", Icons.Default.Today, Color(0xFF8B4513)) { onNavigate(Screen.DailyChallenges.route) },
                 QuickAction("Tournaments", Icons.Default.EmojiEvents, Color(0xFF5A7A42)) { onNavigate(Screen.ChampionshipList.route) },
                 QuickAction("Leaderboard", Icons.Default.Leaderboard, Color(0xFFB07D00)) { onNavigate(Screen.Leaderboard.route) },
-                QuickAction("Progress", Icons.Default.ShowChart, Color(0xFF5A7A42)) { onNavigate(Screen.Progress.route) },
+                QuickAction("Progress", Icons.AutoMirrored.Filled.ShowChart, Color(0xFF5A7A42)) { onNavigate(Screen.Progress.route) },
                 QuickAction("History", Icons.Default.History, Color(0xFF6B5B47)) { onNavigate(Screen.GameHistory.route) },
             )
             actions.chunked(2).forEach { row ->

@@ -6,11 +6,19 @@ sealed class Screen(val route: String) {
 
     // Auth
     data object Login : Screen("login")
-    data object Register : Screen("register")
+    data object Register : Screen("register?referralCode={referralCode}") {
+        const val BASE_ROUTE = "register"
+        fun createRoute(referralCode: String? = null): String =
+            if (referralCode.isNullOrBlank()) {
+                BASE_ROUTE
+            } else {
+                "$BASE_ROUTE?referralCode=${android.net.Uri.encode(referralCode)}"
+            }
+    }
     data object ForgotPassword : Screen("forgot_password")
     data object ResetPassword : Screen("reset_password?token={token}&email={email}") {
         fun createRoute(token: String, email: String) =
-            "reset_password?token=$token&email=$email"
+            "reset_password?token=${android.net.Uri.encode(token)}&email=${android.net.Uri.encode(email)}"
     }
     data object SkillAssessment : Screen("skill_assessment")
 
@@ -98,4 +106,5 @@ sealed class Screen(val route: String) {
     data object Ebook : Screen("ebook")
     data object Privacy : Screen("privacy")
     data object Terms : Screen("terms")
+    data object OpenSourceLicenses : Screen("open_source_licenses")
 }

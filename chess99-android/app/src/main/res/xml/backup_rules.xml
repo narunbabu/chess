@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Pre-Android-12 counterpart to data_extraction_rules.xml. android:allowBackup
+  is already "false", so this file should never be consulted; it exists so the
+  opt-out is stated explicitly on every API level the app supports rather than
+  resting on one attribute.
+
+  Nothing here is backed up: the app's shared preferences hold the Sanctum API
+  token and the signed-in child's profile.
+-->
+<full-backup-content>
+    <exclude domain="root" path="." />
+    <exclude domain="file" path="." />
+    <exclude domain="database" path="." />
+    <exclude domain="sharedpref" path="." />
+    <exclude domain="external" path="." />
+</full-backup-content>

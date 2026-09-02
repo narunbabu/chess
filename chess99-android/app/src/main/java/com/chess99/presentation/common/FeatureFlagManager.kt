@@ -2,12 +2,16 @@ package com.chess99.presentation.common
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import com.chess99.data.api.AuthApi
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -47,8 +51,8 @@ class FeatureFlagManager @Inject constructor(
      * In-memory cache of feature flags.
      * Thread-safe via volatile + immutable map replacement.
      */
-    @Volatile
-    private var flags: Map<String, Boolean> = loadFromPrefs()
+    private val _flags = MutableStateFlow(loadFromPrefs())
+    val flags: StateFlow<Map<String, Boolean>> = _flags.asStateFlow()
 
     init {
         // Initial refresh on creation
@@ -70,13 +74,13 @@ class FeatureFlagManager @Inject constructor(
      * Returns `false` if the flag is not known or not yet fetched.
      */
     fun isEnabled(flag: String): Boolean {
-        return flags[flag] ?: false
+        return _flags.value[flag] ?: false
     }
 
     /**
      * Get all known flags as an immutable map.
      */
-    fun getAllFlags(): Map<String, Boolean> = flags.toMap()
+    fun getAllFlags(): Map<String, Boolean> = _flags.value.toMap()
 
     /**
      * Manually trigger a flag refresh from the server.
@@ -95,7 +99,7 @@ class FeatureFlagManager @Inject constructor(
                 val newFlags = healthResponse?.features ?: emptyMap()
 
                 if (newFlags.isNotEmpty()) {
-                    flags = newFlags
+                    _flags.value = newFlags
                     saveToPrefs(newFlags)
                     Timber.d("Feature flags refreshed: $newFlags")
                 }
@@ -120,16 +124,16 @@ class FeatureFlagManager @Inject constructor(
     }
 
     private fun saveToPrefs(newFlags: Map<String, Boolean>) {
-        val editor = prefs.edit()
-        // Clear old flags
-        prefs.all.keys
-            .filter { it.startsWith(FLAG_PREFIX) }
-            .forEach { editor.remove(it) }
-        // Write new flags
-        for ((key, value) in newFlags) {
-            editor.putBoolean("$FLAG_PREFIX$key", value)
+        prefs.edit {
+            // Clear old flags
+            prefs.all.keys
+                .filter { it.startsWith(FLAG_PREFIX) }
+                .forEach { remove(it) }
+            // Write new flags
+            for ((key, value) in newFlags) {
+                putBoolean("$FLAG_PREFIX$key", value)
+            }
         }
-        editor.apply()
     }
 
     companion object {

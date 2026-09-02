@@ -256,7 +256,7 @@ class HomeViewModel @Inject constructor(
      */
     private suspend fun loadNearbyOpponents(userRating: Int?): List<NearbyOpponent> {
         return try {
-            val (minRating, maxRating) = RatingWindow.defaultWindow(userRating)
+            val (minRating, maxRating) = RatingWindow.default(userRating)
             val response = matchmakingApi.getLobbyPlayers(minRating, maxRating)
             if (!response.isSuccessful) return emptyList()
             val body = response.body() ?: return emptyList()

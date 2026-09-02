@@ -20,7 +20,16 @@ now loads them (`ImageBitmap.imageResource`) and draws with `drawImage`
 (FilterQuality.High). **Verified on-device**: puzzle board renders premium 3D
 pieces identical to web. Single shared board component, so this covers every screen.
 
-### Q2 — Engine features fully broken (no Stockfish binary bundled)
+### Q2 — Engine features fully broken (no Stockfish binary bundled)  ✅ FIXED — verified 2026-08-12
+Resolved via option (a). The APK now ships `lib/{arm64-v8a,armeabi-v7a,x86_64}/libstockfish.so`
+(1,034,800 / 745,280 / 1,030,256 bytes), confirmed by unzipping the built APK.
+On-device tests (`StockfishEngineInstrumentedTest`, 9/9 green on the API 36
+emulator) prove the process starts, completes the UCI handshake, returns legal
+ELO-shaped moves at every tier, finds mate in one at rating 400, and survives a
+30-ply self-play game. Still to do: re-run those tests on **arm64** hardware —
+the emulator only exercised the x86_64 binary.
+
+Original problem, for the record:
 No `jniLibs/` or `assets/stockfish` ships in the APK; `StockfishBridge` execs a
 binary that doesn't exist. Breaks, on ALL devices: Play vs Computer, Companion
 mode, CCT best-move, game-review engine analysis. **Fix options**:

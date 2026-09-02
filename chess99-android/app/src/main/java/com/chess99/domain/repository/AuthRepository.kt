@@ -12,8 +12,9 @@ interface AuthRepository {
         passwordConfirmation: String,
         birthday: String,
         guardianEmail: String? = null,
+        referralCode: String? = null,
     ): Result<AuthResult>
-    suspend fun googleMobileLogin(idToken: String): Result<AuthResult>
+    suspend fun googleMobileLogin(idToken: String, referralCode: String? = null): Result<AuthResult>
     suspend fun facebookMobileLogin(accessToken: String): Result<AuthResult>
     suspend fun refreshToken(deviceName: String? = null): Result<AuthResult>
     suspend fun revokeAllTokens(): Result<Int>

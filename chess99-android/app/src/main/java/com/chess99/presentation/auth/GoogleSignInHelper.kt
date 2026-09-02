@@ -2,11 +2,13 @@ package com.chess99.presentation.auth
 
 import android.content.Context
 import androidx.credentials.CredentialManager
+import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
+import androidx.credentials.exceptions.NoCredentialException
 import com.chess99.BuildConfig
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import dagger.hilt.android.qualifiers.ApplicationContext
 import timber.log.Timber
@@ -27,8 +29,9 @@ import javax.inject.Singleton
  *   - credentials           (androidx.credentials:credentials)
  *   - credentials.play.services (androidx.credentials:credentials-play-services-auth)
  *
- * The server client ID is expected as a BuildConfig field: GOOGLE_SERVER_CLIENT_ID.
- * If not set, falls back to an empty string and logs a warning.
+ * The server client ID is injected into BuildConfig from a Gradle property or
+ * environment variable. Release builds fail configuration validation when it
+ * is absent, while debug builds hide the Google button.
  */
 @Singleton
 class GoogleSignInHelper @Inject constructor(
@@ -44,32 +47,41 @@ class GoogleSignInHelper @Inject constructor(
      * @return [GoogleSignInResult] indicating success, failure, or cancellation.
      */
     suspend fun signIn(activityContext: Context): GoogleSignInResult {
-        val serverClientId = try {
-            @Suppress("UNNECESSARY_SAFE_CALL")
-            BuildConfig::class.java.getField("GOOGLE_SERVER_CLIENT_ID")
-                ?.get(null) as? String ?: ""
-        } catch (_: NoSuchFieldException) {
-            Timber.w("GOOGLE_SERVER_CLIENT_ID not found in BuildConfig; Google Sign-In may fail")
-            ""
+        val serverClientId = BuildConfig.GOOGLE_SERVER_CLIENT_ID
+        if (!BuildConfig.GOOGLE_SIGN_IN_ENABLED || serverClientId.isBlank()) {
+            val error = IllegalStateException("Google Sign-In is not configured")
+            Timber.e(error, "Refusing to launch an unconfigured Google Sign-In flow")
+            return GoogleSignInResult.Failure(error)
         }
 
-        if (serverClientId.isBlank()) {
-            Timber.w("Google server client ID is empty — sign-in will likely fail")
-        }
-
-        val googleIdOption = GetGoogleIdOption.Builder()
-            .setFilterByAuthorizedAccounts(false)
-            .setServerClientId(serverClientId)
-            .setAutoSelectEnabled(true)
-            .build()
+        // GetSignInWithGoogleOption, not GetGoogleIdOption: this method is only
+        // ever reached from an explicit "Sign in with Google" button. See the
+        // class KDoc for why the One Tap option is the wrong tool here.
+        val signInWithGoogleOption = GetSignInWithGoogleOption.Builder(serverClientId).build()
 
         val request = GetCredentialRequest.Builder()
-            .addCredentialOption(googleIdOption)
+            .addCredentialOption(signInWithGoogleOption)
             .build()
 
         return try {
             val result = credentialManager.getCredential(activityContext, request)
             val credential = result.credential
+
+            // Credential Manager can hand back other credential types (a saved
+            // password, a passkey) depending on what the device offers. Only a
+            // Google ID token credential can be exchanged with our backend, so
+            // check before parsing rather than letting createFrom() throw.
+            // The Sign-in-with-Google flow reports its own subtype, so accept both.
+            if (credential !is CustomCredential ||
+                (
+                    credential.type != GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL &&
+                        credential.type != GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_SIWG_CREDENTIAL
+                    )
+            ) {
+                val error = IllegalStateException("Unexpected credential type: ${credential.type}")
+                Timber.e(error, "Google Sign-In returned a non-Google credential")
+                return GoogleSignInResult.Failure(error)
+            }
 
             val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
             val idToken = googleIdTokenCredential.idToken
@@ -87,8 +99,28 @@ class GoogleSignInHelper @Inject constructor(
         } catch (e: GetCredentialCancellationException) {
             Timber.d("Google Sign-In cancelled by user")
             GoogleSignInResult.Cancelled
+        } catch (e: NoCredentialException) {
+            // Play Services had nothing to offer and showed no picker. Two very
+            // different causes reach here and the exception alone cannot tell
+            // them apart:
+            //   1. the device genuinely has no Google account, or
+            //   2. this build's package + signing SHA-1 is not registered as an
+            //      Android OAuth client in the Cloud project that owns the
+            //      server client ID, so Play Services declines outright.
+            // (2) is the more common cause on a side-loaded build, so log enough
+            // to distinguish them rather than asserting (1) to the user.
+            Timber.w(
+                e,
+                "Google Sign-In: no credential returned (type=%s). Either no Google " +
+                    "account on the device, or package %s / this build's signing SHA-1 " +
+                    "is not registered as an Android OAuth client in the project owning " +
+                    "the server client ID.",
+                e.type,
+                context.packageName,
+            )
+            GoogleSignInResult.NoCredential
         } catch (e: GetCredentialException) {
-            Timber.e(e, "Google Sign-In credential error: ${e.type}")
+            Timber.e(e, "Google Sign-In credential error: type=%s msg=%s", e.type, e.errorMessage)
             GoogleSignInResult.Failure(e)
         } catch (e: Exception) {
             Timber.e(e, "Google Sign-In unexpected error")
@@ -122,4 +154,10 @@ sealed class GoogleSignInResult {
      * User cancelled the sign-in flow.
      */
     data object Cancelled : GoogleSignInResult()
+
+    /**
+     * The device has no Google account available to sign in with. Distinct
+     * from [Failure]: nothing went wrong, there is simply nothing to pick.
+     */
+    data object NoCredential : GoogleSignInResult()
 }

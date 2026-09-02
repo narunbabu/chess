@@ -1,11 +1,15 @@
 package com.chess99.presentation.learn.tactical
 
 import android.content.Context
+import androidx.core.content.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chess99.data.api.TacticalApi
 import com.chess99.engine.ChessGame
 import com.chess99.engine.Color
+import com.chess99.engine.Move
+import com.chess99.presentation.common.MoveEffects
+import com.chess99.presentation.common.MoveReplay
 import com.chess99.presentation.common.friendlyError
 import com.google.gson.Gson
 import com.google.gson.JsonObject
@@ -39,6 +43,10 @@ data class TacticalTrainerUiState(
     val hintSquare: String? = null,
     val solutionShown: Boolean = false,
     val solutionMoveIndex: Int = 0,
+    // Squares of the ply that produced [fen], for the board highlight and slide.
+    val lastMoveFrom: Int = -1,
+    val lastMoveTo: Int = -1,
+    val lastMoveEffects: MoveEffects = MoveEffects.None,
     val lastScore: PuzzleScoreResult? = null,
     val lastRatingDelta: RatingDelta? = null,
     val errorMessage: String? = null,
@@ -95,7 +103,7 @@ class TacticalTrainerViewModel @Inject constructor(
 
     private fun saveProgressToPrefs() {
         val prefs = appContext.getSharedPreferences("chess99_tactical", Context.MODE_PRIVATE)
-        prefs.edit().putString("progress", gson.toJson(progress)).apply()
+        prefs.edit { putString("progress", gson.toJson(progress)) }
     }
 
     private fun syncProgressFromServer() {
@@ -324,6 +332,9 @@ class TacticalTrainerViewModel @Inject constructor(
             lastRatingDelta = null,
             puzzleIndex = index,
             showHintConfirmDialog = false,
+            lastMoveFrom = -1,
+            lastMoveTo = -1,
+            lastMoveEffects = MoveEffects.None,
         )
     }
 
@@ -336,7 +347,9 @@ class TacticalTrainerViewModel @Inject constructor(
 
         if (expectedMove != null && (moveStr == expectedMove || "$from$to" == expectedMove.take(4))) {
             val game = ChessGame(_uiState.value.fen)
-            game.move(from, to, promotion)
+            // The board highlights whichever ply left the position on screen,
+            // so keep hold of the last one actually played.
+            var lastPlayed: Move? = game.move(from, to, promotion)
             currentMoveIndex++
 
             if (currentMoveIndex >= puzzle.moves.size) {
@@ -345,16 +358,20 @@ class TacticalTrainerViewModel @Inject constructor(
                 // Opponent auto-responds
                 val oppMove = puzzle.moves.getOrNull(currentMoveIndex)
                 if (oppMove != null) {
-                    game.moveUci(oppMove)
+                    game.moveUci(oppMove)?.let { lastPlayed = it }
                     currentMoveIndex++
                     if (currentMoveIndex >= puzzle.moves.size) {
                         onPuzzleSolved(puzzle)
                         return
                     }
                 }
+                val played = lastPlayed
                 _uiState.value = _uiState.value.copy(
                     fen = game.fen(),
                     isWrongMove = false,
+                    lastMoveFrom = played?.from ?: -1,
+                    lastMoveTo = played?.to ?: -1,
+                    lastMoveEffects = played?.let { MoveReplay.effectsOf(it) } ?: MoveEffects.None,
                 )
             }
         } else {
@@ -434,7 +451,7 @@ class TacticalTrainerViewModel @Inject constructor(
         puzzleAttemptState.remove(puzzle.id)
 
         val finalGame = ChessGame(_uiState.value.fen)
-        finalGame.moveUci(puzzle.moves.last())
+        val finalMove = finalGame.moveUci(puzzle.moves.last())
         _uiState.value = _uiState.value.copy(
             fen = finalGame.fen(),
             isSolved = true,
@@ -442,6 +459,9 @@ class TacticalTrainerViewModel @Inject constructor(
             lastScore = score,
             lastRatingDelta = delta,
             progress = progress,
+            lastMoveFrom = finalMove?.from ?: -1,
+            lastMoveTo = finalMove?.to ?: -1,
+            lastMoveEffects = finalMove?.let { MoveReplay.effectsOf(it) } ?: MoveEffects.None,
         )
     }
 
@@ -526,12 +546,19 @@ class TacticalTrainerViewModel @Inject constructor(
         val puzzle = _uiState.value.currentPuzzle ?: return
         val newIndex = (_uiState.value.solutionMoveIndex + direction).coerceIn(0, puzzle.moves.lastIndex)
         val game = ChessGame(puzzle.fen)
+        // Stepping back through the solution highlights the move that produced
+        // the position now shown, not the one just undone.
+        var lastPlayed: Move? = null
         repeat(newIndex + 1) { idx ->
-            game.moveUci(puzzle.moves[idx])
+            game.moveUci(puzzle.moves[idx])?.let { lastPlayed = it }
         }
+        val played = lastPlayed
         _uiState.value = _uiState.value.copy(
             solutionMoveIndex = newIndex,
             fen = game.fen(),
+            lastMoveFrom = played?.from ?: -1,
+            lastMoveTo = played?.to ?: -1,
+            lastMoveEffects = played?.let { MoveReplay.effectsOf(it) } ?: MoveEffects.None,
         )
     }
 

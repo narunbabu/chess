@@ -19,10 +19,14 @@ data class RegisterRequest(
     val birthday: String? = null,
     @SerializedName("guardian_email")
     val guardianEmail: String? = null,
+    @SerializedName("referral_code")
+    val referralCode: String? = null,
 )
 
 data class GoogleMobileLoginRequest(
     val idToken: String,
+    @SerializedName("referral_code")
+    val referralCode: String? = null,
 )
 
 data class AppleMobileLoginRequest(

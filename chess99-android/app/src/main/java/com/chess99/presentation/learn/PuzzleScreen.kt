@@ -109,7 +109,15 @@ fun PuzzleScreen(
                         )
                         AssistChip(
                             onClick = { },
-                            label = { Text(state.difficulty) },
+                            label = {
+                                Text(
+                                    if (state.isOfflinePuzzle) {
+                                        "${state.difficulty} · Offline"
+                                    } else {
+                                        state.difficulty
+                                    }
+                                )
+                            },
                         )
                     }
 
@@ -129,6 +137,9 @@ fun PuzzleScreen(
                         game = game,
                         boardOrientation = state.playerColor,
                         isInteractive = !state.isSolved,
+                        lastMoveFrom = state.lastMoveFrom,
+                        lastMoveTo = state.lastMoveTo,
+                        lastMoveEffects = state.lastMoveEffects,
                         onMove = { from, to, promo -> viewModel.attemptMove(from, to, promo) },
                         modifier = Modifier
                             .fillMaxWidth()

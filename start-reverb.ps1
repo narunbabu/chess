@@ -4,7 +4,7 @@
 Write-Host "🚀 Starting Laravel Reverb WebSocket Server..." -ForegroundColor Cyan
 Write-Host ""
 
-Set-Location -Path "C:\ArunApps\Chess-Web\chess-backend"
+Set-Location -Path "D:\ArunApps\Chess-Web\chess-backend"
 
 Write-Host "📍 Location: $PWD" -ForegroundColor Yellow
 Write-Host "🌐 Server: http://localhost:8080" -ForegroundColor Green
