@@ -242,6 +242,11 @@ class TacticalProgressController extends Controller
             ];
         });
 
+        // A correctly solved puzzle credits the daily activity streak
+        if ($success) {
+            $this->creditDailyStreak($request->user(), $userId);
+        }
+
         $payload = $this->buildProgressPayload($userId, $result['stats']);
         $payload['attempt'] = [
             'puzzleId' => $puzzleId,
@@ -262,6 +267,23 @@ class TacticalProgressController extends Controller
         ];
 
         return response()->json($payload);
+    }
+
+    /**
+     * Credit the daily activity streak for a solved puzzle / newly solved
+     * puzzles. Never blocks the calling activity.
+     */
+    private function creditDailyStreak($user, int $userId): void
+    {
+        try {
+            $user->updateDailyStreak();
+        } catch (\Exception $e) {
+            \Log::error('Error updating daily streak', [
+                'user_id' => $userId,
+                'error' => $e->getMessage(),
+            ]);
+            // Continue even if streak update fails
+        }
     }
 
     /**
@@ -293,6 +315,8 @@ class TacticalProgressController extends Controller
         $legacyTotalAttempted = isset($data['totalAttempted']) ? (int) $data['totalAttempted'] : null;
         $legacyTotalSolved = isset($data['totalSolved']) ? (int) $data['totalSolved'] : null;
         $stageProgressPayload = $data['stageProgress'] ?? [];
+
+        $solvedBefore = (int) (UserTacticalStats::where('user_id', $userId)->value('total_solved') ?? 0);
 
         $result = DB::transaction(function () use (
             $userId,
@@ -460,6 +484,12 @@ class TacticalProgressController extends Controller
                 'awarded' => $awarded,
             ];
         });
+
+        // Newly solved puzzles credit the daily activity streak
+        $solvedAfter = (int) ($result['stats']->total_solved ?? 0);
+        if ($solvedAfter > $solvedBefore) {
+            $this->creditDailyStreak($request->user(), $userId);
+        }
 
         $payload = $this->buildProgressPayload($userId, $result['stats']);
         $payload['sync'] = [

@@ -4,6 +4,7 @@ import { Chessboard } from 'react-chessboard';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
+import useDailyStreak from '../hooks/useDailyStreak';
 import { getAvailableDailyTracks, getSubscriptionLabel } from '../constants/learningCurriculum';
 import api from '../services/api';
 
@@ -19,6 +20,7 @@ const TYPE_ICONS = { tactic: '⚡', endgame: '♟️', opening: '📖', puzzle: 
 const DailyChallengePage = () => {
   const { user } = useAuth();
   const { currentTier } = useSubscription();
+  const { streak } = useDailyStreak();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedTrack = searchParams.get('track') || 'daily-starter';
@@ -41,9 +43,6 @@ const DailyChallengePage = () => {
   // Timer
   const [elapsed, setElapsed] = useState(0);
   const timerRef = useRef(null);
-
-  // Streak
-  const [streak, setStreak] = useState(0);
 
   // Load daily challenge
   useEffect(() => {
@@ -73,15 +72,6 @@ const DailyChallengePage = () => {
         }
 
         setAttempts(data.user_completion?.attempts || 0);
-
-        // Load streak
-        if (user) {
-          try {
-            const statsRes = await api.get('/tutorial/progress/stats');
-            const stats = statsRes.data.data || statsRes.data;
-            setStreak(stats.daily_streak || 0);
-          } catch { /* ignore */ }
-        }
       } catch (err) {
         console.error('[DailyChallenge] Error loading:', err);
         if (err.response?.status === 403) {

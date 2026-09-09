@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Chessboard } from 'react-chessboard';
 import { useAuth } from '../contexts/AuthContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
+import useDailyStreak from '../hooks/useDailyStreak';
 import { getAvailableDailyTracks, getSubscriptionLabel } from '../constants/learningCurriculum';
 import api from '../services/api';
 import '../styles/UnifiedCards.css';
@@ -18,11 +19,11 @@ const TIER_ICONS = { beginner: '🌱', intermediate: '🎯', advanced: '🏆' };
 const DailyChallengesPage = () => {
   const { user } = useAuth();
   const { currentTier } = useSubscription();
+  const { streak } = useDailyStreak();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedTrack = searchParams.get('track') || 'daily-starter';
   const [challenge, setChallenge] = useState(null);
-  const [streak, setStreak] = useState(0);
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -34,18 +35,13 @@ const DailyChallengesPage = () => {
         setLoading(true);
         setChallenge(null);
         setLeaderboard([]);
-        const [challengeRes, statsRes, lbRes] = await Promise.allSettled([
+        const [challengeRes, lbRes] = await Promise.allSettled([
           api.get(`/tutorial/daily-challenge?track=${encodeURIComponent(selectedTrack)}`),
-          api.get('/tutorial/progress/stats'),
           api.get(`/tutorial/daily-challenge/leaderboard?track=${encodeURIComponent(selectedTrack)}`),
         ]);
 
         if (challengeRes.status === 'fulfilled') {
           setChallenge(challengeRes.value.data.data || challengeRes.value.data);
-        }
-        if (statsRes.status === 'fulfilled') {
-          const stats = statsRes.value.data.data || statsRes.value.data;
-          setStreak(stats.daily_streak || 0);
         }
         if (lbRes.status === 'fulfilled') {
           const lbData = lbRes.value.data.data || lbRes.value.data;
@@ -331,7 +327,14 @@ const DailyChallengesPage = () => {
 /* 7-day streak visualisation */
 const StreakBar = ({ streak }) => {
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const today = new Date().getDay();
+
+  // Streak day boundary is IST midnight (backend Asia/Kolkata) — derive the
+  // weekday labels in IST so they match the backend's day arithmetic.
+  const istToday = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Kolkata',
+    weekday: 'short',
+  }).format(new Date());
+  const today = days.indexOf(istToday);
 
   const filled = Array.from({ length: 7 }, (_, i) => {
     const offset = 6 - i;

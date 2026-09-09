@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import useDailyStreak from '../../hooks/useDailyStreak';
 import api from '../../services/api';
 import '../../styles/UnifiedCards.css';
 
@@ -12,9 +13,9 @@ const TIER_COLORS = {
 
 const DailyChallengeCard = () => {
   const { user } = useAuth();
+  const { streak } = useDailyStreak();
   const navigate = useNavigate();
   const [challenge, setChallenge] = useState(null);
-  const [streak, setStreak] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -23,12 +24,6 @@ const DailyChallengeCard = () => {
     const fetchData = () => {
       api.get('/tutorial/daily-challenge?track=daily-starter')
         .then(res => setChallenge(res.data.data || res.data))
-        .catch(() => {});
-      api.get('/tutorial/progress/stats')
-        .then(res => {
-          const stats = res.data.data || res.data;
-          setStreak(stats.daily_streak || 0);
-        })
         .catch(() => {});
       setLoading(false);
     };
@@ -177,7 +172,15 @@ const DailyChallengeCard = () => {
 /* 7-day streak visualisation — filled circles for active days, hollow for missed */
 const StreakBar = ({ streak }) => {
   const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-  const today = new Date().getDay(); // 0=Sun
+
+  // The streak day boundary is IST midnight (backend Asia/Kolkata), so the
+  // weekday labels must be derived in IST too — a local-time weekday would
+  // be wrong between local midnight and IST midnight.
+  const istToday = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Kolkata',
+    weekday: 'short',
+  }).format(new Date());
+  const today = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(istToday);
 
   // Build array of last 7 days (oldest first). `true` means the user completed
   // that day's challenge. For simplicity we mark `streak` consecutive days back

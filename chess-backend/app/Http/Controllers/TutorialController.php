@@ -417,6 +417,10 @@ class TutorialController extends Controller
                 'stats' => $stats,
                 'practice_stats' => $practiceStats,
                 'recent_assessments' => $assessments->toArray(),
+                // Canonical activity streak (users.current_streak_days) —
+                // kept alongside stats.current_streak so existing frontend
+                // keys keep working.
+                'daily_streak' => $user->current_streak_days,
             ],
         ]);
     }
@@ -673,6 +677,17 @@ class TutorialController extends Controller
             $userCompletion->markCompleted($request->time_spent_seconds);
             // Invalidate the cached leaderboard so the new completion appears immediately
             Cache::forget("daily_challenge_leaderboard:{$challenge->id}");
+
+            // Credit the activity streak for a correct daily challenge
+            try {
+                $user->updateDailyStreak();
+            } catch (\Exception $e) {
+                \Log::error('Error updating daily streak', [
+                    'user_id' => $user->id,
+                    'error' => $e->getMessage(),
+                ]);
+                // Continue even if streak update fails
+            }
         } else {
             $userCompletion->incrementAttempts();
         }

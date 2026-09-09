@@ -232,6 +232,17 @@ class TrainingDrillController extends Controller
             return $progress->fresh();
         });
 
+        // Any drill attempt credits the daily activity streak
+        try {
+            $user->updateDailyStreak();
+        } catch (\Exception $e) {
+            \Log::error('Error updating daily streak', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+            // Continue even if streak update fails
+        }
+
         return response()->json([
             'success' => true,
             'data' => [
