@@ -17,6 +17,20 @@ use Illuminate\Support\Facades\Log;
 
 class GameRoomService
 {
+    /**
+     * Standard chess starting position. Every game in this codebase is created
+     * from it (see createGame here and MatchmakingService).
+     */
+    private const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+
+    /**
+     * How long a pending takeback request stays valid on the server. The clients
+     * count down from UNDO_REQUEST_CLIENT_TTL_SECONDS; the extra seconds are
+     * clock-skew grace so a just-in-time accept is not rejected.
+     */
+    private const UNDO_REQUEST_SERVER_TTL_SECONDS = 35;
+    private const UNDO_REQUEST_CLIENT_TTL_SECONDS = 30;
+
     protected $chessRules;
 
     public function __construct(
@@ -2663,21 +2677,106 @@ class GameRoomService
         // Get requester user
         $requester = User::findOrFail($userId);
 
+        // Synthetic (bot) opponent: no user can authenticate as the bot and POST
+        // /undo/accept, so the server answers on its behalf with the exact same
+        // rollback the human accept path runs.
+        if ($game->synthetic_player_id) {
+            $syntheticName = optional($game->syntheticPlayer)->name ?? 'Computer';
+            $expectedFen = $game->fen;
+            $expectedMoveCount = (int) $game->move_count;
+            $expectedUndoRemaining = (int) $undoRemaining;
+
+            $result = \DB::transaction(function () use (
+                $gameId,
+                $userId,
+                $requesterColor,
+                $syntheticName,
+                $expectedFen,
+                $expectedMoveCount,
+                $expectedUndoRemaining
+            ) {
+                $lockedGame = Game::lockForUpdate()->findOrFail($gameId);
+                $undoField = $requesterColor === 'white' ? 'undo_white_remaining' : 'undo_black_remaining';
+
+                // The eligibility read above happens before the row lock. Recheck
+                // its full position version here so two concurrent bot requests,
+                // or a move racing the request, cannot roll back/decrement twice.
+                if (
+                    $lockedGame->getPlayerColor($userId) !== $requesterColor
+                    || $lockedGame->status !== 'active'
+                    || $lockedGame->game_mode === 'rated'
+                    || !$lockedGame->synthetic_player_id
+                    || $lockedGame->turn !== $requesterColor
+                    || (int) $lockedGame->move_count !== $expectedMoveCount
+                    || $lockedGame->fen !== $expectedFen
+                    || (int) $lockedGame->$undoField !== $expectedUndoRemaining
+                    || count($lockedGame->moves ?? []) < 2
+                ) {
+                    return [
+                        'success' => false,
+                        'message' => 'Game changed before the takeback could be applied'
+                    ];
+                }
+
+                return $this->applyUndo($lockedGame, $requesterColor, null, $syntheticName);
+            });
+
+            if (!$result['success']) {
+                return $result;
+            }
+
+            Log::info('Undo auto-accepted by synthetic opponent', [
+                'game_id' => $gameId,
+                'requested_by' => $userId,
+                'color' => $requesterColor,
+                'synthetic_player_id' => $game->synthetic_player_id
+            ]);
+
+            $result['auto_accepted'] = true;
+            $result['undo_remaining'] = max(0, $undoRemaining - 1);
+
+            return $result;
+        }
+
+        $expiresAt = now()->addSeconds(self::UNDO_REQUEST_CLIENT_TTL_SECONDS)->toIso8601String();
+
+        // Persist the pending request so a late accept can be rejected. Mirrors the
+        // draw-offer precedent (WebSocketController::offerDraw) - cache, not schema.
+        Cache::put(
+            $this->undoRequestCacheKey($gameId, $userId),
+            [
+                'requester_color' => $requesterColor,
+                'move_count' => (int) $game->move_count,
+                'fen' => $game->fen,
+            ],
+            self::UNDO_REQUEST_SERVER_TTL_SECONDS
+        );
+
         // Broadcast undo request event
-        broadcast(new \App\Events\UndoRequestedEvent($game, $requester, $undoRemaining));
+        broadcast(new \App\Events\UndoRequestedEvent($game, $requester, $undoRemaining, $expiresAt));
 
         Log::info('Undo requested', [
             'game_id' => $gameId,
             'requested_by' => $userId,
             'color' => $requesterColor,
-            'undo_remaining' => $undoRemaining
+            'undo_remaining' => $undoRemaining,
+            'expires_at' => $expiresAt
         ]);
 
         return [
             'success' => true,
             'message' => 'Undo request sent to opponent',
-            'undo_remaining' => $undoRemaining
+            'undo_remaining' => $undoRemaining,
+            'expires_at' => $expiresAt
         ];
+    }
+
+    /**
+     * Cache key holding the pending takeback request for a requester.
+     */
+    private function undoRequestCacheKey(int $gameId, int $requesterUserId): string
+    {
+        return "undo_request:{$gameId}:{$requesterUserId}";
     }
 
     /**
@@ -2733,48 +2832,165 @@ class GameRoomService
                 ];
             }
 
-            // Remove last 2 moves (one from each player)
-            $moves = $game->moves;
-            array_pop($moves);
-            array_pop($moves);
+            // The pending request must still exist. Consumed here, so the same
+            // request cannot be accepted twice.
+            $requesterUserId = $requesterColor === 'white' ? $game->white_player_id : $game->black_player_id;
+            $pending = $requesterUserId !== null
+                ? Cache::pull($this->undoRequestCacheKey($gameId, $requesterUserId))
+                : null;
 
-            // Update FEN to the state after the new last move
-            $newFen = count($moves) > 0 ? end($moves)['next_fen'] : 'rnbqkbnr/pqpppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+            if ($pending === null) {
+                return [
+                    'success' => false,
+                    'message' => 'This takeback request has expired'
+                ];
+            }
 
-            // Determine new turn (opposite of requester)
-            $newTurn = $requesterColor;
-
-            // Decrement undo count for requester
-            $game->$undoField = $game->$undoField - 1;
-
-            // Update game
-            $game->moves = $moves;
-            $game->fen = $newFen;
-            $game->turn = $newTurn;
-            $game->move_count = count($moves);
-            $game->save();
+            if (
+                !is_array($pending)
+                || ($pending['requester_color'] ?? null) !== $requesterColor
+                || (int) ($pending['move_count'] ?? -1) !== (int) $game->move_count
+                || ($pending['fen'] ?? null) !== $game->fen
+            ) {
+                return [
+                    'success' => false,
+                    'message' => 'The game changed after this takeback was requested'
+                ];
+            }
 
             // Get accepter user
             $accepter = User::findOrFail($userId);
 
-            // Broadcast undo accepted event
-            broadcast(new \App\Events\UndoAcceptedEvent($game->fresh(), $accepter));
-
-            Log::info('Undo accepted', [
-                'game_id' => $gameId,
-                'accepted_by' => $userId,
-                'requester_color' => $requesterColor,
-                'new_undo_remaining' => $game->$undoField,
-                'moves_removed' => 2,
-                'new_move_count' => count($moves)
-            ]);
-
-            return [
-                'success' => true,
-                'message' => 'Undo accepted',
-                'game' => $game->fresh()
-            ];
+            return $this->applyUndo($game, $requesterColor, $accepter, $accepter->name);
         });
+    }
+
+    /**
+     * Roll the game back by two plies and broadcast the acceptance.
+     *
+     * The single rollback implementation: the human accept path and the synthetic
+     * opponent's auto-accept both call this, so a bot takeback and a human takeback
+     * produce identical state transitions. The caller owns the transaction and the
+     * row lock. Throws rather than writing when the remaining moves cannot be replayed.
+     *
+     * @param Game $game Locked game row
+     * @param string $requesterColor 'white'|'black' - who asked for the takeback
+     * @param User|null $accepter Null when the synthetic opponent accepts
+     * @param string|null $accepterName Name to broadcast (the bot's when $accepter is null)
+     */
+    private function applyUndo(Game $game, string $requesterColor, ?User $accepter, ?string $accepterName): array
+    {
+        $undoField = $requesterColor === 'white' ? 'undo_white_remaining' : 'undo_black_remaining';
+
+        // Remove last 2 moves (one from each player)
+        $moves = $game->moves ?? [];
+        array_pop($moves);
+        array_pop($moves);
+        $moves = array_values($moves);
+
+        // Replay the remaining moves to recover the position. next_fen is never
+        // stored - both move write paths unset it - so it cannot be read back.
+        [$newFen, $replayedTurn] = $this->rebuildPositionFromMoves($moves);
+
+        // Determine new turn (the requester is on move again)
+        $newTurn = $requesterColor;
+
+        if ($replayedTurn !== $newTurn) {
+            Log::warning('Undo rollback turn disagrees with the replayed position', [
+                'game_id' => $game->id,
+                'requester_color' => $requesterColor,
+                'replayed_turn' => $replayedTurn,
+                'replayed_fen' => $newFen,
+                'remaining_moves' => count($moves)
+            ]);
+        }
+
+        // Decrement undo count for requester
+        $game->$undoField = max(0, $game->$undoField - 1);
+
+        // Update game
+        $game->moves = $moves;
+        $game->fen = $newFen;
+        $game->turn = $newTurn;
+        $game->move_count = count($moves);
+        $game->save();
+
+        $updatedGame = $game->fresh();
+
+        // Broadcast undo accepted event
+        broadcast(new \App\Events\UndoAcceptedEvent($updatedGame, $accepter, $accepterName));
+
+        Log::info('Undo accepted', [
+            'game_id' => $game->id,
+            'accepted_by' => $accepter?->id,
+            'accepted_by_synthetic' => $accepter === null,
+            'requester_color' => $requesterColor,
+            'new_undo_remaining' => $game->$undoField,
+            'moves_removed' => 2,
+            'new_move_count' => count($moves)
+        ]);
+
+        return [
+            'success' => true,
+            'message' => 'Undo accepted',
+            'game' => $updatedGame
+        ];
+    }
+
+    /**
+     * Replay stored moves from the starting position and return [fen, turn].
+     *
+     * Uses the same primitives as validateAndApplyMove, so a replayed position is
+     * identical to the one the move path would have written. Every write path stores
+     * from/to/promotion, which is all a replay needs. Throws on anything it cannot
+     * replay - a refused takeback is recoverable, a corrupted position is not.
+     *
+     * @param array $moves Moves that should remain on the board, in order
+     * @return array{0: string, 1: string} [fen, turn as 'white'|'black']
+     */
+    private function rebuildPositionFromMoves(array $moves): array
+    {
+        $fen = self::STARTING_FEN;
+        $turn = 'white';
+
+        foreach (array_values($moves) as $index => $move) {
+            if (!is_array($move)) {
+                throw new \Exception('Cannot replay stored move #' . ($index + 1) . ': not a move object');
+            }
+
+            $from = strtolower(trim((string)($move['from'] ?? '')));
+            $to = strtolower(trim((string)($move['to'] ?? '')));
+            $promotion = strtolower(trim((string)($move['promotion'] ?? '')));
+
+            if (!preg_match('/^[a-h][1-8]$/', $from) || !preg_match('/^[a-h][1-8]$/', $to)) {
+                throw new \Exception('Cannot replay stored move #' . ($index + 1) . ': invalid coordinates');
+            }
+
+            if ($promotion !== '' && !in_array($promotion, ['q', 'r', 'b', 'n'], true)) {
+                throw new \Exception('Cannot replay stored move #' . ($index + 1) . ': invalid promotion piece');
+            }
+
+            try {
+                $board = FenToBoardFactory::create($fen);
+            } catch (\Throwable $e) {
+                throw new \Exception('Cannot replay stored moves: invalid intermediate position');
+            }
+
+            $color = $this->roleToChessColor($turn);
+
+            if ($board->turn !== $color) {
+                throw new \Exception('Cannot replay stored move #' . ($index + 1) . ': turn out of sync');
+            }
+
+            if (!$board->playLan($color, $from . $to . $promotion)) {
+                throw new \Exception('Cannot replay stored move #' . ($index + 1) . ': illegal move');
+            }
+
+            $fen = $this->normalizeCastlingRightsAfterMove($fen, $board->toFen(), $from, $to);
+            $turn = $this->chessColorToRole($board->turn);
+        }
+
+        return [$fen, $turn];
     }
 
     /**
@@ -2794,6 +3010,15 @@ class GameRoomService
 
         // Get decliner user
         $decliner = User::findOrFail($userId);
+
+        // Drop the pending request so a later accept cannot resurrect it
+        $declinerColor = $game->getPlayerColor($userId);
+        $requesterColor = $declinerColor === 'white' ? 'black' : 'white';
+        $requesterUserId = $requesterColor === 'white' ? $game->white_player_id : $game->black_player_id;
+
+        if ($requesterUserId !== null) {
+            Cache::forget($this->undoRequestCacheKey($gameId, $requesterUserId));
+        }
 
         // Broadcast undo declined event
         broadcast(new \App\Events\UndoDeclinedEvent($game, $decliner));

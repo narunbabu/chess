@@ -20,6 +20,7 @@ class UndoRequestedEvent implements ShouldBroadcastNow
     public $requestedBy;
     public $requestedByUser;
     public $undoRemaining;
+    public $expiresAt;
 
     /**
      * Create a new event instance.
@@ -27,14 +28,17 @@ class UndoRequestedEvent implements ShouldBroadcastNow
      * @param Game $game
      * @param User $requestedByUser User who requested the undo
      * @param int $undoRemaining Number of undo chances remaining for requester
+     * @param string|null $expiresAt ISO-8601 instant the request stops being valid,
+     *                               so clients count down from the server clock
      * @return void
      */
-    public function __construct(Game $game, User $requestedByUser, int $undoRemaining)
+    public function __construct(Game $game, User $requestedByUser, int $undoRemaining, ?string $expiresAt = null)
     {
         $this->game = $game;
         $this->requestedBy = $requestedByUser->id;
         $this->requestedByUser = $requestedByUser;
         $this->undoRemaining = $undoRemaining;
+        $this->expiresAt = $expiresAt;
     }
 
     /**
@@ -69,6 +73,7 @@ class UndoRequestedEvent implements ShouldBroadcastNow
             'requested_by_user_id' => $this->requestedBy,
             'requested_by_user_name' => $this->requestedByUser->name,
             'undo_remaining' => $this->undoRemaining,
+            'expires_at' => $this->expiresAt,
         ];
     }
 }

@@ -241,6 +241,9 @@ const PlayMultiplayer = () => {
   const undoButtonUsesRef = useRef(0);
   const ratedModeRef = useRef(ratedMode);
   const userIdRef = useRef(user?.id);
+  const undoRequestTimerRef = useRef(null);
+  const lastAcceptedUndoRef = useRef(null);
+  useEffect(() => () => clearTimeout(undoRequestTimerRef.current), []);
   const lastBestRevealRef = useRef(null);
   const pendingReviewPromisesRef = useRef([]);
   const reviewArrowTimerRef = useRef(null);
@@ -1696,6 +1699,7 @@ const PlayMultiplayer = () => {
 
   // Handle draw offer received from opponent
   const handleDrawOfferReceived = useCallback((event) => {
+    if (event?.offerer_id != null && String(event.offerer_id) === String(userIdRef.current)) return;
     console.log('🤝 Handling draw offer received:', event);
     setDrawOfferPending(true);
     setDrawOfferedByMe(false);
@@ -1714,17 +1718,33 @@ const PlayMultiplayer = () => {
   // Handle undo request received from opponent
   const handleUndoRequestReceived = useCallback((event) => {
     console.log('↶ Handling undo request received:', event);
+    if (event?.requested_by_user_id != null && String(event.requested_by_user_id) === String(userIdRef.current)) return;
+    if (event?.expires_at && Date.parse(event.expires_at) <= Date.now()) return;
 
     // Extract opponent name from event
-    const opponentName = event.from_user?.name || event.from_player || 'Your opponent';
+    const opponentName = event.requested_by_user_name || event.from_user?.name || 'Your opponent';
 
     setUndoRequestFrom(opponentName);
     setUndoRequestPending(false); // Clear our own pending request if any
+    clearTimeout(undoRequestTimerRef.current);
+    const remaining = event?.expires_at ? Date.parse(event.expires_at) - Date.now() : 30000;
+    undoRequestTimerRef.current = setTimeout(() => setUndoRequestFrom(null), Math.min(30000, Math.max(0, remaining || 30000)));
   }, []);
 
   // Handle undo accepted by opponent
   const handleUndoAccepted = useCallback((event) => {
     console.log('✅ Handling undo accepted:', event);
+
+    // The server owns rollback and budgets. Repeated broadcasts must not
+    // subtract another turn or spend another help action.
+    if (!event?.fen || !Number.isInteger(event.move_count) || event.move_count < 0) return;
+    let restoredGame;
+    try { restoredGame = new Chess(event.fen); } catch { return; }
+    const fingerprint = JSON.stringify([event.game_id, event.fen, event.move_count, event.undo_white_remaining, event.undo_black_remaining]);
+    if (lastAcceptedUndoRef.current === fingerprint) return;
+    lastAcceptedUndoRef.current = fingerprint;
+    clearTimeout(undoRequestTimerRef.current);
+    setUndoRequestFrom(null);
 
     // Clear pending state
     setUndoRequestPending(false);
@@ -1734,7 +1754,7 @@ const PlayMultiplayer = () => {
       && userIdRef.current != null
       && String(event.accepted_by_user_id) === String(userIdRef.current);
 
-    if (hasAcceptedByUser && !acceptedByMe) {
+    if ((hasAcceptedByUser && !acceptedByMe) || event.accepted_by_synthetic) {
       recordUndoButtonUse();
     }
 
@@ -1753,38 +1773,11 @@ const PlayMultiplayer = () => {
     setUndoChancesRemaining((prev) => (
       serverUndoRemaining !== null && serverUndoRemaining !== undefined
         ? Math.max(0, Number(serverUndoRemaining) || 0)
-        : Math.max(0, prev - 1)
+        : prev
     ));
 
-    // Rollback game state - remove last two moves (our move and opponent's response)
-    if (event.fen && event.history) {
-      // Use backend-provided game state
-      setGameHistory(event.history || []);
-
-      // Update chess instance
-      const newGame = new Chess(event.fen);
-      setGame(newGame);
-    } else {
-      // Fallback: rollback locally
-      setGameHistory(prev => {
-        const newHistory = prev.slice(0, -2); // Remove last 2 moves
-
-        // Update chess instance from history
-        if (newHistory.length > 0) {
-          const lastMove = newHistory[newHistory.length - 1];
-          if (lastMove?.fen) {
-            const restoredGame = new Chess(lastMove.fen);
-            setGame(restoredGame);
-          }
-        } else {
-          // Reset to initial position if no history
-          const freshGame = new Chess();
-          setGame(freshGame);
-        }
-
-        return newHistory;
-      });
-    }
+    setGame(restoredGame);
+    setGameHistory(prev => prev.slice(0, event.move_count));
 
     console.log('[Undo] ✅ Move undone successfully');
   }, [recordUndoButtonUse, setUndoChancesRemaining]);
@@ -1792,7 +1785,8 @@ const PlayMultiplayer = () => {
   // Handle undo declined by opponent
   const handleUndoDeclined = useCallback((event) => {
     console.log('❌ Handling undo declined:', event);
-
+    clearTimeout(undoRequestTimerRef.current);
+    setUndoRequestFrom(null);
     setUndoRequestPending(false);
     alert('Your undo request was declined.');
   }, []);
@@ -2683,8 +2677,14 @@ const PlayMultiplayer = () => {
 
       // Send undo request via WebSocket
       if (wsService.current && wsService.current.requestUndo) {
-        await wsService.current.requestUndo();
         setUndoRequestPending(true);
+        clearTimeout(undoRequestTimerRef.current);
+        undoRequestTimerRef.current = setTimeout(() => {
+          setUndoRequestPending(false);
+          setNotificationMessage('Takeback request expired. You can try again; no help was spent.');
+          setShowNotification(true);
+        }, 30000);
+        await wsService.current.requestUndo();
         console.log('[Undo] ✅ Undo request sent, waiting for opponent response');
       } else {
         console.error('[Undo] ❌ WebSocket service not available or requestUndo method missing');
@@ -2692,6 +2692,8 @@ const PlayMultiplayer = () => {
       }
     } catch (error) {
       console.error('[Undo] ❌ Failed to request undo:', error);
+      clearTimeout(undoRequestTimerRef.current);
+      setUndoRequestPending(false);
       alert('❌ Failed to request undo: ' + error.message);
     }
   }, [canUndo, undoChancesRemaining, ratedMode, gameComplete, isMyTurn, gameHistory]);
@@ -4665,7 +4667,7 @@ const PlayMultiplayer = () => {
   }, [game, gameInfo.playerColor, isSyntheticGame, syntheticMoveInProgress, gameComplete, performSyntheticMove]);
   // ─────────────────────────────────────────────────────────────────────────
 
-  const performMove = (source, target) => {
+  const performMove = (source, target, promotion = 'q') => {
     if (gameComplete || gameInfo.status === 'finished') return false;
 
     // Prevent moves if game is not active or paused (wait for resume)
@@ -4701,7 +4703,7 @@ const PlayMultiplayer = () => {
     const gameCopy = new Chess(prevFen);
 
     try {
-      const move = gameCopy.move({ from: source, to: target, promotion: 'q' });
+      const move = gameCopy.move({ from: source, to: target, promotion });
       if (!move) {
         let reason = 'Invalid move.';
         if (previousState.inCheck()) {
@@ -4883,7 +4885,7 @@ const PlayMultiplayer = () => {
     }
   }
 
-  const onDrop = (sourceSquare, targetSquare) => {
+  const onDrop = (sourceSquare, targetSquare, piece, promotion = 'q') => {
     // Disable drag and drop if game is complete or not active
     if (gameComplete || gameInfo.status === 'finished' || gameInfo.status !== 'active') {
       return false;
@@ -4892,7 +4894,7 @@ const PlayMultiplayer = () => {
     // Clear click-selection state after drag-drop
     setSelectedSquare(null);
     setOptionSquares({});
-    return performMove(sourceSquare, targetSquare);
+    return performMove(sourceSquare, targetSquare, promotion);
   };
 
   const handleSquareClick = (square) => {
@@ -5261,6 +5263,8 @@ const PlayMultiplayer = () => {
 
   const gameContainerSection = (
     <GameContainer
+      accessibleMoveData={{ fen: game.fen(), disabled: gameComplete || gameInfo.status !== 'active' || !isMyTurn || connectionStatus !== 'connected',
+        onMove: (from, to, promotion) => onDrop(from, to, null, promotion) }}
       mode="multiplayer"
       header={headerSection}
       boardTheme={boardTheme}

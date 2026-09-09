@@ -66,7 +66,11 @@ class PlayMultiplayerViewModel @Inject constructor(
 
     private var game = ChessGame()
     private var timerJob: Job? = null
+    private var undoRequestExpiryJob: Job? = null
+    private var incomingUndoExpiryJob: Job? = null
     private var myUserId: Int = 0
+    private var hasSeenWebSocketConnection = false
+    private var lastAppliedUndoSnapshot: AuthoritativeUndoSnapshot? = null
     private var companionContinuousJob: Job? = null
     private var syntheticOpponentJob: Job? = null
 
@@ -104,6 +108,8 @@ class PlayMultiplayerViewModel @Inject constructor(
         private val KNOWN_WEBSOCKET_ERROR_MESSAGES = setOf(
             "Connection lost. Please rejoin the game.",
         )
+
+        internal const val UNDO_REQUEST_TIMEOUT_MS = 30_000L
     }
 
     // ── Load Game ───────────────────────────────────────────────────────
@@ -316,6 +322,7 @@ class PlayMultiplayerViewModel @Inject constructor(
                     },
                     isWebSocketConnected = true,
                 )
+                hasSeenWebSocketConnection = true
             }
 
             // Collect game events
@@ -325,10 +332,24 @@ class PlayMultiplayerViewModel @Inject constructor(
         }
     }
 
-    private fun handleGameEvent(event: GameEvent) {
+    internal fun handleGameEvent(event: GameEvent) {
         when (event) {
             is GameEvent.Connected -> {
-                _uiState.value = _uiState.value.copy(isWebSocketConnected = true)
+                val state = _uiState.value
+                val recoveredPendingRequest = hasSeenWebSocketConnection && state.undoRequestPending
+                if (recoveredPendingRequest) {
+                    undoRequestExpiryJob?.cancel()
+                }
+                _uiState.value = state.copy(
+                    isWebSocketConnected = true,
+                    undoRequestPending = if (recoveredPendingRequest) false else state.undoRequestPending,
+                    snackbarMessage = if (recoveredPendingRequest) {
+                        "Connection restored — ask for a takeback again if you still need it."
+                    } else {
+                        state.snackbarMessage
+                    },
+                )
+                hasSeenWebSocketConnection = true
             }
 
             is GameEvent.MoveMade -> handleOpponentMove(event)
@@ -404,22 +425,21 @@ class PlayMultiplayerViewModel @Inject constructor(
             is GameEvent.UndoRequested -> {
                 if (event.requestedBy != myUserId) {
                     _uiState.value = _uiState.value.copy(undoRequestedByOpponent = true)
+                    startIncomingUndoExpiry()
                 }
             }
 
             is GameEvent.UndoAccepted -> {
-                // Only the requester spends an undo. reloadGameState() re-seeds
-                // the count from the server, so just clear the local pending
-                // flag here and let the reload be the source of truth.
-                _uiState.value = _uiState.value.copy(
-                    undoRequestedByOpponent = false,
-                    undoRequestPending = false,
+                applyAuthoritativeUndo(
+                    fen = event.fen,
+                    moveCount = event.moveCount,
+                    undoWhiteRemaining = event.undoWhiteRemaining,
+                    undoBlackRemaining = event.undoBlackRemaining,
                 )
-                // Reload game state to get updated FEN
-                reloadGameState()
             }
 
             is GameEvent.UndoDeclined -> {
+                cancelUndoExpiryJobs()
                 _uiState.value = _uiState.value.copy(
                     undoRequestedByOpponent = false,
                     undoRequestPending = false,
@@ -709,17 +729,20 @@ class PlayMultiplayerViewModel @Inject constructor(
      * (PlayMultiplayer.js:2636): blocked in rated games, only on your own turn,
      * only with a chance left and at least one full move pair on the board.
      * The move is not rolled back here — that happens when the opponent accepts
-     * and [reloadGameState] brings back the server's position.
+     * and the authoritative accepted event (or bot response) supplies the position.
      */
     fun requestUndo() {
         val state = _uiState.value
         if (!state.canRequestUndo) return
 
         _uiState.value = state.copy(undoRequestPending = true)
+        startUndoRequestExpiry()
         viewModelScope.launch {
             gameWebSocketService.requestUndo()
+                .onSuccess(::applySyntheticUndoResponse)
                 .onFailure { e ->
                     Timber.w(e, "Failed to request undo")
+                    undoRequestExpiryJob?.cancel()
                     _uiState.value = _uiState.value.copy(
                         undoRequestPending = false,
                         snackbarMessage = "Couldn't ask for a takeback. Please try again.",
@@ -731,6 +754,14 @@ class PlayMultiplayerViewModel @Inject constructor(
     fun acceptUndo() {
         viewModelScope.launch {
             gameWebSocketService.acceptUndo()
+                .onFailure { e ->
+                    Timber.w(e, "Failed to accept undo")
+                    incomingUndoExpiryJob?.cancel()
+                    _uiState.value = _uiState.value.copy(
+                        undoRequestedByOpponent = false,
+                        snackbarMessage = "That takeback request is no longer available.",
+                    )
+                }
         }
     }
 
@@ -738,9 +769,144 @@ class PlayMultiplayerViewModel @Inject constructor(
         viewModelScope.launch {
             val result = gameWebSocketService.declineUndo()
             result.onSuccess {
+                incomingUndoExpiryJob?.cancel()
+                _uiState.value = _uiState.value.copy(undoRequestedByOpponent = false)
+            }
+            result.onFailure { e ->
+                Timber.w(e, "Failed to decline undo")
+                incomingUndoExpiryJob?.cancel()
+                _uiState.value = _uiState.value.copy(
+                    undoRequestedByOpponent = false,
+                    snackbarMessage = "That takeback request is no longer available.",
+                )
+            }
+        }
+    }
+
+    private fun startUndoRequestExpiry() {
+        undoRequestExpiryJob?.cancel()
+        undoRequestExpiryJob = viewModelScope.launch {
+            delay(UNDO_REQUEST_TIMEOUT_MS)
+            if (_uiState.value.undoRequestPending) {
+                _uiState.value = _uiState.value.copy(
+                    undoRequestPending = false,
+                    snackbarMessage = "No response — takeback request expired.",
+                )
+            }
+        }
+    }
+
+    private fun startIncomingUndoExpiry() {
+        incomingUndoExpiryJob?.cancel()
+        incomingUndoExpiryJob = viewModelScope.launch {
+            delay(UNDO_REQUEST_TIMEOUT_MS)
+            if (_uiState.value.undoRequestedByOpponent) {
                 _uiState.value = _uiState.value.copy(undoRequestedByOpponent = false)
             }
         }
+    }
+
+    private fun cancelUndoExpiryJobs() {
+        undoRequestExpiryJob?.cancel()
+        incomingUndoExpiryJob?.cancel()
+        undoRequestExpiryJob = null
+        incomingUndoExpiryJob = null
+    }
+
+    /**
+     * A bot takeback is accepted during the request POST. Apply that response as
+     * a fallback as well as listening for the broadcast, so a brief socket gap
+     * cannot leave the native board ahead of the server.
+     */
+    private fun applySyntheticUndoResponse(response: JsonObject) {
+        if (response.get("auto_accepted")?.takeIf { it.isJsonPrimitive }?.asBoolean != true) return
+
+        val gameObj = response.get("game")?.takeIf { it.isJsonObject }?.asJsonObject ?: return
+        val fen = gameObj.get("fen")?.takeIf { it.isJsonPrimitive }?.asString ?: return
+        val moveCount = gameObj.get("move_count")?.takeIf { it.isJsonPrimitive }?.asInt ?: return
+        val whiteRemaining = gameObj.get("undo_white_remaining")
+            ?.takeIf { it.isJsonPrimitive }?.asInt ?: return
+        val blackRemaining = gameObj.get("undo_black_remaining")
+            ?.takeIf { it.isJsonPrimitive }?.asInt ?: return
+
+        applyAuthoritativeUndo(fen, moveCount, whiteRemaining, blackRemaining)
+    }
+
+    private fun applyAuthoritativeUndo(
+        fen: String,
+        moveCount: Int,
+        undoWhiteRemaining: Int,
+        undoBlackRemaining: Int,
+    ) {
+        val state = _uiState.value
+        val snapshot = AuthoritativeUndoSnapshot(
+            fen = fen,
+            moveCount = moveCount.coerceAtLeast(0),
+            undoWhiteRemaining = undoWhiteRemaining.coerceAtLeast(0),
+            undoBlackRemaining = undoBlackRemaining.coerceAtLeast(0),
+        )
+
+        cancelUndoExpiryJobs()
+
+        // A synthetic acceptance arrives both by broadcast and in the request
+        // response. Deduplicate the snapshot so budget-related side effects remain
+        // one-shot even if delivery order changes.
+        if (snapshot == lastAppliedUndoSnapshot) {
+            _uiState.value = state.copy(
+                undoRequestedByOpponent = false,
+                undoRequestPending = false,
+            )
+            return
+        }
+
+        // An accepted takeback always removes exactly two plies. Without a
+        // protocol revision/request id, this shape check is the strongest safe
+        // protection against an older accepted frame arriving after newer moves.
+        if (state.moveHistory.size != snapshot.moveCount + 2) {
+            Timber.w(
+                "Ignoring out-of-order takeback snapshot: local=%d server=%d",
+                state.moveHistory.size,
+                snapshot.moveCount,
+            )
+            _uiState.value = state.copy(
+                undoRequestedByOpponent = false,
+                undoRequestPending = false,
+                snackbarMessage = "Game changed while the takeback was arriving. Re-syncing…",
+            )
+            reloadGameState()
+            return
+        }
+
+        val authoritativeGame = try {
+            ChessGame(snapshot.fen)
+        } catch (e: Exception) {
+            Timber.e(e, "Ignoring invalid authoritative takeback FEN")
+            _uiState.value = state.copy(
+                undoRequestedByOpponent = false,
+                undoRequestPending = false,
+                snackbarMessage = "Couldn't restore the takeback position. Reopen the game.",
+            )
+            return
+        }
+
+        game = authoritativeGame
+        val history = state.moveHistory.take(snapshot.moveCount)
+        val lastMove = history.lastOrNull()
+        lastAppliedUndoSnapshot = snapshot
+
+        _uiState.value = state.copy(
+            fen = snapshot.fen,
+            moveHistory = history,
+            lastMoveFrom = lastMove?.from?.let(Square::fromAlgebraic) ?: -1,
+            lastMoveTo = lastMove?.to?.let(Square::fromAlgebraic) ?: -1,
+            undoChancesRemaining = if (state.playerColor == Color.WHITE) {
+                snapshot.undoWhiteRemaining
+            } else {
+                snapshot.undoBlackRemaining
+            },
+            undoRequestedByOpponent = false,
+            undoRequestPending = false,
+        )
     }
 
     fun pauseGame() {
@@ -1587,6 +1753,7 @@ class PlayMultiplayerViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         timerJob?.cancel()
+        cancelUndoExpiryJobs()
         companionContinuousJob?.cancel()
         syntheticOpponentJob?.cancel()
         cctAnalysisJob?.cancel()
@@ -1595,6 +1762,13 @@ class PlayMultiplayerViewModel @Inject constructor(
         gameWebSocketService.disconnect()
     }
 }
+
+private data class AuthoritativeUndoSnapshot(
+    val fen: String,
+    val moveCount: Int,
+    val undoWhiteRemaining: Int,
+    val undoBlackRemaining: Int,
+)
 
 // ── UI State ────────────────────────────────────────────────────────────
 

@@ -126,7 +126,7 @@
         "private-game.{gameId}": {
           "type": "object",
           "title": "Game Channel",
-          "description": "Private channel for real-time game events. Requires authentication. Only the two players in a game are authorized to join.",
+          "description": "Private channel for real-time game events, including draw offers. Requires authentication. Only the two players in a game are authorized to join.",
           "properties": {
             "channel_type": { "type": "string", "const": "private" },
             "channel_pattern": { "type": "string", "const": "private-game.{gameId}" },
@@ -390,9 +390,10 @@
                         "game_id": { "type": "integer", "description": "ID of the game." },
                         "requested_by_user_id": { "type": "integer", "description": "User ID of the player requesting the undo." },
                         "requested_by_user_name": { "type": "string", "description": "Display name of the requesting player." },
-                        "undo_remaining": { "type": "integer", "description": "Number of undo chances remaining for the requester.", "minimum": 0 }
+                        "undo_remaining": { "type": "integer", "description": "Number of undo chances remaining for the requester.", "minimum": 0 },
+                        "expires_at": { "type": ["string", "null"], "format": "date-time", "description": "ISO 8601 instant the request stops being valid. Clients count down from this server-issued value; the server keeps the pending request for a few seconds longer as clock-skew grace." }
                       },
-                      "required": ["game_id", "requested_by_user_id", "requested_by_user_name", "undo_remaining"]
+                      "required": ["game_id", "requested_by_user_id", "requested_by_user_name", "undo_remaining", "expires_at"]
                     }
                   }
                 },
@@ -408,8 +409,9 @@
                       "type": "object",
                       "properties": {
                         "game_id": { "type": "integer", "description": "ID of the game." },
-                        "accepted_by_user_id": { "type": "integer", "description": "User ID of the player who accepted the undo." },
-                        "accepted_by_user_name": { "type": "string", "description": "Display name of the player who accepted." },
+                        "accepted_by_user_id": { "type": ["integer", "null"], "description": "User ID of the player who accepted the undo. Null when the synthetic (bot) opponent accepted server-side." },
+                        "accepted_by_user_name": { "type": "string", "description": "Display name of the player - or of the synthetic opponent - who accepted." },
+                        "accepted_by_synthetic": { "type": "boolean", "description": "True when the server accepted on behalf of a synthetic (bot) opponent, which has no user to authenticate as." },
                         "fen": { "type": "string", "description": "New FEN string after the undo (board state rolled back)." },
                         "moves": { "type": "array", "description": "Updated move list after the undo.", "items": { "type": "object" } },
                         "turn": { "type": "string", "enum": ["w", "b"], "description": "Whose turn it is after the undo." },
@@ -417,7 +419,7 @@
                         "undo_white_remaining": { "type": "integer", "description": "White player's remaining undo chances.", "minimum": 0 },
                         "undo_black_remaining": { "type": "integer", "description": "Black player's remaining undo chances.", "minimum": 0 }
                       },
-                      "required": ["game_id", "accepted_by_user_id", "accepted_by_user_name", "fen", "moves", "turn", "move_count", "undo_white_remaining", "undo_black_remaining"]
+                      "required": ["game_id", "accepted_by_user_id", "accepted_by_user_name", "accepted_by_synthetic", "fen", "moves", "turn", "move_count", "undo_white_remaining", "undo_black_remaining"]
                     }
                   }
                 },
@@ -439,30 +441,11 @@
                       "required": ["game_id", "declined_by_user_id", "declined_by_user_name"]
                     }
                   }
-                }
-              }
-            }
-          }
-        },
-        "private-App.Models.User.{userId}": {
-          "type": "object",
-          "title": "User Channel",
-          "description": "Private channel for user-specific notifications (draw offers, invitations, resume requests, new game challenges). Each user subscribes to their own channel only.",
-          "properties": {
-            "channel_type": { "type": "string", "const": "private" },
-            "channel_pattern": { "type": "string", "const": "private-App.Models.User.{userId}" },
-            "auth_required": { "type": "boolean", "const": true },
-            "authorization_rule": {
-              "type": "string",
-              "const": "Authenticated user ID must match the {userId} in the channel name"
-            },
-            "events": {
-              "type": "object",
-              "properties": {
+                },
                 ".draw.offer.sent": {
                   "type": "object",
                   "title": "Draw Offer Sent",
-                  "description": "Fired when an opponent offers a draw. Sent to the user channel of the player receiving the offer.",
+                  "description": "Fired when an opponent offers a draw. Broadcast on the game channel; the receiving client filters on offerer_id so the sender does not see its own offer.",
                   "properties": {
                     "event_name": { "type": "string", "const": ".draw.offer.sent" },
                     "laravel_event_class": { "type": "string", "const": "App\\Events\\DrawOfferSentEvent" },
@@ -508,7 +491,7 @@
                           },
                           "required": ["id", "name"]
                         },
-                        "opponent_id": { "type": "integer", "description": "User ID of the player receiving the draw offer (the subscriber)." }
+                        "opponent_id": { "type": "integer", "description": "User ID of the player receiving the draw offer." }
                       },
                       "required": ["type", "game_id", "game", "offerer", "opponent_id"]
                     }
@@ -517,7 +500,7 @@
                 ".draw.offer.declined": {
                   "type": "object",
                   "title": "Draw Offer Declined",
-                  "description": "Fired when a player declines a draw offer. Sent to the user channel of the original offerer.",
+                  "description": "Fired when a player declines a draw offer. Broadcast on the game channel; the original offerer is identified by offerer_id.",
                   "properties": {
                     "event_name": { "type": "string", "const": ".draw.offer.declined" },
                     "laravel_event_class": { "type": "string", "const": "App\\Events\\DrawOfferDeclinedEvent" },
@@ -563,12 +546,31 @@
                           },
                           "required": ["id", "name"]
                         },
-                        "offerer_id": { "type": "integer", "description": "User ID of the original draw offerer (the subscriber)." }
+                        "offerer_id": { "type": "integer", "description": "User ID of the original draw offerer." }
                       },
                       "required": ["type", "game_id", "game", "decliner", "offerer_id"]
                     }
                   }
-                },
+                }
+              }
+            }
+          }
+        },
+        "private-App.Models.User.{userId}": {
+          "type": "object",
+          "title": "User Channel",
+          "description": "Private channel for user-specific notifications (invitations, resume requests, new game challenges). Each user subscribes to their own channel only.",
+          "properties": {
+            "channel_type": { "type": "string", "const": "private" },
+            "channel_pattern": { "type": "string", "const": "private-App.Models.User.{userId}" },
+            "auth_required": { "type": "boolean", "const": true },
+            "authorization_rule": {
+              "type": "string",
+              "const": "Authenticated user ID must match the {userId} in the channel name"
+            },
+            "events": {
+              "type": "object",
+              "properties": {
                 ".invitation.sent": {
                   "type": "object",
                   "title": "Invitation Sent",

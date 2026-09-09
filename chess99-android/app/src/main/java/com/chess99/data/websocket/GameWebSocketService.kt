@@ -113,30 +113,26 @@ class GameWebSocketService @Inject constructor(
 
         // Bind to all game events
         channel.bind("game.move", listener)
-        channel.bind("game.timer", listener)
         channel.bind("game.ended", listener)
         channel.bind("game.paused", listener)
         channel.bind("game.resumed", listener)
         channel.bind("game.activated", listener)
         channel.bind("game.chat", listener)
-        channel.bind("game.resigned", listener)
-        channel.bind("draw.offered", listener)
-        channel.bind("draw.accepted", listener)
-        channel.bind("draw.declined", listener)
-        channel.bind("undo.request", listener)
-        channel.bind("undo.accepted", listener)
-        channel.bind("undo.declined", listener)
+        channel.bind("draw.offer.sent", listener)
+        channel.bind("draw.offer.declined", listener)
+        channel.bind("game.undo.request", listener)
+        channel.bind("game.undo.accepted", listener)
+        channel.bind("game.undo.declined", listener)
         channel.bind("opponent.pinged", listener)
         channel.bind("GameConnectionEvent", listener)
-        channel.bind("GameEndedEvent", listener)
     }
 
-    private suspend fun handleGameEvent(eventName: String, jsonData: String) {
+    internal suspend fun handleGameEvent(eventName: String, jsonData: String) {
         try {
             val data = com.google.gson.JsonParser.parseString(jsonData).asJsonObject
 
-            val event = when {
-                eventName.contains("game.move") -> {
+            val event = when (eventName) {
+                "game.move" -> {
                     GameEvent.MoveMade(
                         move = data.getAsJsonObject("move"),
                         fen = data.get("fen")?.asString ?: "",
@@ -146,22 +142,22 @@ class GameWebSocketService @Inject constructor(
                         blackTime = data.get("black_time")?.asInt,
                     )
                 }
-                eventName.contains("game.ended") || eventName == "GameEndedEvent" -> {
+                "game.ended" -> {
                     GameEvent.GameEnded(
                         result = data.get("result")?.asString ?: "",
                         endReason = data.get("end_reason")?.asString ?: "",
                         winnerUserId = data.get("winner_user_id")?.asInt,
                     )
                 }
-                eventName.contains("game.paused") -> GameEvent.GamePaused
-                eventName.contains("game.resumed") -> {
+                "game.paused" -> GameEvent.GamePaused
+                "game.resumed" -> {
                     GameEvent.GameResumed(
                         whiteTime = data.get("white_time")?.asInt,
                         blackTime = data.get("black_time")?.asInt,
                     )
                 }
-                eventName.contains("game.activated") -> GameEvent.GameActivated
-                eventName.contains("game.chat") -> {
+                "game.activated" -> GameEvent.GameActivated
+                "game.chat" -> {
                     GameEvent.ChatMessage(
                         messageId = data.get("id")?.asInt ?: 0,
                         userId = data.get("sender_id")?.asInt
@@ -175,21 +171,30 @@ class GameWebSocketService @Inject constructor(
                         filtered = data.get("filtered")?.asBoolean ?: false,
                     )
                 }
-                eventName.contains("draw.offered") -> {
-                    GameEvent.DrawOffered(data.get("offered_by")?.asInt ?: 0)
+                "draw.offer.sent" -> {
+                    GameEvent.DrawOffered(data.intOrNull("offerer_id") ?: 0)
                 }
-                eventName.contains("draw.accepted") -> GameEvent.DrawAccepted
-                eventName.contains("draw.declined") -> GameEvent.DrawDeclined
-                eventName.contains("undo.request") -> {
-                    GameEvent.UndoRequested(data.get("requested_by")?.asInt ?: 0)
+                "draw.offer.declined" -> GameEvent.DrawDeclined
+                "game.undo.request" -> {
+                    GameEvent.UndoRequested(
+                        requestedBy = data.intOrNull("requested_by_user_id") ?: 0,
+                        requestedByName = data.stringOrNull("requested_by_user_name"),
+                        expiresAt = data.stringOrNull("expires_at"),
+                    )
                 }
-                eventName.contains("undo.accepted") -> GameEvent.UndoAccepted
-                eventName.contains("undo.declined") -> GameEvent.UndoDeclined
-                eventName.contains("opponent.pinged") -> GameEvent.OpponentPinged
-                eventName.contains("game.resigned") -> {
-                    GameEvent.OpponentResigned(data.get("resigned_by")?.asInt ?: 0)
+                "game.undo.accepted" -> {
+                    GameEvent.UndoAccepted(
+                        fen = data.stringOrNull("fen") ?: return,
+                        moveCount = data.intOrNull("move_count") ?: return,
+                        undoWhiteRemaining = data.intOrNull("undo_white_remaining") ?: return,
+                        undoBlackRemaining = data.intOrNull("undo_black_remaining") ?: return,
+                        acceptedByUserId = data.intOrNull("accepted_by_user_id"),
+                        acceptedBySynthetic = data.booleanOrNull("accepted_by_synthetic") ?: false,
+                    )
                 }
-                eventName == "GameConnectionEvent" -> {
+                "game.undo.declined" -> GameEvent.UndoDeclined
+                "opponent.pinged" -> GameEvent.OpponentPinged
+                "GameConnectionEvent" -> {
                     GameEvent.PlayerConnected(data.get("user_id")?.asInt ?: 0)
                 }
                 else -> {
@@ -203,6 +208,15 @@ class GameWebSocketService @Inject constructor(
             Timber.e(e, "Error handling game event: $eventName")
         }
     }
+
+    private fun JsonObject.intOrNull(key: String): Int? =
+        get(key)?.takeIf { it.isJsonPrimitive }?.asInt
+
+    private fun JsonObject.stringOrNull(key: String): String? =
+        get(key)?.takeIf { it.isJsonPrimitive }?.asString
+
+    private fun JsonObject.booleanOrNull(key: String): Boolean? =
+        get(key)?.takeIf { it.isJsonPrimitive }?.asBoolean
 
     // ── Handshake ───────────────────────────────────────────────────────
 
@@ -478,8 +492,19 @@ sealed class GameEvent {
     data class DrawOffered(val offeredBy: Int) : GameEvent()
     data object DrawAccepted : GameEvent()
     data object DrawDeclined : GameEvent()
-    data class UndoRequested(val requestedBy: Int) : GameEvent()
-    data object UndoAccepted : GameEvent()
+    data class UndoRequested(
+        val requestedBy: Int,
+        val requestedByName: String?,
+        val expiresAt: String?,
+    ) : GameEvent()
+    data class UndoAccepted(
+        val fen: String,
+        val moveCount: Int,
+        val undoWhiteRemaining: Int,
+        val undoBlackRemaining: Int,
+        val acceptedByUserId: Int?,
+        val acceptedBySynthetic: Boolean,
+    ) : GameEvent()
     data object UndoDeclined : GameEvent()
     data object OpponentPinged : GameEvent()
     data class OpponentResigned(val resignedBy: Int) : GameEvent()

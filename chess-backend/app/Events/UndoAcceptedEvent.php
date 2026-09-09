@@ -19,6 +19,8 @@ class UndoAcceptedEvent implements ShouldBroadcastNow
     public $game;
     public $acceptedBy;
     public $acceptedByUser;
+    public $acceptedByName;
+    public $acceptedBySynthetic;
     public $newFen;
     public $newMoves;
     public $newTurn;
@@ -29,16 +31,20 @@ class UndoAcceptedEvent implements ShouldBroadcastNow
      * Create a new event instance.
      *
      * @param Game $game Updated game after undo
-     * @param User $acceptedByUser User who accepted the undo
+     * @param User|null $acceptedByUser User who accepted the undo, or null when the
+     *                                  synthetic (bot) opponent accepted on the server
+     * @param string|null $syntheticName Display name to use when there is no accepting user
      * @return void
      */
-    public function __construct(Game $game, User $acceptedByUser)
+    public function __construct(Game $game, ?User $acceptedByUser, ?string $syntheticName = null)
     {
         $this->game = $game;
-        $this->acceptedBy = $acceptedByUser->id;
+        $this->acceptedBy = $acceptedByUser?->id;
         $this->acceptedByUser = $acceptedByUser;
+        $this->acceptedBySynthetic = $acceptedByUser === null;
+        $this->acceptedByName = $acceptedByUser?->name ?? $syntheticName ?? 'Computer';
         $this->newFen = $game->fen;
-        $this->newMoves = $game->moves;
+        $this->newMoves = $game->moves ?? [];
         $this->newTurn = $game->turn;
         $this->undoWhiteRemaining = $game->undo_white_remaining;
         $this->undoBlackRemaining = $game->undo_black_remaining;
@@ -74,7 +80,8 @@ class UndoAcceptedEvent implements ShouldBroadcastNow
         return [
             'game_id' => $this->game->id,
             'accepted_by_user_id' => $this->acceptedBy,
-            'accepted_by_user_name' => $this->acceptedByUser->name,
+            'accepted_by_user_name' => $this->acceptedByName,
+            'accepted_by_synthetic' => $this->acceptedBySynthetic,
             'fen' => $this->newFen,
             'moves' => $this->newMoves,
             'turn' => $this->newTurn,

@@ -229,15 +229,15 @@ class WebSocketGameService {
             console.log('Game ended event received:', event);
             this.emit('gameEnded', event);
         })
-        .listen('.undo.request', (event) => {
+        .listen('.game.undo.request', (event) => {
             console.log('Undo request event received:', event);
             this.emit('undoRequest', event);
         })
-        .listen('.undo.accepted', (event) => {
+        .listen('.game.undo.accepted', (event) => {
             console.log('Undo accepted event received:', event);
             this.emit('undoAccepted', event);
         })
-        .listen('.undo.declined', (event) => {
+        .listen('.game.undo.declined', (event) => {
             console.log('Undo declined event received:', event);
             this.emit('undoDeclined', event);
         })
@@ -247,13 +247,13 @@ class WebSocketGameService {
         })
         .listen('.draw.offer.sent', (event) => {
             // Ignore if current user is the offerer (they sent it, not receiving it)
-            if (event.offerer_id === this.user?.id) return;
+            if (event.offerer_id != null && String(event.offerer_id) === String(this.user?.id)) return;
             console.log('Draw offer received:', event);
             this.emit('drawOfferReceived', event);
         })
         .listen('.draw.offer.declined', (event) => {
             // Only notify the offerer that their offer was declined
-            if (event.offerer_id !== this.user?.id) return;
+            if (event.offerer_id == null || String(event.offerer_id) !== String(this.user?.id)) return;
             console.log('Draw offer declined:', event);
             this.emit('drawOfferDeclined', event);
         });
