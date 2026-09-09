@@ -10,6 +10,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 
 // ── Chess99 brand palette ────────────────────────────────────────────────────
@@ -27,8 +29,21 @@ val ChessBrown = Color(0xFF8B4513)
 val ChessCream = Color(0xFFF0D9B5)      // board light square
 val ChessBoardDark = Color(0xFFB58863)  // board dark square
 
+// Semantic UI tokens. ChessGreen remains the board colour; interactive
+// surfaces use the darker action green so white labels retain AA contrast in
+// both appearances.
+val ChessPageLight = Color(0xFFFBF9F4)
+val ChessSurfaceLight = Color(0xFFFFFFFF)
+val ChessTextLight = Color(0xFF1C1B18)
+val ChessMutedLight = Color(0xFF4A4739)
+val ChessBorderLight = Color(0xFF7C7967)
+val ChessActionGreen = ChessDarkGreen
+val ChessSuccess = Color(0xFF3F6B2A)
+val ChessWarning = ChessAmber
+val ChessError = Color(0xFFB3261E)
+
 private val LightColorScheme = lightColorScheme(
-    primary = ChessGreen,
+    primary = ChessActionGreen,
     onPrimary = Color.White,
     primaryContainer = Color(0xFFDCEBC7),
     onPrimaryContainer = ChessDeepGreen,
@@ -43,13 +58,13 @@ private val LightColorScheme = lightColorScheme(
     tertiaryContainer = Color(0xFFF4DAC2),
     onTertiaryContainer = Color(0xFF3A1D08),
 
-    background = Color(0xFFFBF9F4),
-    onBackground = Color(0xFF1C1B18),
-    surface = Color(0xFFFBF9F4),
-    onSurface = Color(0xFF1C1B18),
+    background = ChessPageLight,
+    onBackground = ChessTextLight,
+    surface = ChessPageLight,
+    onSurface = ChessTextLight,
     surfaceVariant = Color(0xFFE7E3D6),
-    onSurfaceVariant = Color(0xFF4A4739),
-    surfaceTint = ChessGreen,
+    onSurfaceVariant = ChessMutedLight,
+    surfaceTint = ChessActionGreen,
 
     surfaceContainerLowest = Color(0xFFFFFFFF),
     surfaceContainerLow = Color(0xFFF6F3EA),
@@ -57,18 +72,18 @@ private val LightColorScheme = lightColorScheme(
     surfaceContainerHigh = Color(0xFFEBE7DA),
     surfaceContainerHighest = Color(0xFFE5E1D3),
 
-    outline = Color(0xFF7C7967),
+    outline = ChessBorderLight,
     outlineVariant = Color(0xFFCCC8B7),
 
-    error = Color(0xFFB3261E),
+    error = ChessError,
     onError = Color.White,
     errorContainer = Color(0xFFF9DEDC),
     onErrorContainer = Color(0xFF410E0B),
 )
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Color(0xFF9CBF7C),
-    onPrimary = Color(0xFF1E2C10),
+    primary = ChessDarkGreen,
+    onPrimary = Color.White,
     primaryContainer = ChessDarkGreen,
     onPrimaryContainer = Color(0xFFDCEBC7),
 
@@ -88,7 +103,7 @@ private val DarkColorScheme = darkColorScheme(
     onSurface = Color(0xFFE9E6DC),
     surfaceVariant = Color(0xFF48463A),
     onSurfaceVariant = Color(0xFFCAC6B4),
-    surfaceTint = Color(0xFF9CBF7C),
+    surfaceTint = ChessDarkGreen,
 
     surfaceContainerLowest = Color(0xFF0E0E0A),
     surfaceContainerLow = Color(0xFF1C1C16),
@@ -103,6 +118,15 @@ private val DarkColorScheme = darkColorScheme(
     onError = Color(0xFF601410),
     errorContainer = Color(0xFF8C1D18),
     onErrorContainer = Color(0xFFF9DEDC),
+)
+
+private val Chess99Typography = Typography(
+    bodyLarge = TextStyle(fontSize = 16.sp, lineHeight = 24.sp),
+    bodyMedium = TextStyle(fontSize = 16.sp, lineHeight = 24.sp),
+    bodySmall = TextStyle(fontSize = 14.sp, lineHeight = 20.sp),
+    labelLarge = TextStyle(fontSize = 14.sp, lineHeight = 20.sp),
+    labelMedium = TextStyle(fontSize = 14.sp, lineHeight = 20.sp),
+    labelSmall = TextStyle(fontSize = 14.sp, lineHeight = 20.sp),
 )
 
 @Composable
@@ -132,6 +156,7 @@ fun Chess99Theme(
 
     MaterialTheme(
         colorScheme = colorScheme,
+        typography = Chess99Typography,
         content = content,
     )
 }

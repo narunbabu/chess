@@ -27,6 +27,10 @@ class PendingDeepLinkStore @Inject constructor(
         return route
     }
 
+    fun clear() {
+        prefs.edit { remove(KEY_ROUTE) }
+    }
+
     companion object {
         private const val PREFS_NAME = "chess99_pending_navigation"
         private const val KEY_ROUTE = "route"

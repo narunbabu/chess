@@ -10,7 +10,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -32,14 +31,14 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.chess99.R
 import com.chess99.presentation.navigation.Screen
+import com.chess99.presentation.theme.ChessActionGreen
 import com.chess99.presentation.theme.ChessDarkGreen
 import com.chess99.presentation.theme.ChessGreen
 import kotlinx.coroutines.launch
 
 /**
- * Home is the post-login landing screen. The bottom bar holds the four primary
- * tabs (Play / Lobby / Learn / Profile); the navigation drawer surfaces every
- * other destination so the app reaches parity with the web header menu.
+ * Home is the compact Play landing screen. The route-derived four-destination
+ * bar is owned by NavGraph so selected state always matches visible content.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,12 +48,10 @@ fun HomeScreen(
     /** T2: a Nearby Opponents real-player tap — opens Lobby directly on Matchmaking. */
     onNavigateToLobbyMatchmaking: () -> Unit = onNavigateToLobby,
     onNavigateToLearn: () -> Unit,
-    onNavigateToProfile: () -> Unit,
     onNavigateToGame: (Int) -> Unit,
     onNavigate: (String) -> Unit,
     onLogout: () -> Unit,
 ) {
-    var selectedTab by remember { mutableIntStateOf(0) }
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     // Shared with PlayTab below — hiltViewModel() resolves to the same
@@ -73,7 +70,7 @@ fun HomeScreen(
                 },
                 onLogout = {
                     scope.launch { drawerState.close() }
-                    onLogout()
+                    homeViewModel.logout(onLogout)
                 },
             )
         },
@@ -87,53 +84,11 @@ fun HomeScreen(
                             Icon(Icons.Default.Menu, contentDescription = "Menu")
                         }
                     },
-                    actions = {
-                        IconButton(onClick = onLogout) {
-                            Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout")
-                        }
-                    },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.surface,
                         titleContentColor = MaterialTheme.colorScheme.primary,
                     ),
                 )
-            },
-            bottomBar = {
-                NavigationBar {
-                    NavigationBarItem(
-                        icon = { Icon(Icons.Default.SportsEsports, contentDescription = null) },
-                        label = { Text("Play") },
-                        selected = selectedTab == 0,
-                        onClick = { selectedTab = 0 },
-                    )
-                    NavigationBarItem(
-                        icon = { Icon(Icons.Default.People, contentDescription = null) },
-                        label = { Text("Lobby") },
-                        selected = selectedTab == 1,
-                        onClick = {
-                            selectedTab = 1
-                            onNavigateToLobby()
-                        },
-                    )
-                    NavigationBarItem(
-                        icon = { Icon(Icons.Default.School, contentDescription = null) },
-                        label = { Text("Learn") },
-                        selected = selectedTab == 2,
-                        onClick = {
-                            selectedTab = 2
-                            onNavigateToLearn()
-                        },
-                    )
-                    NavigationBarItem(
-                        icon = { Icon(Icons.Default.Person, contentDescription = null) },
-                        label = { Text("Profile") },
-                        selected = selectedTab == 3,
-                        onClick = {
-                            selectedTab = 3
-                            onNavigateToProfile()
-                        },
-                    )
-                }
             },
         ) { paddingValues ->
             PlayTab(
@@ -297,34 +252,41 @@ private fun PlayTab(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
         ) {
-            HeroBanner()
-
             if (uiState.continuePlayingGames.isNotEmpty()) {
-                Spacer(Modifier.height(20.dp))
                 ContinuePlayingSection(
                     games = uiState.continuePlayingGames,
                     onResume = onNavigateToGame,
                     onDiscard = viewModel::discardGame,
                     onSeeAllInLobby = onPlayOnline,
                 )
+                Spacer(Modifier.height(16.dp))
             }
 
-            Spacer(Modifier.height(20.dp))
+            if (uiState.resumeLoadFailed) {
+                ResumeLoadError(
+                    hasCachedGames = uiState.continuePlayingGames.isNotEmpty(),
+                    onRetry = viewModel::refresh,
+                )
+                Spacer(Modifier.height(16.dp))
+            } else if (uiState.isResumeLoading && uiState.continuePlayingGames.isEmpty()) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(16.dp))
+            }
 
             // ── Primary play actions ────────────────────────────────────────
             SectionHeader("Start a game")
             Spacer(Modifier.height(10.dp))
             PrimaryPlayCard(
-                title = "Play vs Computer",
-                subtitle = "Challenge Stockfish · Levels 1–16",
+                title = "Play computer",
+                subtitle = "Practice offline against a computer",
                 icon = Icons.Default.SmartToy,
-                gradient = listOf(ChessGreen, ChessDarkGreen),
+                gradient = listOf(ChessActionGreen, ChessDeepActionGreen),
                 onClick = onPlayComputer,
             )
             Spacer(Modifier.height(12.dp))
             PrimaryPlayCard(
-                title = "Play Online",
-                subtitle = "Real-time games against real players",
+                title = "Play online",
+                subtitle = "Find a player near your rating",
                 icon = Icons.Default.Public,
                 gradient = listOf(Color(0xFFB07D00), Color(0xFF8B5A00)),
                 onClick = onPlayOnline,
@@ -347,17 +309,12 @@ private fun PlayTab(
             Spacer(Modifier.height(24.dp))
 
             // ── Explore grid ──────────────────────────────────────────────
-            SectionHeader("Explore")
+            SectionHeader("Keep going")
             Spacer(Modifier.height(10.dp))
 
             val actions = listOf(
-                QuickAction("Learn", Icons.Default.School, MaterialTheme.colorScheme.primary) { onLearn() },
-                QuickAction("Puzzles", Icons.Default.Extension, Color(0xFFB07D00)) { onNavigate(Screen.TacticalTrainer.route) },
-                QuickAction("Daily", Icons.Default.Today, Color(0xFF8B4513)) { onNavigate(Screen.DailyChallenges.route) },
-                QuickAction("Tournaments", Icons.Default.EmojiEvents, Color(0xFF5A7A42)) { onNavigate(Screen.ChampionshipList.route) },
-                QuickAction("Leaderboard", Icons.Default.Leaderboard, Color(0xFFB07D00)) { onNavigate(Screen.Leaderboard.route) },
+                QuickAction("Continue learning", Icons.Default.School, MaterialTheme.colorScheme.primary) { onLearn() },
                 QuickAction("Progress", Icons.AutoMirrored.Filled.ShowChart, Color(0xFF5A7A42)) { onNavigate(Screen.Progress.route) },
-                QuickAction("History", Icons.Default.History, Color(0xFF6B5B47)) { onNavigate(Screen.GameHistory.route) },
             )
             actions.chunked(2).forEach { row ->
                 Row(
@@ -381,6 +338,32 @@ private fun PlayTab(
 // ── Continue playing ────────────────────────────────────────────────────
 
 private const val MAX_CONTINUE_PLAYING_CARDS = 2
+
+@Composable
+private fun ResumeLoadError(hasCachedGames: Boolean, onRetry: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.errorContainer,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = if (hasCachedGames) {
+                    "Couldn't refresh games. Showing your last known list."
+                } else {
+                    "Couldn't check for games to resume. Offline computer play is still available."
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onRetry) { Text("Retry") }
+        }
+    }
+}
 
 @Composable
 private fun ContinuePlayingSection(
@@ -517,7 +500,7 @@ private fun NearbyOpponentsSection(
     onTapReal: (NearbyOpponent) -> Unit,
 ) {
     Column {
-        SectionHeader("Nearby Opponents")
+        SectionHeader("Players near your rating")
         Spacer(Modifier.height(10.dp))
         val visible = if (expanded) opponents else opponents.take(NEARBY_OPPONENTS_COLLAPSED_COUNT)
         visible.forEach { opponent ->
@@ -585,9 +568,10 @@ private fun NearbyOpponentCard(opponent: NearbyOpponent, onClick: () -> Unit) {
 
 @Composable
 private fun NearbyOpponentStatusDot(opponent: NearbyOpponent) {
-    // synthetic → "Available" (green); real in_game → "In game" (amber); else "Online".
+    // Computer availability is labelled explicitly and never counted as a
+    // human online player.
     val (dotColor, label) = when {
-        opponent.isSynthetic -> MaterialTheme.colorScheme.primary to "Available"
+        opponent.isSynthetic -> MaterialTheme.colorScheme.primary to "Computer · Available"
         opponent.inGame -> MaterialTheme.colorScheme.tertiary to "In game"
         else -> MaterialTheme.colorScheme.primary to "Online"
     }
@@ -623,6 +607,8 @@ private data class QuickAction(
     val tint: Color,
     val onClick: () -> Unit,
 )
+
+private val ChessDeepActionGreen = Color(0xFF2E3D1E)
 
 @Composable
 private fun HeroBanner() {

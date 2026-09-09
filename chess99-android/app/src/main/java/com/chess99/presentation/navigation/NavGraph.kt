@@ -1,10 +1,26 @@
 package com.chess99.presentation.navigation
 
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.SportsEsports
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
 import com.chess99.presentation.auth.ForgotPasswordScreen
 import com.chess99.presentation.auth.LoginScreen
@@ -19,6 +35,7 @@ import com.chess99.presentation.game.PlayComputerScreen
 import com.chess99.presentation.game.PlayMultiplayerScreen
 import com.chess99.presentation.history.GameHistoryScreen
 import com.chess99.presentation.history.GameReviewScreen
+import com.chess99.presentation.history.LocalGameReviewScreen
 import com.chess99.presentation.home.HomeScreen
 import com.chess99.presentation.learn.LearnScreen
 import com.chess99.presentation.learn.PuzzleScreen
@@ -44,16 +61,92 @@ import com.chess99.presentation.legal.TermsOfServiceContent
 import com.chess99.presentation.social.LeaderboardScreen
 import com.chess99.presentation.social.SharedResultScreen
 
+internal enum class MainDestination(val label: String, val route: String) {
+    Play("Play", Screen.Home.route),
+    Learn("Learn", Screen.Learn.route),
+    Compete("Compete", Screen.ChampionshipList.route),
+    You("You", Screen.Profile.route),
+}
+
+/** Route ownership drives the selected tab; UI-local indexes are forbidden. */
+internal fun mainDestinationForRoute(route: String?): MainDestination? {
+    val base = route?.substringBefore('?') ?: return null
+    return when {
+        base == Screen.Home.route || base == Screen.Lobby.BASE_ROUTE -> MainDestination.Play
+        base == Screen.Learn.route || base == Screen.Puzzles.route ||
+            base.startsWith("tutorial/") || base == Screen.TacticalTrainer.route ||
+            base == Screen.DailyChallenges.route -> MainDestination.Learn
+        base.startsWith("championships") || base == Screen.ChampionshipInvitations.route ||
+            base == Screen.Leaderboard.route -> MainDestination.Compete
+        base == Screen.Profile.route || base == Screen.Progress.route ||
+            base == Screen.RatingHistory.route || base == Screen.GameHistory.route ||
+            base.startsWith("game_detail/") || base.startsWith("game_review/") ||
+            base == Screen.LocalGameReview.route ||
+            base == Screen.Dashboard.route || base == Screen.Organizations.route ||
+            base == Screen.ReferralDashboard.route || base == Screen.MyKids.route ||
+            base == Screen.Subscription.route || base == Screen.AmbassadorDashboard.route ||
+            base == Screen.BecomeAmbassador.route -> MainDestination.You
+        else -> null
+    }
+}
+
+private fun NavHostController.navigateToMain(destination: MainDestination) {
+    navigate(destination.route) {
+        popUpTo(graph.findStartDestination().id) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
+    }
+}
+
+@Composable
+private fun MainNavigationBar(
+    selected: MainDestination,
+    onSelect: (MainDestination) -> Unit,
+) {
+    NavigationBar {
+        MainDestination.entries.forEach { destination ->
+            val icon = when (destination) {
+                MainDestination.Play -> Icons.Default.SportsEsports
+                MainDestination.Learn -> Icons.Default.School
+                MainDestination.Compete -> Icons.Default.EmojiEvents
+                MainDestination.You -> Icons.Default.Person
+            }
+            NavigationBarItem(
+                selected = destination == selected,
+                onClick = { onSelect(destination) },
+                icon = { Icon(icon, contentDescription = null) },
+                label = { Text(destination.label) },
+                alwaysShowLabel = true,
+            )
+        }
+    }
+}
+
 @Composable
 fun Chess99NavGraph(
     navController: NavHostController,
     startDestination: String,
     consumePendingDeepLink: () -> String? = { null },
 ) {
-    NavHost(
-        navController = navController,
-        startDestination = startDestination,
-    ) {
+    val backStackEntry by navController.currentBackStackEntryAsState()
+    val selectedMainDestination = mainDestinationForRoute(backStackEntry?.destination?.route)
+
+    Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        bottomBar = {
+            selectedMainDestination?.let { selected ->
+                MainNavigationBar(
+                    selected = selected,
+                    onSelect = navController::navigateToMain,
+                )
+            }
+        },
+    ) { contentPadding ->
+        NavHost(
+            navController = navController,
+            startDestination = startDestination,
+            modifier = Modifier.padding(contentPadding),
+        ) {
         // ── Onboarding (first-run only, pre-auth) ──────────────────────────
         composable(Screen.Onboarding.route) {
             OnboardingScreen(
@@ -173,10 +266,7 @@ fun Chess99NavGraph(
                     navController.navigate(Screen.Lobby.createRoute("matchmaking"))
                 },
                 onNavigateToLearn = {
-                    navController.navigate(Screen.Learn.route)
-                },
-                onNavigateToProfile = {
-                    navController.navigate(Screen.Profile.route)
+                    navController.navigateToMain(MainDestination.Learn)
                 },
                 onNavigateToGame = { gameId ->
                     navController.navigate(Screen.PlayMultiplayer.createRoute(gameId))
@@ -198,6 +288,11 @@ fun Chess99NavGraph(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToTacticalTrainer = {
                     navController.navigate(Screen.TacticalTrainer.route)
+                },
+                onNavigateToLocalReview = {
+                    navController.navigate(Screen.LocalGameReview.route) {
+                        launchSingleTop = true
+                    }
                 },
                 onNavigateToMultiplayerGame = { gameId ->
                     // T3: a persona pick that started a real, server-recorded
@@ -341,6 +436,12 @@ fun Chess99NavGraph(
             arguments = listOf(navArgument("gameId") { type = NavType.IntType }),
         ) {
             GameReviewScreen(
+                onNavigateBack = { navController.popBackStack() },
+            )
+        }
+
+        composable(Screen.LocalGameReview.route) {
+            LocalGameReviewScreen(
                 onNavigateBack = { navController.popBackStack() },
             )
         }
@@ -512,6 +613,7 @@ fun Chess99NavGraph(
             OpenSourceLicensesScreen(
                 onNavigateBack = { navController.popBackStack() },
             )
+        }
         }
     }
 }

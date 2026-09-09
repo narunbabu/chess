@@ -43,6 +43,7 @@ sealed class Screen(val route: String) {
     data object GameReview : Screen("game_review/{gameId}") {
         fun createRoute(gameId: Int) = "game_review/$gameId"
     }
+    data object LocalGameReview : Screen("local_game_review")
 
     // Championship
     data object ChampionshipList : Screen("championships")

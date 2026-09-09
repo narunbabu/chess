@@ -12,9 +12,12 @@ import com.chess99.data.api.objOrNull
 import com.chess99.data.api.str
 import com.chess99.data.local.TokenManager
 import com.chess99.domain.repository.AuthRepository
+import com.chess99.presentation.navigation.PendingDeepLinkStore
 import com.google.gson.JsonObject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -28,9 +31,8 @@ import javax.inject.Inject
  * `GET games/unfinished` (paused, recently abandoned via navigation) so a
  * returning player always sees a single, de-duplicated resume list.
  *
- * Errors never surface as a spinner or error card here — the section is
- * simply absent on failure (see HomeScreen.kt PlayTab), matching the rest of
- * Home which is otherwise static.
+ * Resume errors preserve the last known list and expose Retry. A failed load
+ * is never represented as an empty account.
  */
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -38,10 +40,13 @@ class HomeViewModel @Inject constructor(
     private val matchmakingApi: MatchmakingApi,
     private val tokenManager: TokenManager,
     private val authRepository: AuthRepository,
+    private val pendingDeepLinkStore: PendingDeepLinkStore,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+    private var refreshJob: Job? = null
+    private var sessionGeneration = 0L
 
     init {
         refresh()
@@ -49,11 +54,14 @@ class HomeViewModel @Inject constructor(
 
     /**
      * Reload the continue-playing list. Safe to call repeatedly (e.g. on
-     * screen resume) — failures are swallowed and simply leave the section
-     * as it was (or empty, on first load).
+     * screen resume). Failures leave the last known cards in place and set a
+     * recoverable error state.
      */
     fun refresh() {
-        viewModelScope.launch {
+        refreshJob?.cancel()
+        val generation = ++sessionGeneration
+        _uiState.value = _uiState.value.copy(isResumeLoading = true, resumeLoadFailed = false)
+        refreshJob = viewModelScope.launch {
             val currentUserId = tokenManager.getUserId()
 
             val activeDeferred = async { loadActiveGames(currentUserId) }
@@ -75,17 +83,35 @@ class HomeViewModel @Inject constructor(
 
             val nearbyOpponents = loadNearbyOpponents(userRating)
 
-            // Merge rule: active games first, then unfinished games not
-            // already present (dedupe by id).
-            val activeIds = active.map { it.id }.toSet()
-            val merged = active + unfinished.filter { it.id !in activeIds }
+            // A response from the previous account must never repaint Home
+            // after logout or a subsequent refresh.
+            if (generation != sessionGeneration || !authRepository.isLoggedIn()) return@launch
 
-            _uiState.value = _uiState.value.copy(
-                continuePlayingGames = merged,
+            _uiState.value = applyResumeLoad(_uiState.value, active, unfinished).copy(
                 hideAmbassadorEntry = hideAmbassador,
-                nearbyOpponents = nearbyOpponents,
+                nearbyOpponents = nearbyOpponents.getOrElse { _uiState.value.nearbyOpponents },
             )
         }
+    }
+
+    /**
+     * Clears account state synchronously, then navigates away. Server revoke
+     * is deliberately best-effort and cannot delay an offline logout.
+     */
+    fun logout(onSessionCleared: () -> Unit) {
+        val sessionToken = authRepository.getToken()
+        sessionGeneration++
+        refreshJob?.cancel()
+        authRepository.clearSession()
+        pendingDeepLinkStore.clear()
+        _uiState.value = HomeUiState(isResumeLoading = false)
+        // Start synchronously through local clearing; the repository moves the
+        // bounded revoke to a non-cancellable IO section before this VM is
+        // removed from the back stack.
+        viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            authRepository.logout(sessionToken)
+        }
+        onSessionCleared()
     }
 
     /** Remove a game from local state once it has been discarded/abandoned server-side. */
@@ -179,34 +205,32 @@ class HomeViewModel @Inject constructor(
 
     // ── Loaders ─────────────────────────────────────────────────────────
 
-    private suspend fun loadActiveGames(currentUserId: Int): List<ContinuePlayingGame> {
-        return try {
+    private suspend fun loadActiveGames(currentUserId: Int): Result<List<ContinuePlayingGame>> {
+        return runCatching {
             val response = gameApi.getActiveGames()
-            if (!response.isSuccessful) return emptyList()
-            val body = response.body() ?: return emptyList()
+            check(response.isSuccessful) { "Active games returned ${response.code()}" }
+            val body = checkNotNull(response.body()) { "Active games response was empty" }
             // GameController::activeGames returns {"data": [...raw Game models...], "pagination": {...}}
-            val gamesArray = body.get("data")?.arrOrNull() ?: return emptyList()
+            val gamesArray = body.get("data")?.arrOrNull() ?: emptyList()
             gamesArray.mapNotNull { el -> parseActiveGame(el.objOrNull(), currentUserId) }
-        } catch (e: Exception) {
-            Timber.e(e, "Failed to load active games for Home")
-            emptyList()
+        }.onFailure { error ->
+            Timber.e(error, "Failed to load active games for Home")
         }
     }
 
-    private suspend fun loadUnfinishedGames(): List<ContinuePlayingGame> {
-        return try {
+    private suspend fun loadUnfinishedGames(): Result<List<ContinuePlayingGame>> {
+        return runCatching {
             val response = gameApi.getUnfinishedGames()
-            if (!response.isSuccessful) return emptyList()
-            val body = response.body() ?: return emptyList()
+            check(response.isSuccessful) { "Unfinished games returned ${response.code()}" }
+            val body = checkNotNull(response.body()) { "Unfinished games response was empty" }
             // GameController::unfinishedGames returns convenience fields
             // (opponent_name, current_user_id) spread onto each raw game.
             val gamesArray = body.get("games")?.arrOrNull()
                 ?: body.get("data")?.arrOrNull()
                 ?: emptyList()
             gamesArray.mapNotNull { el -> parseUnfinishedGame(el.objOrNull()) }
-        } catch (e: Exception) {
-            Timber.e(e, "Failed to load unfinished games for Home")
-            emptyList()
+        }.onFailure { error ->
+            Timber.e(error, "Failed to load unfinished games for Home")
         }
     }
 
@@ -251,15 +275,15 @@ class HomeViewModel @Inject constructor(
      * T2: `GET v1/lobby/players` — real players first (server order, already
      * rating-proximity sorted), synthetics appended, so a beginner with no
      * nearby humans naturally still sees ≥3 cards (up to 40 bots fill the
-     * window server-side). Any failure (offline, 4xx/5xx) returns an empty
-     * list so the section is simply absent — see PlayTab in HomeScreen.kt.
+     * window server-side). Any failure preserves the last known list; nearby
+     * discovery is optional and never blocks offline computer play.
      */
-    private suspend fun loadNearbyOpponents(userRating: Int?): List<NearbyOpponent> {
-        return try {
+    private suspend fun loadNearbyOpponents(userRating: Int?): Result<List<NearbyOpponent>> {
+        return runCatching {
             val (minRating, maxRating) = RatingWindow.default(userRating)
             val response = matchmakingApi.getLobbyPlayers(minRating, maxRating)
-            if (!response.isSuccessful) return emptyList()
-            val body = response.body() ?: return emptyList()
+            check(response.isSuccessful) { "Lobby players returned ${response.code()}" }
+            val body = checkNotNull(response.body()) { "Lobby players response was empty" }
 
             val real = body.get("real_players")?.arrOrNull()?.mapNotNull { el ->
                 parseNearbyOpponent(el.objOrNull(), isSynthetic = false)
@@ -271,9 +295,8 @@ class HomeViewModel @Inject constructor(
             // Real players first (spec T2) — beginners with no nearby humans
             // naturally see bots fill the rest of the list.
             real + synthetic
-        } catch (e: Exception) {
-            Timber.e(e, "Failed to load nearby opponents for Home")
-            emptyList()
+        }.onFailure { error ->
+            Timber.e(error, "Failed to load nearby opponents for Home")
         }
     }
 
@@ -294,6 +317,8 @@ class HomeViewModel @Inject constructor(
 
 data class HomeUiState(
     val continuePlayingGames: List<ContinuePlayingGame> = emptyList(),
+    val isResumeLoading: Boolean = true,
+    val resumeLoadFailed: Boolean = false,
     val snackbarMessage: String? = null,
     /** Fail-closed: true (hidden) until the current user's age gate is confirmed. */
     val hideAmbassadorEntry: Boolean = true,
@@ -303,6 +328,29 @@ data class HomeUiState(
     /** Set once a synthetic-opponent game is created (T2 tap) — screen navigates and consumes it. */
     val startedGameId: Int? = null,
 )
+
+/**
+ * Applies an all-or-preserve resume refresh. A partial/failed network response
+ * is not evidence that the user has no active game, so the last known cards
+ * remain visible with Retry.
+ */
+internal fun applyResumeLoad(
+    current: HomeUiState,
+    active: Result<List<ContinuePlayingGame>>,
+    unfinished: Result<List<ContinuePlayingGame>>,
+): HomeUiState {
+    if (active.isFailure || unfinished.isFailure) {
+        return current.copy(isResumeLoading = false, resumeLoadFailed = true)
+    }
+    val activeGames = active.getOrThrow()
+    val activeIds = activeGames.mapTo(mutableSetOf()) { it.id }
+    val merged = activeGames + unfinished.getOrThrow().filter { it.id !in activeIds }
+    return current.copy(
+        continuePlayingGames = merged,
+        isResumeLoading = false,
+        resumeLoadFailed = false,
+    )
+}
 
 /** A single card in Home's "Nearby Opponents" section (T2). */
 data class NearbyOpponent(
